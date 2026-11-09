@@ -1,0 +1,28 @@
+[package]
+name = 'peabiru'
+publish = false
+version = '0.0.1'
+edition = '2021'
+rust-version = '1.81'
+
+[lib]
+crate-type = [ 'rlib', 'staticlib' ]
+name = 'peabiru'
+
+[[bin]]
+name = 'document'
+path = 'document.rs'
+
+[dependencies]
+extendr-api = '0.9'
+# Development: the core comes from the workspace by path. Before a CRAN
+# release, switch to the published version pinned exactly (peabiru-core =
+# '=x.y.z'), then rextendr::vendor_crates() -- cargo vendor does not package
+# path dependencies, and CRAN builds offline from vendor.tar.xz.
+peabiru-core = { path = '../../../crates/peabiru-core' }
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 2
+strip = true

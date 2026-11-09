@@ -1,0 +1,16 @@
+[package]
+name = "peabiru-python"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "_peabiru"
+crate-type = ["cdylib"]
+
+[dependencies]
+peabiru-core.workspace = true
+pyo3 = { version = "0.27.2", features = ["abi3-py39"] }

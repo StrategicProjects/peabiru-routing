@@ -1,0 +1,17 @@
+[package]
+name = "peabiru-cli"
+description = "Command-line interface and benchmark driver for the peabiru routing engine"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[[bin]]
+name = "peabiru"
+path = "src/main.rs"
+
+[dependencies]
+peabiru-core.workspace = true

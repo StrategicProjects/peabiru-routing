@@ -1,0 +1,28 @@
+/target/
+.DS_Store
+.idea/
+.vscode/
+__pycache__/
+*.so
+*.pyd
+.venv/
+/python/dist/
+
+# R build products
+/r/src/*.o
+/r/src/*.so
+/r/src/*.dll
+/r/src/rust/target/
+/r/src/rust/vendor/
+/r/..Rcheck/
+/r/*.tar.gz
+.Rproj.user/
+.Rhistory
+
+# Benchmark data and results (downloaded/regenerated)
+/bench/data/
+/bench/results/
+
+# Local agent scaffolding
+.claude/
+/CLAUDE.md

@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = ["crates/peabiru-core", "crates/peabiru-cli", "python"]
+# `cargo build`/`cargo test` at the root skip the Python extension: it links
+# against libpython and is built by maturin.
+default-members = ["crates/peabiru-core", "crates/peabiru-cli"]
+# The R package's crate is built by R CMD INSTALL with its own lockfile and
+# vendored sources (CRAN builds offline), so it stays outside the workspace.
+exclude = ["r"]
+
+[workspace.package]
+version = "0.0.1"
+authors = ["André Leite <leite@castlab.org>"]
+edition = "2021"
+rust-version = "1.81"
+license = "MIT"
+repository = "https://github.com/StrategicProjects/peabiru-routing"
+homepage = "https://github.com/StrategicProjects/peabiru-routing"
+
+[workspace.dependencies]
+peabiru-core = { path = "crates/peabiru-core", version = "0.0.1" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 2
