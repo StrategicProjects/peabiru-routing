@@ -97,3 +97,117 @@ Sanity checks on the matrices:
   below the speed ratio 12 / 3.6 = 3.3. The likely causes (not verified
   here) are bike routes detouring around streets above LTS 2 and the
   walking access/egress legs, which do not scale with mode speed.
+
+# r5r public-transport baseline
+
+Same machine, R, r5r and Java as above (`bench/results/r5r/transit_versions.txt`),
+but with transit: `mode = c("WALK", "TRANSIT")` all-to-all on the hexgrid.
+
+## Running
+
+```sh
+bench/r5r/run_transit.sh        # both cities (poa, spo); about 2.5 minutes
+bench/r5r/run_transit.sh spo    # one city
+```
+
+`run_transit.sh` works like `run_r5r.sh`: one `Rscript` per city under
+`/usr/bin/time -l`, peak RSS to `transit_memory.csv`, and it resets the
+`transit_*.csv` files each time. Heap is `-Xmx6G` (`R5R_XMX` overrides).
+`bench_transit.R <city>` copies `<city>_osm.pbf` and the GTFS zips
+(POA: `poa_eptc.zip` and `poa_trensurb.zip`; SPO: `spo.zip`) into a fresh
+`bench/data/r5r/<city>-transit/`. It does **not** copy `poa_elevation.tif`,
+so `elevation = "NONE"`. It then times `build_network()` there.
+
+Parameters: `departure_datetime = 2019-05-13 14:00` (America/Sao_Paulo,
+Monday), `seed = 42`, and otherwise r5r defaults written out:
+`time_window = 10`, `max_walk_time = Inf`, `max_trip_duration = 120`,
+`walk_speed = 3.6`, `max_rides = 3`, `draws_per_minute = 5`. The date is valid
+for both feeds. POA's EPTC calendar runs 2019-04-15..2019-07-15 (weekday
+services, with no `calendar_dates` exception on 05-13), and Trensurb's runs
+2019-03-01..2019-12-31. SPO is frequency-based (`frequencies.txt`), and its
+calendar runs 2008-01-01..2020-05-01 on every day. SPO's
+`calendar.txt`/`agency.txt` hold every row twice; R5 reports 7
+`DuplicateKeyError`s in `gtfs_errors.csv`, which do no harm because the
+duplicates are identical.
+
+| Setting | Call | Output |
+|---|---|---|
+| `TRANSIT` | `travel_time_matrix`, `percentiles = c(5,25,50,75,95)` | `<city>_TRANSIT.csv` |
+| `tw1` | same, `time_window = 1` | `<city>_TRANSIT_tw1.csv` |
+| `mwt15` | same, `max_walk_time = 15` | `<city>_TRANSIT_mwt15.csv` |
+| `expanded` | `expanded_travel_time_matrix`, `breakdown = TRUE`, first 50 hexgrid ids (file order) x all | `<city>_TRANSIT_expanded.csv` |
+| `WALK` | walk-only `travel_time_matrix` on the same transit network (sanity reference only) | `<city>_WALK_transitnet.csv` |
+
+Each `travel_time_matrix` setting runs as follows. First a warm-up call with
+10 threads. Then 3 timed calls with 10 threads, of which the median is kept.
+Then 1 timed call with 1 thread. `TRANSIT` also gets one call with `seed = 43`.
+The expanded matrix runs twice with 10 threads. All of these outputs are
+compared pair by pair (`transit_determinism.csv`; a pair counts as changed if
+any percentile differs or if it is missing from one of the two outputs).
+Other files: `transit_timings.csv` / `transit_timings_raw.csv`
+(`city,setting,n_threads,phase,seconds,n_pairs,n_non_na`), `transit_sanity.csv`,
+and `run_transit_<city>.log`.
+
+## Results (run of 2026-11-09)
+
+Seconds. Route time is the median of 3 after a warm-up (1 thread: a single
+run). "Reach p50" is the share of the n² pairs that have a `travel_time_p50`.
+Unreachable pairs are omitted, as in the street baseline.
+
+| City | Build (s) | Setting | 1 thread (s) | 10 threads (s) | Rows | Reach p50 | Reach walk-only |
+|---|---:|---|---:|---:|---:|---:|---:|
+| POA (1227 pts, scheduled) | 4.59 | TRANSIT | 23.08 | 4.20 | 1,475,387 | 97.9% | 52.4% |
+| | | tw1 | 15.84 | 3.55 | 1,472,938 | 97.8% | |
+| | | mwt15 | 5.45 | 1.10 | 1,233,130 | 81.8% | |
+| | | expanded 50 x 1227 | | 1.69 | 605,460 | | |
+| SPO (323 pts, frequency) | 2.35 | TRANSIT | 7.86 | 1.38 | 104,326 | 99.99% | 98.7% |
+| | | tw1 | 2.48 | 0.47 | 104,325 | 99.99% | |
+| | | mwt15 | 2.58 | 0.45 | 60,152 | 57.7% | |
+| | | expanded 50 x 323 | | 1.86 | 807,400 | | |
+
+Peak RSS of the whole process (R + JVM, `-Xmx6G`): POA 2865 MiB (wall
+115 s), SPO 3210 MiB (wall 32 s).
+
+Determinism (`transit_determinism.csv`):
+
+- With the same seed, every setting and both cities give **identical**
+  outputs: across the 3 repetitions, between 10 threads and 1 thread, and
+  between the two runs of the expanded matrix (row for row, after sorting).
+- With `seed = 43` instead of 42, **POA (scheduled) is unchanged**: 0 of
+  1,475,387 pairs differ, because no randomness is involved.
+  **SPO (frequency-based) changes 63.8%** of its pairs in at least one
+  percentile (66,590 of 104,327). The p50 changes on 27.2% of the pairs
+  (28,332); the mean absolute p50 difference is 0.37 min and the maximum is
+  8 min. The seed only drives the random frequency offsets (Monte Carlo
+  draws), so a frequency-feed comparison with peabiru has to either reproduce
+  R5's RNG stream or be done in distribution.
+
+Sanity checks (`transit_sanity.csv`):
+
+- Percentiles are ordered p5 <= p25 <= p50 <= p75 <= p95 on 100% of the pairs
+  that have all five, in every setting.
+- With `max_walk_time = Inf`, transit p50 <= walk-only p50 on 100% of the pairs
+  reachable both ways, and strictly faster on 92.2% (POA) and 75.0% (SPO).
+  Mean over those pairs: POA 40.6 vs 75.2 min walking; SPO 44.0 vs 61.0 min.
+  No pair is reachable on foot but not with transit.
+- `mwt15` caps the direct walk too. Transit p50 > walk on 29,622 POA and
+  14,606 SPO pairs, and in all but 210 / 59 of them the walk-only time is
+  above 15 min. 87,181 / 43,049 pairs that can be walked within 120 min
+  become unreachable.
+- POA `tw1` gives p5 = p25 = ... = p95 on every pair: with a scheduled feed
+  and a single departure minute there is a single travel time. SPO `tw1` still
+  spreads (mean p5 42.5 vs p95 46.0 min) because of the 5 frequency draws.
+- Pairs with a time at some percentiles but not at all of them: POA TRANSIT
+  1,475,387 rows but 1,473,547 with a p50. The high percentiles cross the
+  120 min cutoff on some departures and become `NA`.
+- The TRANSIT diagonal is mostly 0 (unlike the street-only matrices), but it
+  still reaches 49 min in POA, at the same badly snapped hexagons as before.
+- Expanded matrix: POA has 1 row per pair x departure minute (10 minutes,
+  `draw_number` always 1). SPO has 50 rows per pair (10 minutes x 5 draws).
+  `total_time` is fractional minutes. 1,883 (POA) / 294 (SPO) rows are
+  unreachable (`NA`). Taking the median of `total_time` over the rows of a
+  pair (type-1 quantile) and flooring it reproduces the `TRANSIT` p50 on only
+  ~94–95% of the pairs (mean abs. difference 0.5 min). It is therefore an
+  oracle for *paths and per-minute times*, **not** an exact recipe for R5's
+  percentile and rounding rule. That rule still has to be read in R5's
+  `TravelTimeReducer` before a percentile-exact comparison.
