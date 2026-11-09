@@ -9,8 +9,10 @@
 //! return the same numbers.
 
 pub mod gtfs;
+pub mod jcompat;
 pub mod osm;
 pub mod street;
+pub mod transit;
 
 /// Version of this crate, as published.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

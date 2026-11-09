@@ -308,7 +308,7 @@ impl Builder<'_> {
     }
 }
 
-fn build_adjacency(net: &mut StreetNetwork) {
+pub(crate) fn build_adjacency(net: &mut StreetNetwork) {
     let nv = net.n_vertices();
     let ne = net.n_edges();
     let mut out_deg = vec![0u32; nv + 1];

@@ -113,6 +113,8 @@ fn read_points(path: &str) -> (Vec<String>, Vec<(f64, f64)>) {
 }
 
 fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats: usize) {
+    // A directory is a network folder like r5r's: one .pbf plus GTFS zips.
+    let is_dir = std::path::Path::new(pbf).is_dir();
     use peabiru_core::street::{
         build_network, travel_time_matrix, BuildOptions, Mode, RouteParams,
     };
@@ -123,10 +125,28 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
         _ => usage(),
     };
     let t0 = Instant::now();
-    let net = build_network(pbf, &BuildOptions { n_threads }).unwrap_or_else(|e| {
-        eprintln!("{e}");
-        std::process::exit(1)
-    });
+    let net = if is_dir {
+        let (net, layer) = peabiru_core::transit::build_from_dir(pbf, &BuildOptions { n_threads })
+            .unwrap_or_else(|e| {
+                eprintln!("{e}");
+                std::process::exit(1)
+            });
+        let linked = layer.stop_vertex.iter().filter(|&&v| v >= 0).count();
+        eprintln!(
+            "feeds {:?}  stops {} (linked {})  patterns {}  frequencies {}",
+            layer.feed_ids,
+            layer.stop_ids.len(),
+            linked,
+            layer.patterns.len(),
+            layer.has_frequencies
+        );
+        net
+    } else {
+        build_network(pbf, &BuildOptions { n_threads }).unwrap_or_else(|e| {
+            eprintln!("{e}");
+            std::process::exit(1)
+        })
+    };
     let build_s = t0.elapsed().as_secs_f64();
     let (ids, pts) = read_points(points);
     let params = RouteParams {

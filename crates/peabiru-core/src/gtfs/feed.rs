@@ -110,6 +110,8 @@ pub struct Frequency {
 /// The tables of one feed.
 #[derive(Debug, Clone, Default)]
 pub struct Feed {
+    /// `feed_info.feed_id`, when present.
+    pub feed_id: Option<String>,
     pub stops: Vec<Stop>,
     pub routes: Vec<Route>,
     pub trips: Vec<Trip>,
@@ -155,6 +157,14 @@ impl Feed {
                 column,
                 value: value.into(),
             };
+
+        table(a, "feed_info.txt", false, |h, _, r| {
+            let id = r.get(h.col("feed_id"));
+            if feed.feed_id.is_none() && !id.is_empty() {
+                feed.feed_id = Some(id.to_string());
+            }
+            Ok(())
+        })?;
 
         table(a, "stops.txt", true, |h, n, r| {
             let num = |c, column| -> Result<f64, GtfsError> {

@@ -37,7 +37,7 @@ fn compute_angles(net: &mut StreetNetwork, k: usize) {
 }
 
 /// Add a vertex at fixed-point coordinates.
-fn add_vertex_fixed(net: &mut StreetNetwork, lat: i32, lon: i32) -> u32 {
+pub(crate) fn add_vertex_fixed(net: &mut StreetNetwork, lat: i32, lon: i32) -> u32 {
     net.v_lat.push(lat);
     net.v_lon.push(lon);
     net.v_flags.push(0);
@@ -75,7 +75,12 @@ fn set_geometry(net: &mut StreetNetwork, k: usize, pts: &[(i32, i32)]) {
 fn add_link(net: &mut StreetNetwork, from: u32, to: u32, next_generated_id: &mut i64) {
     let way = -*next_generated_id;
     *next_generated_id += 1;
-    let k = add_pair(net, from, to, 1, way);
+    add_link_pair(net, from, to, 1, way);
+}
+
+/// A connector pair usable by every mode (R5 `allowAllModes` + LINK).
+pub(crate) fn add_link_pair(net: &mut StreetNetwork, from: u32, to: u32, length_mm: i32, way: i64) {
+    let k = add_pair(net, from, to, length_mm, way);
     let f = ALLOWS_PEDESTRIAN | ALLOWS_BIKE | ALLOWS_CAR | LINK;
     net.edge_flags[2 * k] = f;
     net.edge_flags[2 * k + 1] = f;
