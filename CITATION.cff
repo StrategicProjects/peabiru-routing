@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+message: "If you use peabiru, please cite it as below."
+type: software
+title: "peabiru: multimodal routing on OpenStreetMap and GTFS networks"
+abstract: >-
+  peabiru computes travel-time matrices and accessibility on multimodal
+  transport networks (walk, bicycle, car and public transport) built from
+  OpenStreetMap extracts and GTFS feeds. Its routing engine is a Rust port of
+  Conveyal's R5 and reproduces the results of the R package r5r exactly,
+  without a Java runtime. The same engine is distributed as the Rust crate
+  peabiru-core and as the R and Python packages peabiru.
+authors:
+  - given-names: André
+    family-names: Leite
+    email: leite@castlab.org
+    orcid: "https://orcid.org/0000-0002-4718-9766"
+  - given-names: Marcos
+    family-names: Wasiliew
+    email: marcos.wasiliew@gmail.com
+    orcid: "https://orcid.org/0009-0004-4694-3159"
+  - given-names: Hugo
+    family-names: Vasconcelos
+    email: hugo.vasconcelos@ufpe.br
+    orcid: "https://orcid.org/0000-0001-6249-0920"
+  - given-names: Carlos
+    family-names: Amorim
+    email: carlos.agaf@ufpe.br
+    orcid: "https://orcid.org/0000-0001-6315-8305"
+  - given-names: Diogo
+    family-names: Bezerra
+    email: diogo.bezerra@ufpe.br
+    orcid: "https://orcid.org/0000-0002-1216-8674"
+  - given-names: Júlia
+    family-names: Nascimento Barreto
+    email: juliabarreto@gd.seplag.pe.gov.br
+    orcid: "https://orcid.org/0009-0004-2851-7770"
+version: 0.0.1
+license: MIT
+repository-code: "https://github.com/StrategicProjects/peabiru-routing"
+keywords:
+  - routing
+  - accessibility
+  - travel-time matrix
+  - public transport
+  - GTFS
+  - OpenStreetMap
+  - RAPTOR
+  - R5
+  - Rust
