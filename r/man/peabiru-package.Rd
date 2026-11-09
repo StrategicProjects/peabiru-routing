@@ -6,8 +6,26 @@
 \alias{peabiru-package}
 \title{peabiru: multimodal routing on OpenStreetMap and GTFS networks}
 \description{
-Computes travel-time matrices, accessibility and isochrones on multimodal transport networks (walk, bike, car and public transport) built from 'OpenStreetMap' extracts and 'GTFS' feeds. The routing engine is written in 'Rust' and shared with the 'Python' package of the same name; no 'Java' runtime is required.
+peabiru provides the routing functions of the 'r5r' package --
+\code{\link[r5r:build_network]{build_network()}}, \code{\link[r5r:travel_time_matrix]{travel_time_matrix()}}, \code{\link[r5r:accessibility]{accessibility()}},
+\code{\link[r5r:expanded_travel_time_matrix]{expanded_travel_time_matrix()}} and \code{\link[r5r:arrival_travel_time_matrix]{arrival_travel_time_matrix()}} -- with
+the same arguments, defaults and results, computed by a 'Rust' port of the
+'R5' routing engine that r5r 2.5.0 drives (R5 7.6). No 'Java' is needed.
+Options that peabiru does not support yet are errors, never silently
+ignored.
 }
+\section{Sample data}{
+
+\code{system.file("extdata/spo", package = "peabiru")} holds a small network
+for examples and tests, cut from the Sao Paulo sample data of the 'r5r'
+package: \code{spo_osm.pbf}, the streets around Avenida Paulista (data
+(c) OpenStreetMap contributors, available under the Open Database
+License, \url{https://www.openstreetmap.org/copyright}); \code{spo_gtfs.zip}, the
+SPTrans frequency-based 'GTFS' feed shipped with r5r, without
+\code{shapes.txt}; and \code{spo_points.csv}, 27 points of r5r's hexagonal grid
+with their population and opportunity counts.
+}
+
 \author{
 \strong{Maintainer}: André Leite \email{leite@castlab.org} (\href{https://orcid.org/0000-0002-4718-9766}{ORCID})
 

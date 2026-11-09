@@ -1,0 +1,263 @@
+#' Calculate minute-by-minute travel times between origin destination pairs
+#'
+#' The travel time of every trip between each origin and destination, for
+#' every departure minute in the time window (and every Monte Carlo draw
+#' with frequency-based 'GTFS'), by public transport with walk access and
+#' egress (`c("WALK", "TRANSIT")`). Arguments, defaults and the result are
+#' those of `r5r::expanded_travel_time_matrix()` (r5r 2.5.0), with the same
+#' values.
+#'
+#' Only public transport is supported: with a street mode alone r5r reports
+#' the same trip for every minute of a departure time taken from the clock
+#' (`Sys.time()`), which peabiru does not reproduce; that is an error, as
+#' are transit with `"BICYCLE"` or `"CAR"` access or a non-walk
+#' `mode_egress`, a subset of transit modes, scenarios and `output_dir`.
+#'
+#' @inheritParams travel_time_matrix
+#' @param breakdown A logical. Whether to break each trip down into access,
+#'   waiting, in-vehicle, transfer and egress times, and the number of rides.
+#'
+#' @return A `data.frame` with `from_id`, `to_id`, `departure_time`
+#'   (`"HH:MM:SS"`), `draw_number`, with `breakdown = TRUE` `access_time`,
+#'   `wait_time`, `ride_time`, `transfer_time`, `egress_time`, then `routes`
+#'   (route ids joined by `"|"`, or `"[WALK]"`), with `breakdown = TRUE`
+#'   `n_rides`, and `total_time`. Times are in minutes, with one decimal.
+#'   Trips longer than `max_trip_duration` have `NA` times and routes.
+#' @export
+#' @examples
+#' data_path <- system.file("extdata/spo", package = "peabiru")
+#' network <- build_network(data_path, n_threads = 2)
+#' points <- read.csv(file.path(data_path, "spo_points.csv"))
+#'
+#' ettm <- expanded_travel_time_matrix(
+#'   network, points[1:2, ], points,
+#'   mode = c("WALK", "TRANSIT"),
+#'   departure_datetime = as.POSIXct("2019-05-13 14:00:00",
+#'                                   tz = "America/Sao_Paulo"),
+#'   time_window = 2,
+#'   breakdown = TRUE,
+#'   seed = 42,
+#'   n_threads = 2
+#' )
+#' head(ettm)
+expanded_travel_time_matrix <- function(r5r_network,
+                                        origins,
+                                        destinations,
+                                        mode = "WALK",
+                                        mode_egress = "WALK",
+                                        departure_datetime = NULL,
+                                        time_window = 10L,
+                                        breakdown = FALSE,
+                                        max_walk_time = Inf,
+                                        max_bike_time = Inf,
+                                        max_car_time = Inf,
+                                        max_trip_duration = 120L,
+                                        walk_speed = 3.6,
+                                        bike_speed = 12,
+                                        max_rides = 3,
+                                        max_lts = 2,
+                                        new_carspeeds = NULL,
+                                        carspeed_scale = 1,
+                                        new_lts = NULL,
+                                        draws_per_minute = 5L,
+                                        seed = NULL,
+                                        n_threads = Inf,
+                                        verbose = FALSE,
+                                        progress = TRUE,
+                                        output_dir = NULL) {
+  # mirrors r5r R/expanded_travel_time_matrix.R
+  origins <- assign_points_input(origins, "origins")
+  destinations <- assign_points_input(destinations, "destinations")
+  mode_list <- assign_mode(mode, mode_egress)
+  check_expanded_mode(mode_list)
+  departure <- assign_departure(departure_datetime, mode_list)
+
+  assert_network(r5r_network)
+  check_transit_availability_on_date(r5r_network, departure)
+
+  max_walk_time <- assign_max_street_time(max_walk_time, walk_speed, max_trip_duration, "walk")
+  max_bike_time <- assign_max_street_time(max_bike_time, bike_speed, max_trip_duration, "bike")
+  max_car_time <- assign_max_street_time(max_car_time, NULL, max_trip_duration, "car")
+  max_trip_duration <- assign_max_trip_duration(
+    max_trip_duration, mode_list, max_walk_time, max_bike_time, max_car_time
+  )
+
+  assert_count(time_window, "time_window", positive = TRUE)
+  check_draws(draws_per_minute)
+  seed <- seed_args(seed)
+  check_speed(walk_speed, "walk")
+  check_speed(bike_speed, "bike")
+  assert_count(max_rides, "max_rides", positive = TRUE)
+  check_max_lts(max_lts)
+  threads <- assign_n_threads(n_threads)
+  check_messages(verbose, progress)
+  check_output_dir(output_dir)
+  assert_flag(breakdown, "breakdown")
+  check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+
+  res <- rs_expanded(
+    r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    FALSE, departure$yyyymmdd, departure$seconds, as.integer(time_window),
+    max_walk_time, max_trip_duration, as.double(walk_speed),
+    as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
+    threads
+  )
+  expanded_result(res, origins, destinations, breakdown, max_trip_duration)
+}
+
+#' Calculate travel time matrix between origin destination pairs considering a
+#' time of arrival
+#'
+#' For each origin and destination, the trip that leaves latest and still
+#' arrives by `arrival_datetime`, by public transport with walk access and
+#' egress (`c("WALK", "TRANSIT")`). Arguments, defaults and the result are
+#' those of `r5r::arrival_travel_time_matrix()` (r5r 2.5.0), with the same
+#' values: as r5r does, departures are searched minute by minute from
+#' `arrival_datetime - max_trip_duration`, which may fall on the day before.
+#'
+#' Only public transport is supported (see
+#' [expanded_travel_time_matrix()]); the other unsupported options are
+#' errors too.
+#'
+#' @inheritParams expanded_travel_time_matrix
+#' @param arrival_datetime A POSIXct, the time by which trips must arrive,
+#'   taken in its own time zone.
+#'
+#' @return A `data.frame` with the columns of
+#'   [expanded_travel_time_matrix()]: one row per origin and destination
+#'   reached in time.
+#' @export
+#' @examples
+#' data_path <- system.file("extdata/spo", package = "peabiru")
+#' network <- build_network(data_path, n_threads = 2)
+#' points <- read.csv(file.path(data_path, "spo_points.csv"))
+#'
+#' attm <- arrival_travel_time_matrix(
+#'   network, points[1:2, ], points,
+#'   mode = c("WALK", "TRANSIT"),
+#'   arrival_datetime = as.POSIXct("2019-05-13 15:00:00",
+#'                                 tz = "America/Sao_Paulo"),
+#'   max_trip_duration = 30,
+#'   seed = 42,
+#'   n_threads = 2
+#' )
+#' head(attm)
+arrival_travel_time_matrix <- function(r5r_network,
+                                       origins,
+                                       destinations,
+                                       mode = "WALK",
+                                       mode_egress = "WALK",
+                                       arrival_datetime,
+                                       breakdown = FALSE,
+                                       max_walk_time = Inf,
+                                       max_bike_time = Inf,
+                                       max_car_time = Inf,
+                                       max_trip_duration = 120L,
+                                       walk_speed = 3.6,
+                                       bike_speed = 12,
+                                       max_rides = 3,
+                                       max_lts = 2,
+                                       new_carspeeds = NULL,
+                                       carspeed_scale = 1,
+                                       new_lts = NULL,
+                                       draws_per_minute = 5L,
+                                       seed = NULL,
+                                       n_threads = Inf,
+                                       verbose = FALSE,
+                                       progress = TRUE,
+                                       output_dir = NULL) {
+  # mirrors r5r R/arrival_travel_time_matrix.R
+  if (missing(arrival_datetime) || is.null(arrival_datetime)) {
+    stop("'arrival_datetime' is required. Supply a POSIXct value specifying ",
+         "when trips must arrive. For trips that do not depend on time, use ",
+         "travel_time_matrix().", call. = FALSE)
+  }
+  assert_number(n_threads, "n_threads", lower = 1)
+  assert_network(r5r_network)
+
+  origins <- assign_points_input(origins, "origins")
+  destinations <- assign_points_input(destinations, "destinations")
+  mode_list <- assign_mode(mode, mode_egress)
+  check_expanded_mode(mode_list)
+
+  # set before the departure datetime, which depends on the final
+  # max_trip_duration
+  max_walk_time <- assign_max_street_time(max_walk_time, walk_speed, max_trip_duration, "walk")
+  max_bike_time <- assign_max_street_time(max_bike_time, bike_speed, max_trip_duration, "bike")
+  max_car_time <- assign_max_street_time(max_car_time, NULL, max_trip_duration, "car")
+  max_trip_duration <- assign_max_trip_duration(
+    max_trip_duration, mode_list, max_walk_time, max_bike_time, max_car_time
+  )
+
+  # calculate departure datetime, exactly as r5r does (POSIXct arithmetic,
+  # then the date and clock time in the POSIXct's time zone)
+  if (!inherits(arrival_datetime, "POSIXct")) {
+    fail_assert("arrival_datetime", "Must be a single POSIXct date-time without missing values")
+  }
+  departure_datetime <- arrival_datetime - as.difftime(max_trip_duration, units = "mins")
+  departure <- assign_departure(departure_datetime, mode_list, "arrival_datetime")
+  check_transit_availability_on_date(r5r_network, departure)
+
+  # the time window is max_trip_duration
+  check_draws(draws_per_minute)
+  seed <- seed_args(seed)
+  check_speed(walk_speed, "walk")
+  check_speed(bike_speed, "bike")
+  assert_count(max_rides, "max_rides", positive = TRUE)
+  check_max_lts(max_lts)
+  threads <- assign_n_threads(n_threads)
+  check_messages(verbose, progress)
+  check_output_dir(output_dir)
+  assert_flag(breakdown, "breakdown")
+  check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+
+  res <- rs_expanded(
+    r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    TRUE, departure$yyyymmdd, departure$seconds, max_trip_duration,
+    max_walk_time, max_trip_duration, as.double(walk_speed),
+    as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
+    threads
+  )
+  expanded_result(res, origins, destinations, breakdown, max_trip_duration)
+}
+
+check_expanded_mode <- function(mode_list) {
+  if (!mode_list$transit) {
+    unsupported(paste0(
+      "An expanded or arrival travel time matrix by ", mode_list$direct_modes,
+      " alone (use travel_time_matrix() for street modes)"
+    ))
+  }
+  invisible(TRUE)
+}
+
+# Column assembly of r5r's expanded and arrival matrices.
+expanded_result <- function(res, origins, destinations, breakdown, max_trip_duration) {
+  cols <- list(
+    from_id = origins$id[res$from],
+    to_id = destinations$id[res$to],
+    departure_time = seconds_to_hhmmss(res$departure),
+    draw_number = res$draw
+  )
+  if (breakdown) {
+    cols <- c(cols, res[c("access_time", "wait_time", "ride_time",
+                          "transfer_time", "egress_time", "routes",
+                          "n_rides", "total_time")])
+  } else {
+    cols <- c(cols, res[c("routes", "total_time")])
+  }
+  travel_times <- new_df(cols)
+
+  # r5r: replace travel times of non-viable trips with NAs
+  over <- which(travel_times$total_time > max_trip_duration)
+  if (length(over) > 0) {
+    na_cols <- if (breakdown) {
+      c("access_time", "wait_time", "ride_time", "transfer_time",
+        "egress_time", "routes", "n_rides", "total_time")
+    } else {
+      c("routes", "total_time")
+    }
+    for (j in na_cols) travel_times[[j]][over] <- NA
+  }
+  travel_times
+}

@@ -1,0 +1,19 @@
+# The small network shipped with the package: a crop of r5r's Sao Paulo
+# sample (streets around Avenida Paulista and the SPTrans frequency-based
+# GTFS), with 27 points.
+fixture_path <- function() system.file("extdata/spo", package = "peabiru")
+
+fixture_network <- local({
+  network <- NULL
+  function() {
+    if (is.null(network)) network <<- build_network(fixture_path(), n_threads = 2)
+    network
+  }
+})
+
+fixture_points <- function() {
+  read.csv(file.path(fixture_path(), "spo_points.csv"),
+           colClasses = c(id = "character"))
+}
+
+departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")

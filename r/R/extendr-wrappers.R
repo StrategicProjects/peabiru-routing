@@ -9,4 +9,47 @@ NULL
 #' @noRd
 rs_core_version <- function() .Call(wrap__rs_core_version)
 
+#' Build a network from a directory with one `.pbf` and any GTFS zips.
+#' @noRd
+rs_build_network <- function(data_path, n_threads) .Call(wrap__rs_build_network, data_path, n_threads)
+
+#' Whether `ptr` points to a live network.
+#' @noRd
+rs_network_valid <- function(ptr) .Call(wrap__rs_network_valid, ptr)
+
+#' Sizes of the network, for `print()`.
+#' @noRd
+rs_network_info <- function(ptr) .Call(wrap__rs_network_info, ptr)
+
+#' Number of services in the network and of those active on `date`
+#' (`yyyymmdd`), as r5r's `getTransitServiceAvailability`.
+#' @noRd
+rs_transit_availability <- function(ptr, date) .Call(wrap__rs_transit_availability, ptr, date)
+
+#' Street-only travel-time matrix: the reported pairs as
+#' `list(from, to, minutes)`, origin-major.
+#' @noRd
+rs_street_ttm <- function(ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads) .Call(wrap__rs_street_ttm, ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads)
+
+#' Walk + transit travel-time matrix: the reported pairs as
+#' `list(from, to, p1, ..., pk)` (percentiles ascending, NA where r5r
+#' gives NA), origin-major.
+#' @noRd
+rs_transit_ttm <- function(ptr, olat, olon, dlat, dlon, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads) .Call(wrap__rs_transit_ttm, ptr, olat, olon, dlat, dlon, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads)
+
+#' Accessibility values `[origin][opportunity][percentile][cutoff]`,
+#' flattened. `mode` is `TRANSIT` (walk access and egress) or a street
+#' mode; `opportunities` is a list of double vectors, one per column.
+#' @noRd
+rs_accessibility <- function(ptr, olat, olon, dlat, dlon, opportunities, mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads) .Call(wrap__rs_accessibility, ptr, olat, olon, dlat, dlon, opportunities, mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads)
+
+#' Expanded (or, with `arrival`, arrival) travel-time matrix as columns:
+#' `from`, `to` (1-based), `departure` (seconds after midnight), `draw`,
+#' the breakdown times (NA where r5r gives NA), `routes`, `n_rides` and
+#' `total_time`. For an arrival search the parameters must already be the
+#' departure side (date and time of `arrival - max_trip_duration`,
+#' `time_window = max_trip_duration`), as r5r's R wrapper sets them.
+#' @noRd
+rs_expanded <- function(ptr, olat, olon, dlat, dlon, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads) .Call(wrap__rs_expanded, ptr, olat, olon, dlat, dlon, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads)
+
 # nolint end
