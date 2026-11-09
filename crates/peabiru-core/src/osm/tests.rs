@@ -126,11 +126,16 @@ fn barriers(t: &[(&str, &str)]) -> bool {
     tag(t, "barrier").is_some()
 }
 
+fn not_building(t: &[(&str, &str)]) -> bool {
+    tag(t, "building").is_none()
+}
+
 fn opts(n_threads: usize) -> ReadOptions<'static> {
     ReadOptions {
         way_filter: &highways,
         relation_filter: Some(&restrictions),
         node_tag_filter: Some(&barriers),
+        ref_count_filter: Some(&not_building),
         n_threads,
     }
 }
@@ -156,6 +161,9 @@ fn reads_ways_relations_and_only_referenced_nodes() {
             assert_eq!(ex.lon[..3], [-349_000_000, -349_000_100, -349_000_201]);
             // node 4 is not in the file
             assert_eq!((ex.lat[3], ex.lon[3]), (i32::MIN, i32::MIN));
+
+            // way 10 references 1, 2, 3, 4 once each; the building is not counted
+            assert_eq!(ex.ref_counts, vec![1, 1, 1, 1]);
 
             assert_eq!(ex.node_tags.len(), 1);
             assert_eq!(ex.node_tags[0].0, 2);

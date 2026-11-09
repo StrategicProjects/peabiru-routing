@@ -9,6 +9,7 @@
 //! return the same numbers.
 
 pub mod osm;
+pub mod street;
 
 /// Version of this crate, as published.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

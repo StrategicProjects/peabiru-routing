@@ -12,7 +12,7 @@
 use super::protobuf::{packed_delta_sint64, packed_u64, Fields, Packed};
 use std::borrow::Cow;
 use std::fmt;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 /// An error while reading a PBF file.
 #[derive(Debug)]
@@ -120,6 +120,9 @@ pub struct ReadOptions<'f> {
     pub relation_filter: Option<TagFilter<'f>>,
     /// Tags of referenced nodes to keep (e.g. barriers). `None` keeps none.
     pub node_tag_filter: Option<TagFilter<'f>>,
+    /// Ways whose node references are counted (see [`Extract::ref_counts`]);
+    /// `None` counts nothing.
+    pub ref_count_filter: Option<TagFilter<'f>>,
     /// Worker threads; 0 means all available cores.
     pub n_threads: usize,
 }
@@ -138,6 +141,11 @@ pub struct Extract {
     pub lon: Vec<i32>,
     /// Tags of referenced nodes accepted by `node_tag_filter`, by node id.
     pub node_tags: Vec<(i64, Tags)>,
+    /// How many times `node_ids[i]` is referenced by the ways accepted by
+    /// `ref_count_filter` (kept or not), repeats within a way included;
+    /// empty when there is no such filter. A count of 2 or more marks an
+    /// intersection.
+    pub ref_counts: Vec<u32>,
 }
 
 impl Extract {
@@ -203,12 +211,17 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
     ids.sort_unstable();
     ids.dedup();
     let ids_ref = &ids;
+    let counts: Vec<AtomicU32> = match opts.ref_count_filter {
+        Some(_) => (0..ids.len()).map(|_| AtomicU32::new(0)).collect(),
+        None => Vec::new(),
+    };
+    let counts_ref = &counts;
     let found = par_map(&blobs, n_threads, |blob| {
         let block = inflate(blob)?;
         let mut coords: Vec<(u32, i32, i32)> = Vec::new();
         let mut tagged: Vec<(i64, Tags)> = Vec::new();
-        decode_block(&block, &mut |item| {
-            if let Item::Node { id, lat, lon, tags } = item {
+        decode_block(&block, &mut |item| match item {
+            Item::Node { id, lat, lon, tags } => {
                 if let Ok(i) = ids_ref.binary_search(&id) {
                     coords.push((i as u32, lat, lon));
                     if let Some(f) = opts.node_tag_filter {
@@ -218,6 +231,18 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
                     }
                 }
             }
+            Item::Way { tags, refs, .. } => {
+                if let Some(f) = opts.ref_count_filter {
+                    if f(tags) {
+                        for r in refs {
+                            if let Ok(i) = ids_ref.binary_search(&r) {
+                                counts_ref[i].fetch_add(1, Ordering::Relaxed);
+                            }
+                        }
+                    }
+                }
+            }
+            Item::Relation { .. } => {}
         })?;
         Ok((coords, tagged))
     })?;
@@ -231,6 +256,7 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
         ex.node_tags.extend(tagged);
     }
     ex.node_tags.sort_by_key(|(id, _)| *id);
+    ex.ref_counts = counts.into_iter().map(AtomicU32::into_inner).collect();
     ex.node_ids = ids;
     Ok(ex)
 }
