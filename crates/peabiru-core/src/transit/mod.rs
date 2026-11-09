@@ -1,6 +1,8 @@
 //! Public transport: the transit layer built from GTFS, stop linking,
 //! transfers and RAPTOR, following R5 7.6 as used by r5r.
 
+pub mod accessibility;
+pub mod decay;
 pub mod layer;
 pub mod matrix;
 pub mod raptor;

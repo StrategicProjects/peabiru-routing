@@ -623,6 +623,81 @@ pub fn travel_time_matrix(
     Ok(out)
 }
 
+/// Street-only travel times in seconds, before any rounding, reduced per
+/// origin: `reduce(i, Some(times))` gets origin `i`'s time to every
+/// destination (`i32::MAX` where the destination is unlinked or
+/// unreachable), and `reduce(i, None)` an origin that cannot be linked.
+/// The search is the one behind [`travel_time_matrix`], so a time can
+/// exceed `max_trip_duration_min` by the partial edges at both ends, as in
+/// R5's `LinkedPointSet.eval`. Results are in origin order.
+pub fn travel_time_seconds<T: Send>(
+    net: &StreetNetwork,
+    origins: &[(f64, f64)],
+    destinations: &[(f64, f64)],
+    mode: Mode,
+    params: &RouteParams,
+    reduce: impl Fn(usize, Option<&[i32]>) -> T + Sync,
+) -> Result<Vec<T>, ParamError> {
+    params.validate()?;
+    let sp = Speeds::new(params, mode);
+    let limit = params.max_trip_duration_min * 60;
+    let mut scratch = Vec::new();
+    let dest_splits: Vec<Option<Split>> = destinations
+        .iter()
+        .map(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch))
+        .collect();
+    let n_threads = if params.n_threads > 0 {
+        params.n_threads
+    } else {
+        std::thread::available_parallelism().map_or(1, |n| n.get())
+    }
+    .clamp(1, origins.len().max(1));
+    let next = AtomicUsize::new(0);
+    let chunks: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..n_threads)
+            .map(|_| {
+                scope.spawn(|| {
+                    let mut search = Search::new(net);
+                    let mut scratch = Vec::new();
+                    let mut times = Vec::with_capacity(dest_splits.len());
+                    let mut rows = Vec::new();
+                    loop {
+                        let i = next.fetch_add(1, Ordering::Relaxed);
+                        if i >= origins.len() {
+                            break;
+                        }
+                        let (lat, lon) = origins[i];
+                        let Some(o) = find_split(net, lat, lon, mode, &mut scratch) else {
+                            rows.push((i, reduce(i, None)));
+                            continue;
+                        };
+                        route(net, &o, mode, &sp, params.max_lts, limit, &mut search);
+                        times.clear();
+                        times.extend(dest_splits.iter().map(|d| {
+                            d.and_then(|d| time_to_point(net, &o, &d, mode, &sp, &search))
+                                .map_or(i32::MAX, |t| t.min(i64::from(i32::MAX - 1)) as i32)
+                        }));
+                        rows.push((i, reduce(i, Some(&times))));
+                    }
+                    rows
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|h| h.join().expect("routing thread panicked"))
+            .collect()
+    });
+    let mut slots: Vec<Option<T>> = (0..origins.len()).map(|_| None).collect();
+    for (i, r) in chunks.into_iter().flatten() {
+        slots[i] = Some(r);
+    }
+    Ok(slots
+        .into_iter()
+        .map(|r| r.expect("every origin is routed"))
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

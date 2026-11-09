@@ -1,0 +1,17 @@
+setting,network,mode,decay,decay_value,cutoffs,percentiles,opportunities,time_window,max_walk_time,max_trip_duration
+step,transit,WALK;TRANSIT,step,,20;40;60,5;50;95,jobs;schools;population,10,Inf,120
+step_tw1,transit,WALK;TRANSIT,step,,20;40;60,5;50;95,jobs;schools;population,1,Inf,120
+step_mwt15,transit,WALK;TRANSIT,step,,20;40;60,5;50;95,jobs;schools;population,10,15,120
+exponential,transit,WALK;TRANSIT,exponential,,20;40;60,5;50;95,jobs;schools;population,10,Inf,120
+exponential_tw1,transit,WALK;TRANSIT,exponential,,20;40;60,5;50;95,jobs;schools;population,1,Inf,120
+fixed_exponential,transit,WALK;TRANSIT,fixed_exponential,0.001,,5;50;95,jobs;schools;population,10,Inf,90
+linear,transit,WALK;TRANSIT,linear,10,20;40;60,5;50;95,jobs;schools;population,10,Inf,75
+logistic,transit,WALK;TRANSIT,logistic,8,20;40;60,5;50;95,jobs;schools;population,10,Inf,60
+logistic_mwt15,transit,WALK;TRANSIT,logistic,8,20;40;60,5;50;95,jobs;schools;population,10,15,120
+WALK_step,street,WALK,step,,15;30;45,5;50;95,jobs;schools,10,Inf,120
+WALK_logistic,street,WALK,logistic,5,15;30;45,50,jobs;schools,10,Inf,60
+WALK_fixed_exponential,street,WALK,fixed_exponential,0.002,,50,jobs;schools,10,Inf,60
+BICYCLE_step,street,BICYCLE,step,,15;30;45,5;50;95,jobs;schools,10,Inf,120
+BICYCLE_exponential,street,BICYCLE,exponential,,15;30;45,50,jobs;schools,10,Inf,90
+CAR_step,street,CAR,step,,10;20;30,5;50;95,jobs;schools,10,Inf,120
+CAR_linear,street,CAR,linear,6,10;20;30,50,jobs;schools,10,Inf,45
