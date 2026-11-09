@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>peabiru: multimodal routing in Rust, with r5r's results</title>
+<meta name="description" content="peabiru computes travel-time matrices and accessibility on OpenStreetMap and GTFS networks with a Rust engine that reproduces r5r 2.5.0 exactly, without Java. Packages for R, Python and Rust.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/brand.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="assets/logo-mark.svg" alt="">peabiru</a>
+    <nav aria-label="Documentation">
+      <a href="r/">R</a>
+      <a href="python/">Python</a>
+      <a href="rust/">Rust</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="https://github.com/StrategicProjects/peabiru-routing">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+<section class="hero">
+  <h1>r5r's routing results, without the Java.</h1>
+  <p class="lead">peabiru computes travel-time matrices and accessibility on street networks
+  from OpenStreetMap and public transport from GTFS. Its Rust engine reproduces the
+  results of r5r 2.5.0 (Conveyal R5 7.6) pair for pair, and the same engine is behind
+  the R package, the Python package and the command line.</p>
+  <div class="cta">
+    <a class="btn primary" href="r/articles/peabiru.html">Get started in R</a>
+    <a class="btn" href="rust/">Rust guide</a>
+    <a class="btn" href="r/articles/how-it-works.html">How it works</a>
+  </div>
+</section>
+
+<section aria-labelledby="what">
+  <h2 id="what">What it computes</h2>
+  <div class="grid3">
+    <div class="card">
+      <h3>Travel-time matrices</h3>
+      <p>Walking, cycling (with traffic stress), driving (with turn costs and restrictions),
+      and walking plus public transport over a departure window, with percentiles.</p>
+    </div>
+    <div class="card">
+      <h3>Accessibility</h3>
+      <p>Opportunities reachable from each origin, cumulative or weighted by a decay
+      function: step, exponential, fixed exponential, linear or logistic.</p>
+    </div>
+    <div class="card">
+      <h3>Trip by trip</h3>
+      <p>Expanded matrices with every departure minute and draw, broken down into access,
+      waiting, riding, transfers and egress; arrival-time matrices.</p>
+    </div>
+  </div>
+  <p>The functions take r5r's names, arguments and defaults. The answers are the same as
+  r5r's on every scenario checked so far, compared value by value
+  (<a href="r/articles/how-it-works.html#parity">how parity is checked</a>).</p>
+</section>
+
+<section aria-labelledby="arch">
+  <h2 id="arch">One engine, three packages</h2>
+  <figure>
+    <img src="assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the network in memory and computes everything; the R package, the Python package (in development) and the command-line tool are thin front-ends over it." width="980" height="470">
+    <figcaption>The network is built once in memory and reused by every query. Nothing runs on a JVM and nothing is cached on disk.</figcaption>
+  </figure>
+</section>
+
+<section aria-labelledby="use">
+  <h2 id="use">Use it</h2>
+  <div class="snippets">
+    <div class="snippet">
+      <h3>R <span class="tag ok">works today</span></h3>
+<pre><code><span class="c"># Not on CRAN yet. From a clone of the repository (needs Rust &gt;= 1.81):</span>
+<span class="c">#   R CMD INSTALL r</span>
+library(peabiru)
+
+data_path &lt;- system.file("extdata/spo", package = "peabiru")
+network &lt;- build_network(data_path)
+points &lt;- read.csv(file.path(data_path, "spo_points.csv"))
+
+ttm &lt;- travel_time_matrix(
+  network, origins = points, destinations = points,
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = as.POSIXct("2019-05-13 14:00", tz = "America/Sao_Paulo"),
+  time_window = 10, percentiles = c(25, 50, 75), seed = 42
+)</code></pre>
+      <p class="muted">The same calls as r5r, with the same arguments; results come back as a <code>data.frame</code>.
+      <a href="r/articles/peabiru.html">Get started</a> · <a href="r/articles/coming-from-r5r.html">Coming from r5r</a></p>
+    </div>
+    <div class="snippet">
+      <h3>Python <span class="tag dev">in development</span></h3>
+      <p>The Python package (PyO3) is being written; it will follow the same function names and
+      arguments. Its documentation will appear under <a href="python/">python/</a>.</p>
+    </div>
+    <div class="snippet">
+      <h3>Rust and the command line <span class="tag ok">works today</span></h3>
+<pre><code><span class="c"># Cargo.toml (not on crates.io yet):</span>
+<span class="c"># peabiru-core = { git = "https://github.com/StrategicProjects/peabiru-routing" }</span>
+use peabiru_core::street::BuildOptions;
+use peabiru_core::transit::{build_from_dir, matrix::{travel_time_matrix, TransitData, TransitParams}};
+
+let (net, layer) = build_from_dir("data/spo", &amp;BuildOptions::default())?;
+let data = TransitData::new(&amp;net, &amp;layer);
+let params = TransitParams { date: 20190513, departure_time: 14 * 3600,
+                             seed: Some(42), ..TransitParams::default() };
+let ttm = travel_time_matrix(&amp;net, &amp;layer, &amp;data, &amp;points, &amp;points, &amp;params)?;</code></pre>
+<pre><code><span class="c"># the same from the shell, CSV in and out</span>
+cargo run --release -p peabiru-cli -- transit data/spo points.csv ttm.csv \
+    --date 2019-05-13 --time 14:00:00 --tw 10 --percentiles 25,50,75 --seed 42</code></pre>
+      <p class="muted"><a href="rust/">The Rust guide</a> · <a href="rust/api/peabiru_core/">API reference</a></p>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="speed">
+  <h2 id="speed">Speed and memory</h2>
+<!-- BEGIN bench:headline (generated by bench/site/charts.py from site/data/benchmarks.json; do not edit) -->
+<!-- END bench:headline -->
+</section>
+
+<section aria-labelledby="status">
+  <h2 id="status">Status</h2>
+  <p>Early development: version 0.0.1, not released on any registry yet. What exists gives r5r's
+  results on the scenarios validated so far (r5r's Porto Alegre and São Paulo samples).
+  Options that are not implemented are errors, never silently ignored.</p>
+  <div class="two">
+    <div>
+      <h3>Implemented</h3>
+      <ul class="check">
+        <li>Network from one <code>.pbf</code> and any number of GTFS feeds (schedules and frequencies)</li>
+        <li><code>travel_time_matrix()</code>: walk, bicycle, car; walk + transit</li>
+        <li><code>accessibility()</code> with all five decay functions</li>
+        <li><code>expanded_travel_time_matrix()</code> and <code>arrival_travel_time_matrix()</code> (walk + transit)</li>
+        <li>Monte Carlo draws reproducible with r5r's <code>seed</code></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Not yet</h3>
+      <ul class="todo">
+        <li>Isochrones and detailed itineraries</li>
+        <li>Fares and Pareto frontiers</li>
+        <li>Bicycle or car access to public transport; non-walk egress</li>
+        <li>Choosing a subset of transit modes</li>
+        <li>Elevation; congestion and traffic-stress scenarios</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="credits">
+  <h2 id="credits">Lineage</h2>
+  <p>The routing logic is a port of <a href="https://github.com/conveyal/r5">Conveyal's R5</a>
+  (MIT licence), as driven by <a href="https://github.com/ipeaGIT/r5r">r5r</a>, whose results
+  are the reference for every test. The exponential used by the decay functions follows
+  <a href="https://commons.apache.org/proper/commons-math/">Apache Commons Math</a> 3
+  (Apache-2.0), which R5 calls. The name comes from the Peabiru, the pre-Columbian network of
+  trails that crossed South America from the Atlantic coast to the Andes.</p>
+</section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>peabiru · MIT licence · <a href="https://github.com/StrategicProjects/peabiru-routing">source</a></p>
+    <p>Authors: André Leite, Marcos Wasiliew, Hugo Vasconcelos, Carlos Amorim, Diogo Bezerra, Júlia Nascimento Barreto.</p>
+  </div>
+</footer>
+</body>
+</html>

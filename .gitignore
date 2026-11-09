@@ -37,3 +37,7 @@ decisions/
 decisoes/
 memory/
 memoria/
+
+# Documentation sites (site/build.sh)
+/_site/
+/site/rust/theme/favicon.svg
