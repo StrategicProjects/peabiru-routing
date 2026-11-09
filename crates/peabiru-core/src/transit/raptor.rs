@@ -768,54 +768,6 @@ pub struct TransitPath {
 }
 
 impl TransitPath {
-    /// `new Path(state, stop)` (`Path.java:30-95`): step back through the
-    /// rounds, skipping rounds that did not change the stop's vehicle
-    /// arrival, recording each ride and the transfer that led to it.
-    fn reconstruct<const P: bool>(states: &[State<P>], stop: usize) -> TransitPath {
-        let mut p = TransitPath {
-            patterns: Vec::new(),
-            board_stops: Vec::new(),
-            alight_stops: Vec::new(),
-            board_times: Vec::new(),
-            ride_times: Vec::new(),
-            transfer_times: Vec::new(),
-        };
-        let mut r = states.len() - 1;
-        let mut stop = stop;
-        while r > 0 {
-            let (prev, cur) = (&states[r - 1], &states[r]);
-            if prev.best_nt[stop] == cur.best_nt[stop] {
-                r -= 1;
-                continue;
-            }
-            let alight = cur.best_nt[stop];
-            let board = cur.prev_board[stop];
-            p.patterns.push(cur.prev_pattern[stop] as u32);
-            p.alight_stops.push(stop as u32);
-            p.board_times.push(board);
-            p.ride_times.push(alight - board);
-            stop = cur.prev_stop[stop] as usize;
-            p.board_stops.push(stop as u32);
-            r -= 1;
-            let prev = &states[r];
-            match prev.transfer_stop[stop] {
-                -1 => p.transfer_times.push(0),
-                from => {
-                    p.transfer_times
-                        .push(prev.best[stop] - prev.best_nt[from as usize]);
-                    stop = from as usize;
-                }
-            }
-        }
-        p.patterns.reverse();
-        p.board_stops.reverse();
-        p.alight_stops.reverse();
-        p.board_times.reverse();
-        p.ride_times.reverse();
-        p.transfer_times.reverse();
-        p
-    }
-
     /// `computeWaitTimes(departureTime)` (`Path.java:103-117`) given the
     /// access walk to the first boarding stop. R5 asserts the waits are
     /// non-negative; `None` here if one is not.
@@ -862,36 +814,183 @@ impl PathResults {
     }
 }
 
-/// `pathToEachStop` (`FastRaptorWorker.java:472-494`): one row of path
-/// indices. With `reuse` (the scheduled search only) an unchanged arrival at
-/// a stop keeps the path built at a later minute, as R5's `retainedPaths`.
-fn path_to_each_stop<const P: bool>(
-    states: &[State<P>],
-    retained: &[u32],
-    mut reuse: Option<(&mut [u32], &mut [i32])>,
-    store: &mut Vec<TransitPath>,
-) -> Vec<u32> {
-    let last = &states[states.len() - 1];
-    let mut row = vec![NO_PATH; retained.len()];
-    for (k, &s) in retained.iter().enumerate() {
-        let arrival = last.best_nt[s as usize];
-        if arrival == UNREACHED {
-            continue;
+/// One ride of a path and the transfer walk before it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Leg {
+    pub(crate) pattern: u32,
+    pub(crate) board_stop: u32,
+    pub(crate) alight_stop: u32,
+    /// Clock time at which the vehicle leaves the boarding stop.
+    pub(crate) board_time: i32,
+    pub(crate) ride_time: i32,
+    /// Walking seconds of the transfer before this leg (0 for the first).
+    pub(crate) transfer_time: i32,
+}
+
+/// The paths of one search, stored flat: what [`PathResults`] holds, with
+/// every path's legs in one array and the per-iteration rows in another,
+/// reused from origin to origin instead of a handful of small allocations
+/// per path.
+#[derive(Default)]
+pub(crate) struct PathArena {
+    legs: Vec<Leg>,
+    /// Per path, its range in `legs`.
+    paths: Vec<(u32, u32)>,
+    /// Retained stops, increasing.
+    retained: Vec<u32>,
+    /// Column of each stop in the rows, `u32::MAX` if not retained.
+    slot: Vec<u32>,
+    /// Iteration-major rows of path indices (`NO_PATH` where none).
+    path_of: Vec<u32>,
+    n_rows: usize,
+    /// The scheduled search's retained paths (R5 `retainedPaths`): per
+    /// retained stop, the path built when its arrival last changed.
+    kept: Vec<u32>,
+    kept_arrival: Vec<i32>,
+}
+
+impl PathArena {
+    fn reset(&mut self, n_stops: usize, retain: &[bool]) {
+        self.legs.clear();
+        self.paths.clear();
+        self.retained.clear();
+        self.retained.extend(
+            (0..n_stops)
+                .filter(|&s| retain.get(s).copied().unwrap_or(false))
+                .map(|s| s as u32),
+        );
+        self.slot.clear();
+        self.slot.resize(n_stops, u32::MAX);
+        for (k, &s) in self.retained.iter().enumerate() {
+            self.slot[s as usize] = k as u32;
         }
-        if let Some((kept, kept_arrival)) = reuse.as_mut() {
-            if kept_arrival[k] == arrival {
-                row[k] = kept[k];
-                continue;
-            }
+        self.path_of.clear();
+        self.n_rows = 0;
+        self.kept.clear();
+        self.kept.resize(self.retained.len(), NO_PATH);
+        self.kept_arrival.clear();
+        self.kept_arrival.resize(self.retained.len(), -1);
+    }
+
+    /// Number of distinct paths.
+    pub(crate) fn len(&self) -> usize {
+        self.paths.len()
+    }
+
+    /// The legs of path `k`.
+    pub(crate) fn legs(&self, k: u32) -> &[Leg] {
+        let (a, b) = self.paths[k as usize];
+        &self.legs[a as usize..b as usize]
+    }
+
+    /// Index of the path to `stop` in `iteration`, if any.
+    pub(crate) fn index(&self, iteration: usize, stop: usize) -> Option<u32> {
+        let k = *self.slot.get(stop)?;
+        if k == u32::MAX || iteration >= self.n_rows {
+            return None;
         }
-        store.push(TransitPath::reconstruct(states, s as usize));
-        row[k] = (store.len() - 1) as u32;
-        if let Some((kept, kept_arrival)) = reuse.as_mut() {
-            kept[k] = row[k];
-            kept_arrival[k] = arrival;
+        match self.path_of[iteration * self.retained.len() + k as usize] {
+            NO_PATH => None,
+            i => Some(i),
         }
     }
-    row
+
+    /// `new Path(state, stop)` (`Path.java:30-95`): step back through the
+    /// rounds, skipping rounds that did not change the stop's vehicle
+    /// arrival, recording each ride and the transfer that led to it.
+    /// Returns the new path's index.
+    fn reconstruct<const P: bool>(&mut self, states: &[State<P>], stop: usize) -> u32 {
+        let start = self.legs.len();
+        let mut r = states.len() - 1;
+        let mut stop = stop;
+        while r > 0 {
+            let (prev, cur) = (&states[r - 1], &states[r]);
+            if prev.best_nt[stop] == cur.best_nt[stop] {
+                r -= 1;
+                continue;
+            }
+            let alight = cur.best_nt[stop];
+            let board = cur.prev_board[stop];
+            let pattern = cur.prev_pattern[stop] as u32;
+            let alight_stop = stop as u32;
+            stop = cur.prev_stop[stop] as usize;
+            let board_stop = stop as u32;
+            r -= 1;
+            let prev = &states[r];
+            let transfer_time = match prev.transfer_stop[stop] {
+                -1 => 0,
+                from => {
+                    let t = prev.best[stop] - prev.best_nt[from as usize];
+                    stop = from as usize;
+                    t
+                }
+            };
+            self.legs.push(Leg {
+                pattern,
+                board_stop,
+                alight_stop,
+                board_time: board,
+                ride_time: alight - board,
+                transfer_time,
+            });
+        }
+        self.legs[start..].reverse();
+        self.paths.push((start as u32, self.legs.len() as u32));
+        (self.paths.len() - 1) as u32
+    }
+
+    /// `pathToEachStop` (`FastRaptorWorker.java:472-494`): one row of path
+    /// indices. With `reuse` (the scheduled search only) an unchanged
+    /// arrival at a stop keeps the path built at a later minute, as R5's
+    /// `retainedPaths`.
+    fn add_row<const P: bool>(&mut self, states: &[State<P>], reuse: bool) {
+        let last = &states[states.len() - 1];
+        let n = self.retained.len();
+        self.path_of.resize(self.path_of.len() + n, NO_PATH);
+        let row0 = self.n_rows * n;
+        self.n_rows += 1;
+        for k in 0..n {
+            let s = self.retained[k] as usize;
+            let arrival = last.best_nt[s];
+            if arrival == UNREACHED {
+                continue;
+            }
+            if reuse && self.kept_arrival[k] == arrival {
+                self.path_of[row0 + k] = self.kept[k];
+                continue;
+            }
+            let i = self.reconstruct(states, s);
+            self.path_of[row0 + k] = i;
+            if reuse {
+                self.kept[k] = i;
+                self.kept_arrival[k] = arrival;
+            }
+        }
+    }
+
+    /// The same paths as public [`PathResults`].
+    fn to_results(&self) -> PathResults {
+        let n = self.retained.len();
+        PathResults {
+            paths: (0..self.paths.len() as u32)
+                .map(|k| {
+                    let legs = self.legs(k);
+                    TransitPath {
+                        patterns: legs.iter().map(|l| l.pattern).collect(),
+                        board_stops: legs.iter().map(|l| l.board_stop).collect(),
+                        alight_stops: legs.iter().map(|l| l.alight_stop).collect(),
+                        board_times: legs.iter().map(|l| l.board_time).collect(),
+                        ride_times: legs.iter().map(|l| l.ride_time).collect(),
+                        transfer_times: legs.iter().map(|l| l.transfer_time).collect(),
+                    }
+                })
+                .collect(),
+            path_of: (0..self.n_rows)
+                .map(|r| self.path_of[r * n..(r + 1) * n].to_vec())
+                .collect(),
+            slot: self.slot.clone(),
+        }
+    }
 }
 
 /// Run the search for one origin. `access` holds `(stop, seconds)`.
@@ -905,9 +1004,16 @@ pub fn route(
     req: &RaptorRequest,
 ) -> Vec<Vec<i32>> {
     let mut out = Vec::new();
-    route_impl::<false>(layer, transfers, filtered, access, req, &[], |_, arr| {
-        out.push(arr.to_vec())
-    });
+    let mut arena = PathArena::default();
+    route_impl::<false>(
+        layer,
+        transfers,
+        filtered,
+        access,
+        req,
+        &mut arena,
+        |_, arr| out.push(arr.to_vec()),
+    );
     out
 }
 
@@ -956,15 +1062,24 @@ pub(crate) fn route_stop_major(
     out.min.clear();
     out.min.resize(n_stops, UNREACHED);
     let mut k = 0;
-    route_impl::<false>(layer, transfers, filtered, access, req, &[], |_, arr| {
-        for (s, &t) in arr.iter().enumerate() {
-            out.data[s * n_iter + k] = t;
-            if t < out.min[s] {
-                out.min[s] = t;
+    let mut arena = PathArena::default();
+    route_impl::<false>(
+        layer,
+        transfers,
+        filtered,
+        access,
+        req,
+        &mut arena,
+        |_, arr| {
+            for (s, &t) in arr.iter().enumerate() {
+                out.data[s * n_iter + k] = t;
+                if t < out.min[s] {
+                    out.min[s] = t;
+                }
             }
-        }
-        k += 1;
-    });
+            k += 1;
+        },
+    );
     debug_assert_eq!(k, n_iter);
 }
 
@@ -982,15 +1097,38 @@ pub fn route_with_paths(
     retain: &[bool],
 ) -> (Vec<Vec<i32>>, PathResults) {
     let mut times = Vec::new();
-    let paths = route_impl::<true>(layer, transfers, filtered, access, req, retain, |_, arr| {
-        times.push(arr.to_vec())
+    let mut arena = PathArena::default();
+    arena.reset(layer.stop_ids.len(), retain);
+    route_impl::<true>(
+        layer,
+        transfers,
+        filtered,
+        access,
+        req,
+        &mut arena,
+        |_, arr| times.push(arr.to_vec()),
+    );
+    (times, arena.to_results())
+}
+
+/// [`route_with_paths`] into reused buffers: `times` gets the durations
+/// iteration-major (`times[i * n_stops + stop]`), `arena` the paths.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn route_paths_into(
+    layer: &TransitLayer,
+    transfers: &[Vec<(u32, i32)>],
+    filtered: &Filtered,
+    access: &[(u32, i32)],
+    req: &RaptorRequest,
+    retain: &[bool],
+    times: &mut Vec<i32>,
+    arena: &mut PathArena,
+) {
+    times.clear();
+    arena.reset(layer.stop_ids.len(), retain);
+    route_impl::<true>(layer, transfers, filtered, access, req, arena, |_, arr| {
+        times.extend_from_slice(arr)
     });
-    let paths = paths.unwrap_or(PathResults {
-        paths: Vec::new(),
-        path_of: Vec::new(),
-        slot: Vec::new(),
-    });
-    (times, paths)
 }
 
 /// The search, handing each iteration's durations at every stop to
@@ -1001,9 +1139,9 @@ fn route_impl<const P: bool>(
     filtered: &Filtered,
     access: &[(u32, i32)],
     req: &RaptorRequest,
-    retain: &[bool],
+    arena: &mut PathArena,
     mut sink: impl FnMut(i32, &[i32]),
-) -> Option<PathResults> {
+) {
     let n_stops = layer.stop_ids.len();
     let w = Worker {
         layer,
@@ -1012,14 +1150,6 @@ fn route_impl<const P: bool>(
         req,
         n_stops,
     };
-    let retained: Vec<u32> = (0..n_stops)
-        .filter(|&s| retain.get(s).copied().unwrap_or(false))
-        .map(|s| s as u32)
-        .collect();
-    let mut store = Vec::new();
-    let mut path_rows = Vec::new();
-    let mut kept = vec![NO_PATH; retained.len()];
-    let mut kept_arrival = vec![-1; retained.len()];
     let per_minute = req.iterations_per_minute(layer.has_frequencies);
     let mt = match req.seed {
         Some(seed) => {
@@ -1092,34 +1222,18 @@ fn route_impl<const P: bool>(
                 }
                 if P {
                     // No reuse across Monte Carlo draws (`:423-425`).
-                    path_rows.push(path_to_each_stop(f, &retained, None, &mut store));
+                    arena.add_row(f, false);
                 }
                 emit(&f[req.max_rides].best_nt, dep, &mut sink);
             }
         } else {
             if P {
-                path_rows.push(path_to_each_stop(
-                    &sched,
-                    &retained,
-                    Some((&mut kept, &mut kept_arrival)),
-                    &mut store,
-                ));
+                arena.add_row(&sched, true);
             }
             emit(&sched[req.max_rides].best_nt, dep, &mut sink);
         }
         dep -= DEPARTURE_STEP_SEC;
     }
-    P.then(|| {
-        let mut slot = vec![u32::MAX; n_stops];
-        for (k, &s) in retained.iter().enumerate() {
-            slot[s as usize] = k as u32;
-        }
-        PathResults {
-            paths: store,
-            path_of: path_rows,
-            slot,
-        }
-    })
 }
 
 #[cfg(test)]
