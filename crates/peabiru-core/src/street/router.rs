@@ -447,21 +447,29 @@ impl Search {
         }
     }
 
+    /// [`Search::add_state`] for a state without restriction progress:
+    /// whether it was kept.
+    #[inline(always)]
+    fn add_plain(&mut self, e: usize, to: usize, t: i32) -> bool {
+        let cur = self.edge_time[e];
+        if t >= cur {
+            return false; // ties keep the existing state
+        }
+        if cur == i32::MAX {
+            self.touched_edges.push(e as u32);
+        }
+        self.edge_time[e] = t;
+        self.touch_vertex(to, t);
+        true
+    }
+
     /// Record a state at the end of edge `e` (whose end vertex is `to`);
     /// returns its heap tag, or `None` when an existing state dominates it
     /// (R5 `isDominated`).
     #[inline]
     fn add_state(&mut self, e: usize, to: usize, t: i32, map: RMap) -> Option<u32> {
         if map.is_empty() {
-            if t >= self.edge_time[e] {
-                return None; // ties keep the existing state
-            }
-            if self.edge_time[e] == i32::MAX {
-                self.touched_edges.push(e as u32);
-            }
-            self.edge_time[e] = t;
-            self.touch_vertex(to, t);
-            return Some(CLEAN);
+            return self.add_plain(e, to, t).then_some(CLEAN);
         }
         let ids = self.restricted_at.entry(e as u32).or_default();
         if ids.iter().any(|&id| self.restricted[id as usize].1 == map) {
@@ -634,7 +642,12 @@ fn route_impl<const JAVA: bool>(
                 t1 += 1;
             }
             if t1 < limit {
-                if let Some(tag) = s.add_state(a.edge as usize, a.to as usize, t1, next_map) {
+                if !JAVA {
+                    if s.add_plain(a.edge as usize, a.to as usize, t1) {
+                        s.push::<JAVA>(t1, a.edge, CLEAN);
+                    }
+                } else if let Some(tag) = s.add_state(a.edge as usize, a.to as usize, t1, next_map)
+                {
                     s.push::<JAVA>(t1, a.edge, tag);
                 }
             }
