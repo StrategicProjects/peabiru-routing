@@ -1,0 +1,33 @@
+[book]
+title = "peabiru for Rust"
+description = "Guide to the peabiru-core crate and the peabiru command-line tool: multimodal routing on OpenStreetMap and GTFS networks with r5r's results."
+authors = [
+  "André Leite",
+  "Marcos Wasiliew",
+  "Hugo Vasconcelos",
+  "Carlos Amorim",
+  "Diogo Bezerra",
+  "Júlia Nascimento Barreto",
+]
+language = "en"
+src = "src"
+
+[build]
+# site/build.sh builds into _site/rust/
+build-dir = "../../_site/rust"
+create-missing = false
+
+[rust]
+edition = "2021"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+additional-css = ["theme/peabiru.css"]
+git-repository-url = "https://github.com/StrategicProjects/peabiru-routing"
+edit-url-template = "https://github.com/StrategicProjects/peabiru-routing/edit/main/site/rust/{path}"
+no-section-label = true
+
+[output.html.playground]
+runnable = false
+copyable = true

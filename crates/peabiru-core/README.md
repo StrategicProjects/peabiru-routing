@@ -1,9 +1,49 @@
 # peabiru-core
 
-The Rust core of [peabiru](https://github.com/StrategicProjects/peabiru-routing), a
-multimodal routing engine for OpenStreetMap street networks and GTFS public
-transport: travel-time matrices, accessibility and isochrones.
+The Rust engine of [peabiru](https://github.com/StrategicProjects/peabiru-routing):
+multimodal routing on street networks from OpenStreetMap and public
+transport from GTFS. It builds a network from one `.pbf` extract and any
+number of GTFS feeds and computes
 
-Early development: nothing usable yet.
+- travel-time matrices by walking, cycling and driving, and by walking plus
+  public transport over a departure window, with percentiles;
+- accessibility, with step, exponential, fixed exponential, linear and
+  logistic decay;
+- expanded (every departure minute and draw) and arrival-time matrices with
+  the breakdown of each trip.
+
+Its results are those of [r5r](https://github.com/ipeaGIT/r5r) 2.5.0, which
+drives Conveyal's [R5](https://github.com/conveyal/r5) 7.6, value for value,
+without a Java runtime. The same crate is behind the R package, the Python
+package (in development) and the `peabiru` command-line tool.
+
+```rust
+use peabiru_core::street::BuildOptions;
+use peabiru_core::transit::build_from_dir;
+use peabiru_core::transit::matrix::{travel_time_matrix, TransitData, TransitParams};
+
+let (net, layer) = build_from_dir("data/spo", &BuildOptions::default())?;
+let data = TransitData::new(&net, &layer);
+let points = vec![(-23.5563, -46.6290), (-23.5577, -46.6321)]; // (lat, lon)
+let params = TransitParams {
+    date: 20190513,
+    departure_time: 14 * 3600,
+    seed: Some(42),
+    ..TransitParams::default()
+};
+let ttm = travel_time_matrix(&net, &layer, &data, &points, &points, &params)?;
+```
+
+More in the `examples/` directory (`cargo run --release -p peabiru-core
+--example transit_matrix`) and in the Rust guide built by `site/build.sh` in
+the repository.
+
+**Status**: version 0.0.1, early development; not published yet. Isochrones,
+detailed itineraries, fares, bicycle or car access to public transport and
+elevation are not implemented.
+
+The routing logic is ported from R5 (MIT, © Conveyal); the exponential used
+by the decay functions reproduces Apache Commons Math 3's `FastMath.exp`
+(Apache-2.0), which R5 calls.
 
 License: MIT.
