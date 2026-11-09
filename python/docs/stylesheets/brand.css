@@ -1,0 +1,12 @@
+/* Placeholder brand palette: replaced by the brand design at merge. */
+:root {
+  --md-primary-fg-color: #2f5d50;
+  --md-primary-fg-color--light: #4a7d6f;
+  --md-primary-fg-color--dark: #1f3f36;
+  --md-accent-fg-color: #b5651d;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #3d7465;
+  --md-accent-fg-color: #e09a52;
+}
