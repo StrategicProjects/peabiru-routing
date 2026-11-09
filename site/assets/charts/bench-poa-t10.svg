@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 890 378" width="890" height="378" role="img" aria-labelledby="title desc">
+  <title id="title">Porto Alegre: time and peak memory by task, 10 threads</title>
+  <desc id="desc">Dot plot, one row per task, for Porto Alegre (1227 points, all to all) with 10 thread(s): left, median seconds of the timed runs; right, peak resident memory of the process; one dot per engine, log scales. Generated from site/data/benchmarks.json by bench/site/charts.py.</desc>
+  <style>
+    .panel { fill: #fffdf9; stroke: #e1d8c8; }
+    .t { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; fill: #1f2a2e; }
+    .s { font-size: 12.5px; }
+    .xs { font-size: 11px; fill: #4a5a5f; }
+    .h { font-weight: 700; }
+    .band { fill: #f6f1e8; }
+    .grid { stroke: #d9cfbe; stroke-width: 1; }
+    .grid2 { stroke: #ece4d6; stroke-width: 1; }
+    .rng { stroke: #c9bfae; stroke-width: 2; }
+    circle { stroke: #fffdf9; stroke-width: 1.5; }
+    .e-peabiru-cli { fill: #b4532a; }
+    .e-peabiru-r { fill: #c98a1d; }
+    .e-peabiru-py { fill: #2f6b4f; }
+    .e-r5r { fill: #3d4f56; }
+    .e-r5py { fill: #7f8fa6; }
+    @media (prefers-color-scheme: dark) {
+      .panel { fill: #1d2427; stroke: #34403f; }
+      .t { fill: #ece6da; }
+      .xs { fill: #a9b4b6; }
+      .band { fill: #222a2d; }
+      .grid { stroke: #3e4a4c; }
+      .grid2 { stroke: #2c3538; }
+      .rng { stroke: #4a5859; }
+      circle { stroke: #1d2427; }
+      .e-peabiru-cli { fill: #e98a5c; }
+      .e-peabiru-r { fill: #f0b54a; }
+      .e-peabiru-py { fill: #6fbf95; }
+      .e-r5r { fill: #c6d0d2; }
+      .e-r5py { fill: #8fa3bf; }
+    }
+  </style>
+  <rect class="panel" x="0.5" y="0.5" width="889" height="377" rx="12"/>
+  <text class="t h" x="24" y="30">Porto Alegre · 1,227 × 1,227 points · 10 threads</text>
+  <circle class="e-peabiru-cli" cx="30" cy="56" r="6"/><text class="t s" x="42" y="60.5">peabiru CLI</text><circle class="e-peabiru-r" cx="148" cy="56" r="6"/><text class="t s" x="160" y="60.5">peabiru (R)</text><circle class="e-r5r" cx="266" cy="56" r="6"/><text class="t s" x="278" y="60.5">r5r</text><circle class="e-r5py" cx="320" cy="56" r="6"/><text class="t s" x="332" y="60.5">r5py</text>
+  <rect class="band" x="12" y="112" width="866" height="30"/><text class="t s" x="24" y="131.5">network build</text><text class="t s" x="24" y="161.5">matrix, walk</text><rect class="band" x="12" y="172" width="866" height="30"/><text class="t s" x="24" y="191.5">matrix, bicycle</text><text class="t s" x="24" y="221.5">matrix, car</text><rect class="band" x="12" y="232" width="866" height="30"/><text class="t s" x="24" y="251.5">matrix, walk + transit</text><text class="t s" x="24" y="281.5">accessibility</text><rect class="band" x="12" y="292" width="866" height="30"/><text class="t s" x="24" y="311.5">expanded (50 origins)</text>
+  <text class="t h" x="190" y="90">Time (median)</text>
+  <line class="grid" x1="190.0" y1="102" x2="190.0" y2="322"/>
+  <text class="t xs" x="190.0" y="338" text-anchor="middle">0.1</text>
+  <line class="grid2" x1="220.1" y1="102" x2="220.1" y2="322"/>
+  <line class="grid2" x1="259.9" y1="102" x2="259.9" y2="322"/>
+  <line class="grid" x1="290.0" y1="102" x2="290.0" y2="322"/>
+  <text class="t xs" x="290.0" y="338" text-anchor="middle">1</text>
+  <line class="grid2" x1="320.1" y1="102" x2="320.1" y2="322"/>
+  <line class="grid2" x1="359.9" y1="102" x2="359.9" y2="322"/>
+  <line class="grid" x1="390.0" y1="102" x2="390.0" y2="322"/>
+  <text class="t xs" x="390.0" y="338" text-anchor="middle">10</text>
+  <line class="grid2" x1="420.1" y1="102" x2="420.1" y2="322"/>
+  <line class="grid2" x1="459.9" y1="102" x2="459.9" y2="322"/>
+  <line class="grid" x1="490.0" y1="102" x2="490.0" y2="322"/>
+  <text class="t xs" x="490.0" y="338" text-anchor="middle">100</text>
+  <text class="t xs" x="340.0" y="356" text-anchor="middle">seconds, log scale</text>
+  <line class="rng" x1="316.3" y1="127.0" x2="361.9" y2="127.0"/>
+  <circle class="e-peabiru-cli" cx="319.9" cy="127.0" r="6"><title>peabiru CLI: 1.99 s</title></circle>
+  <circle class="e-peabiru-r" cx="316.3" cy="127.0" r="6"><title>peabiru (R): 1.83 s</title></circle>
+  <circle class="e-r5r" cx="361.9" cy="127.0" r="6"><title>r5r: 5.24 s</title></circle>
+  <circle class="e-r5py" cx="360.5" cy="127.0" r="6"><title>r5py: 5.07 s</title></circle>
+  <line class="rng" x1="274.4" y1="157.0" x2="411.3" y2="157.0"/>
+  <circle class="e-peabiru-cli" cx="274.4" cy="157.0" r="6"><title>peabiru CLI: 0.70 s</title></circle>
+  <circle class="e-peabiru-r" cx="283.1" cy="157.0" r="6"><title>peabiru (R): 0.85 s</title></circle>
+  <circle class="e-r5r" cx="345.4" cy="157.0" r="6"><title>r5r: 3.58 s</title></circle>
+  <circle class="e-r5py" cx="411.3" cy="157.0" r="6"><title>r5py: 16.3 s</title></circle>
+  <line class="rng" x1="310.1" y1="187.0" x2="450.0" y2="187.0"/>
+  <circle class="e-peabiru-cli" cx="318.5" cy="187.0" r="6"><title>peabiru CLI: 1.93 s</title></circle>
+  <circle class="e-peabiru-r" cx="310.1" cy="187.0" r="6"><title>peabiru (R): 1.59 s</title></circle>
+  <circle class="e-r5r" cx="357.8" cy="187.0" r="6"><title>r5r: 4.76 s</title></circle>
+  <circle class="e-r5py" cx="450.0" cy="187.0" r="6"><title>r5py: 39.8 s</title></circle>
+  <line class="rng" x1="312.1" y1="217.0" x2="445.5" y2="217.0"/>
+  <circle class="e-peabiru-cli" cx="312.1" cy="217.0" r="6"><title>peabiru CLI: 1.67 s</title></circle>
+  <circle class="e-peabiru-r" cx="312.2" cy="217.0" r="6"><title>peabiru (R): 1.67 s</title></circle>
+  <circle class="e-r5r" cx="350.8" cy="217.0" r="6"><title>r5r: 4.05 s</title></circle>
+  <circle class="e-r5py" cx="445.5" cy="217.0" r="6"><title>r5py: 35.9 s</title></circle>
+  <line class="rng" x1="322.1" y1="247.0" x2="435.3" y2="247.0"/>
+  <circle class="e-peabiru-cli" cx="322.1" cy="247.0" r="6"><title>peabiru CLI: 2.09 s</title></circle>
+  <circle class="e-peabiru-r" cx="328.4" cy="247.0" r="6"><title>peabiru (R): 2.42 s</title></circle>
+  <circle class="e-r5r" cx="357.5" cy="247.0" r="6"><title>r5r: 4.73 s</title></circle>
+  <circle class="e-r5py" cx="435.3" cy="247.0" r="6"><title>r5py: 28.4 s</title></circle>
+  <line class="rng" x1="301.0" y1="277.0" x2="331.1" y2="277.0"/>
+  <circle class="e-peabiru-cli" cx="301.2" cy="277.0" r="6"><title>peabiru CLI: 1.29 s</title></circle>
+  <circle class="e-peabiru-r" cx="301.0" cy="277.0" r="6"><title>peabiru (R): 1.29 s</title></circle>
+  <circle class="e-r5r" cx="331.1" cy="277.0" r="6"><title>r5r: 2.58 s</title></circle>
+  <line class="rng" x1="259.5" y1="307.0" x2="289.1" y2="307.0"/>
+  <circle class="e-peabiru-cli" cx="266.3" cy="307.0" r="6"><title>peabiru CLI: 0.58 s</title></circle>
+  <circle class="e-peabiru-r" cx="259.5" cy="307.0" r="6"><title>peabiru (R): 0.49 s</title></circle>
+  <circle class="e-r5r" cx="289.1" cy="307.0" r="6"><title>r5r: 0.98 s</title></circle>
+  <text class="t h" x="560" y="90">Peak memory of the process</text>
+  <line class="grid" x1="560.0" y1="102" x2="560.0" y2="322"/>
+  <text class="t xs" x="560.0" y="338" text-anchor="middle">10</text>
+  <line class="grid2" x1="590.1" y1="102" x2="590.1" y2="322"/>
+  <line class="grid2" x1="629.9" y1="102" x2="629.9" y2="322"/>
+  <line class="grid" x1="660.0" y1="102" x2="660.0" y2="322"/>
+  <text class="t xs" x="660.0" y="338" text-anchor="middle">100</text>
+  <line class="grid2" x1="690.1" y1="102" x2="690.1" y2="322"/>
+  <line class="grid2" x1="729.9" y1="102" x2="729.9" y2="322"/>
+  <line class="grid" x1="760.0" y1="102" x2="760.0" y2="322"/>
+  <text class="t xs" x="760.0" y="338" text-anchor="middle">1,000</text>
+  <line class="grid2" x1="790.1" y1="102" x2="790.1" y2="322"/>
+  <line class="grid2" x1="829.9" y1="102" x2="829.9" y2="322"/>
+  <line class="grid" x1="860.0" y1="102" x2="860.0" y2="322"/>
+  <text class="t xs" x="860.0" y="338" text-anchor="middle">10,000</text>
+  <text class="t xs" x="710.0" y="356" text-anchor="middle">MiB, log scale</text>
+  <line class="rng" x1="662.8" y1="157.0" x2="797.9" y2="157.0"/>
+  <circle class="e-peabiru-cli" cx="662.8" cy="157.0" r="6"><title>peabiru CLI: 107 MiB</title></circle>
+  <circle class="e-peabiru-r" cx="702.0" cy="157.0" r="6"><title>peabiru (R): 263 MiB</title></circle>
+  <circle class="e-r5r" cx="797.9" cy="157.0" r="6"><title>r5r: 2,395 MiB</title></circle>
+  <circle class="e-r5py" cx="781.0" cy="157.0" r="6"><title>r5py: 1,620 MiB</title></circle>
+  <line class="rng" x1="669.1" y1="187.0" x2="807.6" y2="187.0"/>
+  <circle class="e-peabiru-cli" cx="669.1" cy="187.0" r="6"><title>peabiru CLI: 123 MiB</title></circle>
+  <circle class="e-peabiru-r" cx="711.0" cy="187.0" r="6"><title>peabiru (R): 324 MiB</title></circle>
+  <circle class="e-r5r" cx="807.6" cy="187.0" r="6"><title>r5r: 2,994 MiB</title></circle>
+  <circle class="e-r5py" cx="783.3" cy="187.0" r="6"><title>r5py: 1,709 MiB</title></circle>
+  <line class="rng" x1="670.8" y1="217.0" x2="798.8" y2="217.0"/>
+  <circle class="e-peabiru-cli" cx="670.8" cy="217.0" r="6"><title>peabiru CLI: 128 MiB</title></circle>
+  <circle class="e-peabiru-r" cx="711.1" cy="217.0" r="6"><title>peabiru (R): 324 MiB</title></circle>
+  <circle class="e-r5r" cx="798.8" cy="217.0" r="6"><title>r5r: 2,442 MiB</title></circle>
+  <circle class="e-r5py" cx="775.4" cy="217.0" r="6"><title>r5py: 1,425 MiB</title></circle>
+  <line class="rng" x1="690.3" y1="247.0" x2="789.0" y2="247.0"/>
+  <circle class="e-peabiru-cli" cx="690.3" cy="247.0" r="6"><title>peabiru CLI: 201 MiB</title></circle>
+  <circle class="e-peabiru-r" cx="713.6" cy="247.0" r="6"><title>peabiru (R): 344 MiB</title></circle>
+  <circle class="e-r5r" cx="789.0" cy="247.0" r="6"><title>r5r: 1,951 MiB</title></circle>
+  <circle class="e-r5py" cx="773.6" cy="247.0" r="6"><title>r5py: 1,369 MiB</title></circle>
+  <line class="rng" x1="655.2" y1="277.0" x2="778.7" y2="277.0"/>
+  <circle class="e-peabiru-cli" cx="655.2" cy="277.0" r="6"><title>peabiru CLI: 90 MiB</title></circle>
+  <circle class="e-peabiru-r" cx="683.0" cy="277.0" r="6"><title>peabiru (R): 170 MiB</title></circle>
+  <circle class="e-r5r" cx="778.7" cy="277.0" r="6"><title>r5r: 1,536 MiB</title></circle>
+  <line class="rng" x1="686.0" y1="307.0" x2="809.1" y2="307.0"/>
+  <circle class="e-peabiru-cli" cx="686.0" cy="307.0" r="6"><title>peabiru CLI: 182 MiB</title></circle>
+  <circle class="e-peabiru-r" cx="742.1" cy="307.0" r="6"><title>peabiru (R): 662 MiB</title></circle>
+  <circle class="e-r5r" cx="809.1" cy="307.0" r="6"><title>r5r: 3,099 MiB</title></circle>
+</svg>
