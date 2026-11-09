@@ -296,18 +296,26 @@ impl<'a> Query<'a> {
                 tt.push(d);
             } else {
                 tt.resize(stop_times.n_iterations(), d);
+                // No candidate at or above `bound` can improve any
+                // iteration: the larger of max_trip_duration and the worst
+                // time so far.
+                let mut bound = max_t.min(d);
                 for &(stop, e) in &self.egress[j] {
                     let stop = stop as usize;
-                    // durations are >= 0, so this bounds every iteration
-                    if stop_times.min(stop).saturating_add(e) >= max_t {
+                    // every iteration's candidate is at least the stop's
+                    // least duration plus the egress walk
+                    if stop_times.min(stop).saturating_add(e) >= bound {
                         continue;
                     }
+                    let mut worst = 0;
                     for (t, &ts) in tt.iter_mut().zip(stop_times.get(stop)) {
                         // ts + e < max_t also means ts < max_t
                         let c = ts.saturating_add(e);
                         let c = if c < max_t { c } else { UNREACHED };
                         *t = (*t).min(c);
+                        worst = worst.max(*t);
                     }
+                    bound = max_t.min(worst);
                 }
             }
             per_destination(j, tt);
