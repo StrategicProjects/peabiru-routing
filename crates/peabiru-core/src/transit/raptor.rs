@@ -661,8 +661,11 @@ impl Worker<'_> {
                             if n_trips <= 0 {
                                 continue; // no vehicle of this entry boards
                             }
+                            // (+1: the rule below still boards a vehicle
+                            // that leaves one second before the earliest
+                            // boarding time)
                             (
-                                start + offset + i64::from(max_tt) + (n_trips - 1) * h,
+                                start + offset + i64::from(max_tt) + (n_trips - 1) * h + 1,
                                 start + offset + i64::from(min_tt),
                             )
                         }
@@ -1276,6 +1279,59 @@ mod tests {
             has_schedules: true,
             ..TransitLayer::default()
         }
+    }
+
+    /// A frequency vehicle that leaves a stop one second before the earliest
+    /// boarding time there is still boarded (`after <= first` in the Monte
+    /// Carlo rule), also when it is the only vehicle of its entry.
+    #[test]
+    fn boards_the_only_vehicle_one_second_early() {
+        let layer = TransitLayer {
+            stop_ids: (0..2).map(|s| format!("f:{s}")).collect(),
+            stop_lat: vec![0.0; 2],
+            stop_lon: vec![0.0; 2],
+            stop_vertex: vec![0; 2],
+            patterns: vec![Pattern {
+                route_id: "F".into(),
+                route_type: 3,
+                stops: vec![0, 1],
+                pickups: vec![true; 2],
+                dropoffs: vec![true; 2],
+                trips: vec![TripSchedule {
+                    trip_id: String::new(),
+                    service: 0,
+                    arrivals: vec![0, 0],
+                    departures: vec![0, 0],
+                    // headway 1: the random offset is always 0
+                    frequencies: vec![crate::transit::layer::FrequencyEntry {
+                        start: 59,
+                        end: 59,
+                        headway: 1,
+                    }],
+                }],
+                services: vec![0],
+                has_frequencies: true,
+                has_schedules: false,
+            }],
+            patterns_for_stop: vec![vec![0], vec![0]],
+            has_frequencies: true,
+            ..TransitLayer::default()
+        };
+        let filtered = Filtered::new(&layer, &[true]).unwrap();
+        let req = RaptorRequest {
+            from_time: 0,
+            time_window: 1,
+            max_rides: 1,
+            max_duration: 7200,
+            walk_mms: 1000,
+            max_walk_min: 120,
+            monte_carlo_draws: 1,
+            seed: Some(1),
+            origin: (0.0, 0.0),
+        };
+        // At stop 0 at 0 s: earliest boarding 60 s, the vehicle leaves at 59.
+        let times = route(&layer, &[vec![], vec![]], &filtered, &[(0, 0)], &req);
+        assert_eq!(times[0][1], 59);
     }
 
     #[test]

@@ -297,7 +297,7 @@ impl<'a> Query<'a> {
             } else {
                 tt.resize(stop_times.n_iterations(), d);
                 // No candidate at or above `bound` can improve any
-                // iteration: the larger of max_trip_duration and the worst
+                // iteration: the smaller of max_trip_duration and the worst
                 // time so far.
                 let mut bound = max_t.min(d);
                 for &(stop, e) in &self.egress[j] {
