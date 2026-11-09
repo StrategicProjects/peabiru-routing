@@ -364,7 +364,13 @@ impl TransitLayer {
             }
             let mut frequencies = Vec::new();
             if let Some(f) = freqs.get(trip_id) {
-                frequencies = f.values().copied().filter(|e| e.start <= e.end).collect();
+                // start > end is dropped as R5 does; a non-positive headway would
+                // make R5 fail the whole query, so it is dropped as invalid too.
+                frequencies = f
+                    .values()
+                    .copied()
+                    .filter(|e| e.start <= e.end && e.headway > 0)
+                    .collect();
                 if frequencies.is_empty() {
                     continue; // only invalid entries
                 }
@@ -452,6 +458,43 @@ pub fn gtfs_files_in_dir(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_headways_are_dropped() {
+        use crate::gtfs::zip::tests::make_zip;
+        let z = make_zip(
+            &[
+                ("stops.txt", b"stop_id,stop_lat,stop_lon\nA,-30.0,-51.2\nB,-30.01,-51.21\n"),
+                ("routes.txt", b"route_id,route_type\nR,3\n"),
+                ("trips.txt", b"route_id,service_id,trip_id\nR,S,T1\nR,S,T2\n"),
+                (
+                    "stop_times.txt",
+                    b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,B,2\nT2,08:00:00,08:00:00,A,1\nT2,08:10:00,08:10:00,B,2\n",
+                ),
+                ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n"),
+                ("frequencies.txt", b"trip_id,start_time,end_time,headway_secs\nT1,06:00:00,09:00:00,0\nT2,06:00:00,09:00:00,-60\nT2,10:00:00,11:00:00,600\n"),
+            ],
+            true,
+        );
+        let dir = std::env::temp_dir().join(format!("peabiru-headway-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("feed.zip");
+        std::fs::write(&path, z).unwrap();
+        let layer = TransitLayer::load(&[path]).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
+        // T1 has only a zero headway: dropped; T2 keeps its valid entry
+        let trips: Vec<&TripSchedule> = layer.patterns.iter().flat_map(|p| &p.trips).collect();
+        assert_eq!(trips.len(), 1);
+        assert_eq!(trips[0].trip_id, "T2");
+        assert_eq!(
+            trips[0].frequencies,
+            [FrequencyEntry {
+                start: 36_000,
+                end: 39_600,
+                headway: 600
+            }]
+        );
+    }
 
     #[test]
     fn vincenty_matches_known_distance() {
