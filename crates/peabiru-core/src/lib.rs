@@ -2,11 +2,17 @@
 //!
 //! The engine builds a routable network from an OpenStreetMap PBF extract
 //! (walk, bike, car) and, optionally, GTFS feeds (public transport), and
-//! computes travel-time matrices, accessibility and isochrones over it.
+//! computes travel-time matrices, accessibility, and expanded and
+//! arrival-time matrices over it.
 //!
 //! This crate is the shared core: the R package (extendr) and the Python
 //! package (PyO3) are thin bindings over the same functions, so all three
 //! return the same numbers.
+//!
+//! The routing logic is a port of Conveyal's [R5](https://github.com/conveyal/r5)
+//! (MIT), version 7.6, and returns the results of
+//! [r5r](https://github.com/ipeaGIT/r5r) 2.5.0. The notices of R5 and of the
+//! other works this crate derives from are in `LICENSE-THIRD-PARTY`.
 
 pub mod fastmath;
 pub mod gtfs;

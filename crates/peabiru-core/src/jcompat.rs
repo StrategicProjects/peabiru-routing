@@ -2,6 +2,15 @@
 //! the commons-math3 3.0 Mersenne Twister and `BitsStreamGenerator.nextInt`,
 //! `java.util.Objects.hash`, and the slot layout (hence iteration order) of
 //! Trove 3 open-addressing int hash maps. Checked against the r5r R5 jar.
+//!
+//! [`MersenneTwister`] is a translation to Rust, by the peabiru authors, of
+//! parts of `org.apache.commons.math3.random.MersenneTwister` and
+//! `BitsStreamGenerator` of Apache Commons Math 3.0 (Copyright 2001-2012 The
+//! Apache Software Foundation; Apache License, Version 2.0), themselves
+//! translated from the C generator of Makoto Matsumoto and Takuji Nishimura
+//! (Copyright (C) 1997 - 2002, BSD 3-clause). The prime table comes from
+//! Trove's `PrimeFinder`, a Colt file (Copyright (c) 1999 CERN). The rest is
+//! this project's own code. Licences and notices: `LICENSE-THIRD-PARTY`.
 
 /// Mersenne Twister MT19937 as commons-math3 3.0 `MersenneTwister`.
 pub struct MersenneTwister {
@@ -114,7 +123,16 @@ pub fn objects_hash_int_double_double(seed: i32, a: f64, b: f64) -> i32 {
     h
 }
 
-/// Trove 3 `PrimeFinder.primeCapacities` up to ~47 million.
+/// Trove 3 `PrimeFinder.primeCapacities` up to ~47 million, sorted.
+///
+/// From Colt: Copyright (c) 1999 CERN - European Organization for Nuclear
+/// Research. Permission to use, copy, modify, distribute and sell this
+/// software and its documentation for any purpose is hereby granted without
+/// fee, provided that the above copyright notice appear in all copies and
+/// that both that copyright notice and this permission notice appear in
+/// supporting documentation. CERN makes no representations about the
+/// suitability of this software for any purpose. It is provided "as is"
+/// without expressed or implied warranty.
 const PRIMES: [i32; 190] = [
     3, 5, 7, 11, 17, 23, 31, 37, 43, 47, 67, 79, 89, 97, 137, 163, 179, 197, 277, 311, 331, 359,
     379, 397, 433, 557, 599, 631, 673, 719, 761, 797, 877, 953, 1039, 1117, 1201, 1277, 1361, 1439,

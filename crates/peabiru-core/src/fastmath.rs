@@ -6,6 +6,12 @@
 //! The four lookup tables below are `FastMath$ExpIntTable.EXP_INT_TABLE_A/B`
 //! and `FastMath$ExpFracTable.EXP_FRAC_TABLE_A/B`, dumped from that jar by
 //! reflection as raw IEEE-754 bits.
+//!
+//! This file is a translation to Rust, by the peabiru authors, of part of
+//! `org.apache.commons.math3.util.FastMath` of Apache Commons Math 3.0
+//! (Copyright 2001-2012 The Apache Software Foundation), licensed under the
+//! Apache License, Version 2.0. Only `exp` and its tables were kept. The
+//! licence and the notices are in `LICENSE-THIRD-PARTY`.
 
 /// `FastMath.exp(x)` (commons-math3 3.0 `FastMath.exp(double, double,
 /// double[])` with `extra = 0`, `hiPrec = null`; ported from the bytecode).

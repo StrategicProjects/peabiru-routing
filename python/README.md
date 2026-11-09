@@ -95,4 +95,5 @@ contributors, available under the
 ## License
 
 MIT. peabiru ports R5 (MIT, Conveyal) and parts of Apache Commons Math
-(Apache-2.0).
+(Apache-2.0); their notices and licence texts are in `LICENSE-THIRD-PARTY`,
+shipped with the package.
