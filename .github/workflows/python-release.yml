@@ -83,7 +83,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # ubuntu-24.04, not ubuntu-latest: setup-python has no Python 3.9
+        # for the newer image
+        os: [ubuntu-24.04, macos-latest, windows-latest]
         # the wheels are abi3: one file serves 3.9 and everything after it
         python: ["3.9", "3.13"]
     steps:

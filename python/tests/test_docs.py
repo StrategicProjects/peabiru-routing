@@ -40,7 +40,7 @@ def blocks(text: str):
 @pytest.mark.parametrize("page", PAGES, ids=[p.name for p in PAGES])
 def test_page_examples(page: Path, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    text = page.read_text()
+    text = page.read_text(encoding="utf-8")
     bl = blocks(text)
     ns: dict = {"__name__": "__main__"}
     replacements = []
@@ -63,7 +63,7 @@ def test_page_examples(page: Path, tmp_path, monkeypatch):
     if replacements:
         for start, end, new in sorted(replacements, reverse=True):
             text = text[:start] + new.rstrip() + "\n" + text[end:]
-        page.write_text(text)
+        page.write_bytes(text.encode("utf-8"))
 
 
 def FENCE_END(text: str, block) -> int:
