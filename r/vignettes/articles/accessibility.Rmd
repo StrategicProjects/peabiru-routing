@@ -1,0 +1,105 @@
+---
+title: "Accessibility"
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+```
+
+`accessibility()` summarises, for each origin, how many opportunities (jobs,
+schools, hospitals...) can be reached, either counting those within a time
+limit or weighting every one of them by how long it takes to get there. The
+travel times come from the same computation as `travel_time_matrix()`.
+
+```{r, echo = FALSE, fig.alt = "Accessibility is the sum over destinations of the opportunities times a weight that decays with the travel time; five decay functions are drawn for a 30 minute cutoff: step, exponential, fixed exponential, linear and logistic."}
+fig("accessibility.svg")
+```
+
+Two details make the results match r5r's to the last bit: the travel time fed
+to the decay function is the percentile in **seconds**, not rounded to minutes
+as in the matrix, and the exponentials are computed with the same algorithm
+as R5 (Apache Commons Math's `FastMath.exp`), not with the C library's.
+
+## Cumulative opportunities
+
+The `"step"` function counts the opportunities reached in less than each
+cutoff. Each origin gets one row per opportunity column, percentile and
+cutoff:
+
+```{r}
+access <- accessibility(
+  network, points, points,
+  opportunities_colnames = c("jobs", "schools"),
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = departure,
+  decay_function = "step",
+  cutoffs = c(15, 30),
+  percentiles = c(25, 75),
+  seed = 42,
+  n_threads = 2
+)
+head(access, 8)
+```
+
+As in r5r, with `"step"` trips longer than the largest cutoff are not routed
+at all (`max_trip_duration` becomes `max(cutoffs)`), and `max_trip_duration`
+may not be shorter than the largest cutoff with any function.
+
+## Decay functions
+
+The other functions weight every opportunity by its travel time. Their
+`decay_value` means different things: the width of the ramp in minutes for
+`"linear"`, the standard deviation in minutes for `"logistic"`, the decay
+constant per second for `"fixed_exponential"`; `"exponential"` uses the cutoff
+as its half-life.
+
+```{r}
+one <- function(fun, value = NULL, cutoffs = 20) {
+  a <- accessibility(
+    network, points[1:3, ], points,
+    opportunities_colnames = "jobs",
+    mode = "WALK",
+    decay_function = fun, decay_value = value, cutoffs = cutoffs,
+    n_threads = 2
+  )
+  setNames(round(a$accessibility), a$id)
+}
+rbind(
+  step = one("step"),
+  exponential = one("exponential"),
+  linear = one("linear", 10),
+  logistic = one("logistic", 5),
+  fixed_exponential = one("fixed_exponential", 0.001, cutoffs = NULL)
+)
+```
+
+`"fixed_exponential"` ignores cutoffs, so `cutoffs` must be `NULL` and the
+result has no `cutoff` column.
+
+## Street modes
+
+Any street mode works too; the times are then the same for every percentile.
+
+```{r}
+by_bike <- accessibility(
+  network, points, points,
+  opportunities_colnames = "jobs",
+  mode = "BICYCLE",
+  decay_function = "logistic", decay_value = 5, cutoffs = 15,
+  n_threads = 2
+)
+summary(by_bike$accessibility)
+```
+
+## Missing counts
+
+Missing opportunity counts count as zero, with a warning, as in r5r:
+
+```{r}
+holes <- points
+holes$jobs[2] <- NA
+a <- accessibility(network, points[1, ], holes,
+                   opportunities_colnames = "jobs", mode = "WALK",
+                   decay_function = "step", cutoffs = 30, n_threads = 2)
+a
+```

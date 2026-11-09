@@ -1,0 +1,84 @@
+# pkgdown site of the R package. Built by site/build.sh into _site/r/, next to
+# the landing page (../), the Rust guide (../rust/) and the Python docs
+# (../python/). No `url:` on purpose: the site is not deployed yet, and every
+# link between the sub-sites is relative.
+
+template:
+  bootstrap: 5
+  light-switch: true
+  bslib:
+    primary: "#b4532a"
+    secondary: "#4a5a5f"
+    success: "#2f6b4f"
+    warning: "#c98a1d"
+    font-family-sans-serif: "'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif"
+    font-family-monospace: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
+
+development:
+  mode: unreleased
+
+home:
+  title: "peabiru: r5r's routing results, without Java"
+  description: >
+    Travel-time matrices and accessibility on OpenStreetMap and GTFS networks,
+    computed by a Rust engine that reproduces r5r 2.5.0 exactly.
+  links:
+  - text: peabiru home (all languages)
+    href: ../index.html
+  - text: Rust guide
+    href: ../rust/index.html
+  - text: Benchmarks
+    href: ../benchmarks.html
+
+navbar:
+  structure:
+    left: [intro, reference, articles, benchmarks, news]
+    right: [search, home, github]
+  components:
+    home:
+      icon: fa-house
+      href: ../index.html
+      aria-label: peabiru home
+    benchmarks:
+      text: Benchmarks
+      href: articles/benchmarks.html
+    github:
+      icon: fa-github
+      href: https://github.com/StrategicProjects/peabiru-routing
+      aria-label: Source on GitHub
+
+reference:
+- title: Networks
+  desc: Build a network once from a directory with an OpenStreetMap `.pbf` and GTFS feeds.
+  contents:
+  - build_network
+- title: Travel times
+  desc: >
+    Travel-time matrices by street or by public transport, summarised over the
+    departure window or trip by trip.
+  contents:
+  - travel_time_matrix
+  - expanded_travel_time_matrix
+  - arrival_travel_time_matrix
+- title: Accessibility
+  contents:
+  - accessibility
+- title: The package
+  contents:
+  - peabiru-package
+  - core_version
+
+articles:
+- title: Using peabiru
+  navbar: ~
+  contents:
+  - peabiru
+  - articles/travel-time-matrices
+  - articles/accessibility
+  - articles/expanded-and-arrival
+  - articles/coming-from-r5r
+- title: Under the hood
+  navbar: Under the hood
+  contents:
+  - articles/how-it-works
+  - articles/benchmarks

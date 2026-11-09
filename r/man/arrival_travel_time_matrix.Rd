@@ -33,7 +33,7 @@ arrival_travel_time_matrix(
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[r5r:build_network]{build_network()}}.}
+\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
 \code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84.}
@@ -81,7 +81,7 @@ progress counter.}
 }
 \value{
 A \code{data.frame} with the columns of
-\code{\link[r5r:expanded_travel_time_matrix]{expanded_travel_time_matrix()}}: one row per origin and destination
+\code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}}: one row per origin and destination
 reached in time.
 }
 \description{
@@ -94,7 +94,7 @@ values: as r5r does, departures are searched minute by minute from
 }
 \details{
 Only public transport is supported (see
-\code{\link[r5r:expanded_travel_time_matrix]{expanded_travel_time_matrix()}}); the other unsupported options are
+\code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}}); the other unsupported options are
 errors too.
 }
 \examples{

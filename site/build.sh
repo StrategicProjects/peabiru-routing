@@ -58,6 +58,9 @@ if [ "$skip_r" = 0 ]; then
   fi
   [ -n "$lib" ] && lib="$(cd "$lib" && pwd)"
   export R_LIBS="${lib:+$lib:}${R_LIBS:-}"
+  # The "Coming from r5r" article runs r5r next to peabiru when a JDK 21 is there.
+  jdk21="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+  if [ -z "${JAVA_HOME:-}" ] && [ -d "$jdk21" ]; then export JAVA_HOME="$jdk21"; fi
   (cd "$root/r" && PB_DEST="$out/r" Rscript -e '
     pkgdown::build_site(".", override = list(destination = Sys.getenv("PB_DEST")),
                         install = FALSE, new_process = FALSE, preview = FALSE)
@@ -70,9 +73,11 @@ if [ "$skip_rust" = 0 ]; then
   step "Rust guide (mdBook) and API (rustdoc)"
   cp "$here/assets/favicon.svg" "$here/rust/theme/favicon.svg"
   mdbook build "$here/rust" -d "$out/rust"
-  (cd "$root" && cargo doc --no-deps -p peabiru-core -q)
+  # a target dir of its own (under the configured one): a shared target dir
+  # may hold docs built from other checkouts
   target="$(cd "$root" && cargo metadata --format-version 1 --no-deps |
-    python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')"
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')/peabiru-site-doc"
+  (cd "$root" && cargo doc --no-deps -p peabiru-core -q --target-dir "$target")
   mkdir -p "$out/rust/api"
   cp -R "$target/doc/." "$out/rust/api/"
   # rustdoc's own landing: send /rust/api/ to the crate

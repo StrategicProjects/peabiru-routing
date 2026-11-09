@@ -1,0 +1,114 @@
+---
+title: "Coming from r5r"
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+```
+
+peabiru is meant as a drop-in for the routing functions of r5r 2.5.0. This
+page lists what is the same, what is different on purpose, and what is not
+there yet.
+
+## The same
+
+- **Function names, arguments and defaults** of `build_network()`,
+  `travel_time_matrix()`, `accessibility()`, `expanded_travel_time_matrix()`
+  and `arrival_travel_time_matrix()`. The first argument is still called
+  `r5r_network`.
+- **Argument checks** follow r5r's, so invalid arguments fail in the same cases.
+- **Results**: the same rows, in the same order, with the same column names,
+  types and values. For a frequency-based feed this needs the same `seed`
+  (without one, both packages draw from the clock and every run differs).
+
+A call written for r5r runs as is once the package is swapped. Here both
+packages compute the same matrix on the sample network, and the results are
+compared with `identical()`:
+
+```{r, include = FALSE}
+# r5r needs a JDK 21; site/build.sh points JAVA_HOME to one when it can.
+run_r5r <- requireNamespace("r5r", quietly = TRUE) &&
+  nzchar(Sys.getenv("JAVA_HOME"))
+```
+
+```{r, eval = run_r5r, message = FALSE}
+options(java.parameters = "-Xmx2G")
+
+# r5r writes its network.dat into the data directory: give it a copy
+r5r_dir <- file.path(tempdir(), "spo")
+dir.create(r5r_dir)
+invisible(file.copy(list.files(data_path, pattern = "\\.(pbf|zip)$", full.names = TRUE),
+                    r5r_dir))
+r5r_network <- r5r::build_network(r5r_dir, verbose = FALSE)
+
+args <- list(origins = points, destinations = points,
+             mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+             percentiles = c(25, 50, 75), seed = 42, n_threads = 2,
+             progress = FALSE)
+from_r5r <- do.call(r5r::travel_time_matrix, c(list(r5r_network), args))
+from_peabiru <- do.call(peabiru::travel_time_matrix, c(list(network), args))
+
+identical(as.data.frame(from_r5r), from_peabiru)
+```
+
+```{r, echo = FALSE, results = "asis", eval = !run_r5r}
+cat("*(This chunk was not run when the page was built: it needs r5r and a JDK 21.)*\n")
+```
+
+The last line is how parity is tested: `bench/compare/r_parity.R` in the
+repository runs dozens of such comparisons on r5r's Porto Alegre and São
+Paulo samples (street and transit matrices, accessibility, expanded and
+arrival matrices, edge cases) and fails on any difference.
+
+## Different on purpose
+
+- **No Java.** There is no JVM to start, no `java.parameters` to set, no R5 jar
+  to download and no `stop_r5()`.
+- **Results are `data.frame`s**, not `data.table`s, so the package imports
+  nothing. `data.table::setDT()` converts them if you prefer.
+- **The network lives in memory only.** Nothing is written to the data
+  directory (no `network.dat`), and the network object cannot be saved with
+  `saveRDS()`: build it again in a new session, which is quick.
+  `overwrite` and `temp_dir` are accepted and have no effect.
+- **`build_network()` has `n_threads`**, used to read the `.pbf` file.
+- **`verbose` and `progress` are checked but print nothing.**
+
+```{r}
+network
+```
+
+## Not supported yet
+
+Anything below stops with an error that says so; nothing is silently ignored.
+
+| r5r feature | In peabiru |
+|---|---|
+| `mode` with `"BICYCLE"` or `"CAR"` plus `"TRANSIT"`; `mode_egress` other than `"WALK"` | error |
+| A subset of transit modes (`"BUS"`, `"RAIL"`, ...) instead of `"TRANSIT"` | error |
+| Fares: `fare_structure`, `max_fare` | error |
+| Scenarios: `new_carspeeds`, `carspeed_scale`, `new_lts` | error |
+| `output_dir` | error |
+| Elevation (a `.tif` in the data directory with `elevation` other than `"NONE"`) | error |
+| More than one `.pbf` in the data directory | error |
+| Expanded and arrival matrices with a street mode alone | error |
+
+```{r, error = TRUE}
+travel_time_matrix(network, points, points, mode = c("WALK", "BUS"),
+                   departure_datetime = departure)
+```
+
+These r5r functions have no peabiru counterpart yet:
+`isochrone()`, `detailed_itineraries()`, `pareto_frontier()`,
+`street_network_to_sf()`, `transit_network_to_sf()`, `street_network_bbox()`,
+`find_snap()`, `get_gtfs_errors()`, `check_transit_availability()` and the fare
+structure helpers (`setup_fare_structure()`, `read_fare_structure()`,
+`write_fare_structure()`). The r5r housekeeping functions (`download_r5()`,
+`setup_r5()`, `stop_r5()`, `r5r_cache()`, `r5r_sitrep()`) are not needed.
+
+## Expanded matrices with a street mode
+
+r5r accepts `expanded_travel_time_matrix()` with a street mode alone, but
+then reports the same trip for every minute of a departure time taken from
+the computer's clock (`Sys.time()`), not from `departure_datetime`. peabiru
+does not reproduce that and stops with an error; use `travel_time_matrix()`
+for street modes.

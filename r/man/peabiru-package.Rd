@@ -7,8 +7,8 @@
 \title{peabiru: multimodal routing on OpenStreetMap and GTFS networks}
 \description{
 peabiru provides the routing functions of the 'r5r' package --
-\code{\link[r5r:build_network]{build_network()}}, \code{\link[r5r:travel_time_matrix]{travel_time_matrix()}}, \code{\link[r5r:accessibility]{accessibility()}},
-\code{\link[r5r:expanded_travel_time_matrix]{expanded_travel_time_matrix()}} and \code{\link[r5r:arrival_travel_time_matrix]{arrival_travel_time_matrix()}} -- with
+\code{\link[=build_network]{build_network()}}, \code{\link[=travel_time_matrix]{travel_time_matrix()}}, \code{\link[=accessibility]{accessibility()}},
+\code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}} and \code{\link[=arrival_travel_time_matrix]{arrival_travel_time_matrix()}} -- with
 the same arguments, defaults and results, computed by a 'Rust' port of the
 'R5' routing engine that r5r 2.5.0 drives (R5 7.6). No 'Java' is needed.
 Options that peabiru does not support yet are errors, never silently
@@ -26,17 +26,25 @@ SPTrans frequency-based 'GTFS' feed shipped with r5r, without
 with their population and opportunity counts.
 }
 
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/StrategicProjects/peabiru-routing}
+  \item Report bugs at \url{https://github.com/StrategicProjects/peabiru-routing/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: André Leite \email{leite@castlab.org} (\href{https://orcid.org/0000-0002-4718-9766}{ORCID})
 
 Authors:
 \itemize{
   \item André Leite \email{leite@castlab.org} (\href{https://orcid.org/0000-0002-4718-9766}{ORCID})
-}
-
-Other contributors:
-\itemize{
-  \item StrategicProjects (Also copyright holder of the bundled Rust crate peabiru-core) [copyright holder, funder]
+  \item Marcos Wasiliew \email{marcos.wasiliew@gmail.com} (\href{https://orcid.org/0009-0004-4694-3159}{ORCID})
+  \item Hugo Vasconcelos \email{hugo.vasconcelos@ufpe.br} (\href{https://orcid.org/0000-0001-6249-0920}{ORCID})
+  \item Carlos Amorim \email{carlos.agaf@ufpe.br} (\href{https://orcid.org/0000-0001-6315-8305}{ORCID})
+  \item Diogo Bezerra \email{diogo.bezerra@ufpe.br} (\href{https://orcid.org/0000-0002-1216-8674}{ORCID})
+  \item Júlia Nascimento Barreto \email{juliabarreto@gd.seplag.pe.gov.br} (\href{https://orcid.org/0009-0004-2851-7770}{ORCID})
 }
 
 }
