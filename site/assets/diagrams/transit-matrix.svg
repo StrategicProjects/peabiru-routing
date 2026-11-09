@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 560" width="980" height="560" role="img" aria-labelledby="title desc">
+  <title id="title">How a public transport travel-time matrix is computed</title>
+  <desc id="desc">For each origin: a walking search gives the direct walking time to every destination and the access time to every stop reached. RAPTOR then runs once per departure minute of the time window, from the last minute back to the first, each minute starting from the later minute's state; each round rides the patterns serving stops improved in the previous round and then walks transfers of up to 1 km, for up to max_rides rounds. With frequency-based trips each minute is repeated draws_per_minute times with random headway offsets drawn from the seed and the origin's coordinates. For every destination and iteration the time is the smaller of the direct walk and the arrival at a stop plus the walk from that stop. The iteration times are sorted, percentiles are read off, converted to whole minutes rounded down, and the pair is reported when its lowest percentile is within max_trip_duration.</desc>
+  <style>
+    .panel { fill: #fffdf9; stroke: #e1d8c8; }
+    .t { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; fill: #1f2a2e; }
+    .s { font-size: 12.5px; fill: #4a5a5f; }
+    .xs { font-size: 11.5px; fill: #4a5a5f; }
+    .h { font-weight: 700; }
+    .num { font-weight: 700; fill: #b4532a; }
+    .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+    .box { fill: #ffffff; stroke: #8a7f70; stroke-width: 1.5; }
+    .core { fill: #fbeee6; stroke: #b4532a; stroke-width: 2; }
+    .sub { fill: #ffffff; stroke: #e2c9b9; stroke-width: 1; }
+    .ln { stroke: #4a5a5f; stroke-width: 1.6; fill: none; }
+    .ah { fill: #4a5a5f; }
+    .tick { stroke: #b4532a; stroke-width: 2; }
+    .draw { fill: #c98a1d; }
+    .route { stroke: #b4532a; stroke-width: 3; fill: none; stroke-linecap: round; }
+    .walk { stroke: #4a5a5f; stroke-width: 2; fill: none; stroke-dasharray: 2 4; stroke-linecap: round; }
+    .stop { fill: #ffffff; stroke: #1f2a2e; stroke-width: 1.8; }
+    .pt { fill: #c98a1d; }
+    @media (prefers-color-scheme: dark) {
+      .panel { fill: #1d2427; stroke: #34403f; }
+      .t { fill: #ece6da; }
+      .s, .xs { fill: #a9b4b6; }
+      .num { fill: #e98a5c; }
+      .box { fill: #242d31; stroke: #7d8b8d; }
+      .core { fill: #33261f; stroke: #e98a5c; }
+      .sub { fill: #1d2427; stroke: #5a4336; }
+      .ln { stroke: #a9b4b6; }
+      .ah { fill: #a9b4b6; }
+      .tick { stroke: #e98a5c; }
+      .draw, .pt { fill: #f0b54a; }
+      .route { stroke: #e98a5c; }
+      .walk { stroke: #a9b4b6; }
+      .stop { fill: #1d2427; stroke: #ece6da; }
+    }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path class="ah" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="panel" x="0.5" y="0.5" width="979" height="559" rx="12"/>
+  <text class="t h" x="24" y="34">For each origin (origins are spread over n_threads threads)</text>
+
+  <!-- 1 access -->
+  <rect class="box" x="24" y="52" width="280" height="240" rx="8"/>
+  <text class="t"><tspan class="num" x="40" y="78">1</tspan><tspan class="h" dx="8">Walk from the origin</tspan></text>
+  <text class="t s" x="40" y="102">link the point to the nearest</text>
+  <text class="t s" x="40" y="120">walkable street, then search</text>
+  <text class="t s" x="40" y="138">the streets on foot, up to</text>
+  <text class="t s" x="40" y="156"><tspan class="code">min(max_walk_time,</tspan></text>
+  <text class="t s" x="40" y="172"><tspan class="code">    max_trip_duration)</tspan></text>
+  <!-- mini sketch: origin, walks to stops and a destination -->
+  <circle class="pt" cx="70" cy="236" r="6"/>
+  <path class="walk" d="M76 232 L150 206"/>
+  <path class="walk" d="M76 240 L150 262"/>
+  <path class="walk" d="M76 236 L250 236"/>
+  <circle class="stop" cx="156" cy="204" r="5"/>
+  <circle class="stop" cx="156" cy="264" r="5"/>
+  <rect class="pt" x="252" y="230" width="12" height="12"/>
+  <text class="t xs" x="40" y="258">origin</text>
+  <text class="t xs" x="168" y="200">access to stops</text>
+  <text class="t xs" x="168" y="230">direct walk</text>
+  <text class="t xs" x="168" y="276">access to stops</text>
+
+  <line class="ln" x1="304" y1="172" x2="334" y2="172" marker-end="url(#arr)"/>
+
+  <!-- 2 RAPTOR -->
+  <rect class="core" x="336" y="52" width="620" height="240" rx="8"/>
+  <text class="t"><tspan class="num" x="352" y="78">2</tspan><tspan class="h" dx="8">RAPTOR over the departure window</tspan></text>
+  <text class="t s" x="352" y="100">one search per departure minute, from the last minute back to the first; each minute starts</text>
+  <text class="t s" x="352" y="118">from the later minute's results (range RAPTOR)</text>
+
+  <!-- timeline of minutes -->
+  <line class="ln" x1="372" y1="152" x2="640" y2="152"/>
+  <g class="tick">
+    <line x1="376" y1="146" x2="376" y2="158"/><line x1="404" y1="146" x2="404" y2="158"/>
+    <line x1="432" y1="146" x2="432" y2="158"/><line x1="460" y1="146" x2="460" y2="158"/>
+    <line x1="488" y1="146" x2="488" y2="158"/><line x1="516" y1="146" x2="516" y2="158"/>
+    <line x1="544" y1="146" x2="544" y2="158"/><line x1="572" y1="146" x2="572" y2="158"/>
+    <line x1="600" y1="146" x2="600" y2="158"/><line x1="628" y1="146" x2="628" y2="158"/>
+  </g>
+  <text class="t xs" x="376" y="176" text-anchor="middle">t</text>
+  <text class="t xs" x="628" y="176" text-anchor="middle">t + 9</text>
+  <path class="ln" d="M628 136 Q502 122 380 136" marker-end="url(#arr)"/>
+  <text class="t xs" x="502" y="140" text-anchor="middle">latest first</text>
+  <!-- Monte Carlo draws under each minute -->
+  <g class="draw">
+    <circle cx="376" cy="190" r="2.6"/><circle cx="376" cy="198" r="2.6"/><circle cx="376" cy="206" r="2.6"/><circle cx="376" cy="214" r="2.6"/><circle cx="376" cy="222" r="2.6"/>
+    <circle cx="404" cy="190" r="2.6"/><circle cx="404" cy="198" r="2.6"/><circle cx="404" cy="206" r="2.6"/><circle cx="404" cy="214" r="2.6"/><circle cx="404" cy="222" r="2.6"/>
+    <circle cx="432" cy="190" r="2.6"/><circle cx="432" cy="198" r="2.6"/><circle cx="432" cy="206" r="2.6"/><circle cx="432" cy="214" r="2.6"/><circle cx="432" cy="222" r="2.6"/>
+    <circle cx="460" cy="190" r="2.6"/><circle cx="460" cy="198" r="2.6"/><circle cx="460" cy="206" r="2.6"/><circle cx="460" cy="214" r="2.6"/><circle cx="460" cy="222" r="2.6"/>
+    <circle cx="488" cy="190" r="2.6"/><circle cx="488" cy="198" r="2.6"/><circle cx="488" cy="206" r="2.6"/><circle cx="488" cy="214" r="2.6"/><circle cx="488" cy="222" r="2.6"/>
+    <circle cx="516" cy="190" r="2.6"/><circle cx="516" cy="198" r="2.6"/><circle cx="516" cy="206" r="2.6"/><circle cx="516" cy="214" r="2.6"/><circle cx="516" cy="222" r="2.6"/>
+    <circle cx="544" cy="190" r="2.6"/><circle cx="544" cy="198" r="2.6"/><circle cx="544" cy="206" r="2.6"/><circle cx="544" cy="214" r="2.6"/><circle cx="544" cy="222" r="2.6"/>
+    <circle cx="572" cy="190" r="2.6"/><circle cx="572" cy="198" r="2.6"/><circle cx="572" cy="206" r="2.6"/><circle cx="572" cy="214" r="2.6"/><circle cx="572" cy="222" r="2.6"/>
+    <circle cx="600" cy="190" r="2.6"/><circle cx="600" cy="198" r="2.6"/><circle cx="600" cy="206" r="2.6"/><circle cx="600" cy="214" r="2.6"/><circle cx="600" cy="222" r="2.6"/>
+    <circle cx="628" cy="190" r="2.6"/><circle cx="628" cy="198" r="2.6"/><circle cx="628" cy="206" r="2.6"/><circle cx="628" cy="214" r="2.6"/><circle cx="628" cy="222" r="2.6"/>
+  </g>
+  <text class="t xs" x="352" y="248">With frequency-based trips, each minute is</text>
+  <text class="t xs" x="352" y="264">drawn <tspan class="code">draws_per_minute</tspan> times, with random</text>
+  <text class="t xs" x="352" y="280">offsets from <tspan class="code">seed</tspan> and the origin's coordinates.</text>
+
+  <!-- rounds -->
+  <rect class="sub" x="668" y="132" width="272" height="148" rx="6"/>
+  <text class="t h" x="682" y="154">Rounds 1 … <tspan class="code">max_rides</tspan></text>
+  <text class="t s" x="682" y="176">ride: board every pattern that</text>
+  <text class="t s" x="682" y="194">serves a stop improved in the</text>
+  <text class="t s" x="682" y="212">previous round, at the first</text>
+  <text class="t s" x="682" y="230">departure that can be caught</text>
+  <text class="t s" x="682" y="252">then walk transfers (≤ 1 km)</text>
+  <text class="t s" x="682" y="270">to other stops</text>
+
+  <!-- arrow from RAPTOR down to egress -->
+  <path class="ln" d="M646 292 V318 H164 V340" marker-end="url(#arr)"/>
+  <text class="t s" x="660" y="314">per iteration: arrival time at every stop</text>
+
+  <!-- 3 egress -->
+  <rect class="box" x="24" y="342" width="300" height="196" rx="8"/>
+  <text class="t"><tspan class="num" x="40" y="368">3</tspan><tspan class="h" dx="8">Walk to each destination</tspan></text>
+  <text class="t s" x="40" y="392">for every destination and iteration,</text>
+  <text class="t s" x="40" y="410">the time is the smaller of</text>
+  <text class="t s" x="52" y="430">· the direct walk (step 1), and</text>
+  <text class="t s" x="52" y="448">· arrival at a stop + walk from it</text>
+  <text class="t s" x="40" y="472">egress walks use the 2 km tables</text>
+  <text class="t s" x="40" y="490">and stay under <tspan class="code">max_walk_time</tspan>;</text>
+  <text class="t s" x="40" y="508">totals stay under <tspan class="code">max_trip_duration</tspan></text>
+
+  <line class="ln" x1="324" y1="440" x2="354" y2="440" marker-end="url(#arr)"/>
+
+  <!-- 4 percentiles -->
+  <rect class="box" x="356" y="342" width="300" height="196" rx="8"/>
+  <text class="t"><tspan class="num" x="372" y="368">4</tspan><tspan class="h" dx="8">Percentiles</tspan></text>
+  <text class="t s" x="372" y="392">sort the n iteration times, where</text>
+  <text class="t s" x="372" y="410">n = <tspan class="code">time_window</tspan> (× <tspan class="code">draws_per_minute</tspan></text>
+  <text class="t s" x="372" y="428">with frequencies); percentile p is</text>
+  <text class="t s" x="372" y="446">the value at position ⌈p·n/100⌉;</text>
+  <text class="t s" x="372" y="464">seconds become whole minutes,</text>
+  <text class="t s" x="372" y="482">rounded down</text>
+
+  <line class="ln" x1="656" y1="440" x2="686" y2="440" marker-end="url(#arr)"/>
+
+  <!-- output -->
+  <rect class="box" x="688" y="342" width="268" height="196" rx="8"/>
+  <text class="t h" x="704" y="368">One row per pair</text>
+  <text class="t s" x="704" y="392"><tspan class="code">from_id, to_id,</tspan></text>
+  <text class="t s" x="704" y="410"><tspan class="code">travel_time_p25, _p50, …</tspan></text>
+  <text class="t s" x="704" y="434">a pair is reported when its</text>
+  <text class="t s" x="704" y="452">lowest percentile is within</text>
+  <text class="t s" x="704" y="470"><tspan class="code">max_trip_duration</tspan>; higher</text>
+  <text class="t s" x="704" y="488">percentiles beyond it are NA</text>
+</svg>

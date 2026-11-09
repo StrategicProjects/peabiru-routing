@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 470" width="980" height="470" role="img" aria-labelledby="title desc">
+  <title id="title">Building a network</title>
+  <desc id="desc">Street lane: the .pbf is read, ways become directed edges split at shared nodes with walk, bike and car permissions, car speeds and bike traffic stress; stress is spread at unsignalled intersections and small disconnected islands are closed to each mode; then a spatial index, park-and-ride links and turn restrictions are added. Transit lane: GTFS feeds are read in directory order and trips are grouped into patterns. Each stop is then linked to the nearest walkable street, and walking tables are precomputed: transfers between stops within 1 km and walking distances from each stop up to 2 km for egress. This happens once per network.</desc>
+  <style>
+    .panel { fill: #fffdf9; stroke: #e1d8c8; }
+    .t { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; fill: #1f2a2e; }
+    .s { font-size: 12.5px; fill: #4a5a5f; }
+    .h { font-weight: 700; }
+    .num { font-weight: 700; fill: #b4532a; }
+    .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
+    .street { fill: #ffffff; stroke: #8a7f70; stroke-width: 1.5; }
+    .transit { fill: #ffffff; stroke: #2f6b4f; stroke-width: 1.5; }
+    .both { fill: #fbeee6; stroke: #b4532a; stroke-width: 2; }
+    .lane { fill: #f1ebe0; }
+    .ln { stroke: #4a5a5f; stroke-width: 1.6; fill: none; }
+    .ah { fill: #4a5a5f; }
+    @media (prefers-color-scheme: dark) {
+      .panel { fill: #1d2427; stroke: #34403f; }
+      .t { fill: #ece6da; }
+      .s { fill: #a9b4b6; }
+      .num { fill: #e98a5c; }
+      .street { fill: #242d31; stroke: #7d8b8d; }
+      .transit { fill: #242d31; stroke: #6fbf95; }
+      .both { fill: #33261f; stroke: #e98a5c; }
+      .lane { fill: #20282b; }
+      .ln { stroke: #a9b4b6; }
+      .ah { fill: #a9b4b6; }
+    }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path class="ah" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="panel" x="0.5" y="0.5" width="979" height="469" rx="12"/>
+
+  <!-- lanes -->
+  <rect class="lane" x="12" y="44" width="956" height="168" rx="8"/>
+  <rect class="lane" x="12" y="236" width="956" height="168" rx="8"/>
+  <text class="t h" x="24" y="32">Streets, from the OpenStreetMap <tspan class="code">.pbf</tspan></text>
+  <text class="t h" x="24" y="226">Public transport, from the GTFS <tspan class="code">.zip</tspan> feeds</text>
+
+  <!-- street lane -->
+  <rect class="street" x="24" y="60" width="210" height="136" rx="8"/>
+  <text class="t"><tspan class="num" x="38" y="84">1</tspan><tspan class="h" dx="8">Read the extract</tspan></text>
+  <text class="t s" x="38" y="108">routable ways, turn</text>
+  <text class="t s" x="38" y="126">restrictions and node tags;</text>
+  <text class="t s" x="38" y="144">blocks decoded in parallel</text>
+  <text class="t s" x="38" y="162">(<tspan class="code">n_threads</tspan>)</text>
+
+  <rect class="street" x="264" y="60" width="210" height="136" rx="8"/>
+  <text class="t"><tspan class="num" x="278" y="84">2</tspan><tspan class="h" dx="8">Ways to edges</tspan></text>
+  <text class="t s" x="278" y="108">split at shared nodes, one</text>
+  <text class="t s" x="278" y="126">edge per direction; per edge:</text>
+  <text class="t s" x="278" y="144">walk / bike / car permission,</text>
+  <text class="t s" x="278" y="162">car speed, bike traffic stress</text>
+  <text class="t s" x="278" y="180">(LTS) from the tags</text>
+
+  <rect class="street" x="504" y="60" width="210" height="136" rx="8"/>
+  <text class="t"><tspan class="num" x="518" y="84">3</tspan><tspan class="h" dx="8">Clean up</tspan></text>
+  <text class="t s" x="518" y="108">spread the highest stress at</text>
+  <text class="t s" x="518" y="126">unsignalled intersections;</text>
+  <text class="t s" x="518" y="144">per mode, close islands of</text>
+  <text class="t s" x="518" y="162">fewer than 40 vertices to</text>
+  <text class="t s" x="518" y="180">that mode</text>
+
+  <rect class="street" x="744" y="60" width="210" height="136" rx="8"/>
+  <text class="t"><tspan class="num" x="758" y="84">4</tspan><tspan class="h" dx="8">Index and extras</tspan></text>
+  <text class="t s" x="758" y="108">grid index of edges (for</text>
+  <text class="t s" x="758" y="126">linking points); park-and-ride</text>
+  <text class="t s" x="758" y="144">areas linked to streets; car</text>
+  <text class="t s" x="758" y="162">turn restrictions attached</text>
+
+  <line class="ln" x1="234" y1="128" x2="262" y2="128" marker-end="url(#arr)"/>
+  <line class="ln" x1="474" y1="128" x2="502" y2="128" marker-end="url(#arr)"/>
+  <line class="ln" x1="714" y1="128" x2="742" y2="128" marker-end="url(#arr)"/>
+
+  <!-- transit lane -->
+  <rect class="transit" x="24" y="252" width="210" height="136" rx="8"/>
+  <text class="t"><tspan class="num" x="38" y="276">5</tspan><tspan class="h" dx="8">Read the feeds</tspan></text>
+  <text class="t s" x="38" y="300">in directory order: stops,</text>
+  <text class="t s" x="38" y="318">calendars, trips, stop times,</text>
+  <text class="t s" x="38" y="336">frequencies; invalid trips</text>
+  <text class="t s" x="38" y="354">and entries are dropped</text>
+
+  <rect class="transit" x="264" y="252" width="210" height="136" rx="8"/>
+  <text class="t"><tspan class="num" x="278" y="276">6</tspan><tspan class="h" dx="8">Trips to patterns</tspan></text>
+  <text class="t s" x="278" y="300">same route, stop sequence</text>
+  <text class="t s" x="278" y="318">and pickup / drop-off rules;</text>
+  <text class="t s" x="278" y="336">blank times interpolated;</text>
+  <text class="t s" x="278" y="354">trips sorted by departure</text>
+
+  <rect class="both" x="504" y="252" width="210" height="136" rx="8"/>
+  <text class="t"><tspan class="num" x="518" y="276">7</tspan><tspan class="h" dx="8">Link stops</tspan></text>
+  <text class="t s" x="518" y="300">each stop joins the nearest</text>
+  <text class="t s" x="518" y="318">walkable street: the street</text>
+  <text class="t s" x="518" y="336">is split there and a short</text>
+  <text class="t s" x="518" y="354">connector edge is added</text>
+
+  <rect class="both" x="744" y="252" width="210" height="136" rx="8"/>
+  <text class="t"><tspan class="num" x="758" y="276">8</tspan><tspan class="h" dx="8">Walking tables</tspan></text>
+  <text class="t s" x="758" y="300">transfers: stops within 1 km</text>
+  <text class="t s" x="758" y="318">on foot (nearest stop of each</text>
+  <text class="t s" x="758" y="336">pattern); egress: walking</text>
+  <text class="t s" x="758" y="354">distance from every stop to</text>
+  <text class="t s" x="758" y="372">street vertices within 2 km</text>
+
+  <line class="ln" x1="234" y1="320" x2="262" y2="320" marker-end="url(#arr)"/>
+  <line class="ln" x1="474" y1="320" x2="502" y2="320" marker-end="url(#arr)"/>
+  <line class="ln" x1="714" y1="320" x2="742" y2="320" marker-end="url(#arr)"/>
+  <!-- street network feeds stop linking -->
+  <path class="ln" d="M849 196 V214 H609 V250" marker-end="url(#arr)"/>
+  <text class="t s" x="617" y="242">street network</text>
+
+  <text class="t s" x="24" y="432">Steps 1–8 run once per network (in R, inside <tspan class="code">build_network()</tspan>); the result stays in memory and every query reuses it.</text>
+  <text class="t s" x="24" y="452">Each step follows R5 7.6, down to its iteration and tie-breaking orders: that is what makes the results match r5r exactly.</text>
+</svg>

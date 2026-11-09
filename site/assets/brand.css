@@ -1,0 +1,60 @@
+/* peabiru brand palette.
+ *
+ * Earth tones for a trail network: terracotta (routes), ochre (stops),
+ * forest green (secondary accent), on warm sand by day and slate by night.
+ * The dark palette applies when the system asks for it, or when an ancestor
+ * has data-theme="dark" / data-bs-theme="dark" (pkgdown) / class "navy" or
+ * "coal" or "ayu" (mdBook); data-theme="light" forces the light one. */
+
+:root {
+  --pb-ink: #1f2a2e;          /* text, the mark's tile */
+  --pb-ink-soft: #4a5a5f;     /* secondary text */
+  --pb-bg: #faf6ef;           /* page background (sand) */
+  --pb-surface: #ffffff;      /* cards, code blocks */
+  --pb-surface-2: #f1ebe0;    /* muted panels */
+  --pb-border: #e1d8c8;
+  --pb-route: #b4532a;        /* terracotta: links, primary accent */
+  --pb-route-strong: #8f3f1d; /* hover */
+  --pb-route-mark: #e07a4a;   /* the mark's stroke (fixed in the logo) */
+  --pb-stop: #c98a1d;         /* ochre: highlights */
+  --pb-stop-mark: #f0b54a;
+  --pb-forest: #2f6b4f;       /* green accent: "equal", "ok" */
+  --pb-code-bg: #f4efe6;
+  --pb-font-sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --pb-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pb-ink: #ece6da;
+    --pb-ink-soft: #a9b4b6;
+    --pb-bg: #14191b;
+    --pb-surface: #1d2427;
+    --pb-surface-2: #242d31;
+    --pb-border: #34403f;
+    --pb-route: #e98a5c;
+    --pb-route-strong: #f4a67f;
+    --pb-stop: #f0b54a;
+    --pb-forest: #6fbf95;
+    --pb-code-bg: #1a2124;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"],
+:root[data-bs-theme="dark"],
+html.navy, html.coal, html.ayu {
+  --pb-ink: #ece6da;
+  --pb-ink-soft: #a9b4b6;
+  --pb-bg: #14191b;
+  --pb-surface: #1d2427;
+  --pb-surface-2: #242d31;
+  --pb-border: #34403f;
+  --pb-route: #e98a5c;
+  --pb-route-strong: #f4a67f;
+  --pb-stop: #f0b54a;
+  --pb-forest: #6fbf95;
+  --pb-code-bg: #1a2124;
+  color-scheme: dark;
+}
