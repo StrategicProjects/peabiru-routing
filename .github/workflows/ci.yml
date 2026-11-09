@@ -1,0 +1,80 @@
+name: CI
+
+# The Rust core and command-line tool on the three platforms, the oldest
+# supported compiler, and the R package installed from the checkout. The
+# Python wheels are built and tested by python-release.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: rust ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # rust-toolchain.toml selects stable with rustfmt and clippy; rustup,
+      # already on the runners, installs it on the first cargo call
+      - name: Format
+        if: runner.os == 'Linux'
+        run: cargo fmt --all --check
+      - name: Lint
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Test
+        run: cargo test --release --locked
+
+  msrv:
+    name: rust 1.81 (minimum supported)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup toolchain install 1.81 --profile minimal
+      - run: cargo +1.81 check --locked -p peabiru-core -p peabiru-cli
+
+  r:
+    name: R package ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      NOT_CRAN: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: r-lib/actions/setup-r@929c772977a3a13c8733b363bf5a2f685c25dd91 # v2.9.0
+        with:
+          use-public-rspm: true
+      - name: Install testthat
+        run: install.packages("testthat")
+        shell: Rscript {0}
+      - name: Install the package from the checkout
+        run: R CMD INSTALL r
+      - name: Test
+        run: |
+          library(peabiru)
+          r <- as.data.frame(testthat::test_dir(
+            "r/tests/testthat", package = "peabiru", load_package = "installed",
+            reporter = "summary", stop_on_failure = FALSE
+          ))
+          cat("passed:", sum(r$passed), "failed:", sum(r$failed),
+              "errors:", sum(r$error), "skipped:", sum(r$skipped), "\n")
+          if (sum(r$failed) > 0 || any(r$error)) quit(status = 1)
+        shell: Rscript {0}

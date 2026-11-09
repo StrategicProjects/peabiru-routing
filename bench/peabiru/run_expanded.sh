@@ -9,6 +9,7 @@
 #        PEABIRU_ROOT checkout whose bench/data and bench/results to use
 #                     (default: this one)
 #        PEABIRU_OUT  output directory (default: $PEABIRU_ROOT/bench/results/peabiru)
+#        R5R_EXTDATA  r5r's extdata directory (default: ask the installed r5r)
 # Writes <out>/<city>_TRANSIT_{expanded,expanded_nobd,expanded_v2,arrival,
 # arrival_v2,arrival_midnight}.csv and exits 1 if a peabiru command fails or
 # any matrix differs.
@@ -21,7 +22,7 @@ if [ -z "${PEABIRU_BIN:-}" ]; then
   PEABIRU_BIN="$(cargo metadata --format-version 1 --no-deps | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')/release/peabiru"
 fi
 ROOT="${PEABIRU_ROOT:-$HERE}"
-X=$(Rscript -e 'cat(system.file("extdata", package="r5r"))')
+X="${R5R_EXTDATA:-$(Rscript -e 'cat(system.file("extdata", package="r5r"))')}"
 OUT="${PEABIRU_OUT:-$ROOT/bench/results/peabiru}"
 REF="$ROOT/bench/results/r5r"
 mkdir -p "$OUT"
