@@ -119,6 +119,22 @@ impl<const P: bool> State<P> {
         }
     }
 
+    /// `copy()` into an existing state of the same size.
+    fn copy_from(&mut self, o: &Self) {
+        self.best.copy_from_slice(&o.best);
+        self.best_nt.copy_from_slice(&o.best_nt);
+        self.updated.clear();
+        self.nt_updated.clear();
+        self.departure = o.departure;
+        self.max_duration = o.max_duration;
+        if P {
+            self.prev_pattern.copy_from_slice(&o.prev_pattern);
+            self.prev_stop.copy_from_slice(&o.prev_stop);
+            self.prev_board.copy_from_slice(&o.prev_board);
+            self.transfer_stop.copy_from_slice(&o.transfer_stop);
+        }
+    }
+
     /// `setTimeAtStop(stop, time, fromPattern, fromStop, boardTime, transfer)`
     /// (`RaptorState.java:210-252`).
     #[inline]
@@ -161,6 +177,13 @@ impl<const P: bool> State<P> {
         self.updated.clear();
         self.nt_updated.clear();
         let max_clock = departure + self.max_duration;
+        if !P {
+            // the same, written so that it vectorizes
+            for t in self.best.iter_mut().chain(self.best_nt.iter_mut()) {
+                *t = if *t >= max_clock { UNREACHED } else { *t };
+            }
+            return;
+        }
         for i in 0..self.best.len() {
             if self.best[i] >= max_clock {
                 self.best[i] = UNREACHED;
@@ -214,6 +237,16 @@ fn shorter_access_or_transfer_leg<const P: bool>(
 fn min_merge_previous<const P: bool>(states: &mut [State<P>], r: usize) {
     let (prev, cur) = states.split_at_mut(r);
     let (p, c) = (&prev[r - 1], &mut cur[0]);
+    if !P {
+        // ties take the previous value, which is the same value: a min
+        for (c, &p) in c.best.iter_mut().zip(&p.best) {
+            *c = (*c).min(p);
+        }
+        for (c, &p) in c.best_nt.iter_mut().zip(&p.best_nt) {
+            *c = (*c).min(p);
+        }
+        return;
+    }
     for s in 0..c.best.len() {
         if p.best[s] <= c.best[s] {
             c.best[s] = p.best[s];
@@ -252,15 +285,48 @@ fn stop_was_updated<const P: bool>(
     }
 }
 
+/// First index in `0..n` where `pred` is false, for a `pred` that is true
+/// on a prefix (`slice::partition_point` over indices).
+#[inline]
+fn partition_point_by(n: usize, pred: impl Fn(usize) -> bool) -> usize {
+    let (mut lo, mut hi) = (0, n);
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        if pred(mid) {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    lo
+}
+
 /// Running scheduled and frequency trip indices of a pattern, and whether
 /// the scheduled ones never overtake each other.
 type RunningTrips = (Vec<u32>, Vec<u32>, bool);
+
+/// The running scheduled trips of a pattern copied into flat trip-major
+/// tables, `arrivals[t * n_stops + i]` for the `t`-th running trip at the
+/// pattern's `i`-th stop, so the scheduled round reads one array instead of
+/// following a pointer per trip.
+#[derive(Default)]
+struct ScheduleTable {
+    n_stops: usize,
+    arrivals: Vec<i32>,
+    departures: Vec<i32>,
+}
 
 /// Patterns running on the request date (R5 `FilteredPatterns`).
 pub struct Filtered {
     /// Per pattern, indices into `pattern.trips` of running scheduled and
     /// frequency trips, and whether scheduled trips never overtake.
     patterns: Vec<Option<RunningTrips>>,
+    /// Per pattern, the running scheduled trips' times (empty if none).
+    tables: Vec<ScheduleTable>,
+    /// Per pattern, parallel to its running frequency trips: the least and
+    /// greatest departure offset over the stops, and whether times never
+    /// decrease along the trip.
+    freq_bounds: Vec<Vec<(i32, i32, bool)>>,
     running_scheduled: Vec<bool>,
     running_frequency: Vec<bool>,
 }
@@ -271,6 +337,8 @@ impl Filtered {
     pub fn new(layer: &TransitLayer, active: &[bool]) -> Result<Filtered, String> {
         let mut f = Filtered {
             patterns: Vec::with_capacity(layer.patterns.len()),
+            tables: Vec::with_capacity(layer.patterns.len()),
+            freq_bounds: Vec::with_capacity(layer.patterns.len()),
             running_scheduled: vec![false; layer.patterns.len()],
             running_frequency: vec![false; layer.patterns.len()],
         };
@@ -279,6 +347,8 @@ impl Filtered {
                 .ok_or_else(|| format!("unsupported GTFS route_type {}", p.route_type))?;
             if !(allowed && p.services.iter().any(|&s| active[s as usize])) {
                 f.patterns.push(None);
+                f.tables.push(ScheduleTable::default());
+                f.freq_bounds.push(Vec::new());
                 continue;
             }
             let mut sched = Vec::new();
@@ -296,6 +366,41 @@ impl Filtered {
                 let (a, b) = (&p.trips[w[0] as usize], &p.trips[w[1] as usize]);
                 a.departures.iter().zip(&b.departures).any(|(x, y)| x > y)
             });
+            let mut table = ScheduleTable {
+                n_stops: p.stops.len(),
+                arrivals: Vec::with_capacity(sched.len() * p.stops.len()),
+                departures: Vec::with_capacity(sched.len() * p.stops.len()),
+            };
+            for &t in &sched {
+                let trip = &p.trips[t as usize];
+                // GTFS loading gives every trip one time per pattern stop
+                if trip.arrivals.len() != p.stops.len() || trip.departures.len() != p.stops.len() {
+                    return Err(format!(
+                        "trip {} has {} times for {} stops",
+                        trip.trip_id,
+                        trip.arrivals.len(),
+                        p.stops.len()
+                    ));
+                }
+                table.arrivals.extend_from_slice(&trip.arrivals);
+                table.departures.extend_from_slice(&trip.departures);
+            }
+            f.tables.push(table);
+            f.freq_bounds.push(
+                freq.iter()
+                    .map(|&t| {
+                        let trip = &p.trips[t as usize];
+                        let d = &trip.departures;
+                        let a = &trip.arrivals;
+                        let monotone = a.len() == d.len()
+                            && (0..d.len()).all(|i| d[i] >= a[i])
+                            && (1..d.len()).all(|i| a[i] >= d[i - 1]);
+                        let lo = d.iter().copied().min().unwrap_or(0);
+                        let hi = d.iter().copied().max().unwrap_or(0);
+                        (lo, hi, monotone)
+                    })
+                    .collect(),
+            );
             f.patterns.push(Some((sched, freq, !overtakes)));
             f.running_frequency[pi] = p.has_frequencies;
             f.running_scheduled[pi] = p.has_schedules;
@@ -401,13 +506,20 @@ impl Worker<'_> {
         within_minute: bool,
     ) -> Vec<usize> {
         let mut set = BitSet::new(self.layer.patterns.len());
-        for stop in 0..self.n_stops {
-            if !stop_was_updated(input, r, stop, within_minute) {
-                continue;
-            }
+        let mut add = |stop: usize| {
             for &p in &self.layer.patterns_for_stop[stop] {
                 if running[p as usize] {
                     set.set(p as usize);
+                }
+            }
+        };
+        if within_minute {
+            // `stop_was_updated` is the update flag: visit just those stops
+            input[r].updated.ones().for_each(&mut add);
+        } else {
+            for stop in 0..self.n_stops {
+                if stop_was_updated(input, r, stop, within_minute) {
+                    add(stop);
                 }
             }
         }
@@ -421,6 +533,8 @@ impl Worker<'_> {
             let Some((sched, _, no_overtaking)) = &self.filtered.patterns[pi] else {
                 continue;
             };
+            let table = &self.filtered.tables[pi];
+            let ns = table.n_stops;
             let pattern: &Pattern = &self.layer.patterns[pi];
             let mut on_trip: Option<usize> = None; // index into `sched`
             let mut board_time = -1;
@@ -429,10 +543,9 @@ impl Worker<'_> {
                 let stop = stop as usize;
                 if let Some(t) = on_trip {
                     if pattern.dropoffs[i] {
-                        let trip = &pattern.trips[sched[t] as usize];
                         states[r].set_time_at_stop(
                             stop,
-                            trip.arrivals[i],
+                            table.arrivals[t * ns + i],
                             pi as i32,
                             board_stop,
                             board_time,
@@ -443,11 +556,11 @@ impl Worker<'_> {
                 if stop_was_updated(states, r - 1, stop, true) && pattern.pickups[i] {
                     let earliest = states[r - 1].best[stop] + MINIMUM_BOARD_WAIT_SEC;
                     if let Some(t) = on_trip {
-                        if earliest >= pattern.trips[sched[t] as usize].departures[i] {
+                        if earliest >= table.departures[t * ns + i] {
                             continue;
                         }
                     }
-                    let dep = |t: usize| pattern.trips[sched[t] as usize].departures[i];
+                    let dep = |t: usize| table.departures[t * ns + i];
                     let new_trip = match on_trip {
                         Some(cur) if *no_overtaking => {
                             let mut best = cur;
@@ -462,6 +575,15 @@ impl Worker<'_> {
                             }
                             Some(best)
                         }
+                        _ if *no_overtaking => {
+                            // Departures never decrease from one trip to the
+                            // next, so R5's scan for the first trip leaving
+                            // after `earliest` stops where this search lands.
+                            let t = partition_point_by(sched.len(), |t| dep(t) <= earliest);
+                            // (the scan also skips a departure of
+                            // i32::MAX, and so every later one)
+                            (t < sched.len() && dep(t) < i32::MAX).then_some(t)
+                        }
                         _ => {
                             let mut best = None;
                             let mut best_dep = i32::MAX;
@@ -470,9 +592,6 @@ impl Worker<'_> {
                                 if d > earliest && d < best_dep {
                                     best = Some(t);
                                     best_dep = d;
-                                    if *no_overtaking {
-                                        break;
-                                    }
                                 }
                             }
                             best
@@ -514,9 +633,46 @@ impl Worker<'_> {
                 continue;
             };
             let pattern = &self.layer.patterns[pi];
-            for &ti in freq {
+            // Every stop's earliest boarding is at least a minute after the
+            // departure (states hold clock times from the departure on),
+            // and alighting at or after departure + max duration is
+            // discarded. An entry whose vehicles all leave before the first
+            // or, on a trip whose times never decrease, after the second
+            // cannot change a state: skip it.
+            let (dep, dur) = (
+                i64::from(states[r].departure),
+                i64::from(states[r].max_duration),
+            );
+            let earliest_any = dep + i64::from(MINIMUM_BOARD_WAIT_SEC);
+            for (&ti, &(min_tt, max_tt, monotone)) in
+                freq.iter().zip(&self.filtered.freq_bounds[pi])
+            {
                 let trip = &pattern.trips[ti as usize];
                 for (e, entry) in trip.frequencies.iter().enumerate() {
+                    let (start, end, h) = (
+                        i64::from(entry.start),
+                        i64::from(entry.end),
+                        i64::from(entry.headway),
+                    );
+                    let (last_board, first_board) = match mode {
+                        FreqMode::MonteCarlo => {
+                            let offset = i64::from(offsets.offsets[pi][ti as usize][e]);
+                            let n_trips = (end - (start + offset)) / h + 1;
+                            if n_trips <= 0 {
+                                continue; // no vehicle of this entry boards
+                            }
+                            (
+                                start + offset + i64::from(max_tt) + (n_trips - 1) * h,
+                                start + offset + i64::from(min_tt),
+                            )
+                        }
+                        FreqMode::UpperBound => {
+                            (end - h + i64::from(max_tt), start + h + i64::from(min_tt))
+                        }
+                    };
+                    if last_board < earliest_any || (monotone && first_board >= dep + dur) {
+                        continue;
+                    }
                     let mut board_time = -1;
                     let mut board_pos = 0usize;
                     for (i, &stop) in pattern.stops.iter().enumerate() {
@@ -748,7 +904,68 @@ pub fn route(
     access: &[(u32, i32)],
     req: &RaptorRequest,
 ) -> Vec<Vec<i32>> {
-    route_impl::<false>(layer, transfers, filtered, access, req, &[]).0
+    let mut out = Vec::new();
+    route_impl::<false>(layer, transfers, filtered, access, req, &[], |_, arr| {
+        out.push(arr.to_vec())
+    });
+    out
+}
+
+/// Vehicle-arrival durations of every iteration at every stop, stop-major:
+/// `get(stop)[k]` is iteration `k`'s value (`UNREACHED` where none), so
+/// propagation to a destination reads each stop's iterations contiguously.
+#[derive(Default)]
+pub(crate) struct StopTimes {
+    n_iter: usize,
+    data: Vec<i32>,
+    /// Per stop, the least value over the iterations.
+    min: Vec<i32>,
+}
+
+impl StopTimes {
+    pub(crate) fn n_iterations(&self) -> usize {
+        self.n_iter
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, stop: usize) -> &[i32] {
+        &self.data[stop * self.n_iter..(stop + 1) * self.n_iter]
+    }
+
+    /// The least value of `stop` over all iterations.
+    #[inline]
+    pub(crate) fn min(&self, stop: usize) -> i32 {
+        self.min[stop]
+    }
+}
+
+/// [`route`] writing into a reused stop-major buffer.
+pub(crate) fn route_stop_major(
+    layer: &TransitLayer,
+    transfers: &[Vec<(u32, i32)>],
+    filtered: &Filtered,
+    access: &[(u32, i32)],
+    req: &RaptorRequest,
+    out: &mut StopTimes,
+) {
+    let n_stops = layer.stop_ids.len();
+    let n_iter = req.time_window.max(0) as usize * req.iterations_per_minute(layer.has_frequencies);
+    out.n_iter = n_iter;
+    out.data.clear();
+    out.data.resize(n_iter * n_stops, UNREACHED);
+    out.min.clear();
+    out.min.resize(n_stops, UNREACHED);
+    let mut k = 0;
+    route_impl::<false>(layer, transfers, filtered, access, req, &[], |_, arr| {
+        for (s, &t) in arr.iter().enumerate() {
+            out.data[s * n_iter + k] = t;
+            if t < out.min[s] {
+                out.min[s] = t;
+            }
+        }
+        k += 1;
+    });
+    debug_assert_eq!(k, n_iter);
 }
 
 /// [`route`] that also keeps, at every iteration, the path to each stop
@@ -764,7 +981,10 @@ pub fn route_with_paths(
     req: &RaptorRequest,
     retain: &[bool],
 ) -> (Vec<Vec<i32>>, PathResults) {
-    let (times, paths) = route_impl::<true>(layer, transfers, filtered, access, req, retain);
+    let mut times = Vec::new();
+    let paths = route_impl::<true>(layer, transfers, filtered, access, req, retain, |_, arr| {
+        times.push(arr.to_vec())
+    });
     let paths = paths.unwrap_or(PathResults {
         paths: Vec::new(),
         path_of: Vec::new(),
@@ -773,6 +993,8 @@ pub fn route_with_paths(
     (times, paths)
 }
 
+/// The search, handing each iteration's durations at every stop to
+/// `sink(departure, durations)` in R5 iteration order.
 fn route_impl<const P: bool>(
     layer: &TransitLayer,
     transfers: &[Vec<(u32, i32)>],
@@ -780,7 +1002,8 @@ fn route_impl<const P: bool>(
     access: &[(u32, i32)],
     req: &RaptorRequest,
     retain: &[bool],
-) -> (Vec<Vec<i32>>, Option<PathResults>) {
+    mut sink: impl FnMut(i32, &[i32]),
+) -> Option<PathResults> {
     let n_stops = layer.stop_ids.len();
     let w = Worker {
         layer,
@@ -811,8 +1034,16 @@ fn route_impl<const P: bool>(
         }
     };
     let mut offsets = Offsets::new(layer, mt);
-    let mut out = Vec::with_capacity(req.time_window as usize * per_minute);
     let mut sched: Vec<State<P>> = Vec::new();
+    // Monte Carlo copies of `sched`, reused from draw to draw.
+    let mut draw: Vec<State<P>> = Vec::new();
+    let mut durations = vec![UNREACHED; n_stops];
+    let mut emit = |arr: &[i32], dep: i32, sink: &mut dyn FnMut(i32, &[i32])| {
+        for (d, &t) in durations.iter_mut().zip(arr) {
+            *d = if t == UNREACHED { UNREACHED } else { t - dep };
+        }
+        sink(dep, &durations);
+    };
     let to_time = req.from_time + req.time_window * DEPARTURE_STEP_SEC;
     let mut dep = to_time - DEPARTURE_STEP_SEC;
     while dep >= req.from_time {
@@ -840,26 +1071,31 @@ fn route_impl<const P: bool>(
                 }
             }
         }
-        let results: Vec<Vec<i32>> = if layer.has_frequencies {
-            (0..per_minute)
-                .map(|_| {
-                    let mut f: Vec<State<P>> = sched.iter().map(State::copy).collect();
-                    offsets.randomize(layer);
-                    for r in 1..=req.max_rides {
-                        min_merge_previous(&mut f, r);
-                        w.scheduled_round(&mut f, r);
-                        w.frequency_round(&mut f, r, FreqMode::MonteCarlo, &offsets);
-                        if r < req.max_rides {
-                            w.transfers_round(&mut f[r]);
-                        }
+        if layer.has_frequencies {
+            for _ in 0..per_minute {
+                if draw.is_empty() {
+                    draw = sched.iter().map(State::copy).collect();
+                } else {
+                    for (f, s) in draw.iter_mut().zip(&sched) {
+                        f.copy_from(s);
                     }
-                    if P {
-                        // No reuse across Monte Carlo draws (`:423-425`).
-                        path_rows.push(path_to_each_stop(&f, &retained, None, &mut store));
+                }
+                let f = &mut draw;
+                offsets.randomize(layer);
+                for r in 1..=req.max_rides {
+                    min_merge_previous(f, r);
+                    w.scheduled_round(f, r);
+                    w.frequency_round(f, r, FreqMode::MonteCarlo, &offsets);
+                    if r < req.max_rides {
+                        w.transfers_round(&mut f[r]);
                     }
-                    f[req.max_rides].best_nt.clone()
-                })
-                .collect()
+                }
+                if P {
+                    // No reuse across Monte Carlo draws (`:423-425`).
+                    path_rows.push(path_to_each_stop(f, &retained, None, &mut store));
+                }
+                emit(&f[req.max_rides].best_nt, dep, &mut sink);
+            }
         } else {
             if P {
                 path_rows.push(path_to_each_stop(
@@ -869,18 +1105,11 @@ fn route_impl<const P: bool>(
                     &mut store,
                 ));
             }
-            vec![sched[req.max_rides].best_nt.clone()]
-        };
-        for arr in results {
-            out.push(
-                arr.into_iter()
-                    .map(|t| if t == UNREACHED { UNREACHED } else { t - dep })
-                    .collect(),
-            );
+            emit(&sched[req.max_rides].best_nt, dep, &mut sink);
         }
         dep -= DEPARTURE_STEP_SEC;
     }
-    let paths = P.then(|| {
+    P.then(|| {
         let mut slot = vec![u32::MAX; n_stops];
         for (k, &s) in retained.iter().enumerate() {
             slot[s as usize] = k as u32;
@@ -890,8 +1119,7 @@ fn route_impl<const P: bool>(
             path_of: path_rows,
             slot,
         }
-    });
-    (out, paths)
+    })
 }
 
 #[cfg(test)]

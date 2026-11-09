@@ -3,11 +3,11 @@
 //! departure window, walk egress, percentiles over the iterations (R5
 //! `TravelTimeComputer`, `PerTargetPropagater`, `TravelTimeReducer`).
 
-use super::raptor::{self, Filtered, RaptorRequest, UNREACHED};
+use super::raptor::{self, Filtered, RaptorRequest, StopTimes, UNREACHED};
 use super::walk;
 use super::TransitLayer;
 use crate::street::link::{find_split, Split};
-use crate::street::router::{street_vertex_times, Mode};
+use crate::street::router::{search_from, Mode, ModeGraph, Search};
 use crate::street::StreetNetwork;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -146,7 +146,11 @@ pub(crate) struct Query<'a> {
     data: &'a TransitData,
     p: &'a TransitParams,
     filtered: Filtered,
+    /// The walking graph of the access and direct search.
+    walk: ModeGraph,
     dest_splits: Vec<Option<Split>>,
+    /// Per destination, `(stop, egress walk seconds)` for the stops within
+    /// the egress walk limit, in increasing stop order.
     egress: Vec<Vec<(u32, i32)>>,
     /// `max_trip_duration` in seconds.
     max_t: i32,
@@ -154,8 +158,6 @@ pub(crate) struct Query<'a> {
     walk_mms: i32,
     /// Access and direct walk search limit, seconds.
     street_limit: i32,
-    /// Egress walk limit, seconds.
-    egress_limit: i32,
 }
 
 /// Per-thread buffers reused across origins.
@@ -163,6 +165,10 @@ pub(crate) struct Query<'a> {
 pub(crate) struct Scratch {
     split: Vec<u32>,
     times: Vec<i32>,
+    search: Option<Search>,
+    direct: Vec<i32>,
+    access: Vec<(u32, i32)>,
+    stop_times: StopTimes,
 }
 
 impl<'a> Query<'a> {
@@ -182,19 +188,32 @@ impl<'a> Query<'a> {
             .iter()
             .map(|&(lat, lon)| find_split(net, lat, lon, Mode::Walk, &mut scratch))
             .collect();
-        let egress = walk::egress_tables(layer, &data.trees, net, destinations, &dest_splits);
+        let walk_mms = (walk_speed * 1000.0f32) as i32;
+        let egress_limit = p.max_walk_time * 60;
+        // PerTargetPropagater: egress seconds `mm / walkSpeedMillimetersPerSecond`,
+        // stops at or beyond the egress limit skipped.
+        let egress = walk::egress_tables(layer, &data.trees, net, destinations, &dest_splits)
+            .into_iter()
+            .map(|table| {
+                table
+                    .into_iter()
+                    .map(|(stop, mm)| (stop, mm / walk_mms))
+                    .filter(|&(_, e)| e < egress_limit)
+                    .collect()
+            })
+            .collect();
         Ok(Query {
             net,
             layer,
             data,
             p,
             filtered,
+            walk: ModeGraph::with_walk_speed(net, Mode::Walk, p.walk_speed_kmh),
             dest_splits,
             egress,
             max_t: p.max_trip_duration * 60,
-            walk_mms: (walk_speed * 1000.0f32) as i32,
+            walk_mms,
             street_limit: p.max_trip_duration.min(p.max_walk_time) * 60,
-            egress_limit: p.max_walk_time * 60,
         })
     }
 
@@ -212,28 +231,40 @@ impl<'a> Query<'a> {
         mut per_destination: impl FnMut(usize, &mut [i32]),
     ) -> bool {
         let (net, layer, p) = (self.net, self.layer, self.p);
-        let Some(origin) = find_split(net, lat, lon, Mode::Walk, &mut scratch.split) else {
+        let Scratch {
+            split,
+            times: tt,
+            search,
+            direct,
+            access,
+            stop_times,
+        } = scratch;
+        let Some(origin) = find_split(net, lat, lon, Mode::Walk, split) else {
             return false;
         };
         // Walk search: direct times and access to stops.
-        let (vertex_time, direct) = street_vertex_times(
+        let search = search.get_or_insert_with(|| Search::new(net));
+        search_from(
             net,
+            &self.walk,
             &origin,
             &self.dest_splits,
-            Mode::Walk,
-            p.walk_speed_kmh,
             self.street_limit,
+            search,
+            direct,
         );
-        let access: Vec<(u32, i32)> = layer
-            .stop_vertex
-            .iter()
-            .enumerate()
-            .filter(|(_, &v)| v >= 0 && vertex_time[v as usize] < self.street_limit)
-            .map(|(s, &v)| (s as u32, vertex_time[v as usize]))
-            .collect();
-        let times = if access.is_empty() {
-            None
-        } else {
+        let vertex_time = search.vertex_time();
+        access.clear();
+        access.extend(
+            layer
+                .stop_vertex
+                .iter()
+                .enumerate()
+                .filter(|(_, &v)| v >= 0 && vertex_time[v as usize] < self.street_limit)
+                .map(|(s, &v)| (s as u32, vertex_time[v as usize])),
+        );
+        let transit = !access.is_empty();
+        if transit {
             let req = RaptorRequest {
                 from_time: p.departure_time,
                 time_window: p.time_window,
@@ -245,39 +276,37 @@ impl<'a> Query<'a> {
                 seed: p.seed,
                 origin: (lat, lon),
             };
-            Some(raptor::route(
+            raptor::route_stop_major(
                 layer,
                 &self.data.transfers,
                 &self.filtered,
-                &access,
+                access,
                 &req,
-            ))
-        };
-        let (max_t, egress_limit, walk_mms) = (self.max_t, self.egress_limit, self.walk_mms);
-        let tt = &mut scratch.times;
+                stop_times,
+            );
+        }
+        let max_t = self.max_t;
         for (j, &d) in direct.iter().enumerate() {
             // PerTargetPropagater.propagate: start from the non-transit time,
-            // improve it by vehicle arrival + egress walk.
+            // improve it by vehicle arrival + egress walk. Only the least
+            // candidate per iteration matters, so the order of the stops
+            // does not.
             tt.clear();
-            match &times {
-                None => tt.push(d),
-                Some(t) => tt.resize(t.len(), d),
-            }
-            if let Some(times) = &times {
-                for &(stop, mm) in &self.egress[j] {
-                    let e = mm / walk_mms;
-                    if e >= egress_limit {
+            if !transit {
+                tt.push(d);
+            } else {
+                tt.resize(stop_times.n_iterations(), d);
+                for &(stop, e) in &self.egress[j] {
+                    let stop = stop as usize;
+                    // durations are >= 0, so this bounds every iteration
+                    if stop_times.min(stop).saturating_add(e) >= max_t {
                         continue;
                     }
-                    for (k, t) in tt.iter_mut().enumerate() {
-                        let ts = times[k][stop as usize];
-                        if ts >= max_t || ts >= *t {
-                            continue;
-                        }
-                        let c = ts + e;
-                        if c < max_t && c < *t {
-                            *t = c;
-                        }
+                    for (t, &ts) in tt.iter_mut().zip(stop_times.get(stop)) {
+                        // ts + e < max_t also means ts < max_t
+                        let c = ts.saturating_add(e);
+                        let c = if c < max_t { c } else { UNREACHED };
+                        *t = (*t).min(c);
                     }
                 }
             }
