@@ -13,7 +13,7 @@ pub mod router;
 
 pub use build::{build_network, BuildOptions};
 pub use link::Split;
-pub use router::{travel_time_matrix, Mode, RouteParams};
+pub use router::{travel_time_matrix, Mode, ParamError, RouteParams};
 
 /// Edge flags (bit set per directed edge).
 pub mod flags {

@@ -94,7 +94,10 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     let mut m = Vec::new();
     for _ in 0..repeats.max(1) {
         let t = Instant::now();
-        m = travel_time_matrix(&net, &pts, &pts, mode, &params);
+        m = travel_time_matrix(&net, &pts, &pts, mode, &params).unwrap_or_else(|e| {
+            eprintln!("{e}");
+            std::process::exit(2)
+        });
         times.push(t.elapsed().as_secs_f64());
     }
     times.sort_by(|a, b| a.partial_cmp(b).unwrap());

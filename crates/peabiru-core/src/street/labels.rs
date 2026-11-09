@@ -418,9 +418,17 @@ pub fn car_speed_ms(tags: &[(String, String)], back: bool) -> f32 {
 }
 
 /// Speed in m/s to the stored centimetres per second (`(short) Math.round`).
+///
+/// Clamped to `1..=i16::MAX` cm/s. R5 stores `(short) Math.round(...)`, which
+/// wraps for absurd `maxspeed` tags (over ~1180 km/h) and can give 0 for tiny
+/// ones; such values would make edge costs negative or divide by zero. Every
+/// real speed is inside the range, so results there are unchanged.
 pub fn speed_to_cms(speed_ms: f32) -> i16 {
-    let x = speed_ms * 100.0f32;
-    (x + 0.5f32).floor() as i32 as i16
+    let x = (speed_ms * 100.0f32 + 0.5f32).floor();
+    if x.is_nan() {
+        return 1;
+    }
+    (x as i32).clamp(1, i32::from(i16::MAX)) as i16
 }
 
 /// Stored centimetres per second back to m/s (`(float)(short / 100.0)`).
@@ -601,6 +609,9 @@ mod tests {
     fn maxspeed_parsing() {
         let s = |v: &str| car_speed_ms(&t(&[("highway", "residential"), ("maxspeed", v)]), false);
         assert_eq!(speed_to_cms(s("60")), 1667);
+        // absurd values are clamped instead of wrapping or reaching zero
+        assert_eq!(speed_to_cms(s("99999")), i16::MAX);
+        assert_eq!(speed_to_cms(s("0.01")), 1);
         assert_eq!(speed_to_cms(s("30 mph")), 1341);
         assert_eq!(speed_to_cms(s("30mph")), 1341);
         // single digit, "none" and multi-values fall back to the default

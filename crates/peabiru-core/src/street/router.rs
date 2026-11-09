@@ -41,6 +41,43 @@ pub struct RouteParams {
     pub n_threads: usize,
 }
 
+/// Invalid routing parameters.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParamError(pub String);
+
+impl std::fmt::Display for ParamError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for ParamError {}
+
+impl RouteParams {
+    /// Check the parameters: speeds must give at least 1 mm/s, the trip limit
+    /// must be a positive number of minutes that fits in seconds.
+    pub fn validate(&self) -> Result<(), ParamError> {
+        for (name, v) in [
+            ("walk_speed_kmh", self.walk_speed_kmh),
+            ("bike_speed_kmh", self.bike_speed_kmh),
+        ] {
+            // (int)(speed m/s * 1000) is a divisor, so it must be >= 1
+            if !v.is_finite() || ((v * 5.0 / 18.0) as f32 * 1000.0f32) < 1.0 || v > 1000.0 {
+                return Err(ParamError(format!(
+                    "{name} must be between 0.0036 and 1000 km/h, got {v}"
+                )));
+            }
+        }
+        if !(1..=1_000_000).contains(&self.max_trip_duration_min) {
+            return Err(ParamError(format!(
+                "max_trip_duration_min must be between 1 and 1000000, got {}",
+                self.max_trip_duration_min
+            )));
+        }
+        Ok(())
+    }
+}
+
 impl Default for RouteParams {
     fn default() -> Self {
         RouteParams {
@@ -236,7 +273,7 @@ fn route(
                         + car_turn_cost(net, e, f)
                 }
             };
-            let mut t1 = t + step;
+            let mut t1 = t.saturating_add(step);
             if t1 == t {
                 t1 += 1;
             }
@@ -293,7 +330,8 @@ pub fn travel_time_matrix(
     destinations: &[(f64, f64)],
     mode: Mode,
     params: &RouteParams,
-) -> Vec<Option<u16>> {
+) -> Result<Vec<Option<u32>>, ParamError> {
+    params.validate()?;
     let sp = Speeds::new(params, mode);
     let m = params.max_trip_duration_min;
     let limit = m * 60;
@@ -312,7 +350,7 @@ pub fn travel_time_matrix(
     .clamp(1, origins.len().max(1));
 
     let next = AtomicUsize::new(0);
-    let chunks: Vec<Vec<(usize, Vec<Option<u16>>)>> = std::thread::scope(|scope| {
+    let chunks: Vec<Vec<(usize, Vec<Option<u32>>)>> = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)
             .map(|_| {
                 scope.spawn(|| {
@@ -333,7 +371,7 @@ pub fn travel_time_matrix(
                                 if let Some(secs) = time_to_point(net, &o, d, mode, &sp, &search) {
                                     let minutes = secs / 60;
                                     if minutes <= i64::from(m) {
-                                        row[j] = Some(minutes as u16);
+                                        row[j] = Some(minutes as u32);
                                     }
                                 }
                             }
@@ -352,5 +390,43 @@ pub fn travel_time_matrix(
     for (i, row) in chunks.into_iter().flatten() {
         out[i * nd..(i + 1) * nd].copy_from_slice(&row);
     }
-    out
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_parameters_are_rejected() {
+        let net = StreetNetwork::default();
+        let bad = [
+            RouteParams {
+                walk_speed_kmh: 0.0,
+                ..RouteParams::default()
+            },
+            RouteParams {
+                bike_speed_kmh: f64::NAN,
+                ..RouteParams::default()
+            },
+            RouteParams {
+                walk_speed_kmh: -3.6,
+                ..RouteParams::default()
+            },
+            RouteParams {
+                max_trip_duration_min: 0,
+                ..RouteParams::default()
+            },
+            RouteParams {
+                max_trip_duration_min: i32::MAX,
+                ..RouteParams::default()
+            },
+        ];
+        for p in bad {
+            assert!(
+                travel_time_matrix(&net, &[(0.0, 0.0)], &[(0.0, 0.0)], Mode::Walk, &p).is_err()
+            );
+        }
+        assert!(RouteParams::default().validate().is_ok());
+    }
 }
