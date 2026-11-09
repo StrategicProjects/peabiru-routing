@@ -189,7 +189,7 @@ impl JavaHeap {
 ///
 /// Keys must not decrease below the last one popped (true for a search
 /// with non-negative steps). Keys are `i32` mapped to `u32` in order.
-struct RadixHeap {
+pub(crate) struct RadixHeap {
     /// Image of the last popped key; bucket `i > 0` holds keys whose highest
     /// bit differing from it is bit `i - 1`, bucket 0 keys equal to it.
     last: u32,
@@ -218,7 +218,7 @@ impl RadixHeap {
         (32 - (k ^ self.last).leading_zeros()) as usize
     }
 
-    fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         for b in &mut self.buckets {
             b.clear();
         }
@@ -227,7 +227,7 @@ impl RadixHeap {
     }
 
     #[inline]
-    fn push(&mut self, t: i32, e: u32) {
+    pub(crate) fn push(&mut self, t: i32, e: u32) {
         // A key below the last popped one cannot come from a search with
         // non-negative steps; clamping keeps the queue consistent anyway.
         let k = Self::key(t).max(self.last);
@@ -237,7 +237,7 @@ impl RadixHeap {
     }
 
     #[inline]
-    fn pop(&mut self) -> Option<(i32, u32)> {
+    pub(crate) fn pop(&mut self) -> Option<(i32, u32)> {
         if self.len == 0 {
             return None;
         }
@@ -901,7 +901,7 @@ pub fn travel_time_seconds<T: Send>(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     #[test]
@@ -987,7 +987,7 @@ mod tests {
 
     /// A 12 x 12 grid of streets of mixed kinds with jittered nodes, so
     /// edge lengths, speeds, permissions and turn angles vary.
-    fn jittered_grid() -> StreetNetwork {
+    pub(crate) fn jittered_grid() -> StreetNetwork {
         use crate::osm::pbf::{Extract, Tags, Way};
         const N: usize = 12;
         let mut rng = Rng(42);
