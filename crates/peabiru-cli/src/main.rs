@@ -1,3 +1,5 @@
+mod expanded;
+
 use peabiru_core::osm::pbf::{read_pbf_file, tag, ReadOptions};
 use std::time::Instant;
 
@@ -5,7 +7,9 @@ fn usage() -> ! {
     eprintln!(
         "usage: peabiru --version\n       peabiru osm-stats <file.osm.pbf> [n_threads]\n       \
          peabiru ttm <file.osm.pbf> <points.csv> <WALK|BICYCLE|CAR> <out.csv> [n_threads] [repeats]\n       \
-         peabiru dump-edges <file.osm.pbf>   (CSV like r5r::street_network_to_sf edges)"
+         peabiru dump-edges <file.osm.pbf>   (CSV like r5r::street_network_to_sf edges)\n       \
+         {}",
+        expanded::USAGE
     );
     std::process::exit(2);
 }
@@ -34,6 +38,7 @@ fn main() {
             ttm(&args[1], &args[2], &args[3], &args[4], n_threads, repeats);
         }
         Some("transit") => transit(&args[1..]),
+        Some("expanded") => expanded::run(&args[1..]),
         Some("dump-edges") => dump_edges(args.get(1).unwrap_or_else(|| usage())),
         _ => usage(),
     }

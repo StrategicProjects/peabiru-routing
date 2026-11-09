@@ -66,19 +66,28 @@ impl BitSet {
     }
 }
 
-/// One round's state (R5 `RaptorState`, without path bookkeeping).
+/// One round's state (R5 `RaptorState`). The path bookkeeping arrays
+/// (`previousPatterns`, `previousStop`, `previousBoardTime`,
+/// `transferStop`) are only kept when `P` (paths requested): otherwise they
+/// stay empty and every access to them is compiled out, so the plain matrix
+/// runs the same code as before paths existed.
 #[derive(Clone)]
-struct State {
+struct State<const P: bool> {
     best: Vec<i32>,
     best_nt: Vec<i32>,
     updated: BitSet,
     nt_updated: BitSet,
     departure: i32,
     max_duration: i32,
+    prev_pattern: Vec<i32>,
+    prev_stop: Vec<i32>,
+    prev_board: Vec<i32>,
+    transfer_stop: Vec<i32>,
 }
 
-impl State {
+impl<const P: bool> State<P> {
     fn new(n: usize, max_duration: i32, departure: i32) -> Self {
+        let m = if P { n } else { 0 };
         State {
             best: vec![UNREACHED; n],
             best_nt: vec![UNREACHED; n],
@@ -86,6 +95,10 @@ impl State {
             nt_updated: BitSet::new(n),
             departure,
             max_duration,
+            prev_pattern: vec![-1; m],
+            prev_stop: vec![-1; m],
+            prev_board: vec![-1; m],
+            transfer_stop: vec![-1; m],
         }
     }
 
@@ -99,22 +112,44 @@ impl State {
             nt_updated: BitSet::new(n),
             departure: self.departure,
             max_duration: self.max_duration,
+            prev_pattern: self.prev_pattern.clone(),
+            prev_stop: self.prev_stop.clone(),
+            prev_board: self.prev_board.clone(),
+            transfer_stop: self.transfer_stop.clone(),
         }
     }
 
+    /// `setTimeAtStop(stop, time, fromPattern, fromStop, boardTime, transfer)`
+    /// (`RaptorState.java:210-252`).
     #[inline]
-    fn set_time_at_stop(&mut self, stop: usize, time: i32, transfer: bool) -> bool {
+    fn set_time_at_stop(
+        &mut self,
+        stop: usize,
+        time: i32,
+        pattern: i32,
+        from_stop: i32,
+        board_time: i32,
+        transfer: bool,
+    ) -> bool {
         if time >= self.departure + self.max_duration {
             return false;
         }
         let mut optimal = false;
         if !transfer && time < self.best_nt[stop] {
             self.best_nt[stop] = time;
+            if P {
+                self.prev_pattern[stop] = pattern;
+                self.prev_stop[stop] = from_stop;
+                self.prev_board[stop] = board_time;
+            }
             self.nt_updated.set(stop);
             optimal = true;
         }
         if time < self.best[stop] {
             self.best[stop] = time;
+            if P {
+                self.transfer_stop[stop] = if transfer { from_stop } else { -1 };
+            }
             self.updated.set(stop);
             optimal = true;
         }
@@ -126,31 +161,85 @@ impl State {
         self.updated.clear();
         self.nt_updated.clear();
         let max_clock = departure + self.max_duration;
-        for t in self.best.iter_mut().chain(self.best_nt.iter_mut()) {
-            if *t >= max_clock {
-                *t = UNREACHED;
+        for i in 0..self.best.len() {
+            if self.best[i] >= max_clock {
+                self.best[i] = UNREACHED;
+                if P {
+                    self.transfer_stop[i] = -1;
+                }
             }
+            if self.best_nt[i] >= max_clock {
+                self.best_nt[i] = UNREACHED;
+                if P {
+                    self.prev_pattern[i] = -1;
+                    self.prev_stop[i] = -1;
+                    self.prev_board[i] = -1;
+                }
+            }
+        }
+    }
+
+    /// Walking time within this round to the optimal arrival at `stop`
+    /// (`RaptorState.transferTime`, `:337-340`).
+    fn transfer_time(&self, stop: usize) -> i32 {
+        match self.transfer_stop[stop] {
+            -1 => 0,
+            from => self.best[stop] - self.best_nt[from as usize],
         }
     }
 }
 
-/// `minMergePrevious` of round `r` from round `r - 1`.
-fn min_merge_previous(states: &mut [State], r: usize) {
+/// `shorterAccessOrTransferLeg(here, there)` of round `r`
+/// (`RaptorState.java:320-334`): round 0 compares access arrivals, later
+/// rounds the transfer walks.
+fn shorter_access_or_transfer_leg<const P: bool>(
+    states: &[State<P>],
+    r: usize,
+    here: usize,
+    there: usize,
+) -> bool {
+    if here == there {
+        return false;
+    }
+    let s = &states[r];
+    if r == 0 {
+        s.best[here] < s.best[there]
+    } else {
+        s.transfer_time(here) < s.transfer_time(there)
+    }
+}
+
+/// `minMergePrevious` of round `r` from round `r - 1`; ties prefer the
+/// previous round (`RaptorState.java:180-198`).
+fn min_merge_previous<const P: bool>(states: &mut [State<P>], r: usize) {
     let (prev, cur) = states.split_at_mut(r);
     let (p, c) = (&prev[r - 1], &mut cur[0]);
     for s in 0..c.best.len() {
         if p.best[s] <= c.best[s] {
             c.best[s] = p.best[s];
+            if P {
+                c.transfer_stop[s] = p.transfer_stop[s];
+            }
         }
         if p.best_nt[s] <= c.best_nt[s] {
             c.best_nt[s] = p.best_nt[s];
+            if P {
+                c.prev_pattern[s] = p.prev_pattern[s];
+                c.prev_stop[s] = p.prev_stop[s];
+                c.prev_board[s] = p.prev_board[s];
+            }
         }
     }
 }
 
 /// `stopWasUpdated` of round `r` (previous round `r - 1`, none for round 0).
 #[inline]
-fn stop_was_updated(states: &[State], r: usize, stop: usize, within_minute: bool) -> bool {
+fn stop_was_updated<const P: bool>(
+    states: &[State<P>],
+    r: usize,
+    stop: usize,
+    within_minute: bool,
+) -> bool {
     if within_minute {
         states[r].updated.get(stop)
     } else {
@@ -304,9 +393,9 @@ struct Worker<'a> {
 }
 
 impl Worker<'_> {
-    fn patterns_to_explore(
+    fn patterns_to_explore<const P: bool>(
         &self,
-        input: &[State],
+        input: &[State<P>],
         r: usize,
         running: &[bool],
         within_minute: bool,
@@ -325,7 +414,7 @@ impl Worker<'_> {
         set.ones().collect()
     }
 
-    fn scheduled_round(&self, states: &mut [State], r: usize) {
+    fn scheduled_round<const P: bool>(&self, states: &mut [State<P>], r: usize) {
         let patterns =
             self.patterns_to_explore(states, r - 1, &self.filtered.running_scheduled, true);
         for pi in patterns {
@@ -334,12 +423,21 @@ impl Worker<'_> {
             };
             let pattern: &Pattern = &self.layer.patterns[pi];
             let mut on_trip: Option<usize> = None; // index into `sched`
+            let mut board_time = -1;
+            let mut board_stop = -1;
             for (i, &stop) in pattern.stops.iter().enumerate() {
                 let stop = stop as usize;
                 if let Some(t) = on_trip {
                     if pattern.dropoffs[i] {
                         let trip = &pattern.trips[sched[t] as usize];
-                        states[r].set_time_at_stop(stop, trip.arrivals[i], false);
+                        states[r].set_time_at_stop(
+                            stop,
+                            trip.arrivals[i],
+                            pi as i32,
+                            board_stop,
+                            board_time,
+                            false,
+                        );
                     }
                 }
                 if stop_was_updated(states, r - 1, stop, true) && pattern.pickups[i] {
@@ -380,15 +478,30 @@ impl Worker<'_> {
                             best
                         }
                     };
-                    if new_trip != on_trip && new_trip.is_some() {
+                    // With paths, re-board the same trip here when that
+                    // shortens the access/transfer walk: times are unchanged,
+                    // only the walk/wait breakdown moves
+                    // (`FastRaptorWorker.java:602-617`).
+                    let reboard_for_paths = P
+                        && on_trip.is_some()
+                        && shorter_access_or_transfer_leg(states, r - 1, stop, board_stop as usize);
+                    if (new_trip != on_trip || reboard_for_paths) && new_trip.is_some() {
                         on_trip = new_trip;
+                        board_time = dep(new_trip.unwrap_or_default());
+                        board_stop = stop as i32;
                     }
                 }
             }
         }
     }
 
-    fn frequency_round(&self, states: &mut [State], r: usize, mode: FreqMode, offsets: &Offsets) {
+    fn frequency_round<const P: bool>(
+        &self,
+        states: &mut [State<P>],
+        r: usize,
+        mode: FreqMode,
+        offsets: &Offsets,
+    ) {
         let within_minute = mode == FreqMode::UpperBound;
         let patterns = self.patterns_to_explore(
             states,
@@ -411,7 +524,14 @@ impl Worker<'_> {
                         if board_time > -1 && pattern.dropoffs[i] {
                             let alight =
                                 board_time + (trip.arrivals[i] - trip.departures[board_pos]);
-                            states[r].set_time_at_stop(stop, alight, false);
+                            states[r].set_time_at_stop(
+                                stop,
+                                alight,
+                                pi as i32,
+                                pattern.stops[board_pos] as i32,
+                                board_time,
+                                false,
+                            );
                         }
                         if stop_was_updated(states, r - 1, stop, within_minute)
                             && pattern.pickups[i]
@@ -460,18 +580,162 @@ impl Worker<'_> {
         }
     }
 
-    fn transfers_round(&self, state: &mut State) {
+    fn transfers_round<const P: bool>(&self, state: &mut State<P>) {
         let max_mm = self.req.walk_mms.saturating_mul(self.req.max_walk_min * 60);
         let from: Vec<usize> = state.nt_updated.ones().collect();
         for stop in from {
             for &(target, mm) in &self.transfers[stop] {
                 if mm < max_mm {
                     let t = state.best_nt[stop] + mm / self.req.walk_mms;
-                    state.set_time_at_stop(target as usize, t, true);
+                    state.set_time_at_stop(target as usize, t, -1, stop as i32, -1, true);
                 }
             }
         }
     }
+}
+
+/// A transit itinerary to a stop, as R5's `Path` (`transit/path/Path.java`):
+/// the vehicles ridden at clock times, read back from the round states.
+/// One `TransitPath` can serve several departure minutes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransitPath {
+    /// Pattern index of each leg.
+    pub patterns: Vec<u32>,
+    pub board_stops: Vec<u32>,
+    pub alight_stops: Vec<u32>,
+    /// Clock time at which each leg's vehicle leaves its boarding stop.
+    pub board_times: Vec<i32>,
+    /// In-vehicle seconds of each leg.
+    pub ride_times: Vec<i32>,
+    /// Walking seconds of the transfer before each leg (0 for the first).
+    pub transfer_times: Vec<i32>,
+}
+
+impl TransitPath {
+    /// `new Path(state, stop)` (`Path.java:30-95`): step back through the
+    /// rounds, skipping rounds that did not change the stop's vehicle
+    /// arrival, recording each ride and the transfer that led to it.
+    fn reconstruct<const P: bool>(states: &[State<P>], stop: usize) -> TransitPath {
+        let mut p = TransitPath {
+            patterns: Vec::new(),
+            board_stops: Vec::new(),
+            alight_stops: Vec::new(),
+            board_times: Vec::new(),
+            ride_times: Vec::new(),
+            transfer_times: Vec::new(),
+        };
+        let mut r = states.len() - 1;
+        let mut stop = stop;
+        while r > 0 {
+            let (prev, cur) = (&states[r - 1], &states[r]);
+            if prev.best_nt[stop] == cur.best_nt[stop] {
+                r -= 1;
+                continue;
+            }
+            let alight = cur.best_nt[stop];
+            let board = cur.prev_board[stop];
+            p.patterns.push(cur.prev_pattern[stop] as u32);
+            p.alight_stops.push(stop as u32);
+            p.board_times.push(board);
+            p.ride_times.push(alight - board);
+            stop = cur.prev_stop[stop] as usize;
+            p.board_stops.push(stop as u32);
+            r -= 1;
+            let prev = &states[r];
+            match prev.transfer_stop[stop] {
+                -1 => p.transfer_times.push(0),
+                from => {
+                    p.transfer_times
+                        .push(prev.best[stop] - prev.best_nt[from as usize]);
+                    stop = from as usize;
+                }
+            }
+        }
+        p.patterns.reverse();
+        p.board_stops.reverse();
+        p.alight_stops.reverse();
+        p.board_times.reverse();
+        p.ride_times.reverse();
+        p.transfer_times.reverse();
+        p
+    }
+
+    /// `computeWaitTimes(departureTime)` (`Path.java:103-117`) given the
+    /// access walk to the first boarding stop. R5 asserts the waits are
+    /// non-negative; `None` here if one is not.
+    pub fn wait_times(&self, departure: i32, access: i32) -> Option<Vec<i32>> {
+        let mut ready = departure + access;
+        let mut waits = Vec::with_capacity(self.board_times.len());
+        for leg in 0..self.board_times.len() {
+            ready += self.transfer_times[leg];
+            let w = self.board_times[leg] - ready;
+            if w < 0 {
+                return None;
+            }
+            waits.push(w);
+            ready = self.board_times[leg] + self.ride_times[leg];
+        }
+        Some(waits)
+    }
+}
+
+/// No path to a stop in an iteration.
+pub const NO_PATH: u32 = u32::MAX;
+
+/// Paths kept by a search with [`route_with_paths`].
+pub struct PathResults {
+    /// Distinct path objects; several iterations may share one.
+    pub paths: Vec<TransitPath>,
+    /// Per iteration, per retained stop, an index into `paths` or `NO_PATH`.
+    pub path_of: Vec<Vec<u32>>,
+    /// Column of each stop in the `path_of` rows, `u32::MAX` if not retained.
+    pub slot: Vec<u32>,
+}
+
+impl PathResults {
+    /// Path to `stop` in `iteration`, if any.
+    pub fn get(&self, iteration: usize, stop: usize) -> Option<&TransitPath> {
+        let k = *self.slot.get(stop)?;
+        if k == u32::MAX {
+            return None;
+        }
+        match self.path_of.get(iteration)?[k as usize] {
+            NO_PATH => None,
+            i => Some(&self.paths[i as usize]),
+        }
+    }
+}
+
+/// `pathToEachStop` (`FastRaptorWorker.java:472-494`): one row of path
+/// indices. With `reuse` (the scheduled search only) an unchanged arrival at
+/// a stop keeps the path built at a later minute, as R5's `retainedPaths`.
+fn path_to_each_stop<const P: bool>(
+    states: &[State<P>],
+    retained: &[u32],
+    mut reuse: Option<(&mut [u32], &mut [i32])>,
+    store: &mut Vec<TransitPath>,
+) -> Vec<u32> {
+    let last = &states[states.len() - 1];
+    let mut row = vec![NO_PATH; retained.len()];
+    for (k, &s) in retained.iter().enumerate() {
+        let arrival = last.best_nt[s as usize];
+        if arrival == UNREACHED {
+            continue;
+        }
+        if let Some((kept, kept_arrival)) = reuse.as_mut() {
+            if kept_arrival[k] == arrival {
+                row[k] = kept[k];
+                continue;
+            }
+        }
+        store.push(TransitPath::reconstruct(states, s as usize));
+        row[k] = (store.len() - 1) as u32;
+        if let Some((kept, kept_arrival)) = reuse.as_mut() {
+            kept[k] = row[k];
+            kept_arrival[k] = arrival;
+        }
+    }
+    row
 }
 
 /// Run the search for one origin. `access` holds `(stop, seconds)`.
@@ -484,6 +748,39 @@ pub fn route(
     access: &[(u32, i32)],
     req: &RaptorRequest,
 ) -> Vec<Vec<i32>> {
+    route_impl::<false>(layer, transfers, filtered, access, req, &[]).0
+}
+
+/// [`route`] that also keeps, at every iteration, the path to each stop
+/// flagged in `retain` (R5 with `retainPaths`). r5r reconstructs paths to
+/// all stops; a path depends only on its own stop, so restricting the set
+/// to the stops that matter changes nothing. The times are the same as
+/// [`route`]'s.
+pub fn route_with_paths(
+    layer: &TransitLayer,
+    transfers: &[Vec<(u32, i32)>],
+    filtered: &Filtered,
+    access: &[(u32, i32)],
+    req: &RaptorRequest,
+    retain: &[bool],
+) -> (Vec<Vec<i32>>, PathResults) {
+    let (times, paths) = route_impl::<true>(layer, transfers, filtered, access, req, retain);
+    let paths = paths.unwrap_or(PathResults {
+        paths: Vec::new(),
+        path_of: Vec::new(),
+        slot: Vec::new(),
+    });
+    (times, paths)
+}
+
+fn route_impl<const P: bool>(
+    layer: &TransitLayer,
+    transfers: &[Vec<(u32, i32)>],
+    filtered: &Filtered,
+    access: &[(u32, i32)],
+    req: &RaptorRequest,
+    retain: &[bool],
+) -> (Vec<Vec<i32>>, Option<PathResults>) {
     let n_stops = layer.stop_ids.len();
     let w = Worker {
         layer,
@@ -492,6 +789,14 @@ pub fn route(
         req,
         n_stops,
     };
+    let retained: Vec<u32> = (0..n_stops)
+        .filter(|&s| retain.get(s).copied().unwrap_or(false))
+        .map(|s| s as u32)
+        .collect();
+    let mut store = Vec::new();
+    let mut path_rows = Vec::new();
+    let mut kept = vec![NO_PATH; retained.len()];
+    let mut kept_arrival = vec![-1; retained.len()];
     let per_minute = req.iterations_per_minute(layer.has_frequencies);
     let mt = match req.seed {
         Some(seed) => {
@@ -507,7 +812,7 @@ pub fn route(
     };
     let mut offsets = Offsets::new(layer, mt);
     let mut out = Vec::with_capacity(req.time_window as usize * per_minute);
-    let mut sched: Vec<State> = Vec::new();
+    let mut sched: Vec<State<P>> = Vec::new();
     let to_time = req.from_time + req.time_window * DEPARTURE_STEP_SEC;
     let mut dep = to_time - DEPARTURE_STEP_SEC;
     while dep >= req.from_time {
@@ -521,7 +826,7 @@ pub fn route(
             }
         }
         for &(stop, t) in access {
-            sched[0].set_time_at_stop(stop as usize, t + dep, true);
+            sched[0].set_time_at_stop(stop as usize, t + dep, -1, -1, -1, true);
         }
         if layer.has_schedules {
             for r in 1..=req.max_rides {
@@ -538,7 +843,7 @@ pub fn route(
         let results: Vec<Vec<i32>> = if layer.has_frequencies {
             (0..per_minute)
                 .map(|_| {
-                    let mut f: Vec<State> = sched.iter().map(State::copy).collect();
+                    let mut f: Vec<State<P>> = sched.iter().map(State::copy).collect();
                     offsets.randomize(layer);
                     for r in 1..=req.max_rides {
                         min_merge_previous(&mut f, r);
@@ -548,10 +853,22 @@ pub fn route(
                             w.transfers_round(&mut f[r]);
                         }
                     }
+                    if P {
+                        // No reuse across Monte Carlo draws (`:423-425`).
+                        path_rows.push(path_to_each_stop(&f, &retained, None, &mut store));
+                    }
                     f[req.max_rides].best_nt.clone()
                 })
                 .collect()
         } else {
+            if P {
+                path_rows.push(path_to_each_stop(
+                    &sched,
+                    &retained,
+                    Some((&mut kept, &mut kept_arrival)),
+                    &mut store,
+                ));
+            }
             vec![sched[req.max_rides].best_nt.clone()]
         };
         for arr in results {
@@ -563,5 +880,176 @@ pub fn route(
         }
         dep -= DEPARTURE_STEP_SEC;
     }
-    out
+    let paths = P.then(|| {
+        let mut slot = vec![u32::MAX; n_stops];
+        for (k, &s) in retained.iter().enumerate() {
+            slot[s as usize] = k as u32;
+        }
+        PathResults {
+            paths: store,
+            path_of: path_rows,
+            slot,
+        }
+    });
+    (out, paths)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transit::layer::TripSchedule;
+
+    /// Stops 0..4. Pattern 0 runs 0 -> 1, pattern 1 runs 2 -> 3, stop 1
+    /// transfers to stop 2 (50 m), and pattern 2 runs 1 -> 3 later.
+    fn layer() -> TransitLayer {
+        let trip = |t: [i32; 2]| TripSchedule {
+            trip_id: String::new(),
+            service: 0,
+            arrivals: t.to_vec(),
+            departures: t.to_vec(),
+            frequencies: Vec::new(),
+        };
+        let pattern = |route: &str, stops: [u32; 2], t: [i32; 2]| Pattern {
+            route_id: route.into(),
+            route_type: 3,
+            stops: stops.to_vec(),
+            pickups: vec![true; 2],
+            dropoffs: vec![true; 2],
+            trips: vec![trip(t)],
+            services: vec![0],
+            has_frequencies: false,
+            has_schedules: true,
+        };
+        TransitLayer {
+            stop_ids: (0..4).map(|s| format!("f:{s}")).collect(),
+            stop_lat: vec![0.0; 4],
+            stop_lon: vec![0.0; 4],
+            stop_vertex: vec![0; 4],
+            patterns: vec![
+                pattern("A", [0, 1], [200, 300]),
+                pattern("B", [2, 3], [450, 550]),
+                pattern("C", [1, 3], [900, 950]),
+            ],
+            patterns_for_stop: vec![vec![0], vec![0, 2], vec![1], vec![1, 2]],
+            has_schedules: true,
+            ..TransitLayer::default()
+        }
+    }
+
+    #[test]
+    fn paths_follow_rides_and_transfers() {
+        let layer = layer();
+        let transfers = vec![vec![], vec![(2, 50_000)], vec![], vec![]];
+        let filtered = Filtered::new(&layer, &[true]).unwrap();
+        let req = RaptorRequest {
+            from_time: 0,
+            time_window: 2,
+            max_rides: 3,
+            max_duration: 7200,
+            walk_mms: 1000,
+            max_walk_min: 120,
+            monte_carlo_draws: 0,
+            seed: Some(1),
+            origin: (0.0, 0.0),
+        };
+        let access = [(0, 10)];
+        let plain = route(&layer, &transfers, &filtered, &access, &req);
+        let (times, paths) =
+            route_with_paths(&layer, &transfers, &filtered, &access, &req, &[true; 4]);
+        assert_eq!(times, plain);
+        // Iteration 0 departs at 60 s, iteration 1 at 0 s.
+        assert_eq!(times[0][3], 550 - 60);
+        assert_eq!(times[1][3], 550);
+        let p = paths.get(1, 3).unwrap();
+        assert_eq!(p.patterns, [0, 1]);
+        assert_eq!(p.board_stops, [0, 2]);
+        assert_eq!(p.alight_stops, [1, 3]);
+        assert_eq!(p.board_times, [200, 450]);
+        assert_eq!(p.ride_times, [100, 100]);
+        assert_eq!(p.transfer_times, [0, 50]);
+        // Ready at 10 s, board at 200; alight at 300, walk 50, board at 450.
+        assert_eq!(p.wait_times(0, 10), Some(vec![190, 100]));
+        assert_eq!(p.wait_times(195, 10), None);
+        // An unchanged arrival reuses the path of the later minute.
+        assert!(std::ptr::eq(p, paths.get(0, 3).unwrap()));
+        // Stop 0 is reached on foot only, stop 2 by a transfer only.
+        assert!(paths.get(0, 0).is_none());
+        assert!(paths.get(0, 2).is_none());
+        assert_eq!(paths.get(0, 1).unwrap().patterns, [0]);
+    }
+
+    #[test]
+    fn retained_stops_only() {
+        let layer = layer();
+        let transfers = vec![vec![], vec![(2, 50_000)], vec![], vec![]];
+        let filtered = Filtered::new(&layer, &[true]).unwrap();
+        let req = RaptorRequest {
+            from_time: 0,
+            time_window: 1,
+            max_rides: 1,
+            max_duration: 7200,
+            walk_mms: 1000,
+            max_walk_min: 120,
+            monte_carlo_draws: 0,
+            seed: Some(1),
+            origin: (0.0, 0.0),
+        };
+        let retain = [false, false, false, true];
+        let (_, paths) = route_with_paths(&layer, &transfers, &filtered, &[(0, 10)], &req, &retain);
+        assert!(paths.get(0, 1).is_none()); // not retained
+        assert!(paths.get(0, 3).is_none()); // needs two rides
+    }
+
+    #[test]
+    fn reboards_where_the_access_walk_is_shorter() {
+        // One trip 0 -> 1 -> 2; stop 1 is closer to the origin than stop 0.
+        let layer = TransitLayer {
+            stop_ids: (0..3).map(|s| format!("f:{s}")).collect(),
+            stop_lat: vec![0.0; 3],
+            stop_lon: vec![0.0; 3],
+            stop_vertex: vec![0; 3],
+            patterns: vec![Pattern {
+                route_id: "R".into(),
+                route_type: 3,
+                stops: vec![0, 1, 2],
+                pickups: vec![true; 3],
+                dropoffs: vec![true; 3],
+                trips: vec![TripSchedule {
+                    trip_id: String::new(),
+                    service: 0,
+                    arrivals: vec![200, 300, 400],
+                    departures: vec![200, 300, 400],
+                    frequencies: Vec::new(),
+                }],
+                services: vec![0],
+                has_frequencies: false,
+                has_schedules: true,
+            }],
+            patterns_for_stop: vec![vec![0], vec![0], vec![0]],
+            has_schedules: true,
+            ..TransitLayer::default()
+        };
+        let filtered = Filtered::new(&layer, &[true]).unwrap();
+        let req = RaptorRequest {
+            from_time: 0,
+            time_window: 1,
+            max_rides: 1,
+            max_duration: 7200,
+            walk_mms: 1000,
+            max_walk_min: 120,
+            monte_carlo_draws: 0,
+            seed: Some(1),
+            origin: (0.0, 0.0),
+        };
+        let transfers = vec![vec![]; 3];
+        let access = [(0, 100), (1, 10)];
+        let (times, paths) =
+            route_with_paths(&layer, &transfers, &filtered, &access, &req, &[true; 3]);
+        assert_eq!(times[0][2], 400);
+        let p = paths.get(0, 2).unwrap();
+        assert_eq!(
+            (p.board_stops.as_slice(), p.board_times.as_slice()),
+            (&[1][..], &[300][..])
+        );
+    }
 }
