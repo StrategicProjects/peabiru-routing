@@ -99,11 +99,11 @@ dtype: object
 [r5py](https://r5py.readthedocs.io) is a Python wrapper of R5 too, with its
 own API. peabiru follows r5r's API instead, so that R and Python users share
 one vocabulary and one set of results. The main correspondences, with
-r5py's names as of its 1.x releases:
+r5py's names as of r5py 1.1.7:
 
 | r5py | peabiru |
 |---|---|
-| `TransportNetwork(osm_pbf, gtfs=[...])` | `build_network(directory)`, a directory with one `.pbf` and the GTFS `.zip` files |
+| `TransportNetwork(osm_pbf, gtfs=[...])` or `TransportNetwork.from_directory(path)` | `build_network(directory)`, a directory with one `.pbf` and the GTFS `.zip` files |
 | `TravelTimeMatrix(network, origins=..., destinations=..., ...)` | `travel_time_matrix(network, origins, destinations, ...)` |
 | origins as a `GeoDataFrame` with `id` and point geometry | a `DataFrame` with `id`, `lon`, `lat`, or the same `GeoDataFrame` |
 | `transport_modes=[TransportMode.TRANSIT, TransportMode.WALK]` | `mode=["WALK", "TRANSIT"]` |
@@ -113,8 +113,8 @@ r5py's names as of its 1.x releases:
 | `max_time_walking=timedelta(...)` | `max_walk_time=...` (minutes) |
 | `speed_walking=3.6`, `speed_cycling=12.0` | `walk_speed=3.6`, `bike_speed=12` |
 | `max_bicycle_traffic_stress=2` | `max_lts=2` |
-| `max_public_transport_rides=4` | `max_rides=3` (r5r's default) |
-| result column `travel_time` | `travel_time_p50` (one column per percentile) |
+| `max_public_transport_rides` (default 8) | `max_rides` (default 3, as in r5r) |
+| result column `travel_time` (with the default `percentiles=[50]`) | `travel_time_p50` (always one column per percentile) |
 
 Results are equal to r5py's only where r5py runs the same R5 version with
 the same parameters; peabiru is validated against r5r, not r5py.
