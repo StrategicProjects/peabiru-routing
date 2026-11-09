@@ -253,6 +253,9 @@ fn split_blobs(bytes: &[u8]) -> Result<Vec<&[u8]>> {
             return format_err("truncated blob header length");
         };
         let header_len = u32::from_be_bytes(len_bytes.try_into().unwrap()) as usize;
+        if header_len > MAX_HEADER_SIZE {
+            return format_err("blob header larger than 64 KiB");
+        }
         pos += 4;
         let Some(header) = bytes.get(pos..pos + header_len) else {
             return format_err("truncated blob header");
@@ -295,21 +298,41 @@ fn check_header(block: &[u8]) -> Result<()> {
     Ok(())
 }
 
-/// Decompress a `Blob` message into the block it carries.
+/// Largest uncompressed block the PBF specification allows.
+const MAX_BLOCK_SIZE: usize = 32 << 20;
+/// Largest blob header the PBF specification allows.
+const MAX_HEADER_SIZE: usize = 64 << 10;
+
+/// Decompress a `Blob` message into the block it carries. Sizes are bounded
+/// by the specification, so a hostile file cannot ask for a huge allocation.
 fn inflate(blob: &[u8]) -> Result<Cow<'_, [u8]>> {
     let mut raw_size = None;
     for f in Fields::new(blob) {
         match f? {
-            (1, v) => return Ok(Cow::Borrowed(v.as_bytes()?)),
-            (2, v) => raw_size = Some(v.as_u64()? as usize),
+            (1, v) => {
+                let raw = v.as_bytes()?;
+                if raw.len() > MAX_BLOCK_SIZE {
+                    return format_err("raw blob larger than 32 MiB");
+                }
+                return Ok(Cow::Borrowed(raw));
+            }
+            (2, v) => {
+                let n = v.as_u64()?;
+                if n > MAX_BLOCK_SIZE as u64 {
+                    return format_err(format!("blob raw_size {n} exceeds 32 MiB"));
+                }
+                raw_size = Some(n as usize);
+            }
             (3, v) => {
-                let limit = raw_size.unwrap_or(64 << 20);
-                return miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(
+                let out = miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(
                     v.as_bytes()?,
-                    limit,
+                    raw_size.unwrap_or(MAX_BLOCK_SIZE),
                 )
-                .map(Cow::Owned)
-                .map_err(|e| PbfError::Format(format!("zlib: {e:?}")));
+                .map_err(|e| PbfError::Format(format!("zlib: {e:?}")))?;
+                if raw_size.is_some_and(|n| n != out.len()) {
+                    return format_err("decompressed blob size differs from raw_size");
+                }
+                return Ok(Cow::Owned(out));
             }
             (4 | 6 | 7, _) => {
                 return format_err("only raw and zlib blobs are supported (found lzma/lz4/zstd)")

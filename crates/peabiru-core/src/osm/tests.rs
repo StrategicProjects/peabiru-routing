@@ -189,3 +189,41 @@ fn truncated_file_is_an_error() {
     f.truncate(f.len() - 3);
     assert!(read_pbf(&f, &opts(1)).is_err());
 }
+
+#[test]
+fn oversized_raw_size_is_rejected_before_allocating() {
+    let mut b = Vec::new();
+    field_varint(&mut b, 2, 1 << 40);
+    field_bytes(
+        &mut b,
+        3,
+        &miniz_oxide::deflate::compress_to_vec_zlib(b"x", 6),
+    );
+    let mut header = Vec::new();
+    field_bytes(&mut header, 1, b"OSMData");
+    field_varint(&mut header, 3, b.len() as u64);
+    let mut f = (header.len() as u32).to_be_bytes().to_vec();
+    f.extend(header);
+    f.extend(b);
+    let err = read_pbf(&f, &opts(1)).unwrap_err();
+    assert!(err.to_string().contains("exceeds 32 MiB"), "{err}");
+}
+
+#[test]
+fn raw_size_mismatch_is_an_error() {
+    let payload = primitive_block();
+    let mut b = Vec::new();
+    field_varint(&mut b, 2, payload.len() as u64 + 1);
+    field_bytes(
+        &mut b,
+        3,
+        &miniz_oxide::deflate::compress_to_vec_zlib(&payload, 6),
+    );
+    let mut header = Vec::new();
+    field_bytes(&mut header, 1, b"OSMData");
+    field_varint(&mut header, 3, b.len() as u64);
+    let mut f = (header.len() as u32).to_be_bytes().to_vec();
+    f.extend(header);
+    f.extend(b);
+    assert!(read_pbf(&f, &opts(1)).is_err());
+}
