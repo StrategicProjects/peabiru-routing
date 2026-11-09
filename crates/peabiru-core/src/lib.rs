@@ -8,6 +8,7 @@
 //! package (PyO3) are thin bindings over the same functions, so all three
 //! return the same numbers.
 
+pub mod gtfs;
 pub mod osm;
 pub mod street;
 
