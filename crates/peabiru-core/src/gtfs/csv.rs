@@ -1,41 +1,80 @@
-//! RFC 4180 CSV reading for GTFS tables: header row, quoted fields with
-//! doubled quotes, CRLF or LF, an optional UTF-8 byte-order mark.
+//! RFC 4180 CSV reading for GTFS tables, one record at a time: header row,
+//! quoted fields with doubled quotes, CRLF or LF, an optional UTF-8
+//! byte-order mark. Records are handed to a callback and not kept, so memory
+//! stays proportional to the typed rows the caller builds.
 
-/// A parsed table: column names and rows of fields.
-pub struct Table {
-    pub header: Vec<String>,
-    pub rows: Vec<Vec<String>>,
+/// Column names of a table.
+pub struct Header {
+    names: Vec<String>,
 }
 
-impl Table {
+impl Header {
     /// Index of a column, if present.
     pub fn col(&self, name: &str) -> Option<usize> {
-        self.header.iter().position(|h| h == name)
+        self.names.iter().position(|h| h == name)
     }
 
-    /// Field `c` of row `r`, trimmed; empty when the row is short or the
-    /// column is absent.
-    pub fn get<'a>(&'a self, row: &'a [String], c: Option<usize>) -> &'a str {
-        c.and_then(|c| row.get(c)).map_or("", |s| s.trim())
+    pub fn names(&self) -> &[String] {
+        &self.names
     }
 }
 
-/// Parse CSV text. Blank lines are skipped.
-pub fn parse(bytes: &[u8]) -> Table {
-    let text = String::from_utf8_lossy(bytes);
-    let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
-    let mut records = Vec::new();
-    let mut field = String::new();
-    let mut record: Vec<String> = Vec::new();
+/// One record.
+pub struct Row<'a> {
+    fields: &'a [String],
+}
+
+impl Row<'_> {
+    /// Field at column `c`, trimmed; empty when the record is short or the
+    /// column is absent.
+    pub fn get(&self, c: Option<usize>) -> &str {
+        c.and_then(|c| self.fields.get(c)).map_or("", |s| s.trim())
+    }
+}
+
+/// Call `f(header, record_number, row)` for every record after the header
+/// (`record_number` is 1-based, as a spreadsheet row minus the header).
+/// Blank lines are skipped. Returns the header, or `None` for empty input.
+pub fn for_each_row<E>(
+    bytes: &[u8],
+    mut f: impl FnMut(&Header, usize, &Row) -> Result<(), E>,
+) -> Result<Option<Header>, E> {
+    let bytes = bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(bytes);
+    let mut header: Option<Header> = None;
+    let mut fields: Vec<String> = Vec::new();
+    let mut field: Vec<u8> = Vec::new();
     let mut quoted = false;
-    let mut chars = text.chars().peekable();
     let mut any = false;
-    while let Some(c) = chars.next() {
+    let mut n = 0usize;
+    let mut emit = |fields: &mut Vec<String>, header: &mut Option<Header>| -> Result<(), E> {
+        match header {
+            None => {
+                *header = Some(Header {
+                    names: fields.iter().map(|s| s.trim().to_string()).collect(),
+                });
+            }
+            Some(h) => {
+                n += 1;
+                f(h, n, &Row { fields })?;
+            }
+        }
+        fields.clear();
+        Ok(())
+    };
+    let take = |field: &mut Vec<u8>| {
+        let s = String::from_utf8_lossy(field).into_owned();
+        field.clear();
+        s
+    };
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        i += 1;
         if quoted {
-            if c == '"' {
-                if chars.peek() == Some(&'"') {
-                    field.push('"');
-                    chars.next();
+            if c == b'"' {
+                if bytes.get(i) == Some(&b'"') {
+                    field.push(b'"');
+                    i += 1;
                 } else {
                     quoted = false;
                 }
@@ -45,19 +84,19 @@ pub fn parse(bytes: &[u8]) -> Table {
             continue;
         }
         match c {
-            '"' => {
+            b'"' => {
                 quoted = true;
                 any = true;
             }
-            ',' => {
-                record.push(std::mem::take(&mut field));
+            b',' => {
+                fields.push(take(&mut field));
                 any = true;
             }
-            '\r' => {}
-            '\n' => {
+            b'\r' => {}
+            b'\n' => {
                 if any || !field.is_empty() {
-                    record.push(std::mem::take(&mut field));
-                    records.push(std::mem::take(&mut record));
+                    fields.push(take(&mut field));
+                    emit(&mut fields, &mut header)?;
                 }
                 any = false;
             }
@@ -68,42 +107,55 @@ pub fn parse(bytes: &[u8]) -> Table {
         }
     }
     if any || !field.is_empty() {
-        record.push(field);
-        records.push(record);
+        fields.push(take(&mut field));
+        emit(&mut fields, &mut header)?;
     }
-    let mut it = records.into_iter();
-    let header = it
-        .next()
-        .unwrap_or_default()
-        .into_iter()
-        .map(|h| h.trim().to_string())
-        .collect();
-    Table {
-        header,
-        rows: it.collect(),
-    }
+    Ok(header)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn quotes_bom_and_line_endings() {
-        let t = parse(b"\xef\xbb\xbfa,b ,c\r\n1,\"x, \"\"y\"\"\",\r\n\r\n2,\"\",z\n");
-        assert_eq!(t.header, ["a", "b", "c"]);
-        assert_eq!(t.rows.len(), 2);
-        assert_eq!(t.rows[0], ["1", "x, \"y\"", ""]);
-        assert_eq!(t.get(&t.rows[1], t.col("c")), "z");
-        assert_eq!(t.get(&t.rows[1], t.col("missing")), "");
+    fn collect(bytes: &[u8]) -> (Vec<String>, Vec<Vec<String>>) {
+        let mut rows = Vec::new();
+        let h = for_each_row::<()>(bytes, |h, _, r| {
+            rows.push(
+                (0..h.names().len())
+                    .map(|c| r.get(Some(c)).to_string())
+                    .collect(),
+            );
+            Ok(())
+        })
+        .unwrap();
+        (h.map(|h| h.names().to_vec()).unwrap_or_default(), rows)
     }
 
     #[test]
-    fn quoted_newlines_and_no_trailing_newline() {
-        let t = parse(b"a,b\n\"line\nbreak\",2");
-        assert_eq!(
-            t.rows,
-            vec![vec!["line\nbreak".to_string(), "2".to_string()]]
-        );
+    fn quotes_bom_and_line_endings() {
+        let (h, rows) = collect(b"\xef\xbb\xbfa,b ,c\r\n1,\"x, \"\"y\"\"\",\r\n\r\n2,\"\",z\n");
+        assert_eq!(h, ["a", "b", "c"]);
+        assert_eq!(rows, [["1", "x, \"y\"", ""], ["2", "", "z"]]);
+    }
+
+    #[test]
+    fn quoted_newlines_short_rows_and_no_trailing_newline() {
+        let (_, rows) = collect(b"a,b\n\"line\nbreak\",2\nonly");
+        assert_eq!(rows, [["line\nbreak", "2"], ["only", ""]]);
+    }
+
+    #[test]
+    fn errors_stop_the_scan() {
+        let mut seen = 0;
+        let r = for_each_row(b"a\n1\n2\n3\n", |_, n, _| {
+            seen += 1;
+            if n == 2 {
+                Err("stop")
+            } else {
+                Ok(())
+            }
+        });
+        assert!(r.is_err());
+        assert_eq!(seen, 2);
     }
 }

@@ -4,9 +4,28 @@
 
 use std::fmt;
 
-/// Largest uncompressed entry accepted (GTFS `stop_times.txt` of a large
-/// metropolitan feed is a few hundred MB).
-pub const MAX_ENTRY_SIZE: u64 = 4 << 30;
+/// Bounds on what an archive may expand to.
+#[derive(Debug, Clone, Copy)]
+pub struct Limits {
+    /// Largest uncompressed entry (the `stop_times.txt` of a large
+    /// metropolitan feed is a few hundred MB).
+    pub max_entry: u64,
+    /// Largest total of all entries read from one archive.
+    pub max_total: u64,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Limits {
+            max_entry: 1 << 30,
+            max_total: 4 << 30,
+        }
+    }
+}
+
+/// Deflate cannot expand data by more than about 1032:1; a larger declared
+/// ratio means the directory lies.
+const MAX_DEFLATE_RATIO: u64 = 1100;
 
 #[derive(Debug)]
 pub enum ZipError {
@@ -62,11 +81,23 @@ pub struct Entry {
 pub struct Archive {
     bytes: Vec<u8>,
     pub entries: Vec<Entry>,
+    limits: Limits,
+    /// Uncompressed bytes handed out so far.
+    used: std::cell::Cell<u64>,
 }
 
 impl Archive {
     pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self, ZipError> {
         Self::from_bytes(std::fs::read(path)?)
+    }
+
+    pub fn open_with_limits(
+        path: impl AsRef<std::path::Path>,
+        limits: Limits,
+    ) -> Result<Self, ZipError> {
+        let mut a = Self::from_bytes(std::fs::read(path)?)?;
+        a.limits = limits;
+        Ok(a)
     }
 
     pub fn from_bytes(bytes: Vec<u8>) -> Result<Self, ZipError> {
@@ -118,7 +149,12 @@ impl Archive {
             });
             p += 46 + name_len + extra_len + comment_len;
         }
-        Ok(Archive { bytes, entries })
+        Ok(Archive {
+            bytes,
+            entries,
+            limits: Limits::default(),
+            used: std::cell::Cell::new(0),
+        })
     }
 
     /// The entry whose file name (ignoring any directory) is `name`.
@@ -133,9 +169,25 @@ impl Archive {
         if e.flags & 1 != 0 {
             return err(format!("{}: encrypted entries are not supported", e.name));
         }
-        if e.uncompressed_size > MAX_ENTRY_SIZE {
-            return err(format!("{}: entry larger than 4 GiB", e.name));
+        if e.uncompressed_size > self.limits.max_entry {
+            return err(format!(
+                "{}: entry of {} bytes exceeds the limit of {}",
+                e.name, e.uncompressed_size, self.limits.max_entry
+            ));
         }
+        if e.method == 8
+            && e.uncompressed_size > e.compressed_size.saturating_mul(MAX_DEFLATE_RATIO) + 1024
+        {
+            return err(format!("{}: implausible compression ratio", e.name));
+        }
+        let total = self.used.get().saturating_add(e.uncompressed_size);
+        if total > self.limits.max_total {
+            return err(format!(
+                "archive expands beyond the limit of {} bytes",
+                self.limits.max_total
+            ));
+        }
+        self.used.set(total);
         let h = e.local_header_offset as usize;
         if u32_at(&self.bytes, h)? != 0x0403_4b50 {
             return err(format!("{}: bad local header", e.name));
@@ -251,5 +303,27 @@ pub(crate) mod tests {
         z[cd + 24] = 9;
         let a = Archive::from_bytes(z).unwrap();
         assert!(a.read(&a.entries[0]).is_err());
+    }
+
+    #[test]
+    fn limits_bound_entries_ratios_and_totals() {
+        let big = vec![b'x'; 100_000];
+        let z = make_zip(&[("a.txt", &big), ("b.txt", &big)], true);
+        // ratio: 100 kB of 'x' deflates to ~100 bytes (1000:1) - allowed
+        let a = Archive::from_bytes(z.clone()).unwrap();
+        assert!(a.read(&a.entries[0]).is_ok());
+        let mut a = Archive::from_bytes(z.clone()).unwrap();
+        a.limits = Limits {
+            max_entry: 50_000,
+            max_total: 1 << 30,
+        };
+        assert!(a.read(&a.entries[0]).is_err());
+        let mut a = Archive::from_bytes(z).unwrap();
+        a.limits = Limits {
+            max_entry: 1 << 30,
+            max_total: 150_000,
+        };
+        assert!(a.read(&a.entries[0]).is_ok());
+        assert!(a.read(&a.entries[1]).is_err());
     }
 }

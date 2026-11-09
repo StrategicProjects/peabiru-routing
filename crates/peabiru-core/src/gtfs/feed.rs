@@ -2,7 +2,7 @@
 //! become a routable timetable (calendars for a date, missing times,
 //! patterns) is decided by the transit layer, following R5.
 
-use super::csv::{parse, Table};
+use super::csv::{for_each_row, Header, Row};
 use super::zip::{Archive, ZipError};
 use std::fmt;
 
@@ -147,200 +147,152 @@ impl Feed {
     }
 
     pub fn from_archive(a: &Archive) -> Result<Feed, GtfsError> {
-        let table = |name: &'static str| -> Result<Option<Table>, GtfsError> {
-            match a.find(name) {
-                Some(e) => Ok(Some(parse(&a.read(e)?))),
-                None => Ok(None),
-            }
-        };
-        let required = |name: &'static str| -> Result<Table, GtfsError> {
-            table(name)?.ok_or(GtfsError::Missing(name))
-        };
         let mut feed = Feed::default();
+        let bad =
+            |file: &'static str, row: usize, column: &'static str, value: &str| GtfsError::Field {
+                file,
+                row: row + 1, // record 1 is line 2
+                column,
+                value: value.into(),
+            };
 
-        let t = required("stops.txt")?;
-        let (id, lat, lon, lt, ps) = (
-            t.col("stop_id"),
-            t.col("stop_lat"),
-            t.col("stop_lon"),
-            t.col("location_type"),
-            t.col("parent_station"),
-        );
-        for (i, r) in t.rows.iter().enumerate() {
+        table(a, "stops.txt", true, |h, n, r| {
             let num = |c, column| -> Result<f64, GtfsError> {
-                let v = t.get(r, c);
+                let v = r.get(h.col(c));
                 if v.is_empty() {
                     return Ok(f64::NAN); // stations without coordinates are allowed
                 }
-                v.parse().map_err(|_| GtfsError::Field {
-                    file: "stops.txt",
-                    row: i + 2,
-                    column,
-                    value: v.into(),
-                })
+                v.parse().map_err(|_| bad("stops.txt", n, column, v))
             };
             feed.stops.push(Stop {
-                stop_id: t.get(r, id).to_string(),
-                lat: num(lat, "stop_lat")?,
-                lon: num(lon, "stop_lon")?,
-                location_type: t.get(r, lt).parse().unwrap_or(0),
-                parent_station: t.get(r, ps).to_string(),
+                stop_id: r.get(h.col("stop_id")).to_string(),
+                lat: num("stop_lat", "stop_lat")?,
+                lon: num("stop_lon", "stop_lon")?,
+                location_type: r.get(h.col("location_type")).parse().unwrap_or(0),
+                parent_station: r.get(h.col("parent_station")).to_string(),
             });
-        }
+            Ok(())
+        })?;
 
-        let t = required("routes.txt")?;
-        let (id, ty) = (t.col("route_id"), t.col("route_type"));
-        for (i, r) in t.rows.iter().enumerate() {
-            let v = t.get(r, ty);
+        table(a, "routes.txt", true, |h, n, r| {
+            let v = r.get(h.col("route_type"));
             feed.routes.push(Route {
-                route_id: t.get(r, id).to_string(),
-                route_type: v.parse().map_err(|_| GtfsError::Field {
-                    file: "routes.txt",
-                    row: i + 2,
-                    column: "route_type",
-                    value: v.into(),
-                })?,
+                route_id: r.get(h.col("route_id")).to_string(),
+                route_type: v
+                    .parse()
+                    .map_err(|_| bad("routes.txt", n, "route_type", v))?,
             });
-        }
+            Ok(())
+        })?;
 
-        let t = required("trips.txt")?;
-        let (tid, rid, sid, dir) = (
-            t.col("trip_id"),
-            t.col("route_id"),
-            t.col("service_id"),
-            t.col("direction_id"),
-        );
-        for r in &t.rows {
+        table(a, "trips.txt", true, |h, _, r| {
             feed.trips.push(Trip {
-                trip_id: t.get(r, tid).to_string(),
-                route_id: t.get(r, rid).to_string(),
-                service_id: t.get(r, sid).to_string(),
-                direction_id: t.get(r, dir).parse().ok(),
+                trip_id: r.get(h.col("trip_id")).to_string(),
+                route_id: r.get(h.col("route_id")).to_string(),
+                service_id: r.get(h.col("service_id")).to_string(),
+                direction_id: r.get(h.col("direction_id")).parse().ok(),
             });
-        }
+            Ok(())
+        })?;
 
-        let t = required("stop_times.txt")?;
-        let (tid, arr, dep, sid, seq, pu, dof) = (
-            t.col("trip_id"),
-            t.col("arrival_time"),
-            t.col("departure_time"),
-            t.col("stop_id"),
-            t.col("stop_sequence"),
-            t.col("pickup_type"),
-            t.col("drop_off_type"),
-        );
-        feed.stop_times.reserve(t.rows.len());
-        for (i, r) in t.rows.iter().enumerate() {
+        table(a, "stop_times.txt", true, |h, n, r| {
             let time = |c, column| {
-                let v = t.get(r, c);
-                parse_time(v).map_err(|_| GtfsError::Field {
-                    file: "stop_times.txt",
-                    row: i + 2,
-                    column,
-                    value: v.into(),
-                })
+                let v = r.get(h.col(c));
+                parse_time(v).map_err(|_| bad("stop_times.txt", n, column, v))
             };
-            let v = t.get(r, seq);
+            let seq = r.get(h.col("stop_sequence"));
             feed.stop_times.push(StopTime {
-                trip_id: t.get(r, tid).to_string(),
-                arrival: time(arr, "arrival_time")?,
-                departure: time(dep, "departure_time")?,
-                stop_id: t.get(r, sid).to_string(),
-                stop_sequence: v.parse().map_err(|_| GtfsError::Field {
-                    file: "stop_times.txt",
-                    row: i + 2,
-                    column: "stop_sequence",
-                    value: v.into(),
-                })?,
-                pickup_type: t.get(r, pu).parse().unwrap_or(0),
-                drop_off_type: t.get(r, dof).parse().unwrap_or(0),
+                trip_id: r.get(h.col("trip_id")).to_string(),
+                arrival: time("arrival_time", "arrival_time")?,
+                departure: time("departure_time", "departure_time")?,
+                stop_id: r.get(h.col("stop_id")).to_string(),
+                stop_sequence: seq
+                    .parse()
+                    .map_err(|_| bad("stop_times.txt", n, "stop_sequence", seq))?,
+                pickup_type: r.get(h.col("pickup_type")).parse().unwrap_or(0),
+                drop_off_type: r.get(h.col("drop_off_type")).parse().unwrap_or(0),
             });
-        }
+            Ok(())
+        })?;
 
-        if let Some(t) = table("calendar.txt")? {
-            let day_cols: Vec<_> = [
-                "monday",
-                "tuesday",
-                "wednesday",
-                "thursday",
-                "friday",
-                "saturday",
-                "sunday",
-            ]
-            .iter()
-            .map(|d| t.col(d))
-            .collect();
-            let (sid, sd, ed) = (t.col("service_id"), t.col("start_date"), t.col("end_date"));
-            for (i, r) in t.rows.iter().enumerate() {
-                let date = |c, column| {
-                    let v = t.get(r, c);
-                    v.parse::<u32>().map_err(|_| GtfsError::Field {
-                        file: "calendar.txt",
-                        row: i + 2,
-                        column,
-                        value: v.into(),
-                    })
-                };
-                let mut days = [false; 7];
-                for (d, c) in days.iter_mut().zip(&day_cols) {
-                    *d = t.get(r, *c) == "1";
-                }
-                feed.calendars.push(Calendar {
-                    service_id: t.get(r, sid).to_string(),
-                    days,
-                    start_date: date(sd, "start_date")?,
-                    end_date: date(ed, "end_date")?,
-                });
+        const DAYS: [&str; 7] = [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ];
+        table(a, "calendar.txt", false, |h, n, r| {
+            let date = |c, column| {
+                let v = r.get(h.col(c));
+                v.parse::<u32>()
+                    .map_err(|_| bad("calendar.txt", n, column, v))
+            };
+            let mut days = [false; 7];
+            for (d, name) in days.iter_mut().zip(DAYS) {
+                *d = r.get(h.col(name)) == "1";
             }
-        }
+            feed.calendars.push(Calendar {
+                service_id: r.get(h.col("service_id")).to_string(),
+                days,
+                start_date: date("start_date", "start_date")?,
+                end_date: date("end_date", "end_date")?,
+            });
+            Ok(())
+        })?;
 
-        if let Some(t) = table("calendar_dates.txt")? {
-            let (sid, d, et) = (t.col("service_id"), t.col("date"), t.col("exception_type"));
-            for (i, r) in t.rows.iter().enumerate() {
-                let v = t.get(r, d);
-                feed.calendar_dates.push(CalendarDate {
-                    service_id: t.get(r, sid).to_string(),
-                    date: v.parse().map_err(|_| GtfsError::Field {
-                        file: "calendar_dates.txt",
-                        row: i + 2,
-                        column: "date",
-                        value: v.into(),
-                    })?,
-                    exception_type: t.get(r, et).parse().unwrap_or(0),
-                });
-            }
-        }
+        table(a, "calendar_dates.txt", false, |h, n, r| {
+            let v = r.get(h.col("date"));
+            feed.calendar_dates.push(CalendarDate {
+                service_id: r.get(h.col("service_id")).to_string(),
+                date: v
+                    .parse()
+                    .map_err(|_| bad("calendar_dates.txt", n, "date", v))?,
+                exception_type: r.get(h.col("exception_type")).parse().unwrap_or(0),
+            });
+            Ok(())
+        })?;
 
-        if let Some(t) = table("frequencies.txt")? {
-            let (tid, st, et, hw, ex) = (
-                t.col("trip_id"),
-                t.col("start_time"),
-                t.col("end_time"),
-                t.col("headway_secs"),
-                t.col("exact_times"),
-            );
-            for (i, r) in t.rows.iter().enumerate() {
-                let bad = |column: &'static str, v: &str| GtfsError::Field {
-                    file: "frequencies.txt",
-                    row: i + 2,
-                    column,
-                    value: v.into(),
-                };
-                let time = |c, column| -> Result<i32, GtfsError> {
-                    let v = t.get(r, c);
-                    parse_time(v).ok().flatten().ok_or_else(|| bad(column, v))
-                };
-                let v = t.get(r, hw);
-                feed.frequencies.push(Frequency {
-                    trip_id: t.get(r, tid).to_string(),
-                    start_time: time(st, "start_time")?,
-                    end_time: time(et, "end_time")?,
-                    headway_secs: v.parse().map_err(|_| bad("headway_secs", v))?,
-                    exact_times: t.get(r, ex) == "1",
-                });
-            }
-        }
+        table(a, "frequencies.txt", false, |h, n, r| {
+            let time = |c, column| -> Result<i32, GtfsError> {
+                let v = r.get(h.col(c));
+                parse_time(v)
+                    .ok()
+                    .flatten()
+                    .ok_or_else(|| bad("frequencies.txt", n, column, v))
+            };
+            let hw = r.get(h.col("headway_secs"));
+            feed.frequencies.push(Frequency {
+                trip_id: r.get(h.col("trip_id")).to_string(),
+                start_time: time("start_time", "start_time")?,
+                end_time: time("end_time", "end_time")?,
+                headway_secs: hw
+                    .parse()
+                    .map_err(|_| bad("frequencies.txt", n, "headway_secs", hw))?,
+                exact_times: r.get(h.col("exact_times")) == "1",
+            });
+            Ok(())
+        })?;
         Ok(feed)
+    }
+}
+
+/// Stream the records of one file of the archive into `f`.
+fn table(
+    a: &Archive,
+    name: &'static str,
+    required: bool,
+    f: impl FnMut(&Header, usize, &Row) -> Result<(), GtfsError>,
+) -> Result<(), GtfsError> {
+    match a.find(name) {
+        Some(e) => {
+            for_each_row(&a.read(e)?, f)?;
+            Ok(())
+        }
+        None if required => Err(GtfsError::Missing(name)),
+        None => Ok(()),
     }
 }
 
