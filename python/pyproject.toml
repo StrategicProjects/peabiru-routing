@@ -4,22 +4,60 @@ build-backend = "maturin"
 
 [project]
 name = "peabiru"
-description = "Multimodal routing (OpenStreetMap + GTFS): travel-time matrices, accessibility and isochrones, with a Rust core"
+description = "Multimodal routing on OpenStreetMap and GTFS networks: r5r's travel-time matrices and accessibility, exactly, with a Rust core and no Java"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
-authors = [{ name = "André Leite", email = "leite@castlab.org" }]
-classifiers = [
-  "Programming Language :: Rust",
-  "Programming Language :: Python :: Implementation :: CPython",
-  "Topic :: Scientific/Engineering :: GIS",
+authors = [
+    { name = "André Leite", email = "leite@castlab.org" },
+    { name = "Marcos Wasiliew", email = "marcos.wasiliew@gmail.com" },
+    { name = "Hugo Vasconcelos", email = "hugo.vasconcelos@ufpe.br" },
+    { name = "Carlos Amorim", email = "carlos.agaf@ufpe.br" },
+    { name = "Diogo Bezerra", email = "diogo.bezerra@ufpe.br" },
+    { name = "Júlia Nascimento Barreto", email = "juliabarreto@gd.seplag.pe.gov.br" },
 ]
+maintainers = [{ name = "André Leite", email = "leite@castlab.org" }]
+keywords = ["routing", "accessibility", "gtfs", "openstreetmap", "transport", "r5", "r5r"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Rust",
+  "Topic :: Scientific/Engineering :: GIS",
+  "Typing :: Typed",
+]
+dependencies = ["pandas>=1.5"]
 dynamic = ["version"]
+
+[project.optional-dependencies]
+geo = ["geopandas>=0.12"]
+# the documentation examples, which the tests run, use geopandas
+test = ["pytest>=7", "geopandas>=0.12"]
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+  "mkdocstrings[python]>=0.26",
+]
 
 [project.urls]
 Repository = "https://github.com/StrategicProjects/peabiru-routing"
+Issues = "https://github.com/StrategicProjects/peabiru-routing/issues"
 
 [tool.maturin]
 module-name = "peabiru._peabiru"
 python-source = "."
 features = ["pyo3/extension-module"]
+# only the package goes into the sdist and the wheel (not tests, docs, site)
+include = [{ path = "peabiru/data/spo/*", format = ["sdist", "wheel"] }]
+exclude = ["tests/**", "docs/**", "site/**", "mkdocs.yml", "**/__pycache__/**", "**/*.pyc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

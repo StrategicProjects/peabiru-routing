@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="peabiru">
+  <!-- placeholder mark: replaced by the brand design at merge -->
+  <path d="M4 26 C 10 20, 12 10, 18 8 S 26 10, 28 4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="4" cy="26" r="3" fill="currentColor"/>
+  <circle cx="28" cy="4" r="3" fill="currentColor"/>
+</svg>

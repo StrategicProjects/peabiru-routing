@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- placeholder favicon: replaced by the brand design at merge -->
+  <rect width="32" height="32" rx="6" fill="#2f5d50"/>
+  <path d="M6 25 C 11 19, 13 11, 18 9 S 24 10, 26 6" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+</svg>

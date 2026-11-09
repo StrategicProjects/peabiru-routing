@@ -7,6 +7,8 @@ __pycache__/
 *.pyd
 .venv/
 /python/dist/
+/python/site/
+.pytest_cache/
 
 # R build products
 /r/src/*.o

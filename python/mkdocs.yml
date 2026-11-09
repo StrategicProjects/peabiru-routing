@@ -1,0 +1,66 @@
+site_name: peabiru for Python
+site_description: Multimodal routing on OpenStreetMap and GTFS networks, with r5r's results and a Rust core
+site_author: André Leite, Marcos Wasiliew, Hugo Vasconcelos, Carlos Amorim, Diogo Bezerra, Júlia Nascimento Barreto
+copyright: Copyright &copy; peabiru authors. Sample map data &copy; OpenStreetMap contributors (ODbL).
+repo_url: https://github.com/StrategicProjects/peabiru-routing
+repo_name: StrategicProjects/peabiru-routing
+edit_uri: ""
+strict: true
+
+theme:
+  name: material
+  logo: assets/logo-mark.svg
+  favicon: assets/favicon.svg
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/brand.css
+
+nav:
+  - Get started: index.md
+  - Guide:
+      - Travel-time matrices: travel-time-matrices.md
+      - Accessibility: accessibility.md
+      - Expanded and arrival matrices: expanded-arrival.md
+      - Coming from r5py / r5r: coming-from-r5.md
+  - API reference: reference.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["."]
+          options:
+            docstring_style: numpy
+            show_root_heading: true
+            show_root_full_path: false
+            show_source: false
+            show_signature_annotations: true
+            separate_signature: true
+            heading_level: 3
+            members_order: source
