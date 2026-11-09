@@ -7,6 +7,8 @@
 # Env:   PEABIRU_ROOT  repository with bench/data and bench/results
 #                      (default: this one)
 #        PEABIRU_BIN   peabiru binary (default: build it with cargo)
+#        PEABIRU_OUT   output directory (default: $PEABIRU_ROOT/bench/results/peabiru)
+# Exits 1 if any peabiru command fails or any table differs from r5r's.
 set -euo pipefail
 export LC_ALL=C
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,13 +20,13 @@ if [ -z "${PEABIRU_BIN:-}" ]; then
     python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')/release/peabiru"
 fi
 X=$(Rscript -e 'cat(system.file("extdata", package="r5r"))')
-out="$root/bench/results/peabiru"
+out="${PEABIRU_OUT:-$root/bench/results/peabiru}"
 mkdir -p "$out"
 cities=("$@")
 [ ${#cities[@]} -eq 0 ] && cities=(poa spo)
 semi() { echo "${1//;/,}"; }
+status=0
 for c in "${cities[@]}"; do
-  tail -n +2 "$repo/bench/r5r/accessibility_settings.csv" |
   while IFS=, read -r setting network mode decay value cutoffs pcts opps tw mwt mtd; do
     if [ "$network" = transit ]; then net="$root/bench/data/r5r/$c-transit"; else net="$X/$c/${c}_osm.pbf"; fi
     a=(--mode "$(semi "$mode")" --decay "$decay" --percentiles "$(semi "$pcts")"
@@ -34,8 +36,10 @@ for c in "${cities[@]}"; do
     [ -n "$value" ] && a+=(--decay-value "$value")
     [ -n "$cutoffs" ] && a+=(--cutoffs "$(semi "$cutoffs")")
     f="${c}_ACCESS_${setting}.csv"
+    rm -f "$out/$f"
     printf '== %s %s: ' "$c" "$setting"
-    "$PEABIRU_BIN" accessibility "$net" "$X/$c/${c}_hexgrid.csv" "$out/$f" "${a[@]}"
-    python3 -I "$repo/bench/compare/accessibility.py" "$root/bench/results/r5r/$f" "$out/$f"
-  done
+    "$PEABIRU_BIN" accessibility "$net" "$X/$c/${c}_hexgrid.csv" "$out/$f" "${a[@]}" < /dev/null
+    python3 -I "$repo/bench/compare/accessibility.py" "$root/bench/results/r5r/$f" "$out/$f" || status=1
+  done < <(tail -n +2 "$repo/bench/r5r/accessibility_settings.csv")
 done
+exit $status

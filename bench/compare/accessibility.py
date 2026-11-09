@@ -7,7 +7,7 @@ key. Values are parsed as doubles (r5r's baseline is written with %.17g and
 peabiru writes the shortest round-trip form, so equal doubles compare equal).
 Prints, per opportunity column and overall: rows, exact matches, max absolute
 and max relative difference (with the worst row), and whether the row order
-is the same.
+is the same. Exits 1 unless every row is equal and in the same order.
 """
 import csv
 import sys
@@ -66,7 +66,10 @@ def main(ref_path, cand_path):
           f"only r5r {only_ref} only peabiru {only_cand}")
     if status != "OK":
         print("\n".join(lines))
+    return 0 if status == "OK" else 1
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:3])
+    if len(sys.argv) < 3:
+        sys.exit(__doc__)
+    sys.exit(main(*sys.argv[1:3]))
