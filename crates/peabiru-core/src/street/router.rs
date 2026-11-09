@@ -521,6 +521,36 @@ pub fn street_seconds(
     time_to_point(net, &o, &d, mode, &sp, &search)
 }
 
+/// One street search from a linked origin: the time at every vertex
+/// (`i32::MAX` where unreached; states kept only below `limit` seconds) and
+/// the direct time in seconds to each linked destination (`i32::MAX` where
+/// unreachable), as R5's `TravelTimeComputer` uses for access and for the
+/// non-transit option.
+pub fn street_vertex_times(
+    net: &StreetNetwork,
+    origin: &Split,
+    destinations: &[Option<Split>],
+    mode: Mode,
+    walk_speed_kmh: f64,
+    limit: i32,
+) -> (Vec<i32>, Vec<i32>) {
+    let params = RouteParams {
+        walk_speed_kmh,
+        ..RouteParams::default()
+    };
+    let sp = Speeds::new(&params, mode);
+    let mut search = Search::new(net);
+    route(net, origin, mode, &sp, params.max_lts, limit, &mut search);
+    let direct = destinations
+        .iter()
+        .map(|d| {
+            d.and_then(|d| time_to_point(net, origin, &d, mode, &sp, &search))
+                .map_or(i32::MAX, |t| t.min(i64::from(i32::MAX - 1)) as i32)
+        })
+        .collect();
+    (search.vertex_time, direct)
+}
+
 /// Travel-time matrix in whole minutes, row-major `origins x destinations`;
 /// `None` where r5r reports no time (unlinked, unreachable or beyond
 /// `max_trip_duration_min`). Points are `(lat, lon)` degrees.

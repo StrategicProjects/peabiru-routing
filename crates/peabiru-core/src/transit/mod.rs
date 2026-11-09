@@ -2,6 +2,9 @@
 //! transfers and RAPTOR, following R5 7.6 as used by r5r.
 
 pub mod layer;
+pub mod matrix;
+pub mod raptor;
+pub mod walk;
 
 pub use layer::{gtfs_files_in_dir, TransitLayer};
 

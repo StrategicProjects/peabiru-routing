@@ -33,9 +33,120 @@ fn main() {
                 .map_or(1, |s| s.parse().unwrap_or_else(|_| usage()));
             ttm(&args[1], &args[2], &args[3], &args[4], n_threads, repeats);
         }
+        Some("transit") => transit(&args[1..]),
         Some("dump-edges") => dump_edges(args.get(1).unwrap_or_else(|| usage())),
         _ => usage(),
     }
+}
+
+/// `peabiru transit <dir> <points.csv> <out.csv> --date YYYY-MM-DD --time HH:MM:SS
+///  [--tw 10] [--percentiles 50] [--max-walk 120] [--max-trip 120] [--max-rides 3]
+///  [--draws 5] [--seed N] [--threads 0] [--repeats 1]`
+fn transit(args: &[String]) {
+    use peabiru_core::street::BuildOptions;
+    use peabiru_core::transit::matrix::{travel_time_matrix, TransitData, TransitParams};
+    if args.len() < 3 {
+        usage();
+    }
+    let (dir, points, out) = (&args[0], &args[1], &args[2]);
+    let mut p = TransitParams::default();
+    let mut repeats = 1usize;
+    let mut i = 3;
+    let num =
+        |v: Option<&String>| -> i64 { v.and_then(|s| s.parse().ok()).unwrap_or_else(|| usage()) };
+    while i < args.len() {
+        let v = args.get(i + 1);
+        match args[i].as_str() {
+            "--date" => {
+                let d = v.unwrap_or_else(|| usage()).replace('-', "");
+                p.date = d.parse().unwrap_or_else(|_| usage());
+            }
+            "--time" => {
+                let t: Vec<i32> = v
+                    .unwrap_or_else(|| usage())
+                    .split(':')
+                    .map(|x| x.parse().unwrap_or_else(|_| usage()))
+                    .collect();
+                p.departure_time = t[0] * 3600 + t[1] * 60 + t.get(2).copied().unwrap_or(0);
+            }
+            "--tw" => p.time_window = num(v) as i32,
+            "--percentiles" => {
+                p.percentiles = v
+                    .unwrap_or_else(|| usage())
+                    .split(',')
+                    .map(|x| x.parse().unwrap_or_else(|_| usage()))
+                    .collect()
+            }
+            "--max-walk" => p.max_walk_time = num(v) as i32,
+            "--max-trip" => p.max_trip_duration = num(v) as i32,
+            "--max-rides" => p.max_rides = num(v) as usize,
+            "--draws" => p.draws_per_minute = num(v) as i32,
+            "--seed" => p.seed = Some(num(v) as i32),
+            "--threads" => p.n_threads = num(v) as usize,
+            "--repeats" => repeats = num(v) as usize,
+            _ => usage(),
+        }
+        i += 2;
+    }
+    let t0 = Instant::now();
+    let (net, layer) = peabiru_core::transit::build_from_dir(
+        dir,
+        &BuildOptions {
+            n_threads: p.n_threads,
+        },
+    )
+    .unwrap_or_else(|e| {
+        eprintln!("{e}");
+        std::process::exit(1)
+    });
+    let data = TransitData::new(&net, &layer);
+    let build_s = t0.elapsed().as_secs_f64();
+    let (ids, pts) = read_points(points);
+    let mut times = Vec::new();
+    let mut m = Vec::new();
+    for _ in 0..repeats.max(1) {
+        let t = Instant::now();
+        m = travel_time_matrix(&net, &layer, &data, &pts, &pts, &p).unwrap_or_else(|e| {
+            eprintln!("{e}");
+            std::process::exit(2)
+        });
+        times.push(t.elapsed().as_secs_f64());
+    }
+    times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let mut pcs = p.percentiles.clone();
+    pcs.sort_unstable();
+    let mut csv = String::from("from_id,to_id");
+    for pc in &pcs {
+        csv.push_str(&format!(",travel_time_p{pc:02}"));
+    }
+    csv.push('\n');
+    let mut rows = 0usize;
+    for (i, row) in m.iter().enumerate() {
+        for (j, cell) in row.iter().enumerate() {
+            if cell[0].is_none() {
+                continue;
+            }
+            rows += 1;
+            csv.push_str(&format!("{},{}", ids[i], ids[j]));
+            for v in cell {
+                match v {
+                    Some(v) => csv.push_str(&format!(",{v}")),
+                    None => csv.push(','),
+                }
+            }
+            csv.push('\n');
+        }
+    }
+    std::fs::write(out, csv).expect("write output");
+    println!(
+        "stops {}  patterns {}  build {:.3}s  route {:.3}s (median of {})  rows {}",
+        layer.stop_ids.len(),
+        layer.patterns.len(),
+        build_s,
+        times[times.len() / 2],
+        times.len(),
+        rows
+    );
 }
 
 /// Every directed edge with the attributes r5r's `street_network_to_sf()`
