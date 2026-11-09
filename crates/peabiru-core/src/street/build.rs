@@ -34,7 +34,7 @@ pub fn build_network(
     };
     let read = ReadOptions {
         way_filter: &is_way_routable,
-        relation_filter: None,
+        relation_filter: Some(&super::restrictions::is_restriction),
         node_tag_filter: Some(&node_tags),
         ref_count_filter: Some(&not_building),
         n_threads: opts.n_threads,
@@ -94,6 +94,7 @@ pub fn network_from_extract(mut ex: Extract) -> StreetNetwork {
     for w in &ex.ways {
         b.add_way(w);
     }
+    let vertex_of = std::mem::take(&mut b.vertex_of);
     let mut net = b.net;
     build_adjacency(&mut net);
     apply_intersection_lts(&mut net);
@@ -104,6 +105,12 @@ pub fn network_from_extract(mut ex: Extract) -> StreetNetwork {
     ] {
         prune_islands(&mut net, mode_flag, walk_counts);
     }
+    let vertex_for_node = |id: i64| {
+        ex.node_index(id)
+            .map(|i| vertex_of[i])
+            .filter(|&v| v != u32::MAX)
+    };
+    super::restrictions::apply_turn_restrictions(&mut net, &ex, &vertex_for_node);
     net.index = link::EdgeIndex::build(&net);
     net
 }

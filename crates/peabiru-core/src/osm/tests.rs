@@ -169,6 +169,10 @@ fn reads_ways_relations_and_only_referenced_nodes() {
             assert_eq!(ex.node_tags[0].0, 2);
             assert_eq!(ex.node_tags[0].1.get("barrier"), Some("gate"));
 
+            // relation 20 has way 10 and node 2, both in the file
+            assert_eq!(ex.member_ways_present, vec![10]);
+            assert_eq!(ex.member_nodes_present, vec![2]);
+
             assert_eq!(ex.relations.len(), 1);
             let r = &ex.relations[0];
             assert_eq!(

@@ -9,10 +9,12 @@ pub mod build;
 pub mod geom;
 pub mod labels;
 pub mod link;
+pub mod restrictions;
 pub mod router;
 
 pub use build::{build_network, BuildOptions};
 pub use link::Split;
+pub use restrictions::TurnRestriction;
 pub use router::{travel_time_matrix, Mode, ParamError, RouteParams};
 
 /// Edge flags (bit set per directed edge).
@@ -29,6 +31,8 @@ pub mod flags {
     pub const BIKE_LTS_3: u32 = 1 << 9;
     pub const BIKE_LTS_4: u32 = 1 << 10;
     pub const BIKE_LTS_EXPLICIT: u32 = 1 << 11;
+    /// Some turn restriction starts when a car enters this edge.
+    pub const RESTRICTION_START: u32 = 1 << 12;
 
     pub const ALL_ALLOWS: u32 = ALLOWS_PEDESTRIAN | ALLOWS_BIKE | ALLOWS_CAR;
     /// Flags that make an edge worth creating (R5 `ALL_PERMISSIONS`).
@@ -81,6 +85,12 @@ pub struct StreetNetwork {
 
     /// Spatial index over the forward edges, for linking.
     pub index: link::EdgeIndex,
+
+    /// Car turn restrictions.
+    pub restrictions: Vec<TurnRestriction>,
+    /// `(from_edge, restriction index)`, sorted: restrictions that start when
+    /// a car enters an edge.
+    pub restriction_starts: Vec<(u32, u32)>,
 }
 
 impl StreetNetwork {
@@ -90,6 +100,16 @@ impl StreetNetwork {
 
     pub fn n_edges(&self) -> usize {
         self.edge_flags.len()
+    }
+
+    /// Indices of the restrictions that start on edge `e`.
+    #[inline]
+    pub fn restrictions_starting_at(&self, e: u32) -> impl Iterator<Item = u32> + '_ {
+        let lo = self.restriction_starts.partition_point(|&(f, _)| f < e);
+        self.restriction_starts[lo..]
+            .iter()
+            .take_while(move |&&(f, _)| f == e)
+            .map(|&(_, r)| r)
     }
 
     #[inline]

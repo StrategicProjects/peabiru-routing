@@ -4,7 +4,8 @@ use std::time::Instant;
 fn usage() -> ! {
     eprintln!(
         "usage: peabiru --version\n       peabiru osm-stats <file.osm.pbf> [n_threads]\n       \
-         peabiru ttm <file.osm.pbf> <points.csv> <WALK|BICYCLE|CAR> <out.csv> [n_threads] [repeats]"
+         peabiru ttm <file.osm.pbf> <points.csv> <WALK|BICYCLE|CAR> <out.csv> [n_threads] [repeats]\n       \
+         peabiru dump-edges <file.osm.pbf>   (CSV like r5r::street_network_to_sf edges)"
     );
     std::process::exit(2);
 }
@@ -32,7 +33,49 @@ fn main() {
                 .map_or(1, |s| s.parse().unwrap_or_else(|_| usage()));
             ttm(&args[1], &args[2], &args[3], &args[4], n_threads, repeats);
         }
+        Some("dump-edges") => dump_edges(args.get(1).unwrap_or_else(|| usage())),
         _ => usage(),
+    }
+}
+
+/// Every directed edge with the attributes r5r's `street_network_to_sf()`
+/// reports, for comparing networks edge by edge (bench/compare/edges.py).
+fn dump_edges(pbf: &str) {
+    use peabiru_core::street::flags::*;
+    use peabiru_core::street::labels::{cms_to_ms, lts_of};
+    use peabiru_core::street::{build_network, BuildOptions};
+    use std::io::Write;
+    let net = build_network(pbf, &BuildOptions::default()).unwrap_or_else(|e| {
+        eprintln!("{e}");
+        std::process::exit(1)
+    });
+    let out = std::io::stdout();
+    let mut w = std::io::BufWriter::new(out.lock());
+    writeln!(
+        w,
+        "edge_index,osm_id,length,walk,car,car_speed,bicycle,bicycle_lts,lon0,lat0,lon1,lat1"
+    )
+    .unwrap();
+    for e in 0..net.n_edges() {
+        let f = net.edge_flags[e];
+        let (v0, v1) = (net.edge_from(e), net.edge_to(e));
+        writeln!(
+            w,
+            "{},{},{:.3},{},{},{},{},{},{:.7},{:.7},{:.7},{:.7}",
+            e,
+            net.pair_way[e / 2],
+            f64::from(net.pair_length_mm[e / 2]) / 1000.0,
+            f & ALLOWS_PEDESTRIAN != 0,
+            f & ALLOWS_CAR != 0,
+            f64::from(cms_to_ms(net.edge_speed_cms[e])) * 3.6,
+            f & ALLOWS_BIKE != 0,
+            lts_of(f),
+            f64::from(net.v_lon[v0]) / 1e7,
+            f64::from(net.v_lat[v0]) / 1e7,
+            f64::from(net.v_lon[v1]) / 1e7,
+            f64::from(net.v_lat[v1]) / 1e7
+        )
+        .unwrap();
     }
 }
 
@@ -115,9 +158,10 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     }
     std::fs::write(out, csv).expect("write output");
     println!(
-        "vertices {}  edges {}  build {:.3}s  route {:.3}s (median of {})  pairs {}  reached {}",
+        "vertices {}  edges {}  restrictions {}  build {:.3}s  route {:.3}s (median of {})  pairs {}  reached {}",
         net.n_vertices(),
         net.n_edges(),
+        net.restrictions.len(),
         build_s,
         route_s,
         times.len(),

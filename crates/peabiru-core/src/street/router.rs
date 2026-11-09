@@ -7,8 +7,6 @@ use super::flags::*;
 use super::labels::cms_to_ms;
 use super::link::{find_split, Split};
 use super::StreetNetwork;
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Street mode.
@@ -118,15 +116,88 @@ impl Speeds {
     }
 }
 
+/// Binary min-heap on time with exactly the sift rules of
+/// `java.util.PriorityQueue`, so states with equal times leave the queue in
+/// the same order as in R5. That order matters: among states carrying the
+/// same turn-restriction progress on an edge, R5 keeps the first one created.
+#[derive(Default)]
+struct JavaHeap {
+    a: Vec<(i32, u32, u32)>,
+}
+
+impl JavaHeap {
+    fn clear(&mut self) {
+        self.a.clear();
+    }
+
+    #[inline]
+    fn offer(&mut self, x: (i32, u32, u32)) {
+        let mut k = self.a.len();
+        self.a.push(x);
+        while k > 0 {
+            let parent = (k - 1) >> 1;
+            let e = self.a[parent];
+            if x.0 >= e.0 {
+                break;
+            }
+            self.a[k] = e;
+            k = parent;
+        }
+        self.a[k] = x;
+    }
+
+    #[inline]
+    fn poll(&mut self) -> Option<(i32, u32, u32)> {
+        let last = self.a.pop()?;
+        if self.a.is_empty() {
+            return Some(last);
+        }
+        let result = self.a[0];
+        let n = self.a.len();
+        let half = n >> 1;
+        let mut k = 0;
+        while k < half {
+            let mut child = 2 * k + 1;
+            let mut c = self.a[child];
+            let right = child + 1;
+            if right < n && c.0 > self.a[right].0 {
+                child = right;
+                c = self.a[child];
+            }
+            if last.0 <= c.0 {
+                break;
+            }
+            self.a[k] = c;
+            k = child;
+        }
+        self.a[k] = last;
+        Some(result)
+    }
+}
+
+/// Restriction progress carried by a car state: `(restriction, position)`
+/// sorted by restriction, where position 1 means "on the from edge".
+type RMap = Vec<(u32, u32)>;
+
+/// Heap tag for a state without restriction progress.
+const CLEAN: u32 = u32::MAX;
+
 /// Reusable per-thread search state.
 struct Search {
-    /// Best time at the end of each directed edge.
+    /// Best time at the end of each directed edge, over states without
+    /// restriction progress.
     edge_time: Vec<i32>,
-    /// Best time at each vertex (min over incoming edge states).
+    /// Best time at each vertex (min over all incoming edge states).
     vertex_time: Vec<i32>,
     touched_edges: Vec<u32>,
     touched_vertices: Vec<u32>,
-    heap: BinaryHeap<Reverse<(i32, u32)>>,
+    /// States in the middle of turn restrictions: `(edge, progress)`. R5
+    /// keeps them apart: they neither dominate nor are dominated by plain
+    /// states, and the first state with a given progress on an edge wins.
+    restricted: Vec<(u32, RMap)>,
+    restricted_at: std::collections::HashMap<u32, Vec<u32>>,
+    /// Queue of `(time, edge, restricted state id or CLEAN)`.
+    heap: JavaHeap,
 }
 
 impl Search {
@@ -136,7 +207,9 @@ impl Search {
             vertex_time: vec![i32::MAX; net.n_vertices()],
             touched_edges: Vec::new(),
             touched_vertices: Vec::new(),
-            heap: BinaryHeap::new(),
+            restricted: Vec::new(),
+            restricted_at: std::collections::HashMap::new(),
+            heap: JavaHeap::default(),
         }
     }
 
@@ -149,27 +222,97 @@ impl Search {
         }
         self.touched_edges.clear();
         self.touched_vertices.clear();
+        self.restricted.clear();
+        self.restricted_at.clear();
         self.heap.clear();
     }
 
-    /// Record a state; `true` if it improves the edge (ties keep the old one).
     #[inline]
-    fn improve(&mut self, net: &StreetNetwork, e: usize, t: i32) -> bool {
-        if t >= self.edge_time[e] {
-            return false;
-        }
-        if self.edge_time[e] == i32::MAX {
-            self.touched_edges.push(e as u32);
-        }
-        self.edge_time[e] = t;
-        let v = net.edge_to(e);
+    fn push(&mut self, t: i32, e: u32, tag: u32) {
+        self.heap.offer((t, e, tag));
+    }
+
+    #[inline]
+    fn pop(&mut self) -> Option<(i32, u32, u32)> {
+        self.heap.poll()
+    }
+
+    #[inline]
+    fn touch_vertex(&mut self, v: usize, t: i32) {
         if t < self.vertex_time[v] {
             if self.vertex_time[v] == i32::MAX {
                 self.touched_vertices.push(v as u32);
             }
             self.vertex_time[v] = t;
         }
-        true
+    }
+
+    /// Record a state at the end of edge `e`; returns its heap tag, or `None`
+    /// when an existing state dominates it (R5 `isDominated`).
+    #[inline]
+    fn add_state(&mut self, net: &StreetNetwork, e: usize, t: i32, map: RMap) -> Option<u32> {
+        if map.is_empty() {
+            if t >= self.edge_time[e] {
+                return None; // ties keep the existing state
+            }
+            if self.edge_time[e] == i32::MAX {
+                self.touched_edges.push(e as u32);
+            }
+            self.edge_time[e] = t;
+            self.touch_vertex(net.edge_to(e), t);
+            return Some(CLEAN);
+        }
+        let ids = self.restricted_at.entry(e as u32).or_default();
+        if ids.iter().any(|&id| self.restricted[id as usize].1 == map) {
+            return None;
+        }
+        let id = self.restricted.len() as u32;
+        ids.push(id);
+        self.restricted.push((e as u32, map));
+        self.touch_vertex(net.edge_to(e), t);
+        Some(id)
+    }
+}
+
+/// Carry restriction progress from the current edge onto edge `f`
+/// (R5 `canTurnFrom`); `None` when the turn is forbidden.
+fn advance_restrictions(net: &StreetNetwork, map: &RMap, f: u32) -> Option<RMap> {
+    let mut out = Vec::with_capacity(map.len());
+    for &(r, pos) in map {
+        let rest = &net.restrictions[r as usize];
+        let p = (pos - 1) as usize;
+        if p < rest.via_edges.len() {
+            if f != rest.via_edges[p] {
+                if rest.only {
+                    return None;
+                }
+                // left a "no" restriction: forget it
+            } else {
+                out.push((r, pos + 1));
+            }
+        } else if f != rest.to_edge {
+            if rest.only {
+                return None;
+            }
+        } else if !rest.only {
+            return None;
+        }
+        // reached the end of an "only" restriction: done with it
+    }
+    Some(out)
+}
+
+/// Start the restrictions whose from edge is `f` (R5 `startTurnRestriction`).
+#[inline]
+fn start_restrictions(net: &StreetNetwork, map: &mut RMap, f: u32) {
+    if net.edge_flags[f as usize] & RESTRICTION_START == 0 {
+        return;
+    }
+    for r in net.restrictions_starting_at(f) {
+        match map.binary_search_by_key(&r, |&(k, _)| k) {
+            Ok(i) => map[i].1 = 1,
+            Err(i) => map.insert(i, (r, 1)),
+        }
     }
 }
 
@@ -215,8 +358,9 @@ fn route(
     let fwd = origin.edge as usize;
     let bwd = fwd + 1;
     let off = origin.distance_to_edge_mm / sp.walk_mms;
-    // Start states carry the split edge as back edge so turn costs apply when
-    // leaving it. Their times are not checked against the limit.
+    // Start states carry the split edge as back edge so turn costs (and turn
+    // restrictions) apply when leaving it. Their times are not checked
+    // against the limit.
     let start_speed = |e: usize| match mode {
         Mode::Walk => sp.walk,
         Mode::Bicycle => sp.bike,
@@ -225,17 +369,41 @@ fn route(
     let t1 = ((origin.distance1_mm / 1000) as f32 / start_speed(fwd)) as i32 + off;
     let t0 = ((origin.distance0_mm / 1000) as f32 / start_speed(bwd)) as i32 + off;
     for (e, t) in [(bwd, t0), (fwd, t1)] {
-        if s.improve(net, e, t) {
-            s.heap.push(Reverse((t, e as u32)));
+        let mut map = RMap::new();
+        if mode == Mode::Car {
+            start_restrictions(net, &mut map, e as u32);
+        }
+        if let Some(tag) = s.add_state(net, e, t, map) {
+            s.push(t, e as u32, tag);
         }
     }
-    while let Some(Reverse((t, e))) = s.heap.pop() {
+    let mut map = RMap::new();
+    while let Some((t, e, tag)) = s.pop() {
         let e = e as usize;
-        if t > s.edge_time[e] {
-            continue; // dominated since it was queued
+        map.clear();
+        if tag == CLEAN {
+            if t > s.edge_time[e] {
+                continue; // dominated since it was queued
+            }
+        } else {
+            map.extend_from_slice(&s.restricted[tag as usize].1);
         }
         let v = net.edge_to(e);
         for &f in net.out_edges(v) {
+            let next_map = if mode != Mode::Car {
+                RMap::new()
+            } else {
+                let mut m = if map.is_empty() {
+                    RMap::new()
+                } else {
+                    match advance_restrictions(net, &map, f) {
+                        Some(m) => m,
+                        None => continue,
+                    }
+                };
+                start_restrictions(net, &mut m, f);
+                m
+            };
             let f = f as usize;
             let flags = net.edge_flags[f];
             let len = net.pair_length_mm[f / 2];
@@ -277,8 +445,10 @@ fn route(
             if t1 == t {
                 t1 += 1;
             }
-            if t1 < limit && s.improve(net, f, t1) {
-                s.heap.push(Reverse((t1, f as u32)));
+            if t1 < limit {
+                if let Some(tag) = s.add_state(net, f, t1, next_map) {
+                    s.push(t1, f as u32, tag);
+                }
             }
         }
     }
@@ -319,6 +489,33 @@ fn time_to_point(
         }
     };
     Some(via(t0, dest.distance0_mm).min(via(t1, dest.distance1_mm)))
+}
+
+/// Seconds by street from one point to another with r5r's defaults, before
+/// rounding to minutes; `None` if either point is unlinked or the
+/// destination is unreachable. For tests and diagnostics.
+pub fn street_seconds(
+    net: &StreetNetwork,
+    from: (f64, f64),
+    to: (f64, f64),
+    mode: Mode,
+) -> Option<i64> {
+    let params = RouteParams::default();
+    let sp = Speeds::new(&params, mode);
+    let mut scratch = Vec::new();
+    let o = find_split(net, from.0, from.1, mode, &mut scratch)?;
+    let d = find_split(net, to.0, to.1, mode, &mut scratch)?;
+    let mut search = Search::new(net);
+    route(
+        net,
+        &o,
+        mode,
+        &sp,
+        params.max_lts,
+        params.max_trip_duration_min * 60,
+        &mut search,
+    );
+    time_to_point(net, &o, &d, mode, &sp, &search)
 }
 
 /// Travel-time matrix in whole minutes, row-major `origins x destinations`;

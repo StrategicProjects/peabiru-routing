@@ -12,7 +12,7 @@
 use super::protobuf::{packed_delta_sint64, packed_u64, Fields, Packed};
 use std::borrow::Cow;
 use std::fmt;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 
 /// An error while reading a PBF file.
 #[derive(Debug)]
@@ -146,6 +146,12 @@ pub struct Extract {
     /// empty when there is no such filter. A count of 2 or more marks an
     /// intersection.
     pub ref_counts: Vec<u32>,
+    /// Node ids that are members of a kept relation and exist in the file,
+    /// sorted.
+    pub member_nodes_present: Vec<i64>,
+    /// Way ids that are members of a kept relation and exist in the file
+    /// (kept by `way_filter` or not), sorted.
+    pub member_ways_present: Vec<i64>,
 }
 
 impl Extract {
@@ -216,12 +222,36 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
         None => Vec::new(),
     };
     let counts_ref = &counts;
+    let member_ids = |kind: MemberKind| {
+        let mut v: Vec<i64> = ex
+            .relations
+            .iter()
+            .flat_map(|r| r.members.iter())
+            .filter(|m| m.kind == kind)
+            .map(|m| m.id)
+            .collect();
+        v.sort_unstable();
+        v.dedup();
+        v
+    };
+    let member_nodes = member_ids(MemberKind::Node);
+    let member_ways = member_ids(MemberKind::Way);
+    let node_seen: Vec<AtomicBool> = member_nodes
+        .iter()
+        .map(|_| AtomicBool::new(false))
+        .collect();
+    let way_seen: Vec<AtomicBool> = member_ways.iter().map(|_| AtomicBool::new(false)).collect();
+    let (member_nodes_ref, member_ways_ref) = (&member_nodes, &member_ways);
+    let (node_seen_ref, way_seen_ref) = (&node_seen, &way_seen);
     let found = par_map(&blobs, n_threads, |blob| {
         let block = inflate(blob)?;
         let mut coords: Vec<(u32, i32, i32)> = Vec::new();
         let mut tagged: Vec<(i64, Tags)> = Vec::new();
         decode_block(&block, &mut |item| match item {
             Item::Node { id, lat, lon, tags } => {
+                if let Ok(i) = member_nodes_ref.binary_search(&id) {
+                    node_seen_ref[i].store(true, Ordering::Relaxed);
+                }
                 if let Ok(i) = ids_ref.binary_search(&id) {
                     coords.push((i as u32, lat, lon));
                     if let Some(f) = opts.node_tag_filter {
@@ -231,7 +261,10 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
                     }
                 }
             }
-            Item::Way { tags, refs, .. } => {
+            Item::Way { id, tags, refs } => {
+                if let Ok(i) = member_ways_ref.binary_search(&id) {
+                    way_seen_ref[i].store(true, Ordering::Relaxed);
+                }
                 if let Some(f) = opts.ref_count_filter {
                     if f(tags) {
                         for r in refs {
@@ -257,6 +290,15 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
     }
     ex.node_tags.sort_by_key(|(id, _)| *id);
     ex.ref_counts = counts.into_iter().map(AtomicU32::into_inner).collect();
+    let present = |ids: &[i64], seen: Vec<AtomicBool>| -> Vec<i64> {
+        ids.iter()
+            .zip(seen)
+            .filter(|(_, s)| s.load(Ordering::Relaxed))
+            .map(|(&id, _)| id)
+            .collect()
+    };
+    ex.member_nodes_present = present(&member_nodes, node_seen);
+    ex.member_ways_present = present(&member_ways, way_seen);
     ex.node_ids = ids;
     Ok(ex)
 }
