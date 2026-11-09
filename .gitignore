@@ -23,6 +23,17 @@ __pycache__/
 /bench/data/
 /bench/results/
 
-# Local agent scaffolding
+# Local agent scaffolding, plans, decisions and memory: kept local, never published
 .claude/
-/CLAUDE.md
+CLAUDE.md
+AGENTS.md
+plan.md
+plano.md
+PLAN*.md
+PLANO*.md
+DECISIONS*.md
+DECISOES*.md
+decisions/
+decisoes/
+memory/
+memoria/
