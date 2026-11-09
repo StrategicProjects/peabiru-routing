@@ -1,0 +1,135 @@
+# Builds the Python package for every platform, tests the wheels, and, when a
+# GitHub release is published, uploads them to PyPI.
+#
+# Run by hand (Actions > python-release > Run workflow) it only builds and
+# tests: nothing is uploaded.
+#
+# The upload uses PyPI's trusted publishing, with no API token. The publisher
+# registered on PyPI must match this file:
+#   project      peabiru
+#   owner        StrategicProjects
+#   repository   peabiru-routing
+#   workflow     python-release.yml
+#   environment  pypi
+name: python-release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wheels:
+    name: wheel ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64, os: ubuntu-latest, target: x86_64 }
+          # cross-compiled: built here, not run by the test job
+          - { name: linux-aarch64, os: ubuntu-latest, target: aarch64 }
+          - { name: macos-arm64, os: macos-latest, target: aarch64 }
+          # cross-compiled: built here, not run by the test job
+          - { name: macos-x86_64, os: macos-latest, target: x86_64 }
+          - { name: windows-x64, os: windows-latest, target: x64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: python
+          target: ${{ matrix.target }}
+          manylinux: auto
+          args: --release --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.name }}
+          path: python/dist/*.whl
+          if-no-files-found: error
+
+  sdist:
+    name: sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: python
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist
+          path: python/dist/*.tar.gz
+          if-no-files-found: error
+
+  test:
+    name: test ${{ matrix.os }} py${{ matrix.python }}
+    needs: wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        # the wheels are abi3: one file serves 3.9 and everything after it
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - name: Install the wheel built for this platform
+        run: python -m pip install --only-binary peabiru --find-links dist "peabiru[test]"
+      - name: Run the tests against the installed wheel
+        # from the repository root, so that `import peabiru` finds the
+        # installed wheel and not the source directory
+        run: pytest python/tests
+
+  sdist-build:
+    name: build from the sdist
+    needs: sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-sdist
+          path: dist
+      - name: Compile and import
+        shell: bash
+        run: |
+          python -m pip install dist/*.tar.gz
+          python -c "import peabiru; print(peabiru.__version__, peabiru.core_version())"
+
+  publish:
+    name: upload to PyPI
+    if: github.event_name == 'release'
+    needs: [wheels, sdist, test, sdist-build]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
