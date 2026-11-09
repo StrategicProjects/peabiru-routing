@@ -89,6 +89,7 @@ impl Default for RouteParams {
 }
 
 /// Speeds as R5 holds them: km/h to m/s in double, then `(float)`.
+#[derive(Debug, Clone, Copy)]
 struct Speeds {
     walk: f32,
     bike: f32,
@@ -175,6 +176,90 @@ impl JavaHeap {
     }
 }
 
+/// Monotone integer priority queue (a radix heap) for searches whose
+/// states carry no turn-restriction progress.
+///
+/// Such a search keeps, per directed edge, the least time of any state
+/// reaching it, and every step adds a non-negative cost: the times it ends
+/// with are shortest-path times, whatever order equal-time states leave the
+/// queue in. Only the restricted car search depends on that order (see
+/// [`JavaHeap`]), so only it needs the exact `java.util.PriorityQueue`
+/// replica; every other search uses this cheaper queue and finds the same
+/// times.
+///
+/// Keys must not decrease below the last one popped (true for a search
+/// with non-negative steps). Keys are `i32` mapped to `u32` in order.
+struct RadixHeap {
+    /// Image of the last popped key; bucket `i > 0` holds keys whose highest
+    /// bit differing from it is bit `i - 1`, bucket 0 keys equal to it.
+    last: u32,
+    len: usize,
+    buckets: [Vec<(u32, u32)>; 33],
+}
+
+impl Default for RadixHeap {
+    fn default() -> Self {
+        RadixHeap {
+            last: 0,
+            len: 0,
+            buckets: std::array::from_fn(|_| Vec::new()),
+        }
+    }
+}
+
+impl RadixHeap {
+    #[inline]
+    fn key(t: i32) -> u32 {
+        (t as u32) ^ 0x8000_0000
+    }
+
+    #[inline]
+    fn bucket(&self, k: u32) -> usize {
+        (32 - (k ^ self.last).leading_zeros()) as usize
+    }
+
+    fn clear(&mut self) {
+        for b in &mut self.buckets {
+            b.clear();
+        }
+        self.last = 0;
+        self.len = 0;
+    }
+
+    #[inline]
+    fn push(&mut self, t: i32, e: u32) {
+        // A key below the last popped one cannot come from a search with
+        // non-negative steps; clamping keeps the queue consistent anyway.
+        let k = Self::key(t).max(self.last);
+        let b = self.bucket(k);
+        self.buckets[b].push((k, e));
+        self.len += 1;
+    }
+
+    #[inline]
+    fn pop(&mut self) -> Option<(i32, u32)> {
+        if self.len == 0 {
+            return None;
+        }
+        if self.buckets[0].is_empty() {
+            let i = (1..33)
+                .find(|&i| !self.buckets[i].is_empty())
+                .expect("a non-empty bucket");
+            let mut moved = std::mem::take(&mut self.buckets[i]);
+            self.last = moved.iter().map(|&(k, _)| k).min().expect("non-empty");
+            for &(k, e) in &moved {
+                let b = self.bucket(k);
+                self.buckets[b].push((k, e));
+            }
+            moved.clear();
+            self.buckets[i] = moved; // keep the allocation
+        }
+        let (k, e) = self.buckets[0].pop().expect("bucket 0 is non-empty");
+        self.len -= 1;
+        Some(((k ^ 0x8000_0000) as i32, e))
+    }
+}
+
 /// Restriction progress carried by a car state: `(restriction, position)`
 /// sorted by restriction, where position 1 means "on the from edge".
 type RMap = Vec<(u32, u32)>;
@@ -182,8 +267,103 @@ type RMap = Vec<(u32, u32)>;
 /// Heap tag for a state without restriction progress.
 const CLEAN: u32 = u32::MAX;
 
+/// An outgoing edge as one mode's search sees it.
+#[derive(Debug, Clone, Copy)]
+struct Arc {
+    edge: u32,
+    to: u32,
+    /// Traversal seconds for the mode (before the car turn cost); negative
+    /// when the mode cannot use the edge.
+    step: i32,
+    /// Car: bearing entering the edge, whole degrees (R5 `getInAngle`).
+    in_deg: i16,
+    link: bool,
+}
+
+/// The street graph as one mode's search reads it: every vertex's outgoing
+/// edges with their traversal times precomputed and laid out contiguously
+/// (`arcs[out_offsets[v]..out_offsets[v + 1]]`, in `out_edges` order), so
+/// the inner loop of the search reads one array. Built once per query.
+pub(crate) struct ModeGraph {
+    mode: Mode,
+    sp: Speeds,
+    arcs: Vec<Arc>,
+    /// The search must pop equal times in `java.util.PriorityQueue` order:
+    /// car searches on a network with turn restrictions.
+    java_order: bool,
+}
+
+impl ModeGraph {
+    fn new(net: &StreetNetwork, mode: Mode, sp: Speeds, max_lts: i32) -> Self {
+        let step_of = |f: usize| -> i32 {
+            let flags = net.edge_flags[f];
+            let len = net.pair_length_mm[f / 2];
+            match mode {
+                Mode::Walk => {
+                    if flags & ALLOWS_PEDESTRIAN == 0 {
+                        return -1;
+                    }
+                    traversal_seconds(len, sp.walk)
+                }
+                Mode::Bicycle => {
+                    let mut walk_bike = flags & ALLOWS_BIKE == 0;
+                    if max_lts > 0
+                        && max_lts < 4
+                        && (flags & BIKE_LTS_4 != 0
+                            || (max_lts < 3 && flags & BIKE_LTS_3 != 0)
+                            || (max_lts < 2 && flags & BIKE_LTS_2 != 0))
+                    {
+                        walk_bike = true;
+                    }
+                    if walk_bike {
+                        if flags & ALLOWS_PEDESTRIAN == 0 {
+                            return -1;
+                        }
+                        traversal_seconds(len, sp.walk)
+                    } else {
+                        traversal_seconds(len, sp.bike)
+                    }
+                }
+                Mode::Car => {
+                    if flags & ALLOWS_CAR == 0 {
+                        return -1;
+                    }
+                    traversal_seconds(len, cms_to_ms(net.edge_speed_cms[f]))
+                }
+            }
+        };
+        let arcs = net
+            .out_edges
+            .iter()
+            .map(|&f| {
+                let fu = f as usize;
+                Arc {
+                    edge: f,
+                    to: net.edge_to(fu) as u32,
+                    // a step never comes out negative for a usable edge
+                    // (lengths >= 0, speeds > 0), so -1 is free as a marker
+                    step: step_of(fu).max(-1),
+                    in_deg: net.in_angle(fu) as i16,
+                    link: net.edge_flags[fu] & LINK != 0,
+                }
+            })
+            .collect();
+        ModeGraph {
+            mode,
+            sp,
+            arcs,
+            java_order: mode == Mode::Car && !net.restriction_starts.is_empty(),
+        }
+    }
+
+    #[inline]
+    fn arcs(&self, net: &StreetNetwork, v: usize) -> &[Arc] {
+        &self.arcs[net.out_offsets[v] as usize..net.out_offsets[v + 1] as usize]
+    }
+}
+
 /// Reusable per-thread search state.
-struct Search {
+pub(crate) struct Search {
     /// Best time at the end of each directed edge, over states without
     /// restriction progress.
     edge_time: Vec<i32>,
@@ -196,12 +376,15 @@ struct Search {
     /// states, and the first state with a given progress on an edge wins.
     restricted: Vec<(u32, RMap)>,
     restricted_at: std::collections::HashMap<u32, Vec<u32>>,
-    /// Queue of `(time, edge, restricted state id or CLEAN)`.
+    /// Queue of `(time, edge, restricted state id or CLEAN)` for searches
+    /// that need R5's exact order of equal times.
     heap: JavaHeap,
+    /// Queue of `(time, edge)` for the others.
+    radix: RadixHeap,
 }
 
 impl Search {
-    fn new(net: &StreetNetwork) -> Self {
+    pub(crate) fn new(net: &StreetNetwork) -> Self {
         Search {
             edge_time: vec![i32::MAX; net.n_edges()],
             vertex_time: vec![i32::MAX; net.n_vertices()],
@@ -210,7 +393,14 @@ impl Search {
             restricted: Vec::new(),
             restricted_at: std::collections::HashMap::new(),
             heap: JavaHeap::default(),
+            radix: RadixHeap::default(),
         }
+    }
+
+    /// Best time at each vertex after the last search (`i32::MAX` where
+    /// unreached).
+    pub(crate) fn vertex_time(&self) -> &[i32] {
+        &self.vertex_time
     }
 
     fn reset(&mut self) {
@@ -225,16 +415,26 @@ impl Search {
         self.restricted.clear();
         self.restricted_at.clear();
         self.heap.clear();
+        self.radix.clear();
     }
 
     #[inline]
-    fn push(&mut self, t: i32, e: u32, tag: u32) {
-        self.heap.offer((t, e, tag));
+    fn push<const JAVA: bool>(&mut self, t: i32, e: u32, tag: u32) {
+        if JAVA {
+            self.heap.offer((t, e, tag));
+        } else {
+            debug_assert_eq!(tag, CLEAN);
+            self.radix.push(t, e);
+        }
     }
 
     #[inline]
-    fn pop(&mut self) -> Option<(i32, u32, u32)> {
-        self.heap.poll()
+    fn pop<const JAVA: bool>(&mut self) -> Option<(i32, u32, u32)> {
+        if JAVA {
+            self.heap.poll()
+        } else {
+            self.radix.pop().map(|(t, e)| (t, e, CLEAN))
+        }
     }
 
     #[inline]
@@ -247,10 +447,11 @@ impl Search {
         }
     }
 
-    /// Record a state at the end of edge `e`; returns its heap tag, or `None`
-    /// when an existing state dominates it (R5 `isDominated`).
+    /// Record a state at the end of edge `e` (whose end vertex is `to`);
+    /// returns its heap tag, or `None` when an existing state dominates it
+    /// (R5 `isDominated`).
     #[inline]
-    fn add_state(&mut self, net: &StreetNetwork, e: usize, t: i32, map: RMap) -> Option<u32> {
+    fn add_state(&mut self, e: usize, to: usize, t: i32, map: RMap) -> Option<u32> {
         if map.is_empty() {
             if t >= self.edge_time[e] {
                 return None; // ties keep the existing state
@@ -259,7 +460,7 @@ impl Search {
                 self.touched_edges.push(e as u32);
             }
             self.edge_time[e] = t;
-            self.touch_vertex(net.edge_to(e), t);
+            self.touch_vertex(to, t);
             return Some(CLEAN);
         }
         let ids = self.restricted_at.entry(e as u32).or_default();
@@ -269,7 +470,7 @@ impl Search {
         let id = self.restricted.len() as u32;
         ids.push(id);
         self.restricted.push((e as u32, map));
-        self.touch_vertex(net.edge_to(e), t);
+        self.touch_vertex(to, t);
         Some(id)
     }
 }
@@ -316,11 +517,11 @@ fn start_restrictions(net: &StreetNetwork, map: &mut RMap, f: u32) {
     }
 }
 
-/// Turn cost from edge `from` onto edge `to` for a car (R5 `turnTimeSeconds`).
+/// Turn cost for a car leaving an edge at bearing `out` (whole degrees) onto
+/// one entered at bearing `inn` (R5 `turnTimeSeconds`).
 #[inline]
-fn car_turn_cost(net: &StreetNetwork, from: usize, to: usize) -> i32 {
-    let mut out = net.out_angle(from);
-    let inn = net.in_angle(to);
+fn car_turn_cost(out: i32, inn: i32) -> i32 {
+    let mut out = out;
     if out < inn {
         out += 360;
     }
@@ -345,16 +546,26 @@ fn traversal_seconds(length_mm: i32, speed: f32) -> i32 {
 }
 
 /// Run the street search from an origin split; fills `s.vertex_time`.
-fn route(
+fn route(net: &StreetNetwork, g: &ModeGraph, origin: &Split, limit: i32, s: &mut Search) {
+    if g.java_order {
+        route_impl::<true>(net, g, origin, limit, s);
+    } else {
+        route_impl::<false>(net, g, origin, limit, s);
+    }
+}
+
+/// [`route`] with the queue chosen at compile time: `JAVA` for the car
+/// search with turn restrictions (states may carry restriction progress),
+/// otherwise every state is plain.
+fn route_impl<const JAVA: bool>(
     net: &StreetNetwork,
+    g: &ModeGraph,
     origin: &Split,
-    mode: Mode,
-    sp: &Speeds,
-    max_lts: i32,
     limit: i32,
     s: &mut Search,
 ) {
     s.reset();
+    let (mode, sp) = (g.mode, &g.sp);
     let fwd = origin.edge as usize;
     let bwd = fwd + 1;
     let off = origin.distance_to_edge_mm / sp.walk_mms;
@@ -370,15 +581,16 @@ fn route(
     let t0 = ((origin.distance0_mm / 1000) as f32 / start_speed(bwd)) as i32 + off;
     for (e, t) in [(bwd, t0), (fwd, t1)] {
         let mut map = RMap::new();
-        if mode == Mode::Car {
+        if JAVA {
             start_restrictions(net, &mut map, e as u32);
         }
-        if let Some(tag) = s.add_state(net, e, t, map) {
-            s.push(t, e as u32, tag);
+        if let Some(tag) = s.add_state(e, net.edge_to(e), t, map) {
+            s.push::<JAVA>(t, e as u32, tag);
         }
     }
+    let car = mode == Mode::Car;
     let mut map = RMap::new();
-    while let Some((t, e, tag)) = s.pop() {
+    while let Some((t, e, tag)) = s.pop::<JAVA>() {
         let e = e as usize;
         map.clear();
         if tag == CLEAN {
@@ -388,69 +600,42 @@ fn route(
         } else {
             map.extend_from_slice(&s.restricted[tag as usize].1);
         }
-        let v = net.edge_to(e);
-        for &f in net.out_edges(v) {
-            let next_map = if mode != Mode::Car {
-                RMap::new()
-            } else {
+        let e_link = net.edge_flags[e] & LINK != 0;
+        let out_deg = if car { net.out_angle(e) } else { 0 };
+        for a in g.arcs(net, net.edge_to(e)) {
+            if a.step < 0 {
+                continue; // the mode cannot use this edge
+            }
+            if a.link && e_link {
+                continue; // two connectors in a row would be a shortcut
+            }
+            // Only the restricted car search carries restriction progress.
+            let next_map = if JAVA {
                 let mut m = if map.is_empty() {
                     RMap::new()
                 } else {
-                    match advance_restrictions(net, &map, f) {
+                    match advance_restrictions(net, &map, a.edge) {
                         Some(m) => m,
                         None => continue,
                     }
                 };
-                start_restrictions(net, &mut m, f);
+                start_restrictions(net, &mut m, a.edge);
                 m
+            } else {
+                RMap::new()
             };
-            let f = f as usize;
-            let flags = net.edge_flags[f];
-            if flags & LINK != 0 && net.edge_flags[e] & LINK != 0 {
-                continue; // two connectors in a row would be a shortcut
-            }
-            let len = net.pair_length_mm[f / 2];
-            let step = match mode {
-                Mode::Walk => {
-                    if flags & ALLOWS_PEDESTRIAN == 0 {
-                        continue;
-                    }
-                    traversal_seconds(len, sp.walk)
-                }
-                Mode::Bicycle => {
-                    let mut walk_bike = flags & ALLOWS_BIKE == 0;
-                    if max_lts > 0
-                        && max_lts < 4
-                        && (flags & BIKE_LTS_4 != 0
-                            || (max_lts < 3 && flags & BIKE_LTS_3 != 0)
-                            || (max_lts < 2 && flags & BIKE_LTS_2 != 0))
-                    {
-                        walk_bike = true;
-                    }
-                    if walk_bike {
-                        if flags & ALLOWS_PEDESTRIAN == 0 {
-                            continue;
-                        }
-                        traversal_seconds(len, sp.walk)
-                    } else {
-                        traversal_seconds(len, sp.bike)
-                    }
-                }
-                Mode::Car => {
-                    if flags & ALLOWS_CAR == 0 {
-                        continue;
-                    }
-                    traversal_seconds(len, cms_to_ms(net.edge_speed_cms[f]))
-                        + car_turn_cost(net, e, f)
-                }
+            let step = if car {
+                a.step + car_turn_cost(out_deg, i32::from(a.in_deg))
+            } else {
+                a.step
             };
             let mut t1 = t.saturating_add(step);
             if t1 == t {
                 t1 += 1;
             }
             if t1 < limit {
-                if let Some(tag) = s.add_state(net, f, t1, next_map) {
-                    s.push(t1, f as u32, tag);
+                if let Some(tag) = s.add_state(a.edge as usize, a.to as usize, t1, next_map) {
+                    s.push::<JAVA>(t1, a.edge, tag);
                 }
             }
         }
@@ -461,13 +646,13 @@ fn route(
 /// (R5 `LinkedPointSet.eval`), or `None` when unreachable.
 fn time_to_point(
     net: &StreetNetwork,
+    g: &ModeGraph,
     origin: &Split,
     dest: &Split,
-    mode: Mode,
-    sp: &Speeds,
     s: &Search,
 ) -> Option<i64> {
-    let on = match mode {
+    let sp = &g.sp;
+    let on = match g.mode {
         Mode::Car => (cms_to_ms(net.edge_speed_cms[dest.edge as usize]) * 1000.0f32) as i32,
         _ => sp.on_street_mms,
     };
@@ -504,21 +689,13 @@ pub fn street_seconds(
     mode: Mode,
 ) -> Option<i64> {
     let params = RouteParams::default();
-    let sp = Speeds::new(&params, mode);
+    let g = ModeGraph::new(net, mode, Speeds::new(&params, mode), params.max_lts);
     let mut scratch = Vec::new();
     let o = find_split(net, from.0, from.1, mode, &mut scratch)?;
     let d = find_split(net, to.0, to.1, mode, &mut scratch)?;
     let mut search = Search::new(net);
-    route(
-        net,
-        &o,
-        mode,
-        &sp,
-        params.max_lts,
-        params.max_trip_duration_min * 60,
-        &mut search,
-    );
-    time_to_point(net, &o, &d, mode, &sp, &search)
+    route(net, &g, &o, params.max_trip_duration_min * 60, &mut search);
+    time_to_point(net, &g, &o, &d, &search)
 }
 
 /// One street search from a linked origin: the time at every vertex
@@ -534,21 +711,51 @@ pub fn street_vertex_times(
     walk_speed_kmh: f64,
     limit: i32,
 ) -> (Vec<i32>, Vec<i32>) {
-    let params = RouteParams {
-        walk_speed_kmh,
-        ..RouteParams::default()
-    };
-    let sp = Speeds::new(&params, mode);
+    let g = ModeGraph::with_walk_speed(net, mode, walk_speed_kmh);
     let mut search = Search::new(net);
-    route(net, origin, mode, &sp, params.max_lts, limit, &mut search);
-    let direct = destinations
-        .iter()
-        .map(|d| {
-            d.and_then(|d| time_to_point(net, origin, &d, mode, &sp, &search))
-                .map_or(i32::MAX, |t| t.min(i64::from(i32::MAX - 1)) as i32)
-        })
-        .collect();
+    let mut direct = Vec::new();
+    search_from(
+        net,
+        &g,
+        origin,
+        destinations,
+        limit,
+        &mut search,
+        &mut direct,
+    );
     (search.vertex_time, direct)
+}
+
+impl ModeGraph {
+    /// The graph [`street_vertex_times`] searches: r5r's defaults but for
+    /// the walking speed.
+    pub(crate) fn with_walk_speed(net: &StreetNetwork, mode: Mode, walk_speed_kmh: f64) -> Self {
+        let params = RouteParams {
+            walk_speed_kmh,
+            ..RouteParams::default()
+        };
+        ModeGraph::new(net, mode, Speeds::new(&params, mode), params.max_lts)
+    }
+}
+
+/// [`street_vertex_times`] reusing a search: afterwards
+/// `search.vertex_time()` holds the vertex times and `direct` the time to
+/// each destination.
+pub(crate) fn search_from(
+    net: &StreetNetwork,
+    g: &ModeGraph,
+    origin: &Split,
+    destinations: &[Option<Split>],
+    limit: i32,
+    search: &mut Search,
+    direct: &mut Vec<i32>,
+) {
+    route(net, g, origin, limit, search);
+    direct.clear();
+    direct.extend(destinations.iter().map(|d| {
+        d.and_then(|d| time_to_point(net, g, origin, &d, search))
+            .map_or(i32::MAX, |t| t.min(i64::from(i32::MAX - 1)) as i32)
+    }));
 }
 
 /// Travel-time matrix in whole minutes, row-major `origins x destinations`;
@@ -562,7 +769,7 @@ pub fn travel_time_matrix(
     params: &RouteParams,
 ) -> Result<Vec<Option<u32>>, ParamError> {
     params.validate()?;
-    let sp = Speeds::new(params, mode);
+    let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let m = params.max_trip_duration_min;
     let limit = m * 60;
     let mut scratch = Vec::new();
@@ -595,10 +802,10 @@ pub fn travel_time_matrix(
                         let (lat, lon) = origins[i];
                         let mut row = vec![None; nd];
                         if let Some(o) = find_split(net, lat, lon, mode, &mut scratch) {
-                            route(net, &o, mode, &sp, params.max_lts, limit, &mut search);
+                            route(net, &g, &o, limit, &mut search);
                             for (j, d) in dest_splits.iter().enumerate() {
                                 let Some(d) = d else { continue };
-                                if let Some(secs) = time_to_point(net, &o, d, mode, &sp, &search) {
+                                if let Some(secs) = time_to_point(net, &g, &o, d, &search) {
                                     let minutes = secs / 60;
                                     if minutes <= i64::from(m) {
                                         row[j] = Some(minutes as u32);
@@ -639,7 +846,7 @@ pub fn travel_time_seconds<T: Send>(
     reduce: impl Fn(usize, Option<&[i32]>) -> T + Sync,
 ) -> Result<Vec<T>, ParamError> {
     params.validate()?;
-    let sp = Speeds::new(params, mode);
+    let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let limit = params.max_trip_duration_min * 60;
     let mut scratch = Vec::new();
     let dest_splits: Vec<Option<Split>> = destinations
@@ -671,12 +878,7 @@ pub fn travel_time_seconds<T: Send>(
                             rows.push((i, reduce(i, None)));
                             continue;
                         };
-                        route(net, &o, mode, &sp, params.max_lts, limit, &mut search);
-                        times.clear();
-                        times.extend(dest_splits.iter().map(|d| {
-                            d.and_then(|d| time_to_point(net, &o, &d, mode, &sp, &search))
-                                .map_or(i32::MAX, |t| t.min(i64::from(i32::MAX - 1)) as i32)
-                        }));
+                        search_from(net, &g, &o, &dest_splits, limit, &mut search, &mut times);
                         rows.push((i, reduce(i, Some(&times))));
                     }
                     rows
@@ -733,5 +935,144 @@ mod tests {
             );
         }
         assert!(RouteParams::default().validate().is_ok());
+    }
+
+    /// Deterministic pseudo-random numbers for the tests (xorshift).
+    struct Rng(u64);
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+    }
+
+    #[test]
+    fn radix_heap_pops_in_key_order() {
+        let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
+        let mut h = RadixHeap::default();
+        for round in 0..3 {
+            h.clear();
+            let mut reference: Vec<i32> = Vec::new();
+            let mut last = i32::MIN;
+            // keys before the first pop may be anything, negative included
+            for k in 0..50 {
+                let t = (rng.next() % 2000) as i32 - 1000;
+                h.push(t, k);
+                reference.push(t);
+            }
+            for i in 0..5000u32 {
+                if rng.next() % 3 != 0 || reference.is_empty() {
+                    // later keys never go below the last popped one
+                    let base = if last == i32::MIN { 0 } else { last };
+                    let t = base.saturating_add((rng.next() % (1 << (round * 8 + 4))) as i32);
+                    h.push(t, i);
+                    reference.push(t);
+                } else {
+                    let (t, _) = h.pop().expect("non-empty");
+                    reference.sort_unstable_by(|a, b| b.cmp(a));
+                    assert_eq!(t, reference.pop().unwrap());
+                    assert!(t >= last);
+                    last = t;
+                }
+            }
+            reference.sort_unstable();
+            for want in reference {
+                assert_eq!(h.pop().map(|(t, _)| t), Some(want));
+            }
+            assert_eq!(h.pop(), None);
+        }
+    }
+
+    /// A 12 x 12 grid of streets of mixed kinds with jittered nodes, so
+    /// edge lengths, speeds, permissions and turn angles vary.
+    fn jittered_grid() -> StreetNetwork {
+        use crate::osm::pbf::{Extract, Tags, Way};
+        const N: usize = 12;
+        let mut rng = Rng(42);
+        let kinds = [
+            "residential",
+            "primary",
+            "footway",
+            "cycleway",
+            "secondary",
+            "service",
+        ];
+        let node = |r: usize, c: usize| (1 + r * N + c) as i64;
+        let mut ways = Vec::new();
+        for r in 0..N {
+            let kind = kinds[(rng.next() % kinds.len() as u64) as usize];
+            let mut tags = vec![("highway".to_string(), kind.to_string())];
+            if r % 5 == 1 {
+                tags.push(("oneway".into(), "yes".into()));
+            }
+            ways.push(Way {
+                id: 1000 + r as i64,
+                tags: Tags(tags),
+                nodes: (0..N).map(|c| node(r, c)).collect(),
+            });
+        }
+        for c in 0..N {
+            let kind = kinds[(rng.next() % kinds.len() as u64) as usize];
+            ways.push(Way {
+                id: 2000 + c as i64,
+                tags: Tags(vec![("highway".to_string(), kind.to_string())]),
+                nodes: (0..N).map(|r| node(r, c)).collect(),
+            });
+        }
+        let node_ids: Vec<i64> = (0..N * N).map(|i| 1 + i as i64).collect();
+        let jitter = |rng: &mut Rng| (rng.next() % 4000) as i32 - 2000;
+        let mut lat = Vec::new();
+        let mut lon = Vec::new();
+        for i in 0..N * N {
+            lat.push(((i / N) * 10_000) as i32 + jitter(&mut rng));
+            lon.push(((i % N) * 10_000) as i32 + jitter(&mut rng));
+        }
+        crate::street::build::network_from_extract(Extract {
+            ref_counts: vec![2; node_ids.len()],
+            member_nodes_present: Vec::new(),
+            member_ways_present: Vec::new(),
+            node_ids,
+            lat,
+            lon,
+            ways,
+            relations: Vec::new(),
+            node_tags: Vec::new(),
+            pois: Vec::new(),
+        })
+    }
+
+    /// Without turn restrictions every state is plain, and the radix queue
+    /// must end with exactly the times of the `java.util.PriorityQueue`
+    /// replica, from every origin, in every mode.
+    #[test]
+    fn radix_and_java_queues_give_the_same_times() {
+        let net = jittered_grid();
+        assert!(net.n_edges() > 400);
+        let params = RouteParams::default();
+        let mut scratch = Vec::new();
+        let (mut a, mut b) = (Search::new(&net), Search::new(&net));
+        for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
+            let g = ModeGraph::new(&net, mode, Speeds::new(&params, mode), params.max_lts);
+            assert!(!g.java_order);
+            let mut searched = 0;
+            for r in 0..23 {
+                for c in 0..23 {
+                    let (lat, lon) = (r as f64 * 5.1e-4 + 1e-5, c as f64 * 4.9e-4 + 2e-5);
+                    let Some(o) = find_split(&net, lat, lon, mode, &mut scratch) else {
+                        continue;
+                    };
+                    for limit in [120, 7200] {
+                        route_impl::<true>(&net, &g, &o, limit, &mut a);
+                        route_impl::<false>(&net, &g, &o, limit, &mut b);
+                        assert_eq!(a.vertex_time, b.vertex_time, "{mode:?} {r} {c} {limit}");
+                        assert_eq!(a.edge_time, b.edge_time, "{mode:?} {r} {c} {limit}");
+                        searched += 1;
+                    }
+                }
+            }
+            assert!(searched > 500, "{mode:?}: {searched}");
+        }
     }
 }
