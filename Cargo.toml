@@ -10,7 +10,14 @@ exclude = ["r"]
 
 [workspace.package]
 version = "0.0.1"
-authors = ["André Leite <leite@castlab.org>"]
+authors = [
+    "André Leite <leite@castlab.org>",
+    "Marcos Wasiliew <marcos.wasiliew@gmail.com>",
+    "Hugo Vasconcelos <hugo.vasconcelos@ufpe.br>",
+    "Carlos Amorim <carlos.agaf@ufpe.br>",
+    "Diogo Bezerra <diogo.bezerra@ufpe.br>",
+    "Júlia Nascimento Barreto <juliabarreto@gd.seplag.pe.gov.br>",
+]
 edition = "2021"
 rust-version = "1.81"
 license = "MIT"
