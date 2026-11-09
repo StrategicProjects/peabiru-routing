@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>peabiru: multimodal routing in Rust, with r5r's results</title>
-<meta name="description" content="peabiru computes travel-time matrices and accessibility on OpenStreetMap and GTFS networks with a Rust engine that reproduces r5r 2.5.0 exactly, without Java. Packages for R, Python and Rust.">
+<title>peabiru: multimodal routing in Rust</title>
+<meta name="description" content="peabiru is a multimodal routing engine written in Rust: travel-time matrices and accessibility by walking, cycling, driving and public transport on OpenStreetMap and GTFS networks, without Java. Packages for R, Python and Rust, and a command-line tool.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/brand.css">
 <link rel="stylesheet" href="style.css">
@@ -27,16 +27,34 @@
 <div class="wrap">
 
 <section class="hero">
-  <h1>r5r's routing results, without the Java.</h1>
-  <p class="lead">peabiru computes travel-time matrices and accessibility on street networks
-  from OpenStreetMap and public transport from GTFS. Its Rust engine reproduces the
-  results of r5r 2.5.0 (Conveyal R5 7.6) pair for pair, and the same engine is behind
-  the R package, the Python package and the command line.</p>
+  <h1>Multimodal routing in Rust, for R, Python and the shell.</h1>
+  <p class="lead">peabiru computes travel-time matrices and accessibility by walking, cycling,
+  driving and public transport, on networks built from an OpenStreetMap extract and GTFS
+  feeds. The network is built once, in memory, and shared by every query and thread; there
+  is no Java runtime to start and nothing is written to disk. The same engine is behind
+  the R package, the Python package, the Rust crate and the command line.</p>
   <div class="cta">
     <a class="btn primary" href="r/articles/peabiru.html">Get started in R</a>
+    <a class="btn" href="python/">Python docs</a>
     <a class="btn" href="rust/">Rust guide</a>
     <a class="btn" href="r/articles/how-it-works.html">How it works</a>
   </div>
+  <p class="badges">
+    <a href="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml"><img src="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml/badge.svg" alt="CI status" height="20"></a>
+    <a href="https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" height="20"></a>
+    <a href="https://lifecycle.r-lib.org/articles/stages.html#experimental"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental" height="20"></a>
+    <img src="https://img.shields.io/badge/rustc-1.81%2B-blue.svg" alt="rustc 1.81+" height="20">
+    <img src="https://img.shields.io/badge/python-3.9%2B-blue.svg" alt="Python 3.9+" height="20">
+    <img src="https://img.shields.io/badge/R-%3E%3D%204.2-blue.svg" alt="R 4.2 or later" height="20">
+    <!-- After the first release on each registry, uncomment the matching badge;
+         the Zenodo one needs the DOI that Zenodo assigns to the first release.
+    <a href="https://crates.io/crates/peabiru-core"><img src="https://img.shields.io/crates/v/peabiru-core.svg" alt="crates.io" height="20"></a>
+    <a href="https://docs.rs/peabiru-core"><img src="https://docs.rs/peabiru-core/badge.svg" alt="docs.rs" height="20"></a>
+    <a href="https://pypi.org/project/peabiru/"><img src="https://img.shields.io/pypi/v/peabiru.svg" alt="PyPI" height="20"></a>
+    <a href="https://CRAN.R-project.org/package=peabiru"><img src="https://www.r-pkg.org/badges/version/peabiru" alt="CRAN" height="20"></a>
+    <a href="https://doi.org/10.5281/zenodo.XXXXXXX"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg" alt="DOI" height="20"></a>
+    -->
+  </p>
 </section>
 
 <section aria-labelledby="what">
@@ -58,15 +76,15 @@
       waiting, riding, transfers and egress; arrival-time matrices.</p>
     </div>
   </div>
-  <p>The functions take r5r's names, arguments and defaults. The answers are the same as
-  r5r's on every scenario checked so far, compared value by value
-  (<a href="r/articles/how-it-works.html#parity">how parity is checked</a>).</p>
+  <p>The interface follows r5r's, so code written for r5r needs few changes, and the
+  results are checked against r5r's value by value
+  (<a href="r/articles/coming-from-r5r.html">coming from r5r</a>).</p>
 </section>
 
 <section aria-labelledby="arch">
   <h2 id="arch">One engine, three packages</h2>
   <figure>
-    <img src="assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the network in memory and computes everything; the R package, the Python package (in development) and the command-line tool are thin front-ends over it." width="980" height="470">
+    <img src="assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the network in memory and computes everything; the R package, the Python package and the command-line tool are thin front-ends over it." width="980" height="470">
     <figcaption>The network is built once in memory and reused by every query. Nothing runs on a JVM and nothing is cached on disk.</figcaption>
   </figure>
 </section>
@@ -90,13 +108,28 @@ ttm &lt;- travel_time_matrix(
   departure_datetime = as.POSIXct("2019-05-13 14:00", tz = "America/Sao_Paulo"),
   time_window = 10, percentiles = c(25, 50, 75), seed = 42
 )</code></pre>
-      <p class="muted">The same calls as r5r, with the same arguments; results come back as a <code>data.frame</code>.
-      <a href="r/articles/peabiru.html">Get started</a> · <a href="r/articles/coming-from-r5r.html">Coming from r5r</a></p>
+      <p class="muted">Points as a <code>data.frame</code> or <code>sf</code>; results come back as a <code>data.frame</code>.
+      <a href="r/articles/peabiru.html">Get started</a> · <a href="r/reference/index.html">Reference</a></p>
     </div>
     <div class="snippet">
-      <h3>Python <span class="tag dev">in development</span></h3>
-      <p>The Python package (PyO3) is being written; it will follow the same function names and
-      arguments. Its documentation will appear under <a href="python/">python/</a>.</p>
+      <h3>Python <span class="tag ok">works today</span></h3>
+<pre><code><span class="c"># Not on PyPI yet. From a clone of the repository (needs Rust &gt;= 1.81):</span>
+<span class="c">#   cd python &amp;&amp; maturin develop --uv --release</span>
+import datetime as dt
+import peabiru
+
+network = peabiru.build_network(peabiru.sample_data_path())
+points = peabiru.sample_points()          <span class="c"># id, lon, lat, opportunities</span>
+
+ttm = peabiru.travel_time_matrix(
+    network, points, points,
+    mode=["WALK", "TRANSIT"],
+    departure_datetime=dt.datetime(2019, 5, 13, 14, 0),
+    percentiles=[25, 50, 75],
+    seed=42,
+)</code></pre>
+      <p class="muted">Points as a pandas <code>DataFrame</code> or a geopandas <code>GeoDataFrame</code>; results come back as a pandas <code>DataFrame</code>.
+      <a href="python/">Get started</a> · <a href="python/reference/">Reference</a></p>
     </div>
     <div class="snippet">
       <h3>Rust and the command line <span class="tag ok">works today</span></h3>
@@ -131,9 +164,8 @@ memory is the whole process). Provisional numbers from 2026-11-09; <a href="benc
 
 <section aria-labelledby="status">
   <h2 id="status">Status</h2>
-  <p>Early development: version 0.0.1, not released on any registry yet. What exists gives r5r's
-  results on the scenarios validated so far (r5r's Porto Alegre and São Paulo samples).
-  Options that are not implemented are errors, never silently ignored.</p>
+  <p>Early development: version 0.0.1, not released on any registry yet; the interfaces may
+  still change. Options that are not implemented are errors, never silently ignored.</p>
   <div class="two">
     <div>
       <h3>Implemented</h3>
@@ -142,7 +174,7 @@ memory is the whole process). Provisional numbers from 2026-11-09; <a href="benc
         <li><code>travel_time_matrix()</code>: walk, bicycle, car; walk + transit</li>
         <li><code>accessibility()</code> with all five decay functions</li>
         <li><code>expanded_travel_time_matrix()</code> and <code>arrival_travel_time_matrix()</code> (walk + transit)</li>
-        <li>Monte Carlo draws reproducible with r5r's <code>seed</code></li>
+        <li>Monte Carlo draws for frequency-based feeds, reproducible with a <code>seed</code></li>
       </ul>
     </div>
     <div>
@@ -159,10 +191,10 @@ memory is the whole process). Provisional numbers from 2026-11-09; <a href="benc
 </section>
 
 <section aria-labelledby="credits">
-  <h2 id="credits">Lineage</h2>
+  <h2 id="credits">Credits</h2>
   <p>The routing logic is a port of <a href="https://github.com/conveyal/r5">Conveyal's R5</a>
-  (MIT licence), as driven by <a href="https://github.com/ipeaGIT/r5r">r5r</a>, whose results
-  are the reference for every test. The exponential used by the decay functions follows
+  (MIT licence), and the interface follows <a href="https://github.com/ipeaGIT/r5r">r5r</a>
+  (Ipea), whose results are the reference for the tests. The exponential used by the decay functions follows
   <a href="https://commons.apache.org/proper/commons-math/">Apache Commons Math</a> 3
   (Apache-2.0), which R5 calls. The name comes from the Peabiru, the pre-Columbian network of
   trails that crossed South America from the Atlantic coast to the Andes.</p>
