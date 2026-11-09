@@ -18,10 +18,11 @@ development:
   mode: unreleased
 
 home:
-  title: "peabiru: r5r's routing results, without Java"
+  title: "peabiru: multimodal routing in Rust for R"
   description: >
-    Travel-time matrices and accessibility on OpenStreetMap and GTFS networks,
-    computed by a Rust engine that reproduces r5r 2.5.0 exactly.
+    Travel-time matrices and accessibility by walking, cycling, driving and
+    public transport on OpenStreetMap and GTFS networks, computed by a Rust
+    engine inside the R session, without Java.
   links:
   - text: peabiru home (all languages)
     href: ../index.html

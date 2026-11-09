@@ -1,14 +1,15 @@
 # How it works
 
-The engine follows R5 7.6 step for step: the same rules for building the
-network, the same search algorithms, the same rounding and the same
-tie-breaking. These diagrams describe what is computed and in which order;
-the data structures behind them are an implementation detail and change as
-the engine is optimised.
+These diagrams describe what the engine computes and in which order: how
+the network is built, how streets and public transport are searched, and how
+the results are summarised. Every step has fixed rules for rounding and
+tie-breaking, so the same inputs give the same outputs whatever the number of
+threads. The data structures behind the steps are an implementation detail
+and change as the engine is optimised.
 
 ## Architecture
 
-<img src="../assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, which builds the network in memory and computes every result; the R package, the Python package (in development) and the command line are front-ends over it." width="980" height="470">
+<img src="../assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, which builds the network in memory and computes every result; the R package, the Python package and the command line are front-ends over it." width="980" height="470">
 
 ## Building the network
 
@@ -31,8 +32,9 @@ using *k* vehicles, so `max_rides` is the number of rounds. Running the
 minutes of the window from the last to the first lets each minute start from
 the results of the later one (range RAPTOR). For frequency-based trips, each
 minute is repeated `draws_per_minute` times with random offsets; the random
-generator is a Mersenne Twister seeded, as in R5, from `seed` and the origin's
-coordinates, which is why a given `seed` gives r5r's numbers.
+generator is a Mersenne Twister seeded from `seed` and the origin's
+coordinates, so a given `seed` gives the same numbers on every run and with
+any number of threads.
 
 ## Accessibility
 

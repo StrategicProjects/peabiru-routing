@@ -22,13 +22,14 @@ Authors@R: c(
     person("Ipea - Institute for Applied Economic Research", role = "cph",
            comment = "Sample data, taken from the 'r5r' package")
   )
-Description: Computes travel-time matrices and accessibility on multimodal
-    transport networks (walk, bike, car and public transport) built from
-    'OpenStreetMap' extracts and 'GTFS' feeds. The functions, their arguments
-    and their results are those of the 'r5r' package, whose routing engine
-    'R5' this package reproduces exactly; the engine is written in 'Rust' and
-    shared with the 'Python' package of the same name, and no 'Java' runtime
-    is required.
+Description: Computes travel-time matrices, accessibility and trip-by-trip
+    (expanded and arrival) matrices on multimodal transport networks (walk,
+    bike, car and public transport) built from 'OpenStreetMap' extracts and
+    'GTFS' feeds. The routing engine is written in 'Rust', runs in the R
+    session without a 'Java' runtime, keeps the network in memory, and is
+    shared with the 'Python' package of the same name. The engine is a port of
+    'R5', and the functions, their arguments and their results follow the
+    'r5r' package.
 License: MIT + file LICENSE
 Copyright: The peabiru authors. The package includes code derived from
     other works; their copyright notices and licences are in the file

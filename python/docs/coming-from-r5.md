@@ -94,6 +94,21 @@ dtype: object
   required argument after optional ones); leaving it out is the same error
   as in r5r.
 
+### Kept for equal results
+
+Some behaviours are r5r's (and R5's), kept so that the results are equal:
+
+- walking trips are routed from the destinations when there are more
+  origins than destinations, as r5r does, and the columns swapped back;
+- the Monte Carlo draws of frequency-based feeds come from R5's random
+  number generator (a Mersenne Twister seeded from `seed` and the origin's
+  coordinates), so the same `seed` gives r5r's numbers;
+- accessibility uses the `FastMath.exp()` of Apache Commons Math that R5
+  calls, which makes the values bit-identical to r5r's;
+- departure times past midnight are written past `24:00:00`, as R5 writes
+  them, and the expanded and arrival matrices accept at most 5,000
+  destinations, R5's limit.
+
 ## From r5py
 
 [r5py](https://r5py.readthedocs.io) is a Python wrapper of R5 too, with its

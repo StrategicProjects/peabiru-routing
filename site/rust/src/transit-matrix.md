@@ -1,7 +1,7 @@
 # Public transport matrices
 
-`transit::matrix::travel_time_matrix` is r5r's
-`travel_time_matrix(mode = c("WALK", "TRANSIT"))`: walk to a stop, ride up to
+`transit::matrix::travel_time_matrix` is the engine of
+`travel_time_matrix(mode = c("WALK", "TRANSIT"))` in R and Python: walk to a stop, ride up to
 `max_rides` vehicles with walking transfers, walk to the destination, or walk
 all the way, for every minute of the departure window; then percentiles.
 
@@ -17,11 +17,11 @@ pub fn travel_time_matrix(
 ```
 
 The result is indexed `[origin][destination][percentile]`, in whole minutes
-(rounded down), with the percentiles in ascending order. As in r5r, a pair
+(rounded down), with the percentiles in ascending order. A pair
 has times when its lowest percentile is within `max_trip_duration`; higher
 percentiles beyond it are `None`.
 
-`TransitParams` (with r5r's defaults):
+`TransitParams` (with the defaults of the R and Python packages):
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -34,11 +34,11 @@ percentiles beyond it are `None`.
 | `walk_speed_kmh` | 3.6 | |
 | `max_rides` | 3 | vehicles per trip |
 | `draws_per_minute` | 5 | Monte Carlo draws, frequency-based trips only |
-| `seed` | `None` | `Some(n)` makes the draws reproducible (and r5r's) |
+| `seed` | `None` | `Some(n)` makes the draws reproducible |
 | `n_threads` | 0 | 0 = all cores |
 
-r5r's `max_walk_time = Inf` corresponds to `max_walk_time = max_trip_duration`
-here.
+An unlimited walk (`max_walk_time = Inf` in R) corresponds to
+`max_walk_time = max_trip_duration` here.
 
 ## Example
 

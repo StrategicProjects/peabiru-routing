@@ -51,3 +51,8 @@ html.navy {
 .content main img[src$=".svg"] { width: 100%; height: auto; }
 .menu-title { font-weight: 700; }
 .peabiru-home { display: inline-flex; align-items: center; gap: 6px; }
+
+/* The logo of the introduction and the badges keep their own size (the rule
+ * above is for the diagrams). */
+.content main img[src$="logo.svg"] { width: 252px; max-width: 100%; height: auto; }
+.content main a > img[src^="https://"] { width: auto; height: 20px; }

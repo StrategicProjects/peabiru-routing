@@ -14,8 +14,8 @@ The minimum supported Rust version is 1.81.
 ## Input data
 
 A network is built from one OpenStreetMap extract in PBF format and, for
-public transport, any number of GTFS feeds. The convention, as in r5r, is a
-directory holding exactly these files:
+public transport, any number of GTFS feeds. The convention is a directory
+holding exactly these files:
 
 ```text
 data/spo/
@@ -23,8 +23,9 @@ data/spo/
 └── spo_gtfs.zip     # public transport (optional, several allowed)
 ```
 
-The examples use `r/inst/extdata/spo` in the repository, a crop of r5r's São
-Paulo sample with 27 points in `spo_points.csv`; pass another directory as
+The examples use `r/inst/extdata/spo` in the repository, a small network
+around Avenida Paulista, in São Paulo (cut from r5r's sample data), with 27
+points in `spo_points.csv`; pass another directory as
 the first argument to use your own data.
 
 ## Build a network
@@ -59,9 +60,9 @@ to be the same.
 ## Parameters
 
 Parameter structs (`RouteParams` for streets, `TransitParams` for public
-transport) implement `Default` with r5r's defaults, so only what differs
-needs to be written. Invalid values are rejected with an error before any
-routing, as r5r rejects them.
+transport) implement `Default` with the defaults of the R and Python
+packages, so only what differs needs to be written. Invalid values are
+rejected with an error before any routing.
 
 Next: [how the engine works](how-it-works.md), or straight to the examples,
 starting with [street matrices](street-matrix.md).

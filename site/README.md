@@ -9,7 +9,7 @@ Everything published about peabiru is built from this repository into
 | `_site/r/` | `r/` (`_pkgdown.yml`, `vignettes/`, `pkgdown/`) | pkgdown |
 | `_site/rust/` | `site/rust/` (mdBook) and `crates/peabiru-core/examples/` | mdBook |
 | `_site/rust/api/` | `crates/peabiru-core` | `cargo doc --no-deps` |
-| `_site/python/` | `python/mkdocs.yml`, `python/docs/` (when they exist) | MkDocs |
+| `_site/python/` | `python/mkdocs.yml`, `python/docs/` | MkDocs (Material) |
 
 ## Build and preview
 

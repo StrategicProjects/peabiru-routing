@@ -2,19 +2,27 @@
 
 <img src="../assets/logo.svg" alt="peabiru" width="252" height="64">
 
-`peabiru-core` is a multimodal routing engine: it builds a network from an
-OpenStreetMap extract (`.pbf`) and GTFS public transport feeds (`.zip`), and
-computes travel-time matrices, accessibility, and per-trip (expanded and
-arrival) matrices on it. It reproduces the results of
-[r5r](https://github.com/ipeaGIT/r5r) 2.5.0, which drives Conveyal's
-[R5](https://github.com/conveyal/r5) 7.6, value for value, without a Java
-runtime.
+[![CI](https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml/badge.svg)](https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-MIT)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![rustc 1.81+](https://img.shields.io/badge/rustc-1.81%2B-blue.svg)](getting-started.md)
+<!-- After the first release on crates.io, uncomment:
+[![crates.io](https://img.shields.io/crates/v/peabiru-core.svg)](https://crates.io/crates/peabiru-core)
+[![docs.rs](https://docs.rs/peabiru-core/badge.svg)](https://docs.rs/peabiru-core)
+-->
+
+`peabiru-core` is a multimodal routing engine written in Rust: it builds a
+network in memory from an OpenStreetMap extract (`.pbf`) and GTFS public
+transport feeds (`.zip`), and computes travel-time matrices, accessibility,
+and per-trip (expanded and arrival) matrices on it, by walking, cycling,
+driving and public transport. It needs no Java runtime, keeps nothing on
+disk, and spreads the origins of each query over threads.
 
 The crate is the engine behind three front-ends:
 
-- the R package `peabiru` ([its documentation](../r/index.html)), with r5r's
-  functions and arguments;
-- the Python package `peabiru` (in development, [its documentation](../python/index.html));
+- the R package `peabiru` ([its documentation](../r/index.html));
+- the Python package `peabiru` ([its documentation](../python/index.html)),
+  which returns pandas data frames;
 - the `peabiru` command-line tool (crate `peabiru-cli`), described in
   [The command line](cli.md).
 
@@ -29,19 +37,22 @@ cargo run --release -p peabiru-core --example transit_matrix
 
 ## Status
 
-Version 0.0.1, not published yet. What is implemented gives r5r's results on
-every scenario checked so far: street matrices (walk, bicycle, car), walk +
-public transport matrices with percentiles and Monte Carlo draws,
-accessibility with the five decay functions, and expanded and arrival
-matrices. Not yet: isochrones, detailed itineraries, fares and Pareto
-frontiers, bicycle or car access to public transport, elevation.
+Version 0.0.1, not published yet. Implemented: street matrices (walk,
+bicycle, car), walk + public transport matrices with percentiles and Monte
+Carlo draws, accessibility with five decay functions, and expanded and
+arrival matrices. Not yet: isochrones, detailed itineraries, fares and Pareto
+frontiers, bicycle or car access to public transport, elevation. The results
+are checked against r5r's on every scenario in the repository; see
+[Parity with r5r](parity.md).
 
-The API mirrors R5's structure more than a polished Rust interface: expect
-it to change before 1.0. The [API reference](api.md) (rustdoc) documents the
-current one.
+The API follows the structure of the engine more than a polished Rust
+interface: expect it to change before 1.0. The [API reference](api.md)
+(rustdoc) documents the current one.
 
 ## Credits
 
-The routing logic is a port of R5 (MIT, © Conveyal); the exponential of the
-decay functions reproduces Apache Commons Math 3 (Apache-2.0), which R5 uses.
-r5r (IPEA) defines the interface and supplies the reference results.
+The routing logic is a port of Conveyal's [R5](https://github.com/conveyal/r5)
+(MIT, © Conveyal); the exponential of the decay functions reproduces Apache
+Commons Math 3 (Apache-2.0), which R5 uses. The interface of the R and Python
+packages follows [r5r](https://github.com/ipeaGIT/r5r) (Ipea), whose results
+are the reference for the tests.

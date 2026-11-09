@@ -1,5 +1,5 @@
 site_name: peabiru for Python
-site_description: Multimodal routing on OpenStreetMap and GTFS networks, with r5r's results and a Rust core
+site_description: "Multimodal routing on OpenStreetMap and GTFS networks with a Rust engine, without Java: travel-time matrices and accessibility as pandas data frames"
 site_author: André Leite, Marcos Wasiliew, Hugo Vasconcelos, Carlos Amorim, Diogo Bezerra, Júlia Nascimento Barreto
 copyright: Copyright &copy; peabiru authors. Sample map data &copy; OpenStreetMap contributors (ODbL).
 repo_url: https://github.com/StrategicProjects/peabiru-routing

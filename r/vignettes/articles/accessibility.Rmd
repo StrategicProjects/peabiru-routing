@@ -15,10 +15,11 @@ travel times come from the same computation as `travel_time_matrix()`.
 fig("accessibility.svg")
 ```
 
-Two details make the results match r5r's to the last bit: the travel time fed
-to the decay function is the percentile in **seconds**, not rounded to minutes
-as in the matrix, and the exponentials are computed with the same algorithm
-as R5 (Apache Commons Math's `FastMath.exp`), not with the C library's.
+Two details of the computation: the travel time fed to the decay function is
+the percentile in **seconds**, not rounded to minutes as in the matrix, and
+the exponentials are computed with Apache Commons Math's `FastMath.exp`
+algorithm, not with the C library's, so the values do not depend on the
+platform's maths library.
 
 ## Cumulative opportunities
 
@@ -41,7 +42,7 @@ access <- accessibility(
 head(access, 8)
 ```
 
-As in r5r, with `"step"` trips longer than the largest cutoff are not routed
+With `"step"`, trips longer than the largest cutoff are not routed
 at all (`max_trip_duration` becomes `max(cutoffs)`), and `max_trip_duration`
 may not be shorter than the largest cutoff with any function.
 
@@ -93,7 +94,7 @@ summary(by_bike$accessibility)
 
 ## Missing counts
 
-Missing opportunity counts count as zero, with a warning, as in r5r:
+Missing opportunity counts count as zero, with a warning:
 
 ```{r}
 holes <- points
