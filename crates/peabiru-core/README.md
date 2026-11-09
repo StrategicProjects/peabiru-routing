@@ -33,6 +33,10 @@ let params = TransitParams {
 let ttm = travel_time_matrix(&net, &layer, &data, &points, &points, &params)?;
 ```
 
+More in the `examples/` directory (`cargo run --release -p peabiru-core
+--example transit_matrix`) and in the Rust guide built by `site/build.sh` in
+the repository.
+
 **Status**: version 0.0.1, early development; not published yet. Isochrones,
 detailed itineraries, fares, bicycle or car access to public transport and
 elevation are not implemented.

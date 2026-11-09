@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 470" width="980" height="470" role="img" aria-labelledby="title desc">
+  <title id="title">peabiru architecture</title>
+  <desc id="desc">One OpenStreetMap .pbf and zero or more GTFS .zip feeds are read by peabiru-core, a Rust crate that builds the street network and the transit layer in memory and runs every computation. The R package (extendr), the Python package (PyO3, in development) and the peabiru command-line tool are thin front-ends over the same functions, returning a data.frame, Python objects or CSV files.</desc>
+  <style>
+    .panel { fill: #fffdf9; stroke: #e1d8c8; }
+    .t { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; fill: #1f2a2e; }
+    .s { font-size: 12.5px; fill: #4a5a5f; }
+    .h { font-weight: 700; }
+    .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+    .in { fill: #f1ebe0; stroke: #c9bfae; stroke-width: 1.5; }
+    .core { fill: #fbeee6; stroke: #b4532a; stroke-width: 2; }
+    .inner { fill: #ffffff; stroke: #e2c9b9; stroke-width: 1; }
+    .fe { fill: #ffffff; stroke: #8a7f70; stroke-width: 1.5; }
+    .dev { fill: #ffffff; stroke: #8a7f70; stroke-width: 1.5; stroke-dasharray: 5 4; }
+    .ln { stroke: #4a5a5f; stroke-width: 1.6; fill: none; }
+    .ah { fill: #4a5a5f; }
+    .accent { fill: #b4532a; }
+    @media (prefers-color-scheme: dark) {
+      .panel { fill: #1d2427; stroke: #34403f; }
+      .t { fill: #ece6da; }
+      .s { fill: #a9b4b6; }
+      .in { fill: #242d31; stroke: #4a5859; }
+      .core { fill: #33261f; stroke: #e98a5c; }
+      .inner { fill: #1d2427; stroke: #5a4336; }
+      .fe, .dev { fill: #242d31; stroke: #7d8b8d; }
+      .ln { stroke: #a9b4b6; }
+      .ah { fill: #a9b4b6; }
+      .accent { fill: #e98a5c; }
+    }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="ah" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="panel" x="0.5" y="0.5" width="979" height="469" rx="12"/>
+
+  <!-- column headings -->
+  <text class="t h" x="24" y="40">Inputs</text>
+  <text class="t h" x="270" y="40">Rust core</text>
+  <text class="t h" x="664" y="40">Front-ends</text>
+
+  <!-- inputs -->
+  <rect class="in" x="24" y="64" width="190" height="72" rx="8"/>
+  <text class="t h" x="40" y="92">OpenStreetMap</text>
+  <text class="t s" x="40" y="114">one <tspan class="code">.pbf</tspan> extract</text>
+
+  <rect class="in" x="24" y="160" width="190" height="72" rx="8"/>
+  <text class="t h" x="40" y="188">GTFS feeds</text>
+  <text class="t s" x="40" y="210">zero or more <tspan class="code">.zip</tspan></text>
+
+  <text class="t s" x="24" y="268">Both in one directory, as</text>
+  <text class="t s" x="24" y="286">for r5r's build_network().</text>
+
+  <line class="ln" x1="214" y1="100" x2="268" y2="132" marker-end="url(#arr)"/>
+  <line class="ln" x1="214" y1="196" x2="268" y2="164" marker-end="url(#arr)"/>
+  <text class="t s" x="222" y="152">build</text>
+
+  <!-- core -->
+  <rect class="core" x="270" y="64" width="330" height="330" rx="10"/>
+  <text class="t h" x="290" y="92">peabiru-core</text>
+  <text class="t s" x="290" y="112">crates.io · no Java, no network.dat</text>
+
+  <rect class="inner" x="290" y="128" width="290" height="44" rx="6"/>
+  <text class="t" x="304" y="148">Readers</text>
+  <text class="t s" x="304" y="164">PBF (protobuf + zlib), GTFS (zip + CSV)</text>
+
+  <rect class="inner" x="290" y="180" width="140" height="58" rx="6"/>
+  <text class="t" x="304" y="202">Street network</text>
+  <text class="t s" x="304" y="222">walk · bike · car</text>
+  <rect class="inner" x="440" y="180" width="140" height="58" rx="6"/>
+  <text class="t" x="454" y="202">Transit layer</text>
+  <text class="t s" x="454" y="222">stops · patterns</text>
+
+  <rect class="inner" x="290" y="246" width="290" height="44" rx="6"/>
+  <text class="t" x="304" y="266">Routing</text>
+  <text class="t s" x="304" y="282">street search · RAPTOR · Monte Carlo</text>
+
+  <rect class="inner" x="290" y="298" width="290" height="80" rx="6"/>
+  <text class="t" x="304" y="318">Results</text>
+  <text class="t s" x="304" y="338">travel-time matrices · accessibility</text>
+  <text class="t s" x="304" y="356">expanded and arrival matrices</text>
+  <text class="t s" x="304" y="372">(per departure minute, per trip)</text>
+
+  <text class="t s" x="270" y="418">The network is built once, kept in memory</text>
+  <text class="t s" x="270" y="436">and shared by every query and thread.</text>
+
+  <!-- front-ends -->
+  <rect class="fe" x="664" y="64" width="292" height="92" rx="8"/>
+  <text class="t h" x="680" y="90">R package <tspan class="code">peabiru</tspan></text>
+  <text class="t s" x="680" y="111">extendr · CRAN</text>
+  <text class="t s" x="680" y="131">r5r's functions and arguments,</text>
+  <text class="t s" x="680" y="147">returns a data.frame</text>
+
+  <rect class="dev" x="664" y="176" width="292" height="92" rx="8"/>
+  <text class="t h" x="680" y="202">Python package <tspan class="code">peabiru</tspan></text>
+  <text class="t s" x="680" y="223">PyO3 · PyPI</text>
+  <text class="t s" x="680" y="243">in development</text>
+
+  <rect class="fe" x="664" y="288" width="292" height="92" rx="8"/>
+  <text class="t h" x="680" y="314">Command line <tspan class="code">peabiru</tspan></text>
+  <text class="t s" x="680" y="335">peabiru-cli crate</text>
+  <text class="t s" x="680" y="355">reads points from CSV,</text>
+  <text class="t s" x="680" y="371">writes results as CSV</text>
+
+  <line class="ln" x1="600" y1="110" x2="662" y2="110" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <line class="ln" x1="600" y1="222" x2="662" y2="222" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <line class="ln" x1="600" y1="334" x2="662" y2="334" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text class="t s" x="664" y="418">Each front-end passes points and parameters</text>
+  <text class="t s" x="664" y="436">to the same core functions: same numbers.</text>
+</svg>

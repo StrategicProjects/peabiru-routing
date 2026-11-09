@@ -1,0 +1,177 @@
+---
+title: "Get started with peabiru"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Get started with peabiru}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+peabiru computes travel times and accessibility on transport networks built
+from an [OpenStreetMap](https://www.openstreetmap.org) extract and
+[GTFS](https://gtfs.org) public transport feeds. Its functions are those of
+the [r5r](https://ipeagit.github.io/r5r/) package, with the same arguments and
+defaults, and its results are the same as r5r 2.5.0's: the routing engine is a
+port of Conveyal's R5 to Rust, so no Java is needed.
+
+This vignette runs on the small network that ships with the package: the
+streets around Avenida Paulista in São Paulo, the city's frequency-based bus
+and metro feed, and 27 points of a hexagonal grid. Every chunk below runs in
+a fraction of a second.
+
+```{r}
+library(peabiru)
+```
+
+## Build a network
+
+A network is built from a directory holding one `.pbf` file and any number of
+GTFS `.zip` files, as with `r5r::build_network()`. It lives in memory and is
+reused by every routing call.
+
+```{r}
+data_path <- system.file("extdata/spo", package = "peabiru")
+list.files(data_path)
+
+network <- build_network(data_path, n_threads = 2)
+network
+```
+
+Points are a `data.frame` with `id`, `lon` and `lat` (or a `POINT` `sf`
+object with an `id` column). Here the points also carry opportunity counts,
+used for accessibility below.
+
+```{r}
+points <- read.csv(file.path(data_path, "spo_points.csv"))
+head(points)
+```
+
+## Travel times on the street network
+
+`travel_time_matrix()` with one street mode gives the travel time in whole
+minutes from every origin to every destination; pairs that cannot be reached
+within `max_trip_duration` (120 minutes by default) are left out.
+
+```{r}
+walk <- travel_time_matrix(network, points, points, mode = "WALK",
+                           n_threads = 2)
+head(walk)
+
+bike <- travel_time_matrix(network, points, points, mode = "BICYCLE",
+                           n_threads = 2)
+car <- travel_time_matrix(network, points, points, mode = "CAR",
+                          n_threads = 2)
+sapply(list(walk = walk, bike = bike, car = car),
+       function(m) mean(m$travel_time_p50))
+```
+
+Walking is at `walk_speed` (3.6 km/h by default). Cycling is at `bike_speed`
+on streets whose level of traffic stress is at most `max_lts`; elsewhere the
+cyclist walks the bike. Driving uses each street's speed, turn costs and turn
+restrictions.
+
+## Travel times by public transport
+
+With `mode = c("WALK", "TRANSIT")` the trip combines walking and public
+transport. A departure time is needed, and the result summarises the trips
+that leave in each minute of `time_window` as percentiles. This feed is
+frequency-based, so the departures are simulated with random draws: give a
+`seed` to make them reproducible (with the same seed, r5r gives the same
+numbers).
+
+```{r}
+departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+
+ttm <- travel_time_matrix(
+  network, points, points,
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = departure,
+  time_window = 10,
+  percentiles = c(25, 50, 75),
+  seed = 42,
+  n_threads = 2
+)
+head(ttm)
+```
+
+Walking all the way is one of the options considered, so here adding public
+transport never makes a trip longer; on this small network it shortens many of
+the longer ones:
+
+```{r, fig.width = 5, fig.height = 4.2, fig.alt = "Scatter plot of the median travel time by walking and public transport against the walking time, for every pair of points: all points are on or below the diagonal."}
+both <- merge(walk, ttm, by = c("from_id", "to_id"),
+              suffixes = c("_walk", "_transit"))
+mean(both$travel_time_p50_transit < both$travel_time_p50_walk)
+
+plot(both$travel_time_p50_walk, both$travel_time_p50_transit,
+     xlab = "walking (min)", ylab = "walk + transit, median (min)",
+     pch = 16, col = "#b4532a80", asp = 1)
+abline(0, 1, col = "grey50")
+```
+
+## Accessibility
+
+`accessibility()` counts the opportunities each origin can reach. With the
+`"step"` function and two cutoffs, the result is the number of jobs within
+15 and within 30 minutes:
+
+```{r}
+access <- accessibility(
+  network, points, points,
+  opportunities_colnames = "jobs",
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = departure,
+  decay_function = "step",
+  cutoffs = c(15, 30),
+  seed = 42,
+  n_threads = 2
+)
+head(access)
+```
+
+The other decay functions (`"exponential"`, `"fixed_exponential"`,
+`"linear"` and `"logistic"`) weight opportunities by travel time instead of
+counting them.
+
+## Trip by trip
+
+`expanded_travel_time_matrix()` keeps every trip instead of a percentile:
+one row per departure minute and, with a frequency-based feed, per draw.
+With `breakdown = TRUE` each trip is split into its access walk, waiting,
+riding, transfers and egress walk, with the routes taken.
+
+```{r}
+trips <- expanded_travel_time_matrix(
+  network, points[1, ], points,
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = departure,
+  time_window = 2,
+  breakdown = TRUE,
+  seed = 42,
+  n_threads = 2
+)
+subset(trips, to_id == "89a8100c02fffff")
+```
+
+`arrival_travel_time_matrix()` answers the reverse question: for each pair,
+the latest departure that still arrives by a given time.
+
+## What is not supported yet
+
+Options that peabiru does not implement yet stop with an error rather than
+being ignored: public transport with bicycle or car access, a subset of
+transit modes, fares, congestion and traffic-stress scenarios, elevation and
+`output_dir`. For example:
+
+```{r, error = TRUE}
+travel_time_matrix(network, points, points, mode = c("BICYCLE", "TRANSIT"),
+                   departure_datetime = departure)
+```
+
+The help pages of `travel_time_matrix()`, `accessibility()`,
+`expanded_travel_time_matrix()` and `arrival_travel_time_matrix()` list each
+argument; they match r5r's.

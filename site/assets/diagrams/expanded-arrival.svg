@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 520" width="980" height="520" role="img" aria-labelledby="title desc">
+  <title id="title">Expanded and arrival matrices</title>
+  <desc id="desc">Expanded matrix: for one origin and destination there is one row per departure minute of the window and, with frequency-based feeds, per Monte Carlo draw; within a minute the draws are sorted by total time and numbered, so draw_number is a rank. Each row can break the trip into access, waiting, in-vehicle, transfer and egress minutes, the routes ridden and the number of rides. Arrival matrix: departures from arrival_datetime minus max_trip_duration up to the arrival time are scanned from the latest minute back, and the first trip that arrives in time is kept: one row per origin and destination.</desc>
+  <style>
+    .panel { fill: #fffdf9; stroke: #e1d8c8; }
+    .t { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; fill: #1f2a2e; }
+    .s { font-size: 12.5px; fill: #4a5a5f; }
+    .xs { font-size: 11.5px; fill: #4a5a5f; }
+    .h { font-weight: 700; }
+    .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+    .box { fill: #ffffff; stroke: #8a7f70; stroke-width: 1.5; }
+    .cell { fill: #f1ebe0; stroke: #fffdf9; stroke-width: 2; }
+    .hi { fill: #b4532a; }
+    .callout { fill: #fbeee6; stroke: #b4532a; stroke-width: 1.5; }
+    .ln { stroke: #4a5a5f; stroke-width: 1.4; fill: none; }
+    .ah { fill: #4a5a5f; }
+    .bar { fill: #c9bfae; }
+    .late { fill: none; stroke: #8a7f70; stroke-width: 1.5; stroke-dasharray: 4 3; }
+    .kept { fill: #b4532a; }
+    .arr { stroke: #2f6b4f; stroke-width: 2.5; }
+    .arrt { fill: #2f6b4f; font-weight: 700; }
+    @media (prefers-color-scheme: dark) {
+      .panel { fill: #1d2427; stroke: #34403f; }
+      .t { fill: #ece6da; }
+      .s, .xs { fill: #a9b4b6; }
+      .box { fill: #242d31; stroke: #7d8b8d; }
+      .cell { fill: #34403f; stroke: #242d31; }
+      .hi, .kept { fill: #e98a5c; }
+      .callout { fill: #33261f; stroke: #e98a5c; }
+      .ln { stroke: #a9b4b6; }
+      .ah { fill: #a9b4b6; }
+      .bar { fill: #4a5859; }
+      .late { stroke: #7d8b8d; }
+      .arr { stroke: #6fbf95; }
+      .arrt { fill: #6fbf95; }
+    }
+  </style>
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path class="ah" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+    <g id="col">
+      <rect class="cell" x="0" y="0" width="26" height="18"/>
+      <rect class="cell" x="0" y="20" width="26" height="18"/>
+      <rect class="cell" x="0" y="40" width="26" height="18"/>
+      <rect class="cell" x="0" y="60" width="26" height="18"/>
+      <rect class="cell" x="0" y="80" width="26" height="18"/>
+    </g>
+  </defs>
+  <rect class="panel" x="0.5" y="0.5" width="979" height="519" rx="12"/>
+
+  <!-- expanded -->
+  <rect class="box" x="24" y="24" width="460" height="472" rx="8"/>
+  <text class="t h" x="40" y="52"><tspan class="code">expanded_travel_time_matrix()</tspan></text>
+  <text class="t s" x="40" y="74">every trip, for one origin–destination pair:</text>
+
+  <g transform="translate(108 104)">
+    <use href="#col" x="0"/><use href="#col" x="28"/><use href="#col" x="56"/><use href="#col" x="84"/>
+    <use href="#col" x="112"/><use href="#col" x="140"/><use href="#col" x="168"/><use href="#col" x="196"/>
+    <use href="#col" x="224"/><use href="#col" x="252"/>
+    <rect class="hi" x="84" y="20" width="26" height="18"/>
+  </g>
+  <text class="t xs" x="100" y="120" text-anchor="end">draw 1</text>
+  <text class="t xs" x="100" y="200" text-anchor="end">draw 5</text>
+  <text class="t xs" x="121" y="222" text-anchor="middle">14:00</text>
+  <text class="t xs" x="373" y="222" text-anchor="middle">14:09</text>
+  <text class="t xs" x="247" y="240" text-anchor="middle">departure minute (time_window = 10)</text>
+
+  <path class="ln" d="M205 133 Q240 270 210 286" marker-end="url(#arw)"/>
+
+  <rect class="callout" x="40" y="290" width="428" height="112" rx="6"/>
+  <text class="t s" xml:space="preserve" style="white-space:pre" x="54" y="312"><tspan class="code">departure_time  14:03:00   draw_number  2</tspan></text>
+  <text class="t s" xml:space="preserve" style="white-space:pre" x="54" y="332"><tspan class="code">access 4.2  wait 3.1  ride 17.5  transfer 2.0</tspan></text>
+  <text class="t s" xml:space="preserve" style="white-space:pre" x="54" y="350"><tspan class="code">egress 5.6  n_rides 2</tspan></text>
+  <text class="t s" xml:space="preserve" style="white-space:pre" x="54" y="370"><tspan class="code">routes "R1|R7"   total_time 32.4</tspan></text>
+  <text class="t xs" x="54" y="392">one row (values illustrative; breakdown columns with breakdown = TRUE)</text>
+
+  <text class="t s" x="40" y="428">Rows per pair: one per minute, × <tspan class="code">draws_per_minute</tspan> with</text>
+  <text class="t s" x="40" y="446">frequency-based trips. Within a minute the draws are sorted by</text>
+  <text class="t s" x="40" y="464">total time, so <tspan class="code">draw_number</tspan> is a rank. Walk-only trips show</text>
+  <text class="t s" x="40" y="482"><tspan class="code">[WALK]</tspan>; trips over <tspan class="code">max_trip_duration</tspan> have NA times.</text>
+
+  <!-- arrival -->
+  <rect class="box" x="500" y="24" width="456" height="472" rx="8"/>
+  <text class="t h" x="516" y="52"><tspan class="code">arrival_travel_time_matrix()</tspan></text>
+  <text class="t s" x="516" y="74">the latest departure that still arrives in time:</text>
+
+  <!-- time axis 14:00 .. 15:30 : x = 540 + (min) * 4 -->
+  <line class="ln" x1="540" y1="300" x2="920" y2="300"/>
+  <text class="t xs" x="540" y="318" text-anchor="middle">14:00</text>
+  <text class="t xs" x="660" y="318" text-anchor="middle">14:30</text>
+  <text class="t xs" x="780" y="318" text-anchor="middle">15:00</text>
+  <text class="t xs" x="900" y="318" text-anchor="middle">15:30</text>
+  <line class="arr" x1="780" y1="96" x2="780" y2="300"/>
+  <text class="t xs arrt" x="786" y="108">arrival_datetime</text>
+
+  <!-- departures, latest first (top) -->
+  <rect class="late" x="700" y="128" width="148" height="16" rx="3"/>
+  <text class="t xs" x="694" y="140" text-anchor="end">14:40</text>
+  <text class="t xs" x="856" y="140">too late</text>
+  <rect class="late" x="680" y="156" width="124" height="16" rx="3"/>
+  <text class="t xs" x="674" y="168" text-anchor="end">14:35</text>
+  <rect class="kept" x="660" y="184" width="112" height="16" rx="3"/>
+  <text class="t xs" x="654" y="196" text-anchor="end">14:30</text>
+  <text class="t xs h" x="660" y="218">kept: arrives 14:58</text>
+  <rect class="bar" x="620" y="232" width="128" height="16" rx="3"/>
+  <text class="t xs" x="614" y="244" text-anchor="end">14:20</text>
+  <text class="t xs" x="760" y="244">not reached</text>
+  <path class="ln" d="M528 132 V244" marker-end="url(#arw)"/>
+  <text class="t xs" x="516" y="270">scan</text>
+  <text class="t xs" x="516" y="284">order</text>
+
+  <text class="t s" x="516" y="360">Departures are searched minute by minute over the</text>
+  <text class="t s" x="516" y="378"><tspan class="code">max_trip_duration</tspan> before the arrival time (here 60</text>
+  <text class="t s" x="516" y="396">min, from 14:00; it can start on the day before), from</text>
+  <text class="t s" x="516" y="414">the latest minute back. For each pair the first trip whose</text>
+  <text class="t s" x="516" y="432">departure + total time is not after the arrival time is</text>
+  <text class="t s" x="516" y="450">kept: one row per origin and destination reached, with</text>
+  <text class="t s" x="516" y="468">the columns of the expanded matrix.</text>
+</svg>

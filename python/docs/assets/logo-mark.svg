@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="peabiru">
-  <!-- placeholder mark: replaced by the brand design at merge -->
-  <path d="M4 26 C 10 20, 12 10, 18 8 S 26 10, 28 4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="4" cy="26" r="3" fill="currentColor"/>
-  <circle cx="28" cy="4" r="3" fill="currentColor"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="t">
+  <title id="t">peabiru</title>
+  <desc>A route drawn as the letter P: it leaves an origin stop, runs up and round, and rejoins itself at a transfer station.</desc>
+  <rect width="64" height="64" rx="14" fill="#1f2a2e"/>
+  <path d="M21 52 V13 H35 A12.5 12.5 0 0 1 35 38 H21" fill="none" stroke="#e07a4a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="21" cy="52" r="6.5" fill="#f0b54a"/>
+  <circle cx="21" cy="38" r="5" fill="#1f2a2e" stroke="#faf6ef" stroke-width="3"/>
 </svg>

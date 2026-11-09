@@ -33,7 +33,7 @@ expanded_travel_time_matrix(
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[r5r:build_network]{build_network()}}.}
+\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
 \code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84.}

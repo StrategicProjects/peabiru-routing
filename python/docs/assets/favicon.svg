@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <!-- placeholder favicon: replaced by the brand design at merge -->
-  <rect width="32" height="32" rx="6" fill="#2f5d50"/>
-  <path d="M6 25 C 11 19, 13 11, 18 9 S 24 10, 26 6" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  <title>peabiru</title>
+  <rect width="32" height="32" rx="7" fill="#1f2a2e"/>
+  <path d="M10.5 26 V6.5 H17.5 A6.25 6.25 0 0 1 17.5 19 H10.5" fill="none" stroke="#e07a4a" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="10.5" cy="26" r="3.5" fill="#f0b54a"/>
 </svg>

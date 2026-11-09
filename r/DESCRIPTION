@@ -42,8 +42,11 @@ Config/rextendr/version: 0.5.0
 Depends: 
     R (>= 4.2)
 Suggests:
+    knitr,
     r5r,
+    rmarkdown,
     sf,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0

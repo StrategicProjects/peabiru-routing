@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>peabiru mark, concept B: a network with one route through it</title>
+  <rect width="64" height="64" rx="14" fill="#1f2a2e"/>
+  <g stroke="#6b7c80" stroke-width="3" stroke-linecap="round">
+    <line x1="14" y1="48" x2="30" y2="14"/>
+    <line x1="30" y1="14" x2="50" y2="18"/>
+    <line x1="30" y1="36" x2="50" y2="48"/>
+  </g>
+  <polyline points="14,48 30,36 50,18" fill="none" stroke="#e07a4a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#faf6ef"><circle cx="30" cy="14" r="4"/><circle cx="50" cy="48" r="4"/></g>
+  <circle cx="14" cy="48" r="6" fill="#f0b54a"/>
+  <circle cx="30" cy="36" r="4.5" fill="#1f2a2e" stroke="#faf6ef" stroke-width="2.5"/>
+  <circle cx="50" cy="18" r="6" fill="#f0b54a"/>
+</svg>

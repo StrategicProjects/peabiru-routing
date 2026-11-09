@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>peabiru mark, concept C: a trail from the coast to the mountains</title>
+  <rect width="64" height="64" rx="14" fill="#1f2a2e"/>
+  <path d="M30 50 L44 22 L58 50 Z" fill="#2f6b4f"/>
+  <path d="M10 52 C 18 52, 14 34, 26 34 S 34 22, 44 22" fill="none" stroke="#e07a4a" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="10" cy="52" r="5" fill="#f0b54a"/>
+  <circle cx="44" cy="22" r="5" fill="#f0b54a"/>
+</svg>

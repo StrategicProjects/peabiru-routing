@@ -1,0 +1,46 @@
+//! Street-only travel-time matrix: walking, cycling and driving.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example street_matrix [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::street::{build_network, travel_time_matrix, BuildOptions, Mode, RouteParams};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = common::data_dir();
+    let points = common::read_points(&dir, &[]);
+
+    // The street network needs only the .pbf file.
+    let pbf = std::fs::read_dir(&dir)?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .find(|p| p.extension().is_some_and(|x| x == "pbf"))
+        .ok_or("no .pbf file in the data directory")?;
+    let net = build_network(&pbf, &BuildOptions { n_threads: 2 })?;
+    println!(
+        "{} vertices, {} directed edges",
+        net.n_vertices(),
+        net.n_edges()
+    );
+
+    // r5r's defaults: 3.6 km/h walking, 12 km/h cycling, max_lts 2, 120 min.
+    let params = RouteParams {
+        n_threads: 2,
+        ..RouteParams::default()
+    };
+    let n = points.coords.len();
+    for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
+        // Row-major origins x destinations, whole minutes; None = no time.
+        let m = travel_time_matrix(&net, &points.coords, &points.coords, mode, &params)?;
+        let reached = m.iter().filter(|t| t.is_some()).count();
+        println!(
+            "{mode:?}: {reached} of {} pairs reached; {} -> {}: {:?} min",
+            n * n,
+            points.ids[0],
+            points.ids[n - 1],
+            m[n - 1]
+        );
+    }
+    Ok(())
+}

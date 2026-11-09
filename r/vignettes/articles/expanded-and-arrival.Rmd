@@ -1,0 +1,86 @@
+---
+title: "Expanded and arrival matrices"
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+```
+
+`travel_time_matrix()` reduces the trips of a departure window to a few
+percentiles. Two functions keep the trips themselves:
+`expanded_travel_time_matrix()` returns every one, and
+`arrival_travel_time_matrix()` the one that leaves latest and still arrives in
+time. Both work with public transport (`mode = c("WALK", "TRANSIT")`).
+
+```{r, echo = FALSE, fig.alt = "Left: the expanded matrix has one row per departure minute and draw for each pair, with the breakdown of the trip. Right: the arrival matrix scans departures from the latest minute back and keeps the first trip that arrives by the arrival time."}
+fig("expanded-arrival.svg")
+```
+
+## Every trip
+
+```{r}
+trips <- expanded_travel_time_matrix(
+  network, points[1:2, ], points,
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = departure,
+  time_window = 3,
+  breakdown = TRUE,
+  seed = 42,
+  n_threads = 2
+)
+nrow(trips) == 2 * nrow(points) * 3 * 5
+head(subset(trips, routes != "[WALK]"), 10)
+```
+
+A row is one departure minute of one origin-destination pair. This feed is
+frequency-based, so each minute has `draws_per_minute` rows (5 by default),
+one per simulated schedule; with a timetable-based feed there is one row per
+minute. Within a minute the draws are **sorted by total time** and numbered,
+so `draw_number` is a rank (1 is the fastest draw), not the order in which the
+draws were made.
+
+With `breakdown = TRUE` each trip is split into minutes of `access_time`
+(walk to the first stop), `wait_time`, `ride_time`, `transfer_time` (walks
+between vehicles) and `egress_time`, plus the `routes` taken (GTFS
+`route_id`s joined by `|`, or `[WALK]` for a trip on foot) and `n_rides`.
+Every time is in minutes with one decimal, and `total_time` is the sum of the
+rounded parts:
+
+```{r}
+t <- subset(trips, routes != "[WALK]")[1, ]
+with(t, c(sum = access_time + wait_time + ride_time + transfer_time + egress_time,
+          total_time = total_time))
+```
+
+Trips longer than `max_trip_duration` keep their row with `NA` times.
+
+## The latest trip that arrives in time
+
+`arrival_travel_time_matrix()` takes an `arrival_datetime` instead of a
+departure. As r5r does, it searches departures minute by minute over the
+`max_trip_duration` minutes before the arrival (the window may start on the
+previous day) and, for each pair, keeps the first trip, from the latest
+departure backwards, that arrives by the arrival time.
+
+```{r}
+arrive <- arrival_travel_time_matrix(
+  network, points[1:2, ], points,
+  mode = c("WALK", "TRANSIT"),
+  arrival_datetime = as.POSIXct("2019-05-13 15:00:00", tz = "America/Sao_Paulo"),
+  max_trip_duration = 30,
+  breakdown = TRUE,
+  seed = 42,
+  n_threads = 2
+)
+head(arrive)
+```
+
+There is at most one row per pair; pairs that cannot arrive in time are
+absent.
+
+## Limits
+
+r5r computes these matrices with R5's path bookkeeping, which refuses more
+than 5,000 destinations; peabiru keeps the same limit. The expanded matrix
+grows with origins × destinations × minutes × draws, so it is meant for a
+few origins at a time.

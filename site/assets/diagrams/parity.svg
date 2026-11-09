@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 470" width="980" height="470" role="img" aria-labelledby="title desc">
+  <title id="title">How parity with r5r is verified</title>
+  <desc id="desc">The same inputs (r5r's Porto Alegre sample with a scheduled GTFS feed and its Sao Paulo sample with a frequency-based feed, the same points, parameters and seed) go through r5r 2.5.0 on R5 7.6 in Java and through peabiru. The outputs are compared for exact equality: travel-time matrices pair by pair and percentile by percentile, accessibility values bit for bit, expanded and arrival matrices column by column and in row order, and in R the data.frames with identical(). The street networks themselves can be compared edge by edge to find the cause of any difference. Exact equality is reachable because peabiru follows R5's rules including tie-breaking, its floating-point steps, and its random number stream.</desc>
+  <style>
+    .panel { fill: #fffdf9; stroke: #e1d8c8; }
+    .t { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; fill: #1f2a2e; }
+    .s { font-size: 12.5px; fill: #4a5a5f; }
+    .h { font-weight: 700; }
+    .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+    .in { fill: #f1ebe0; stroke: #c9bfae; stroke-width: 1.5; }
+    .box { fill: #ffffff; stroke: #8a7f70; stroke-width: 1.5; }
+    .pb { fill: #fbeee6; stroke: #b4532a; stroke-width: 2; }
+    .eq { fill: #ffffff; stroke: #2f6b4f; stroke-width: 2; }
+    .eqt { fill: #2f6b4f; font-weight: 700; }
+    .chip { fill: #f1ebe0; }
+    .ln { stroke: #4a5a5f; stroke-width: 1.6; fill: none; }
+    .dash { stroke: #4a5a5f; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+    .ah { fill: #4a5a5f; }
+    @media (prefers-color-scheme: dark) {
+      .panel { fill: #1d2427; stroke: #34403f; }
+      .t { fill: #ece6da; }
+      .s { fill: #a9b4b6; }
+      .in, .chip { fill: #242d31; stroke: #4a5859; }
+      .box { fill: #242d31; stroke: #7d8b8d; }
+      .pb { fill: #33261f; stroke: #e98a5c; }
+      .eq { fill: #1d2427; stroke: #6fbf95; }
+      .eqt { fill: #6fbf95; }
+      .ln, .dash { stroke: #a9b4b6; }
+      .ah { fill: #a9b4b6; }
+    }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path class="ah" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="panel" x="0.5" y="0.5" width="979" height="469" rx="12"/>
+
+  <!-- inputs -->
+  <rect class="in" x="24" y="40" width="228" height="236" rx="8"/>
+  <text class="t h" x="40" y="66">Same inputs</text>
+  <text class="t s" x="40" y="90">r5r's sample cities:</text>
+  <text class="t s" x="40" y="110">· Porto Alegre, scheduled GTFS</text>
+  <text class="t s" x="40" y="128">· São Paulo, frequency GTFS</text>
+  <text class="t s" x="40" y="152">same <tspan class="code">.pbf</tspan>, feeds and points</text>
+  <text class="t s" x="40" y="170">(r5r's hexagonal grids)</text>
+  <text class="t s" x="40" y="194">same arguments, including</text>
+  <text class="t s" x="40" y="212">the <tspan class="code">seed</tspan> for Monte Carlo draws</text>
+  <text class="t s" x="40" y="236">no elevation raster</text>
+
+  <!-- engines -->
+  <rect class="box" x="300" y="40" width="250" height="100" rx="8"/>
+  <text class="t h" x="316" y="66">r5r 2.5.0</text>
+  <text class="t s" x="316" y="88">R5 7.6 on Java 21</text>
+  <text class="t s" x="316" y="108">the reference</text>
+
+  <rect class="pb" x="300" y="176" width="250" height="100" rx="8"/>
+  <text class="t h" x="316" y="202">peabiru</text>
+  <text class="t s" x="316" y="224">CLI and R package,</text>
+  <text class="t s" x="316" y="244">same Rust core</text>
+
+  <line class="ln" x1="252" y1="130" x2="298" y2="92" marker-end="url(#arr)"/>
+  <line class="ln" x1="252" y1="186" x2="298" y2="224" marker-end="url(#arr)"/>
+  <line class="ln" x1="550" y1="90" x2="596" y2="128" marker-end="url(#arr)"/>
+  <line class="ln" x1="550" y1="226" x2="596" y2="188" marker-end="url(#arr)"/>
+
+  <!-- compare -->
+  <rect class="eq" x="598" y="40" width="358" height="236" rx="8"/>
+  <text class="t eqt" x="614" y="66">Compared for exact equality</text>
+  <text class="t s" x="614" y="92">travel-time matrices: every pair and every</text>
+  <text class="t s" x="614" y="110">percentile, in whole minutes</text>
+  <text class="t s" x="614" y="134">accessibility: every value bit for bit</text>
+  <text class="t s" x="614" y="152">(doubles written with 17 digits)</text>
+  <text class="t s" x="614" y="176">expanded and arrival matrices: every</text>
+  <text class="t s" x="614" y="194">column, and the order of the rows</text>
+  <text class="t s" x="614" y="218">R package: <tspan class="code">identical()</tspan> on the data.frames</text>
+  <text class="t s" x="614" y="236">(values, order, names, types), plus the</text>
+  <text class="t s" x="614" y="254">same errors for the same bad arguments</text>
+
+  <!-- diagnostic -->
+  <text class="t s" x="300" y="318">When anything differs, compare the two street networks edge by edge</text>
+  <text class="t s" x="300" y="338">(<tspan class="code">peabiru dump-edges</tspan> against r5r's <tspan class="code">street_network_to_sf()</tspan>)</text>
+
+  <!-- why -->
+  <text class="t h" x="24" y="398">Why exact equality is reachable</text>
+  <rect class="chip" x="24" y="410" width="300" height="44" rx="6"/>
+  <text class="t s" x="38" y="430">R5's rules, including tie-breaking and</text>
+  <text class="t s" x="38" y="446">iteration orders</text>
+  <rect class="chip" x="340" y="410" width="300" height="44" rx="6"/>
+  <text class="t s" x="354" y="430">Java's arithmetic: float / double steps,</text>
+  <text class="t s" x="354" y="446">commons-math3's FastMath.exp</text>
+  <rect class="chip" x="656" y="410" width="300" height="44" rx="6"/>
+  <text class="t s" x="670" y="430">R5's random stream: Mersenne Twister</text>
+  <text class="t s" x="670" y="446">seeded from seed and origin coordinates</text>
+</svg>
