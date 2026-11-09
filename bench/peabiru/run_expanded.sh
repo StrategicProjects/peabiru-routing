@@ -8,9 +8,10 @@
 #                     workspace target directory)
 #        PEABIRU_ROOT checkout whose bench/data and bench/results to use
 #                     (default: this one)
-# Writes bench/results/peabiru/<city>_TRANSIT_{expanded,expanded_nobd,
-# expanded_v2,arrival,arrival_v2,arrival_midnight}.csv and exits 1 if any
-# differs.
+#        PEABIRU_OUT  output directory (default: $PEABIRU_ROOT/bench/results/peabiru)
+# Writes <out>/<city>_TRANSIT_{expanded,expanded_nobd,expanded_v2,arrival,
+# arrival_v2,arrival_midnight}.csv and exits 1 if a peabiru command fails or
+# any matrix differs.
 set -euo pipefail
 export LC_ALL=C
 HERE="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -21,7 +22,7 @@ if [ -z "${PEABIRU_BIN:-}" ]; then
 fi
 ROOT="${PEABIRU_ROOT:-$HERE}"
 X=$(Rscript -e 'cat(system.file("extdata", package="r5r"))')
-OUT="$ROOT/bench/results/peabiru"
+OUT="${PEABIRU_OUT:-$ROOT/bench/results/peabiru}"
 REF="$ROOT/bench/results/r5r"
 mkdir -p "$OUT"
 cities=("$@")
@@ -41,6 +42,7 @@ for c in "${cities[@]}"; do
     name=${s%%|*}
     read -r -a opts <<< "${s#*|}"
     out="$OUT/${c}_TRANSIT_${name}.csv"
+    rm -f "$out"
     "$PEABIRU_BIN" expanded "$ROOT/bench/data/r5r/$c-transit" "$X/$c/${c}_hexgrid.csv" "$out" "${opts[@]}"
     echo "== parity $c $name"
     python3 -I "$HERE/bench/compare/expanded.py" "$REF/${c}_TRANSIT_${name}.csv" "$out" || status=1
