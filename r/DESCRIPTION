@@ -14,7 +14,13 @@ Authors@R: c(
            comment = c(ORCID = "0000-0002-1216-8674")),
     person("Júlia", "Nascimento Barreto",
            email = "juliabarreto@gd.seplag.pe.gov.br", role = "aut",
-           comment = c(ORCID = "0009-0004-2851-7770"))
+           comment = c(ORCID = "0009-0004-2851-7770")),
+    person("Conveyal LLC", role = "cph",
+           comment = "'R5' routing engine, from which the routing logic is ported"),
+    person("The Apache Software Foundation", role = "cph",
+           comment = "'Apache Commons Math', parts of which are translated in the 'Rust' core"),
+    person("Ipea - Institute for Applied Economic Research", role = "cph",
+           comment = "Sample data, taken from the 'r5r' package")
   )
 Description: Computes travel-time matrices and accessibility on multimodal
     transport networks (walk, bike, car and public transport) built from
@@ -24,6 +30,9 @@ Description: Computes travel-time matrices and accessibility on multimodal
     shared with the 'Python' package of the same name, and no 'Java' runtime
     is required.
 License: MIT + file LICENSE
+Copyright: The peabiru authors. The package includes code derived from
+    other works; their copyright notices and licences are in the file
+    inst/LICENSE-THIRD-PARTY.
 URL: https://github.com/StrategicProjects/peabiru-routing
 BugReports: https://github.com/StrategicProjects/peabiru-routing/issues
 Encoding: UTF-8

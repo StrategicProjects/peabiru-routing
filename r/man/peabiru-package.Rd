@@ -47,5 +47,12 @@ Authors:
   \item Júlia Nascimento Barreto \email{juliabarreto@gd.seplag.pe.gov.br} (\href{https://orcid.org/0009-0004-2851-7770}{ORCID})
 }
 
+Other contributors:
+\itemize{
+  \item Conveyal LLC ('R5' routing engine, from which the routing logic is ported) [copyright holder]
+  \item The Apache Software Foundation ('Apache Commons Math', parts of which are translated in the 'Rust' core) [copyright holder]
+  \item Ipea - Institute for Applied Economic Research (Sample data, taken from the 'r5r' package) [copyright holder]
+}
+
 }
 \keyword{internal}
