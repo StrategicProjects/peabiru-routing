@@ -1,16 +1,22 @@
-# peabiru (Python)
+# peabiru (Python) <img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/logo-mark.svg" align="right" width="64" height="64" alt="peabiru logo">
+
+[![CI](https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml/badge.svg)](https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-MIT)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://github.com/StrategicProjects/peabiru-routing/tree/main/python)
+<!-- After the first release on PyPI, uncomment:
+[![PyPI](https://img.shields.io/pypi/v/peabiru.svg)](https://pypi.org/project/peabiru/)
+-->
 
 Multimodal routing on [OpenStreetMap](https://www.openstreetmap.org) street
 networks and [GTFS](https://gtfs.org) public transport: travel-time
 matrices, accessibility, and minute-by-minute (expanded) and arrival-time
 matrices, by walking, cycling, driving and public transport.
 
-The functions, their arguments and their results are those of the R package
-[r5r](https://ipeagit.github.io/r5r/) 2.5.0, and so are the values: the
-routing engine is a Rust port of [R5](https://github.com/conveyal/r5) (the
-engine r5r drives, version 7.6) and is checked against r5r call for call,
-with identical results, including the last bit of accessibility values. No
-Java is needed. The same Rust core powers the R package of the same name.
+The routing engine is written in Rust and runs inside the Python process:
+no Java is needed, the network is built once in memory and reused by every
+call, and the results are `pandas.DataFrame`s. The same Rust core powers
+the R package of the same name.
 
 ```python
 import datetime as dt
@@ -37,18 +43,18 @@ access = peabiru.accessibility(
 )
 ```
 
-| Function | r5r equivalent |
+| Function | What it computes |
 |---|---|
-| `build_network(data_path)` | `build_network()` |
-| `travel_time_matrix(...)` | `travel_time_matrix()` |
-| `accessibility(...)` | `accessibility()` |
-| `expanded_travel_time_matrix(...)` | `expanded_travel_time_matrix()` |
-| `arrival_travel_time_matrix(...)` | `arrival_travel_time_matrix()` |
+| `build_network(data_path)` | a network from a directory with one `.pbf` and any GTFS `.zip` |
+| `travel_time_matrix(...)` | travel times between every origin and destination |
+| `accessibility(...)` | cumulative or decay-weighted access to opportunities |
+| `expanded_travel_time_matrix(...)` | travel times minute by minute, with a breakdown of each trip |
+| `arrival_travel_time_matrix(...)` | the latest trip that arrives by a given time |
 
 Points are `pandas.DataFrame`s with `id`, `lon` and `lat` (or, with
 geopandas installed, a `GeoDataFrame` of points in EPSG:4326); results are
-`pandas.DataFrame`s with r5r's columns, in r5r's row order. What peabiru
-does not support yet (transit with bicycle or car access, fares, scenarios,
+`pandas.DataFrame`s in long format. What peabiru does not support
+yet (transit with bicycle or car access, fares, scenarios,
 elevation, ...) raises `peabiru.UnsupportedError`; nothing is silently
 ignored.
 
@@ -78,8 +84,14 @@ uv pip install "mkdocs>=1.6" "mkdocs-material>=9.5" "mkdocstrings[python]>=0.26"
 .venv/bin/mkdocs build --strict                    # documentation site in site/
 ```
 
-Parity with r5r (needs R with r5r 2.5.0 and a JDK 21), from the repository
-root:
+## Compatibility with r5r
+
+The functions, their arguments, defaults and results follow the R package
+[r5r](https://ipeagit.github.io/r5r/) 2.5.0: the engine is a Rust port of
+[R5](https://github.com/conveyal/r5) 7.6, the engine r5r drives, and is
+checked against r5r call for call, with identical results, including the
+last bit of accessibility values. The comparison (needs R with r5r 2.5.0
+and a JDK 21) runs from the repository root:
 
 ```sh
 JAVA_HOME=/path/to/jdk21 python/.venv/bin/python bench/compare/py_parity.py poa spo
