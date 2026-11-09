@@ -1,4 +1,5 @@
 mod accessibility;
+mod expanded;
 
 use peabiru_core::osm::pbf::{read_pbf_file, tag, ReadOptions};
 use std::time::Instant;
@@ -7,8 +8,11 @@ fn usage() -> ! {
     eprintln!(
         "usage: peabiru --version\n       peabiru osm-stats <file.osm.pbf> [n_threads]\n       \
          peabiru ttm <file.osm.pbf> <points.csv> <WALK|BICYCLE|CAR> <out.csv> [n_threads] [repeats]\n       \
+         peabiru transit <dir> <points.csv> <out.csv> --date YYYY-MM-DD --time HH:MM:SS [--tw 10] [--percentiles 50] [--max-walk 120] [--max-trip 120] [--max-rides 3] [--draws 5] [--seed N] [--threads 0] [--repeats 1]\n       \
          peabiru accessibility <dir|file.osm.pbf> <points.csv> <out.csv> --opportunities a,b [options]\n       \
-         peabiru dump-edges <file.osm.pbf>   (CSV like r5r::street_network_to_sf edges)"
+         peabiru dump-edges <file.osm.pbf>   (CSV like r5r::street_network_to_sf edges)\n       \
+         {}",
+        expanded::USAGE
     );
     std::process::exit(2);
 }
@@ -38,6 +42,7 @@ fn main() {
         }
         Some("transit") => transit(&args[1..]),
         Some("accessibility") => accessibility::run(&args[1..]),
+        Some("expanded") => expanded::run(&args[1..]),
         Some("dump-edges") => dump_edges(args.get(1).unwrap_or_else(|| usage())),
         _ => usage(),
     }

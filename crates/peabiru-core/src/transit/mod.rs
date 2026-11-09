@@ -3,6 +3,7 @@
 
 pub mod accessibility;
 pub mod decay;
+pub mod expanded;
 pub mod layer;
 pub mod matrix;
 pub mod raptor;

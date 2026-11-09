@@ -39,6 +39,9 @@ impl TripSchedule {
 /// Trips sharing route, stop sequence and pickup/drop-off types.
 #[derive(Debug, Clone, Default)]
 pub struct Pattern {
+    /// GTFS `route_id`, unscoped (R5 `RouteInfo.route_id`, what r5r reports
+    /// in `routes`).
+    pub route_id: String,
     pub route_type: i32,
     pub stops: Vec<u32>,
     /// Boarding / alighting allowed at each stop (only GTFS type 1 forbids).
@@ -335,6 +338,7 @@ impl TransitLayer {
             );
             let pi = *pattern_of.entry(key).or_insert_with(|| {
                 self.patterns.push(Pattern {
+                    route_id: trip.route_id.clone(),
                     route_type: rtype,
                     stops: stop_seq.clone(),
                     pickups: rows.iter().map(|r| r.pickup_type != 1).collect(),
