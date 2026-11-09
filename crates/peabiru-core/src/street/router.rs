@@ -406,6 +406,9 @@ fn route(
             };
             let f = f as usize;
             let flags = net.edge_flags[f];
+            if flags & LINK != 0 && net.edge_flags[e] & LINK != 0 {
+                continue; // two connectors in a row would be a shortcut
+            }
             let len = net.pair_length_mm[f / 2];
             let step = match mode {
                 Mode::Walk => {

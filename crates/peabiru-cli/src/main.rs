@@ -178,6 +178,7 @@ fn osm_stats(path: &str, n_threads: usize) {
         relation_filter: Some(&restrictions),
         node_tag_filter: None,
         ref_count_filter: None,
+        poi_filter: None,
         n_threads,
     };
     let t0 = Instant::now();

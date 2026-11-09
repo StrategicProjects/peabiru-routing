@@ -32,11 +32,19 @@ pub fn build_network(
         t.iter()
             .any(|(k, _)| matches!(*k, "entrance" | "access" | "highway"))
     };
+    let park_ride = |t: &[(&str, &str)]| {
+        t.iter()
+            .any(|(k, v)| *k == "park_ride" && super::parkride::is_park_and_ride_value(v))
+    };
+    // Routable ways become edges; park-and-ride ways (routable or not) are
+    // linked to the streets afterwards.
+    let ways = |t: &[(&str, &str)]| is_way_routable(t) || park_ride(t);
     let read = ReadOptions {
-        way_filter: &is_way_routable,
+        way_filter: &ways,
         relation_filter: Some(&super::restrictions::is_restriction),
         node_tag_filter: Some(&node_tags),
         ref_count_filter: Some(&not_building),
+        poi_filter: Some(&park_ride),
         n_threads: opts.n_threads,
     };
     let ex = read_pbf_file(path, &read)?;
@@ -90,11 +98,23 @@ pub fn network_from_extract(mut ex: Extract) -> StreetNetwork {
         signal,
         net: StreetNetwork::default(),
     };
-    b.net.geom_offsets.push(0);
+    fn borrowed(w: &Way) -> Vec<(&str, &str)> {
+        w.tags
+            .0
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect()
+    }
     for w in &ex.ways {
-        b.add_way(w);
+        if is_way_routable(&borrowed(w)) {
+            b.add_way(w);
+        }
     }
     let vertex_of = std::mem::take(&mut b.vertex_of);
+    let (node_lat, node_lon) = (
+        std::mem::take(&mut b.node_lat),
+        std::mem::take(&mut b.node_lon),
+    );
     let mut net = b.net;
     build_adjacency(&mut net);
     apply_intersection_lts(&mut net);
@@ -105,13 +125,51 @@ pub fn network_from_extract(mut ex: Extract) -> StreetNetwork {
     ] {
         prune_islands(&mut net, mode_flag, walk_counts);
     }
+    net.index = link::EdgeIndex::build(&net);
+
+    // Park-and-ride: areas (ways, in id order) then nodes (in id order).
+    let is_pr_way = |w: &Way| {
+        w.tags
+            .get("park_ride")
+            .is_some_and(super::parkride::is_park_and_ride_value)
+    };
+    let areas: Vec<Vec<(i32, i32)>> = ex
+        .ways
+        .iter()
+        .filter(|w| is_pr_way(w))
+        .filter_map(|w| {
+            // R5 cannot handle a park-and-ride way with a missing node; skip it
+            w.nodes
+                .iter()
+                .map(|&id| {
+                    ex.node_index(id)
+                        .filter(|&i| node_lat[i] != i32::MIN)
+                        .map(|i| (node_lat[i], node_lon[i]))
+                })
+                .collect::<Option<Vec<_>>>()
+        })
+        .collect();
+    let pr_nodes: Vec<(f64, f64)> = ex
+        .pois
+        .iter()
+        .map(|&(_, lat, lon, _)| {
+            (
+                f64::from(node_fixed(lat)) / FIXED_FACTOR,
+                f64::from(node_fixed(lon)) / FIXED_FACTOR,
+            )
+        })
+        .collect();
+    super::parkride::apply_park_and_ride(&mut net, &areas, &pr_nodes);
+
+    // R5 builds turn restrictions with the edge lists from before the
+    // park-and-ride splits (they are rebuilt only afterwards), so do the same.
     let vertex_for_node = |id: i64| {
         ex.node_index(id)
             .map(|i| vertex_of[i])
             .filter(|&v| v != u32::MAX)
     };
     super::restrictions::apply_turn_restrictions(&mut net, &ex, &vertex_for_node);
-    net.index = link::EdgeIndex::build(&net);
+    build_adjacency(&mut net);
     net
 }
 
@@ -225,10 +283,11 @@ impl Builder<'_> {
         net.pair_to.push(v1);
         net.pair_length_mm.push(length_mm);
         net.pair_way.push(w.id);
+        let start = net.geom.len() as u32;
         for &i in &idx[1..idx.len() - 1] {
             net.geom.push((self.node_lat[i], self.node_lon[i]));
         }
-        net.geom_offsets.push(net.geom.len() as u32);
+        net.pair_geom.push((start, net.geom.len() as u32));
 
         // Angles use the vertex coordinates at the ends and the node
         // coordinates in between (R5 getGeometry), as (lon, lat) degrees.

@@ -136,6 +136,7 @@ fn opts(n_threads: usize) -> ReadOptions<'static> {
         relation_filter: Some(&restrictions),
         node_tag_filter: Some(&barriers),
         ref_count_filter: Some(&not_building),
+        poi_filter: None,
         n_threads,
     }
 }

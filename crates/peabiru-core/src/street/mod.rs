@@ -9,6 +9,7 @@ pub mod build;
 pub mod geom;
 pub mod labels;
 pub mod link;
+pub mod parkride;
 pub mod restrictions;
 pub mod router;
 
@@ -33,6 +34,9 @@ pub mod flags {
     pub const BIKE_LTS_EXPLICIT: u32 = 1 << 11;
     /// Some turn restriction starts when a car enters this edge.
     pub const RESTRICTION_START: u32 = 1 << 12;
+    /// A connector (park-and-ride, later transit stops): every mode may use
+    /// it, points never link to it, and two in a row are not allowed.
+    pub const LINK: u32 = 1 << 13;
 
     pub const ALL_ALLOWS: u32 = ALLOWS_PEDESTRIAN | ALLOWS_BIKE | ALLOWS_CAR;
     /// Flags that make an edge worth creating (R5 `ALL_PERMISSIONS`).
@@ -63,9 +67,10 @@ pub struct StreetNetwork {
     pub pair_length_mm: Vec<i32>,
     /// Per pair: OSM way id.
     pub pair_way: Vec<i64>,
-    /// Per pair: intermediate geometry `geom[geom_offsets[k]..geom_offsets[k + 1]]`
-    /// as `(lat, lon)` fixed-point, in forward order.
-    pub geom_offsets: Vec<u32>,
+    /// Per pair: intermediate geometry `geom[a..b]` for `pair_geom[k] = (a, b)`,
+    /// as `(lat, lon)` fixed-point, in forward order. A split appends the new
+    /// geometry and moves the range.
+    pub pair_geom: Vec<(u32, u32)>,
     pub geom: Vec<(i32, i32)>,
     /// Per pair: bearing leaving the first point and entering the last one,
     /// in binary radians (R5 brads).
@@ -147,7 +152,8 @@ impl StreetNetwork {
     pub fn pair_points(&self, k: usize) -> impl Iterator<Item = (i32, i32)> + '_ {
         let v0 = self.pair_from[k] as usize;
         let v1 = self.pair_to[k] as usize;
-        let mid = &self.geom[self.geom_offsets[k] as usize..self.geom_offsets[k + 1] as usize];
+        let (a, b) = self.pair_geom[k];
+        let mid = &self.geom[a as usize..b as usize];
         std::iter::once((self.v_lat[v0], self.v_lon[v0]))
             .chain(mid.iter().copied())
             .chain(std::iter::once((self.v_lat[v1], self.v_lon[v1])))

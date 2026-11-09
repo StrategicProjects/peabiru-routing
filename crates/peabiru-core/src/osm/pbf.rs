@@ -120,6 +120,9 @@ pub struct ReadOptions<'f> {
     pub relation_filter: Option<TagFilter<'f>>,
     /// Tags of referenced nodes to keep (e.g. barriers). `None` keeps none.
     pub node_tag_filter: Option<TagFilter<'f>>,
+    /// Nodes to report on their own, wherever they are (e.g. park-and-ride
+    /// points); `None` reports none.
+    pub poi_filter: Option<TagFilter<'f>>,
     /// Ways whose node references are counted (see [`Extract::ref_counts`]);
     /// `None` counts nothing.
     pub ref_count_filter: Option<TagFilter<'f>>,
@@ -146,6 +149,9 @@ pub struct Extract {
     /// empty when there is no such filter. A count of 2 or more marks an
     /// intersection.
     pub ref_counts: Vec<u32>,
+    /// Nodes accepted by `poi_filter`: id, latitude and longitude (1e-7
+    /// degrees) and tags, sorted by id.
+    pub pois: Vec<(i64, i32, i32, Tags)>,
     /// Node ids that are members of a kept relation and exist in the file,
     /// sorted.
     pub member_nodes_present: Vec<i64>,
@@ -247,8 +253,14 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
         let block = inflate(blob)?;
         let mut coords: Vec<(u32, i32, i32)> = Vec::new();
         let mut tagged: Vec<(i64, Tags)> = Vec::new();
+        let mut pois: Vec<(i64, i32, i32, Tags)> = Vec::new();
         decode_block(&block, &mut |item| match item {
             Item::Node { id, lat, lon, tags } => {
+                if let Some(f) = opts.poi_filter {
+                    if !tags.is_empty() && f(tags) {
+                        pois.push((id, lat, lon, Tags::from_refs(tags)));
+                    }
+                }
                 if let Ok(i) = member_nodes_ref.binary_search(&id) {
                     node_seen_ref[i].store(true, Ordering::Relaxed);
                 }
@@ -277,11 +289,12 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
             }
             Item::Relation { .. } => {}
         })?;
-        Ok((coords, tagged))
+        Ok((coords, tagged, pois))
     })?;
     ex.lat = vec![i32::MIN; ids.len()];
     ex.lon = vec![i32::MIN; ids.len()];
-    for (coords, tagged) in found {
+    for (coords, tagged, pois) in found {
+        ex.pois.extend(pois);
         for (i, lat, lon) in coords {
             ex.lat[i as usize] = lat;
             ex.lon[i as usize] = lon;
@@ -289,6 +302,7 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
         ex.node_tags.extend(tagged);
     }
     ex.node_tags.sort_by_key(|(id, _)| *id);
+    ex.pois.sort_by_key(|p| p.0);
     ex.ref_counts = counts.into_iter().map(AtomicU32::into_inner).collect();
     let present = |ids: &[i64], seen: Vec<AtomicBool>| -> Vec<i64> {
         ids.iter()

@@ -23,6 +23,11 @@ pub struct Split {
     pub distance1_mm: i32,
     /// Off-street distance from the point to the edge, millimetres.
     pub distance_to_edge_mm: i32,
+    /// Segment of the edge geometry holding the split, and the split point
+    /// (fixed-point), used when a split cuts the edge in two.
+    pub seg: u32,
+    pub fixed_lat: i32,
+    pub fixed_lon: i32,
 }
 
 /// Uniform grid over forward-edge bounding boxes, in fixed-point degrees.
@@ -35,6 +40,9 @@ pub struct EdgeIndex {
     /// Pairs in each cell: `pairs[offsets[c]..offsets[c + 1]]`.
     offsets: Vec<u32>,
     pairs: Vec<u32>,
+    /// Pairs added after the grid was built (edge splits); every query
+    /// returns them, which keeps queries a superset.
+    extra: Vec<u32>,
 }
 
 /// Cell side in fixed-point degrees (0.005 degrees, about 550 m).
@@ -67,6 +75,7 @@ impl EdgeIndex {
             n_cols,
             offsets: vec![0; n_rows * n_cols + 1],
             pairs: Vec::new(),
+            extra: Vec::new(),
         };
         let cells = |b: &(i32, i32, i32, i32)| {
             let r0 = ((i64::from(b.0) - i64::from(min_lat)) / CELL) as usize;
@@ -94,9 +103,22 @@ impl EdgeIndex {
         idx
     }
 
+    /// Register a pair created after the grid was built.
+    pub fn insert_extra(&mut self, pair: u32) {
+        self.extra.push(pair);
+    }
+
     /// Pairs whose cells overlap an envelope (with repeats), fixed-point.
-    fn query(&self, min_lat: i64, min_lon: i64, max_lat: i64, max_lon: i64, out: &mut Vec<u32>) {
+    pub fn query(
+        &self,
+        min_lat: i64,
+        min_lon: i64,
+        max_lat: i64,
+        max_lon: i64,
+        out: &mut Vec<u32>,
+    ) {
         out.clear();
+        out.extend_from_slice(&self.extra);
         if self.n_rows == 0 {
             return;
         }
@@ -176,8 +198,8 @@ pub fn find_split_radius(
     scratch.sort_unstable();
     scratch.dedup();
 
-    // best: (squared distance, pair, segment, fraction)
-    let mut best: Option<(i64, usize, usize, f64)> = None;
+    // best: (squared distance, pair, segment, fraction, split lat, split lon)
+    let mut best: Option<(i64, usize, usize, f64, i32, i32)> = None;
     for &k in scratch.iter() {
         let k = k as usize;
         if net.edge_flags[2 * k] & flag != flag || net.edge_flags[2 * k + 1] & flag != flag {
@@ -199,15 +221,15 @@ pub fn find_split_radius(
             if d2 < sq_radius {
                 let better = match best {
                     None => true,
-                    Some((bd2, bk, _, _)) => d2 < bd2 || (d2 == bd2 && k < bk),
+                    Some((bd2, bk, ..)) => d2 < bd2 || (d2 == bd2 && k < bk),
                 };
                 if better {
-                    best = Some((d2, k, seg, frac));
+                    best = Some((d2, k, seg, frac, p_lat, p_lon));
                 }
             }
         }
     }
-    let (d2, k, best_seg, best_frac) = best?;
+    let (d2, k, best_seg, best_frac, split_lat, split_lon) = best?;
 
     // Length along the edge up to the split, planar at the point's latitude.
     let mut before = 0.0f64;
@@ -238,5 +260,8 @@ pub fn find_split_radius(
         distance0_mm: d0,
         distance1_mm: length_mm - d0,
         distance_to_edge_mm: java_int(to_edge_deg * METERS_PER_DEGREE_LAT * 1000.0),
+        seg: best_seg as u32,
+        fixed_lat: split_lat,
+        fixed_lon: split_lon,
     })
 }

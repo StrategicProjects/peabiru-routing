@@ -290,6 +290,7 @@ mod tests {
             ways,
             relations,
             node_tags: Vec::new(),
+            pois: Vec::new(),
         }
     }
 
