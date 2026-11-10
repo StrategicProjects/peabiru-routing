@@ -144,7 +144,8 @@ impl Entry {
 /// The size of a network, for guessing how much of it one search reaches.
 #[derive(Debug, Clone, Copy)]
 struct Extent {
-    /// Area of the bounding box of the vertices, square metres.
+    /// Area of the bounding box of the street edges (connectors apart),
+    /// square metres.
     area: f64,
     /// Top car speed, m/s.
     car_speed: f64,
@@ -157,17 +158,27 @@ impl Extent {
             .iter()
             .map(|&s| f64::from(s) / 100.0)
             .fold(0.0, f64::max);
+        // Only the ends of street edges. Transit stops too far from any
+        // street stay as loose vertices, and the others hang on connectors
+        // that may be long: a feed that covers more than the street extract
+        // would stretch the box well beyond the streets.
+        let ends = || {
+            (0..net.pair_from.len())
+                .filter(|&i| net.edge_flags[2 * i] & super::flags::LINK == 0)
+                .flat_map(|i| [net.pair_from[i] as usize, net.pair_to[i] as usize])
+        };
         let (Some(lat0), Some(lat1), Some(lon0), Some(lon1)) = (
-            net.v_lat.iter().min(),
-            net.v_lat.iter().max(),
-            net.v_lon.iter().min(),
-            net.v_lon.iter().max(),
+            ends().map(|v| net.v_lat[v]).min(),
+            ends().map(|v| net.v_lat[v]).max(),
+            ends().map(|v| net.v_lon[v]).min(),
+            ends().map(|v| net.v_lon[v]).max(),
         ) else {
             return Extent {
                 area: 0.0,
                 car_speed,
             };
         };
+        let (lat0, lat1, lon0, lon1) = (&lat0, &lat1, &lon0, &lon1);
         const M_PER_UNIT: f64 = 111_195.0e-7; // metres per 1e-7 degree of latitude
         let mid = (f64::from(*lat0) + f64::from(*lat1)) * 0.5e-7;
         let height = (f64::from(*lat1) - f64::from(*lat0)) * M_PER_UNIT;
@@ -1316,5 +1327,30 @@ mod tests {
         assert!(hierarchy(&net, &g, 10_000, &p).unwrap().is_none());
         let g = ModeGraph::new(&net, Mode::Walk, Speeds::new(&p, Mode::Walk), p.max_lts);
         assert!(hierarchy(&net, &g, 1, &p).unwrap().is_some());
+    }
+
+    /// Transit stops are vertices of the network, loose when too far from
+    /// any street and otherwise on a connector (the sample feed covers
+    /// more than the street extract): they do not count in the extent
+    /// that decides whether a hierarchy pays off.
+    #[test]
+    fn loose_stop_vertices_do_not_stretch_the_extent() {
+        use crate::transit::{gtfs_files_in_dir, TransitLayer};
+        let mut net = spo();
+        let streets = Extent::of(&net).area;
+        let mut layer = TransitLayer::load(&gtfs_files_in_dir(SPO).unwrap()).unwrap();
+        layer.link_stops(&mut net);
+        let (lat0, lat1) = (
+            net.v_lat.iter().min().unwrap(),
+            net.v_lat.iter().max().unwrap(),
+        );
+        let all = Extent::of(&net).area;
+        assert!(
+            streets > 0.0 && (all / streets - 1.0).abs() < 0.05,
+            "{streets} {all}"
+        );
+        // the box of every vertex is far taller than the streets'
+        let height = f64::from(lat1 - lat0) * 111_195.0e-7;
+        assert!(height * height > 4.0 * streets, "{height} {streets}");
     }
 }
