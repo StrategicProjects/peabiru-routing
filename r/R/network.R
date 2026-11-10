@@ -73,7 +73,8 @@ build_network <- function(data_path,
   any_tif <- length(grep(".tif", files)) > 0
   # an elevation raster that R5 would read
   rasters <- files[grepl("\\.tiff?$", files, ignore.case = TRUE)]
-  pbf <- files[grepl("\\.pbf$", files, ignore.case = TRUE)]
+  # lower case only, as r5r and the engine match the extension
+  pbf <- files[grepl("\\.pbf$", files)]
   if (!any_pbf || length(pbf) == 0) {
     stop("An OSM .pbf file is required in '", data_path, "' to build a network.",
          call. = FALSE)

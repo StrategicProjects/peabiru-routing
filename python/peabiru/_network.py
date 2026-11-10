@@ -185,7 +185,8 @@ def build_network(
     any_tif = any(re.search(".tif", f) for f in files)
     # an elevation raster that R5 would read
     rasters = [f for f in files if re.search(r"\.tiff?$", f, re.IGNORECASE)]
-    pbf = [f for f in files if re.search(r"\.pbf$", f, re.IGNORECASE)]
+    # lower case only, as r5r and the engine match the extension
+    pbf = [f for f in files if re.search(r"\.pbf$", f)]
     if not any_pbf or not pbf:
         raise ValueError(f"An OSM .pbf file is required in '{data_path}' to build a network.")
     if len(pbf) > 1:
