@@ -8,6 +8,7 @@ use super::labels::cms_to_ms;
 use super::link::{find_split, Split};
 use super::StreetNetwork;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 /// Street mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -838,23 +839,23 @@ pub fn travel_time_matrix(
         .collect();
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
+    if out.is_empty() {
+        return Ok(out);
+    }
     let n_threads = worker_threads(params.n_threads, origins.len());
-
-    let next = AtomicUsize::new(0);
-    let chunks: Vec<Vec<(usize, Vec<Option<u32>>)>> = std::thread::scope(|scope| {
+    // Each worker takes the next origin's row of `out` and writes it in
+    // place: the rows are disjoint, so the matrix is never held twice.
+    let rows = Mutex::new(out.chunks_mut(nd).enumerate());
+    std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)
             .map(|_| {
                 scope.spawn(|| {
                     let mut search = Search::new(net);
                     let mut scratch = Vec::new();
-                    let mut rows = Vec::new();
                     loop {
-                        let i = next.fetch_add(1, Ordering::Relaxed);
-                        if i >= origins.len() {
-                            break;
-                        }
+                        let next = rows.lock().expect("row queue").next();
+                        let Some((i, row)) = next else { break };
                         let (lat, lon) = origins[i];
-                        let mut row = vec![None; nd];
                         if let Some(o) = find_split(net, lat, lon, mode, &mut scratch) {
                             route(net, &g, &o, limit, &mut search);
                             for (j, d) in dest_splits.iter().enumerate() {
@@ -867,20 +868,14 @@ pub fn travel_time_matrix(
                                 }
                             }
                         }
-                        rows.push((i, row));
                     }
-                    rows
                 })
             })
             .collect();
-        handles
-            .into_iter()
-            .map(|h| h.join().expect("routing thread panicked"))
-            .collect()
+        for h in handles {
+            h.join().expect("routing thread panicked");
+        }
     });
-    for (i, row) in chunks.into_iter().flatten() {
-        out[i * nd..(i + 1) * nd].copy_from_slice(&row);
-    }
     Ok(out)
 }
 
@@ -1140,6 +1135,46 @@ pub(crate) mod tests {
                 }
             }
             assert!(searched > 500, "{mode:?}: {searched}");
+        }
+    }
+
+    /// Rows written in place by the workers: every row lands at its
+    /// origin's offset whatever the thread count, and each cell is the
+    /// single-origin search's time.
+    #[test]
+    fn matrix_rows_are_in_origin_order_for_any_thread_count() {
+        let net = jittered_grid();
+        let pts: Vec<(f64, f64)> = (0..40)
+            .map(|k| {
+                (
+                    (k % 7) as f64 * 9.7e-4 + 1e-5,
+                    (k / 7) as f64 * 9.3e-4 + 2e-5,
+                )
+            })
+            .collect();
+        let dest = &pts[..13];
+        for mode in [Mode::Walk, Mode::Car] {
+            let one = RouteParams {
+                n_threads: 1,
+                ..RouteParams::default()
+            };
+            let m1 = travel_time_matrix(&net, &pts, dest, mode, &one).unwrap();
+            assert_eq!(m1.len(), pts.len() * dest.len());
+            assert!(m1.iter().filter(|c| c.is_some()).count() > 100);
+            for n_threads in [0, 3, 64] {
+                let p = RouteParams {
+                    n_threads,
+                    ..RouteParams::default()
+                };
+                assert_eq!(travel_time_matrix(&net, &pts, dest, mode, &p).unwrap(), m1);
+            }
+            for (i, &o) in pts.iter().enumerate() {
+                let row = travel_time_matrix(&net, &[o], dest, mode, &one).unwrap();
+                assert_eq!(row[..], m1[i * dest.len()..(i + 1) * dest.len()], "{i}");
+            }
+            assert!(travel_time_matrix(&net, &pts, &[], mode, &one)
+                .unwrap()
+                .is_empty());
         }
     }
 }
