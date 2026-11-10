@@ -279,6 +279,17 @@ fn rs_network_valid(ptr: Robj) -> bool {
     network(&ptr).is_ok()
 }
 
+/// Warnings for the GTFS feeds that r5r refuses to build a network from,
+/// one per feed.
+/// @noRd
+#[extendr]
+fn rs_network_r5r_warnings(ptr: Robj) -> Result<Vec<String>> {
+    let n = network(&ptr)?;
+    Ok(n.transit
+        .as_ref()
+        .map_or_else(Vec::new, |t| t.layer.r5r_warnings()))
+}
+
 /// Sizes of the network, for `print()`.
 /// @noRd
 #[extendr]
@@ -689,6 +700,7 @@ extendr_module! {
     fn rs_core_version;
     fn rs_build_network;
     fn rs_network_valid;
+    fn rs_network_r5r_warnings;
     fn rs_network_info;
     fn rs_transit_availability;
     fn rs_street_ttm;

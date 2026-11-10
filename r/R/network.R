@@ -23,6 +23,11 @@
 #' route for a few trips); r5r behaves in the same way, and on one machine
 #' the results are always the same.
 #'
+#' Some 'GTFS' feeds that r5r refuses to build a network from are built, with
+#' a warning naming the feed: its tables are in a subfolder of the `.zip`, it
+#' has no `agency.txt`, or a trip refers to a stop or route that does not
+#' exist (such trips are left out).
+#'
 #' @param data_path A string, the directory with the `.pbf` file and the
 #'   'GTFS' feeds.
 #' @param verbose A logical. Whether to show informative messages.
@@ -110,6 +115,9 @@ build_network <- function(data_path,
          has_tif = any_tif),
     class = "peabiru_network"
   )
+  for (w in rs_network_r5r_warnings(ptr)) {
+    warning(w, call. = FALSE)
+  }
   if (verbose) {
     message("Finished building network at '", data_path, "' in ",
             format(round(proc.time()[["elapsed"]] - t0, 2)), " s.")

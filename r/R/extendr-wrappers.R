@@ -17,6 +17,11 @@ rs_build_network <- function(data_path, n_threads) .Call(wrap__rs_build_network,
 #' @noRd
 rs_network_valid <- function(ptr) .Call(wrap__rs_network_valid, ptr)
 
+#' Warnings for the GTFS feeds that r5r refuses to build a network from,
+#' one per feed.
+#' @noRd
+rs_network_r5r_warnings <- function(ptr) .Call(wrap__rs_network_r5r_warnings, ptr)
+
 #' Sizes of the network, for `print()`.
 #' @noRd
 rs_network_info <- function(ptr) .Call(wrap__rs_network_info, ptr)
