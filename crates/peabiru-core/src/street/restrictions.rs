@@ -18,6 +18,13 @@ pub struct TurnRestriction {
     pub to_edge: u32,
 }
 
+/// Most partial paths the via-way search keeps. R5 enumerates every
+/// ordering of the via ways that chains from the from-way, which grows
+/// factorially when via ways share nodes; a relation that needs more paths
+/// than this is dropped, as R5 drops one it cannot resolve. Real
+/// restrictions (one to a few via ways in a chain) need a handful.
+const MAX_VIA_PATHS: usize = 1_000;
+
 /// Build the network's restrictions. `vertex_of` maps an OSM node id to the
 /// last vertex created for it (R5 `vertexIndexForOsmNode`).
 pub(crate) fn apply_turn_restrictions(
@@ -133,7 +140,8 @@ fn restriction_from_relation(
 
     // Via ways: find the unique node path from the from-way through the via
     // ways to the to-way. Ways that are not routable have no edges, so the
-    // restriction is dropped as R5 eventually does.
+    // restriction is dropped as R5 eventually does. The search gives up past
+    // MAX_VIA_PATHS partial paths.
     let from_way = ways.get(&from.id)?;
     let to_way = ways.get(&to.id)?;
     let via_ids: Vec<i64> = via.iter().map(|m| m.id).collect();
@@ -148,6 +156,9 @@ fn restriction_from_relation(
         for (pos, vn) in via_way_nodes.iter().enumerate() {
             for &via_node in *vn {
                 if node == via_node {
+                    if nodes.len() == MAX_VIA_PATHS {
+                        return None;
+                    }
                     nodes.push(vec![node]);
                     paths.push(vec![via_ids[pos]]);
                 }
@@ -165,6 +176,9 @@ fn restriction_from_relation(
                     }
                     for &via_node in via_way_nodes[pos] {
                         if via_node == node {
+                            if nodes.len() == MAX_VIA_PATHS {
+                                return None;
+                            }
                             let mut nn = pn.clone();
                             nn.push(node);
                             let mut nw = pw.clone();
@@ -370,6 +384,65 @@ mod tests {
         let mut ex = grid(vec![restriction("no_right_turn", 1003, node(C, C), 2003)]);
         ex.member_nodes_present.retain(|&i| i != node(C, C));
         assert!(network_from_extract(ex).restrictions.is_empty());
+    }
+
+    fn via_way_restriction(id: i64, from: i64, via: &[i64], to: i64) -> Relation {
+        let way = |id: i64, role: &str| Member {
+            kind: MemberKind::Way,
+            id,
+            role: role.into(),
+        };
+        let mut members = vec![way(from, "from")];
+        members.extend(via.iter().map(|&v| way(v, "via")));
+        members.push(way(to, "to"));
+        Relation {
+            id,
+            tags: Tags(vec![
+                ("type".into(), "restriction".into()),
+                ("restriction".into(), "no_u_turn".into()),
+            ]),
+            members,
+        }
+    }
+
+    #[test]
+    fn via_way_restrictions_are_built() {
+        let net = network_from_extract(grid(vec![
+            via_way_restriction(1, 1003, &[2103], 1103),
+            // both orders of the two via ways reach the to-way: ambiguous
+            via_way_restriction(2, 1003, &[2103, 2003], 1103),
+        ]));
+        assert_eq!(net.restrictions.len(), 1);
+        let r = &net.restrictions[0];
+        let ways: Vec<i64> = std::iter::once(r.from_edge)
+            .chain(r.via_edges.iter().copied())
+            .chain([r.to_edge])
+            .map(|e| net.pair_way[e as usize / 2])
+            .collect();
+        assert_eq!((r.relation, ways), (1, vec![1003, 2103, 1103]));
+    }
+
+    /// Via ways that all share the same two nodes chain in every order: the
+    /// search stops at its bound and the relation is dropped (R5 finds it
+    /// ambiguous, after enumerating 12! orderings).
+    #[test]
+    fn pathological_via_ways_are_dropped_quickly() {
+        let k = 12;
+        let via: Vec<i64> = (0..k).map(|i| 5000 + i).collect();
+        let mut ex = grid(vec![via_way_restriction(1, 1003, &via, 2000)]);
+        for &id in &via {
+            ex.ways.push(Way {
+                id,
+                tags: Tags(vec![("highway".into(), "residential".into())]),
+                nodes: vec![node(C, 0), node(C, 1)],
+            });
+            ex.member_ways_present.push(id);
+        }
+        ex.member_ways_present.sort_unstable();
+        let t = std::time::Instant::now();
+        let net = network_from_extract(ex);
+        assert!(net.restrictions.is_empty());
+        assert!(t.elapsed().as_secs() < 5, "{:?}", t.elapsed());
     }
 
     #[test]
