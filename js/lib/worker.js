@@ -82,7 +82,10 @@ if (typeof self !== "undefined" && typeof self.postMessage === "function") {
   // a Web Worker
   self.onmessage = (e) => handle(e.data, (msg, transfer) => self.postMessage(msg, transfer || []));
 } else {
-  // a Node worker_threads Worker
-  const { parentPort } = await import(/* webpackIgnore: true */ /* @vite-ignore */ "node:worker_threads");
-  parentPort.on("message", (data) => handle(data, (msg, transfer) => parentPort.postMessage(msg, transfer || [])));
+  // a Node worker_threads Worker (no top-level await, which bundlers that
+  // emit workers as classic scripts reject; the port keeps the messages
+  // that arrive before the listener)
+  import(/* webpackIgnore: true */ /* @vite-ignore */ "node:worker_threads").then(({ parentPort }) => {
+    parentPort.on("message", (data) => handle(data, (msg, transfer) => parentPort.postMessage(msg, transfer || [])));
+  });
 }

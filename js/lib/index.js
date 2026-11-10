@@ -602,16 +602,19 @@ function abortError(signal) {
   return typeof DOMException === "function" ? new DOMException("This operation was aborted", "AbortError") : Object.assign(new Error("This operation was aborted"), { name: "AbortError" });
 }
 
+const WORKER_FILE = "./worker.js";
+
 /** Start a worker running lib/worker.js, with one interface in Node and browsers. */
 async function spawnWorker() {
   let w;
   if (isNode) {
-    const { Worker } = await import(/* webpackIgnore: true */ /* @vite-ignore */ "node:worker_threads");
+    const { Worker: NodeWorker } = await import(/* webpackIgnore: true */ /* @vite-ignore */ "node:worker_threads");
     // a worker inherits the process's flags, and --input-type (for code
     // given with -e or on stdin) would stop it from loading worker.js
     const inputType = (a) => a.startsWith("--input-type");
     const options = process.execArgv.some(inputType) ? { execArgv: process.execArgv.filter((a) => !inputType(a)) } : {};
-    w = new Worker(new URL("./worker.js", import.meta.url), options);
+    // not in the form bundlers look for: this branch only runs unbundled, in Node
+    w = new NodeWorker(new URL(WORKER_FILE, import.meta.url), options);
     return {
       post: (msg, transfer) => w.postMessage(msg, transfer),
       listen(onMessage, onError) {
