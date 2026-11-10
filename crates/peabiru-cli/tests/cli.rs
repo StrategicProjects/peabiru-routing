@@ -189,6 +189,8 @@ fn transit_commands_need_a_real_date() {
     let mut args = vec!["expanded", SPO, &p, &o];
     args.extend_from_slice(&bad);
     fails(&run(&args), 2, "date must be a calendar date");
+    args.push("--arrival");
+    fails(&run(&args), 2, "date must be a calendar date");
     let acc = [
         "accessibility",
         SPO,

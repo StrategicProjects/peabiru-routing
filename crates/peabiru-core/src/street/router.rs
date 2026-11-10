@@ -715,7 +715,8 @@ pub fn street_seconds(
 /// (`i32::MAX` where unreached; states kept only below `limit` seconds) and
 /// the direct time in seconds to each linked destination (`i32::MAX` where
 /// unreachable), as R5's `TravelTimeComputer` uses for access and for the
-/// non-transit option.
+/// non-transit option. An error when `walk_speed_kmh` is not a valid speed
+/// (see [`RouteParams::validate`]).
 pub fn street_vertex_times(
     net: &StreetNetwork,
     origin: &Split,
@@ -723,7 +724,12 @@ pub fn street_vertex_times(
     mode: Mode,
     walk_speed_kmh: f64,
     limit: i32,
-) -> (Vec<i32>, Vec<i32>) {
+) -> Result<(Vec<i32>, Vec<i32>), ParamError> {
+    RouteParams {
+        walk_speed_kmh,
+        ..RouteParams::default()
+    }
+    .validate()?;
     let g = ModeGraph::with_walk_speed(net, mode, walk_speed_kmh);
     let mut search = Search::new(net);
     let mut direct = Vec::new();
@@ -736,7 +742,7 @@ pub fn street_vertex_times(
         &mut search,
         &mut direct,
     );
-    (search.vertex_time, direct)
+    Ok((search.vertex_time, direct))
 }
 
 impl ModeGraph {

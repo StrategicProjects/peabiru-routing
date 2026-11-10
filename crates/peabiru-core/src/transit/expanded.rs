@@ -16,7 +16,9 @@
 //! wrappers finally blank out rows whose `total_time` exceeds
 //! `max_trip_duration`.
 
-use super::matrix::{weekday, TransitData, TransitParams};
+use super::matrix::{
+    civil_from_days, days_from_civil, validate_date, weekday, TransitData, TransitParams,
+};
 use super::raptor::{self, Filtered, Leg, PathArena, RaptorRequest, NO_PATH, UNREACHED};
 use super::walk;
 use super::TransitLayer;
@@ -353,7 +355,7 @@ impl<'a> Context<'a> {
         );
         let (times, paths) = (&sc.times, &sc.arena);
         let n_stops = self.layer.stop_ids.len();
-        let per_minute = req.iterations_per_minute(self.layer.has_frequencies);
+        let per_minute = req.iterations_per_minute(self.layer.has_frequencies)?;
         let n_iter = times.len() / n_stops.max(1);
         let to_time = p.departure_time + p.time_window * 60;
         let departure_of = |i: usize| to_time - 60 * (1 + (i / per_minute) as i32);
@@ -458,7 +460,8 @@ fn propagate(
             if ts >= max_t || ts >= *t {
                 continue;
             }
-            let c = ts + e;
+            // saturating: past i32::MAX is past max_t
+            let c = ts.saturating_add(e);
             if c < max_t && c < *t {
                 *t = c;
                 if let Some(k) = paths.index(i, stop as usize) {
@@ -648,33 +651,31 @@ pub fn expanded_travel_time_matrix(
 /// The service date and departure of an arrival search: r5r subtracts
 /// `max_trip_duration` from `arrival_datetime` and searches the window
 /// `[departure, arrival)` minute by minute (`arrival_travel_time_matrix.R`).
-/// Returns `(yyyymmdd, seconds after midnight)`; the day before when the
+/// Returns `(yyyymmdd, seconds after midnight)`; an earlier day when the
 /// window starts before midnight. Daylight-saving shifts are not modelled.
-pub fn arrival_departure(date: u32, arrival_time: i32, max_trip_duration: i32) -> (u32, i32) {
-    let mut date = date;
-    let mut t = arrival_time - max_trip_duration * 60;
-    while t < 0 {
-        date = previous_day(date);
-        t += 86_400;
+/// An error when `date` is not a calendar date (see
+/// [`validate_date`]), `max_trip_duration` is under 1 minute or the
+/// departure falls before year 1.
+pub fn arrival_departure(
+    date: u32,
+    arrival_time: i32,
+    max_trip_duration: i32,
+) -> Result<(u32, i32), String> {
+    validate_date(date)?;
+    if max_trip_duration < 1 {
+        return Err(format!(
+            "max_trip_duration must be at least 1, got {max_trip_duration}"
+        ));
     }
-    (date, t)
-}
-
-/// The day before `yyyymmdd`.
-fn previous_day(date: u32) -> u32 {
-    let (y, m, d) = (date / 10000, (date / 100) % 100, date % 100);
-    if d > 1 {
-        return date - 1;
+    let t = i64::from(arrival_time) - i64::from(max_trip_duration) * 60;
+    if t >= 0 {
+        return Ok((date, t as i32));
     }
-    let (y, m) = if m == 1 { (y - 1, 12) } else { (y, m - 1) };
-    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
-    let days = match m {
-        2 if leap => 29,
-        2 => 28,
-        4 | 6 | 9 | 11 => 30,
-        _ => 31,
-    };
-    y * 10000 + m * 100 + days
+    let days = t.div_euclid(86_400);
+    let date = civil_from_days(days_from_civil(date) + days).ok_or_else(|| {
+        format!("max_trip_duration {max_trip_duration} min reaches before year 1")
+    })?;
+    Ok((date, t.rem_euclid(86_400) as i32))
 }
 
 /// r5r's `arrival_travel_time_matrix()`. `p` must already hold the
@@ -700,8 +701,11 @@ pub fn arrival_travel_time_matrix(
     let dpm = ctx.draws_per_minute;
     let m = p.max_trip_duration;
     let arrival = p.departure_time + m * 60;
-    // Arrival of a record leaving at `dep`: `dep + Math.round(totalTime * 60)`.
-    let arrives = |dep: i32, pb: &PathBreakdown| dep + java_round(pb.total * 60.0) as i32;
+    // Arrival of a record leaving at `dep`: `dep + Math.round(totalTime * 60)`
+    // (in i64: a long walk-only total plus a late departure can pass i32).
+    let arrival = i64::from(arrival);
+    let arrives =
+        |dep: i32, pb: &PathBreakdown| i64::from(dep) + java_round(pb.total * 60.0) as i64;
     per_origin(origins, p.n_threads, |lat, lon, scratch| {
         let mut rows = Vec::new();
         ctx.origin_paths(lat, lon, scratch, |j, dp| {
@@ -827,13 +831,28 @@ mod tests {
 
     #[test]
     fn arrival_departure_crosses_midnight() {
+        let ad = |d, t, m| arrival_departure(d, t, m).unwrap();
+        assert_eq!(ad(20190513, 16 * 3600, 120), (20190513, 14 * 3600));
+        assert_eq!(ad(20190513, 1800, 120), (20190512, 81000));
+        assert_eq!(ad(20190301, 0, 60), (20190228, 82800));
+        assert_eq!(ad(20200301, 0, 60), (20200229, 82800));
+        assert_eq!(ad(20200101, 0, 60), (20191231, 82800));
+        // exactly one day back, and several
+        assert_eq!(ad(20190513, 0, 1440), (20190512, 0));
+        assert_eq!(ad(20190513, 0, 3 * 1440 + 1), (20190509, 86340));
+    }
+
+    #[test]
+    fn arrival_departure_rejects_what_it_cannot_compute() {
+        assert!(arrival_departure(20190001, 0, 120).is_err());
+        assert!(arrival_departure(0, 0, 120).is_err());
+        assert!(arrival_departure(20190230, 0, 120).is_err());
+        assert!(arrival_departure(20190513, 0, 0).is_err());
+        assert!(arrival_departure(10101, 0, 1).is_err());
+        // i32::MAX minutes is about 4083 years: still a date
         assert_eq!(
-            arrival_departure(20190513, 16 * 3600, 120),
-            (20190513, 14 * 3600)
+            arrival_departure(99991231, 0, i32::MAX).map(|(d, _)| d / 10000),
+            Ok(5916)
         );
-        assert_eq!(arrival_departure(20190513, 1800, 120), (20190512, 81000));
-        assert_eq!(arrival_departure(20190301, 0, 60), (20190228, 82800));
-        assert_eq!(arrival_departure(20200301, 0, 60), (20200229, 82800));
-        assert_eq!(arrival_departure(20200101, 0, 60), (20191231, 82800));
     }
 }

@@ -146,6 +146,24 @@ pub(crate) fn days_from_civil(date: u32) -> i64 {
     era * 146_097 + doe - 719_468
 }
 
+/// The `yyyymmdd` of a day count since 1970-01-01 (`civil_from_days`), or
+/// `None` outside years 1 to 9999.
+pub(crate) fn civil_from_days(days: i64) -> Option<u32> {
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    if !(1..=9999).contains(&y) {
+        return None;
+    }
+    u32::try_from(y * 10000 + m * 100 + d).ok()
+}
+
 /// Day of week of `yyyymmdd`, 0 = Monday.
 pub fn weekday(date: u32) -> usize {
     // 1970-01-01 is a Thursday
@@ -532,6 +550,17 @@ mod tests {
             validate_date(20190230).unwrap_err(),
             "date must be a calendar date written yyyymmdd, got 20190230"
         );
+    }
+
+    #[test]
+    fn day_counts_round_trip() {
+        assert_eq!(days_from_civil(19700101), 0);
+        assert_eq!(civil_from_days(-1), Some(19691231));
+        for date in [10101, 20000229, 20190513, 20191231, 99991231] {
+            assert_eq!(civil_from_days(days_from_civil(date)), Some(date));
+        }
+        assert_eq!(civil_from_days(days_from_civil(10101) - 1), None);
+        assert_eq!(civil_from_days(days_from_civil(99991231) + 1), None);
     }
 
     #[test]

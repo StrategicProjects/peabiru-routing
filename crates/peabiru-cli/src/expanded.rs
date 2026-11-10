@@ -72,7 +72,8 @@ pub fn run(args: &[String]) {
     }
     if arrival {
         // `arrival_travel_time_matrix.R`: departure = arrival - M, window M.
-        let (date, t) = arrival_departure(p.date, p.departure_time, p.max_trip_duration);
+        let (date, t) = arrival_departure(p.date, p.departure_time, p.max_trip_duration)
+            .unwrap_or_else(|e| usage_error(cmd, e));
         p.date = date;
         p.departure_time = t;
         p.time_window = p.max_trip_duration;

@@ -479,14 +479,114 @@ pub struct RaptorRequest {
 }
 
 impl RaptorRequest {
-    /// Iterations per departure minute (R5 `getMonteCarloDrawsPerMinute`).
-    pub fn iterations_per_minute(&self, has_frequencies: bool) -> usize {
-        if !has_frequencies || self.monte_carlo_draws == 0 {
+    /// Check that the search can run: a window of at least one minute,
+    /// positive durations and speeds, and clock times (`from_time` plus the
+    /// window plus `max_duration`) that fit the `i32` seconds every state
+    /// holds. [`route`] and [`route_with_paths`] run this first.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.time_window < 1 {
+            return Err(format!(
+                "time_window must be at least 1 minute, got {}",
+                self.time_window
+            ));
+        }
+        if self.from_time < 0 {
+            return Err(format!(
+                "from_time must not be negative, got {}",
+                self.from_time
+            ));
+        }
+        if self.max_duration < 1 {
+            return Err(format!(
+                "max_duration must be at least 1 second, got {}",
+                self.max_duration
+            ));
+        }
+        if self.walk_mms < 1 {
+            return Err(format!(
+                "walk_mms must be at least 1, got {}",
+                self.walk_mms
+            ));
+        }
+        if self.max_walk_min < 0 || self.max_walk_min.checked_mul(60).is_none() {
+            return Err(format!(
+                "max_walk_min must be from 0 to {} minutes, got {}",
+                i32::MAX / 60,
+                self.max_walk_min
+            ));
+        }
+        if self.monte_carlo_draws < 0 {
+            return Err(format!(
+                "monte_carlo_draws must not be negative, got {}",
+                self.monte_carlo_draws
+            ));
+        }
+        if self.max_rides > i32::MAX as usize {
+            return Err(format!(
+                "max_rides must be at most {}, got {}",
+                i32::MAX,
+                self.max_rides
+            ));
+        }
+        let last_clock = i64::from(self.from_time)
+            + i64::from(self.time_window) * i64::from(DEPARTURE_STEP_SEC)
+            + i64::from(self.max_duration);
+        if last_clock > i64::from(i32::MAX) {
+            return Err(format!(
+                "from_time ({} s) + time_window ({} min) + max_duration ({} s) must stay \
+                 within {} seconds",
+                self.from_time,
+                self.time_window,
+                self.max_duration,
+                i32::MAX
+            ));
+        }
+        Ok(())
+    }
+
+    /// Iterations per departure minute (R5 `getMonteCarloDrawsPerMinute`);
+    /// an error for a window under one minute.
+    pub fn iterations_per_minute(&self, has_frequencies: bool) -> Result<usize, String> {
+        if self.time_window < 1 {
+            return Err(format!(
+                "time_window must be at least 1 minute, got {}",
+                self.time_window
+            ));
+        }
+        Ok(self.per_minute(has_frequencies))
+    }
+
+    /// [`Self::iterations_per_minute`] of a validated request.
+    fn per_minute(&self, has_frequencies: bool) -> usize {
+        if !has_frequencies || self.monte_carlo_draws <= 0 {
             1
         } else {
             (f64::from(self.monte_carlo_draws) / f64::from(self.time_window)).ceil() as usize
         }
     }
+
+    /// Iterations of a validated request: minutes x iterations per minute.
+    fn n_iterations(&self, has_frequencies: bool) -> usize {
+        self.time_window.max(0) as usize * self.per_minute(has_frequencies)
+    }
+}
+
+/// The checks of the public entry points: the request, and access stops
+/// that exist with non-negative times.
+fn check_input(
+    layer: &TransitLayer,
+    access: &[(u32, i32)],
+    req: &RaptorRequest,
+) -> Result<(), String> {
+    req.validate()?;
+    let n = layer.stop_ids.len();
+    if let Some(&(s, t)) = access.iter().find(|&&(s, t)| s as usize >= n || t < 0) {
+        return Err(format!(
+            "access entry (stop {s}, {t} s) is not a stop of the layer ({n} stops) with a \
+             non-negative time"
+        ));
+    }
+    Ok(())
 }
 
 struct Worker<'a> {
@@ -745,7 +845,8 @@ impl Worker<'_> {
         for stop in from {
             for &(target, mm) in &self.transfers[stop] {
                 if mm < max_mm {
-                    let t = state.best_nt[stop] + mm / self.req.walk_mms;
+                    // saturating: past i32::MAX is past any max_duration
+                    let t = state.best_nt[stop].saturating_add(mm / self.req.walk_mms);
                     state.set_time_at_stop(target as usize, t, -1, stop as i32, -1, true);
                 }
             }
@@ -998,14 +1099,17 @@ impl PathArena {
 
 /// Run the search for one origin. `access` holds `(stop, seconds)`.
 /// Returns, per iteration, the vehicle-arrival duration at every stop
-/// (`UNREACHED` where none), in R5 iteration order (latest minute first).
+/// (`UNREACHED` where none), in R5 iteration order (latest minute first);
+/// an error when the request or the access entries are invalid (see
+/// [`RaptorRequest::validate`]).
 pub fn route(
     layer: &TransitLayer,
     transfers: &[Vec<(u32, i32)>],
     filtered: &Filtered,
     access: &[(u32, i32)],
     req: &RaptorRequest,
-) -> Vec<Vec<i32>> {
+) -> Result<Vec<Vec<i32>>, String> {
+    check_input(layer, access, req)?;
     let mut out = Vec::new();
     let mut arena = PathArena::default();
     route_impl::<false>(
@@ -1017,7 +1121,7 @@ pub fn route(
         &mut arena,
         |_, arr| out.push(arr.to_vec()),
     );
-    out
+    Ok(out)
 }
 
 /// Vehicle-arrival durations of every iteration at every stop, stop-major:
@@ -1058,7 +1162,7 @@ pub(crate) fn route_stop_major(
     out: &mut StopTimes,
 ) {
     let n_stops = layer.stop_ids.len();
-    let n_iter = req.time_window.max(0) as usize * req.iterations_per_minute(layer.has_frequencies);
+    let n_iter = req.n_iterations(layer.has_frequencies);
     out.n_iter = n_iter;
     out.data.clear();
     out.data.resize(n_iter * n_stops, UNREACHED);
@@ -1090,7 +1194,7 @@ pub(crate) fn route_stop_major(
 /// flagged in `retain` (R5 with `retainPaths`). r5r reconstructs paths to
 /// all stops; a path depends only on its own stop, so restricting the set
 /// to the stops that matter changes nothing. The times are the same as
-/// [`route`]'s.
+/// [`route`]'s, and so are the errors.
 pub fn route_with_paths(
     layer: &TransitLayer,
     transfers: &[Vec<(u32, i32)>],
@@ -1098,7 +1202,8 @@ pub fn route_with_paths(
     access: &[(u32, i32)],
     req: &RaptorRequest,
     retain: &[bool],
-) -> (Vec<Vec<i32>>, PathResults) {
+) -> Result<(Vec<Vec<i32>>, PathResults), String> {
+    check_input(layer, access, req)?;
     let mut times = Vec::new();
     let mut arena = PathArena::default();
     arena.reset(layer.stop_ids.len(), retain);
@@ -1111,7 +1216,7 @@ pub fn route_with_paths(
         &mut arena,
         |_, arr| times.push(arr.to_vec()),
     );
-    (times, arena.to_results())
+    Ok((times, arena.to_results()))
 }
 
 /// [`route_with_paths`] into reused buffers: `times` gets the durations
@@ -1153,7 +1258,7 @@ fn route_impl<const P: bool>(
         req,
         n_stops,
     };
-    let per_minute = req.iterations_per_minute(layer.has_frequencies);
+    let per_minute = req.per_minute(layer.has_frequencies);
     let mt = match req.seed {
         Some(seed) => {
             let h = objects_hash_int_double_double(seed, req.origin.0, req.origin.1);
@@ -1190,7 +1295,7 @@ fn route_impl<const P: bool>(
             }
         }
         for &(stop, t) in access {
-            sched[0].set_time_at_stop(stop as usize, t + dep, -1, -1, -1, true);
+            sched[0].set_time_at_stop(stop as usize, t.saturating_add(dep), -1, -1, -1, true);
         }
         if layer.has_schedules {
             for r in 1..=req.max_rides {
@@ -1330,7 +1435,7 @@ mod tests {
             origin: (0.0, 0.0),
         };
         // At stop 0 at 0 s: earliest boarding 60 s, the vehicle leaves at 59.
-        let times = route(&layer, &[vec![], vec![]], &filtered, &[(0, 0)], &req);
+        let times = route(&layer, &[vec![], vec![]], &filtered, &[(0, 0)], &req).unwrap();
         assert_eq!(times[0][1], 59);
     }
 
@@ -1351,9 +1456,9 @@ mod tests {
             origin: (0.0, 0.0),
         };
         let access = [(0, 10)];
-        let plain = route(&layer, &transfers, &filtered, &access, &req);
+        let plain = route(&layer, &transfers, &filtered, &access, &req).unwrap();
         let (times, paths) =
-            route_with_paths(&layer, &transfers, &filtered, &access, &req, &[true; 4]);
+            route_with_paths(&layer, &transfers, &filtered, &access, &req, &[true; 4]).unwrap();
         assert_eq!(times, plain);
         // Iteration 0 departs at 60 s, iteration 1 at 0 s.
         assert_eq!(times[0][3], 550 - 60);
@@ -1393,7 +1498,8 @@ mod tests {
             origin: (0.0, 0.0),
         };
         let retain = [false, false, false, true];
-        let (_, paths) = route_with_paths(&layer, &transfers, &filtered, &[(0, 10)], &req, &retain);
+        let (_, paths) =
+            route_with_paths(&layer, &transfers, &filtered, &[(0, 10)], &req, &retain).unwrap();
         assert!(paths.get(0, 1).is_none()); // not retained
         assert!(paths.get(0, 3).is_none()); // needs two rides
     }
@@ -1442,7 +1548,7 @@ mod tests {
         let transfers = vec![vec![]; 3];
         let access = [(0, 100), (1, 10)];
         let (times, paths) =
-            route_with_paths(&layer, &transfers, &filtered, &access, &req, &[true; 3]);
+            route_with_paths(&layer, &transfers, &filtered, &access, &req, &[true; 3]).unwrap();
         assert_eq!(times[0][2], 400);
         let p = paths.get(0, 2).unwrap();
         assert_eq!(
