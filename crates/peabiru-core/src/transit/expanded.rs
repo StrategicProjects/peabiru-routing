@@ -706,28 +706,18 @@ fn per_origin<T: Send>(
 ) -> Result<Vec<T>, RouteError> {
     let n_threads = worker_threads(n_threads, origins.len());
     let next = AtomicUsize::new(0);
-    let done: Vec<Vec<(usize, Result<T, String>)>> = std::thread::scope(|scope| {
-        let handles: Vec<_> = (0..n_threads)
-            .map(|_| {
-                scope.spawn(|| {
-                    let mut done = Vec::new();
-                    let mut scratch = OriginScratch::default();
-                    while !cancel.is_cancelled() {
-                        let i = next.fetch_add(1, AtomicOrdering::Relaxed);
-                        if i >= origins.len() {
-                            break;
-                        }
-                        let (lat, lon) = origins[i];
-                        done.push((i, f(lat, lon, &mut scratch)));
-                    }
-                    done
-                })
-            })
-            .collect();
-        handles
-            .into_iter()
-            .map(|h| h.join().expect("transit routing thread panicked"))
-            .collect()
+    let done: Vec<Vec<(usize, Result<T, String>)>> = crate::sys::scoped(0..n_threads, |_| {
+        let mut done = Vec::new();
+        let mut scratch = OriginScratch::default();
+        while !cancel.is_cancelled() {
+            let i = next.fetch_add(1, AtomicOrdering::Relaxed);
+            if i >= origins.len() {
+                break;
+            }
+            let (lat, lon) = origins[i];
+            done.push((i, f(lat, lon, &mut scratch)));
+        }
+        done
     });
     cancel.check()?;
     let mut out: Vec<Option<T>> = (0..origins.len()).map(|_| None).collect();

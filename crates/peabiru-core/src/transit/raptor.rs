@@ -1292,12 +1292,7 @@ fn route_impl<const P: bool>(
             let h = objects_hash_int_double_double(seed, req.origin.0, req.origin.1);
             MersenneTwister::from_long(i64::from(h))
         }
-        None => {
-            let nanos = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |d| d.as_nanos() as i64);
-            MersenneTwister::from_long(nanos)
-        }
+        None => MersenneTwister::from_long(crate::sys::clock_seed()),
     };
     let mut offsets = Offsets::new(layer, mt);
     let mut sched: Vec<State<P>> = Vec::new();

@@ -59,7 +59,9 @@ pub struct TransitParams {
     /// Seed of the Monte Carlo draws, r5r's `seed`: with the same seed the
     /// results are those of r5r with that seed. `None` (the default) seeds
     /// from the clock, as R5 does, so frequency-based results vary from
-    /// call to call.
+    /// call to call (on WebAssembly, which has no clock, from a counter:
+    /// they vary from call to call but repeat from one run of the program
+    /// to the next).
     pub seed: Option<i32>,
     /// Worker threads; 0 means all cores, and more than the cores
     /// available run as many as there are cores.
@@ -532,27 +534,17 @@ pub(crate) fn par_origins<T: Send>(
 ) -> Result<Vec<T>, RouteError> {
     let n_threads = worker_threads(n_threads, n_origins);
     let next = AtomicUsize::new(0);
-    let chunks: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
-        let handles: Vec<_> = (0..n_threads)
-            .map(|_| {
-                scope.spawn(|| {
-                    let mut done = Vec::new();
-                    let mut scratch = Scratch::default();
-                    while !cancel.is_cancelled() {
-                        let i = next.fetch_add(1, Ordering::Relaxed);
-                        if i >= n_origins {
-                            break;
-                        }
-                        done.push((i, f(i, &mut scratch)));
-                    }
-                    done
-                })
-            })
-            .collect();
-        handles
-            .into_iter()
-            .map(|h| h.join().expect("transit routing thread panicked"))
-            .collect()
+    let chunks: Vec<Vec<(usize, T)>> = crate::sys::scoped(0..n_threads, |_| {
+        let mut done = Vec::new();
+        let mut scratch = Scratch::default();
+        while !cancel.is_cancelled() {
+            let i = next.fetch_add(1, Ordering::Relaxed);
+            if i >= n_origins {
+                break;
+            }
+            done.push((i, f(i, &mut scratch)));
+        }
+        done
     });
     cancel.check()?;
     let mut slots: Vec<Option<T>> = (0..n_origins).map(|_| None).collect();
