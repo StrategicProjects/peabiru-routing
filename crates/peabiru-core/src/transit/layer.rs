@@ -95,6 +95,9 @@ pub struct TransitLayer {
     pub has_schedules: bool,
     /// Trips of all feeds left out of the timetable, by reason.
     pub dropped_trips: DroppedTrips,
+    /// What was found in each feed, in loading order (see
+    /// [`TransitLayer::r5r_warnings`]).
+    pub feed_reports: Vec<FeedReport>,
 }
 
 /// Trips left out of the timetable while loading, by reason. R5 leaves out
@@ -128,6 +131,114 @@ impl DroppedTrips {
             + self.negative_time
             + self.invalid_frequencies
     }
+
+    fn add(&mut self, o: &DroppedTrips) {
+        self.no_stop_times += o.no_stop_times;
+        self.unknown_stop += o.unknown_stop;
+        self.unknown_route += o.unknown_route;
+        self.unknown_service += o.unknown_service;
+        self.missing_end_time += o.missing_end_time;
+        self.negative_time += o.negative_time;
+        self.invalid_frequencies += o.invalid_frequencies;
+    }
+}
+
+/// What loading one GTFS feed found. Some of it makes r5r 2.5.0 refuse to
+/// build a network from the feed (gtfs-lib reports a high-priority error),
+/// while peabiru builds it: see [`FeedReport::r5r_refusals`].
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct FeedReport {
+    /// The feed's `.zip` file.
+    pub path: std::path::PathBuf,
+    /// Entries of the tables read from a subfolder of the `.zip` rather than
+    /// its root (r5r: `TableInSubdirectoryError`).
+    pub tables_in_subfolder: Vec<String>,
+    /// The feed has no `agency.txt` (r5r: `NoAgencyInFeedError`).
+    pub no_agency: bool,
+    /// Trips of this feed left out of the timetable, by reason. Only
+    /// `unknown_stop` and `unknown_route` make r5r refuse the feed
+    /// (`ReferentialIntegrityError`).
+    pub dropped_trips: DroppedTrips,
+}
+
+impl FeedReport {
+    /// The file name of the feed, as the warnings name it.
+    pub fn file_name(&self) -> String {
+        self.path.file_name().map_or_else(
+            || self.path.display().to_string(),
+            |n| n.to_string_lossy().into_owned(),
+        )
+    }
+
+    /// Why r5r would refuse this feed, one phrase per case (empty when it
+    /// would not): tables in a subfolder, no `agency.txt`, trips that refer
+    /// to a stop or route that does not exist.
+    pub fn r5r_refusals(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if !self.tables_in_subfolder.is_empty() {
+            let mut folders: Vec<&str> = Vec::new();
+            for t in &self.tables_in_subfolder {
+                let f = t.rsplit_once('/').map_or("", |(f, _)| f);
+                if !folders.contains(&f) {
+                    folders.push(f);
+                }
+            }
+            let folders: Vec<String> = folders.iter().map(|f| format!("'{f}/'")).collect();
+            out.push(format!(
+                "its tables are in a subfolder of the .zip ({})",
+                folders.join(", ")
+            ));
+        }
+        if self.no_agency {
+            out.push("it has no agency.txt".to_string());
+        }
+        let (stop, route) = (
+            self.dropped_trips.unknown_stop,
+            self.dropped_trips.unknown_route,
+        );
+        let trips = |n: usize| format!("{n} trip{} left out", if n == 1 { "" } else { "s" });
+        let refer = |n: usize| if n == 1 { "it refers" } else { "they refer" };
+        match (stop, route) {
+            (0, 0) => {}
+            (n, 0) => out.push(format!(
+                "{} because {} to a stop that does not exist",
+                trips(n),
+                refer(n)
+            )),
+            (0, n) => out.push(format!(
+                "{} because {} to a route that does not exist",
+                trips(n),
+                refer(n)
+            )),
+            (s, r) => out.push(format!(
+                "{} ({s} refer{} to a stop that does not exist, {r} to a route that does not exist)",
+                trips(s + r),
+                if s == 1 { "s" } else { "" }
+            )),
+        }
+        out
+    }
+
+    /// One warning for this feed naming everything r5r would refuse it
+    /// for, or `None` when r5r would build it.
+    pub fn r5r_warning(&self) -> Option<String> {
+        let found = self.r5r_refusals();
+        (!found.is_empty()).then(|| warning(&self.file_name(), &found.join("; ")))
+    }
+
+    /// One warning per case r5r would refuse this feed for.
+    pub fn r5r_warnings_per_case(&self) -> Vec<String> {
+        let file = self.file_name();
+        self.r5r_refusals()
+            .iter()
+            .map(|c| warning(&file, c))
+            .collect()
+    }
+}
+
+fn warning(file: &str, found: &str) -> String {
+    format!("GTFS feed '{file}': {found}. r5r refuses to build a network from this feed.")
 }
 
 /// WGS84 ellipsoidal distance in metres (Vincenty's inverse formula; R5 uses
@@ -269,10 +380,17 @@ impl TransitLayer {
     ) -> Result<TransitLayer, GtfsError> {
         let mut layer = TransitLayer::default();
         for p in paths {
-            let feed = Feed::read_zip_with_limits(p, limits)?;
+            let (feed, archive) = Feed::read_zip_checked(p, limits)?;
             let id = feed_id(&feed, p);
-            layer.add_feed(&feed, &id);
+            let dropped_trips = layer.add_feed(&feed, &id);
+            layer.dropped_trips.add(&dropped_trips);
             layer.feed_ids.push(id);
+            layer.feed_reports.push(FeedReport {
+                path: p.clone(),
+                tables_in_subfolder: archive.tables_in_subfolder,
+                no_agency: archive.no_agency,
+                dropped_trips,
+            });
         }
         layer.patterns_for_stop = vec![Vec::new(); layer.stop_ids.len()];
         for (pi, p) in layer.patterns.iter().enumerate() {
@@ -286,7 +404,18 @@ impl TransitLayer {
         Ok(layer)
     }
 
-    fn add_feed(&mut self, feed: &Feed, feed_id: &str) {
+    /// Warnings for the feeds that r5r refuses to build a network from and
+    /// peabiru builds, one per feed, in loading order (empty when there are
+    /// none). The core never prints them; the bindings and the CLI do.
+    pub fn r5r_warnings(&self) -> Vec<String> {
+        self.feed_reports
+            .iter()
+            .filter_map(FeedReport::r5r_warning)
+            .collect()
+    }
+
+    /// Add one feed; returns the trips it left out.
+    fn add_feed(&mut self, feed: &Feed, feed_id: &str) -> DroppedTrips {
         // Stops: every row, in stop_id order (gtfs-lib keeps tables in maps).
         let stops: BTreeMap<&str, &crate::gtfs::feed::Stop> =
             feed.stops.iter().map(|s| (s.stop_id.as_str(), s)).collect();
@@ -357,7 +486,7 @@ impl TransitLayer {
         // gtfs-lib pattern key -> R5 pattern index
         let mut pattern_of: HashMap<PatternKey, usize> = HashMap::new();
         let first_pattern = self.patterns.len();
-        let dropped = &mut self.dropped_trips;
+        let mut dropped = DroppedTrips::default();
         for (trip_id, trip) in trips {
             let rows: Vec<&StopTime> = times
                 .get(trip_id)
@@ -456,6 +585,7 @@ impl TransitLayer {
         for p in &mut self.patterns[first_pattern..] {
             p.trips.sort_by_key(|t| t.departures[0]); // stable
         }
+        dropped
     }
 
     /// Link every stop to the street network (R5 `associateStops`): a stop
@@ -615,6 +745,202 @@ BADFREQ,08:00:00,08:00:00,A,1\nBADFREQ,08:10:00,08:10:00,B,2\n",
         assert_eq!(one.dropped_trips.total(), 7);
         assert_eq!(two.dropped_trips.total(), 14);
         assert_eq!(two.dropped_trips.unknown_stop, 2);
+        // and per feed
+        assert_eq!(one.feed_reports.len(), 1);
+        assert_eq!(one.feed_reports[0].dropped_trips, each);
+        assert_eq!(two.feed_reports[1].dropped_trips, each);
+        assert_eq!(two.feed_reports[1].file_name(), "b.zip");
+    }
+
+    /// The files of a feed: name and contents.
+    type Files = Vec<(String, Vec<u8>)>;
+
+    /// A clean feed for the warning tests: agency.txt, two stops, one trip.
+    fn clean_feed() -> Files {
+        [
+            ("agency.txt", &b"agency_id,agency_name,agency_url,agency_timezone\nA,A,http://a,UTC\n"[..]),
+            ("stops.txt", b"stop_id,stop_lat,stop_lon\nA,-30.0,-51.2\nB,-30.01,-51.21\n"),
+            ("routes.txt", b"route_id,route_type\nR,3\n"),
+            ("trips.txt", b"route_id,service_id,trip_id\nR,S,T1\n"),
+            (
+                "stop_times.txt",
+                b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,B,2\n",
+            ),
+            ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n"),
+        ]
+        .iter()
+        .map(|(n, b)| (n.to_string(), b.to_vec()))
+        .collect()
+    }
+
+    fn set(files: &mut Files, name: &str, body: &[u8]) {
+        files.retain(|f| f.0 != name);
+        files.push((name.to_string(), body.to_vec()));
+    }
+
+    /// Load each feed alone (written to a temporary file of that name).
+    fn reports(feeds: &[(&str, Files)]) -> Vec<(TransitLayer, FeedReport)> {
+        use crate::gtfs::zip::tests::make_zip;
+        // tests run in parallel: one directory per call, named after its first feed
+        let dir = std::env::temp_dir().join(format!(
+            "peabiru-r5r-warn-{}-{}",
+            std::process::id(),
+            feeds[0].0
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let out = feeds
+            .iter()
+            .map(|(name, files)| {
+                let files: Vec<(&str, &[u8])> = files
+                    .iter()
+                    .map(|(n, b)| (n.as_str(), b.as_slice()))
+                    .collect();
+                let path = dir.join(name);
+                std::fs::write(&path, make_zip(&files, true)).unwrap();
+                let layer = TransitLayer::load(&[path]).unwrap();
+                let report = layer.feed_reports[0].clone();
+                (layer, report)
+            })
+            .collect();
+        std::fs::remove_dir_all(&dir).unwrap();
+        out
+    }
+
+    /// Feeds that r5r refuses and peabiru builds are reported, with a
+    /// warning naming the file; a clean feed gives none.
+    #[test]
+    fn feeds_r5r_refuses_are_reported() {
+        let clean = clean_feed();
+        let nested: Files = clean
+            .iter()
+            .map(|(n, b)| (format!("gtfs/{n}"), b.clone()))
+            .collect();
+        let mut no_agency = clean.clone();
+        no_agency.retain(|f| f.0 != "agency.txt");
+        let mut bad_refs = clean.clone();
+        set(
+            &mut bad_refs,
+            "trips.txt",
+            b"route_id,service_id,trip_id\nR,S,T1\nR,S,T2\nR,S,T3\nX,S,T4\n",
+        );
+        set(
+            &mut bad_refs,
+            "stop_times.txt",
+            b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,B,2\n\
+T2,08:00:00,08:00:00,A,1\nT2,08:10:00,08:10:00,Z,2\n\
+T3,08:00:00,08:00:00,Y,1\nT3,08:10:00,08:10:00,B,2\n\
+T4,08:00:00,08:00:00,A,1\nT4,08:10:00,08:10:00,B,2\n",
+        );
+        let mut one_route = clean.clone();
+        set(
+            &mut one_route,
+            "trips.txt",
+            b"route_id,service_id,trip_id\nR,S,T1\nX,S,T2\n",
+        );
+        set(
+            &mut one_route,
+            "stop_times.txt",
+            b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,B,2\n\
+T2,08:00:00,08:00:00,A,1\nT2,08:10:00,08:10:00,B,2\n",
+        );
+        // Trips left out for other reasons are not what r5r refuses a feed for.
+        let mut other_drops = clean.clone();
+        set(
+            &mut other_drops,
+            "trips.txt",
+            b"route_id,service_id,trip_id\nR,S,T1\nR,NOSERVICE,T2\nR,S,NOTIMES\n",
+        );
+        set(
+            &mut other_drops,
+            "stop_times.txt",
+            b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,B,2\n\
+T2,08:00:00,08:00:00,A,1\nT2,08:10:00,08:10:00,B,2\n",
+        );
+        let all = reports(&[
+            ("clean.zip", clean.clone()),
+            ("nested.zip", nested),
+            ("no_agency.zip", no_agency),
+            ("bad_refs.zip", bad_refs),
+            ("one_route.zip", one_route),
+            ("other_drops.zip", other_drops),
+        ]);
+        let warn = |i: usize| all[i].1.r5r_warning();
+
+        assert_eq!(all[0].1.r5r_refusals(), Vec::<String>::new());
+        assert_eq!(warn(0), None);
+        assert!(all[0].0.r5r_warnings().is_empty());
+
+        assert_eq!(all[1].1.tables_in_subfolder.len(), 6);
+        assert!(!all[1].1.no_agency);
+        assert_eq!(
+            warn(1).unwrap(),
+            "GTFS feed 'nested.zip': its tables are in a subfolder of the .zip ('gtfs/'). \
+r5r refuses to build a network from this feed."
+        );
+        // the nested feed is built all the same, as the clean one
+        assert_eq!(all[1].0.patterns.len(), 1);
+
+        assert!(all[2].1.no_agency);
+        assert_eq!(
+            warn(2).unwrap(),
+            "GTFS feed 'no_agency.zip': it has no agency.txt. \
+r5r refuses to build a network from this feed."
+        );
+
+        assert_eq!(all[3].1.dropped_trips.unknown_stop, 2);
+        assert_eq!(all[3].1.dropped_trips.unknown_route, 1);
+        assert_eq!(
+            warn(3).unwrap(),
+            "GTFS feed 'bad_refs.zip': 3 trips left out (2 refer to a stop that does not exist, \
+1 to a route that does not exist). r5r refuses to build a network from this feed."
+        );
+        assert_eq!(all[3].0.r5r_warnings(), [warn(3).unwrap()]);
+
+        assert_eq!(
+            warn(4).unwrap(),
+            "GTFS feed 'one_route.zip': 1 trip left out because it refers to a route that \
+does not exist. r5r refuses to build a network from this feed."
+        );
+
+        assert_eq!(all[5].1.dropped_trips.total(), 2);
+        assert_eq!(warn(5), None);
+    }
+
+    /// Every case found in one feed goes into its one warning, and into
+    /// one line each for the CLI.
+    #[test]
+    fn several_cases_in_one_feed() {
+        let mut files: Files = clean_feed()
+            .into_iter()
+            .filter(|f| f.0 != "agency.txt")
+            .map(|(n, b)| (format!("feed/{n}"), b))
+            .collect();
+        set(
+            &mut files,
+            "feed/stop_times.txt",
+            b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,Q,2\n",
+        );
+        let all = reports(&[("x.zip", files)]);
+        let r = &all[0].1;
+        assert_eq!(
+            r.r5r_warning().unwrap(),
+            "GTFS feed 'x.zip': its tables are in a subfolder of the .zip ('feed/'); \
+it has no agency.txt; 1 trip left out because it refers to a stop that does not exist. \
+r5r refuses to build a network from this feed."
+        );
+        assert_eq!(
+            r.r5r_warnings_per_case(),
+            [
+                "GTFS feed 'x.zip': its tables are in a subfolder of the .zip ('feed/'). \
+r5r refuses to build a network from this feed.",
+                "GTFS feed 'x.zip': it has no agency.txt. r5r refuses to build a network from this feed.",
+                "GTFS feed 'x.zip': 1 trip left out because it refers to a stop that does not exist. \
+r5r refuses to build a network from this feed."
+            ]
+        );
     }
 
     /// Extensions are matched case-sensitively, as r5r does.

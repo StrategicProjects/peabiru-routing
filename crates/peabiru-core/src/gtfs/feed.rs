@@ -175,10 +175,19 @@ impl Feed {
         path: impl AsRef<std::path::Path>,
         limits: Limits,
     ) -> Result<Feed, GtfsError> {
+        Self::read_zip_checked(path, limits).map(|(feed, _)| feed)
+    }
+
+    /// [`Feed::read_zip_with_limits`], also saying how the archive is laid
+    /// out (for the warnings about feeds that r5r refuses).
+    pub(crate) fn read_zip_checked(
+        path: impl AsRef<std::path::Path>,
+        limits: Limits,
+    ) -> Result<(Feed, ArchiveLayout), GtfsError> {
         let path = path.as_ref();
         Archive::open_with_limits(path, limits)
             .map_err(GtfsError::from)
-            .and_then(|a| Self::from_archive(&a))
+            .and_then(|a| Ok((Self::from_archive(&a)?, ArchiveLayout::of(&a))))
             .map_err(|error| GtfsError::InFeed {
                 path: path.to_path_buf(),
                 error: Box::new(error),
@@ -335,6 +344,44 @@ impl Feed {
             },
         )?;
         Ok(feed)
+    }
+}
+
+/// The tables looked up in a feed: `agency.txt` and those read into a
+/// [`Feed`].
+const TABLES: [&str; 9] = [
+    "agency.txt",
+    "feed_info.txt",
+    "stops.txt",
+    "routes.txt",
+    "trips.txt",
+    "stop_times.txt",
+    "calendar.txt",
+    "calendar_dates.txt",
+    "frequencies.txt",
+];
+
+/// How a feed's archive is laid out, in the two ways that make gtfs-lib
+/// (and so r5r) refuse a feed that peabiru reads.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct ArchiveLayout {
+    /// Entries of the tables found in a subfolder rather than at the root
+    /// (gtfs-lib's `TableInSubdirectoryError`), in [`TABLES`] order.
+    pub tables_in_subfolder: Vec<String>,
+    /// No `agency.txt` anywhere (gtfs-lib's `NoAgencyInFeedError`).
+    pub no_agency: bool,
+}
+
+impl ArchiveLayout {
+    fn of(a: &Archive) -> Self {
+        ArchiveLayout {
+            tables_in_subfolder: TABLES
+                .iter()
+                .filter_map(|&t| a.find(t).filter(|e| e.name != t))
+                .map(|e| e.name.clone())
+                .collect(),
+            no_agency: a.find("agency.txt").is_none(),
+        }
     }
 }
 

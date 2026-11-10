@@ -9,7 +9,7 @@ pub mod matrix;
 pub mod raptor;
 pub mod walk;
 
-pub use layer::{gtfs_files_in_dir, TransitLayer};
+pub use layer::{gtfs_files_in_dir, FeedReport, TransitLayer};
 
 use crate::street::{build_network, BuildOptions, StreetNetwork};
 
