@@ -157,7 +157,7 @@ impl Default for RouteParams {
 /// and never more than the origins. Results never depend on it: origins
 /// are handed out one at a time and stored by index.
 pub(crate) fn worker_threads(requested: usize, n_items: usize) -> usize {
-    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    let cores = crate::sys::cores();
     let n = if requested == 0 {
         cores
     } else {
@@ -1006,34 +1006,25 @@ fn matrix_minutes(
     // Each worker takes the next origin's row of `out` and writes it in
     // place: the rows are disjoint, so the matrix is never held twice.
     let rows = Mutex::new(out.chunks_mut(nd).enumerate());
-    std::thread::scope(|scope| {
-        let handles: Vec<_> = (0..n_threads)
-            .map(|_| {
-                scope.spawn(|| {
-                    let mut search = Search::new(net);
-                    let mut scratch = Vec::new();
-                    while !cancel.is_cancelled() {
-                        let next = rows.lock().expect("row queue").next();
-                        let Some((i, row)) = next else { break };
-                        let (lat, lon) = origins[i];
-                        if let Some(o) = find_split(net, lat, lon, mode, &mut scratch) {
-                            route(net, &g, &o, limit, &mut search);
-                            for (j, d) in dest_splits.iter().enumerate() {
-                                let Some(d) = d else { continue };
-                                if let Some(secs) = time_to_point(net, &g, &o, d, &search) {
-                                    let minutes = secs / 60;
-                                    if minutes <= i64::from(m) {
-                                        row[j] = Some(minutes as u32);
-                                    }
-                                }
-                            }
+    crate::sys::scoped(0..n_threads, |_| {
+        let mut search = Search::new(net);
+        let mut scratch = Vec::new();
+        while !cancel.is_cancelled() {
+            let next = rows.lock().expect("row queue").next();
+            let Some((i, row)) = next else { break };
+            let (lat, lon) = origins[i];
+            if let Some(o) = find_split(net, lat, lon, mode, &mut scratch) {
+                route(net, &g, &o, limit, &mut search);
+                for (j, d) in dest_splits.iter().enumerate() {
+                    let Some(d) = d else { continue };
+                    if let Some(secs) = time_to_point(net, &g, &o, d, &search) {
+                        let minutes = secs / 60;
+                        if minutes <= i64::from(m) {
+                            row[j] = Some(minutes as u32);
                         }
                     }
-                })
-            })
-            .collect();
-        for h in handles {
-            h.join().expect("routing thread panicked");
+                }
+            }
         }
     });
     cancel.check()?;
@@ -1068,35 +1059,25 @@ pub(crate) fn travel_time_seconds<T: Send>(
     let n_threads = worker_threads(params.n_threads, origins.len());
     let cancel = &params.cancel;
     let next = AtomicUsize::new(0);
-    let chunks: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
-        let handles: Vec<_> = (0..n_threads)
-            .map(|_| {
-                scope.spawn(|| {
-                    let mut search = Search::new(net);
-                    let mut scratch = Vec::new();
-                    let mut times = Vec::with_capacity(dest_splits.len());
-                    let mut rows = Vec::new();
-                    while !cancel.is_cancelled() {
-                        let i = next.fetch_add(1, Ordering::Relaxed);
-                        if i >= origins.len() {
-                            break;
-                        }
-                        let (lat, lon) = origins[i];
-                        let Some(o) = find_split(net, lat, lon, mode, &mut scratch) else {
-                            rows.push((i, reduce(i, None)));
-                            continue;
-                        };
-                        search_from(net, &g, &o, &dest_splits, limit, &mut search, &mut times);
-                        rows.push((i, reduce(i, Some(&times))));
-                    }
-                    rows
-                })
-            })
-            .collect();
-        handles
-            .into_iter()
-            .map(|h| h.join().expect("routing thread panicked"))
-            .collect()
+    let chunks: Vec<Vec<(usize, T)>> = crate::sys::scoped(0..n_threads, |_| {
+        let mut search = Search::new(net);
+        let mut scratch = Vec::new();
+        let mut times = Vec::with_capacity(dest_splits.len());
+        let mut rows = Vec::new();
+        while !cancel.is_cancelled() {
+            let i = next.fetch_add(1, Ordering::Relaxed);
+            if i >= origins.len() {
+                break;
+            }
+            let (lat, lon) = origins[i];
+            let Some(o) = find_split(net, lat, lon, mode, &mut scratch) else {
+                rows.push((i, reduce(i, None)));
+                continue;
+            };
+            search_from(net, &g, &o, &dest_splits, limit, &mut search, &mut times);
+            rows.push((i, reduce(i, Some(&times))));
+        }
+        rows
     });
     cancel.check()?;
     let mut slots: Vec<Option<T>> = (0..origins.len()).map(|_| None).collect();
@@ -1115,7 +1096,7 @@ pub(crate) mod tests {
 
     #[test]
     fn worker_threads_are_capped_by_cores_and_origins() {
-        let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+        let cores = crate::sys::cores();
         assert_eq!(worker_threads(0, 1_000_000), cores);
         assert_eq!(worker_threads(5041, 1_000_000), cores);
         assert_eq!(worker_threads(1, 1_000_000), 1);

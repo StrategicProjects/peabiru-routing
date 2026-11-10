@@ -173,30 +173,18 @@ fn par_map<T: Send>(
         let w = &mut workers[0];
         return items.iter().map(|&x| f(w, x)).collect();
     }
-    let f = &f;
-    let next = &AtomicUsize::new(0);
-    let parts: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
-        let handles: Vec<_> = workers
-            .iter_mut()
-            .map(|w| {
-                scope.spawn(move || {
-                    let mut part = Vec::new();
-                    loop {
-                        let a = next.fetch_add(PAR_GRAIN, Ordering::Relaxed);
-                        if a >= items.len() {
-                            break;
-                        }
-                        let b = (a + PAR_GRAIN).min(items.len());
-                        part.extend((a..b).map(|i| (i, f(w, items[i]))));
-                    }
-                    part
-                })
-            })
-            .collect();
-        handles
-            .into_iter()
-            .map(|h| h.join().expect("contraction thread panicked"))
-            .collect()
+    let next = AtomicUsize::new(0);
+    let parts: Vec<Vec<(usize, T)>> = crate::sys::scoped(workers.iter_mut(), |w| {
+        let mut part = Vec::new();
+        loop {
+            let a = next.fetch_add(PAR_GRAIN, Ordering::Relaxed);
+            if a >= items.len() {
+                break;
+            }
+            let b = (a + PAR_GRAIN).min(items.len());
+            part.extend((a..b).map(|i| (i, f(w, items[i]))));
+        }
+        part
     });
     let mut slots: Vec<Option<T>> = (0..items.len()).map(|_| None).collect();
     for (i, r) in parts.into_iter().flatten() {

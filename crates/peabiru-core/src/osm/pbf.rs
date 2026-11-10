@@ -835,26 +835,16 @@ fn par_map<I: Sync, T: Send>(
         return items.iter().map(&f).collect();
     }
     let next = AtomicUsize::new(0);
-    let mut chunks: Vec<Vec<(usize, Result<T>)>> = std::thread::scope(|s| {
-        let handles: Vec<_> = (0..n_threads)
-            .map(|_| {
-                s.spawn(|| {
-                    let mut out = Vec::new();
-                    loop {
-                        let i = next.fetch_add(1, Ordering::Relaxed);
-                        if i >= items.len() {
-                            break;
-                        }
-                        out.push((i, f(&items[i])));
-                    }
-                    out
-                })
-            })
-            .collect();
-        handles
-            .into_iter()
-            .map(|h| h.join().expect("PBF worker thread panicked"))
-            .collect()
+    let mut chunks: Vec<Vec<(usize, Result<T>)>> = crate::sys::scoped(0..n_threads, |_| {
+        let mut out = Vec::new();
+        loop {
+            let i = next.fetch_add(1, Ordering::Relaxed);
+            if i >= items.len() {
+                break;
+            }
+            out.push((i, f(&items[i])));
+        }
+        out
     });
     let mut all: Vec<(usize, Result<T>)> = chunks.drain(..).flatten().collect();
     all.sort_unstable_by_key(|(i, _)| *i);

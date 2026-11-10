@@ -8,13 +8,14 @@ derived from, the works listed below. Their copyright notices and licence
 texts are reproduced here as those licences require.
 
 The same file is distributed with the peabiru-core and peabiru-cli crates,
-the Python package and the R package. Paths are relative to
-crates/peabiru-core/src/.
+the Python package, the R package and the npm package. Paths are relative
+to crates/peabiru-core/src/.
 
-The compiled Python extension module, the R package's library and the
-command-line tool also contain code from other Rust crates (pyo3, extendr,
-miniz_oxide and others). Their licences are in LICENSE-RUST-CRATES, next to
-this file in each of those packages (in the R package, inst/).
+The compiled Python extension module, the R package's library, the npm
+package's WebAssembly module and the command-line tool also contain code
+from other Rust crates (pyo3, extendr, wasm-bindgen, miniz_oxide and
+others). Their licences are in LICENSE-RUST-CRATES, next to this file in
+each of those packages (in the R package, inst/).
 
 Contents
 

@@ -1,0 +1,59 @@
+{
+  "name": "peabiru",
+  "version": "0.0.1",
+  "description": "Multimodal routing on OpenStreetMap and GTFS networks in WebAssembly: travel-time matrices and accessibility, with the results of r5r and no Java",
+  "keywords": [
+    "routing",
+    "accessibility",
+    "gtfs",
+    "openstreetmap",
+    "transport",
+    "webassembly",
+    "r5",
+    "r5r"
+  ],
+  "homepage": "https://github.com/StrategicProjects/peabiru-routing",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StrategicProjects/peabiru-routing.git",
+    "directory": "js"
+  },
+  "bugs": "https://github.com/StrategicProjects/peabiru-routing/issues",
+  "license": "MIT AND Apache-2.0 AND BSD-3-Clause",
+  "author": "André Leite <leite@castlab.org>",
+  "contributors": [
+    "Marcos Wasiliew <marcos.wasiliew@gmail.com>",
+    "Hugo Vasconcelos <hugo.vasconcelos@ufpe.br>",
+    "Carlos Amorim <carlos.agaf@ufpe.br>",
+    "Diogo Bezerra <diogo.bezerra@ufpe.br>",
+    "Júlia Nascimento Barreto <juliabarreto@gd.seplag.pe.gov.br>"
+  ],
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./peabiru_bg.wasm": "./pkg/peabiru_bg.wasm",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/index.d.ts",
+    "pkg/peabiru.js",
+    "pkg/peabiru_bg.wasm",
+    "LICENSE",
+    "LICENSE-THIRD-PARTY",
+    "LICENSE-RUST-CRATES"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "sh build.sh",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

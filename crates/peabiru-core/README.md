@@ -58,6 +58,9 @@ whole buffer without copying.
 
 `build_from_dir` recognises the files by their extension in lower case only
 (`.pbf`, `.zip`), as r5r does: a `map.PBF` or a `feed.ZIP` is ignored.
+`build_from_bytes` builds the same network from the files' bytes held in
+memory, with the feeds in the order you give them. The crate also builds
+for `wasm32-unknown-unknown`, where it runs on the calling thread only.
 
 The `examples/` directory has four complete programs (street and transit
 matrices, accessibility, expanded matrices). Each takes a network directory

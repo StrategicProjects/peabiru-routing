@@ -768,51 +768,42 @@ fn matrix(
     let n_threads = worker_threads(params.n_threads, origins.len().div_ceil(LANES));
     // Each worker takes the next LANES origins' rows of `out`.
     let batches = Mutex::new(out.chunks_mut(nd * LANES).enumerate());
-    std::thread::scope(|scope| {
-        let handles: Vec<_> = (0..n_threads)
-            .map(|_| {
-                scope.spawn(|| {
-                    let mut q = Query::new(&p.e.h, &p.r);
-                    let mut search = Search::new(net);
-                    let mut scratch = Vec::new();
-                    let mut splits = [None; LANES];
-                    while !cancel.is_cancelled() {
-                        let next = batches.lock().expect("batch queue").next();
-                        let Some((b, rows)) = next else { break };
-                        for (k, s) in splits.iter_mut().enumerate() {
-                            *s = origins.get(b * LANES + k).and_then(|&(lat, lon)| {
-                                find_split(net, lat, lon, mode, &mut scratch)
-                            });
-                        }
-                        let starts = p.search(&mut q, &splits, limit);
-                        for (k, row) in rows.chunks_mut(nd).enumerate() {
-                            let (Some(o), Some(st)) = (&splits[k], &starts[k]) else {
-                                continue;
-                            };
-                            // The destination times read `vertex_time` as
-                            // after a plain search from this origin.
-                            for (i, &v) in p.vertices.iter().enumerate() {
-                                search.vertex_time[v as usize] = p.time(&q, k, i, limit, st);
-                            }
-                            for (j, d) in dest_splits.iter().enumerate() {
-                                let Some(d) = d else { continue };
-                                if let Some(secs) = time_to_point(net, g, o, d, &search) {
-                                    let minutes = secs / 60;
-                                    if minutes <= i64::from(m) {
-                                        row[j] = Some(minutes as u32);
-                                    }
-                                }
-                            }
-                            for &v in &p.vertices {
-                                search.vertex_time[v as usize] = i32::MAX;
-                            }
+    crate::sys::scoped(0..n_threads, |_| {
+        let mut q = Query::new(&p.e.h, &p.r);
+        let mut search = Search::new(net);
+        let mut scratch = Vec::new();
+        let mut splits = [None; LANES];
+        while !cancel.is_cancelled() {
+            let next = batches.lock().expect("batch queue").next();
+            let Some((b, rows)) = next else { break };
+            for (k, s) in splits.iter_mut().enumerate() {
+                *s = origins
+                    .get(b * LANES + k)
+                    .and_then(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch));
+            }
+            let starts = p.search(&mut q, &splits, limit);
+            for (k, row) in rows.chunks_mut(nd).enumerate() {
+                let (Some(o), Some(st)) = (&splits[k], &starts[k]) else {
+                    continue;
+                };
+                // The destination times read `vertex_time` as after a
+                // plain search from this origin.
+                for (i, &v) in p.vertices.iter().enumerate() {
+                    search.vertex_time[v as usize] = p.time(&q, k, i, limit, st);
+                }
+                for (j, d) in dest_splits.iter().enumerate() {
+                    let Some(d) = d else { continue };
+                    if let Some(secs) = time_to_point(net, g, o, d, &search) {
+                        let minutes = secs / 60;
+                        if minutes <= i64::from(m) {
+                            row[j] = Some(minutes as u32);
                         }
                     }
-                })
-            })
-            .collect();
-        for h in handles {
-            h.join().expect("routing thread panicked");
+                }
+                for &v in &p.vertices {
+                    search.vertex_time[v as usize] = i32::MAX;
+                }
+            }
         }
     });
     cancel.check()?;

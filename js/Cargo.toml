@@ -1,0 +1,44 @@
+[package]
+name = "peabiru-js"
+description = "WebAssembly bindings of the peabiru routing core, for the npm package peabiru"
+version = "0.0.1"
+authors = [
+    "André Leite <leite@castlab.org>",
+    "Marcos Wasiliew <marcos.wasiliew@gmail.com>",
+    "Hugo Vasconcelos <hugo.vasconcelos@ufpe.br>",
+    "Carlos Amorim <carlos.agaf@ufpe.br>",
+    "Diogo Bezerra <diogo.bezerra@ufpe.br>",
+    "Júlia Nascimento Barreto <juliabarreto@gd.seplag.pe.gov.br>",
+]
+edition = "2021"
+license = "MIT AND Apache-2.0 AND BSD-3-Clause"
+repository = "https://github.com/StrategicProjects/peabiru-routing"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+peabiru-core = { path = "../crates/peabiru-core", version = "0.0.1" }
+# The JavaScript glue (exported functions and classes, errors as JS Error).
+wasm-bindgen = "0.2.130"
+# Typed arrays and plain arrays handed to JavaScript without serde. Its
+# default "std" feature also pulls in futures-util, which nothing here uses.
+js-sys = { version = "0.3.107", default-features = false }
+
+# Like the R package's crate, this one is outside the root workspace: it is
+# built for wasm32-unknown-unknown by wasm-pack (js/build.sh), has its own
+# lockfile, and keeps wasm-bindgen out of the root's `cargo test
+# --workspace`, clippy and minimum-Rust-version jobs.
+[workspace]
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[package.metadata.wasm-pack.profile.release]
+# wasm-opt (binaryen) as wasm-pack runs it, plus the post-MVP features
+# rustc enables by default for wasm32 (bulk memory, sign extension,
+# non-trapping float-to-int), which wasm-opt must be told about.
+wasm-opt = ["-O3", "--enable-bulk-memory", "--enable-sign-ext", "--enable-nontrapping-float-to-int", "--enable-mutable-globals"]

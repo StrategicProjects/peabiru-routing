@@ -47,6 +47,17 @@
 //! # }
 //! ```
 //!
+//! [`build_from_bytes`] builds the same network from data held in memory
+//! (the `.pbf` and the feeds' `.zip` files as bytes), for callers without
+//! a file system, such as the JavaScript package on WebAssembly.
+//!
+//! # Threads
+//!
+//! Each parameter struct has an `n_threads` field: the work is shared out
+//! among that many worker threads (0 = all cores), and the results never
+//! depend on it. On WebAssembly targets, where `std` cannot start threads,
+//! everything runs on the calling thread whatever `n_threads` says.
+//!
 //! # Parameters
 //!
 //! Every parameter struct ([`BuildOptions`], [`RouteParams`],
@@ -88,6 +99,7 @@ mod gtfs;
 mod jcompat;
 mod osm;
 mod street;
+mod sys;
 mod transit;
 
 #[cfg(test)]
@@ -103,7 +115,6 @@ pub use transit::accessibility::{
     r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
     AccessibilityParams, Destinations,
 };
-pub use transit::build_from_dir;
 pub use transit::decay::DecayFunction;
 pub use transit::expanded::{
     arrival_departure, arrival_travel_time_matrix, expanded_travel_time_matrix, Breakdown,
@@ -114,6 +125,7 @@ pub use transit::matrix::{
     transit_travel_time_matrix, validate_date, validate_percentiles, TransitData, TransitMatrix,
     TransitParams,
 };
+pub use transit::{build_from_bytes, build_from_dir};
 
 /// Version of this crate, as published.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
