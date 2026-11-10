@@ -79,16 +79,23 @@ fn timing() -> bool {
 /// Whether [`travel_time_matrix`] should compute this matrix: never for
 /// cars on a network with turn restrictions (R5's restriction handling
 /// depends on the order equal times leave the queue, so that search stays
-/// as it is), and by default only for matrices large enough to pay for the
-/// preprocessing.
-pub(super) fn applies(g: &ModeGraph, n_origins: usize, n_destinations: usize) -> bool {
+/// as it is), and by default only for enough origins to pay for the
+/// preprocessing. On the Porto Alegre sample the plain search costs about
+/// as much from 60 (cycling) to 310 (car) origins at one thread, and from
+/// 140 to 600 at four, where it gains more from the threads than the
+/// contraction does; the thresholds below follow that.
+pub(super) fn applies(g: &ModeGraph, n_origins: usize, n_threads: usize) -> bool {
     if g.java_order {
         return false;
     }
     match engine() {
         Engine::Dijkstra => false,
         Engine::Ch => true,
-        Engine::Auto => n_origins >= 256 && n_destinations >= 16,
+        Engine::Auto => {
+            let threads = super::router::worker_threads(n_threads, n_origins) as f64;
+            let at_one_thread = if g.mode == Mode::Car { 320.0 } else { 150.0 };
+            n_origins as f64 >= at_one_thread * threads.sqrt()
+        }
     }
 }
 
@@ -804,12 +811,14 @@ mod tests {
         let p = RouteParams::default();
         let g = ModeGraph::new(&net, Mode::Walk, Speeds::new(&p, Mode::Walk), p.max_lts);
         ENGINE.with(|e| e.set(Some(Engine::Auto)));
-        assert!(applies(&g, 1000, 1000));
-        assert!(!applies(&g, 10, 1000));
+        assert!(applies(&g, 1000, 1));
+        assert!(applies(&g, 1000, 4));
+        assert!(!applies(&g, 200, 4));
+        assert!(!applies(&g, 10, 1));
         ENGINE.with(|e| e.set(Some(Engine::Dijkstra)));
-        assert!(!applies(&g, 1000, 1000));
+        assert!(!applies(&g, 1000, 1));
         ENGINE.with(|e| e.set(Some(Engine::Ch)));
-        assert!(applies(&g, 1, 1));
+        assert!(applies(&g, 1, 4));
         ENGINE.with(|e| e.set(None));
     }
 }

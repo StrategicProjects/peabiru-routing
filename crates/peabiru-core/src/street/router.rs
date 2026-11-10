@@ -845,7 +845,7 @@ pub fn travel_time_matrix(
     params.validate()?;
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let m = params.max_trip_duration_min;
-    if super::ch::applies(&g, origins.len(), destinations.len()) {
+    if super::ch::applies(&g, origins.len(), params.n_threads) {
         return Ok(super::ch::travel_time_matrix(
             net,
             &g,
