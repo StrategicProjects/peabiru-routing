@@ -18,7 +18,8 @@ pub const MIN_SUBGRAPH_SIZE: usize = 40;
 /// Options for [`build_network`].
 #[derive(Debug, Clone, Default)]
 pub struct BuildOptions {
-    /// Worker threads for reading the PBF; 0 means all cores.
+    /// Worker threads for reading the PBF; 0 means all cores, and more
+    /// than the cores available are not used.
     pub n_threads: usize,
 }
 

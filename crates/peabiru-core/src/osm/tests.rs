@@ -190,6 +190,25 @@ fn reads_ways_relations_and_only_referenced_nodes() {
     }
 }
 
+/// Reader threads are capped at the cores available and the blobs, and the
+/// extract is the same whatever the count asked for.
+#[test]
+fn reader_threads_are_capped() {
+    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    assert_eq!(read_threads(0, 10_000), cores.min(10_000));
+    assert_eq!(read_threads(5041, 10_000), cores.min(10_000));
+    assert_eq!(read_threads(usize::MAX, 10_000), cores.min(10_000));
+    assert_eq!(read_threads(1, 10_000), 1);
+    assert_eq!(read_threads(5041, 2), cores.min(2));
+    let mut f = file(true, &[]);
+    f.extend(line_block("residential"));
+    let one = read_pbf(&f, &opts(1)).unwrap();
+    let many = read_pbf(&f, &opts(usize::MAX)).unwrap();
+    assert_eq!(one.ways, many.ways);
+    assert_eq!(one.node_ids, many.node_ids);
+    assert_eq!(one.ref_counts, many.ref_counts);
+}
+
 #[test]
 fn rejects_unsupported_required_features() {
     let err = read_pbf(&file(false, &["HistoricalInformation"]), &opts(1)).unwrap_err();
