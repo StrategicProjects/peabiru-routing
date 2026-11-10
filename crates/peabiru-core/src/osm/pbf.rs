@@ -19,6 +19,9 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering}
 pub enum PbfError {
     Io(std::io::Error),
     Format(String),
+    /// The file holds no way a street network can be built from (an empty
+    /// file, a header only, or no routable way).
+    NoStreets,
     /// An error in the file at `path`.
     InFile {
         path: std::path::PathBuf,
@@ -31,6 +34,10 @@ impl fmt::Display for PbfError {
         match self {
             PbfError::Io(e) => write!(f, "cannot read the PBF file: {e}"),
             PbfError::Format(m) => write!(f, "malformed PBF file: {m}"),
+            PbfError::NoStreets => write!(
+                f,
+                "no street network: the file has no way that can be walked, cycled or driven"
+            ),
             PbfError::InFile { path, error } => write!(f, "{}: {error}", path.display()),
         }
     }

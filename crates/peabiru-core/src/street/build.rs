@@ -23,10 +23,15 @@ pub struct BuildOptions {
 }
 
 /// Read a PBF file and build the street network.
+///
+/// A file that gives no street edge at all (empty, a header only, or no
+/// routable way) is an error naming the file. R5 fails on such a file too,
+/// with an `ArrayIndexOutOfBoundsException` from `StreetLayer.loadFromOsm`.
 pub fn build_network(
     path: impl AsRef<std::path::Path>,
     opts: &BuildOptions,
 ) -> Result<StreetNetwork, PbfError> {
+    let path = path.as_ref();
     let not_building = |t: &[(&str, &str)]| !t.iter().any(|(k, _)| *k == "building");
     let node_tags = |t: &[(&str, &str)]| {
         t.iter()
@@ -48,7 +53,16 @@ pub fn build_network(
         n_threads: opts.n_threads,
     };
     let ex = read_pbf_file(path, &read)?;
-    Ok(network_from_extract(ex))
+    let net = network_from_extract(ex);
+    // Connectors (park-and-ride links) are the only pairs that do not come
+    // from a way, and splits only exist where a street pair does.
+    if net.edge_flags.iter().step_by(2).all(|&f| f & LINK != 0) {
+        return Err(PbfError::InFile {
+            path: path.to_path_buf(),
+            error: Box::new(PbfError::NoStreets),
+        });
+    }
+    Ok(net)
 }
 
 /// References to each extract node from the extract's ways without a

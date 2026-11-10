@@ -393,3 +393,38 @@ fn file_errors_name_the_file() {
         "{absent}"
     );
 }
+
+/// A file without a single street edge does not build an empty network:
+/// R5 fails on it as well (`StreetLayer.loadFromOsm` seeks edge 0 of an
+/// empty edge store).
+#[test]
+fn file_without_streets_is_an_error() {
+    use crate::street::{build_network, BuildOptions};
+    let dir = std::env::temp_dir().join(format!("peabiru-no-streets-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let cases: [(&str, Vec<u8>); 4] = [
+        ("empty.osm.pbf", Vec::new()),
+        ("header.osm.pbf", blob("OSMHeader", &[], false)),
+        ("proposed.osm.pbf", line_block("proposed")),
+        ("street.osm.pbf", line_block("residential")),
+    ];
+    let mut results = Vec::new();
+    for (name, bytes) in &cases {
+        let path = dir.join(name);
+        std::fs::write(&path, bytes).unwrap();
+        results.push((path.clone(), build_network(&path, &BuildOptions::default())));
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+    for (path, r) in &results[..3] {
+        let err = r.as_ref().unwrap_err().to_string();
+        assert_eq!(
+            err,
+            format!(
+                "{}: no street network: the file has no way that can be walked, cycled or driven",
+                path.display()
+            )
+        );
+    }
+    // One street is enough, even an island R5 prunes: R5 builds it too.
+    assert_eq!(results[3].1.as_ref().unwrap().pair_from.len(), 1);
+}
