@@ -102,7 +102,9 @@ JAVA_HOME=/path/to/jdk21 python/.venv/bin/python bench/compare/py_parity.py poa 
 `peabiru.sample_data_path()` is a small network cut from r5r's Sao Paulo
 sample data. Its `spo_osm.pbf` contains map data (c) OpenStreetMap
 contributors, available under the
-[Open Database License](https://www.openstreetmap.org/copyright).
+[Open Database License](https://www.openstreetmap.org/copyright), and
+`spo_gtfs.zip` is the SPTrans GTFS feed shipped with r5r, without
+`shapes.txt`. Their sources are detailed in `LICENSE-THIRD-PARTY`.
 
 ## License
 
