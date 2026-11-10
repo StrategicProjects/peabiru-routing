@@ -40,6 +40,12 @@ decisoes/
 memory/
 memoria/
 
+# npm package build products (js/build.sh) and dependencies
+/js/pkg/
+/js/target/
+/js/node_modules/
+/js/*.tgz
+
 # Documentation sites (site/build.sh)
 /_site/
 /site/rust/theme/favicon.svg
