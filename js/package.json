@@ -42,6 +42,7 @@
   "files": [
     "lib/index.js",
     "lib/index.d.ts",
+    "lib/worker.js",
     "pkg/peabiru.js",
     "pkg/peabiru_bg.wasm",
     "LICENSE",
