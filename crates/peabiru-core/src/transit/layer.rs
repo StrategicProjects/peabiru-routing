@@ -526,6 +526,57 @@ mod tests {
         assert_eq!(found, [dir.join("a.zip")]);
     }
 
+    /// Linking many stops splits many edges; the edge index keeps split
+    /// edges by cell, so linking stays near linear and later point lookups
+    /// do not slow down. Timing test: run in release with `--ignored`.
+    #[test]
+    #[ignore]
+    fn linking_many_stops_stays_fast() {
+        use crate::street::build::network_from_extract;
+        use crate::street::link::find_split;
+        use crate::street::link::tests::{jittered_grid, Rng};
+        use std::time::{Duration, Instant};
+        let lookups = |net: &StreetNetwork| {
+            let mut scratch = Vec::new();
+            let t = Instant::now();
+            for i in 0..1000 {
+                let (lat, lon) = (-23.5 + 0.0001 * i as f64, -46.6 + 0.0001 * i as f64);
+                let _ = find_split(net, lat, lon, Mode::Walk, &mut scratch);
+            }
+            t.elapsed()
+        };
+        let mut net = network_from_extract(jittered_grid(&mut Rng(11), 120, -23.5, -46.6, 0.001));
+        let before = lookups(&net);
+        let n_stops = 16_000;
+        let side = (n_stops as f64).sqrt().ceil() as usize;
+        let mut layer = TransitLayer::default();
+        for i in 0..n_stops {
+            let (r, c) = (i / side, i % side);
+            layer.stop_ids.push(format!("f:{i}"));
+            layer
+                .stop_lat
+                .push(-23.5 + (r as f64 + 0.37) * 0.119 / side as f64);
+            layer
+                .stop_lon
+                .push(-46.6 + (c as f64 + 0.41) * 0.119 / side as f64);
+            layer.stop_vertex.push(-1);
+        }
+        let t = Instant::now();
+        layer.link_stops(&mut net);
+        let link = t.elapsed();
+        let after = lookups(&net);
+        eprintln!(
+            "{n_stops} stops linked in {link:?}; 1000 lookups {before:?} before, {after:?} after"
+        );
+        // A quadratic linking takes seconds here, and lookups that scan every
+        // split edge are tens of times slower after linking.
+        assert!(link < Duration::from_secs(1), "{link:?}");
+        assert!(
+            after < before * 5 + Duration::from_millis(20),
+            "{after:?} vs {before:?}"
+        );
+    }
+
     /// With several feeds in a directory, errors say which one failed.
     #[test]
     fn feed_errors_name_the_file() {

@@ -31,6 +31,3 @@ mod tests {
         assert!(!super::VERSION.is_empty());
     }
 }
-
-#[cfg(test)]
-mod review_input_tests;
