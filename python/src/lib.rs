@@ -32,6 +32,7 @@ use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 /// Missing value in the `i32` columns handed to Python.
@@ -64,6 +65,22 @@ fn value_err(msg: impl std::fmt::Display) -> PyErr {
 /// How often a routing call checks for signals while the core runs.
 const POLL: Duration = Duration::from_millis(50);
 
+/// Tells the calling thread that the work has ended, also when it ended in
+/// a panic: dropped by the worker, it sets the flag and wakes the caller.
+/// The caller waits on the flag and not on the thread having exited, which
+/// happens a moment after the wake-up and would cost it a whole [`POLL`].
+struct Wake<'a> {
+    done: &'a AtomicBool,
+    caller: std::thread::Thread,
+}
+
+impl Drop for Wake<'_> {
+    fn drop(&mut self) {
+        self.done.store(true, Ordering::Release);
+        self.caller.unpark();
+    }
+}
+
 /// Run `work` on a thread of its own and wait for it with the GIL
 /// released, running Python's signal handlers every [`POLL`]. When they
 /// raise (`KeyboardInterrupt` on Ctrl-C), `cancel` is cancelled, the
@@ -74,17 +91,20 @@ fn interruptible<T: Send>(
     cancel: &CancelToken,
     work: impl FnOnce() -> Result<T, RouteError> + Send,
 ) -> PyResult<T> {
-    let caller = std::thread::current();
+    let done = AtomicBool::new(false);
+    let wake = Wake {
+        done: &done,
+        caller: std::thread::current(),
+    };
     std::thread::scope(|scope| {
         let worker = scope.spawn(move || {
-            let r = work();
-            caller.unpark();
-            r
+            let _wake = wake;
+            work()
         });
         let mut raised = None;
-        while !worker.is_finished() {
+        while !done.load(Ordering::Acquire) {
             py.detach(|| std::thread::park_timeout(POLL));
-            if raised.is_none() && !worker.is_finished() {
+            if raised.is_none() && !done.load(Ordering::Acquire) {
                 if let Err(e) = py.check_signals() {
                     cancel.cancel();
                     raised = Some(e);

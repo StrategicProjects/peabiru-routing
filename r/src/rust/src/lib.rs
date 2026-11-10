@@ -26,6 +26,7 @@ use peabiru_core::transit::expanded::{
 use peabiru_core::transit::matrix::{self, TransitData, TransitParams};
 use peabiru_core::transit::{self as tr, TransitLayer};
 use peabiru_core::{CancelToken, RouteError};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 /// A network built once and shared by every routing call.
@@ -152,6 +153,22 @@ enum Outcome<T> {
     Stopped(Robj),
 }
 
+/// Tells the R thread that the work has ended, also when it ended in a
+/// panic: dropped by the worker, it sets the flag and wakes the caller. The
+/// caller waits on the flag and not on the thread having exited, which
+/// happens a moment after the wake-up and would cost it a whole [`POLL`].
+struct Wake<'a> {
+    done: &'a AtomicBool,
+    caller: std::thread::Thread,
+}
+
+impl Drop for Wake<'_> {
+    fn drop(&mut self) {
+        self.done.store(true, Ordering::Release);
+        self.caller.unpark();
+    }
+}
+
 /// Run `work` on a thread of its own and wait for it, checking for an R
 /// interrupt every [`POLL`]. On one, `cancel` is cancelled and the workers
 /// are waited for. `work` must hand `cancel` to the core.
@@ -159,17 +176,20 @@ fn interruptible<T: Send>(
     cancel: &CancelToken,
     work: impl FnOnce() -> std::result::Result<T, RouteError> + Send,
 ) -> Result<Outcome<T>> {
-    let caller = std::thread::current();
+    let done = AtomicBool::new(false);
+    let wake = Wake {
+        done: &done,
+        caller: std::thread::current(),
+    };
     std::thread::scope(|scope| {
         let worker = scope.spawn(move || {
-            let r = work();
-            caller.unpark();
-            r
+            let _wake = wake;
+            work()
         });
         let mut stopped = None;
-        while !worker.is_finished() {
+        while !done.load(Ordering::Acquire) {
             std::thread::park_timeout(POLL);
-            if stopped.is_none() && !worker.is_finished() {
+            if stopped.is_none() && !done.load(Ordering::Acquire) {
                 if let Some(cond) = interrupt::pending() {
                     cancel.cancel();
                     stopped = Some(cond);
