@@ -49,6 +49,9 @@ session_goes_on <- function() {
 }
 
 test_that("a time limit stops every long computation with R's error", {
+  # it depends on how fast the machine is: each call must outlast the limit
+  # and stop soon after it
+  skip_on_cran()
   calls <- long_calls()
   for (name in names(calls)) {
     t0 <- Sys.time()
