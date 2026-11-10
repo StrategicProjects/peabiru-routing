@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Licence notices of the Rust crates compiled into peabiru's binaries.
 
-The Python extension module, the R package's shared library and the
-command-line tool link code from other crates (pyo3, extendr, miniz_oxide,
-...). Their licences ask for their copyright notices and licence texts to
+The Python extension module, the R package's shared library, the npm
+package's WebAssembly module and the command-line tool link code from other
+crates (pyo3, extendr, wasm-bindgen, miniz_oxide, ...). Their licences ask for their copyright notices and licence texts to
 travel with the binaries, so this script writes, for each binary, a file
 with every crate linked into it: name, version, licence expression,
 authors, repository and the licence files the crate itself ships. It also
@@ -62,6 +62,12 @@ NOTICES = [
         "peabiru-cli",
         "the peabiru command-line tool",
     ),
+    (
+        "js/LICENSE-RUST-CRATES",
+        "js/Cargo.toml",
+        "peabiru-js",
+        "the npm package's WebAssembly module (pkg/peabiru_bg.wasm)",
+    ),
 ]
 
 # (output file, manifest, package)
@@ -75,8 +81,13 @@ COPIES = {
         "crates/peabiru-cli",
         "python",
         "r/inst",
+        "js",
     ],
 }
+
+# Root licence files copied under another name: {copy: root file}. npm
+# packages conventionally carry their licence as LICENSE.
+RENAMED_COPIES = {"js/LICENSE": "LICENSE-MIT"}
 
 # Crates whose published package ships no licence file. The text below was
 # taken from the crate's repository at the tag of the version named; when
@@ -279,6 +290,8 @@ def expected() -> dict:
         text = (ROOT / name).read_text(encoding="utf-8")
         for d in dirs:
             files[f"{d}/{name}"] = text
+    for copy, name in RENAMED_COPIES.items():
+        files[copy] = (ROOT / name).read_text(encoding="utf-8")
     return files
 
 
