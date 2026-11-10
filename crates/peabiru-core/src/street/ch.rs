@@ -283,18 +283,24 @@ impl std::fmt::Debug for Cache {
 }
 
 /// Whether to compute a matrix by hierarchy, given whether one is kept for
-/// its graph. By default a kept one is always used (on the Porto Alegre
-/// sample it beats the plain search from a single origin on); one is built
-/// only for enough origins to pay for the contraction in that call. There
-/// the plain search costs about as much from 60 (cycling) to 310 (car)
-/// origins at one thread, and from 140 to 600 at four, where it gains more
-/// from the threads than the contraction does; the thresholds follow that.
+/// its graph. By default a kept one is always used: on the Porto Alegre
+/// sample it is faster than the plain search from a single origin and
+/// destination on, or within a fraction of a millisecond for short walks
+/// and rides. One is built only for enough origins to pay for the
+/// contraction in that call. On that sample, where a search reaches most
+/// of the network, the plain search costs about as much from 60 (cycling)
+/// to 310 (car) origins at one thread, and from 140 to 600 at four, where
+/// it gains more from the threads than the contraction does; the
+/// thresholds follow that. A search that reaches only a `share` of the
+/// network costs that much less, while the contraction does not, so the
+/// thresholds grow by `1 / share`.
 fn wanted(
     engine: StreetEngine,
     mode: Mode,
     kept: bool,
     n_origins: usize,
     n_threads: usize,
+    share: impl FnOnce() -> f64,
 ) -> bool {
     match engine {
         StreetEngine::Search => false,
@@ -305,8 +311,42 @@ fn wanted(
             }
             let threads = worker_threads(n_threads, n_origins) as f64;
             let at_one_thread = if mode == Mode::Car { 320.0 } else { 150.0 };
-            n_origins as f64 >= at_one_thread * threads.sqrt()
+            n_origins as f64 * share() >= at_one_thread * threads.sqrt()
         }
+    }
+}
+
+/// A rough share of the network one search within `limit_s` seconds
+/// reaches, at most 1: a circle of the farthest the mode can go against
+/// the bounding box of the vertices.
+fn reach_share(net: &StreetNetwork, g: &ModeGraph, limit_s: f64) -> f64 {
+    let speed = match g.mode {
+        Mode::Walk => f64::from(g.sp.walk),
+        Mode::Bicycle => f64::from(g.sp.bike.max(g.sp.walk)),
+        Mode::Car => net
+            .edge_speed_cms
+            .iter()
+            .map(|&s| f64::from(s) / 100.0)
+            .fold(0.0, f64::max),
+    };
+    let (Some(lat0), Some(lat1), Some(lon0), Some(lon1)) = (
+        net.v_lat.iter().min(),
+        net.v_lat.iter().max(),
+        net.v_lon.iter().min(),
+        net.v_lon.iter().max(),
+    ) else {
+        return 1.0;
+    };
+    const M_PER_UNIT: f64 = 111_195.0e-7; // metres per 1e-7 degree of latitude
+    let mid = (f64::from(*lat0) + f64::from(*lat1)) * 0.5e-7;
+    let height = (f64::from(*lat1) - f64::from(*lat0)) * M_PER_UNIT;
+    let width = (f64::from(*lon1) - f64::from(*lon0)) * M_PER_UNIT * mid.to_radians().cos();
+    let r = speed * limit_s;
+    let share = std::f64::consts::PI * r * r / (height * width);
+    if share.is_finite() {
+        share.min(1.0)
+    } else {
+        1.0
     }
 }
 
@@ -674,6 +714,7 @@ fn hierarchy(
         kept.is_some(),
         n_origins,
         params.n_threads,
+        || reach_share(net, g, f64::from(params.max_trip_duration_min) * 60.0),
     );
     if kept.is_some() || !use_it {
         return Ok(kept.filter(|_| use_it));
@@ -1226,13 +1267,27 @@ mod tests {
     #[test]
     fn dispatch() {
         use StreetEngine::*;
-        assert!(wanted(Auto, Mode::Walk, false, 1000, 1));
-        assert!(!wanted(Auto, Mode::Walk, false, 10, 1));
-        assert!(!wanted(Auto, Mode::Car, false, 200, 1));
-        assert!(wanted(Auto, Mode::Car, true, 1, 1));
-        assert!(wanted(Auto, Mode::Walk, true, 1, 8));
-        assert!(!wanted(Search, Mode::Car, true, 10_000, 1));
-        assert!(wanted(Hierarchy, Mode::Car, false, 1, 4));
+        assert!(wanted(Auto, Mode::Walk, false, 1000, 1, || 1.0));
+        assert!(!wanted(Auto, Mode::Walk, false, 10, 1, || 1.0));
+        assert!(!wanted(Auto, Mode::Car, false, 200, 1, || 1.0));
+        // a search that reaches a tenth of the network is cheap
+        assert!(wanted(Auto, Mode::Walk, false, 2000, 1, || 1.0));
+        assert!(!wanted(Auto, Mode::Walk, false, 1000, 1, || 0.1));
+        // kept, or told to
+        let never = || -> f64 { unreachable!() };
+        assert!(wanted(Auto, Mode::Car, true, 1, 1, never));
+        assert!(wanted(Auto, Mode::Walk, true, 1, 8, never));
+        assert!(!wanted(Search, Mode::Car, true, 10_000, 1, never));
+        assert!(wanted(Hierarchy, Mode::Car, false, 1, 4, never));
+        let net = spo();
+        let p = RouteParams::default();
+        let share = |mode, minutes: f64| {
+            let g = ModeGraph::new(&net, mode, Speeds::new(&p, mode), p.max_lts);
+            reach_share(&net, &g, minutes * 60.0)
+        };
+        assert_eq!(share(Mode::Car, 120.0), 1.0);
+        assert!(share(Mode::Walk, 1.0) < 0.01);
+        assert!(share(Mode::Walk, 10.0) < share(Mode::Bicycle, 10.0));
         // cars on a network with turn restrictions always search
         let mut net = spo();
         net.restriction_starts.push((0, 0));
