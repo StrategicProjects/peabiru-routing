@@ -28,10 +28,10 @@
 //! A hierarchy depends only on its graph, so the network keeps the ones it
 //! builds ([`Cache`]): the car one, which depends on nothing but the
 //! network, and a few for walking and cycling, whose graphs also depend on
-//! the speeds (and, cycling, on `max_lts`). Before a kept hierarchy is used
-//! its graph is built again from the network and compared arc for arc with
-//! the one it was contracted from, so a network changed through its public
-//! fields never meets a stale hierarchy.
+//! the speeds (and, cycling, on `max_lts`). A network changed through its
+//! public fields never meets a stale hierarchy: the cache compares the
+//! network with a copy of what the hierarchies were built from before
+//! handing one out.
 
 use super::link::{find_split, Split};
 use super::router::{
@@ -82,55 +82,160 @@ impl Key {
     }
 }
 
-/// A hierarchy and the graph it was contracted from.
+/// A hierarchy, and how origins and destinations map onto its nodes.
 struct Entry {
     key: Key,
+    /// The graph contracted, its arcs dropped once contracted.
     problem: Problem,
+    n_arcs: usize,
     h: Hierarchy,
 }
 
 impl Entry {
     /// Contract `problem`; `None` when cancelled first.
-    fn build(key: Key, problem: Problem, n_threads: usize, cancel: &CancelToken) -> Option<Self> {
+    fn build(
+        key: Key,
+        mut problem: Problem,
+        n_threads: usize,
+        cancel: &CancelToken,
+    ) -> Option<Self> {
         let h = Hierarchy::build(problem.n, &problem.arcs, n_threads, cancel)?;
-        Some(Entry { key, problem, h })
+        let n_arcs = problem.arcs.len();
+        problem.arcs = Vec::new();
+        Some(Entry {
+            key,
+            problem,
+            n_arcs,
+            h,
+        })
     }
 
     /// Memory held, in bytes.
     fn bytes(&self) -> usize {
-        self.problem.arcs.len() * 12 + self.problem.link_node.len() * 4 + self.h.bytes()
+        4 * self.problem.link_node.len() + self.h.bytes()
     }
 }
 
-/// The hierarchies a [`StreetNetwork`] keeps, most recently used first.
-/// Clones share the hierarchies (they are never changed once built).
+/// A copy of everything in a network that a mode's graph is built from
+/// (see `ModeGraph::new` and [`Problem`]) or that the query reads to map
+/// points onto nodes.
+#[derive(PartialEq, Eq)]
+struct Snapshot {
+    n_vertices: usize,
+    edge_flags: Vec<u32>,
+    edge_speed_cms: Vec<i16>,
+    pair_length_mm: Vec<i32>,
+    pair_from: Vec<u32>,
+    pair_to: Vec<u32>,
+    pair_in_brad: Vec<i8>,
+    pair_out_brad: Vec<i8>,
+    out_offsets: Vec<u32>,
+    out_edges: Vec<u32>,
+    in_offsets: Vec<u32>,
+    in_edges: Vec<u32>,
+}
+
+impl Snapshot {
+    fn of(net: &StreetNetwork) -> Self {
+        Snapshot {
+            n_vertices: net.n_vertices(),
+            edge_flags: net.edge_flags.clone(),
+            edge_speed_cms: net.edge_speed_cms.clone(),
+            pair_length_mm: net.pair_length_mm.clone(),
+            pair_from: net.pair_from.clone(),
+            pair_to: net.pair_to.clone(),
+            pair_in_brad: net.pair_in_brad.clone(),
+            pair_out_brad: net.pair_out_brad.clone(),
+            out_offsets: net.out_offsets.clone(),
+            out_edges: net.out_edges.clone(),
+            in_offsets: net.in_offsets.clone(),
+            in_edges: net.in_edges.clone(),
+        }
+    }
+
+    fn matches(&self, net: &StreetNetwork) -> bool {
+        self.n_vertices == net.n_vertices()
+            && self.edge_flags == net.edge_flags
+            && self.edge_speed_cms == net.edge_speed_cms
+            && self.pair_length_mm == net.pair_length_mm
+            && self.pair_from == net.pair_from
+            && self.pair_to == net.pair_to
+            && self.pair_in_brad == net.pair_in_brad
+            && self.pair_out_brad == net.pair_out_brad
+            && self.out_offsets == net.out_offsets
+            && self.out_edges == net.out_edges
+            && self.in_offsets == net.in_offsets
+            && self.in_edges == net.in_edges
+    }
+
+    fn bytes(&self) -> usize {
+        4 * (self.edge_flags.len()
+            + self.pair_length_mm.len()
+            + self.pair_from.len()
+            + self.pair_to.len()
+            + self.out_offsets.len()
+            + self.out_edges.len()
+            + self.in_offsets.len()
+            + self.in_edges.len())
+            + 2 * self.edge_speed_cms.len()
+            + self.pair_in_brad.len()
+            + self.pair_out_brad.len()
+    }
+}
+
+/// What a [`Cache`] holds: the hierarchies, most recently used first, and
+/// a copy of the network they were built from.
 #[derive(Default)]
-pub(crate) struct Cache(Mutex<Vec<Arc<Entry>>>);
+struct Kept {
+    snapshot: Option<Arc<Snapshot>>,
+    entries: Vec<Arc<Entry>>,
+}
+
+/// The hierarchies a [`StreetNetwork`] keeps. A network's fields are
+/// public, so one can change between calls: every lookup first compares
+/// the network with the copy taken when the hierarchies were built (a
+/// memory comparison, far cheaper than a query) and forgets them all on
+/// any difference. Clones share the hierarchies, which never change once
+/// built.
+#[derive(Default)]
+pub(crate) struct Cache(Mutex<Kept>);
 
 impl Cache {
-    fn lock(&self) -> MutexGuard<'_, Vec<Arc<Entry>>> {
+    fn lock(&self) -> MutexGuard<'_, Kept> {
         // nothing panics while holding the lock, but a poisoned list is
         // still a valid one
         self.0.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    /// The hierarchy kept for `key`, now the most recently used.
-    fn get(&self, key: Key) -> Option<Arc<Entry>> {
-        let mut v = self.lock();
-        let i = v.iter().position(|e| e.key == key)?;
-        let e = v.remove(i);
-        v.insert(0, Arc::clone(&e));
+    /// The hierarchy kept for `key` and built from `net` as it is now,
+    /// marked the most recently used.
+    fn get(&self, net: &StreetNetwork, key: Key) -> Option<Arc<Entry>> {
+        let mut k = self.lock();
+        if !k.snapshot.as_ref().is_some_and(|s| s.matches(net)) {
+            *k = Kept::default();
+            return None;
+        }
+        let i = k.entries.iter().position(|e| e.key == key)?;
+        let e = k.entries.remove(i);
+        k.entries.insert(0, Arc::clone(&e));
         Some(e)
     }
 
-    /// Keep `e` in place of any other for its key, dropping the least
-    /// recently used walking and cycling ones beyond [`KEPT_OTHER`].
-    fn put(&self, e: Arc<Entry>) {
-        let mut v = self.lock();
-        v.retain(|x| x.key != e.key);
-        v.insert(0, e);
+    /// Keep `e`, built from `net`, in place of any other for its key,
+    /// dropping the least recently used walking and cycling ones beyond
+    /// [`KEPT_OTHER`].
+    fn put(&self, net: &StreetNetwork, e: Arc<Entry>) {
+        let mut k = self.lock();
+        if !k.snapshot.as_ref().is_some_and(|s| s.matches(net)) {
+            *k = Kept {
+                snapshot: Some(Arc::new(Snapshot::of(net))),
+                entries: Vec::new(),
+            };
+        }
+        k.entries.retain(|x| x.key != e.key);
+        k.entries.insert(0, e);
         let mut other = 0;
-        v.retain(|x| {
+        k.entries.retain(|x| {
             if x.key == Key::Car {
                 return true;
             }
@@ -139,39 +244,41 @@ impl Cache {
         });
     }
 
-    /// Forget the hierarchy kept for `key`, if it is `e`.
-    fn drop_stale(&self, e: &Arc<Entry>) {
-        self.lock().retain(|x| !Arc::ptr_eq(x, e));
-    }
-
     #[cfg(test)]
     fn keys(&self) -> Vec<Key> {
-        self.lock().iter().map(|e| e.key).collect()
+        self.lock().entries.iter().map(|e| e.key).collect()
     }
 }
 
 impl Clone for Cache {
     fn clone(&self) -> Self {
-        Cache(Mutex::new(self.lock().clone()))
+        let k = self.lock();
+        Cache(Mutex::new(Kept {
+            snapshot: k.snapshot.clone(),
+            entries: k.entries.clone(),
+        }))
     }
 }
 
 impl std::fmt::Debug for Cache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let v = self.lock();
-        f.debug_list()
-            .entries(v.iter().map(|e| {
-                format!(
-                    "{:?}: {} nodes, {} arcs, {} shortcuts, {} rounds, {} bytes",
-                    e.key,
-                    e.h.n(),
-                    e.problem.arcs.len(),
-                    e.h.shortcuts,
-                    e.h.rounds,
-                    e.bytes()
-                )
-            }))
-            .finish()
+        let k = self.lock();
+        let mut l = f.debug_list();
+        if let Some(s) = &k.snapshot {
+            l.entry(&format_args!("network copy: {} bytes", s.bytes()));
+        }
+        for e in &k.entries {
+            l.entry(&format_args!(
+                "{:?}: {} nodes, {} arcs, {} shortcuts, {} rounds, {} bytes",
+                e.key,
+                e.h.n(),
+                e.n_arcs,
+                e.h.shortcuts,
+                e.h.rounds,
+                e.bytes()
+            ));
+        }
+        l.finish()
     }
 }
 
@@ -205,7 +312,6 @@ fn wanted(
 
 /// The searched graph: nodes, arcs `(from, to, seconds)`, and how origins
 /// and destinations map onto nodes.
-#[derive(PartialEq, Eq)]
 struct Problem {
     n: usize,
     arcs: Vec<(u32, u32, u32)>,
@@ -547,8 +653,8 @@ impl<'a> Prepared<'a> {
 }
 
 /// The hierarchy for `g` kept with the network or, when there is none
-/// (or the network changed since) and `wanted` says so, a new one, kept
-/// for later calls. `Ok(None)`: compute this matrix by plain search.
+/// and `wanted` says so, a new one, kept for later calls. `Ok(None)`:
+/// compute this matrix by plain search.
 fn hierarchy(
     net: &StreetNetwork,
     g: &ModeGraph,
@@ -561,31 +667,22 @@ fn hierarchy(
         return Ok(None);
     }
     let key = Key::of(g, params.max_lts);
-    let mut kept = net.hierarchies.get(key);
-    if !wanted(
+    let kept = net.hierarchies.get(net, key);
+    let use_it = wanted(
         params.engine,
         g.mode,
         kept.is_some(),
         n_origins,
         params.n_threads,
-    ) {
-        return Ok(None);
-    }
-    let problem = Problem::new(net, g);
-    if let Some(e) = kept.take() {
-        if e.problem == problem {
-            return Ok(Some(e));
-        }
-        // the network was changed since
-        net.hierarchies.drop_stale(&e);
-        if !wanted(params.engine, g.mode, false, n_origins, params.n_threads) {
-            return Ok(None);
-        }
+    );
+    if kept.is_some() || !use_it {
+        return Ok(kept.filter(|_| use_it));
     }
     let threads = worker_threads(params.n_threads, usize::MAX);
+    let problem = Problem::new(net, g);
     let e = Entry::build(key, problem, threads, &params.cancel).ok_or(RouteError::Cancelled)?;
     let e = Arc::new(e);
-    net.hierarchies.put(Arc::clone(&e));
+    net.hierarchies.put(net, Arc::clone(&e));
     Ok(Some(e))
 }
 
@@ -995,7 +1092,7 @@ mod tests {
         let copy = net.clone();
         assert!(Arc::ptr_eq(
             &first,
-            &copy.hierarchies.get(Key::Car).unwrap()
+            &copy.hierarchies.get(&copy, Key::Car).unwrap()
         ));
         // the search when told to, kept hierarchy or not
         assert!(
@@ -1052,13 +1149,14 @@ mod tests {
         // a kept hierarchy survives a cancelled call
         let want = plain(&net, &pts, &pts, Mode::Car, &p);
         assert_eq!(matrix_of(&net, &pts, &pts, Mode::Car, &p).unwrap(), want);
-        let kept = net.hierarchies.get(Key::Car).unwrap();
+        let kept = net.hierarchies.get(&net, Key::Car).unwrap();
         let auto = with(&p, StreetEngine::Auto);
         assert_eq!(
             matrix_of(&net, &pts, &pts, Mode::Car, &cancelled(&auto)),
             Err(RouteError::Cancelled)
         );
-        assert!(Arc::ptr_eq(&kept, &net.hierarchies.get(Key::Car).unwrap()));
+        let now = net.hierarchies.get(&net, Key::Car).unwrap();
+        assert!(Arc::ptr_eq(&kept, &now));
         assert_eq!(matrix_of(&net, &pts, &pts, Mode::Car, &auto).unwrap(), want);
     }
 
@@ -1076,27 +1174,31 @@ mod tests {
         };
         matrix_of(&net, &pts, &pts, Mode::Car, &p).unwrap();
         matrix_of(&net, &pts, &pts, Mode::Walk, &p).unwrap();
-        let before = net.hierarchies.get(Key::Car).unwrap();
+        let before = net.hierarchies.get(&net, Key::Car).unwrap();
+        let original = net.clone();
         for s in &mut net.edge_speed_cms {
             *s = (*s / 2).max(1);
+        }
+        for l in net.pair_length_mm.iter_mut().step_by(3) {
+            *l += 5000;
         }
         // a small call (Auto would search): the stale one is not used
         let auto = with(&p, StreetEngine::Auto);
         let few = &pts[..3];
         let got = matrix_of(&net, few, &pts, Mode::Car, &auto).unwrap();
         assert_eq!(got, plain(&net, few, &pts, Mode::Car, &p));
-        let got = matrix_of(&net, &pts, &pts, Mode::Car, &p).unwrap();
-        assert_eq!(got, plain(&net, &pts, &pts, Mode::Car, &p));
-        let after = net.hierarchies.get(Key::Car).unwrap();
+        assert!(net.hierarchies.keys().is_empty());
+        for mode in [Mode::Car, Mode::Walk] {
+            let got = matrix_of(&net, &pts, &pts, mode, &p).unwrap();
+            assert_eq!(got, plain(&net, &pts, &pts, mode, &p));
+            assert_ne!(got, plain(&original, &pts, &pts, mode, &p));
+        }
+        let after = net.hierarchies.get(&net, Key::Car).unwrap();
         assert!(!Arc::ptr_eq(&before, &after));
-        // walking does not read car speeds: its hierarchy still holds
-        let w = net.hierarchies.keys().into_iter().find(|&k| k != Key::Car);
-        let walk = net.hierarchies.get(w.unwrap()).unwrap();
-        matrix_of(&net, &pts, &pts, Mode::Walk, &p).unwrap();
-        assert!(Arc::ptr_eq(
-            &walk,
-            &net.hierarchies.get(w.unwrap()).unwrap()
-        ));
+        // the unchanged clone kept its own
+        let still = original.hierarchies.get(&original, Key::Car).unwrap();
+        assert!(Arc::ptr_eq(&before, &still));
+        assert_eq!(original.hierarchies.keys().len(), 2);
     }
 
     /// Which engine computes the matrix.
