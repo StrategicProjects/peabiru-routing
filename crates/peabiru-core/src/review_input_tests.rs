@@ -293,36 +293,6 @@ fn feed(stops: &[u8]) -> Feed {
     Feed::from_archive(&Archive::from_bytes(z).unwrap()).unwrap()
 }
 
-/// A double quote inside an unquoted field (common in stop names: 7" or
-/// a nickname in quotes left unbalanced) switches the parser to quoted mode
-/// until the next quote anywhere in the file: the following records are
-/// swallowed into one field, silently. javacsv (gtfs-lib's reader) treats a
-/// quote that is not at the start of a field as a literal character.
-#[test]
-fn csv_stray_quote_swallows_following_records() {
-    let stops = b"stop_id,stop_name,stop_lat,stop_lon\n\
-A,Rua 7\" Norte,-23.55,-46.63\n\
-B,Praca,-23.56,-46.64\n\
-C,Se,-23.57,-46.65\n";
-    let f = feed(stops);
-    let ids: Vec<&str> = f.stops.iter().map(|s| s.stop_id.as_str()).collect();
-    eprintln!(
-        "csv_stray_quote: stops read = {ids:?}, lat of A = {}",
-        f.stops[0].lat
-    );
-    // Expected three stops; only one is read and its coordinates are lost.
-    assert_eq!(ids, ["A"]);
-    assert!(f.stops[0].lat.is_nan());
-}
-
-/// A file with classic-Mac CR-only line endings is read as a single header
-/// line: the table comes out empty, silently (javacsv ends records at CR).
-#[test]
-fn csv_cr_only_line_endings_give_an_empty_table() {
-    let f = feed(b"stop_id,stop_lat,stop_lon\rA,-23.55,-46.63\rC,-23.57,-46.65\r");
-    assert!(f.stops.is_empty());
-}
-
 /// stops.txt without a stop_lat/stop_lon column (or a misspelt header)
 /// is accepted: every stop gets NaN coordinates and nothing is reported.
 #[test]
@@ -343,7 +313,7 @@ fn gtfs_missing_column_message() {
     ]);
     let e = Feed::from_archive(&Archive::from_bytes(z).unwrap()).unwrap_err();
     eprintln!("gtfs_missing_column_message: {e}");
-    assert_eq!(e.to_string(), "routes.txt row 2: invalid route_type ''");
+    assert_eq!(e.to_string(), "routes.txt line 2: invalid route_type ''");
 }
 
 /// Errors from TransitLayer::load (and hence build_from_dir) do not name the

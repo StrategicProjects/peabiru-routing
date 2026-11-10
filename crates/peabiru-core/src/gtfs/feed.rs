@@ -2,7 +2,7 @@
 //! become a routable timetable (calendars for a date, missing times,
 //! patterns) is decided by the transit layer, following R5.
 
-use super::csv::{for_each_row, Header, Row};
+use super::csv::{for_each_row, CsvError, Header, ReadError, Row};
 use super::zip::{Archive, ZipError};
 use std::fmt;
 
@@ -10,9 +10,14 @@ use std::fmt;
 pub enum GtfsError {
     Zip(ZipError),
     Missing(&'static str),
+    Csv {
+        file: &'static str,
+        error: CsvError,
+    },
     Field {
         file: &'static str,
-        row: usize,
+        /// Line of the file on which the record starts.
+        line: usize,
         column: &'static str,
         value: String,
     },
@@ -23,13 +28,14 @@ impl fmt::Display for GtfsError {
         match self {
             GtfsError::Zip(e) => write!(f, "{e}"),
             GtfsError::Missing(file) => write!(f, "GTFS feed has no {file}"),
+            GtfsError::Csv { file, error } => write!(f, "{file} {error}"),
             GtfsError::Field {
                 file,
-                row,
+                line,
                 column,
                 value,
             } => {
-                write!(f, "{file} row {row}: invalid {column} '{value}'")
+                write!(f, "{file} line {line}: invalid {column} '{value}'")
             }
         }
     }
@@ -151,9 +157,9 @@ impl Feed {
     pub fn from_archive(a: &Archive) -> Result<Feed, GtfsError> {
         let mut feed = Feed::default();
         let bad =
-            |file: &'static str, row: usize, column: &'static str, value: &str| GtfsError::Field {
+            |file: &'static str, line: usize, column: &'static str, value: &str| GtfsError::Field {
                 file,
-                row: row + 1, // record 1 is line 2
+                line,
                 column,
                 value: value.into(),
             };
@@ -297,10 +303,11 @@ fn table(
     f: impl FnMut(&Header, usize, &Row) -> Result<(), GtfsError>,
 ) -> Result<(), GtfsError> {
     match a.find(name) {
-        Some(e) => {
-            for_each_row(&a.read(e)?, f)?;
-            Ok(())
-        }
+        Some(e) => match for_each_row(&a.read(e)?, f) {
+            Ok(_) => Ok(()),
+            Err(ReadError::Csv(error)) => Err(GtfsError::Csv { file: name, error }),
+            Err(ReadError::Callback(e)) => Err(e),
+        },
         None if required => Err(GtfsError::Missing(name)),
         None => Ok(()),
     }
@@ -347,5 +354,41 @@ mod tests {
         );
         assert_eq!(f.frequencies[0].headway_secs, 600);
         assert!(!f.frequencies[0].exact_times);
+    }
+
+    fn small_feed(stops: &[u8]) -> Feed {
+        let z = make_zip(
+            &[
+                ("stops.txt", stops),
+                ("routes.txt", b"route_id,route_type\nR,3\n"),
+                ("trips.txt", b"route_id,service_id,trip_id\nR,S,T1\n"),
+                (
+                    "stop_times.txt",
+                    b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\n",
+                ),
+            ],
+            false,
+        );
+        Feed::from_archive(&Archive::from_bytes(z).unwrap()).unwrap()
+    }
+
+    /// A quote inside an unquoted field is a literal character (as in
+    /// javacsv), not the start of a quoted field running to the next quote.
+    #[test]
+    fn stray_quote_in_a_name_keeps_the_following_records() {
+        let f = small_feed(
+            b"stop_id,stop_name,stop_lat,stop_lon\nA,Rua 7\" Norte,-23.55,-46.63\nB,Praca,-23.56,-46.64\nC,Se,-23.57,-46.65\n",
+        );
+        let ids: Vec<&str> = f.stops.iter().map(|s| s.stop_id.as_str()).collect();
+        assert_eq!(ids, ["A", "B", "C"]);
+        assert_eq!(f.stops[0].lat, -23.55);
+    }
+
+    /// CR-only line endings end records, as in javacsv.
+    #[test]
+    fn cr_only_line_endings() {
+        let f = small_feed(b"stop_id,stop_lat,stop_lon\rA,-23.55,-46.63\rC,-23.57,-46.65\r");
+        assert_eq!(f.stops.len(), 2);
+        assert_eq!(f.stops[1].lon, -46.65);
     }
 }
