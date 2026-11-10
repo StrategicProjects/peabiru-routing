@@ -10,7 +10,7 @@ use super::labels::{
 };
 use super::vertex_flags::*;
 use super::{link, StreetNetwork};
-use crate::osm::pbf::{read_pbf_file, Extract, PbfError, ReadOptions, Way};
+use crate::osm::pbf::{read_pbf, Extract, PbfError, ReadOptions, Way};
 use crate::NetworkError;
 
 /// Smallest strongly connected component kept per mode (R5 `MIN_SUBGRAPH_SIZE`).
@@ -39,6 +39,28 @@ pub fn build_network(
     opts: &BuildOptions,
 ) -> Result<StreetNetwork, NetworkError> {
     let path = path.as_ref();
+    let bytes = std::fs::read(path).map_err(|e| {
+        NetworkError::osm(PbfError::InFile {
+            path: path.to_path_buf(),
+            error: Box::new(PbfError::Io(e)),
+        })
+    })?;
+    build_network_from_bytes(path, &bytes, opts)
+}
+
+/// [`build_network`] from the bytes of a `.pbf` file; errors name the
+/// file `name`.
+pub(crate) fn build_network_from_bytes(
+    name: &std::path::Path,
+    bytes: &[u8],
+    opts: &BuildOptions,
+) -> Result<StreetNetwork, NetworkError> {
+    let in_file = |error| {
+        NetworkError::osm(PbfError::InFile {
+            path: name.to_path_buf(),
+            error: Box::new(error),
+        })
+    };
     let not_building = |t: &[(&str, &str)]| !t.iter().any(|(k, _)| *k == "building");
     let node_tags = |t: &[(&str, &str)]| {
         t.iter()
@@ -59,15 +81,12 @@ pub fn build_network(
         poi_filter: Some(&park_ride),
         n_threads: opts.n_threads,
     };
-    let ex = read_pbf_file(path, &read).map_err(NetworkError::osm)?;
+    let ex = read_pbf(bytes, &read).map_err(in_file)?;
     let net = network_from_extract(ex);
     // Connectors (park-and-ride links) are the only pairs that do not come
     // from a way, and splits only exist where a street pair does.
     if net.edge_flags.iter().step_by(2).all(|&f| f & LINK != 0) {
-        return Err(NetworkError::osm(PbfError::InFile {
-            path: path.to_path_buf(),
-            error: Box::new(PbfError::NoStreets),
-        }));
+        return Err(in_file(PbfError::NoStreets));
     }
     Ok(net)
 }

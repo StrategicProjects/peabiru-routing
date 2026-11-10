@@ -3,6 +3,7 @@
 //! encryption. Sizes are bounded so a hostile archive cannot ask for an
 //! unbounded allocation.
 
+use std::borrow::Cow;
 use std::fmt;
 
 /// Bounds on what an archive may expand to, against decompression bombs.
@@ -152,26 +153,25 @@ pub struct Entry {
     local_header_offset: u64,
 }
 
-/// An archive held in memory.
-pub struct Archive {
-    bytes: Vec<u8>,
+/// An archive held in memory, owned or borrowed.
+pub struct Archive<'a> {
+    bytes: Cow<'a, [u8]>,
     pub entries: Vec<Entry>,
     limits: Limits,
     /// Uncompressed bytes handed out so far.
     used: std::cell::Cell<u64>,
 }
 
-impl Archive {
-    pub fn open_with_limits(
-        path: impl AsRef<std::path::Path>,
-        limits: Limits,
-    ) -> Result<Self, ZipError> {
-        let mut a = Self::from_bytes(std::fs::read(path)?)?;
+impl<'a> Archive<'a> {
+    /// [`Archive::from_bytes`] with other bounds on how far it may expand.
+    pub fn with_limits(bytes: impl Into<Cow<'a, [u8]>>, limits: Limits) -> Result<Self, ZipError> {
+        let mut a = Self::from_bytes(bytes)?;
         a.limits = limits;
         Ok(a)
     }
 
-    pub fn from_bytes(bytes: Vec<u8>) -> Result<Self, ZipError> {
+    pub fn from_bytes(bytes: impl Into<Cow<'a, [u8]>>) -> Result<Self, ZipError> {
+        let bytes: Cow<'a, [u8]> = bytes.into();
         // End of central directory: signature 0x06054b50, within the last
         // 64 KiB + 22 bytes (the comment is at most 65535 bytes).
         let min = bytes.len().saturating_sub(22 + 65_535);

@@ -58,6 +58,16 @@ impl fmt::Display for GtfsError {
 
 impl std::error::Error for GtfsError {}
 
+impl GtfsError {
+    /// `error`, in the feed read from `path`.
+    pub(crate) fn in_feed(path: &std::path::Path, error: GtfsError) -> Self {
+        GtfsError::InFeed {
+            path: path.to_path_buf(),
+            error: Box::new(error),
+        }
+    }
+}
+
 impl From<ZipError> for GtfsError {
     fn from(e: ZipError) -> Self {
         GtfsError::Zip(e)
@@ -164,21 +174,19 @@ pub(crate) fn parse_time(s: &str) -> Result<Option<i32>, ()> {
 }
 
 impl Feed {
-    /// Read a feed from a GTFS zip file, with bounds on how far the archive
-    /// may expand, also saying how the archive is laid out (for the
-    /// warnings about feeds that r5r refuses). Errors name the file.
+    /// Read a feed from the bytes of a GTFS zip file, with bounds on how
+    /// far the archive may expand, also saying how the archive is laid out
+    /// (for the warnings about feeds that r5r refuses). Errors name the
+    /// file, `path`.
     pub(crate) fn read_zip_checked(
-        path: impl AsRef<std::path::Path>,
+        path: &std::path::Path,
+        bytes: std::borrow::Cow<'_, [u8]>,
         limits: Limits,
     ) -> Result<(Feed, ArchiveLayout), GtfsError> {
-        let path = path.as_ref();
-        Archive::open_with_limits(path, limits)
+        Archive::with_limits(bytes, limits)
             .map_err(GtfsError::from)
             .and_then(|a| Ok((Self::from_archive(&a)?, ArchiveLayout::of(&a))))
-            .map_err(|error| GtfsError::InFeed {
-                path: path.to_path_buf(),
-                error: Box::new(error),
-            })
+            .map_err(|error| GtfsError::in_feed(path, error))
     }
 
     pub fn from_archive(a: &Archive) -> Result<Feed, GtfsError> {

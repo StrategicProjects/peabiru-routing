@@ -4,12 +4,25 @@
 //! (`StreetLayer.associateStops`).
 
 use crate::gtfs::feed::{Feed, StopTime};
-use crate::gtfs::zip::Limits;
+use crate::gtfs::zip::{Limits, ZipError};
 use crate::gtfs::GtfsError;
 use crate::street::geom::{haversine_m, java_int, FIXED_FACTOR};
 use crate::street::{parkride, Mode, StreetNetwork};
 use crate::transit::matrix::weekday;
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
+
+/// The path and the bytes of a GTFS zip file on disk, for
+/// [`TransitLayer::from_feeds`]; an error naming the file when it cannot
+/// be read.
+pub(crate) fn read_feed_file(
+    path: &std::path::Path,
+) -> Result<(std::path::PathBuf, Cow<'static, [u8]>), GtfsError> {
+    match std::fs::read(path) {
+        Ok(bytes) => Ok((path.to_path_buf(), Cow::Owned(bytes))),
+        Err(e) => Err(GtfsError::in_feed(path, GtfsError::Zip(ZipError::Io(e)))),
+    }
+}
 
 /// One frequency entry of a trip: departures from the first stop every
 /// `headway` seconds between `start` and `end`.
@@ -434,25 +447,39 @@ impl TransitLayer {
 
     /// Load feeds in the given order (R5 uses the data directory's listing
     /// order; see [`gtfs_files_in_dir`]).
+    #[cfg(test)]
     pub(crate) fn load(paths: &[std::path::PathBuf]) -> Result<TransitLayer, GtfsError> {
         Self::load_with_limits(paths, Limits::default())
     }
 
     /// [`TransitLayer::load`] with other bounds on how far each zip file
     /// may expand.
+    #[cfg(test)]
     pub(crate) fn load_with_limits(
         paths: &[std::path::PathBuf],
         limits: Limits,
     ) -> Result<TransitLayer, GtfsError> {
+        Self::from_feeds(paths.iter().map(|p| read_feed_file(p)), limits)
+    }
+
+    /// Load feeds given as the path (or file name) and the bytes of each
+    /// `.zip`, in the order given; reading stops at the first error. The
+    /// path names the feed in errors and reports and, without a
+    /// `feed_info.feed_id`, gives the feed id.
+    pub(crate) fn from_feeds<'a>(
+        feeds: impl IntoIterator<Item = Result<(std::path::PathBuf, Cow<'a, [u8]>), GtfsError>>,
+        limits: Limits,
+    ) -> Result<TransitLayer, GtfsError> {
         let mut layer = TransitLayer::default();
-        for p in paths {
-            let (feed, archive) = Feed::read_zip_checked(p, limits)?;
-            let id = feed_id(&feed, p);
+        for f in feeds {
+            let (path, bytes) = f?;
+            let (feed, archive) = Feed::read_zip_checked(&path, bytes, limits)?;
+            let id = feed_id(&feed, &path);
             let dropped_trips = layer.add_feed(&feed, &id);
             layer.dropped_trips.add(&dropped_trips);
             layer.feed_ids.push(id);
             layer.feed_reports.push(FeedReport {
-                path: p.clone(),
+                path,
                 tables_in_subfolder: archive.tables_in_subfolder,
                 no_agency: archive.no_agency,
                 dropped_trips,

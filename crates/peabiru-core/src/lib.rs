@@ -47,6 +47,10 @@
 //! # }
 //! ```
 //!
+//! [`build_from_bytes`] builds the same network from data held in memory
+//! (the `.pbf` and the feeds' `.zip` files as bytes), for callers without
+//! a file system, such as the JavaScript package on WebAssembly.
+//!
 //! # Threads
 //!
 //! Each parameter struct has an `n_threads` field: the work is shared out
@@ -121,7 +125,7 @@ pub use transit::matrix::{
     transit_travel_time_matrix, validate_date, validate_percentiles, TransitData, TransitMatrix,
     TransitParams,
 };
-pub use transit::build_from_dir;
+pub use transit::{build_from_bytes, build_from_dir};
 
 /// Version of this crate, as published.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
