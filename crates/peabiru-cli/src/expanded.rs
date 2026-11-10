@@ -113,7 +113,7 @@ pub fn run(args: &[String]) {
             expanded_travel_time_matrix(&net, &layer, &data, batch, &pts, &p)
         };
         let rows = res.unwrap_or_else(|e| usage_error(cmd, e));
-        for (k, origin_rows) in rows.iter().enumerate() {
+        for (k, origin_rows) in rows.origins().enumerate() {
             let from = &ids[b * ORIGIN_BATCH + k];
             for r in origin_rows {
                 write_row(&mut w, from, &ids, r, breakdown).unwrap_or_else(|e| write_failed(e));

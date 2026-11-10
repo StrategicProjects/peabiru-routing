@@ -88,7 +88,7 @@ pub(crate) fn positional3<'a>(cmd: &str, args: &'a [String]) -> (&'a str, &'a st
 ///  [--draws 5] [--seed N] [--threads 0] [--repeats 1]`
 fn transit(args: &[String]) {
     use peabiru_core::street::BuildOptions;
-    use peabiru_core::transit::matrix::{travel_time_matrix, TransitData, TransitParams};
+    use peabiru_core::transit::matrix::{transit_travel_time_matrix, TransitData, TransitParams};
     let cmd = "transit";
     let (dir, points, out) = positional3(cmd, args);
     let mut p = TransitParams::default();
@@ -136,24 +136,26 @@ fn transit(args: &[String]) {
     let data = TransitData::new(&net, &layer);
     let build_s = t0.elapsed().as_secs_f64();
     let mut times = Vec::new();
-    let mut m = Vec::new();
+    let mut m = None;
     for _ in 0..repeats {
         let t = Instant::now();
-        m = travel_time_matrix(&net, &layer, &data, &pts, &pts, &p)
-            .unwrap_or_else(|e| usage_error(cmd, e));
+        m = Some(
+            transit_travel_time_matrix(&net, &layer, &data, &pts, &pts, &p)
+                .unwrap_or_else(|e| usage_error(cmd, e)),
+        );
         times.push(t.elapsed().as_secs_f64());
     }
+    let m = m.expect("at least one run");
     times.sort_by(|a, b| a.total_cmp(b));
-    let mut pcs = p.percentiles.clone();
-    pcs.sort_unstable();
+    let pcs = m.percentiles();
     let mut csv = String::from("from_id,to_id");
-    for pc in &pcs {
+    for pc in pcs {
         csv.push_str(&format!(",travel_time_p{pc:02}"));
     }
     csv.push('\n');
     let mut rows = 0usize;
-    for (i, row) in m.iter().enumerate() {
-        for (j, cell) in row.iter().enumerate() {
+    for (i, row) in m.rows().enumerate() {
+        for (j, cell) in row.chunks_exact(pcs.len()).enumerate() {
             if cell[0].is_none() {
                 continue;
             }
@@ -271,7 +273,7 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     // A directory is a network folder like r5r's: one .pbf plus GTFS zips.
     let is_dir = std::path::Path::new(pbf).is_dir();
     use peabiru_core::street::{
-        build_network, travel_time_matrix, BuildOptions, Mode, RouteParams, StreetEngine,
+        build_network, street_travel_time_matrix, BuildOptions, Mode, RouteParams, StreetEngine,
     };
     let mode = match mode {
         "WALK" => Mode::Walk,
@@ -318,13 +320,16 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
         ..RouteParams::default()
     };
     let mut times = Vec::new();
-    let mut m = Vec::new();
+    let mut m = None;
     for _ in 0..repeats {
         let t = Instant::now();
-        m = travel_time_matrix(&net, &pts, &pts, mode, &params)
-            .unwrap_or_else(|e| usage_error(cmd, e));
+        m = Some(
+            street_travel_time_matrix(&net, &pts, &pts, mode, &params)
+                .unwrap_or_else(|e| usage_error(cmd, e)),
+        );
         times.push(t.elapsed().as_secs_f64());
     }
+    let m = m.expect("at least one run");
     // The first call may build a contraction hierarchy the later ones reuse.
     let first_s = times[0];
     let mut later = times[1..].to_vec();
@@ -336,7 +341,7 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     let mut reached = 0usize;
     for i in 0..n {
         for j in 0..n {
-            if let Some(t) = m[i * n + j] {
+            if let Some(t) = m.get(i, j) {
                 reached += 1;
                 csv.push_str(&format!("{},{},{}\n", ids[i], ids[j], t));
             }

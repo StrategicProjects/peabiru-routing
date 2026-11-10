@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rows = expanded_travel_time_matrix(&net, &layer, &data, origin, &points.coords, &params)?;
     // One destination, a ride on metro line 1 away.
     let to = points.ids.iter().position(|id| id == "89a8100c02fffff");
-    for r in rows[0].iter().filter(|r| Some(r.to as usize) == to) {
+    for r in rows.origin(0).iter().filter(|r| Some(r.to as usize) == to) {
         match &r.trip {
             Some(t) => println!(
                 "depart {} draw {}: {} min via {} ({} rides)",
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..TransitParams::default()
     };
     let rows = arrival_travel_time_matrix(&net, &layer, &data, origin, &points.coords, &params)?;
-    for r in rows[0].iter().take(5) {
+    for r in rows.origin(0).iter().take(5) {
         if let Some(t) = &r.trip {
             println!(
                 "to {}: leave {} for {} min",

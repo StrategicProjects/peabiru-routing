@@ -17,7 +17,9 @@ pub mod router;
 pub use build::{build_network, BuildOptions};
 pub use link::Split;
 pub use restrictions::TurnRestriction;
-pub use router::{travel_time_matrix, Mode, ParamError, RouteParams, StreetEngine};
+pub use router::{
+    street_travel_time_matrix, Mode, ParamError, RouteParams, StreetEngine, StreetMatrix,
+};
 
 /// Edge flags (bit set per directed edge).
 pub mod flags {

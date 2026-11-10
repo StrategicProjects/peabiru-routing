@@ -6,7 +6,9 @@
 
 mod common;
 
-use peabiru_core::street::{build_network, travel_time_matrix, BuildOptions, Mode, RouteParams};
+use peabiru_core::street::{
+    build_network, street_travel_time_matrix, BuildOptions, Mode, RouteParams,
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dir = common::data_dir();
@@ -32,14 +34,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let n = points.coords.len();
     for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
         // Row-major origins x destinations, whole minutes; None = no time.
-        let m = travel_time_matrix(&net, &points.coords, &points.coords, mode, &params)?;
-        let reached = m.iter().filter(|t| t.is_some()).count();
+        let m = street_travel_time_matrix(&net, &points.coords, &points.coords, mode, &params)?;
+        let reached = m.as_slice().iter().filter(|t| t.is_some()).count();
         println!(
             "{mode:?}: {reached} of {} pairs reached; {} -> {}: {:?} min",
             n * n,
             points.ids[0],
             points.ids[n - 1],
-            m[n - 1]
+            m.get(0, n - 1)
         );
     }
     Ok(())

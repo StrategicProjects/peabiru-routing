@@ -20,9 +20,7 @@ use peabiru_core::transit::accessibility::{
     street_accessibility, transit_accessibility, AccessibilityParams, Destinations,
 };
 use peabiru_core::transit::decay::DecayFunction;
-use peabiru_core::transit::expanded::{
-    arrival_travel_time_matrix, expanded_travel_time_matrix, ExpandedRow,
-};
+use peabiru_core::transit::expanded::{arrival_travel_time_matrix, expanded_travel_time_matrix};
 use peabiru_core::transit::matrix::{self, TransitData, TransitParams};
 use peabiru_core::transit::{self as tr, TransitLayer};
 use peabiru_core::{CancelToken, RouteError};
@@ -378,11 +376,11 @@ fn rs_street_ttm(
     };
     let mode = street_mode(mode)?;
     let m = done!(interruptible(&params.cancel, || {
-        street::travel_time_matrix(&n.net, &o, &d, mode, &params)
+        street::street_travel_time_matrix(&n.net, &o, &d, mode, &params)
     })?);
     let nd = d.len();
     let (mut from, mut to, mut tt) = (Vec::new(), Vec::new(), Vec::new());
-    for (k, v) in m.iter().enumerate() {
+    for (k, v) in m.as_slice().iter().enumerate() {
         if let Some(v) = v {
             from.push((k / nd) as i32 + 1);
             to.push((k % nd) as i32 + 1);
@@ -468,13 +466,13 @@ fn rs_transit_ttm(
         n_threads,
     );
     let m = done!(interruptible(&p.cancel, || {
-        matrix::travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+        matrix::transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
     })?);
     let np = percentiles.len();
     let (mut from, mut to) = (Vec::new(), Vec::new());
     let mut cols: Vec<Vec<Option<i32>>> = vec![Vec::new(); np];
-    for (i, row) in m.iter().enumerate() {
-        for (j, cell) in row.iter().enumerate() {
+    for (i, row) in m.rows().enumerate() {
+        for (j, cell) in row.chunks_exact(np).enumerate() {
             if cell[0].is_none() {
                 continue;
             }
@@ -549,14 +547,10 @@ fn rs_accessibility(
                 .ok_or_else(|| err("opportunities must be double vectors"))
         })
         .collect::<Result<_>>()?;
-    let dest = Destinations {
-        points: &d,
-        opportunities: &opp,
-    };
-    let a = AccessibilityParams {
-        cutoffs: cutoffs.to_vec(),
-        decay: decay(decay_function, decay_value)?,
-    };
+    let dest = Destinations::new(&d, &opp);
+    let mut a = AccessibilityParams::default();
+    a.cutoffs = cutoffs.to_vec();
+    a.decay = decay(decay_function, decay_value)?;
     let acc = if mode == "TRANSIT" {
         let t = transit(n)?;
         let p = transit_params(
@@ -590,7 +584,7 @@ fn rs_accessibility(
             street_accessibility(&n.net, &o, &dest, mode, &params, percentiles, &a)
         })?)
     };
-    Ok(acc.values.into())
+    Ok(acc.into_values().into())
 }
 
 /// Expanded (or, with `arrival`, arrival) travel-time matrix as columns:
@@ -637,14 +631,14 @@ fn rs_expanded(
         seed_of(has_seed, seed),
         n_threads,
     );
-    let rows: Vec<Vec<ExpandedRow>> = done!(interruptible(&p.cancel, || {
+    let rows = done!(interruptible(&p.cancel, || {
         if arrival {
             arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
         } else {
             expanded_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
         }
     })?);
-    let len: usize = rows.iter().map(Vec::len).sum();
+    let len = rows.n_rows();
     let mut from = Vec::with_capacity(len);
     let mut to = Vec::with_capacity(len);
     let mut dep = Vec::with_capacity(len);
@@ -652,7 +646,7 @@ fn rs_expanded(
     let mut times: [Vec<Option<f64>>; 6] = Default::default();
     let mut routes: Vec<Option<String>> = Vec::with_capacity(len);
     let mut n_rides: Vec<Option<i32>> = Vec::with_capacity(len);
-    for (i, origin_rows) in rows.into_iter().enumerate() {
+    for (i, origin_rows) in rows.into_vec().into_iter().enumerate() {
         for r in origin_rows {
             from.push(i as i32 + 1);
             to.push(r.to as i32 + 1);

@@ -24,50 +24,134 @@ use crate::RouteError;
 /// `AnalysisWorkerTask.MAX_REGIONAL_CUTOFFS`.
 const MAX_CUTOFFS: usize = 12;
 
-/// What to sum and how to weight it.
+/// How to weight the opportunities, with r5r's defaults (`cutoffs = 30`,
+/// `decay_function = "step"`). Fill it in by changing the fields of
+/// [`AccessibilityParams::default()`].
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct AccessibilityParams {
-    /// Cutoffs in whole minutes, 0 to 120 (sorted ascending here, as r5r
-    /// does). r5r passes the single placeholder `0` with `fixed_exponential`,
-    /// which ignores it.
+    /// Cutoffs in whole minutes: 1 to 12 values in 0..=120, in any order
+    /// (they are sorted ascending, as r5r does). r5r passes the single
+    /// placeholder `0` with [`DecayFunction::FixedExponential`], which
+    /// ignores it.
     pub cutoffs: Vec<i32>,
+    /// The decay function and its parameter.
     pub decay: DecayFunction,
 }
 
-/// Accessibility per origin, opportunity column, percentile and cutoff.
+impl Default for AccessibilityParams {
+    fn default() -> Self {
+        AccessibilityParams {
+            cutoffs: vec![30],
+            decay: DecayFunction::Step,
+        }
+    }
+}
+
+/// Accessibility per origin, opportunity column, percentile and cutoff:
+/// r5r's raw double, unrounded.
+///
+/// The values are held in one buffer, origin by origin, then opportunity
+/// column, percentile and cutoff (the cutoff varies fastest), which
+/// [`into_values`](Accessibility::into_values) hands over without copying.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Accessibility {
     /// Percentiles in output order (ascending).
-    pub percentiles: Vec<i32>,
+    percentiles: Vec<i32>,
     /// Cutoffs in minutes, in output order (ascending).
-    pub cutoffs: Vec<i32>,
-    pub n_opportunities: usize,
+    cutoffs: Vec<i32>,
+    n_opportunities: usize,
     /// `[origin][opportunity][percentile][cutoff]`, flattened.
-    pub values: Vec<f64>,
+    values: Vec<f64>,
 }
 
 impl Accessibility {
-    /// Values per origin.
+    /// Number of origins.
+    pub fn n_origins(&self) -> usize {
+        match self.per_origin() {
+            0 => 0,
+            per => self.values.len() / per,
+        }
+    }
+
+    /// Number of opportunity columns, in the order of the destinations'
+    /// columns (see [`Destinations::new`]).
+    pub fn n_opportunities(&self) -> usize {
+        self.n_opportunities
+    }
+
+    /// The percentiles, in output order (ascending).
+    pub fn percentiles(&self) -> &[i32] {
+        &self.percentiles
+    }
+
+    /// The cutoffs in minutes, in output order (ascending). With
+    /// [`DecayFunction::FixedExponential`], which ignores cutoffs, whatever
+    /// [`AccessibilityParams::cutoffs`] held (r5r passes the placeholder
+    /// `0`).
+    pub fn cutoffs(&self) -> &[i32] {
+        &self.cutoffs
+    }
+
+    /// Values per origin: opportunity columns x percentiles x cutoffs.
     pub fn per_origin(&self) -> usize {
         self.n_opportunities * self.percentiles.len() * self.cutoffs.len()
     }
 
     /// Accessibility of `origin` to opportunity column `opportunity` at the
-    /// `percentile`-th percentile and `cutoff`-th cutoff (indices).
+    /// `percentile`-th percentile and `cutoff`-th cutoff (indices into
+    /// [`percentiles`](Accessibility::percentiles) and
+    /// [`cutoffs`](Accessibility::cutoffs)). Panics when an index is out of
+    /// range.
     pub fn get(&self, origin: usize, opportunity: usize, percentile: usize, cutoff: usize) -> f64 {
         let (np, nc) = (self.percentiles.len(), self.cutoffs.len());
+        assert!(
+            origin < self.n_origins()
+                && opportunity < self.n_opportunities
+                && percentile < np
+                && cutoff < nc,
+            "({origin}, {opportunity}, {percentile}, {cutoff}) is out of range"
+        );
         self.values[origin * self.per_origin() + (opportunity * np + percentile) * nc + cutoff]
+    }
+
+    /// Every value, origin by origin, then opportunity column, percentile
+    /// and cutoff (the cutoff varies fastest).
+    pub fn values(&self) -> &[f64] {
+        &self.values
+    }
+
+    /// Every value, in the order of [`values`](Accessibility::values),
+    /// without copying.
+    pub fn into_values(self) -> Vec<f64> {
+        self.values
     }
 }
 
 /// Destination points with their opportunity counts: `opportunities[k][j]`
 /// is the count of opportunity kind `k` at `points[j]` (one column per
-/// r5r `opportunities_colnames` entry).
+/// r5r `opportunities_colnames` entry). Made with
+/// [`Destinations::new`].
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub struct Destinations<'a> {
     /// `(lat, lon)` degrees.
     pub points: &'a [(f64, f64)],
+    /// One column per kind of opportunity, one count per point.
     pub opportunities: &'a [Vec<f64>],
+}
+
+impl<'a> Destinations<'a> {
+    /// Destination `points` (`(lat, lon)` degrees) and their opportunity
+    /// counts, one column per kind of opportunity with one count per
+    /// point. The accessibility functions check that every column has one
+    /// count per point.
+    pub fn new(points: &'a [(f64, f64)], opportunities: &'a [Vec<f64>]) -> Self {
+        Destinations {
+            points,
+            opportunities,
+        }
+    }
 }
 
 /// The validated request: decay, cutoffs in seconds with their zero points,

@@ -255,9 +255,6 @@ impl TransitData {
     }
 }
 
-/// One origin's results: `[destination][percentile]`.
-type Row = Vec<Vec<Option<u32>>>;
-
 /// Percentile index into `n` sorted values (R5: `ceil(p / 100 * n) - 1`).
 pub(crate) fn percentile_index(p: i32, n: usize) -> usize {
     ((f64::from(p) / 100.0 * n as f64).ceil() as i64 - 1).max(0) as usize
@@ -514,26 +511,106 @@ pub(crate) fn par_origins<T: Send>(
         .collect())
 }
 
-/// Travel times in minutes, `[origin][destination][percentile]`, `None`
-/// where r5r reports NA; a pair is reported when its lowest percentile is.
-/// The percentiles are returned in ascending order, whatever the order of
-/// `p.percentiles`; a repeated percentile, which R5 accepts, gets one
-/// column per occurrence (see [`validate_percentiles`]).
-pub fn travel_time_matrix(
+/// A walk + transit travel-time matrix: for each origin and destination,
+/// whole minutes at each requested percentile, `None` where r5r reports NA.
+/// A pair is reported (its lowest percentile is `Some`) when that
+/// percentile is within `max_trip_duration`.
+///
+/// The percentiles are in ascending order, whatever the order of
+/// [`TransitParams::percentiles`]; a repeated percentile, which R5
+/// accepts, gets one value per occurrence (see [`validate_percentiles`]).
+/// The values are held in one buffer, origin by origin, destination by
+/// destination, percentile by percentile, which
+/// [`into_vec`](TransitMatrix::into_vec) hands over without copying.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransitMatrix {
+    n_origins: usize,
+    n_destinations: usize,
+    percentiles: Vec<i32>,
+    /// `minutes[(origin * n_destinations + destination) * n_percentiles + k]`.
+    minutes: Vec<Option<u32>>,
+}
+
+impl TransitMatrix {
+    /// Number of origins.
+    pub fn n_origins(&self) -> usize {
+        self.n_origins
+    }
+
+    /// Number of destinations.
+    pub fn n_destinations(&self) -> usize {
+        self.n_destinations
+    }
+
+    /// The percentiles, ascending: the order of the values of each pair.
+    pub fn percentiles(&self) -> &[i32] {
+        &self.percentiles
+    }
+
+    /// Minutes from origin `origin` to destination `destination` at each
+    /// percentile, in the order of [`percentiles`](TransitMatrix::percentiles).
+    /// Panics when either index is out of range.
+    pub fn get(&self, origin: usize, destination: usize) -> &[Option<u32>] {
+        assert!(
+            origin < self.n_origins && destination < self.n_destinations,
+            "({origin}, {destination}) is outside a {} x {} matrix",
+            self.n_origins,
+            self.n_destinations
+        );
+        let np = self.percentiles.len();
+        let k = (origin * self.n_destinations + destination) * np;
+        &self.minutes[k..k + np]
+    }
+
+    /// The values from origin `origin`: destination by destination, one
+    /// value per percentile each (`n_destinations * percentiles().len()`
+    /// values). Panics when `origin` is out of range.
+    pub fn row(&self, origin: usize) -> &[Option<u32>] {
+        assert!(origin < self.n_origins, "origin {origin} out of range");
+        let per = self.n_destinations * self.percentiles.len();
+        &self.minutes[origin * per..(origin + 1) * per]
+    }
+
+    /// The rows in origin order, as [`row`](TransitMatrix::row) gives them.
+    pub fn rows(&self) -> impl ExactSizeIterator<Item = &[Option<u32>]> + '_ {
+        (0..self.n_origins).map(move |i| self.row(i))
+    }
+
+    /// The whole matrix as one slice, in the order of
+    /// [`into_vec`](TransitMatrix::into_vec).
+    pub fn as_slice(&self) -> &[Option<u32>] {
+        &self.minutes
+    }
+
+    /// The whole matrix as one vector, without copying: the value for
+    /// `(origin, destination)` at the `k`-th percentile is at
+    /// `(origin * n_destinations + destination) * percentiles().len() + k`.
+    pub fn into_vec(self) -> Vec<Option<u32>> {
+        self.minutes
+    }
+}
+
+/// Walk + transit travel-time matrix, as r5r's `travel_time_matrix()` with
+/// `mode = c("WALK", "TRANSIT")`. Points are `(lat, lon)` degrees.
+/// [`RouteError::Invalid`] when the parameters are invalid (see
+/// [`TransitParams::validate`]), [`RouteError::Cancelled`] when `p.cancel`
+/// is cancelled before every origin is done.
+pub fn transit_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
     data: &TransitData,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TransitParams,
-) -> Result<Vec<Row>, RouteError> {
+) -> Result<TransitMatrix, RouteError> {
     let q = Query::new(net, layer, data, destinations, p)?;
     let m = p.max_trip_duration;
     let mut percentiles = p.percentiles.clone();
     percentiles.sort_unstable();
     let nd = destinations.len();
-    par_origins(p.n_threads, origins.len(), &p.cancel, |i, scratch| {
-        let mut row = vec![vec![None; percentiles.len()]; nd];
+    let np = percentiles.len();
+    let rows = par_origins(p.n_threads, origins.len(), &p.cancel, |i, scratch| {
+        let mut row = vec![None; nd * np];
         q.route_origin(origins[i], scratch, |j, tt| {
             // TravelTimeReducer.extractTravelTimePercentilesAndRecord
             tt.sort_unstable();
@@ -550,7 +627,7 @@ pub fn travel_time_matrix(
                 })
                 .collect();
             if vals[0] <= m {
-                for (c, &v) in row[j].iter_mut().zip(&vals) {
+                for (c, &v) in row[j * np..(j + 1) * np].iter_mut().zip(&vals) {
                     if v <= m {
                         *c = Some(v as u32);
                     }
@@ -558,6 +635,16 @@ pub fn travel_time_matrix(
             }
         });
         row
+    })?;
+    let mut minutes = Vec::with_capacity(origins.len() * nd * np);
+    for row in rows {
+        minutes.extend_from_slice(&row);
+    }
+    Ok(TransitMatrix {
+        n_origins: origins.len(),
+        n_destinations: nd,
+        percentiles,
+        minutes,
     })
 }
 

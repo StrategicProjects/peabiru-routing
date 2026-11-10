@@ -9,7 +9,7 @@ mod common;
 
 use peabiru_core::street::BuildOptions;
 use peabiru_core::transit::build_from_dir;
-use peabiru_core::transit::matrix::{travel_time_matrix, TransitData, TransitParams};
+use peabiru_core::transit::matrix::{transit_travel_time_matrix, TransitData, TransitParams};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dir = common::data_dir();
@@ -38,9 +38,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..TransitParams::default()
     };
     // [origin][destination][percentile], whole minutes; None = no time.
-    let m = travel_time_matrix(&net, &layer, &data, &points.coords, &points.coords, &params)?;
-    for (j, cell) in m[0].iter().enumerate().take(5) {
-        println!("{} -> {}: {:?}", points.ids[0], points.ids[j], cell);
+    let m =
+        transit_travel_time_matrix(&net, &layer, &data, &points.coords, &points.coords, &params)?;
+    for j in 0..5 {
+        println!("{} -> {}: {:?}", points.ids[0], points.ids[j], m.get(0, j));
     }
     Ok(())
 }

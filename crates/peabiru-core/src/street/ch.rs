@@ -788,7 +788,8 @@ fn hierarchy(
     Ok(Some(e))
 }
 
-/// The street travel-time matrix of [`super::router::travel_time_matrix`]
+/// The street travel-time matrix of
+/// [`super::router::street_travel_time_matrix`]
 /// by contraction hierarchy, or `None` when the plain search should
 /// compute it (see [`wanted`]).
 pub(super) fn travel_time_matrix(
@@ -1098,7 +1099,7 @@ mod tests {
         mode: Mode,
         p: &RouteParams,
     ) -> Result<Vec<Option<u32>>, RouteError> {
-        crate::street::router::travel_time_matrix(net, o, d, mode, p)
+        crate::street::router::street_travel_time_matrix(net, o, d, mode, p).map(|m| m.into_vec())
     }
 
     /// The matrix by the plain search.

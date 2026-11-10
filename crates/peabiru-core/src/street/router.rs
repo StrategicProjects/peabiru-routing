@@ -26,7 +26,7 @@ const RIGHT_TURN: i32 = 10;
 const LEFT_TURN: i32 = 30;
 const U_TURN: i32 = 90;
 
-/// How [`travel_time_matrix`] computes a street matrix. Every choice gives
+/// How [`street_travel_time_matrix`] computes a street matrix. Every choice gives
 /// the same matrix; they differ only in speed and memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StreetEngine {
@@ -63,7 +63,7 @@ pub struct RouteParams {
     /// which nothing cancels unless a clone of it is kept.
     pub cancel: CancelToken,
     /// How a street travel-time matrix is computed (see [`StreetEngine`]);
-    /// it changes the speed of [`travel_time_matrix`], never its result.
+    /// it changes the speed of [`street_travel_time_matrix`], never its result.
     pub engine: StreetEngine,
 }
 
@@ -863,9 +863,85 @@ pub(crate) fn search_from(
     }));
 }
 
-/// Travel-time matrix in whole minutes, row-major `origins x destinations`;
-/// `None` where r5r reports no time (unlinked, unreachable or beyond
-/// `max_trip_duration_min`). Points are `(lat, lon)` degrees.
+/// A street travel-time matrix: whole minutes from each origin to each
+/// destination, `None` where r5r reports no time (an origin or destination
+/// that cannot be linked to the streets, an unreachable destination, or a
+/// time beyond `max_trip_duration_min`).
+///
+/// The minutes are held in one buffer, row by row (all destinations of the
+/// first origin, then of the second, ...), which
+/// [`into_vec`](StreetMatrix::into_vec) hands over without copying.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StreetMatrix {
+    n_origins: usize,
+    n_destinations: usize,
+    /// `minutes[origin * n_destinations + destination]`.
+    minutes: Vec<Option<u32>>,
+}
+
+impl StreetMatrix {
+    pub(crate) fn new(n_origins: usize, n_destinations: usize, minutes: Vec<Option<u32>>) -> Self {
+        debug_assert_eq!(minutes.len(), n_origins * n_destinations);
+        StreetMatrix {
+            n_origins,
+            n_destinations,
+            minutes,
+        }
+    }
+
+    /// Number of origins (rows).
+    pub fn n_origins(&self) -> usize {
+        self.n_origins
+    }
+
+    /// Number of destinations (columns).
+    pub fn n_destinations(&self) -> usize {
+        self.n_destinations
+    }
+
+    /// Minutes from origin `origin` to destination `destination` (indices
+    /// in the order the points were given). Panics when either is out of
+    /// range.
+    pub fn get(&self, origin: usize, destination: usize) -> Option<u32> {
+        assert!(
+            origin < self.n_origins && destination < self.n_destinations,
+            "({origin}, {destination}) is outside a {} x {} matrix",
+            self.n_origins,
+            self.n_destinations
+        );
+        self.minutes[origin * self.n_destinations + destination]
+    }
+
+    /// The minutes from origin `origin` to every destination. Panics when
+    /// `origin` is out of range.
+    pub fn row(&self, origin: usize) -> &[Option<u32>] {
+        assert!(origin < self.n_origins, "origin {origin} out of range");
+        let nd = self.n_destinations;
+        &self.minutes[origin * nd..(origin + 1) * nd]
+    }
+
+    /// The rows in origin order, as [`row`](StreetMatrix::row) gives them.
+    pub fn rows(&self) -> impl ExactSizeIterator<Item = &[Option<u32>]> + '_ {
+        (0..self.n_origins).map(move |i| self.row(i))
+    }
+
+    /// The whole matrix as one slice, row by row.
+    pub fn as_slice(&self) -> &[Option<u32>] {
+        &self.minutes
+    }
+
+    /// The whole matrix as one vector, row by row, without copying:
+    /// the value for `(origin, destination)` is at
+    /// `origin * n_destinations + destination`.
+    pub fn into_vec(self) -> Vec<Option<u32>> {
+        self.minutes
+    }
+}
+
+/// Street travel-time matrix in whole minutes by walking, cycling or
+/// driving, as r5r's `travel_time_matrix()` with a single street mode.
+/// Points are `(lat, lon)` degrees. [`RouteError::Invalid`] when the
+/// parameters are invalid (see [`RouteParams::validate`]),
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled before the
 /// matrix is complete.
 ///
@@ -873,7 +949,23 @@ pub(crate) fn search_from(
 /// [`StreetEngine`]); the result is the same either way. A contraction
 /// hierarchy built here is kept with the network and makes later matrices
 /// of the same mode and speeds faster.
-pub fn travel_time_matrix(
+pub fn street_travel_time_matrix(
+    net: &StreetNetwork,
+    origins: &[(f64, f64)],
+    destinations: &[(f64, f64)],
+    mode: Mode,
+    params: &RouteParams,
+) -> Result<StreetMatrix, RouteError> {
+    let minutes = matrix_minutes(net, origins, destinations, mode, params)?;
+    Ok(StreetMatrix::new(
+        origins.len(),
+        destinations.len(),
+        minutes,
+    ))
+}
+
+/// The minutes of [`street_travel_time_matrix`], row by row.
+fn matrix_minutes(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
@@ -941,7 +1033,7 @@ pub fn travel_time_matrix(
 /// origin: `reduce(i, Some(times))` gets origin `i`'s time to every
 /// destination (`i32::MAX` where the destination is unlinked or
 /// unreachable), and `reduce(i, None)` an origin that cannot be linked.
-/// The search is the one behind [`travel_time_matrix`], so a time can
+/// The search is the one behind [`street_travel_time_matrix`], so a time can
 /// exceed `max_trip_duration_min` by the partial edges at both ends, as in
 /// R5's `LinkedPointSet.eval`. Results are in origin order;
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled before every
@@ -1055,7 +1147,8 @@ pub(crate) mod tests {
         ];
         for p in bad {
             assert!(
-                travel_time_matrix(&net, &[(0.0, 0.0)], &[(0.0, 0.0)], Mode::Walk, &p).is_err()
+                street_travel_time_matrix(&net, &[(0.0, 0.0)], &[(0.0, 0.0)], Mode::Walk, &p)
+                    .is_err()
             );
         }
         assert!(RouteParams::default().validate().is_ok());
@@ -1220,7 +1313,15 @@ pub(crate) mod tests {
                 n_threads: 1,
                 ..RouteParams::default()
             };
-            let m1 = travel_time_matrix(&net, &pts, dest, mode, &one).unwrap();
+            let m = street_travel_time_matrix(&net, &pts, dest, mode, &one).unwrap();
+            assert_eq!((m.n_origins(), m.n_destinations()), (pts.len(), dest.len()));
+            for (i, row) in m.rows().enumerate() {
+                assert_eq!(row, m.row(i));
+                for (j, &cell) in row.iter().enumerate() {
+                    assert_eq!(cell, m.get(i, j));
+                }
+            }
+            let m1 = m.into_vec();
             assert_eq!(m1.len(), pts.len() * dest.len());
             assert!(m1.iter().filter(|c| c.is_some()).count() > 100);
             for n_threads in [0, 3, 64] {
@@ -1228,15 +1329,21 @@ pub(crate) mod tests {
                     n_threads,
                     ..RouteParams::default()
                 };
-                assert_eq!(travel_time_matrix(&net, &pts, dest, mode, &p).unwrap(), m1);
+                let m = street_travel_time_matrix(&net, &pts, dest, mode, &p).unwrap();
+                assert_eq!(m.as_slice(), m1);
             }
             for (i, &o) in pts.iter().enumerate() {
-                let row = travel_time_matrix(&net, &[o], dest, mode, &one).unwrap();
-                assert_eq!(row[..], m1[i * dest.len()..(i + 1) * dest.len()], "{i}");
+                let row = street_travel_time_matrix(&net, &[o], dest, mode, &one).unwrap();
+                assert_eq!(
+                    row.as_slice(),
+                    &m1[i * dest.len()..(i + 1) * dest.len()],
+                    "{i}"
+                );
             }
-            assert!(travel_time_matrix(&net, &pts, &[], mode, &one)
-                .unwrap()
-                .is_empty());
+            let empty = street_travel_time_matrix(&net, &pts, &[], mode, &one).unwrap();
+            assert!(empty.as_slice().is_empty());
+            assert_eq!(empty.rows().len(), pts.len());
+            assert!(empty.rows().all(<[_]>::is_empty));
         }
     }
 }

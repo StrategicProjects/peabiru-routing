@@ -281,10 +281,10 @@ fn street_ttm<'py>(
         ..RouteParams::default()
     };
     let (from, to, tt) = interruptible(py, &params.cancel, || {
-        let m = street::travel_time_matrix(&n.net, &o, &d, mode, &params)?;
+        let m = street::street_travel_time_matrix(&n.net, &o, &d, mode, &params)?;
         let nd = d.len();
         let (mut from, mut to, mut tt) = (Vec::new(), Vec::new(), Vec::new());
-        for (k, v) in m.iter().enumerate() {
+        for (k, v) in m.as_slice().iter().enumerate() {
             if let Some(v) = v {
                 from.push((k / nd) as i32);
                 to.push((k % nd) as i32);
@@ -372,11 +372,11 @@ fn transit_ttm<'py>(
         n_threads,
     );
     let (from, to, cols) = interruptible(py, &p.cancel, || {
-        let m = matrix::travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)?;
+        let m = matrix::transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)?;
         let (mut from, mut to) = (Vec::new(), Vec::new());
         let mut cols: Vec<Vec<i32>> = vec![Vec::new(); np];
-        for (i, row) in m.iter().enumerate() {
-            for (j, cell) in row.iter().enumerate() {
+        for (i, row) in m.rows().enumerate() {
+            for (j, cell) in row.chunks_exact(np).enumerate() {
                 if cell[0].is_none() {
                     continue;
                 }
@@ -456,10 +456,9 @@ fn accessibility<'py>(
             "every opportunity column must have one value per destination",
         ));
     }
-    let a = AccessibilityParams {
-        cutoffs,
-        decay: decay(decay_function, decay_value)?,
-    };
+    let mut a = AccessibilityParams::default();
+    a.cutoffs = cutoffs;
+    a.decay = decay(decay_function, decay_value)?;
     let street = if mode == "TRANSIT" {
         None
     } else {
@@ -472,10 +471,7 @@ fn accessibility<'py>(
     };
     let cancel = CancelToken::new();
     let values = interruptible(py, &cancel, || {
-        let dest = Destinations {
-            points: &d,
-            opportunities: &opp,
-        };
+        let dest = Destinations::new(&d, &opp);
         match (street, t) {
             (None, Some(t)) => {
                 let p = TransitParams {
@@ -511,7 +507,7 @@ fn accessibility<'py>(
             (None, None) => unreachable!("transit checked above"),
         }
     })?;
-    f64_bytes(py, &values.values)
+    f64_bytes(py, values.values())
 }
 
 /// Expanded (or, with `arrival`, arrival) travel-time matrix as a dict of
@@ -561,12 +557,12 @@ fn expanded<'py>(
         n_threads,
     );
     let cols = interruptible(py, &p.cancel, || {
-        let rows: Vec<Vec<ExpandedRow>> = if arrival {
+        let rows = if arrival {
             arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
         } else {
             expanded_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
         }?;
-        Ok(ExpandedColumns::new(rows))
+        Ok(ExpandedColumns::new(rows.into_vec()))
     })?;
     let out = PyDict::new(py);
     out.set_item("from", i32_bytes(py, &cols.from)?)?;

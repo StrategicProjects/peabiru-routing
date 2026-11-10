@@ -6,7 +6,7 @@ use peabiru_core::transit::accessibility::{
 };
 use peabiru_core::transit::decay::DecayFunction;
 use peabiru_core::transit::expanded::{arrival_travel_time_matrix, expanded_travel_time_matrix};
-use peabiru_core::transit::matrix::{travel_time_matrix, TransitData, TransitParams};
+use peabiru_core::transit::matrix::{transit_travel_time_matrix, TransitData, TransitParams};
 use peabiru_core::transit::TransitLayer;
 use peabiru_core::{CancelToken, RouteError};
 use std::sync::OnceLock;
@@ -69,10 +69,9 @@ fn calls(heavy: bool) -> Vec<(&'static str, Call)> {
     let (tw, dpm) = if heavy { (1440, 20) } else { (10, 1) };
     let reps = if heavy { 5000 } else { 1 };
     let many: Vec<(f64, f64)> = s.points.repeat(reps);
-    let a = AccessibilityParams {
-        cutoffs: vec![30],
-        decay: DecayFunction::Step,
-    };
+    let mut a = AccessibilityParams::default();
+    a.cutoffs = vec![30];
+    a.decay = DecayFunction::Step;
     let route = |cancel: &CancelToken| RouteParams {
         n_threads: 1,
         cancel: cancel.clone(),
@@ -84,16 +83,14 @@ fn calls(heavy: bool) -> Vec<(&'static str, Call)> {
         (
             "street matrix",
             Box::new(move |c: &CancelToken| {
-                street::travel_time_matrix(&s.net, &many, &s.points, Mode::Car, &route(c)).map(drop)
+                street::street_travel_time_matrix(&s.net, &many, &s.points, Mode::Car, &route(c))
+                    .map(drop)
             }),
         ),
         (
             "street accessibility",
             Box::new(move |c: &CancelToken| {
-                let dest = Destinations {
-                    points: &s.points,
-                    opportunities: &s.jobs,
-                };
+                let dest = Destinations::new(&s.points, &s.jobs);
                 street_accessibility(&s.net, &many2, &dest, Mode::Car, &route(c), &[50], &a)
                     .map(drop)
             }),
@@ -102,16 +99,14 @@ fn calls(heavy: bool) -> Vec<(&'static str, Call)> {
             "transit matrix",
             Box::new(move |c: &CancelToken| {
                 let p = transit_params(tw, dpm, c);
-                travel_time_matrix(&s.net, &s.layer, &s.data, &s.points, &s.points, &p).map(drop)
+                transit_travel_time_matrix(&s.net, &s.layer, &s.data, &s.points, &s.points, &p)
+                    .map(drop)
             }),
         ),
         (
             "transit accessibility",
             Box::new(move |c: &CancelToken| {
-                let dest = Destinations {
-                    points: &s.points,
-                    opportunities: &s.jobs,
-                };
+                let dest = Destinations::new(&s.points, &s.jobs);
                 let p = transit_params(tw, dpm, c);
                 transit_accessibility(&s.net, &s.layer, &s.data, &s.points, &dest, &p, &a2)
                     .map(drop)
@@ -181,7 +176,7 @@ fn a_single_slow_origin_stops_soon_after_the_cancel() {
     let one = &s.points[..1];
     let (r, late) = cancel_after(Duration::from_millis(200), |c| {
         let p = transit_params(1440, 100, c);
-        travel_time_matrix(&s.net, &s.layer, &s.data, one, &s.points, &p).map(drop)
+        transit_travel_time_matrix(&s.net, &s.layer, &s.data, one, &s.points, &p).map(drop)
     });
     assert_eq!(r, Err(RouteError::Cancelled));
     assert!(late < Duration::from_millis(500), "{late:?}");
@@ -200,7 +195,8 @@ fn invalid_parameters_are_not_a_cancellation() {
         date: 20190230,
         ..TransitParams::default()
     };
-    let e = travel_time_matrix(&s.net, &s.layer, &s.data, &s.points, &s.points, &p).unwrap_err();
+    let e = transit_travel_time_matrix(&s.net, &s.layer, &s.data, &s.points, &s.points, &p)
+        .unwrap_err();
     assert!(
         matches!(e, RouteError::Invalid(ref m) if m.contains("date")),
         "{e}"

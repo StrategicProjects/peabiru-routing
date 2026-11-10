@@ -37,11 +37,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         n_threads: 2,
         ..TransitParams::default()
     };
-    let destinations = Destinations {
-        points: &points.coords,
-        opportunities: &points.columns,
-    };
-    let a = AccessibilityParams { cutoffs, decay };
+    let destinations = Destinations::new(&points.coords, &points.columns);
+    let mut a = AccessibilityParams::default();
+    a.cutoffs = cutoffs;
+    a.decay = decay;
     let acc = transit_accessibility(
         &net,
         &layer,
