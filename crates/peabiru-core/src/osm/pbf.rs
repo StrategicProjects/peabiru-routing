@@ -12,13 +12,18 @@
 use super::protobuf::{packed_delta_sint64, packed_u64, Fields, Packed};
 use std::borrow::Cow;
 use std::fmt;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
 /// An error while reading a PBF file.
 #[derive(Debug)]
 pub enum PbfError {
     Io(std::io::Error),
     Format(String),
+    /// An error in the file at `path`.
+    InFile {
+        path: std::path::PathBuf,
+        error: Box<PbfError>,
+    },
 }
 
 impl fmt::Display for PbfError {
@@ -26,6 +31,7 @@ impl fmt::Display for PbfError {
         match self {
             PbfError::Io(e) => write!(f, "cannot read the PBF file: {e}"),
             PbfError::Format(m) => write!(f, "malformed PBF file: {m}"),
+            PbfError::InFile { path, error } => write!(f, "{}: {error}", path.display()),
         }
     }
 }
@@ -167,52 +173,94 @@ impl Extract {
     }
 }
 
-/// Read an extract from a `.osm.pbf` file.
+/// Read an extract from a `.osm.pbf` file. Errors name the file.
 pub fn read_pbf_file(path: impl AsRef<std::path::Path>, opts: &ReadOptions) -> Result<Extract> {
-    let bytes = std::fs::read(path)?;
-    read_pbf(&bytes, opts)
+    let path = path.as_ref();
+    std::fs::read(path)
+        .map_err(PbfError::Io)
+        .and_then(|bytes| read_pbf(&bytes, opts))
+        .map_err(|error| PbfError::InFile {
+            path: path.to_path_buf(),
+            error: Box::new(error),
+        })
+}
+
+/// Position of an element in the file: blob index, then element index in
+/// the blob. Both passes decode blocks identically, so positions agree.
+fn position(blob: usize, item: u32) -> u64 {
+    ((blob as u64) << 32) | u64::from(item)
 }
 
 /// Read an extract from the bytes of a `.osm.pbf` file.
+///
+/// An id that appears more than once (extracts concatenated without
+/// deduplication) is handled as osm-lib does in R5: the last occurrence in
+/// the file replaces the earlier ones, whether or not the filters accept it,
+/// while reference counts count every occurrence.
 pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
-    let blobs = split_blobs(bytes)?;
+    let blobs: Vec<(usize, &[u8])> = split_blobs(bytes)?.into_iter().enumerate().collect();
     let n_threads = resolve_threads(opts.n_threads);
 
-    // Pass 1: ways and relations.
-    let parts = par_map(&blobs, n_threads, |blob| {
+    // Pass 1: ways and relations, with their positions.
+    let parts = par_map(&blobs, n_threads, |&(b, blob)| {
         let block = inflate(blob)?;
         let mut ways = Vec::new();
         let mut relations = Vec::new();
-        decode_block(&block, &mut |item| match item {
-            Item::Way { id, tags, refs } => {
-                if (opts.way_filter)(tags) && refs.len() >= 2 {
-                    ways.push(Way {
-                        id,
-                        tags: Tags::from_refs(tags),
-                        nodes: refs,
-                    });
-                }
-            }
-            Item::Relation { id, tags, members } => {
-                if let Some(f) = opts.relation_filter {
-                    if f(tags) {
-                        relations.push(Relation {
-                            id,
-                            tags: Tags::from_refs(tags),
-                            members,
-                        });
+        let mut at = 0u32;
+        decode_block(&block, &mut |item| {
+            let pos = position(b, at);
+            at += 1;
+            match item {
+                Item::Way { id, tags, refs } => {
+                    if (opts.way_filter)(tags) && refs.len() >= 2 {
+                        let tags = Tags::from_refs(tags);
+                        ways.push((
+                            pos,
+                            Way {
+                                id,
+                                tags,
+                                nodes: refs,
+                            },
+                        ));
                     }
                 }
+                Item::Relation { id, tags, members } => {
+                    if let Some(f) = opts.relation_filter {
+                        if f(tags) {
+                            let tags = Tags::from_refs(tags);
+                            relations.push((pos, Relation { id, tags, members }));
+                        }
+                    }
+                }
+                Item::Node { .. } => {}
             }
-            Item::Node { .. } => {}
         })?;
         Ok((ways, relations))
     })?;
     let mut ex = Extract::default();
+    let (mut way_pos, mut relation_pos) = (Vec::new(), Vec::new());
     for (w, r) in parts {
-        ex.ways.extend(w);
-        ex.relations.extend(r);
+        for (p, w) in w {
+            way_pos.push(p);
+            ex.ways.push(w);
+        }
+        for (p, r) in r {
+            relation_pos.push(p);
+            ex.relations.push(r);
+        }
     }
+    // Last position in the file of each kept id, filled by pass 2.
+    let sorted_ids = |ids: Vec<i64>| {
+        let mut ids = ids;
+        ids.sort_unstable();
+        ids.dedup();
+        let last: Vec<AtomicU64> = ids.iter().map(|_| AtomicU64::new(0)).collect();
+        (ids, last)
+    };
+    let (kept_ways, way_last) = sorted_ids(ex.ways.iter().map(|w| w.id).collect());
+    let (kept_relations, relation_last) = sorted_ids(ex.relations.iter().map(|r| r.id).collect());
+    let (kept_ways_ref, way_last_ref) = (&kept_ways, &way_last);
+    let (kept_relations_ref, relation_last_ref) = (&kept_relations, &relation_last);
 
     // Pass 2: coordinates of the referenced nodes.
     let mut ids: Vec<i64> = ex
@@ -249,45 +297,57 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
     let way_seen: Vec<AtomicBool> = member_ways.iter().map(|_| AtomicBool::new(false)).collect();
     let (member_nodes_ref, member_ways_ref) = (&member_nodes, &member_ways);
     let (node_seen_ref, way_seen_ref) = (&node_seen, &way_seen);
-    let found = par_map(&blobs, n_threads, |blob| {
+    let found = par_map(&blobs, n_threads, |&(b, blob)| {
         let block = inflate(blob)?;
         let mut coords: Vec<(u32, i32, i32)> = Vec::new();
         let mut tagged: Vec<(i64, Tags)> = Vec::new();
         let mut pois: Vec<(i64, i32, i32, Tags)> = Vec::new();
-        decode_block(&block, &mut |item| match item {
-            Item::Node { id, lat, lon, tags } => {
-                if let Some(f) = opts.poi_filter {
-                    if !tags.is_empty() && f(tags) {
-                        pois.push((id, lat, lon, Tags::from_refs(tags)));
-                    }
-                }
-                if let Ok(i) = member_nodes_ref.binary_search(&id) {
-                    node_seen_ref[i].store(true, Ordering::Relaxed);
-                }
-                if let Ok(i) = ids_ref.binary_search(&id) {
-                    coords.push((i as u32, lat, lon));
-                    if let Some(f) = opts.node_tag_filter {
+        let mut at = 0u32;
+        decode_block(&block, &mut |item| {
+            let pos = position(b, at);
+            at += 1;
+            match item {
+                Item::Node { id, lat, lon, tags } => {
+                    if let Some(f) = opts.poi_filter {
                         if !tags.is_empty() && f(tags) {
-                            tagged.push((id, Tags::from_refs(tags)));
+                            pois.push((id, lat, lon, Tags::from_refs(tags)));
                         }
                     }
-                }
-            }
-            Item::Way { id, tags, refs } => {
-                if let Ok(i) = member_ways_ref.binary_search(&id) {
-                    way_seen_ref[i].store(true, Ordering::Relaxed);
-                }
-                if let Some(f) = opts.ref_count_filter {
-                    if f(tags) {
-                        for r in refs {
-                            if let Ok(i) = ids_ref.binary_search(&r) {
-                                counts_ref[i].fetch_add(1, Ordering::Relaxed);
+                    if let Ok(i) = member_nodes_ref.binary_search(&id) {
+                        node_seen_ref[i].store(true, Ordering::Relaxed);
+                    }
+                    if let Ok(i) = ids_ref.binary_search(&id) {
+                        coords.push((i as u32, lat, lon));
+                        if let Some(f) = opts.node_tag_filter {
+                            if !tags.is_empty() && f(tags) {
+                                tagged.push((id, Tags::from_refs(tags)));
                             }
                         }
                     }
                 }
+                Item::Way { id, tags, refs } => {
+                    if let Ok(i) = kept_ways_ref.binary_search(&id) {
+                        way_last_ref[i].fetch_max(pos, Ordering::Relaxed);
+                    }
+                    if let Ok(i) = member_ways_ref.binary_search(&id) {
+                        way_seen_ref[i].store(true, Ordering::Relaxed);
+                    }
+                    if let Some(f) = opts.ref_count_filter {
+                        if f(tags) {
+                            for r in refs {
+                                if let Ok(i) = ids_ref.binary_search(&r) {
+                                    counts_ref[i].fetch_add(1, Ordering::Relaxed);
+                                }
+                            }
+                        }
+                    }
+                }
+                Item::Relation { id, .. } => {
+                    if let Ok(i) = kept_relations_ref.binary_search(&id) {
+                        relation_last_ref[i].fetch_max(pos, Ordering::Relaxed);
+                    }
+                }
             }
-            Item::Relation { .. } => {}
         })?;
         Ok((coords, tagged, pois))
     })?;
@@ -314,6 +374,46 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
     ex.member_nodes_present = present(&member_nodes, node_seen);
     ex.member_ways_present = present(&member_ways, way_seen);
     ex.node_ids = ids;
+
+    // Keep only the last occurrence of each id.
+    let is_last = |ids: &[i64], last: &[AtomicU64], id: i64, pos: u64| {
+        ids.binary_search(&id)
+            .is_ok_and(|i| last[i].load(Ordering::Relaxed) == pos)
+    };
+    let mut keep = way_pos.iter();
+    let n_ways = ex.ways.len();
+    ex.ways
+        .retain(|w| is_last(&kept_ways, &way_last, w.id, *keep.next().unwrap()));
+    let mut keep = relation_pos.iter();
+    ex.relations
+        .retain(|r| is_last(&kept_relations, &relation_last, r.id, *keep.next().unwrap()));
+    if ex.ways.len() < n_ways {
+        // Nodes referenced only by the replaced occurrences go too.
+        let mut used: Vec<i64> = ex
+            .ways
+            .iter()
+            .flat_map(|w| w.nodes.iter().copied())
+            .collect();
+        used.sort_unstable();
+        used.dedup();
+        if used.len() < ex.node_ids.len() {
+            let keep: Vec<bool> = ex
+                .node_ids
+                .iter()
+                .map(|id| used.binary_search(id).is_ok())
+                .collect();
+            let mut k = keep.iter();
+            ex.node_ids.retain(|_| *k.next().unwrap());
+            let mut k = keep.iter();
+            ex.lat.retain(|_| *k.next().unwrap());
+            let mut k = keep.iter();
+            ex.lon.retain(|_| *k.next().unwrap());
+            if !ex.ref_counts.is_empty() {
+                let mut k = keep.iter();
+                ex.ref_counts.retain(|_| *k.next().unwrap());
+            }
+        }
+    }
     Ok(ex)
 }
 
@@ -328,10 +428,12 @@ fn resolve_threads(n: usize) -> usize {
 /// Split the file into the payloads of its `OSMData` blobs, checking the
 /// header's required features on the way.
 fn split_blobs(bytes: &[u8]) -> Result<Vec<&[u8]>> {
+    // `bytes[pos..pos + n]` when it exists; sizes come from the file.
+    let span = |pos: usize, n: usize| pos.checked_add(n).and_then(|end| bytes.get(pos..end));
     let mut out = Vec::new();
     let mut pos = 0usize;
     while pos < bytes.len() {
-        let Some(len_bytes) = bytes.get(pos..pos + 4) else {
+        let Some(len_bytes) = span(pos, 4) else {
             return format_err("truncated blob header length");
         };
         let header_len = u32::from_be_bytes(len_bytes.try_into().unwrap()) as usize;
@@ -339,7 +441,7 @@ fn split_blobs(bytes: &[u8]) -> Result<Vec<&[u8]>> {
             return format_err("blob header larger than 64 KiB");
         }
         pos += 4;
-        let Some(header) = bytes.get(pos..pos + header_len) else {
+        let Some(header) = span(pos, header_len) else {
             return format_err("truncated blob header");
         };
         pos += header_len;
@@ -348,17 +450,20 @@ fn split_blobs(bytes: &[u8]) -> Result<Vec<&[u8]>> {
         for f in Fields::new(header) {
             match f? {
                 (1, v) => kind = v.as_bytes()?,
-                (3, v) => data_size = Some(v.as_u64()? as usize),
+                (3, v) => data_size = Some(v.as_u64()?),
                 _ => {}
             }
         }
         let Some(data_size) = data_size else {
             return format_err("blob header without datasize");
         };
-        let Some(blob) = bytes.get(pos..pos + data_size) else {
-            return format_err("truncated blob");
+        let blob = usize::try_from(data_size).ok().and_then(|n| span(pos, n));
+        let Some(blob) = blob else {
+            return format_err(format!(
+                "blob of {data_size} bytes runs past the end of the file"
+            ));
         };
-        pos += data_size;
+        pos += blob.len();
         match kind {
             b"OSMHeader" => check_header(&inflate(blob)?)?,
             b"OSMData" => out.push(blob),
@@ -454,25 +559,40 @@ struct BlockParams {
 impl BlockParams {
     /// Fixed-point 1e-7 degrees from a raw coordinate.
     #[inline]
-    fn lat(&self, raw: i64) -> i32 {
-        to_e7(self.lat_offset + self.granularity * raw)
+    fn lat(&self, raw: i64) -> Result<i32> {
+        coordinate(self.lat_offset, self.granularity, raw)
     }
 
     #[inline]
-    fn lon(&self, raw: i64) -> i32 {
-        to_e7(self.lon_offset + self.granularity * raw)
+    fn lon(&self, raw: i64) -> Result<i32> {
+        coordinate(self.lon_offset, self.granularity, raw)
     }
+}
+
+/// `offset + granularity * raw` nanodegrees in 1e-7 degrees; an error when
+/// the file's values overflow or the result does not fit in 1e-7 degrees.
+#[inline]
+fn coordinate(offset: i64, granularity: i64, raw: i64) -> Result<i32> {
+    granularity
+        .checked_mul(raw)
+        .and_then(|d| d.checked_add(offset))
+        .and_then(to_e7)
+        .ok_or_else(|| {
+            PbfError::Format(format!(
+                "coordinate out of range (offset {offset}, granularity {granularity}, value {raw})"
+            ))
+        })
 }
 
 /// Nanodegrees to 1e-7 degrees, rounded half away from zero.
 #[inline]
-fn to_e7(nano: i64) -> i32 {
+fn to_e7(nano: i64) -> Option<i32> {
     let q = if nano >= 0 {
-        (nano + 50) / 100
+        nano.checked_add(50)? / 100
     } else {
-        (nano - 50) / 100
+        nano.checked_sub(50)? / 100
     };
-    q as i32
+    i32::try_from(q).ok()
 }
 
 fn decode_block(block: &[u8], visit: &mut dyn FnMut(Item)) -> Result<()> {
@@ -498,6 +618,12 @@ fn decode_block(block: &[u8], visit: &mut dyn FnMut(Item)) -> Result<()> {
             (20, v) => params.lon_offset = v.as_i64()?,
             _ => {}
         }
+    }
+    if params.granularity <= 0 {
+        return format_err(format!(
+            "block granularity {} is not positive",
+            params.granularity
+        ));
     }
     let st = |i: u64| -> Result<&str> {
         strings
@@ -563,8 +689,8 @@ fn decode_node<'s>(
     keys_vals(&keys, &vals, st, tags)?;
     visit(Item::Node {
         id,
-        lat: p.lat(lat),
-        lon: p.lon(lon),
+        lat: p.lat(lat)?,
+        lon: p.lon(lon)?,
         tags,
     });
     Ok(())
@@ -616,8 +742,8 @@ fn decode_dense<'s>(
         }
         visit(Item::Node {
             id: ids[i],
-            lat: p.lat(lats[i]),
-            lon: p.lon(lons[i]),
+            lat: p.lat(lats[i])?,
+            lon: p.lon(lons[i])?,
             tags,
         });
     }

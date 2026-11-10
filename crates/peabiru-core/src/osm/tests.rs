@@ -240,3 +240,156 @@ fn raw_size_mismatch_is_an_error() {
     f.extend(b);
     assert!(read_pbf(&f, &opts(1)).is_err());
 }
+
+#[test]
+fn blob_size_past_the_end_is_an_error() {
+    for size in [u64::MAX, u64::MAX / 2, 1 << 40] {
+        let mut header = Vec::new();
+        field_bytes(&mut header, 1, b"OSMData");
+        field_varint(&mut header, 3, size);
+        let mut f = (header.len() as u32).to_be_bytes().to_vec();
+        f.extend(header);
+        f.extend([0; 8]);
+        let err = read_pbf(&f, &opts(1)).unwrap_err().to_string();
+        assert!(err.contains("runs past the end of the file"), "{err}");
+    }
+}
+
+/// A block with dense node 1 at raw latitude `lat` (longitude 0) and a
+/// residential way over it.
+fn coordinate_block(granularity: i64, lat: i64) -> Vec<u8> {
+    let mut st = Vec::new();
+    for x in ["", "highway", "residential"] {
+        field_bytes(&mut st, 1, x.as_bytes());
+    }
+    let mut dense = Vec::new();
+    field_bytes(&mut dense, 1, &packed_delta(&[1]));
+    field_bytes(&mut dense, 8, &packed_delta(&[lat]));
+    field_bytes(&mut dense, 9, &packed_delta(&[0]));
+    let mut way = Vec::new();
+    field_varint(&mut way, 1, 7);
+    field_bytes(&mut way, 2, &packed([1]));
+    field_bytes(&mut way, 3, &packed([2]));
+    field_bytes(&mut way, 8, &packed_delta(&[1, 1]));
+    let (mut g1, mut g2) = (Vec::new(), Vec::new());
+    field_bytes(&mut g1, 2, &dense);
+    field_bytes(&mut g2, 3, &way);
+    let mut block = Vec::new();
+    field_bytes(&mut block, 1, &st);
+    field_bytes(&mut block, 2, &g1);
+    field_bytes(&mut block, 2, &g2);
+    field_varint(&mut block, 17, granularity as u64);
+    blob("OSMData", &block, false)
+}
+
+#[test]
+fn coordinates_that_overflow_are_an_error() {
+    let ok = read_pbf(&coordinate_block(100, -235_000_000), &opts(1)).unwrap();
+    assert_eq!(ok.lat, [-235_000_000]);
+    for (granularity, lat) in [
+        (1_000_000, i64::MAX / 2), // granularity * raw overflows i64
+        (100, 3_000_000_000),      // 300 degrees: beyond 1e-7-degree i32
+        (1, i64::MAX - 10),        // rounding overflows
+    ] {
+        let err = read_pbf(&coordinate_block(granularity, lat), &opts(1))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("coordinate out of range"), "{err}");
+    }
+    for granularity in [0, -100] {
+        let err = read_pbf(&coordinate_block(granularity, 1), &opts(1))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("granularity"), "{err}");
+    }
+}
+
+/// One block with dense nodes 1..=4 on a line and way 10 over them, tagged
+/// `highway=<kind>`.
+fn line_block(kind: &str) -> Vec<u8> {
+    let mut st = Vec::new();
+    for x in ["", "highway", kind] {
+        field_bytes(&mut st, 1, x.as_bytes());
+    }
+    let mut dense = Vec::new();
+    field_bytes(&mut dense, 1, &packed_delta(&[1, 2, 3, 4]));
+    field_bytes(
+        &mut dense,
+        8,
+        &packed_delta(&[-235_000_000, -235_010_000, -235_020_000, -235_030_000]),
+    );
+    field_bytes(&mut dense, 9, &packed_delta(&[-466_000_000; 4]));
+    let mut way = Vec::new();
+    field_varint(&mut way, 1, 10);
+    field_bytes(&mut way, 2, &packed([1]));
+    field_bytes(&mut way, 3, &packed([2]));
+    field_bytes(&mut way, 8, &packed_delta(&[1, 2, 3, 4]));
+    let (mut g1, mut g2) = (Vec::new(), Vec::new());
+    field_bytes(&mut g1, 2, &dense);
+    field_bytes(&mut g2, 3, &way);
+    let mut block = Vec::new();
+    field_bytes(&mut block, 1, &st);
+    field_bytes(&mut block, 2, &g1);
+    field_bytes(&mut block, 2, &g2);
+    blob("OSMData", &block, false)
+}
+
+/// A way present twice (extracts concatenated without deduplication) is
+/// kept once, the last occurrence, as osm-lib's map by id does; every
+/// occurrence still counts as a reference, so its nodes all become
+/// intersections, as in R5.
+#[test]
+fn repeated_way_keeps_its_last_occurrence() {
+    use crate::street::build::network_from_extract;
+    let once = line_block("residential");
+    let mut twice = once.clone();
+    twice.extend(line_block("residential"));
+    let a = read_pbf(&once, &opts(1)).unwrap();
+    let b = read_pbf(&twice, &opts(2)).unwrap();
+    assert_eq!((a.ways.len(), b.ways.len()), (1, 1));
+    assert_eq!(a.ref_counts, [1, 1, 1, 1]);
+    assert_eq!(b.ref_counts, [2, 2, 2, 2]);
+    assert_eq!(network_from_extract(a).pair_from.len(), 1);
+    assert_eq!(network_from_extract(b).pair_from.len(), 3);
+
+    // A last occurrence that the filter rejects replaces the kept one.
+    let mut f = line_block("residential");
+    f.extend(line_block("proposed"));
+    let not_highway = |t: &[(&str, &str)]| tag(t, "highway") == Some("residential");
+    let o = ReadOptions {
+        way_filter: &not_highway,
+        ..opts(1)
+    };
+    let c = read_pbf(&f, &o).unwrap();
+    assert!(c.ways.is_empty() && c.node_ids.is_empty() && c.ref_counts.is_empty());
+    // ... and the other way round, the last one is kept.
+    let mut f = line_block("proposed");
+    f.extend(line_block("residential"));
+    let d = read_pbf(&f, &o).unwrap();
+    assert_eq!(d.ways.len(), 1);
+    assert_eq!(d.ways[0].tags.get("highway"), Some("residential"));
+}
+
+#[test]
+fn file_errors_name_the_file() {
+    let dir = std::env::temp_dir().join(format!("peabiru-pbf-error-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let bad = dir.join("broken.osm.pbf");
+    let mut f = file(false, &[]);
+    f.truncate(f.len() - 3);
+    std::fs::write(&bad, f).unwrap();
+    let truncated = read_pbf_file(&bad, &opts(1)).unwrap_err().to_string();
+    let absent = read_pbf_file(dir.join("absent.pbf"), &opts(1))
+        .unwrap_err()
+        .to_string();
+    std::fs::remove_dir_all(&dir).unwrap();
+    let bad = bad.display().to_string();
+    assert!(
+        truncated.starts_with(&format!("{bad}: malformed PBF file")),
+        "{truncated}"
+    );
+    assert!(
+        absent.contains("absent.pbf: cannot read the PBF file"),
+        "{absent}"
+    );
+}

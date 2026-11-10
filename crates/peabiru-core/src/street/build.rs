@@ -51,6 +51,24 @@ pub fn build_network(
     Ok(network_from_extract(ex))
 }
 
+/// References to each extract node from the extract's ways without a
+/// `building` tag, repeats within a way included (what the reader counts
+/// with [`build_network`]'s `ref_count_filter`).
+fn ref_counts_of_ways(ex: &Extract) -> Vec<u32> {
+    let mut counts = vec![0u32; ex.node_ids.len()];
+    for w in &ex.ways {
+        if w.tags.0.iter().any(|(k, _)| k == "building") {
+            continue;
+        }
+        for &id in &w.nodes {
+            if let Some(i) = ex.node_index(id) {
+                counts[i] = counts[i].saturating_add(1);
+            }
+        }
+    }
+    counts
+}
+
 /// Builder state while ways are turned into edge pairs.
 struct Builder<'a> {
     ex: &'a Extract,
@@ -64,12 +82,29 @@ struct Builder<'a> {
     net: StreetNetwork,
 }
 
-/// Build the network from an already-read extract. The extract must come from
-/// [`build_network`]'s read options (routable ways, reference counts over
-/// non-building ways, node tags).
+/// Build the network from an already-read extract. For R5's network the
+/// extract must come from [`build_network`]'s read options (routable ways,
+/// reference counts over non-building ways, node tags).
+///
+/// An extract read without reference counts (`ref_count_filter: None`) gets
+/// them from its own non-building ways; ways the read filtered out then do
+/// not count, so a node shared only with such a way is not an intersection.
+///
+/// # Panics
+///
+/// If `lat` or `lon` do not have one entry per `node_ids` entry.
 pub fn network_from_extract(mut ex: Extract) -> StreetNetwork {
-    ex.ways.sort_by_key(|w| w.id); // R5 iterates ways in ascending id
     let n = ex.node_ids.len();
+    assert!(
+        ex.lat.len() == n && ex.lon.len() == n,
+        "extract has {n} node ids but {} latitudes and {} longitudes",
+        ex.lat.len(),
+        ex.lon.len()
+    );
+    if ex.ref_counts.len() != n {
+        ex.ref_counts = ref_counts_of_ways(&ex);
+    }
+    ex.ways.sort_by_key(|w| w.id); // R5 iterates ways in ascending id
     let mut impassable = vec![false; n];
     let mut signal = vec![false; n];
     for (id, tags) in &ex.node_tags {
@@ -488,4 +523,26 @@ fn strongly_connected_components(net: &StreetNetwork, usable: &dyn Fn(u32) -> bo
         }
     }
     comp
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::street::link::tests::{jittered_grid, Rng};
+
+    /// An extract read without reference counts builds, with the counts of
+    /// its own ways; on a network where every shared node is shared by kept
+    /// ways that is the same network.
+    #[test]
+    fn extract_without_ref_counts_gets_them_from_its_ways() {
+        let ex = jittered_grid(&mut Rng(7), 6, -23.5, -46.6, 0.003);
+        let mut bare = ex.clone();
+        bare.ref_counts.clear();
+        let (a, b) = (network_from_extract(ex), network_from_extract(bare));
+        assert!(a.pair_from.len() > 50);
+        assert_eq!(a.pair_from, b.pair_from);
+        assert_eq!(a.pair_to, b.pair_to);
+        assert_eq!(a.pair_length_mm, b.pair_length_mm);
+        assert_eq!(a.geom, b.geom);
+    }
 }

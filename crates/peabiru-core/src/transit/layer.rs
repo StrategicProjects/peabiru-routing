@@ -444,16 +444,23 @@ impl TransitLayer {
     }
 }
 
-/// The `.zip` files of a directory in the order the operating system lists
-/// them, which is the order R5 (Java `File.listFiles`) loads feeds in.
+/// Whether a file name ends with `suffix`, case-sensitively, as r5r's
+/// `NetworkBuilder.loadDirectory` tests names (`String.endsWith`).
+pub(crate) fn has_suffix(name: &std::ffi::OsStr, suffix: &str) -> bool {
+    name.as_encoded_bytes().ends_with(suffix.as_bytes())
+}
+
+/// The `.zip` files of a directory (lower-case extension, as r5r matches
+/// it) in the order the operating system lists them, which is the order R5
+/// (Java `File.listFiles`) loads feeds in.
 pub fn gtfs_files_in_dir(
     dir: impl AsRef<std::path::Path>,
 ) -> std::io::Result<Vec<std::path::PathBuf>> {
     let mut out = Vec::new();
     for e in std::fs::read_dir(dir)? {
-        let p = e?.path();
-        if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("zip")) {
-            out.push(p);
+        let e = e?;
+        if has_suffix(&e.file_name(), ".zip") {
+            out.push(e.path());
         }
     }
     Ok(out)
@@ -498,6 +505,124 @@ mod tests {
                 headway: 600
             }]
         );
+    }
+
+    /// Extensions are matched case-sensitively, as r5r does.
+    #[test]
+    fn data_files_match_lower_case_extensions() {
+        use std::ffi::OsStr;
+        assert!(has_suffix(OsStr::new("feed.zip"), ".zip"));
+        assert!(has_suffix(OsStr::new("sp.osm.pbf"), ".pbf"));
+        assert!(!has_suffix(OsStr::new("FEED.ZIP"), ".zip"));
+        assert!(!has_suffix(OsStr::new("sp.osm.PBF"), ".pbf"));
+        assert!(!has_suffix(OsStr::new("feed.zip.bak"), ".zip"));
+        let dir = std::env::temp_dir().join(format!("peabiru-feed-names-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for n in ["a.zip", "B.ZIP", "c.Zip", "d.txt"] {
+            std::fs::write(dir.join(n), b"").unwrap();
+        }
+        let found = gtfs_files_in_dir(&dir).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(found, [dir.join("a.zip")]);
+    }
+
+    /// Linking many stops splits many edges; the edge index keeps split
+    /// edges by cell, so linking stays near linear and later point lookups
+    /// do not slow down. Timing test: run in release with `--ignored`.
+    #[test]
+    #[ignore]
+    fn linking_many_stops_stays_fast() {
+        use crate::street::build::network_from_extract;
+        use crate::street::link::find_split;
+        use crate::street::link::tests::{jittered_grid, Rng};
+        use std::time::{Duration, Instant};
+        let lookups = |net: &StreetNetwork| {
+            let mut scratch = Vec::new();
+            let t = Instant::now();
+            for i in 0..1000 {
+                let (lat, lon) = (-23.5 + 0.0001 * i as f64, -46.6 + 0.0001 * i as f64);
+                let _ = find_split(net, lat, lon, Mode::Walk, &mut scratch);
+            }
+            t.elapsed()
+        };
+        let mut net = network_from_extract(jittered_grid(&mut Rng(11), 120, -23.5, -46.6, 0.001));
+        let before = lookups(&net);
+        let n_stops = 16_000;
+        let side = (n_stops as f64).sqrt().ceil() as usize;
+        let mut layer = TransitLayer::default();
+        for i in 0..n_stops {
+            let (r, c) = (i / side, i % side);
+            layer.stop_ids.push(format!("f:{i}"));
+            layer
+                .stop_lat
+                .push(-23.5 + (r as f64 + 0.37) * 0.119 / side as f64);
+            layer
+                .stop_lon
+                .push(-46.6 + (c as f64 + 0.41) * 0.119 / side as f64);
+            layer.stop_vertex.push(-1);
+        }
+        let t = Instant::now();
+        layer.link_stops(&mut net);
+        let link = t.elapsed();
+        let after = lookups(&net);
+        eprintln!(
+            "{n_stops} stops linked in {link:?}; 1000 lookups {before:?} before, {after:?} after"
+        );
+        // A quadratic linking takes seconds here, and lookups that scan every
+        // split edge are tens of times slower after linking.
+        assert!(link < Duration::from_secs(1), "{link:?}");
+        assert!(
+            after < before * 5 + Duration::from_millis(20),
+            "{after:?} vs {before:?}"
+        );
+    }
+
+    /// With several feeds in a directory, errors say which one failed.
+    #[test]
+    fn feed_errors_name_the_file() {
+        use crate::gtfs::zip::tests::make_zip;
+        let dir = std::env::temp_dir().join(format!("peabiru-feed-error-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let good = dir.join("good.zip");
+        let bad = dir.join("broken_feed.zip");
+        std::fs::write(
+            &good,
+            make_zip(
+                &[
+                    ("stops.txt", b"stop_id,stop_lat,stop_lon\nA,1,1\nC,1.001,1\n"),
+                    ("routes.txt", b"route_id,route_type\nR,3\n"),
+                    ("trips.txt", b"route_id,service_id,trip_id\nR,S,T1\n"),
+                    (
+                        "stop_times.txt",
+                        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,C,2\n",
+                    ),
+                ],
+                false,
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            &bad,
+            make_zip(&[("routes.txt", b"route_id,route_type\nR,3\n")], false),
+        )
+        .unwrap();
+        let missing = TransitLayer::load(&[good.clone(), bad.clone()]).unwrap_err();
+        std::fs::write(&bad, b"not a zip").unwrap();
+        let garbage = TransitLayer::load(&[good.clone(), bad.clone()]).unwrap_err();
+        let absent = TransitLayer::load(&[good, dir.join("absent.zip")]).unwrap_err();
+        std::fs::remove_dir_all(&dir).unwrap();
+        let bad = bad.display().to_string();
+        assert_eq!(
+            missing.to_string(),
+            format!("{bad}: GTFS feed has no stops.txt")
+        );
+        assert_eq!(
+            garbage.to_string(),
+            format!("{bad}: malformed zip file: no end of central directory record")
+        );
+        assert!(absent
+            .to_string()
+            .contains("absent.zip: cannot read the zip file"));
     }
 
     #[test]

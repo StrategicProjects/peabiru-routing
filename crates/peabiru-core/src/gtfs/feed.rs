@@ -2,19 +2,35 @@
 //! become a routable timetable (calendars for a date, missing times,
 //! patterns) is decided by the transit layer, following R5.
 
-use super::csv::{for_each_row, Header, Row};
+use super::csv::{for_each_row, CsvError, Header, ReadError, Row};
 use super::zip::{Archive, ZipError};
 use std::fmt;
 
 #[derive(Debug)]
 pub enum GtfsError {
     Zip(ZipError),
+    /// A required table is absent.
     Missing(&'static str),
+    /// A table lacks a column that every record needs.
+    MissingColumn {
+        file: &'static str,
+        column: &'static str,
+    },
+    Csv {
+        file: &'static str,
+        error: CsvError,
+    },
     Field {
         file: &'static str,
-        row: usize,
+        /// Line of the file on which the record starts.
+        line: usize,
         column: &'static str,
         value: String,
+    },
+    /// An error in the feed read from `path`.
+    InFeed {
+        path: std::path::PathBuf,
+        error: Box<GtfsError>,
     },
 }
 
@@ -23,14 +39,19 @@ impl fmt::Display for GtfsError {
         match self {
             GtfsError::Zip(e) => write!(f, "{e}"),
             GtfsError::Missing(file) => write!(f, "GTFS feed has no {file}"),
+            GtfsError::MissingColumn { file, column } => {
+                write!(f, "{file}: missing required column {column}")
+            }
+            GtfsError::Csv { file, error } => write!(f, "{file} {error}"),
             GtfsError::Field {
                 file,
-                row,
+                line,
                 column,
                 value,
             } => {
-                write!(f, "{file} row {row}: invalid {column} '{value}'")
+                write!(f, "{file} line {line}: invalid {column} '{value}'")
             }
+            GtfsError::InFeed { path, error } => write!(f, "{}: {error}", path.display()),
         }
     }
 }
@@ -143,22 +164,29 @@ pub(crate) fn parse_time(s: &str) -> Result<Option<i32>, ()> {
 }
 
 impl Feed {
-    /// Read a feed from a GTFS zip file.
+    /// Read a feed from a GTFS zip file. Errors name the file.
     pub fn read_zip(path: impl AsRef<std::path::Path>) -> Result<Feed, GtfsError> {
-        Self::from_archive(&Archive::open(path)?)
+        let path = path.as_ref();
+        Archive::open(path)
+            .map_err(GtfsError::from)
+            .and_then(|a| Self::from_archive(&a))
+            .map_err(|error| GtfsError::InFeed {
+                path: path.to_path_buf(),
+                error: Box::new(error),
+            })
     }
 
     pub fn from_archive(a: &Archive) -> Result<Feed, GtfsError> {
         let mut feed = Feed::default();
         let bad =
-            |file: &'static str, row: usize, column: &'static str, value: &str| GtfsError::Field {
+            |file: &'static str, line: usize, column: &'static str, value: &str| GtfsError::Field {
                 file,
-                row: row + 1, // record 1 is line 2
+                line,
                 column,
                 value: value.into(),
             };
 
-        table(a, "feed_info.txt", false, |h, _, r| {
+        table(a, "feed_info.txt", false, &[], |h, _, r| {
             let id = r.get(h.col("feed_id"));
             if feed.feed_id.is_none() && !id.is_empty() {
                 feed.feed_id = Some(id.to_string());
@@ -166,7 +194,7 @@ impl Feed {
             Ok(())
         })?;
 
-        table(a, "stops.txt", true, |h, n, r| {
+        table(a, "stops.txt", true, &[], |h, n, r| {
             let num = |c, column| -> Result<f64, GtfsError> {
                 let v = r.get(h.col(c));
                 if v.is_empty() {
@@ -184,7 +212,7 @@ impl Feed {
             Ok(())
         })?;
 
-        table(a, "routes.txt", true, |h, n, r| {
+        table(a, "routes.txt", true, &["route_type"], |h, n, r| {
             let v = r.get(h.col("route_type"));
             feed.routes.push(Route {
                 route_id: r.get(h.col("route_id")).to_string(),
@@ -195,7 +223,7 @@ impl Feed {
             Ok(())
         })?;
 
-        table(a, "trips.txt", true, |h, _, r| {
+        table(a, "trips.txt", true, &[], |h, _, r| {
             feed.trips.push(Trip {
                 trip_id: r.get(h.col("trip_id")).to_string(),
                 route_id: r.get(h.col("route_id")).to_string(),
@@ -205,7 +233,7 @@ impl Feed {
             Ok(())
         })?;
 
-        table(a, "stop_times.txt", true, |h, n, r| {
+        table(a, "stop_times.txt", true, &["stop_sequence"], |h, n, r| {
             let time = |c, column| {
                 let v = r.get(h.col(c));
                 parse_time(v).map_err(|_| bad("stop_times.txt", n, column, v))
@@ -234,26 +262,32 @@ impl Feed {
             "saturday",
             "sunday",
         ];
-        table(a, "calendar.txt", false, |h, n, r| {
-            let date = |c, column| {
-                let v = r.get(h.col(c));
-                v.parse::<u32>()
-                    .map_err(|_| bad("calendar.txt", n, column, v))
-            };
-            let mut days = [false; 7];
-            for (d, name) in days.iter_mut().zip(DAYS) {
-                *d = r.get(h.col(name)) == "1";
-            }
-            feed.calendars.push(Calendar {
-                service_id: r.get(h.col("service_id")).to_string(),
-                days,
-                start_date: date("start_date", "start_date")?,
-                end_date: date("end_date", "end_date")?,
-            });
-            Ok(())
-        })?;
+        table(
+            a,
+            "calendar.txt",
+            false,
+            &["start_date", "end_date"],
+            |h, n, r| {
+                let date = |c, column| {
+                    let v = r.get(h.col(c));
+                    v.parse::<u32>()
+                        .map_err(|_| bad("calendar.txt", n, column, v))
+                };
+                let mut days = [false; 7];
+                for (d, name) in days.iter_mut().zip(DAYS) {
+                    *d = r.get(h.col(name)) == "1";
+                }
+                feed.calendars.push(Calendar {
+                    service_id: r.get(h.col("service_id")).to_string(),
+                    days,
+                    start_date: date("start_date", "start_date")?,
+                    end_date: date("end_date", "end_date")?,
+                });
+                Ok(())
+            },
+        )?;
 
-        table(a, "calendar_dates.txt", false, |h, n, r| {
+        table(a, "calendar_dates.txt", false, &["date"], |h, n, r| {
             let v = r.get(h.col("date"));
             feed.calendar_dates.push(CalendarDate {
                 service_id: r.get(h.col("service_id")).to_string(),
@@ -265,42 +299,62 @@ impl Feed {
             Ok(())
         })?;
 
-        table(a, "frequencies.txt", false, |h, n, r| {
-            let time = |c, column| -> Result<i32, GtfsError> {
-                let v = r.get(h.col(c));
-                parse_time(v)
-                    .ok()
-                    .flatten()
-                    .ok_or_else(|| bad("frequencies.txt", n, column, v))
-            };
-            let hw = r.get(h.col("headway_secs"));
-            feed.frequencies.push(Frequency {
-                trip_id: r.get(h.col("trip_id")).to_string(),
-                start_time: time("start_time", "start_time")?,
-                end_time: time("end_time", "end_time")?,
-                headway_secs: hw
-                    .parse()
-                    .map_err(|_| bad("frequencies.txt", n, "headway_secs", hw))?,
-                exact_times: r.get(h.col("exact_times")) == "1",
-            });
-            Ok(())
-        })?;
+        table(
+            a,
+            "frequencies.txt",
+            false,
+            &["start_time", "end_time", "headway_secs"],
+            |h, n, r| {
+                let time = |c, column| -> Result<i32, GtfsError> {
+                    let v = r.get(h.col(c));
+                    parse_time(v)
+                        .ok()
+                        .flatten()
+                        .ok_or_else(|| bad("frequencies.txt", n, column, v))
+                };
+                let hw = r.get(h.col("headway_secs"));
+                feed.frequencies.push(Frequency {
+                    trip_id: r.get(h.col("trip_id")).to_string(),
+                    start_time: time("start_time", "start_time")?,
+                    end_time: time("end_time", "end_time")?,
+                    headway_secs: hw
+                        .parse()
+                        .map_err(|_| bad("frequencies.txt", n, "headway_secs", hw))?,
+                    exact_times: r.get(h.col("exact_times")) == "1",
+                });
+                Ok(())
+            },
+        )?;
         Ok(feed)
     }
 }
 
-/// Stream the records of one file of the archive into `f`.
+/// Stream the records of one file of the archive into `f`. `columns` are
+/// the columns whose empty value is an error; when the table has records,
+/// their absence from the header is reported once as a missing column.
 fn table(
     a: &Archive,
     name: &'static str,
     required: bool,
-    f: impl FnMut(&Header, usize, &Row) -> Result<(), GtfsError>,
+    columns: &[&'static str],
+    mut f: impl FnMut(&Header, usize, &Row) -> Result<(), GtfsError>,
 ) -> Result<(), GtfsError> {
-    match a.find(name) {
-        Some(e) => {
-            for_each_row(&a.read(e)?, f)?;
-            Ok(())
+    let mut checked = false;
+    let f = |h: &Header, line: usize, r: &Row| {
+        if !checked {
+            if let Some(&column) = columns.iter().find(|c| h.col(c).is_none()) {
+                return Err(GtfsError::MissingColumn { file: name, column });
+            }
+            checked = true;
         }
+        f(h, line, r)
+    };
+    match a.find(name) {
+        Some(e) => match for_each_row(&a.read(e)?, f) {
+            Ok(_) => Ok(()),
+            Err(ReadError::Csv(error)) => Err(GtfsError::Csv { file: name, error }),
+            Err(ReadError::Callback(e)) => Err(e),
+        },
         None if required => Err(GtfsError::Missing(name)),
         None => Ok(()),
     }
@@ -347,5 +401,99 @@ mod tests {
         );
         assert_eq!(f.frequencies[0].headway_secs, 600);
         assert!(!f.frequencies[0].exact_times);
+    }
+
+    fn small_feed(stops: &[u8]) -> Feed {
+        let z = make_zip(
+            &[
+                ("stops.txt", stops),
+                ("routes.txt", b"route_id,route_type\nR,3\n"),
+                ("trips.txt", b"route_id,service_id,trip_id\nR,S,T1\n"),
+                (
+                    "stop_times.txt",
+                    b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\n",
+                ),
+            ],
+            false,
+        );
+        Feed::from_archive(&Archive::from_bytes(z).unwrap()).unwrap()
+    }
+
+    /// A quote inside an unquoted field is a literal character (as in
+    /// javacsv), not the start of a quoted field running to the next quote.
+    #[test]
+    fn stray_quote_in_a_name_keeps_the_following_records() {
+        let f = small_feed(
+            b"stop_id,stop_name,stop_lat,stop_lon\nA,Rua 7\" Norte,-23.55,-46.63\nB,Praca,-23.56,-46.64\nC,Se,-23.57,-46.65\n",
+        );
+        let ids: Vec<&str> = f.stops.iter().map(|s| s.stop_id.as_str()).collect();
+        assert_eq!(ids, ["A", "B", "C"]);
+        assert_eq!(f.stops[0].lat, -23.55);
+    }
+
+    /// CR-only line endings end records, as in javacsv.
+    #[test]
+    fn cr_only_line_endings() {
+        let f = small_feed(b"stop_id,stop_lat,stop_lon\rA,-23.55,-46.63\rC,-23.57,-46.65\r");
+        assert_eq!(f.stops.len(), 2);
+        assert_eq!(f.stops[1].lon, -46.65);
+    }
+
+    fn feed_with(tables: &[(&str, &[u8])]) -> Result<Feed, GtfsError> {
+        let mut files: Vec<(&str, &[u8])> = vec![
+            ("stops.txt", b"stop_id,stop_lat,stop_lon\nA,1,1\n"),
+            ("routes.txt", b"route_id,route_type\nR,3\n"),
+            ("trips.txt", b"route_id,service_id,trip_id\nR,S,T1\n"),
+            (
+                "stop_times.txt",
+                b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\n",
+            ),
+        ];
+        for t in tables {
+            files.retain(|f| f.0 != t.0);
+            files.push(*t);
+        }
+        Feed::from_archive(&Archive::from_bytes(make_zip(&files, false)).unwrap())
+    }
+
+    #[test]
+    fn missing_required_column_is_reported_as_such() {
+        let e = feed_with(&[("routes.txt", b"route_id\nR\n")]).unwrap_err();
+        assert_eq!(
+            e.to_string(),
+            "routes.txt: missing required column route_type"
+        );
+        let e =
+            feed_with(&[("calendar_dates.txt", b"service_id,exception_type\nS,1\n")]).unwrap_err();
+        assert_eq!(
+            e.to_string(),
+            "calendar_dates.txt: missing required column date"
+        );
+        // a table without records needs no columns
+        assert!(feed_with(&[("calendar_dates.txt", b"service_id\n")]).is_ok());
+    }
+
+    #[test]
+    fn field_errors_give_the_file_line() {
+        let e = feed_with(&[(
+            "routes.txt",
+            b"route_id,route_long_name,route_type\nR,\"two\nlines\",3\n\nQ,x,bus\n",
+        )])
+        .unwrap_err();
+        assert_eq!(e.to_string(), "routes.txt line 5: invalid route_type 'bus'");
+    }
+
+    /// gtfs-lib reads a missing column as empty values (javacsv returns ""
+    /// for an unknown header) and R5 keeps the stops with NaN coordinates,
+    /// which then link to no street; the same happens here.
+    #[test]
+    fn stops_without_coordinate_columns_have_nan_coordinates() {
+        let f = feed_with(&[(
+            "stops.txt",
+            b"stop_id,stop_latitude,stop_lon\nA,-23.55,-46.63\nC,-23.57,-46.65\n",
+        )])
+        .unwrap();
+        assert_eq!(f.stops.len(), 2);
+        assert!(f.stops.iter().all(|s| s.lat.is_nan() && !s.lon.is_nan()));
     }
 }
