@@ -1,6 +1,6 @@
 [package]
 name = "peabiru-core"
-description = "Multimodal routing engine (street networks from OpenStreetMap, public transport from GTFS): travel-time matrices and accessibility with the results of r5r/R5"
+description = "Multimodal routing engine (street networks from OpenStreetMap, public transport from GTFS): travel-time matrices and accessibility, without Java"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

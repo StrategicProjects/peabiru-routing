@@ -1,12 +1,16 @@
 #' peabiru: multimodal routing on OpenStreetMap and GTFS networks
 #'
-#' peabiru provides the routing functions of the 'r5r' package --
-#' [build_network()], [travel_time_matrix()], [accessibility()],
-#' [expanded_travel_time_matrix()] and [arrival_travel_time_matrix()] -- with
-#' the same arguments, defaults and results, computed by a 'Rust' port of the
-#' 'R5' routing engine that r5r 2.5.0 drives (R5 7.6). No 'Java' is needed.
-#' Options that peabiru does not support yet are errors, never silently
-#' ignored.
+#' peabiru builds a network from an 'OpenStreetMap' extract and 'GTFS' feeds
+#' with [build_network()] and computes travel times by walking, cycling,
+#' driving and public transport with [travel_time_matrix()],
+#' [accessibility()], [expanded_travel_time_matrix()] and
+#' [arrival_travel_time_matrix()]. The routing engine is written in 'Rust' and
+#' runs inside the R session; no 'Java' is needed. Options that peabiru does
+#' not support yet are errors, never silently ignored.
+#'
+#' The functions have the names, arguments and defaults of the 'r5r' package
+#' (2.5.0), and the engine is a port of 'R5' 7.6, the engine r5r drives, so
+#' the results are the same.
 #'
 #' @section Sample data:
 #' `system.file("extdata/spo", package = "peabiru")` holds a small network
