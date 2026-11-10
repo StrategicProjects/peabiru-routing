@@ -17,11 +17,11 @@ test("the sample network has its streets and its feed", async () => {
   assert.ok(info.stops > 0 && info.patterns > 0 && info.services > 0);
   assert.equal(info.frequencies, true);
   assert.deepEqual(net.r5rWarnings(), []);
-  const monday = net.transitAvailability("2019-05-13");
+  const monday = await net.transitAvailability("2019-05-13");
   assert.equal(monday.services, info.services);
   assert.ok(monday.active > 0 && monday.active <= monday.services);
-  assert.deepEqual(net.transitAvailability(new Date(2019, 4, 13, 9, 30)), monday);
-  assert.throws(() => net.transitAvailability("2019-02-30"), TypeError);
+  assert.deepEqual(await net.transitAvailability(new Date(2019, 4, 13, 9, 30)), monday);
+  await assert.rejects(() => net.transitAvailability("2019-02-30"), TypeError);
 });
 
 test("feeds load in the order given, named by their file names", async () => {
@@ -40,12 +40,11 @@ test("feeds load in the order given, named by their file names", async () => {
 test("a network without feeds routes on the streets only", async () => {
   const net = await peabiru.buildNetwork({ pbf: read("spo_osm.pbf") });
   assert.deepEqual(net.info().feeds, []);
-  assert.deepEqual(net.transitAvailability("2019-05-13"), { services: 0, active: 0 });
+  assert.deepEqual(await net.transitAvailability("2019-05-13"), { services: 0, active: 0 });
   const pts = samplePoints();
-  const m = peabiru.travelTimeMatrix(net, pts, pts, { mode: "CAR" });
+  const m = await peabiru.travelTimeMatrix(net, pts, pts, { mode: "CAR" });
   assert.ok(m.from_id.length > 0);
-  assert.throws(
-    () => peabiru.travelTimeMatrix(net, pts, pts, { mode: "TRANSIT", departureDatetime: "2019-05-13 14:00" }),
+  await assert.rejects(() => peabiru.travelTimeMatrix(net, pts, pts, { mode: "TRANSIT", departureDatetime: "2019-05-13 14:00" }),
     /no transit services available/,
   );
   net.free();
@@ -72,5 +71,5 @@ test("a freed network cannot be used", async () => {
   net.free();
   assert.throws(() => net.info(), /freed/);
   const pts = samplePoints();
-  assert.throws(() => peabiru.travelTimeMatrix(net, pts, pts), /freed/);
+  await assert.rejects(() => peabiru.travelTimeMatrix(net, pts, pts), /freed/);
 });

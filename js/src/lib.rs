@@ -7,13 +7,18 @@
 //! plain columns as typed arrays (one per column, never one object per
 //! row: a matrix can have millions of rows). Row indices are 0-based.
 //!
-//! Everything runs on the calling thread: the core runs its workers one
-//! after another on WebAssembly. A later version can run several
-//! instances in Web Workers, each building its own network and routing a
-//! share of the origins (results never depend on how origins are shared
-//! out). The core's cancellation token is not wired: a computation on the
-//! calling thread cannot be interrupted from JavaScript, and a caller
-//! that needs to stop one runs it in a Worker and terminates the Worker.
+//! Each instance runs on one thread: the core runs its workers one after
+//! another on WebAssembly. Parallelism is in the JavaScript code: a pool
+//! of workers (`js/lib/worker.js`), each with its own instance of this
+//! module and its own network built from the same bytes, routes
+//! contiguous shares of the origins, and the calling side concatenates
+//! the columns. That gives the results of one instance because the core
+//! routes every origin on its own (a transit origin's Monte Carlo
+//! generator is seeded from the seed and the origin's coordinates, not
+//! from its position); the `from` indices handed back count from the
+//! first origin of the share. The core's cancellation token is not wired:
+//! a computation cannot be interrupted from JavaScript, so an aborted
+//! call terminates its workers and the pool starts new ones.
 
 use js_sys::{Array, Float64Array, Int32Array, Uint8Array};
 use peabiru_core::{

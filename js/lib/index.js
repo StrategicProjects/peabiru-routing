@@ -6,10 +6,11 @@
 // same checks and the same results. The argument checks, the trip limits
 // and the assembly of the result columns live here; the routing runs in
 // the Rust core, compiled to WebAssembly (pkg/peabiru_bg.wasm), on the
-// calling thread.
+// calling thread or in a pool of workers (lib/worker.js), each with its
+// own copy of the network, that share out the origins of a call.
 
 import wasmInit, {
-  initSync as wasmInitSync,
+  initSync as initSyncRaw,
   Network as RawNetwork,
   accessibility as rawAccessibility,
   core_version as rawCoreVersion,
@@ -17,6 +18,14 @@ import wasmInit, {
   street_ttm as rawStreetTtm,
   transit_ttm as rawTransitTtm,
 } from "../pkg/peabiru.js";
+
+const RAW = {
+  street_ttm: rawStreetTtm,
+  transit_ttm: rawTransitTtm,
+  accessibility: rawAccessibility,
+  expanded: rawExpanded,
+  availability: (raw, date) => raw.transit_availability(date),
+};
 
 /** Version of this package. */
 export const version = "0.0.1";
@@ -33,6 +42,8 @@ const TOL = Math.sqrt(Number.EPSILON);
 
 let ready = false;
 let loading = null;
+// the compiled module, which the workers of a pool instantiate
+let wasmModule = null;
 
 /**
  * Load and compile the WebAssembly module. `buildNetwork()` calls it, so it
@@ -55,7 +66,10 @@ export function init(input) {
   return loading;
 }
 
-async function load(input) {
+const isNode = typeof process !== "undefined" && process.versions != null && process.versions.node != null;
+
+/** Compile the module from whatever `init()` was given. */
+async function compile(input) {
   if (input === undefined) {
     const url = new URL("../pkg/peabiru_bg.wasm", import.meta.url);
     if (url.protocol === "file:") {
@@ -66,16 +80,40 @@ async function load(input) {
       input = url;
     }
   }
-  await wasmInit({ module_or_path: input });
+  input = await input;
+  if (input instanceof WebAssembly.Module) return input;
+  if (typeof input === "string" || input instanceof URL || (typeof Request === "function" && input instanceof Request)) {
+    input = await fetch(input);
+  }
+  if (typeof Response === "function" && input instanceof Response) {
+    if (!input.ok) throw new Error(`failed to fetch Wasm: ${input.status} ${input.statusText} fetching '${input.url}'`);
+    if (typeof WebAssembly.compileStreaming === "function") {
+      try {
+        return await WebAssembly.compileStreaming(input.clone());
+      } catch {
+        // served without the application/wasm type: compile the bytes
+      }
+    }
+    input = await input.arrayBuffer();
+  }
+  return WebAssembly.compile(input);
+}
+
+async function load(input) {
+  const module = await compile(input);
+  await wasmInit({ module_or_path: module });
+  wasmModule = module;
 }
 
 /**
  * Load the WebAssembly module synchronously from its bytes or a compiled
- * WebAssembly.Module (in a Worker that received them, for instance).
+ * WebAssembly.Module.
  */
 export function initSync(module) {
   if (ready) return;
-  wasmInitSync({ module });
+  if (!(module instanceof WebAssembly.Module)) module = new WebAssembly.Module(module);
+  initSyncRaw({ module });
+  wasmModule = module;
   ready = true;
 }
 
@@ -479,8 +517,8 @@ function commonChecks(o) {
 }
 
 /** r5r check_transit_availability_on_date(). */
-function checkTransitAvailability(network, departure, warn) {
-  const [total, active] = network._raw().transit_availability(departure.yyyymmdd);
+async function checkTransitAvailability(network, departure, warn, signal) {
+  const [total, active] = await network._availability(departure.yyyymmdd, signal);
   const pct = total === 0 ? 0 : active / total;
   if (pct === 0) {
     throw new RangeError(
@@ -526,13 +564,17 @@ const DEFAULTS = {
 /** Options with the defaults; unknown names are an error (never ignored). */
 function withDefaults(options, extra, known) {
   const o = optionsObject(options);
-  const names = new Set([...known, ...Object.keys(extra), "onWarning"]);
+  const names = new Set([...known, ...Object.keys(extra), "onWarning", "signal"]);
   for (const k of Object.keys(o)) {
     if (!names.has(k)) throw new TypeError(`unknown option '${k}'`);
   }
   const out = { ...extra };
   for (const k of known) out[k] = DEFAULTS[k];
   for (const [k, v] of Object.entries(o)) if (v !== undefined) out[k] = v;
+  const signal = out.signal;
+  if (signal !== undefined && signal !== null && !(typeof signal === "object" && typeof signal.aborted === "boolean" && typeof signal.addEventListener === "function")) {
+    fail("signal", "Must be an AbortSignal", TypeError);
+  }
   return out;
 }
 
@@ -543,67 +585,429 @@ const COMMON = [
 ];
 
 // ---------------------------------------------------------------------------
+// The pool of workers
+
+const ERRORS = { Error, TypeError, RangeError, UnsupportedError, RuntimeError: WebAssembly.RuntimeError };
+
+/** An error sent by a worker, rebuilt with the class it had there. */
+function revive({ name, message }) {
+  const Kind = Object.hasOwn(ERRORS, name) ? ERRORS[name] : Error;
+  const e = new Kind(message);
+  if (e.name !== name) e.name = name;
+  return e;
+}
+
+function abortError(signal) {
+  if (signal.reason !== undefined) return signal.reason;
+  return typeof DOMException === "function" ? new DOMException("This operation was aborted", "AbortError") : Object.assign(new Error("This operation was aborted"), { name: "AbortError" });
+}
+
+/** Start a worker running lib/worker.js, with one interface in Node and browsers. */
+async function spawnWorker() {
+  let w;
+  if (isNode) {
+    const { Worker } = await import(/* webpackIgnore: true */ /* @vite-ignore */ "node:worker_threads");
+    // a worker inherits the process's flags, and --input-type (for code
+    // given with -e or on stdin) would stop it from loading worker.js
+    const inputType = (a) => a.startsWith("--input-type");
+    const options = process.execArgv.some(inputType) ? { execArgv: process.execArgv.filter((a) => !inputType(a)) } : {};
+    w = new Worker(new URL("./worker.js", import.meta.url), options);
+    return {
+      post: (msg, transfer) => w.postMessage(msg, transfer),
+      listen(onMessage, onError) {
+        w.on("message", onMessage);
+        w.on("error", onError);
+        w.on("exit", (code) => onError(new Error(`a peabiru worker stopped (exit code ${code})`)));
+      },
+      terminate: () => {
+        w.removeAllListeners();
+        w.on("error", () => {});
+        w.terminate();
+      },
+      ref: () => w.ref(),
+      unref: () => w.unref(),
+    };
+  }
+  if (typeof Worker !== "function") throw new Error("Workers are not available here: build the network with nThreads: 1");
+  // this exact form lets bundlers (Vite, webpack 5) find and emit the worker
+  w = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
+  return {
+    post: (msg, transfer) => w.postMessage(msg, transfer),
+    listen(onMessage, onError) {
+      w.onmessage = (e) => onMessage(e.data);
+      w.onerror = (e) => {
+        e.preventDefault();
+        onError(new Error(`a peabiru worker failed: ${e.message || "could not load lib/worker.js"}`));
+      };
+      w.onmessageerror = () => onError(new Error("a peabiru worker sent a message that could not be read"));
+    },
+    terminate: () => {
+      w.onmessage = w.onerror = w.onmessageerror = null;
+      w.terminate();
+    },
+    ref() {},
+    unref() {},
+  };
+}
+
+/**
+ * Workers that each hold a copy of the network. A call is a list of tasks
+ * (one per share of the origins); idle workers take them from one queue.
+ * A worker that is stopped (an aborted call, a crash) is replaced by a new
+ * one built from the kept input bytes.
+ */
+class Pool {
+  constructor(size, module, input) {
+    this.module = module;
+    // { pbf, feeds }: the bytes every worker builds its network from
+    this.input = input;
+    this.queue = [];
+    this.closed = false;
+    this.nextId = 0;
+    this.slots = Array.from({ length: size }, () => this.start(true));
+    this.ready = Promise.all(this.slots.map((s) => s.built));
+  }
+
+  get size() {
+    return this.slots.length;
+  }
+
+  /** A new worker, building its network. */
+  start(initial = false) {
+    const slot = { state: "building", task: null, initial, worker: null, info: null, warnings: null };
+    slot.built = new Promise((resolve, reject) => {
+      slot.onBuilt = resolve;
+      slot.onFailed = reject;
+    });
+    // an initial build that fails rejects buildNetwork(); a later one is
+    // reported to the calls waiting for workers
+    if (!initial) slot.built.catch(() => {});
+    spawnWorker().then(
+      (worker) => {
+        if (this.closed || slot.state === "stopped") {
+          worker.terminate();
+          return;
+        }
+        slot.worker = worker;
+        worker.listen(
+          (msg) => this.message(slot, msg),
+          (e) => this.crash(slot, e),
+        );
+        this.refs();
+        const { pbf, feeds } = this.input;
+        worker.post({ type: "build", module: this.module, pbf, feeds }, []);
+      },
+      (e) => this.failed(slot, e),
+    );
+    return slot;
+  }
+
+  failed(slot, error) {
+    if (slot.state === "stopped") return;
+    slot.state = "failed";
+    slot.error = error;
+    if (slot.worker) slot.worker.terminate();
+    slot.worker = null;
+    slot.onFailed(error);
+    this.pump();
+  }
+
+  message(slot, msg) {
+    if (msg.type === "ready") {
+      slot.state = "idle";
+      slot.initial = false;
+      slot.info = msg.info;
+      slot.warnings = msg.warnings;
+      slot.onBuilt();
+      this.pump();
+    } else if (msg.type === "failed") {
+      this.failed(slot, revive(msg.error));
+    } else if (msg.type === "done") {
+      const task = slot.task;
+      slot.task = null;
+      slot.state = "idle";
+      if (msg.fatal) this.replace(slot);
+      if (task && task.id === msg.id) {
+        if (msg.error) task.reject(revive(msg.error));
+        else task.resolve(msg.result);
+      }
+      this.pump();
+    }
+  }
+
+  /** The worker died (an uncaught error, or it exited). */
+  crash(slot, error) {
+    if (slot.state === "stopped" || slot.state === "failed") return;
+    if (slot.state === "building") {
+      this.failed(slot, error);
+      return;
+    }
+    const task = slot.task;
+    this.replace(slot);
+    if (task) task.reject(error);
+    this.pump();
+  }
+
+  /** Stop a worker and put a new one, building, in its place. */
+  replace(slot) {
+    const k = this.slots.indexOf(slot);
+    slot.state = "stopped";
+    if (slot.worker) slot.worker.terminate();
+    slot.worker = null;
+    slot.task = null;
+    if (k >= 0 && !this.closed) this.slots[k] = this.start();
+  }
+
+  /** Hand queued tasks to idle workers. */
+  pump() {
+    for (const slot of this.slots) {
+      if (!this.queue.length) break;
+      if (slot.state !== "idle") continue;
+      const task = this.queue.shift();
+      slot.state = "busy";
+      slot.task = task;
+      task.slot = slot;
+      slot.worker.post({ type: "call", id: task.id, fn: task.fn, args: task.args }, task.transfer);
+      // the arguments now belong to the worker
+      task.args = task.transfer = null;
+    }
+    if (this.queue.length && this.slots.every((s) => s.state === "failed")) {
+      const error = this.slots[0].error;
+      for (const task of this.queue.splice(0)) task.reject(error);
+    }
+    this.refs();
+  }
+
+  /**
+   * In Node, a worker keeps the process alive only while it works for a
+   * call (or builds a network a call waits for): a program can end without
+   * freeing its networks.
+   */
+  refs() {
+    const waiting = this.queue.length > 0;
+    for (const s of this.slots) {
+      if (!s.worker) continue;
+      if (s.state === "busy" || (s.state === "building" && (waiting || s.initial))) s.worker.ref();
+      else s.worker.unref();
+    }
+  }
+
+  /**
+   * Run `fn` once per entry of `calls` (`{args, transfer}`), each on a
+   * worker; resolves to the results in the order of `calls`.
+   */
+  run(fn, calls, signal) {
+    if (this.closed) return Promise.reject(new Error("this Network was freed"));
+    return new Promise((resolve, reject) => {
+      const tasks = [];
+      const results = new Array(calls.length);
+      let left = calls.length;
+      let settled = false;
+      const finish = (error) => {
+        if (settled) return;
+        settled = true;
+        if (signal) signal.removeEventListener("abort", onAbort);
+        if (error === undefined) {
+          resolve(results);
+          return;
+        }
+        // the call failed: drop its tasks that did not start; those that
+        // run finish and are ignored (or are stopped, on abort)
+        this.queue = this.queue.filter((t) => !tasks.includes(t));
+        reject(error);
+      };
+      const onAbort = () => {
+        if (settled) return;
+        for (const t of tasks) if (t.slot && t.slot.task === t) this.replace(t.slot);
+        finish(abortError(signal));
+        this.pump();
+      };
+      calls.forEach((c, k) => {
+        const task = {
+          id: this.nextId++,
+          fn,
+          args: c.args,
+          transfer: c.transfer || [],
+          slot: null,
+          resolve: (r) => {
+            results[k] = r;
+            if (--left === 0) finish();
+          },
+          reject: (e) => finish(e),
+        };
+        tasks.push(task);
+        this.queue.push(task);
+      });
+      if (signal) signal.addEventListener("abort", onAbort, { once: true });
+      this.pump();
+    });
+  }
+
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    const error = new Error("this Network was freed");
+    for (const s of this.slots) {
+      const task = s.task;
+      s.state = "stopped";
+      if (s.worker) s.worker.terminate();
+      s.worker = null;
+      s.task = null;
+      if (task) task.reject(error);
+    }
+    for (const task of this.queue.splice(0)) task.reject(error);
+    this.input = null;
+  }
+}
+
+/** Number of cores: `navigator.hardwareConcurrency`, or Node's `os.availableParallelism()`. */
+async function cores() {
+  const n = globalThis.navigator && globalThis.navigator.hardwareConcurrency;
+  if (Number.isInteger(n) && n > 0) return n;
+  if (isNode) {
+    const os = await import(/* webpackIgnore: true */ /* @vite-ignore */ "node:os");
+    return typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length || 1;
+  }
+  return 1;
+}
+
+/**
+ * The input bytes as the workers receive them: in one SharedArrayBuffer
+ * where there is one (Node, and pages that are cross-origin isolated), so
+ * that every worker reads the same memory; otherwise in a copy of our own,
+ * which each worker receives as a structured clone that it drops once its
+ * network is built. Either way the pool keeps this one copy, to build a
+ * new worker after an aborted call.
+ */
+function shareBytes(bytes) {
+  const canShare = typeof SharedArrayBuffer === "function" && globalThis.crossOriginIsolated !== false;
+  if (canShare) {
+    const out = new Uint8Array(new SharedArrayBuffer(bytes.byteLength));
+    out.set(bytes);
+    return out;
+  }
+  return bytes.slice();
+}
+
+// ---------------------------------------------------------------------------
 // The network
+
+const PRIVATE = Symbol("peabiru.Network");
 
 /**
  * A transport network built by `buildNetwork()`: the street network and,
  * when GTFS feeds were given, the public transport layer, in the memory of
- * the WebAssembly module. Call `free()` when done with it.
+ * the WebAssembly module, or in the memory of each of its workers. Call
+ * `free()` when done with it.
  */
 export class Network {
-  #raw;
+  #raw = null;
+  #pool = null;
+  #info;
+  #warnings;
+  #freed = false;
 
   /** @internal use buildNetwork() */
-  constructor(raw) {
-    if (!(raw instanceof RawNetwork)) throw new TypeError("use buildNetwork() to build a Network");
-    this.#raw = raw;
-  }
-
-  /** @internal */
-  _raw() {
-    if (!this.#raw) throw new Error("this Network was freed");
-    return this.#raw;
-  }
-
-  /** Release the network's memory; the network cannot be used afterwards. */
-  free() {
-    if (this.#raw) {
-      this.#raw.free();
-      this.#raw = null;
+  constructor(token, raw, pool) {
+    if (token !== PRIVATE) throw new TypeError("use buildNetwork() to build a Network");
+    if (raw) {
+      this.#raw = raw;
+      const [stops, patterns, services, frequencies] = raw.transit_sizes();
+      this.#info = { vertices: raw.n_vertices(), edges: raw.n_edges(), feeds: Array.from(raw.feed_ids()), stops, patterns, services, frequencies: frequencies === 1 };
+      this.#warnings = Array.from(raw.r5r_warnings());
+    } else {
+      this.#pool = pool;
+      this.#info = pool.slots[0].info;
+      this.#warnings = pool.slots[0].warnings;
     }
+  }
+
+  #alive() {
+    if (this.#freed) throw new Error("this Network was freed");
+  }
+
+  /** Release the network's memory and stop its workers; the network cannot be used afterwards. */
+  free() {
+    if (this.#freed) return;
+    this.#freed = true;
+    if (this.#raw) this.#raw.free();
+    if (this.#pool) this.#pool.close();
+    this.#raw = this.#pool = null;
+  }
+
+  /** Workers of the network: 0 when it routes on the calling thread. */
+  get workers() {
+    this.#alive();
+    return this.#pool ? this.#pool.size : 0;
   }
 
   /** Sizes of the network. */
   info() {
-    const raw = this._raw();
-    const [stops, patterns, services, frequencies] = raw.transit_sizes();
-    return {
-      vertices: raw.n_vertices(),
-      edges: raw.n_edges(),
-      feeds: Array.from(raw.feed_ids()),
-      stops,
-      patterns,
-      services,
-      frequencies: frequencies === 1,
-    };
+    this.#alive();
+    return { ...this.#info, feeds: [...this.#info.feeds] };
   }
 
   /**
    * Services in the network and services running on a date (a Date, or a
    * string "YYYY-MM-DD"), as r5r counts them before routing.
    */
-  transitAvailability(date) {
+  async transitAvailability(date) {
     let p;
     if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) p = clockParts(`${date.trim()} 00:00:00`, "date");
     else p = clockParts(date, "date");
-    const [services, active] = this._raw().transit_availability(departureOf(p).yyyymmdd);
+    const [services, active] = await this._availability(departureOf(p).yyyymmdd);
     return { services, active };
   }
 
   /** Warnings for the GTFS feeds that r5r refuses to build a network from. */
   r5rWarnings() {
-    return Array.from(this._raw().r5r_warnings());
+    this.#alive();
+    return [...this.#warnings];
   }
+
+  /** @internal `[services, active]` on a yyyymmdd date. */
+  async _availability(yyyymmdd, signal) {
+    this.#alive();
+    if (this.#raw) return this.#raw.transit_availability(yyyymmdd);
+    const [r] = await this.#pool.run("availability", [{ args: [yyyymmdd] }], signal);
+    return r;
+  }
+
+  /**
+   * @internal Run a routing function on the origins: inline, or on up to
+   * `nThreads` workers, each with a contiguous share of the origins.
+   * `args(olat, olon)` gives the arguments after the network. Resolves to
+   * `[{offset, result}]` in origin order.
+   */
+  async _route(fn, o, args, nThreads, signal) {
+    this.#alive();
+    if (signal && signal.aborted) throw abortError(signal);
+    if (this.#raw) return [{ offset: 0, result: RAW[fn](this.#raw, ...args(o.lat, o.lon)) }];
+    const pool = this.#pool;
+    const wanted = nThreads === null || nThreads === undefined || !Number.isFinite(nThreads) ? pool.size : Math.round(nThreads);
+    const k = Math.max(1, Math.min(pool.size, wanted, o.length));
+    const calls = [];
+    const offsets = [];
+    for (let c = 0, start = 0; c < k; c++) {
+      const len = Math.floor(o.length / k) + (c < o.length % k ? 1 : 0);
+      const lat = o.lat.slice(start, start + len);
+      const lon = o.lon.slice(start, start + len);
+      calls.push({ args: args(lat, lon), transfer: [lat.buffer, lon.buffer] });
+      offsets.push(start);
+      start += len;
+    }
+    const results = await pool.run(fn, calls, signal);
+    return results.map((result, c) => ({ offset: offsets[c], result }));
+  }
+}
+
+/** The input's `nThreads`: 1 by default; 0, null or Infinity for all cores. */
+async function buildThreads(o) {
+  if (!("nThreads" in o) || o.nThreads === undefined) return 1;
+  const n = o.nThreads;
+  if (n === null || n === 0 || n === Infinity) return cores();
+  assertCount(n, "nThreads", true);
+  return Math.round(n);
 }
 
 /**
@@ -614,7 +1018,7 @@ export async function buildNetwork(input) {
   if (input === null || typeof input !== "object") fail("input", "Must be an object {pbf, gtfs}", TypeError);
   const o = optionsObject(input, "input");
   for (const k of Object.keys(o)) {
-    if (!["pbf", "gtfs", "onWarning"].includes(k)) throw new TypeError(`unknown option '${k}'`);
+    if (!["pbf", "gtfs", "onWarning", "nThreads", "useWorkers"].includes(k)) throw new TypeError(`unknown option '${k}'`);
   }
   const warn = warner(o);
   const pbf = bytesOf(o.pbf, "pbf");
@@ -627,8 +1031,24 @@ export async function buildNetwork(input) {
   });
   const names = feeds.map((f) => f[0]);
   if (new Set(names).size < names.length) fail("gtfs", "Feed names must be distinct");
+  const threads = await buildThreads(o);
+  const useWorkers = o.useWorkers === undefined ? o.nThreads !== undefined && o.nThreads !== 1 : o.useWorkers;
+  assertFlag(useWorkers, "useWorkers");
+  if (!useWorkers && threads > 1) fail("useWorkers", "Must be true when nThreads is not 1");
   await init();
-  const network = new Network(RawNetwork.build(pbf, feeds));
+  let network;
+  if (!useWorkers) {
+    network = new Network(PRIVATE, RawNetwork.build(pbf, feeds));
+  } else {
+    const pool = new Pool(threads, wasmModule, { pbf: shareBytes(pbf), feeds: feeds.map(([n, b]) => [n, shareBytes(b)]) });
+    try {
+      await pool.ready;
+    } catch (e) {
+      pool.close();
+      throw e;
+    }
+    network = new Network(PRIVATE, null, pool);
+  }
   for (const w of network.r5rWarnings()) warn(w);
   return network;
 }
@@ -642,11 +1062,64 @@ function ids(idx, idList) {
   return out;
 }
 
+/** One typed array from the arrays of the shares of the origins, in order. */
+function concat(arrays) {
+  if (arrays.length === 1) return arrays[0];
+  let n = 0;
+  for (const a of arrays) n += a.length;
+  const out = new arrays[0].constructor(n);
+  let at = 0;
+  for (const a of arrays) {
+    out.set(a, at);
+    at += a.length;
+  }
+  return out;
+}
+
+/**
+ * The columns of the shares of the origins as one result: column 0 holds
+ * origin indices, which each share counts from its own first origin.
+ */
+function merge(parts, ncols = parts[0].result.length) {
+  for (const { offset, result } of parts) {
+    if (offset === 0) continue;
+    const from = result[0];
+    for (let i = 0; i < from.length; i++) from[i] += offset;
+  }
+  const out = [];
+  for (let c = 0; c < ncols; c++) out.push(concat(parts.map((p) => p.result[c])));
+  return out;
+}
+
+/** merge() for expanded matrices, whose routes are codes into each share's own levels. */
+function mergeExpanded(parts) {
+  const CODES = 11;
+  if (parts.length === 1) return parts[0].result;
+  const levels = [];
+  const index = new Map();
+  for (const { result } of parts) {
+    const local = result[CODES + 1].map((r) => {
+      let k = index.get(r);
+      if (k === undefined) {
+        k = levels.length;
+        levels.push(r);
+        index.set(r, k);
+      }
+      return k;
+    });
+    const codes = result[CODES];
+    for (let i = 0; i < codes.length; i++) if (codes[i] >= 0) codes[i] = local[codes[i]];
+  }
+  const out = merge(parts, CODES + 1);
+  out.push(levels);
+  return out;
+}
+
 /**
  * Travel-time matrix between origins and destinations, as r5r's
  * travel_time_matrix().
  */
-export function travelTimeMatrix(network, origins, destinations, options) {
+export async function travelTimeMatrix(network, origins, destinations, options) {
   const opt = withDefaults(options, {}, [...COMMON, "departureDatetime", "timeWindow", "percentiles", "fareStructure", "maxFare"]);
   const warn = warner(opt);
   let o = pointsInput(origins, "origins", warn);
@@ -654,7 +1127,7 @@ export function travelTimeMatrix(network, origins, destinations, options) {
   const modeList = assignMode(opt.mode, opt.modeEgress);
   const departure = assignDeparture(opt.departureDatetime, modeList);
   assertNetwork(network);
-  if (modeList.transit) checkTransitAvailability(network, departure, warn);
+  if (modeList.transit) await checkTransitAvailability(network, departure, warn, opt.signal);
   // r5r reverse_if_direct_mode(): walking alone with more origins than
   // destinations routes from the destinations (there is no elevation
   // raster here, which would turn it off)
@@ -668,19 +1141,25 @@ export function travelTimeMatrix(network, origins, destinations, options) {
   checkOutputDir(opt.outputDir);
   checkScenarios(opt);
 
-  const raw = network._raw();
   let cols;
   if (modeList.transit) {
-    cols = rawTransitTtm(
-      raw, o.lat, o.lon, d.lat, d.lon, departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow),
-      Int32Array.from(pcts), lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides),
-      Math.round(opt.drawsPerMinute), seed,
+    const parts = await network._route(
+      "transit_ttm", o,
+      (olat, olon) => [
+        olat, olon, d.lat, d.lon, departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow),
+        Int32Array.from(pcts), lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides),
+        Math.round(opt.drawsPerMinute), seed,
+      ],
+      opt.nThreads, opt.signal,
     );
+    cols = merge(parts);
   } else {
-    const [from, to, tt] = rawStreetTtm(
-      raw, o.lat, o.lon, d.lat, d.lon, modeList.directModes, opt.walkSpeed, opt.bikeSpeed,
-      Math.round(opt.maxLts), lim.trip,
+    const parts = await network._route(
+      "street_ttm", o,
+      (olat, olon) => [olat, olon, d.lat, d.lon, modeList.directModes, opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), lim.trip],
+      opt.nThreads, opt.signal,
     );
+    const [from, to, tt] = merge(parts);
     // a street mode has one travel time, reported for every percentile
     cols = [from, to, ...pcts.map((_, k) => (k === 0 ? tt : tt.slice()))];
   }
@@ -766,7 +1245,7 @@ function opportunityColumns(d, colnames, warn) {
 }
 
 /** Access to opportunities, as r5r's accessibility(). */
-export function accessibility(network, origins, destinations, options) {
+export async function accessibility(network, origins, destinations, options) {
   const opt = withDefaults(
     options,
     { opportunitiesColnames: "opportunities", decayFunction: "step", cutoffs: null, decayValue: null },
@@ -779,7 +1258,7 @@ export function accessibility(network, origins, destinations, options) {
   const opp = opportunityColumns(d, opt.opportunitiesColnames, warn);
   const modeList = assignMode(opt.mode, opt.modeEgress);
   const departure = assignDeparture(opt.departureDatetime, modeList);
-  if (modeList.transit) checkTransitAvailability(network, departure, warn);
+  if (modeList.transit) await checkTransitAvailability(network, departure, warn, opt.signal);
   const fun = opt.decayFunction;
   const value = assignDecay(fun, opt.decayValue);
   const cutoffs = assignCutoffs(opt.cutoffs, fun);
@@ -798,13 +1277,19 @@ export function accessibility(network, origins, destinations, options) {
   checkOutputDir(opt.outputDir);
   checkScenarios(opt);
 
-  const values = rawAccessibility(
-    network._raw(), o.lat, o.lon, d.lat, d.lon, opp.flat, opp.names.length,
-    modeList.transit ? "TRANSIT" : modeList.directModes, fun, value, Int32Array.from(cutoffs),
-    Int32Array.from(pcts), departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow), lim.walk,
-    lim.trip, opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides),
-    Math.round(opt.drawsPerMinute), seed,
+  const parts = await network._route(
+    "accessibility", o,
+    (olat, olon) => [
+      olat, olon, d.lat, d.lon, opp.flat, opp.names.length,
+      modeList.transit ? "TRANSIT" : modeList.directModes, fun, value, Int32Array.from(cutoffs),
+      Int32Array.from(pcts), departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow), lim.walk,
+      lim.trip, opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides),
+      Math.round(opt.drawsPerMinute), seed,
+    ],
+    opt.nThreads, opt.signal,
   );
+  // one block of rows per origin: the shares follow one another
+  const values = concat(parts.map((p) => p.result));
   // one row per origin, opportunity, percentile and cutoff, in that order
   const [nk, np, nc] = [opp.names.length, pcts.length, cutoffs.length];
   const n = values.length;
@@ -873,7 +1358,7 @@ function expandedResult(res, o, d, breakdown, maxTripDuration) {
 }
 
 /** Minute-by-minute travel times, as r5r's expanded_travel_time_matrix(). */
-export function expandedTravelTimeMatrix(network, origins, destinations, options) {
+export async function expandedTravelTimeMatrix(network, origins, destinations, options) {
   const opt = withDefaults(options, { breakdown: false }, [...COMMON, "departureDatetime", "timeWindow"]);
   const warn = warner(opt);
   const o = pointsInput(origins, "origins", warn);
@@ -882,23 +1367,28 @@ export function expandedTravelTimeMatrix(network, origins, destinations, options
   checkExpandedMode(modeList);
   const departure = assignDeparture(opt.departureDatetime, modeList);
   assertNetwork(network);
-  checkTransitAvailability(network, departure, warn);
+  await checkTransitAvailability(network, departure, warn, opt.signal);
   const lim = streetLimits(opt, modeList);
   assertCount(opt.timeWindow, "timeWindow", true);
   const seed = commonChecks(opt);
   checkOutputDir(opt.outputDir);
   assertFlag(opt.breakdown, "breakdown");
   checkScenarios(opt);
-  const res = rawExpanded(
-    network._raw(), o.lat, o.lon, d.lat, d.lon, false, departure.yyyymmdd, departure.seconds,
-    Math.round(opt.timeWindow), lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides),
-    Math.round(opt.drawsPerMinute), seed,
+  const parts = await network._route(
+    "expanded", o,
+    (olat, olon) => [
+      olat, olon, d.lat, d.lon, false, departure.yyyymmdd, departure.seconds,
+      Math.round(opt.timeWindow), lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides),
+      Math.round(opt.drawsPerMinute), seed,
+    ],
+    opt.nThreads, opt.signal,
   );
+  const res = mergeExpanded(parts);
   return expandedResult(res, o, d, opt.breakdown, lim.trip);
 }
 
 /** Travel-time matrix for a time of arrival, as r5r's arrival_travel_time_matrix(). */
-export function arrivalTravelTimeMatrix(network, origins, destinations, options) {
+export async function arrivalTravelTimeMatrix(network, origins, destinations, options) {
   const opt = withDefaults(options, { arrivalDatetime: null, breakdown: false }, COMMON);
   const warn = warner(opt);
   if (opt.arrivalDatetime === null || opt.arrivalDatetime === undefined) {
@@ -915,15 +1405,20 @@ export function arrivalTravelTimeMatrix(network, origins, destinations, options)
   const lim = streetLimits(opt, modeList);
   // the departure is arrival - max_trip_duration, as r5r computes it
   const departure = assignDeparture(minusMinutes(opt.arrivalDatetime, lim.trip, "arrivalDatetime"), modeList, "arrivalDatetime");
-  checkTransitAvailability(network, departure, warn);
+  await checkTransitAvailability(network, departure, warn, opt.signal);
   const seed = commonChecks(opt);
   checkOutputDir(opt.outputDir);
   assertFlag(opt.breakdown, "breakdown");
   checkScenarios(opt);
   // the engine's time window is max_trip_duration here
-  const res = rawExpanded(
-    network._raw(), o.lat, o.lon, d.lat, d.lon, true, departure.yyyymmdd, departure.seconds, lim.trip,
-    lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides), Math.round(opt.drawsPerMinute), seed,
+  const parts = await network._route(
+    "expanded", o,
+    (olat, olon) => [
+      olat, olon, d.lat, d.lon, true, departure.yyyymmdd, departure.seconds, lim.trip,
+      lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides), Math.round(opt.drawsPerMinute), seed,
+    ],
+    opt.nThreads, opt.signal,
   );
+  const res = mergeExpanded(parts);
   return expandedResult(res, o, d, opt.breakdown, lim.trip);
 }

@@ -29,7 +29,8 @@ export declare function init(input?: InitInput): Promise<void>;
 
 /**
  * Load the WebAssembly module synchronously from its bytes or a compiled
- * module, as in a Worker that was sent them.
+ * module. Some browsers do not compile large modules synchronously on the
+ * main thread: prefer `init()` there.
  */
 export declare function initSync(module: ArrayBuffer | ArrayBufferView | WebAssembly.Module): void;
 
@@ -71,6 +72,23 @@ export interface BuildNetworkInput {
    */
   gtfs?: GtfsFeed[];
   onWarning?: WarningHandler;
+  /**
+   * Workers to route on. `1` (default): no workers, everything runs on the
+   * calling thread. A whole number above 1: a pool of that many workers
+   * (Web Workers in browsers, `worker_threads` in Node), each holding its
+   * own copy of the network, all built at once. `0`, `null` or `Infinity`:
+   * one worker per core (`navigator.hardwareConcurrency`, or Node's
+   * `os.availableParallelism()`). Each worker costs about the memory of a
+   * network built on the calling thread (see the README).
+   */
+  nThreads?: number | null;
+  /**
+   * Route in workers even with one thread, so that a call never blocks
+   * the calling thread and can be aborted (default: `true` when
+   * `nThreads` is given and is not 1, else `false`; must not be `false`
+   * with more than one thread).
+   */
+  useWorkers?: boolean;
 }
 
 /** Sizes of a network. */
@@ -89,19 +107,26 @@ export interface NetworkInfo {
 /**
  * A transport network: the street network and, when GTFS feeds were given,
  * the public transport layer, held in the memory of the WebAssembly module
- * until `free()`. Built by `buildNetwork()`; it cannot be sent to another
- * Worker (build it there).
+ * (or, for a network with workers, in each worker) until `free()`. Built by
+ * `buildNetwork()`; it cannot be sent to another Worker (build it there).
  */
 export declare class Network {
   private constructor();
-  /** Release the network's memory; the network cannot be used afterwards. */
+  /**
+   * Release the network's memory and stop its workers; calls still running
+   * on them reject. The network cannot be used afterwards. In Node, idle
+   * workers do not keep a program alive, so a program may also end without
+   * calling it.
+   */
   free(): void;
+  /** Number of workers of the network; 0 when it routes on the calling thread. */
+  readonly workers: number;
   info(): NetworkInfo;
   /**
    * Services in the network and services running on `date` (a Date, read
    * in local time, or a string `"YYYY-MM-DD"`).
    */
-  transitAvailability(date: Date | string): { services: number; active: number };
+  transitAvailability(date: Date | string): Promise<{ services: number; active: number }>;
   /** Warnings for the GTFS feeds that r5r refuses to build a network from. */
   r5rWarnings(): string[];
 }
@@ -177,10 +202,23 @@ export interface RoutingOptions {
    */
   seed?: number | null;
   /**
-   * Checked as in r5r (null or Infinity = all cores, else a whole number
-   * >= 1); this version always routes on one thread.
+   * Workers of the network this call uses: a whole number >= 1, or null or
+   * Infinity (default) for all of them. More than the network has means
+   * all it has; a network without workers routes on the calling thread
+   * whatever this is. The origins are shared out in contiguous blocks, one
+   * per worker; the results do not depend on how.
    */
   nThreads?: number | null;
+  /**
+   * Stops the call, which then rejects with the signal's reason (an
+   * `AbortError` `DOMException` for `controller.abort()`). On a network
+   * with workers, the call's workers are stopped at once and replaced, in
+   * the background, by new ones built from the same input; the network
+   * stays usable (later calls wait for the new workers). On the calling
+   * thread a running call cannot be interrupted: the signal is checked only
+   * before it starts.
+   */
+  signal?: AbortSignal | null;
   /** Checked as in r5r; has no effect. */
   verbose?: boolean;
   /** Checked as in r5r; peabiru shows no progress. */
@@ -221,7 +259,7 @@ export declare function travelTimeMatrix(
   origins: Points,
   destinations: Points,
   options?: TravelTimeMatrixOptions,
-): TravelTimeMatrix;
+): Promise<TravelTimeMatrix>;
 
 export interface AccessibilityOptions extends TravelTimeMatrixOptions {
   /** Opportunity columns of the destinations (default "opportunities"). Missing values count as 0. */
@@ -257,7 +295,7 @@ export declare function accessibility(
   origins: Points,
   destinations: Points,
   options?: AccessibilityOptions,
-): AccessibilityTable;
+): Promise<AccessibilityTable>;
 
 export interface ExpandedTravelTimeMatrixOptions extends RoutingOptions {
   /** Required (transit only). */
@@ -308,7 +346,7 @@ export declare function expandedTravelTimeMatrix(
   origins: Points,
   destinations: Points,
   options?: ExpandedTravelTimeMatrixOptions,
-): ExpandedMatrix;
+): Promise<ExpandedMatrix>;
 
 /**
  * The latest trip that arrives by `arrivalDatetime`, as r5r's
@@ -320,4 +358,4 @@ export declare function arrivalTravelTimeMatrix(
   origins: Points,
   destinations: Points,
   options: ArrivalTravelTimeMatrixOptions,
-): ExpandedMatrix;
+): Promise<ExpandedMatrix>;
