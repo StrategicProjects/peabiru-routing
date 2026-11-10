@@ -50,8 +50,9 @@ page is read from `site/data/benchmarks.csv` in the repository, written by
 package's answers differ are on the
 [benchmarks page of the main site](../../benchmarks.html).
 
-**These numbers are provisional**: the run date and the machine are listed
-below.
+The run was made in a container with a limited number of CPUs on a shared
+server, so read the times as a comparison between packages within one run;
+the date and the machine are listed below.
 
 ```{r, echo = FALSE, results = "asis", eval = !have}
 cat("No results file yet: run `bench/site/run.py` at the root of the repository.\n")
@@ -60,9 +61,11 @@ cat("No results file yet: run `bench/site/run.py` at the root of the repository.
 ```{r, echo = FALSE, results = "asis", eval = have}
 if (!is.null(meta)) {
   m <- meta$machine
+  limits <- if (is.null(m$cgroup_cpus)) "" else sprintf(
+    ", in a container limited to %s CPUs and %s GiB", m$cgroup_cpus, m$cgroup_memory_gib)
   cat(sprintf(
-    "Measured on %s, %s (%s cores, %s GiB RAM), load average %s when the run started; peabiru commit `%s`.\n\n",
-    substr(meta$generated, 1, 10), m$cpu, m$cores, m$ram_gib,
+    "Measured on %s, %s (%s cores, %s GiB RAM)%s, load average %s when the run started; peabiru commit `%s`.\n\n",
+    substr(meta$generated, 1, 10), m$cpu, m$cores, m$ram_gib, limits,
     m$load_avg_at_start[1], meta$versions$peabiru_commit))
   eng <- meta$engines
   for (e in names(eng)) {

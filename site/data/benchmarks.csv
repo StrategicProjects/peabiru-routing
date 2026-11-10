@@ -1,57 +1,279 @@
-engine,city,task,threads,status,seconds,seconds_min,seconds_max,reps,rows,peak_rss_mib,rss_scope,note
-peabiru-cli,poa,ttm_walk,10,ok,0.698,0.652,0.742,3,788682,106.7,one process: build + one run,
-peabiru-cli,poa,ttm_bicycle,10,ok,1.928,1.829,2.044,3,1451667,123.3,one process: build + one run,
-peabiru-cli,poa,ttm_car,10,ok,1.665,1.417,1.712,3,1483605,128.2,one process: build + one run,
-peabiru-cli,poa,ttm_transit,10,ok,2.094,2.018,2.114,3,1473547,200.7,one process: build + one run,
-peabiru-cli,poa,accessibility,10,ok,1.294,1.278,1.492,3,2454,89.6,one process: build + one run,
-peabiru-cli,poa,expanded,10,ok,0.579,0.452,0.596,3,605460,182.1,one process: build + one run,
-peabiru-cli,poa,build,10,ok,1.9885,1.818,2.363,12,,,,
-peabiru-cli,spo,ttm_walk,10,ok,0.094,0.09,0.143,3,103011,20.9,one process: build + one run,
-peabiru-cli,spo,ttm_bicycle,10,ok,0.109,0.105,0.123,3,104329,22.5,one process: build + one run,
-peabiru-cli,spo,ttm_car,10,ok,0.053,0.051,0.057,3,104329,22.3,one process: build + one run,
-peabiru-cli,spo,ttm_transit,10,ok,0.594,0.589,0.675,3,104321,28.0,one process: build + one run,
-peabiru-cli,spo,accessibility,10,ok,0.39,0.383,0.395,3,646,18.7,one process: build + one run,
-peabiru-cli,spo,expanded,10,ok,0.465,0.426,0.481,3,807400,156.2,one process: build + one run,
-peabiru-cli,spo,build,10,ok,0.1605,0.158,0.164,12,,,,
-peabiru-r,poa,ttm_walk,10,ok,0.853,0.842,0.87,3,788682,263.0,one process: build + warm-up + timed runs,
-peabiru-r,poa,ttm_bicycle,10,ok,1.59,1.4,1.799,3,1451667,323.5,one process: build + warm-up + timed runs,
-peabiru-r,poa,ttm_car,10,ok,1.666,1.204,1.781,3,1483605,324.5,one process: build + warm-up + timed runs,
-peabiru-r,poa,ttm_transit,10,ok,2.42,2.204,4.478,3,1473547,343.8,one process: build + warm-up + timed runs,
-peabiru-r,poa,accessibility,10,ok,1.287,1.205,1.335,3,2454,169.8,one process: build + warm-up + timed runs,
-peabiru-r,poa,expanded,10,ok,0.495,0.476,0.521,3,605460,662.3,one process: build + warm-up + timed runs,
-peabiru-r,poa,build,10,ok,1.834,1.795,3.149,6,,,,
-peabiru-r,spo,ttm_walk,10,ok,0.089,0.089,0.096,3,103011,117.8,one process: build + warm-up + timed runs,
-peabiru-r,spo,ttm_bicycle,10,ok,0.105,0.096,0.117,3,104329,115.6,one process: build + warm-up + timed runs,
-peabiru-r,spo,ttm_car,10,ok,0.059,0.056,0.061,3,104329,115.0,one process: build + warm-up + timed runs,
-peabiru-r,spo,ttm_transit,10,ok,0.745,0.738,0.85,3,104321,118.1,one process: build + warm-up + timed runs,
-peabiru-r,spo,accessibility,10,ok,0.535,0.466,0.628,3,646,106.1,one process: build + warm-up + timed runs,
-peabiru-r,spo,expanded,10,ok,0.749,0.576,0.825,3,807400,639.8,one process: build + warm-up + timed runs,
-peabiru-r,spo,build,10,ok,0.16,0.158,0.166,6,,,,
-r5r,poa,ttm_walk,10,ok,3.579,3.489,3.664,3,788682,2395.0,one process: build + warm-up + timed runs,
-r5r,poa,ttm_bicycle,10,ok,4.763,3.949,5.057,3,1451667,2993.7,one process: build + warm-up + timed runs,
-r5r,poa,ttm_car,10,ok,4.055,3.994,4.691,3,1483605,2442.1,one process: build + warm-up + timed runs,
-r5r,poa,ttm_transit,10,ok,4.733,4.726,4.747,3,1473547,1951.3,one process: build + warm-up + timed runs,
-r5r,poa,accessibility,10,ok,2.579,2.549,2.599,3,2454,1536.5,one process: build + warm-up + timed runs,
-r5r,poa,expanded,10,ok,0.979,0.861,1.008,3,605460,3098.6,one process: build + warm-up + timed runs,
-r5r,poa,build,10,ok,5.238,4.889,8.975,6,,,,
-r5r,spo,ttm_walk,10,ok,0.385,0.373,0.426,3,103011,1957.7,one process: build + warm-up + timed runs,
-r5r,spo,ttm_bicycle,10,ok,0.425,0.42,0.448,3,104329,1878.4,one process: build + warm-up + timed runs,
-r5r,spo,ttm_car,10,ok,0.225,0.217,0.265,3,104329,1218.7,one process: build + warm-up + timed runs,
-r5r,spo,ttm_transit,10,ok,1.576,1.536,1.678,3,104321,1026.1,one process: build + warm-up + timed runs,
-r5r,spo,accessibility,10,ok,1.149,1.118,1.173,3,646,850.8,one process: build + warm-up + timed runs,
-r5r,spo,expanded,10,ok,1.123,0.98,1.178,3,807400,3317.2,one process: build + warm-up + timed runs,
-r5r,spo,build,10,ok,2.5865,2.505,2.85,6,,,,
-r5py,poa,ttm_walk,10,ok,16.3296,15.9358,17.0288,3,799120,1620.3,one process: build + warm-up + timed runs,
-r5py,poa,ttm_bicycle,10,ok,39.7678,35.9355,40.4444,3,1454982,1708.7,one process: build + warm-up + timed runs,
-r5py,poa,ttm_car,10,ok,35.9242,34.9101,36.8481,3,1483605,1425.3,one process: build + warm-up + timed runs,
-r5py,poa,ttm_transit,10,ok,28.3623,27.4562,28.7421,3,1473786,1369.0,one process: build + warm-up + timed runs,
-r5py,poa,accessibility,10,skipped,,,,,,,,r5py has no equivalent of r5r's accessibility computation
-r5py,poa,expanded,10,skipped,,,,,,,,r5py has no equivalent of r5r's expanded computation
-r5py,poa,build,10,ok,5.0702,4.781,5.2767,4,,,,
-r5py,spo,ttm_walk,10,ok,2.6581,2.6318,2.6634,3,103113,756.5,one process: build + warm-up + timed runs,
-r5py,spo,ttm_bicycle,10,ok,4.8845,4.8758,4.9551,3,104329,724.1,one process: build + warm-up + timed runs,
-r5py,spo,ttm_car,10,ok,3.8034,3.8015,3.8143,3,104329,755.6,one process: build + warm-up + timed runs,
-r5py,spo,ttm_transit,10,ok,14.535,10.3397,18.3544,3,104322,807.4,one process: build + warm-up + timed runs,
-r5py,spo,accessibility,10,skipped,,,,,,,,r5py has no equivalent of r5r's accessibility computation
-r5py,spo,expanded,10,skipped,,,,,,,,r5py has no equivalent of r5r's expanded computation
-r5py,spo,build,10,ok,2.2001,2.1939,2.3257,4,,,,
+engine,city,task,threads,status,seconds,seconds_min,seconds_max,reps,rows,peak_rss_mib,rss_scope,origins_used,origins_total,threads_used,measured_threads,cmp_pairs_both,cmp_only_peabiru,cmp_only_engine,cmp_median_abs_diff_min,cmp_p90_abs_diff_min,cmp_median_diff_min,cmp_within_1min_pct,notes,note
+peabiru-cli,poa,ttm_walk,1,ok,5.053,4.925,5.094,3,788682,70.8,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,ttm_bicycle,1,ok,9.684,9.674,10.165,3,1451667,92.8,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,ttm_car,1,ok,9.265,8.908,10.26,3,1483605,93.6,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,ttm_transit,1,ok,18.35,17.781,19.997,3,1473547,191.1,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,accessibility,1,ok,10.314,9.577,10.579,3,2454,54.0,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,expanded,1,ok,2.376,2.266,2.42,3,605460,129.8,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,build,1,ok,2.229,2.08,2.506,12,,,,,,,,,,,,,,,,
+peabiru-cli,poa,ttm_walk,4,ok,1.51,1.414,1.513,3,788682,87.5,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,ttm_bicycle,4,ok,2.278,2.223,2.445,3,1451667,108.8,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,ttm_car,4,ok,2.317,2.201,2.526,3,1483605,111.0,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,ttm_transit,4,ok,4.719,4.535,5.298,3,1473547,194.0,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,accessibility,4,ok,2.443,2.441,2.481,3,2454,73.3,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,expanded,4,ok,1.561,1.474,1.644,3,605460,146.5,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,poa,build,4,ok,2.294,2.139,2.416,12,,,,,,,,,,,,,,,,
+peabiru-cli,spo,ttm_walk,1,ok,0.818,0.787,0.868,3,103011,16.1,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,ttm_bicycle,1,ok,0.771,0.761,0.772,3,104329,16.0,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,ttm_car,1,ok,0.504,0.497,0.508,3,104329,16.1,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,ttm_transit,1,ok,4.897,4.867,4.917,3,104321,22.1,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,accessibility,1,ok,2.888,2.587,3.056,3,646,12.9,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,expanded,1,ok,2.14,2.119,2.353,3,807400,114.0,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,build,1,ok,0.239,0.224,0.283,12,,,,,,,,,,,,,,,,
+peabiru-cli,spo,ttm_walk,4,ok,0.227,0.215,0.227,3,103011,17.4,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,ttm_bicycle,4,ok,0.193,0.185,0.202,3,104329,15.8,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,ttm_car,4,ok,0.124,0.124,0.139,3,104329,17.4,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,ttm_transit,4,ok,1.312,1.23,1.373,3,104321,23.9,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,accessibility,4,ok,0.78,0.691,0.859,3,646,16.6,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,expanded,4,ok,1.504,1.456,1.59,3,807400,115.2,one process: build + one run,,,,,,,,,,,,,
+peabiru-cli,spo,build,4,ok,0.2495,0.205,0.292,12,,,,,,,,,,,,,,,,
+peabiru-r,poa,ttm_walk,1,ok,5.291,5.035,5.662,3,788682,208.9,one process: build + warm-up + timed runs,,,,,788682,0,0,0.0,0.0,0.0,100.0,,
+peabiru-r,poa,ttm_bicycle,1,ok,9.665,9.454,9.794,3,1451667,279.4,one process: build + warm-up + timed runs,,,,,1451667,0,0,0.0,0.0,0.0,100.0,,
+peabiru-r,poa,ttm_car,1,ok,10.552,10.499,11.176,3,1483605,281.4,one process: build + warm-up + timed runs,,,,,1483605,0,0,0.0,0.0,0.0,100.0,,
+peabiru-r,poa,ttm_transit,1,ok,19.304,18.935,21.896,3,1473547,355.1,one process: build + warm-up + timed runs,,,,,1473547,0,0,0.0,0.0,0.0,100.0,,
+peabiru-r,poa,accessibility,1,ok,10.662,10.387,10.921,3,2454,124.2,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,poa,expanded,1,ok,2.983,2.56,2.99,3,605460,466.0,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,poa,build,1,ok,2.28,2.164,2.518,6,,,,,,,,,,,,,,,,
+peabiru-r,poa,ttm_walk,4,ok,1.931,1.81,2.605,3,788682,225.2,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,poa,ttm_bicycle,4,ok,3.128,3.029,3.709,3,1451667,280.5,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,poa,ttm_car,4,ok,2.75,2.612,2.832,3,1483605,283.7,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,poa,ttm_transit,4,ok,5.404,5.387,5.582,3,1473547,344.4,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,poa,accessibility,4,ok,3.14,2.839,3.674,3,2454,143.1,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,poa,expanded,4,ok,1.872,1.544,1.99,3,605460,487.6,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,poa,build,4,ok,2.5045,2.349,2.693,6,,,,,,,,,,,,,,,,
+peabiru-r,spo,ttm_walk,1,ok,0.852,0.791,0.91,3,103011,100.9,one process: build + warm-up + timed runs,,,,,103011,0,0,0.0,0.0,0.0,100.0,,
+peabiru-r,spo,ttm_bicycle,1,ok,0.891,0.886,1.13,3,104329,104.1,one process: build + warm-up + timed runs,,,,,104329,0,0,0.0,0.0,0.0,100.0,,
+peabiru-r,spo,ttm_car,1,ok,0.495,0.488,0.515,3,104329,102.6,one process: build + warm-up + timed runs,,,,,104329,0,0,0.0,0.0,0.0,100.0,,
+peabiru-r,spo,ttm_transit,1,ok,5.431,5.38,5.579,3,104321,106.8,one process: build + warm-up + timed runs,,,,,104321,0,0,0.0,0.0,0.0,100.0,,
+peabiru-r,spo,accessibility,1,ok,3.08,3.041,3.518,3,646,86.5,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,spo,expanded,1,ok,2.976,2.951,3.155,3,807400,494.8,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,spo,build,1,ok,0.264,0.252,0.321,6,,,,,,,,,,,,,,,,
+peabiru-r,spo,ttm_walk,4,ok,0.282,0.266,0.295,3,103011,103.4,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,spo,ttm_bicycle,4,ok,0.222,0.22,0.249,3,104329,104.9,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,spo,ttm_car,4,ok,0.168,0.166,0.177,3,104329,105.0,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,spo,ttm_transit,4,ok,1.563,1.515,1.724,3,104321,108.6,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,spo,accessibility,4,ok,0.85,0.777,0.895,3,646,92.0,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,spo,expanded,4,ok,1.803,1.798,2.002,3,807400,503.7,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-r,spo,build,4,ok,0.2765,0.256,0.34,6,,,,,,,,,,,,,,,,
+peabiru-py,poa,ttm_walk,1,ok,6.8107,6.3422,6.8778,3,788682,220.5,one process: build + warm-up + timed runs,,,,,788682,0,0,0.0,0.0,0.0,100.0,,
+peabiru-py,poa,ttm_bicycle,1,ok,11.7065,11.0752,11.847,3,1451667,271.0,one process: build + warm-up + timed runs,,,,,1451667,0,0,0.0,0.0,0.0,100.0,,
+peabiru-py,poa,ttm_car,1,ok,11.5161,11.4234,11.6031,3,1483605,271.8,one process: build + warm-up + timed runs,,,,,1483605,0,0,0.0,0.0,0.0,100.0,,
+peabiru-py,poa,ttm_transit,1,ok,18.3289,18.1763,19.0606,3,1473547,359.8,one process: build + warm-up + timed runs,,,,,1473547,0,0,0.0,0.0,0.0,100.0,,
+peabiru-py,poa,accessibility,1,ok,8.903,8.6973,8.9409,3,2454,165.9,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,poa,expanded,1,ok,1.7732,1.7531,1.7873,3,605460,439.2,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,poa,build,1,ok,2.2782,2.0851,2.5913,6,,,,,,,,,,,,,,,,
+peabiru-py,poa,ttm_walk,4,ok,1.3918,1.3721,1.4718,3,788682,232.6,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,poa,ttm_bicycle,4,ok,2.3473,2.2093,2.5329,3,1451667,284.8,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,poa,ttm_car,4,ok,2.252,2.185,2.2569,3,1483605,283.6,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,poa,ttm_transit,4,ok,5.9208,5.2345,6.3748,3,1473547,371.3,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,poa,accessibility,4,ok,2.383,2.0868,2.4251,3,2454,181.2,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,poa,expanded,4,ok,0.7966,0.7623,0.8619,3,605460,466.2,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,poa,build,4,ok,2.2068,2.116,2.4007,6,,,,,,,,,,,,,,,,
+peabiru-py,spo,ttm_walk,1,ok,0.872,0.8056,0.8964,3,103011,125.0,one process: build + warm-up + timed runs,,,,,103011,0,0,0.0,0.0,0.0,100.0,,
+peabiru-py,spo,ttm_bicycle,1,ok,0.9442,0.8797,0.9821,3,104329,125.9,one process: build + warm-up + timed runs,,,,,104329,0,0,0.0,0.0,0.0,100.0,,
+peabiru-py,spo,ttm_car,1,ok,0.5069,0.5033,0.5278,3,104329,125.3,one process: build + warm-up + timed runs,,,,,104329,0,0,0.0,0.0,0.0,100.0,,
+peabiru-py,spo,ttm_transit,1,ok,5.4538,5.4219,6.1107,3,104321,132.1,one process: build + warm-up + timed runs,,,,,104321,0,0,0.0,0.0,0.0,100.0,,
+peabiru-py,spo,accessibility,1,ok,2.9407,2.8453,3.0452,3,646,122.7,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,spo,expanded,1,ok,1.6929,1.6109,1.7338,3,807400,456.3,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,spo,build,1,ok,0.2636,0.2326,0.3458,6,,,,,,,,,,,,,,,,
+peabiru-py,spo,ttm_walk,4,ok,0.3498,0.3352,0.3587,3,103011,131.0,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,spo,ttm_bicycle,4,ok,0.2621,0.2184,0.2664,3,104329,130.4,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,spo,ttm_car,4,ok,0.1629,0.1587,0.1729,3,104329,130.2,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,spo,ttm_transit,4,ok,1.4149,1.2975,1.463,3,104321,134.7,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,spo,accessibility,4,ok,0.8122,0.8002,0.9368,3,646,123.2,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,spo,expanded,4,ok,0.8931,0.7876,0.9654,3,807400,466.6,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+peabiru-py,spo,build,4,ok,0.2911,0.2734,0.3245,6,,,,,,,,,,,,,,,,
+r5r,poa,ttm_walk,1,ok,39.41,38.293,41.611,3,788682,1455.6,one process: build + warm-up + timed runs,,,,,788682,0,0,0.0,0.0,0.0,100.0,,
+r5r,poa,ttm_bicycle,1,ok,77.963,75.434,80.017,3,1451667,1175.7,one process: build + warm-up + timed runs,,,,,1451667,0,0,0.0,0.0,0.0,100.0,,
+r5r,poa,ttm_car,1,ok,72.096,71.272,73.822,3,1483605,1425.3,one process: build + warm-up + timed runs,,,,,1483605,0,0,0.0,0.0,0.0,100.0,,
+r5r,poa,ttm_transit,1,ok,72.356,71.323,75.926,3,1473547,1289.6,one process: build + warm-up + timed runs,,,,,1473547,0,0,0.0,0.0,0.0,100.0,,
+r5r,poa,accessibility,1,ok,39.112,38.531,39.132,3,2454,1287.5,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,poa,expanded,1,ok,7.756,7.53,8.37,3,605460,2040.1,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,poa,build,1,ok,18.9175,18.255,24.525,6,,,,,,,,,,,,,,,,
+r5r,poa,ttm_walk,4,ok,10.653,10.564,10.848,3,788682,1866.9,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,poa,ttm_bicycle,4,ok,21.27,20.471,21.325,3,1451667,2055.6,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,poa,ttm_car,4,ok,19.875,16.717,20.771,3,1483605,1831.5,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,poa,ttm_transit,4,ok,22.72,21.69,23.407,3,1473547,1741.7,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,poa,accessibility,4,ok,12.334,10.932,12.485,3,2454,1573.5,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,poa,expanded,4,ok,3.878,3.413,4.541,3,605460,3129.7,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,poa,build,4,ok,19.4715,16.912,24.424,6,,,,,,,,,,,,,,,,
+r5r,spo,ttm_walk,1,ok,7.378,6.424,8.126,3,103011,971.5,one process: build + warm-up + timed runs,,,,,103011,0,0,0.0,0.0,0.0,100.0,,
+r5r,spo,ttm_bicycle,1,ok,7.311,6.804,7.567,3,104329,864.2,one process: build + warm-up + timed runs,,,,,104329,0,0,0.0,0.0,0.0,100.0,,
+r5r,spo,ttm_car,1,ok,4.084,4.071,4.321,3,104329,763.1,one process: build + warm-up + timed runs,,,,,104329,0,0,0.0,0.0,0.0,100.0,,
+r5r,spo,ttm_transit,1,ok,25.376,24.26,26.392,3,104321,517.1,one process: build + warm-up + timed runs,,,,,104321,0,0,0.0,0.0,0.0,100.0,,
+r5r,spo,accessibility,1,ok,16.029,15.432,16.237,3,646,564.5,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,spo,expanded,1,ok,9.647,9.343,10.064,3,807400,3075.4,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,spo,build,1,ok,8.9115,7.986,9.771,6,,,,,,,,,,,,,,,,
+r5r,spo,ttm_walk,4,ok,2.341,2.212,2.406,3,103011,1459.4,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,spo,ttm_bicycle,4,ok,2.111,1.893,2.644,3,104329,1365.9,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,spo,ttm_car,4,ok,1.313,1.311,1.899,3,104329,984.4,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,spo,ttm_transit,4,ok,8.203,7.483,8.415,3,104321,903.7,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,spo,accessibility,4,ok,5.288,4.78,5.355,3,646,692.5,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,spo,expanded,4,ok,4.041,3.899,4.66,3,807400,3631.7,one process: build + warm-up + timed runs,,,,,,,,,,,,,
+r5r,spo,build,4,ok,9.0985,8.022,10.961,6,,,,,,,,,,,,,,,,
+r5py,poa,ttm_walk,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,poa,ttm_bicycle,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,poa,ttm_car,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,poa,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,poa,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,poa,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,poa,ttm_walk,4,ok,71.9652,71.1395,72.6648,3,799120,1520.1,one process: build + warm-up + timed runs,,,,,788674,8,10446,0.0,0.0,0.0,99.91,,
+r5py,poa,ttm_bicycle,4,ok,160.0937,145.6437,164.0355,3,1454982,1403.0,one process: build + warm-up + timed runs,,,,,1451662,5,3320,0.0,0.0,0.0,99.62,,
+r5py,poa,ttm_car,4,ok,154.3008,149.7948,154.8721,3,1483605,1711.3,one process: build + warm-up + timed runs,,,,,1483605,0,0,0.0,0.0,0.0,99.6,,
+r5py,poa,ttm_transit,4,ok,109.0274,104.0204,112.6843,3,1473786,1610.9,one process: build + warm-up + timed runs,,,,,1473526,21,260,0.0,0.0,0.0,99.35,,
+r5py,poa,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,r5py has no equivalent of r5r's accessibility computation
+r5py,poa,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,r5py has no equivalent of r5r's expanded computation
+r5py,poa,build,4,ok,17.3972,16.571,20.8941,4,,,,,,,,,,,,,,,,
+r5py,spo,ttm_walk,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,spo,ttm_bicycle,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,spo,ttm_car,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,spo,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,spo,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,spo,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,r5py does not let the caller set the number of threads (it uses all 4 available cores)
+r5py,spo,ttm_walk,4,ok,12.3507,12.1932,12.7698,3,103113,689.1,one process: build + warm-up + timed runs,,,,,103011,0,102,0.0,0.0,0.0,99.9,,
+r5py,spo,ttm_bicycle,4,ok,20.9265,20.6161,21.4837,3,104329,760.7,one process: build + warm-up + timed runs,,,,,104329,0,0,0.0,0.0,0.0,99.13,,
+r5py,spo,ttm_car,4,ok,17.3801,15.7406,17.9012,3,104329,683.0,one process: build + warm-up + timed runs,,,,,104329,0,0,0.0,0.0,0.0,99.7,,
+r5py,spo,ttm_transit,4,ok,35.0787,33.7718,37.0148,3,104323,715.7,one process: build + warm-up + timed runs,,,,,104321,0,2,0.0,1.0,0.0,73.2,,
+r5py,spo,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,r5py has no equivalent of r5r's accessibility computation
+r5py,spo,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,r5py has no equivalent of r5r's expanded computation
+r5py,spo,build,4,ok,7.223,7.1413,7.5973,4,,,,,,,,,,,,,,,,
+dodgr,poa,ttm_walk,1,ok,30.848,29.927,31.346,3,749905,471.2,one process: build + warm-up + timed runs,,,1,,731351,57331,18554,2.63,8.9,2.17,23.82,"graph: 95,156 directed edges, largest component of dodgr's foot profile; points snap to the nearest vertex; every foot speed of dodgr's profile (5 km/h, 2 on steps) set to 3.6 km/h; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.0 s, not in the build time)",
+dodgr,poa,ttm_bicycle,1,ok,29.668,28.516,29.67,3,1505527,471.4,one process: build + warm-up + timed runs,,,1,,1451667,0,53860,15.92,29.38,-15.92,1.81,"graph: 96,310 directed edges, largest component of dodgr's bicycle profile; points snap to the nearest vertex; every bicycle speed of dodgr's profile (4 to 15 km/h by way type) set to 12 km/h; no traffic-stress (LTS) limit; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.0 s, not in the build time)",
+dodgr,poa,ttm_car,1,ok,21.722,21.294,21.76,3,1493293,471.8,one process: build + warm-up + timed runs,,,1,,1471459,12146,21834,2.06,5.57,-0.2,25.7,"graph: 62,777 directed edges, largest component of dodgr's motorcar profile; points snap to the nearest vertex; car speeds are dodgr's (maxspeed, else per road class); turn_penalty = FALSE (dodgr's default): no turn restrictions; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.0 s, not in the build time)",
+dodgr,poa,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,poa,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,poa,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,poa,build,1,ok,9.143,6.877,10.445,3,,,,,,,,,,,,,,,,
+dodgr,poa,ttm_walk,4,ok,9.399,9.335,9.415,3,749905,471.4,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 95,156 directed edges, largest component of dodgr's foot profile; points snap to the nearest vertex; every foot speed of dodgr's profile (5 km/h, 2 on steps) set to 3.6 km/h; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.0 s, not in the build time)",
+dodgr,poa,ttm_bicycle,4,ok,9.407,9.171,9.64,3,1505527,472.2,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 96,310 directed edges, largest component of dodgr's bicycle profile; points snap to the nearest vertex; every bicycle speed of dodgr's profile (4 to 15 km/h by way type) set to 12 km/h; no traffic-stress (LTS) limit; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.0 s, not in the build time)",
+dodgr,poa,ttm_car,4,ok,7.128,7.004,7.143,3,1493293,472.3,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 62,777 directed edges, largest component of dodgr's motorcar profile; points snap to the nearest vertex; car speeds are dodgr's (maxspeed, else per road class); turn_penalty = FALSE (dodgr's default): no turn restrictions; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.0 s, not in the build time)",
+dodgr,poa,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,poa,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,poa,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,poa,build,4,ok,8.497,7.308,9.12,3,,,,,,,,,,,,,,,,
+dodgr,spo,ttm_walk,1,ok,3.735,3.71,3.765,3,99910,303.4,one process: build + warm-up + timed runs,,,1,,99900,3111,10,4.19,11.44,4.09,16.11,"graph: 43,408 directed edges, largest component of dodgr's foot profile; points snap to the nearest vertex; every foot speed of dodgr's profile (5 km/h, 2 on steps) set to 3.6 km/h; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.1 s, not in the build time)",
+dodgr,spo,ttm_bicycle,1,ok,3.793,3.728,3.835,3,104329,316.8,one process: build + warm-up + timed runs,,,1,,104329,0,0,15.02,27.45,-15.02,1.17,"graph: 43,536 directed edges, largest component of dodgr's bicycle profile; points snap to the nearest vertex; every bicycle speed of dodgr's profile (4 to 15 km/h by way type) set to 12 km/h; no traffic-stress (LTS) limit; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.1 s, not in the build time)",
+dodgr,spo,ttm_car,1,ok,2.827,2.787,2.884,3,98613,307.8,one process: build + warm-up + timed runs,,,1,,98613,5716,0,1.99,5.67,0.94,27.21,"graph: 25,741 directed edges, largest component of dodgr's motorcar profile; points snap to the nearest vertex; car speeds are dodgr's (maxspeed, else per road class); turn_penalty = FALSE (dodgr's default): no turn restrictions; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.1 s, not in the build time)",
+dodgr,spo,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,spo,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,spo,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,spo,build,1,ok,4.357,4.01,4.827,3,,,,,,,,,,,,,,,,
+dodgr,spo,ttm_walk,4,ok,1.189,1.129,1.38,3,99910,305.3,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 43,408 directed edges, largest component of dodgr's foot profile; points snap to the nearest vertex; every foot speed of dodgr's profile (5 km/h, 2 on steps) set to 3.6 km/h; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.1 s, not in the build time)",
+dodgr,spo,ttm_bicycle,4,ok,1.215,1.21,1.292,3,104329,316.9,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 43,536 directed edges, largest component of dodgr's bicycle profile; points snap to the nearest vertex; every bicycle speed of dodgr's profile (4 to 15 km/h by way type) set to 12 km/h; no traffic-stress (LTS) limit; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.1 s, not in the build time)",
+dodgr,spo,ttm_car,4,ok,0.741,0.736,0.825,3,98613,308.1,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 25,741 directed edges, largest component of dodgr's motorcar profile; points snap to the nearest vertex; car speeds are dodgr's (maxspeed, else per road class); turn_penalty = FALSE (dodgr's default): no turn restrictions; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (2.1 s, not in the build time)",
+dodgr,spo,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,spo,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,spo,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,dodgr routes on a street graph only; this task needs a public transport model
+dodgr,spo,build,4,ok,4.734,3.711,4.746,3,,,,,,,,,,,,,,,,
+cppRouting,poa,ttm_walk,1,ok,1.842,1.829,2.115,3,749937,472.4,one process: build + warm-up + timed runs,,,1,,731379,57303,18558,2.62,8.89,2.17,23.84,"graph: 95,156 directed edges, largest component of dodgr's foot profile; points snap to the nearest vertex; every foot speed of dodgr's profile (5 km/h, 2 on steps) set to 3.6 km/h; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,poa,ttm_bicycle,1,ok,2.077,2,2.089,3,1505527,471.8,one process: build + warm-up + timed runs,,,1,,1451667,0,53860,15.92,29.38,-15.92,1.8,"graph: 96,310 directed edges, largest component of dodgr's bicycle profile; points snap to the nearest vertex; every bicycle speed of dodgr's profile (4 to 15 km/h by way type) set to 12 km/h; no traffic-stress (LTS) limit; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,poa,ttm_car,1,ok,1.243,1.141,1.313,3,1493293,471.8,one process: build + warm-up + timed runs,,,1,,1471459,12146,21834,2.06,5.57,-0.2,25.7,"graph: 62,777 directed edges, largest component of dodgr's motorcar profile; points snap to the nearest vertex; car speeds are dodgr's (maxspeed, else per road class); turn_penalty = FALSE (dodgr's default): no turn restrictions; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,poa,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,poa,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,poa,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,poa,build,1,ok,10.923,7.511,11.034,3,,,,,,,,,,,,,,,,
+cppRouting,poa,ttm_walk,4,ok,0.998,0.942,1.133,3,749937,472.0,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 95,156 directed edges, largest component of dodgr's foot profile; points snap to the nearest vertex; every foot speed of dodgr's profile (5 km/h, 2 on steps) set to 3.6 km/h; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,poa,ttm_bicycle,4,ok,1.066,0.953,1.164,3,1505527,472.0,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 96,310 directed edges, largest component of dodgr's bicycle profile; points snap to the nearest vertex; every bicycle speed of dodgr's profile (4 to 15 km/h by way type) set to 12 km/h; no traffic-stress (LTS) limit; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,poa,ttm_car,4,ok,0.561,0.54,0.605,3,1493293,471.8,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 62,777 directed edges, largest component of dodgr's motorcar profile; points snap to the nearest vertex; car speeds are dodgr's (maxspeed, else per road class); turn_penalty = FALSE (dodgr's default): no turn restrictions; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,poa,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,poa,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,poa,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,poa,build,4,ok,10.69,7.657,11.438,3,,,,,,,,,,,,,,,,
+cppRouting,spo,ttm_walk,1,ok,0.301,0.291,0.323,3,99907,302.8,one process: build + warm-up + timed runs,,,1,,99897,3114,10,4.19,11.45,4.09,16.09,"graph: 43,408 directed edges, largest component of dodgr's foot profile; points snap to the nearest vertex; every foot speed of dodgr's profile (5 km/h, 2 on steps) set to 3.6 km/h; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,spo,ttm_bicycle,1,ok,0.315,0.297,0.334,3,104329,317.2,one process: build + warm-up + timed runs,,,1,,104329,0,0,15.03,27.45,-15.02,1.17,"graph: 43,536 directed edges, largest component of dodgr's bicycle profile; points snap to the nearest vertex; every bicycle speed of dodgr's profile (4 to 15 km/h by way type) set to 12 km/h; no traffic-stress (LTS) limit; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,spo,ttm_car,1,ok,0.198,0.19,0.226,3,98613,308.1,one process: build + warm-up + timed runs,,,1,,98613,5716,0,1.99,5.67,0.94,27.21,"graph: 25,741 directed edges, largest component of dodgr's motorcar profile; points snap to the nearest vertex; car speeds are dodgr's (maxspeed, else per road class); turn_penalty = FALSE (dodgr's default): no turn restrictions; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,spo,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,spo,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,spo,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,spo,build,1,ok,4.95,4.246,6.038,3,,,,,,,,,,,,,,,,
+cppRouting,spo,ttm_walk,4,ok,0.236,0.209,0.249,3,99907,302.6,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 43,408 directed edges, largest component of dodgr's foot profile; points snap to the nearest vertex; every foot speed of dodgr's profile (5 km/h, 2 on steps) set to 3.6 km/h; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,spo,ttm_bicycle,4,ok,0.232,0.222,0.238,3,104329,317.1,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 43,536 directed edges, largest component of dodgr's bicycle profile; points snap to the nearest vertex; every bicycle speed of dodgr's profile (4 to 15 km/h by way type) set to 12 km/h; no traffic-stress (LTS) limit; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,spo,ttm_car,4,ok,0.141,0.134,0.142,3,98613,307.8,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 25,741 directed edges, largest component of dodgr's motorcar profile; points snap to the nearest vertex; car speeds are dodgr's (maxspeed, else per road class); turn_penalty = FALSE (dodgr's default): no turn restrictions; routes follow dodgr's weighted time (road-type preferences), times are the unweighted travel time along them; no time limit in the query (times above the limit are dropped afterwards); input: osmium tags-filter w/highway to .osm XML, made once before the runs (1.4 s, not in the build time)",
+cppRouting,spo,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,spo,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,spo,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,cppRouting routes on a street graph only; this task needs a public transport model
+cppRouting,spo,build,4,ok,4.866,3.812,5.425,3,,,,,,,,,,,,,,,,
+networkx,poa,ttm_walk,1,ok,110.1875,109.3326,110.2472,3,817061,601.4,one process: build + warm-up + timed runs,,,1,,784468,4214,32593,1.37,4.14,-1.09,37.87,"graph: 17,263 nodes, 48,732 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,poa,ttm_bicycle,1,ok,150.8603,145.4409,155.3493,3,1505529,674.3,one process: build + warm-up + timed runs,,,1,,1451667,0,53862,16.95,33.02,-16.95,1.85,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 14,691 nodes, 35,505 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,poa,ttm_car,1,ok,77.6421,77.6198,80.697,3,1505529,627.1,one process: build + warm-up + timed runs,,,1,,1483605,0,21924,4.98,9.05,-4.98,0.99,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 7,711 nodes, 18,326 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,poa,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,poa,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,poa,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,poa,build,1,ok,3.9372,3.5466,5.231,3,,,,,,,,,,,,,,,,
+networkx,poa,ttm_walk,4,ok,110.1875,109.3326,110.2472,3,817061,601.4,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"graph: 17,263 nodes, 48,732 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,poa,ttm_bicycle,4,ok,150.8603,145.4409,155.3493,3,1505529,674.3,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 14,691 nodes, 35,505 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,poa,ttm_car,4,ok,77.6421,77.6198,80.697,3,1505529,627.1,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 7,711 nodes, 18,326 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,poa,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,poa,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,poa,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,poa,build,4,ok,3.9372,3.5466,5.231,3,,,,,,,1,,,,,,,,,
+networkx,spo,ttm_walk,1,ok,17.9512,17.5451,18.1573,3,103223,413.5,one process: build + warm-up + timed runs,,,1,,102995,16,228,1.26,3.17,-0.94,40.42,"graph: 6,014 nodes, 18,076 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,spo,ttm_bicycle,1,ok,11.8828,11.1493,13.453,3,104329,405.0,one process: build + warm-up + timed runs,,,1,,104329,0,0,15.0,28.27,-15.0,1.64,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 4,974 nodes, 10,595 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,spo,ttm_car,1,ok,7.652,7.5316,7.7775,3,104329,385.8,one process: build + warm-up + timed runs,,,1,,104329,0,0,4.45,7.14,-4.45,1.42,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 3,519 nodes, 6,803 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,spo,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,spo,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,spo,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,spo,build,1,ok,2.5212,2.0693,2.6322,3,,,,,,,,,,,,,,,,
+networkx,spo,ttm_walk,4,ok,17.9512,17.5451,18.1573,3,103223,413.5,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"graph: 6,014 nodes, 18,076 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,spo,ttm_bicycle,4,ok,11.8828,11.1493,13.453,3,104329,405.0,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 4,974 nodes, 10,595 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,spo,ttm_car,4,ok,7.652,7.5316,7.7775,3,104329,385.8,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 3,519 nodes, 6,803 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; networkx is pure Python and single-threaded",
+networkx,spo,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,spo,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,spo,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,networkx routes on a street graph only; this task needs a public transport model
+networkx,spo,build,4,ok,2.5212,2.0693,2.6322,3,,,,,,,1,,,,,,,,,
+igraph,poa,ttm_walk,1,ok,5.9944,5.9403,6.47,3,817061,616.5,one process: build + warm-up + timed runs,,,1,,784468,4214,32593,1.37,4.14,-1.09,37.87,"graph: 17,263 nodes, 48,732 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,poa,ttm_bicycle,1,ok,4.5536,4.0622,4.6332,3,1505529,696.6,one process: build + warm-up + timed runs,,,1,,1451667,0,53862,16.95,33.02,-16.95,1.85,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 14,691 nodes, 35,505 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,poa,ttm_car,1,ok,2.0495,2.0337,2.1109,3,1505529,625.0,one process: build + warm-up + timed runs,,,1,,1483605,0,21924,4.98,9.05,-4.98,0.99,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 7,711 nodes, 18,326 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,poa,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,poa,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,poa,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,poa,build,1,ok,4.1288,3.7559,5.1137,3,,,,,,,,,,,,,,,,
+igraph,poa,ttm_walk,4,ok,5.9944,5.9403,6.47,3,817061,616.5,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"graph: 17,263 nodes, 48,732 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,poa,ttm_bicycle,4,ok,4.5536,4.0622,4.6332,3,1505529,696.6,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 14,691 nodes, 35,505 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,poa,ttm_car,4,ok,2.0495,2.0337,2.1109,3,1505529,625.0,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 7,711 nodes, 18,326 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,poa,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,poa,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,poa,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,poa,build,4,ok,4.1288,3.7559,5.1137,3,,,,,,,1,,,,,,,,,
+igraph,spo,ttm_walk,1,ok,0.5478,0.5396,0.5551,3,103223,411.4,one process: build + warm-up + timed runs,,,1,,102995,16,228,1.26,3.17,-0.94,40.42,"graph: 6,014 nodes, 18,076 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,spo,ttm_bicycle,1,ok,0.4197,0.3842,0.4241,3,104329,405.7,one process: build + warm-up + timed runs,,,1,,104329,0,0,15.0,28.27,-15.0,1.64,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 4,974 nodes, 10,595 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,spo,ttm_car,1,ok,0.29,0.2557,0.2989,3,104329,383.1,one process: build + warm-up + timed runs,,,1,,104329,0,0,4.45,7.14,-4.45,1.42,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 3,519 nodes, 6,803 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,spo,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,spo,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,spo,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,spo,build,1,ok,2.0078,1.9549,2.6198,3,,,,,,,,,,,,,,,,
+igraph,spo,ttm_walk,4,ok,0.5478,0.5396,0.5551,3,103223,411.4,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"graph: 6,014 nodes, 18,076 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,spo,ttm_bicycle,4,ok,0.4197,0.3842,0.4241,3,104329,405.7,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 4,974 nodes, 10,595 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,spo,ttm_car,4,ok,0.29,0.2557,0.2989,3,104329,383.1,one process: build + warm-up + timed runs,,,1,1,,,,,,,,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 3,519 nodes, 6,803 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; igraph's distances() is single-threaded and has no time limit (times above the limit are dropped afterwards)",
+igraph,spo,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,spo,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,spo,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,igraph routes on a street graph only; this task needs a public transport model
+igraph,spo,build,4,ok,2.0078,1.9549,2.6198,3,,,,,,,1,,,,,,,,,
+pandana,poa,ttm_walk,1,ok,48.9071,48.8451,50.5102,3,817067,633.7,one process: build + warm-up + timed runs,,,1,,784081,4601,32986,1.39,4.24,-1.08,37.32,"graph: 17,263 nodes, 48,732 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,poa,ttm_bicycle,1,ok,56.1532,55.3683,56.6565,3,1505529,671.7,one process: build + warm-up + timed runs,,,1,,1451667,0,53862,16.95,33.01,-16.95,1.84,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 14,691 nodes, 35,505 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,poa,ttm_car,1,ok,27.5966,27.4393,29.294,3,1505529,609.9,one process: build + warm-up + timed runs,,,1,,1483605,0,21924,4.97,9.04,-4.97,1.0,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 7,711 nodes, 18,326 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,poa,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,poa,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,poa,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,poa,build,1,ok,6.2147,3.9879,7.4173,3,,,,,,,,,,,,,,,,
+pandana,poa,ttm_walk,4,ok,13.9067,13.2883,16.181,3,817067,661.9,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 17,263 nodes, 48,732 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,poa,ttm_bicycle,4,ok,15.9354,15.5043,16.4718,3,1505529,663.9,one process: build + warm-up + timed runs,,,4,,,,,,,,,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 14,691 nodes, 35,505 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,poa,ttm_car,4,ok,8.8057,8.111,8.9343,3,1505529,619.5,one process: build + warm-up + timed runs,,,4,,,,,,,,,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 7,711 nodes, 18,326 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,poa,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,poa,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,poa,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,poa,build,4,ok,4.4268,3.7827,4.9751,3,,,,,,,,,,,,,,,,
+pandana,spo,ttm_walk,1,ok,2.3782,2.2469,2.3882,3,103217,385.7,one process: build + warm-up + timed runs,,,1,,102991,20,226,1.25,3.13,-0.93,40.64,"graph: 6,014 nodes, 18,076 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,spo,ttm_bicycle,1,ok,2.2448,2.1638,2.2475,3,104329,410.0,one process: build + warm-up + timed runs,,,1,,104329,0,0,14.95,28.24,-14.95,1.61,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 4,974 nodes, 10,595 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,spo,ttm_car,1,ok,1.5573,1.5327,1.7941,3,104329,376.8,one process: build + warm-up + timed runs,,,1,,104329,0,0,4.44,7.13,-4.44,1.4,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 3,519 nodes, 6,803 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,spo,ttm_transit,1,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,spo,accessibility,1,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,spo,expanded,1,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,spo,build,1,ok,2.6566,2.3902,3.8355,3,,,,,,,,,,,,,,,,
+pandana,spo,ttm_walk,4,ok,0.6496,0.612,0.7168,3,103217,409.0,one process: build + warm-up + timed runs,,,4,,,,,,,,,"graph: 6,014 nodes, 18,076 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,spo,ttm_bicycle,4,ok,0.6615,0.6229,0.6885,3,104329,409.6,one process: build + warm-up + timed runs,,,4,,,,,,,,,"no traffic-stress (LTS) limit: every way of pyrosm's cycling network is usable; graph: 4,974 nodes, 10,595 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,spo,ttm_car,4,ok,0.438,0.4275,0.5124,3,104329,381.8,one process: build + warm-up + timed runs,,,4,,,,,,,,,"car speeds from OSMnx add_edge_speeds: maxspeed tag, else the mean maxspeed of the road class in this graph; no turn restrictions; graph: 3,519 nodes, 6,803 edges (pyrosm, simplified, largest connected component); points snap to the nearest node; threads set with OMP_NUM_THREADS; no time limit in the query (times above the limit are dropped afterwards)",
+pandana,spo,ttm_transit,4,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,spo,accessibility,4,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,spo,expanded,4,skipped,,,,,,,,,,,,,,,,,,,,pandana routes on a street graph only; this task needs a public transport model
+pandana,spo,build,4,ok,2.0567,1.6051,2.1985,3,,,,,,,,,,,,,,,,
