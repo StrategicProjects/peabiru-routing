@@ -93,6 +93,41 @@ pub struct TransitLayer {
     pub patterns_for_stop: Vec<Vec<u32>>,
     pub has_frequencies: bool,
     pub has_schedules: bool,
+    /// Trips of all feeds left out of the timetable, by reason.
+    pub dropped_trips: DroppedTrips,
+}
+
+/// Trips left out of the timetable while loading, by reason. R5 leaves out
+/// the same trips (most of them without a word).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DroppedTrips {
+    /// No row in `stop_times.txt`.
+    pub no_stop_times: usize,
+    /// A `stop_times.txt` row names a stop missing from `stops.txt`.
+    pub unknown_stop: usize,
+    /// The `route_id` is missing from `routes.txt`.
+    pub unknown_route: usize,
+    /// The `service_id` is in neither `calendar.txt` nor `calendar_dates.txt`.
+    pub unknown_service: usize,
+    /// No time at the first or the last stop.
+    pub missing_end_time: usize,
+    /// A time earlier than the one before it (a negative hop or dwell).
+    pub negative_time: usize,
+    /// Frequency-based, with no valid `frequencies.txt` entry.
+    pub invalid_frequencies: usize,
+}
+
+impl DroppedTrips {
+    /// All trips left out.
+    pub fn total(&self) -> usize {
+        self.no_stop_times
+            + self.unknown_stop
+            + self.unknown_route
+            + self.unknown_service
+            + self.missing_end_time
+            + self.negative_time
+            + self.invalid_frequencies
+    }
 }
 
 /// WGS84 ellipsoidal distance in metres (Vincenty's inverse formula; R5 uses
@@ -322,12 +357,13 @@ impl TransitLayer {
         // gtfs-lib pattern key -> R5 pattern index
         let mut pattern_of: HashMap<PatternKey, usize> = HashMap::new();
         let first_pattern = self.patterns.len();
+        let dropped = &mut self.dropped_trips;
         for (trip_id, trip) in trips {
-            let Some(rows) = times.get(trip_id) else {
-                continue;
-            };
-            let rows: Vec<&StopTime> = rows.values().copied().collect();
+            let rows: Vec<&StopTime> = times
+                .get(trip_id)
+                .map_or_else(Vec::new, |r| r.values().copied().collect());
             if rows.is_empty() {
+                dropped.no_stop_times += 1;
                 continue;
             }
             let Some(stop_seq) = rows
@@ -335,9 +371,11 @@ impl TransitLayer {
                 .map(|r| stop_index.get(r.stop_id.as_str()).copied())
                 .collect::<Option<Vec<u32>>>()
             else {
-                continue; // unknown stop: referential integrity error
+                dropped.unknown_stop += 1; // referential integrity error
+                continue;
             };
             let Some(&rtype) = route_type.get(trip.route_id.as_str()) else {
+                dropped.unknown_route += 1;
                 continue;
             };
             let key = (
@@ -358,6 +396,7 @@ impl TransitLayer {
                 self.patterns.len() - 1
             });
             let Some(&service) = service_code.get(trip.service_id.as_str()) else {
+                dropped.unknown_service += 1;
                 continue;
             };
             let coords: Vec<(f64, f64)> = stop_seq
@@ -365,6 +404,7 @@ impl TransitLayer {
                 .map(|&s| (self.stop_lat[s as usize], self.stop_lon[s as usize]))
                 .collect();
             let Some((mut arrivals, mut departures)) = interpolate(&rows, &coords) else {
+                dropped.missing_end_time += 1;
                 continue;
             };
             // reject the whole trip on any negative hop or dwell
@@ -374,6 +414,7 @@ impl TransitLayer {
                 prev_dep = departures[i];
                 bad
             }) {
+                dropped.negative_time += 1;
                 continue;
             }
             let mut frequencies = Vec::new();
@@ -386,7 +427,8 @@ impl TransitLayer {
                     .filter(|e| e.start <= e.end && e.headway > 0)
                     .collect();
                 if frequencies.is_empty() {
-                    continue; // only invalid entries
+                    dropped.invalid_frequencies += 1; // only invalid entries
+                    continue;
                 }
                 let base = arrivals[0];
                 arrivals.iter_mut().for_each(|t| *t -= base);
@@ -515,6 +557,64 @@ mod tests {
                 headway: 600
             }]
         );
+    }
+
+    /// Trips left out of the timetable are counted by reason, over all feeds.
+    #[test]
+    fn dropped_trips_are_counted() {
+        use crate::gtfs::zip::tests::make_zip;
+        let feed = make_zip(
+            &[
+                ("stops.txt", b"stop_id,stop_lat,stop_lon\nA,-30.0,-51.2\nB,-30.01,-51.21\n"),
+                ("routes.txt", b"route_id,route_type\nR,3\n"),
+                (
+                    "trips.txt",
+                    b"route_id,service_id,trip_id\nR,S,OK\nR,S,NOTIMES\nR,S,BADSTOP\nX,S,BADROUTE\nR,X,BADSERVICE\nR,S,NOEND\nR,S,BACKWARDS\nR,S,BADFREQ\n",
+                ),
+                (
+                    "stop_times.txt",
+                    b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+OK,08:00:00,08:00:00,A,1\nOK,08:10:00,08:10:00,B,2\n\
+BADSTOP,08:00:00,08:00:00,A,1\nBADSTOP,08:10:00,08:10:00,Z,2\n\
+BADROUTE,08:00:00,08:00:00,A,1\nBADROUTE,08:10:00,08:10:00,B,2\n\
+BADSERVICE,08:00:00,08:00:00,A,1\nBADSERVICE,08:10:00,08:10:00,B,2\n\
+NOEND,08:00:00,08:00:00,A,1\nNOEND,,,B,2\n\
+BACKWARDS,08:10:00,08:10:00,A,1\nBACKWARDS,08:00:00,08:00:00,B,2\n\
+BADFREQ,08:00:00,08:00:00,A,1\nBADFREQ,08:10:00,08:10:00,B,2\n",
+                ),
+                ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n"),
+                ("frequencies.txt", b"trip_id,start_time,end_time,headway_secs\nBADFREQ,09:00:00,08:00:00,600\n"),
+            ],
+            true,
+        );
+        let dir = std::env::temp_dir().join(format!("peabiru-dropped-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (a, b) = (dir.join("a.zip"), dir.join("b.zip"));
+        std::fs::write(&a, &feed).unwrap();
+        std::fs::write(&b, &feed).unwrap();
+        let one = TransitLayer::load(std::slice::from_ref(&a)).unwrap();
+        let two = TransitLayer::load(&[a, b]).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
+        let kept: Vec<&str> = one
+            .patterns
+            .iter()
+            .flat_map(|p| &p.trips)
+            .map(|t| t.trip_id.as_str())
+            .collect();
+        assert_eq!(kept, ["OK"]);
+        let each = DroppedTrips {
+            no_stop_times: 1,
+            unknown_stop: 1,
+            unknown_route: 1,
+            unknown_service: 1,
+            missing_end_time: 1,
+            negative_time: 1,
+            invalid_frequencies: 1,
+        };
+        assert_eq!(one.dropped_trips, each);
+        assert_eq!(one.dropped_trips.total(), 7);
+        assert_eq!(two.dropped_trips.total(), 14);
+        assert_eq!(two.dropped_trips.unknown_stop, 2);
     }
 
     /// Extensions are matched case-sensitively, as r5r does.
