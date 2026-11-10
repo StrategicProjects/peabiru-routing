@@ -82,7 +82,17 @@ def main():
         t = time.perf_counter()
         res = calls[task]()
         times.append(time.perf_counter() - t)
+    if "--result" in sys.argv and task.startswith("ttm_"):
+        write_result(res, arg("result"))
     print(json.dumps({"build_s": build_s, "times": times, "rows": len(res), "version": version}))
+
+
+def write_result(res, path):
+    """The matrix as from_id,to_id,travel_time for run.py's comparison."""
+    col = next(c for c in res.columns if c.startswith("travel_time"))
+    out = res[["from_id", "to_id", col]].dropna()
+    out.columns = ["from_id", "to_id", "travel_time"]
+    out.to_csv(path, index=False)
 
 
 if __name__ == "__main__":

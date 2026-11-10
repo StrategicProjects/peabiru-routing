@@ -26,6 +26,19 @@ def arg(name):
     return sys.argv[i + 1]
 
 
+def available_cpus():
+    """The cores the JVM will use: the CPU affinity mask, capped by a cgroup
+    CPU quota (docker run --cpus), as Java's availableProcessors() does."""
+    n = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    try:
+        quota, period = open("/sys/fs/cgroup/cpu.max").read().split()[:2]
+        if quota != "max":
+            n = min(n, max(1, -(-int(quota) // int(period))))
+    except (OSError, ValueError):
+        pass
+    return n
+
+
 def main():
     jar = os.environ.get("R5PY_JAR")
     sys.argv[1:1] = ["--max-memory", os.environ.get("R5PY_MAX_MEMORY", "6G")]
@@ -49,9 +62,10 @@ def main():
         return
     task = arg("task")
     threads = int(arg("threads"))
-    if threads != os.cpu_count():
+    cores = available_cpus()
+    if threads != cores:
         print(json.dumps({"skip": "r5py does not let the caller set the number of threads "
-                                  f"(it uses all {os.cpu_count()} cores)"}))
+                                  f"(it uses all {cores} available cores)"}))
         return
     if task in ("accessibility", "expanded"):
         print(json.dumps({"skip": f"r5py has no equivalent of r5r's {task} computation"}))
@@ -97,6 +111,10 @@ def main():
         res = call()
         times.append(time.perf_counter() - t)
     rows = int(res.iloc[:, 2].notna().sum())
+    if "--result" in sys.argv:  # the matrix for run.py's comparison with peabiru
+        out = res.iloc[:, :3].dropna()
+        out.columns = ["from_id", "to_id", "travel_time"]
+        out.to_csv(arg("result"), index=False)
     print(json.dumps({"build_s": build_s, "times": times, "rows": rows, "version": version}))
 
 
