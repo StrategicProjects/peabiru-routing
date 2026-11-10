@@ -242,6 +242,69 @@ fn raw_size_mismatch_is_an_error() {
 }
 
 #[test]
+fn blob_size_past_the_end_is_an_error() {
+    for size in [u64::MAX, u64::MAX / 2, 1 << 40] {
+        let mut header = Vec::new();
+        field_bytes(&mut header, 1, b"OSMData");
+        field_varint(&mut header, 3, size);
+        let mut f = (header.len() as u32).to_be_bytes().to_vec();
+        f.extend(header);
+        f.extend([0; 8]);
+        let err = read_pbf(&f, &opts(1)).unwrap_err().to_string();
+        assert!(err.contains("runs past the end of the file"), "{err}");
+    }
+}
+
+/// A block with dense node 1 at raw latitude `lat` (longitude 0) and a
+/// residential way over it.
+fn coordinate_block(granularity: i64, lat: i64) -> Vec<u8> {
+    let mut st = Vec::new();
+    for x in ["", "highway", "residential"] {
+        field_bytes(&mut st, 1, x.as_bytes());
+    }
+    let mut dense = Vec::new();
+    field_bytes(&mut dense, 1, &packed_delta(&[1]));
+    field_bytes(&mut dense, 8, &packed_delta(&[lat]));
+    field_bytes(&mut dense, 9, &packed_delta(&[0]));
+    let mut way = Vec::new();
+    field_varint(&mut way, 1, 7);
+    field_bytes(&mut way, 2, &packed([1]));
+    field_bytes(&mut way, 3, &packed([2]));
+    field_bytes(&mut way, 8, &packed_delta(&[1, 1]));
+    let (mut g1, mut g2) = (Vec::new(), Vec::new());
+    field_bytes(&mut g1, 2, &dense);
+    field_bytes(&mut g2, 3, &way);
+    let mut block = Vec::new();
+    field_bytes(&mut block, 1, &st);
+    field_bytes(&mut block, 2, &g1);
+    field_bytes(&mut block, 2, &g2);
+    field_varint(&mut block, 17, granularity as u64);
+    blob("OSMData", &block, false)
+}
+
+#[test]
+fn coordinates_that_overflow_are_an_error() {
+    let ok = read_pbf(&coordinate_block(100, -235_000_000), &opts(1)).unwrap();
+    assert_eq!(ok.lat, [-235_000_000]);
+    for (granularity, lat) in [
+        (1_000_000, i64::MAX / 2), // granularity * raw overflows i64
+        (100, 3_000_000_000),      // 300 degrees: beyond 1e-7-degree i32
+        (1, i64::MAX - 10),        // rounding overflows
+    ] {
+        let err = read_pbf(&coordinate_block(granularity, lat), &opts(1))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("coordinate out of range"), "{err}");
+    }
+    for granularity in [0, -100] {
+        let err = read_pbf(&coordinate_block(granularity, 1), &opts(1))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("granularity"), "{err}");
+    }
+}
+
+#[test]
 fn file_errors_name_the_file() {
     let dir = std::env::temp_dir().join(format!("peabiru-pbf-error-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();

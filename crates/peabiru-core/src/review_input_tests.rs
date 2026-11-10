@@ -6,7 +6,6 @@ use crate::gtfs::zip::Archive;
 use crate::osm::pbf::{read_pbf, Extract, ReadOptions, Tags, Way};
 use crate::street::build::network_from_extract;
 use crate::transit::TransitLayer;
-use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::time::Instant;
 
 // ---------------------------------------------------------------- encoders
@@ -77,65 +76,7 @@ fn opts() -> ReadOptions<'static> {
     }
 }
 
-fn panics<T>(f: impl FnOnce() -> T) -> Option<String> {
-    let prev = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    let r = catch_unwind(AssertUnwindSafe(f));
-    std::panic::set_hook(prev);
-    r.err().map(|e| {
-        e.downcast_ref::<String>()
-            .cloned()
-            .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
-            .unwrap_or_default()
-    })
-}
-
 // ---------------------------------------------------------------- PBF
-
-/// A blob header whose `datasize` is near `u64::MAX`: `pos + data_size`
-/// overflows in `split_blobs`. With overflow checks (debug, `cargo test`)
-/// this panics instead of returning a PbfError.
-#[test]
-fn pbf_huge_datasize_overflows() {
-    let f = blob_with_datasize("OSMData", b"", u64::MAX);
-    let r = panics(|| read_pbf(&f, &opts()).map(|_| ()));
-    eprintln!("pbf_huge_datasize_overflows: {r:?}");
-    if cfg!(debug_assertions) {
-        assert!(r.is_some_and(|m| m.contains("overflow")));
-    }
-}
-
-/// Block granularity/offsets from the file are multiplied and added in
-/// plain i64: a hostile block overflows (panic with overflow checks), and
-/// `to_e7` silently wraps out-of-range coordinates into i32.
-#[test]
-fn pbf_granularity_overflows() {
-    let mut st = Vec::new();
-    fbytes(&mut st, 1, b"");
-    let mut dense = Vec::new();
-    fbytes(&mut dense, 1, &packed_delta(&[1]));
-    fbytes(&mut dense, 8, &packed_delta(&[i64::MAX / 2]));
-    fbytes(&mut dense, 9, &packed_delta(&[0]));
-    let mut g = Vec::new();
-    fbytes(&mut g, 2, &dense);
-    let mut block = Vec::new();
-    fbytes(&mut block, 1, &st);
-    fbytes(&mut block, 2, &g);
-    fvar(&mut block, 17, 1_000_000); // granularity
-                                     // A way referencing node 1 so pass 2 decodes its coordinates.
-    let mut way = Vec::new();
-    fvar(&mut way, 1, 7);
-    fbytes(&mut way, 8, &packed_delta(&[1, 1]));
-    let mut g2 = Vec::new();
-    fbytes(&mut g2, 3, &way);
-    fbytes(&mut block, 2, &g2);
-    let f = blob("OSMData", &block);
-    let r = panics(|| read_pbf(&f, &opts()).map(|_| ()));
-    eprintln!("pbf_granularity_overflows: {r:?}");
-    if cfg!(debug_assertions) {
-        assert!(r.is_some_and(|m| m.contains("overflow")));
-    }
-}
 
 /// An empty (0-byte) file is accepted as an empty extract; building gives
 /// an empty network without an error. A truncated download therefore

@@ -340,10 +340,12 @@ fn resolve_threads(n: usize) -> usize {
 /// Split the file into the payloads of its `OSMData` blobs, checking the
 /// header's required features on the way.
 fn split_blobs(bytes: &[u8]) -> Result<Vec<&[u8]>> {
+    // `bytes[pos..pos + n]` when it exists; sizes come from the file.
+    let span = |pos: usize, n: usize| pos.checked_add(n).and_then(|end| bytes.get(pos..end));
     let mut out = Vec::new();
     let mut pos = 0usize;
     while pos < bytes.len() {
-        let Some(len_bytes) = bytes.get(pos..pos + 4) else {
+        let Some(len_bytes) = span(pos, 4) else {
             return format_err("truncated blob header length");
         };
         let header_len = u32::from_be_bytes(len_bytes.try_into().unwrap()) as usize;
@@ -351,7 +353,7 @@ fn split_blobs(bytes: &[u8]) -> Result<Vec<&[u8]>> {
             return format_err("blob header larger than 64 KiB");
         }
         pos += 4;
-        let Some(header) = bytes.get(pos..pos + header_len) else {
+        let Some(header) = span(pos, header_len) else {
             return format_err("truncated blob header");
         };
         pos += header_len;
@@ -360,17 +362,20 @@ fn split_blobs(bytes: &[u8]) -> Result<Vec<&[u8]>> {
         for f in Fields::new(header) {
             match f? {
                 (1, v) => kind = v.as_bytes()?,
-                (3, v) => data_size = Some(v.as_u64()? as usize),
+                (3, v) => data_size = Some(v.as_u64()?),
                 _ => {}
             }
         }
         let Some(data_size) = data_size else {
             return format_err("blob header without datasize");
         };
-        let Some(blob) = bytes.get(pos..pos + data_size) else {
-            return format_err("truncated blob");
+        let blob = usize::try_from(data_size).ok().and_then(|n| span(pos, n));
+        let Some(blob) = blob else {
+            return format_err(format!(
+                "blob of {data_size} bytes runs past the end of the file"
+            ));
         };
-        pos += data_size;
+        pos += blob.len();
         match kind {
             b"OSMHeader" => check_header(&inflate(blob)?)?,
             b"OSMData" => out.push(blob),
@@ -466,25 +471,40 @@ struct BlockParams {
 impl BlockParams {
     /// Fixed-point 1e-7 degrees from a raw coordinate.
     #[inline]
-    fn lat(&self, raw: i64) -> i32 {
-        to_e7(self.lat_offset + self.granularity * raw)
+    fn lat(&self, raw: i64) -> Result<i32> {
+        coordinate(self.lat_offset, self.granularity, raw)
     }
 
     #[inline]
-    fn lon(&self, raw: i64) -> i32 {
-        to_e7(self.lon_offset + self.granularity * raw)
+    fn lon(&self, raw: i64) -> Result<i32> {
+        coordinate(self.lon_offset, self.granularity, raw)
     }
+}
+
+/// `offset + granularity * raw` nanodegrees in 1e-7 degrees; an error when
+/// the file's values overflow or the result does not fit in 1e-7 degrees.
+#[inline]
+fn coordinate(offset: i64, granularity: i64, raw: i64) -> Result<i32> {
+    granularity
+        .checked_mul(raw)
+        .and_then(|d| d.checked_add(offset))
+        .and_then(to_e7)
+        .ok_or_else(|| {
+            PbfError::Format(format!(
+                "coordinate out of range (offset {offset}, granularity {granularity}, value {raw})"
+            ))
+        })
 }
 
 /// Nanodegrees to 1e-7 degrees, rounded half away from zero.
 #[inline]
-fn to_e7(nano: i64) -> i32 {
+fn to_e7(nano: i64) -> Option<i32> {
     let q = if nano >= 0 {
-        (nano + 50) / 100
+        nano.checked_add(50)? / 100
     } else {
-        (nano - 50) / 100
+        nano.checked_sub(50)? / 100
     };
-    q as i32
+    i32::try_from(q).ok()
 }
 
 fn decode_block(block: &[u8], visit: &mut dyn FnMut(Item)) -> Result<()> {
@@ -510,6 +530,12 @@ fn decode_block(block: &[u8], visit: &mut dyn FnMut(Item)) -> Result<()> {
             (20, v) => params.lon_offset = v.as_i64()?,
             _ => {}
         }
+    }
+    if params.granularity <= 0 {
+        return format_err(format!(
+            "block granularity {} is not positive",
+            params.granularity
+        ));
     }
     let st = |i: u64| -> Result<&str> {
         strings
@@ -575,8 +601,8 @@ fn decode_node<'s>(
     keys_vals(&keys, &vals, st, tags)?;
     visit(Item::Node {
         id,
-        lat: p.lat(lat),
-        lon: p.lon(lon),
+        lat: p.lat(lat)?,
+        lon: p.lon(lon)?,
         tags,
     });
     Ok(())
@@ -628,8 +654,8 @@ fn decode_dense<'s>(
         }
         visit(Item::Node {
             id: ids[i],
-            lat: p.lat(lats[i]),
-            lon: p.lon(lons[i]),
+            lat: p.lat(lats[i])?,
+            lon: p.lon(lons[i])?,
             tags,
         });
     }
