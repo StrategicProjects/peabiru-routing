@@ -126,6 +126,8 @@ footer p { margin: 4px 0; }
 .stat-other .stat-v { color: var(--pb-ink); }
 .stat-who { font-size: 13.5px; }
 table.bench td, table.bench th { font-size: 14.5px; white-space: nowrap; }
+/* column headings wrap, so that the nine columns fit the page width */
+table.bench thead th { white-space: normal; vertical-align: bottom; }
 table.bench tr.fam-peabiru th[scope="row"] { color: var(--pb-route); font-weight: 600; }
 details.bench-notes { margin: -12px 0 20px; font-size: 14.5px; color: var(--pb-ink-soft); }
 details.bench-notes summary { cursor: pointer; }

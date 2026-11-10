@@ -478,7 +478,9 @@ def tables(meta, idx, recs_all, engines):
                 continue
             def sort_key(e):
                 r = next(idx[(e, c, t, n)] for n in reversed(threads_all) if (e, c, t, n) in idx)
-                return r["seconds"]
+                # runs on a subset of the origins after the complete ones
+                subset = bool(r.get("origins_used")) and r["origins_used"] < r.get("origins_total", 0)
+                return (subset, r["seconds"])
             rows.sort(key=sort_key)
             cmp_task = t in COMPARED_TASKS
             head = '<th scope="col">Package</th><th scope="col">Language</th>'
