@@ -17,7 +17,10 @@
 ARG ROCKER_TAG=4.6.1
 FROM rocker/geospatial:${ROCKER_TAG}
 
-ARG CRAN_SNAPSHOT=2026-11-02
+# the tag again: an ARG declared before FROM is not visible after it
+ARG ROCKER_TAG
+# the first snapshot with r5r 2.5.0 (R5 7.6), the version peabiru is checked against
+ARG CRAN_SNAPSHOT=2026-11-09
 ARG RUST_VERSION=1.99.1
 ENV CRAN_SNAPSHOT=${CRAN_SNAPSHOT} \
     DEBIAN_FRONTEND=noninteractive \
@@ -46,12 +49,15 @@ RUN . /etc/os-release \
  && echo "options(repos = c(CRAN = 'https://packagemanager.posit.co/cran/__linux__/${VERSION_CODENAME}/${CRAN_SNAPSHOT}'))" \
       >> "$(R RHOME)/etc/Rprofile.site" \
  && Rscript -e 'install.packages(c("rJava", "r5r", "data.table", "jsonlite", "dodgr", "cppRouting", "osmdata", "RcppParallel", "sf"))' \
- && Rscript -e 'for (p in c("rJava", "r5r", "dodgr", "cppRouting", "osmdata")) if (!requireNamespace(p, quietly = TRUE)) stop("R package ", p, " did not install")'
+ && Rscript -e 'for (p in c("rJava", "r5r", "dodgr", "cppRouting", "osmdata")) if (!requireNamespace(p, quietly = TRUE)) stop("R package ", p, " did not install")' \
+ && Rscript -e 'if (packageVersion("r5r") < "2.5.0") stop("r5r ", packageVersion("r5r"), ": the benchmark needs 2.5.0 or later (R5 7.6)")'
 # R5's jar, downloaded once into the image (r5r keeps it in its user cache)
 RUN Rscript -e 'options(java.parameters = "-Xmx1G"); library(r5r); cat(r5r::download_r5(quiet = TRUE), "\n")'
 
 # ---------------------------------------------------------------- Rust
-ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo PATH=/opt/cargo/bin:$PATH
+# RUSTUP_TOOLCHAIN: the pinned compiler, not the `stable` of rust-toolchain.toml
+ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo PATH=/opt/cargo/bin:$PATH \
+    RUSTUP_TOOLCHAIN=${RUST_VERSION}
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain ${RUST_VERSION} \
  && rustc --version
 
