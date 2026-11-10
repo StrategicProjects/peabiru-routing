@@ -7,13 +7,20 @@
 long_calls <- function() {
   net <- fixture_network()
   pts <- fixture_points()
-  many <- pts[rep(seq_len(nrow(pts)), 1500), ]
-  many$id <- as.character(seq_len(nrow(many)))
+  repeated <- function(times) {
+    out <- pts[rep(seq_len(nrow(pts)), times), ]
+    out$id <- as.character(seq_len(nrow(out)))
+    out
+  }
+  many <- repeated(1500)
+  # a street matrix goes through a contraction hierarchy, about ten times
+  # as fast as the searches the accessibility makes
+  far_more <- repeated(15000)
   start <- as.POSIXct("2019-05-13 00:00:00", tz = "America/Sao_Paulo")
   transit <- c("WALK", "TRANSIT")
   list(
     street_matrix = function() {
-      travel_time_matrix(net, many, pts, mode = "CAR", n_threads = 1)
+      travel_time_matrix(net, far_more, pts, mode = "CAR", n_threads = 1)
     },
     street_accessibility = function() {
       accessibility(net, many, pts, opportunities_colnames = "jobs", mode = "CAR",

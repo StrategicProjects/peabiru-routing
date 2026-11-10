@@ -282,14 +282,21 @@ def _long_calls(network, points):
     """One call per routing entry point, each taking several seconds at one
     thread on the sample network."""
     start = dt.datetime(2019, 5, 13, 0, 0)
-    many = pd.concat([points] * 1500, ignore_index=True)
-    many["id"] = [str(i) for i in range(len(many))]
+    def repeated(times):
+        out = pd.concat([points] * times, ignore_index=True)
+        out["id"] = [str(i) for i in range(len(out))]
+        return out
+
+    many = repeated(1500)
+    # a street matrix goes through a contraction hierarchy, about ten times
+    # as fast as the searches the accessibility makes
+    far_more = repeated(15000)
     transit = dict(
         mode="TRANSIT", time_window=1440, draws_per_minute=20, seed=1, n_threads=1,
     )
     return {
         "street_matrix": lambda: peabiru.travel_time_matrix(
-            network, many, points, mode="CAR", n_threads=1,
+            network, far_more, points, mode="CAR", n_threads=1,
         ),
         "street_accessibility": lambda: peabiru.accessibility(
             network, many, points, opportunities_colnames=["jobs"], mode="CAR",
