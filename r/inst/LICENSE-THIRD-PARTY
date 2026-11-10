@@ -362,7 +362,7 @@ and that carries this notice:
 4. r5r
 ==============================================================================
 
-https://github.com/ipeaGIT/r5r (version 2.5.0)
+https://github.com/ipea/r5r (version 2.5.0)
 
 The functions of the R and Python packages take their names, arguments,
 defaults and result layouts from r5r, the R interface to R5 developed at the

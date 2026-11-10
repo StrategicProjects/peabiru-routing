@@ -152,7 +152,7 @@ cargo build --release -p peabiru-cli                # command-line tool
 ## Compatibility with r5r
 
 The functions of the R and Python packages have the names, arguments and
-defaults of [r5r](https://github.com/ipeaGIT/r5r) 2.5.0, so code written for
+defaults of [r5r](https://github.com/ipea/r5r) 2.5.0, so code written for
 r5r needs few changes, and they return the same values: the engine is a port
 of Conveyal's [R5](https://github.com/conveyal/r5) 7.6, the engine r5r
 drives. [`bench/`](bench) runs the same requests on both and compares the

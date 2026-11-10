@@ -82,3 +82,16 @@ test_that("missing opportunity counts count as zero, with a warning", {
                      cutoffs = 30, n_threads = 2)
   expect_identical(a, b)
 })
+
+test_that("an origin with missing coordinates has zero accessibility", {
+  network <- fixture_network()
+  pts <- fixture_points()
+  na <- pts
+  na$lat[1] <- NA
+  expect_warning(
+    a <- accessibility(network, na, pts, opportunities_colnames = "jobs",
+                       cutoffs = 30, n_threads = 2),
+    "missing lon/lat"
+  )
+  expect_identical(a$accessibility[1], 0)
+})

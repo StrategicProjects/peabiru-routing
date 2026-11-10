@@ -87,7 +87,7 @@ uv pip install "mkdocs>=1.6" "mkdocs-material>=9.5" "mkdocstrings[python]>=0.26"
 ## Compatibility with r5r
 
 The functions, their arguments, defaults and results follow the R package
-[r5r](https://ipeagit.github.io/r5r/) 2.5.0: the engine is a Rust port of
+[r5r](https://ipea.github.io/r5r/) 2.5.0: the engine is a Rust port of
 [R5](https://github.com/conveyal/r5) 7.6, the engine r5r drives, and is
 checked against r5r call for call, with identical results, including the
 last bit of accessibility values. The comparison (needs R with r5r 2.5.0

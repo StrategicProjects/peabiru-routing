@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional, Union
 
 from . import _peabiru
 from ._assign import assign_n_threads
-from ._checks import assert_flag, assert_string, fail_assert, unsupported
+from ._checks import UnsupportedError, assert_flag, assert_string, fail_assert
 
 PathLike = Union[str, "os.PathLike[str]"]
 
@@ -92,7 +92,7 @@ def build_network(
     temp_dir: bool = False,
     elevation: str = "TOBLER",
     overwrite: bool = False,
-    n_threads: Optional[int] = None,
+    n_threads: Optional[Union[int, float]] = None,
 ) -> Network:
     """Build a transport network.
 
@@ -104,7 +104,8 @@ def build_network(
 
     Elevation is not supported yet. As in r5r, when the directory has no
     ``.tif`` raster the network is built with ``elevation="NONE"``; when it
-    has one, ``elevation="NONE"`` must be given explicitly (and, as in r5r,
+    has one (a file ending in ``.tif`` or ``.tiff``), ``elevation="NONE"``
+    must be given explicitly (and, as in r5r,
     the raster still disables the swap of origins and destinations that r5r
     does for walking).
 
@@ -130,7 +131,7 @@ def build_network(
     overwrite : bool, default False
         Accepted for compatibility with r5r, which uses it to rebuild a
         cached ``network.dat``; the network is always built anew.
-    n_threads : int, optional
+    n_threads : int or math.inf, optional
         The number of threads used to read the ``.pbf`` file. ``None`` (the
         default) or ``math.inf`` use all cores.
 
@@ -176,10 +177,14 @@ def build_network(
     data_path = os.path.realpath(os.path.expanduser(data_path))
     # R's list.files(): no hidden files
     files = sorted(f for f in os.listdir(data_path) if not f.startswith("."))
-    # r5r build_network() looks for its inputs with these (regular
-    # expression) patterns
+    # r5r build_network() looks for its inputs with these patterns. They
+    # are regular expressions, so ".tif" also matches a name such as
+    # "identificacao.csv"; any_tif keeps that loose match because r5r uses
+    # it to turn off the swap of origins and destinations.
     any_pbf = any(re.search(".pbf", f) for f in files)
     any_tif = any(re.search(".tif", f) for f in files)
+    # an elevation raster that R5 would read
+    rasters = [f for f in files if re.search(r"\.tiff?$", f, re.IGNORECASE)]
     pbf = [f for f in files if re.search(r"\.pbf$", f, re.IGNORECASE)]
     if not any_pbf or not pbf:
         raise ValueError(f"An OSM .pbf file is required in '{data_path}' to build a network.")
@@ -195,10 +200,14 @@ def build_network(
                 f"No raster .tif files found in '{data_path}'. Using elevation = \"NONE\".",
                 file=sys.stderr,
             )
+    elif not rasters:
+        # r5r keeps the elevation model, and R5 finds no raster to apply it to
+        elevation = "NONE"
     elif elevation != "NONE":
-        unsupported(
-            f'Elevation (elevation = "{elevation}", with the .tif raster in '
-            f"'{data_path}'); use elevation = \"NONE\" to ignore the raster"
+        raise UnsupportedError(
+            f"Elevation is not supported by peabiru yet, and '{data_path}' has the raster "
+            + ", ".join(f"'{f}'" for f in rasters)
+            + '. Use elevation = "NONE" to build the network without it.'
         )
 
     t0 = time.perf_counter()

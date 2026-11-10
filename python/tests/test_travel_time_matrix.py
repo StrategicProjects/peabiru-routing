@@ -1,6 +1,10 @@
 import datetime as dt
 import math
+import os
+import signal
+import sys
 import threading
+import time
 import warnings
 
 import numpy as np
@@ -124,6 +128,22 @@ def test_string_dtype_ids_and_nullable_coordinates(network, points):
     pd.testing.assert_frame_equal(ttm(network, shifted, mode="CAR"), ref)
 
 
+@pytest.mark.parametrize("dtype", ["float64", "Int64", "object"])
+def test_missing_numeric_id_stays_missing(network, points, dtype):
+    # r5r: as.character(NA) is NA, so the row's from_id is NA; the other
+    # ids convert with astype(str) as before
+    p = points.copy()
+    p["id"] = pd.Series(np.arange(len(p)), dtype=dtype)
+    p.loc[0, "id"] = None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        m = peabiru.travel_time_matrix(network, p, points.iloc[:1], mode="WALK", n_threads=2)
+    assert m["from_id"].iloc[0] is None
+    expected = p["id"].iloc[1:].astype(str).tolist()
+    assert m["from_id"].iloc[1:].tolist() == expected
+    assert not set(m["from_id"].dropna()) & {"nan", "<NA>", "None"}
+
+
 def test_geodataframe_points(network, points):
     gpd = pytest.importorskip("geopandas")
     geo = gpd.GeoDataFrame(
@@ -153,6 +173,10 @@ def test_arguments_are_checked_as_r5r_checks_them(network, points, departure):
         call(mode=["WALK", 1])
     with pytest.raises(ValueError, match="length <= 5"):
         call(percentiles=[1, 2, 3, 4, 5, 6])
+    # R5 fails on an empty list too; every mode stops before routing
+    for m in ("WALK", "CAR", "TRANSIT"):
+        with pytest.raises(ValueError, match="'percentiles' failed: Must have length >= 1"):
+            call(mode=m, percentiles=[], departure_datetime=departure)
     with pytest.raises(ValueError, match="<= 99"):
         call(percentiles=100)
     with pytest.raises(ValueError, match="Must be >= 1"):
@@ -238,3 +262,33 @@ def test_empty_result(network, points):
     assert len(m) == 0
     assert list(m.columns) == ["from_id", "to_id", "travel_time_p50"]
     assert str(m["travel_time_p50"].dtype) == "Int32"
+
+
+@pytest.mark.xfail(strict=True, reason="core caps time_window at 1440 minutes")
+def test_time_window_longer_than_a_day_is_accepted(network, points, departure):
+    # r5r 2.5.0 returns a matrix for time_window = 2000 (same values as 1440
+    # here: 0 and 7 minutes)
+    ttm = peabiru.travel_time_matrix(
+        network, points.iloc[:1], points.iloc[:2], mode="TRANSIT",
+        departure_datetime=departure, time_window=2000, seed=1,
+    )
+    assert ttm["travel_time_p50"].tolist() == [0, 7]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+@pytest.mark.xfail(strict=True, reason="the core never checks for signals while routing")
+def test_ctrl_c_interrupts_a_long_call(network, points):
+    start = dt.datetime(2019, 5, 13, 0, 0)
+
+    def fire():
+        time.sleep(0.3)
+        os.kill(os.getpid(), signal.SIGINT)
+
+    threading.Thread(target=fire).start()
+    t0 = time.perf_counter()
+    with pytest.raises(KeyboardInterrupt):
+        peabiru.travel_time_matrix(
+            network, points, points, mode="TRANSIT", departure_datetime=start,
+            time_window=1440, draws_per_minute=5, seed=1, n_threads=1,
+        )
+    assert time.perf_counter() - t0 < 2.0

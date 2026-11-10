@@ -118,3 +118,9 @@ assert_network <- function(x) {
 unsupported <- function(what) {
   stop(what, " is not supported by peabiru yet.", call. = FALSE)
 }
+
+# r5r >= 2.3.0 still accepts the network as `r5r_core`, with this warning
+warn_r5r_core <- function() {
+  warning("The `r5r_core` argument is deprecated as of r5r v2.3.0. ",
+          "Please use the `r5r_network` argument instead.", call. = FALSE)
+}

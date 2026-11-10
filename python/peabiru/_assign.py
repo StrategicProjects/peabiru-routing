@@ -116,10 +116,14 @@ def assign_points_input(df: Any, name: str, unique_ids: bool = True) -> Points:
     lat = df["lat"].to_numpy(dtype=np.float64, na_value=np.nan)
 
     id_col = df["id"]
+    # a missing id stays missing (None), as as.character(NA) is NA in r5r;
+    # under pandas < 3 astype(str) turns it into the text "nan" or "<NA>"
+    id_missing = id_col.isna().to_numpy(dtype=bool)
     if not _is_string_column(id_col):
         warnings.warn(f"'{name}$id' forcefully cast to character.", stacklevel=4)
         id_col = id_col.astype(str)
     ids = np.array(id_col.tolist(), dtype=object)
+    ids[id_missing] = None
 
     na_coords = np.isnan(lon) | np.isnan(lat)
     if na_coords.any():
@@ -385,8 +389,14 @@ def assign_cutoffs(cutoffs: Any, decay_function: str) -> List[int]:
 
 
 def assign_percentiles(percentiles: Any) -> List[int]:
-    """r5r set_percentiles(): ascending, as the output columns."""
-    values = assert_integerish(percentiles, "percentiles", lower=1, upper=99, max_len=5, unique=True)
+    """r5r set_percentiles(): ascending, as the output columns.
+
+    An empty list is an error for every mode (R5 fails on it too; without
+    the check a street matrix would come back with no travel time column).
+    """
+    values = assert_integerish(
+        percentiles, "percentiles", lower=1, upper=99, min_len=1, max_len=5, unique=True
+    )
     assert values is not None
     return sorted(values)
 

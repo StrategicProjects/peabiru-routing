@@ -13,8 +13,10 @@ reference) run as doctests.
 
 from __future__ import annotations
 
+import ast
 import contextlib
 import doctest
+import importlib.util
 import io
 import os
 import re
@@ -37,11 +39,28 @@ def blocks(text: str):
     return [(m.group(1), m.group(2), m.start(2), m.end(2)) for m in FENCE.finditer(text)]
 
 
+def imported_modules(code: str) -> set:
+    """Top-level names of the modules a code block imports."""
+    names = set()
+    for node in ast.walk(ast.parse(code)):
+        if isinstance(node, ast.Import):
+            names.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            names.add(node.module.split(".")[0])
+    return names
+
+
 @pytest.mark.parametrize("page", PAGES, ids=[p.name for p in PAGES])
 def test_page_examples(page: Path, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     text = page.read_text(encoding="utf-8")
     bl = blocks(text)
+    # a page whose examples need an optional package (geopandas, from the
+    # "geo" extra) runs only where it is installed
+    needed = set().union(*(imported_modules(b) for lang, b, _, _ in bl if lang == "python"))
+    missing = sorted(m for m in needed if importlib.util.find_spec(m) is None)
+    if missing:
+        pytest.skip(f"the examples need {', '.join(missing)}, not installed")
     ns: dict = {"__name__": "__main__"}
     replacements = []
     for k, (lang, body, _, _) in enumerate(bl):

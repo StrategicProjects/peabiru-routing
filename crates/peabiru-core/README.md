@@ -30,7 +30,9 @@ use peabiru_core::street::BuildOptions;
 use peabiru_core::transit::build_from_dir;
 use peabiru_core::transit::matrix::{travel_time_matrix, TransitData, TransitParams};
 
-let (net, layer) = build_from_dir("data/spo", &BuildOptions::default())?;
+// a directory with one OpenStreetMap .pbf and the GTFS .zip feeds: here the
+// São Paulo sample of the repository; use your own data directory
+let (net, layer) = build_from_dir("r/inst/extdata/spo", &BuildOptions::default())?;
 let data = TransitData::new(&net, &layer);
 let points = vec![(-23.5563, -46.6290), (-23.5577, -46.6321)]; // (lat, lon)
 let params = TransitParams {
@@ -54,7 +56,7 @@ elevation are not implemented.
 
 MIT (`LICENSE-MIT`). The routing logic is ported from Conveyal's
 [R5](https://github.com/conveyal/r5) 7.6 (MIT), and the results are checked
-value for value against those of [r5r](https://github.com/ipeaGIT/r5r)
+value for value against those of [r5r](https://github.com/ipea/r5r)
 2.5.0. `fastmath.rs` and part of `jcompat.rs` are translations of parts of
 Apache Commons Math 3.0 (Apache-2.0). The notices and licence texts of these works are in
 `LICENSE-THIRD-PARTY`.

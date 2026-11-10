@@ -8,6 +8,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+documentation = "https://docs.rs/peabiru-core"
 readme = "README.md"
 keywords = ["routing", "gtfs", "openstreetmap", "accessibility", "raptor"]
 categories = ["algorithms", "science::geo"]

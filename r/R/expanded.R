@@ -64,8 +64,13 @@ expanded_travel_time_matrix <- function(r5r_network,
                                         n_threads = Inf,
                                         verbose = FALSE,
                                         progress = TRUE,
-                                        output_dir = NULL) {
+                                        output_dir = NULL,
+                                        r5r_core) {
   # mirrors r5r R/expanded_travel_time_matrix.R
+  if (!missing(r5r_core)) {
+    warn_r5r_core()
+    r5r_network <- r5r_core
+  }
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
   mode_list <- assign_mode(mode, mode_egress)
@@ -120,8 +125,8 @@ expanded_travel_time_matrix <- function(r5r_network,
 #' errors too.
 #'
 #' @inheritParams expanded_travel_time_matrix
-#' @param arrival_datetime A POSIXct, the time by which trips must arrive,
-#'   taken in its own time zone.
+#' @param arrival_datetime A POSIXct (or a POSIXlt, converted as r5r does),
+#'   the time by which trips must arrive, taken in its own time zone.
 #'
 #' @return A `data.frame` with the columns of
 #'   [expanded_travel_time_matrix()]: one row per origin and destination
@@ -165,8 +170,13 @@ arrival_travel_time_matrix <- function(r5r_network,
                                        n_threads = Inf,
                                        verbose = FALSE,
                                        progress = TRUE,
-                                       output_dir = NULL) {
+                                       output_dir = NULL,
+                                       r5r_core) {
   # mirrors r5r R/arrival_travel_time_matrix.R
+  if (!missing(r5r_core)) {
+    warn_r5r_core()
+    r5r_network <- r5r_core
+  }
   if (missing(arrival_datetime) || is.null(arrival_datetime)) {
     stop("'arrival_datetime' is required. Supply a POSIXct value specifying ",
          "when trips must arrive. For trips that do not depend on time, use ",
@@ -189,9 +199,11 @@ arrival_travel_time_matrix <- function(r5r_network,
     max_trip_duration, mode_list, max_walk_time, max_bike_time, max_car_time
   )
 
-  # calculate departure datetime, exactly as r5r does (POSIXct arithmetic,
-  # then the date and clock time in the POSIXct's time zone)
-  if (!inherits(arrival_datetime, "POSIXct")) {
+  # calculate departure datetime, exactly as r5r does: the subtraction turns
+  # a POSIXlt into a POSIXct, then the date and clock time are taken in its
+  # time zone. Other classes fail here, as they do in r5r's arithmetic or in
+  # its check of the result.
+  if (!inherits(arrival_datetime, "POSIXt")) {
     fail_assert("arrival_datetime", "Must be a single POSIXct date-time without missing values")
   }
   departure_datetime <- arrival_datetime - as.difftime(max_trip_duration, units = "mins")

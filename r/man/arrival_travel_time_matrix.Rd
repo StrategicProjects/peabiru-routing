@@ -29,7 +29,8 @@ arrival_travel_time_matrix(
   n_threads = Inf,
   verbose = FALSE,
   progress = TRUE,
-  output_dir = NULL
+  output_dir = NULL,
+  r5r_core
 )
 }
 \arguments{
@@ -44,8 +45,8 @@ arrival_travel_time_matrix(
 \item{mode_egress}{A string, the mode from the last stop to the
 destination. Only \code{"WALK"} is supported with transit.}
 
-\item{arrival_datetime}{A POSIXct, the time by which trips must arrive,
-taken in its own time zone.}
+\item{arrival_datetime}{A POSIXct (or a POSIXlt, converted as r5r does),
+the time by which trips must arrive, taken in its own time zone.}
 
 \item{breakdown}{A logical. Whether to break each trip down into access,
 waiting, in-vehicle, transfer and egress times, and the number of rides.}
@@ -78,6 +79,10 @@ only with a seed.}
 progress counter.}
 
 \item{output_dir}{Not supported yet; must be \code{NULL}.}
+
+\item{r5r_core}{Deprecated: the network under the name r5r used before
+version 2.3.0. As in r5r, it is accepted with a warning and used as
+\code{r5r_network}.}
 }
 \value{
 A \code{data.frame} with the columns of

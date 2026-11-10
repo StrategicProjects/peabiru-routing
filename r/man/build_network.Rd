@@ -45,7 +45,8 @@ no \code{network.dat} cache.
 \details{
 Elevation is not supported yet. As in r5r, when the directory has no
 \code{.tif} raster the network is built with \code{elevation = "NONE"}; when it has
-one, \code{elevation = "NONE"} must be given explicitly (and, as in r5r, the
+one (a file ending in \code{.tif} or \code{.tiff}), \code{elevation = "NONE"} must be
+given explicitly (and, as in r5r, the
 raster still disables the swap of origins and destinations that r5r does
 for walking).
 

@@ -35,7 +35,8 @@ accessibility(
   n_threads = Inf,
   verbose = FALSE,
   progress = TRUE,
-  output_dir = NULL
+  output_dir = NULL,
+  r5r_core
 )
 }
 \arguments{
@@ -110,6 +111,10 @@ only with a seed.}
 progress counter.}
 
 \item{output_dir}{Not supported yet; must be \code{NULL}.}
+
+\item{r5r_core}{Deprecated: the network under the name r5r used before
+version 2.3.0. As in r5r, it is accepted with a warning and used as
+\code{r5r_network}.}
 }
 \value{
 A \code{data.frame} with \code{id}, \code{opportunity}, \code{percentile}, \code{cutoff}
