@@ -158,3 +158,11 @@ one <- travel_time_matrix(
 )
 identical(one, ttm)
 ```
+
+## Stopping a long call
+
+An interrupt (Esc, or Ctrl-C in a terminal) stops any of the routing
+functions within a few tenths of a second and returns to the prompt, with
+no partial result. `setTimeLimit()` works too, and `tryCatch(interrupt = )`
+sees the interrupt as it would for R code. `build_network()` cannot be
+interrupted.

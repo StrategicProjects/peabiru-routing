@@ -11,7 +11,7 @@ pub fn travel_time_matrix(
     destinations: &[(f64, f64)],
     mode: Mode,
     params: &RouteParams,
-) -> Result<Vec<Option<u32>>, ParamError>
+) -> Result<Vec<Option<u32>>, RouteError>
 ```
 
 The result is row-major (`origins.len() × destinations.len()`), in whole
@@ -29,6 +29,26 @@ does not depend on how many there are.
 ```rust,ignore
 {{#include ../../../crates/peabiru-core/examples/street_matrix.rs}}
 ```
+
+## Stopping a call
+
+Every parameter struct carries a `CancelToken` in its `cancel` field. Keep a
+clone, and call `cancel()` on it from another thread to stop the call:
+
+```rust,ignore
+let params = RouteParams::default();
+let stop = params.cancel.clone();
+// from another thread: stop.cancel();
+match street::travel_time_matrix(&net, &origins, &destinations, Mode::Car, &params) {
+    Err(RouteError::Cancelled) => { /* stopped; there is no partial result */ }
+    Err(RouteError::Invalid(why)) => { /* a parameter or an input was rejected */ }
+    Ok(minutes) => { /* ... */ }
+}
+```
+
+The workers look at the token between origins and, in the transit functions,
+at every departure minute. A cancelled token stays cancelled, so use fresh
+parameters for the next call. Building the network cannot be stopped.
 
 ## Raw seconds
 

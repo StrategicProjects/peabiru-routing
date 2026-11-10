@@ -227,3 +227,11 @@ from_id
 `n_threads=None` (the default) uses all cores (`math.inf` is accepted
 too). The Python interpreter lock is released while
 the Rust core routes, so other Python threads keep running.
+
+## Stopping a long call
+
+Ctrl-C stops any of the routing functions within a few tenths of a second
+and raises `KeyboardInterrupt`, as it does for Python code; the session
+stays usable and there is no partial result. Signals reach only Python's
+main thread, so a call made from another thread runs to the end.
+`build_network()` cannot be interrupted.
