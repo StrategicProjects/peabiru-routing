@@ -186,11 +186,12 @@ const ttm = await peabiru.travelTimeMatrix(network, origins, destinations, {
   be in flight on one network.
 - Street matrices: each worker decides on its own share of the origins
   whether to build a contraction hierarchy (which it then keeps for later
-  calls), as the core does for a whole call. With many workers and a few
-  hundred origins each, a worker may keep using the plain search, and
-  repeated street matrices can then be slower than with fewer workers (on
-  the Porto Alegre sample, 1227 points by car: about 0.1 s per call with
-  2 workers, 0.75 s with 4). The results are the same either way.
+  calls), counting the earlier calls that went by plain search. With many
+  workers and a few hundred origins each, the first one or two street
+  matrices of a mode may go by plain search before the hierarchy is built
+  (on the Porto Alegre sample, 1227 points by car with 4 workers: about
+  0.8 s for each of the first two calls, 0.07 s afterwards). The results
+  are the same either way.
 - Each call takes a `signal` (an `AbortSignal`). On abort the call
   rejects with the signal's reason (an `AbortError` for
   `controller.abort()`), its workers are terminated at once, and new ones

@@ -212,7 +212,14 @@ impl Extent {
 #[derive(Default)]
 struct Kept {
     entries: Vec<Arc<Entry>>,
+    /// Per graph without a hierarchy, the work its matrices have cost by
+    /// plain search so far (origins times the share of the network a
+    /// search reaches; see [`wanted`]), most recent first.
+    searched: Vec<(Key, f64)>,
 }
+
+/// Graphs whose search work is remembered.
+const SEARCHED: usize = 8;
 
 /// The hierarchies a [`StreetNetwork`] keeps. They are built from the
 /// network's arrays, which never change once the network can be routed on
@@ -238,10 +245,28 @@ impl Cache {
         Some(e)
     }
 
+    /// The work matrices on `key`'s graph have cost by plain search.
+    fn searched(&self, key: Key) -> f64 {
+        let k = self.lock();
+        k.searched.iter().find(|s| s.0 == key).map_or(0.0, |s| s.1)
+    }
+
+    /// Count `work` more of it.
+    fn add_searched(&self, key: Key, work: f64) {
+        let mut k = self.lock();
+        let before = match k.searched.iter().position(|s| s.0 == key) {
+            Some(i) => k.searched.remove(i).1,
+            None => 0.0,
+        };
+        k.searched.insert(0, (key, before + work));
+        k.searched.truncate(SEARCHED);
+    }
+
     /// Keep `e` in place of any other for its key, dropping the least
     /// recently used walking and cycling ones beyond [`KEPT_OTHER`].
     fn put(&self, e: Arc<Entry>) {
         let mut k = self.lock();
+        k.searched.retain(|s| s.0 != e.key);
         k.entries.retain(|x| x.key != e.key);
         k.entries.insert(0, e);
         let mut other = 0;
@@ -265,6 +290,7 @@ impl Clone for Cache {
         let k = self.lock();
         Cache(Mutex::new(Kept {
             entries: k.entries.clone(),
+            searched: k.searched.clone(),
         }))
     }
 }
@@ -292,8 +318,12 @@ impl std::fmt::Debug for Cache {
 /// its graph and the rough `share` of the network one search reaches
 /// ([`Extent::share`]).
 ///
-/// One is built only for enough origins to pay for the contraction in that
-/// call. On the Porto Alegre sample, where a search reaches most of the
+/// One is built only for enough origins to pay for the contraction: those
+/// of this call together with those of the earlier calls on the same graph
+/// that went by plain search (`searched`, in origins times share), so that
+/// many small matrices, such as the blocks of one large matrix computed by
+/// separate copies of the network, end up building it too, having spent on
+/// searches at most what it costs. On the Porto Alegre sample, where a search reaches most of the
 /// network, the plain search costs about as much from 60 (cycling) to 310
 /// (car) origins at one thread, and from 140 to 600 at four, where it gains
 /// more from the threads than the contraction does; the thresholds follow
@@ -313,6 +343,7 @@ fn wanted(
     kept: bool,
     n_origins: usize,
     n_threads: usize,
+    searched: f64,
     share: impl FnOnce() -> f64,
 ) -> bool {
     match engine {
@@ -325,7 +356,7 @@ fn wanted(
             }
             let threads = worker_threads(n_threads, n_origins) as f64;
             let at_one_thread = if mode == Mode::Car { 320.0 } else { 150.0 };
-            n_origins as f64 * share >= at_one_thread * threads.sqrt()
+            searched + n_origins as f64 * share >= at_one_thread * threads.sqrt()
         }
     }
 }
@@ -690,19 +721,34 @@ fn hierarchy(
     let kept = net.hierarchies.get(key);
     let mut extent = kept.as_ref().map(|e| e.extent);
     let limit_s = f64::from(params.max_trip_duration_min) * 60.0;
+    let auto = params.engine == StreetEngine::Auto;
+    let searched = if auto && kept.is_none() {
+        net.hierarchies.searched(key)
+    } else {
+        0.0
+    };
+    let mut share = None;
     let use_it = wanted(
         params.engine,
         g.mode,
         kept.is_some(),
         n_origins,
         params.n_threads,
+        searched,
         || {
-            extent
+            let s = extent
                 .get_or_insert_with(|| Extent::of(net))
-                .share(g, limit_s)
+                .share(g, limit_s);
+            share = Some(s);
+            s
         },
     );
     if kept.is_some() || !use_it {
+        if kept.is_none() {
+            if let Some(s) = share {
+                net.hierarchies.add_searched(key, n_origins as f64 * s);
+            }
+        }
         return Ok(kept.filter(|_| use_it));
     }
     let threads = worker_threads(params.n_threads, usize::MAX);
@@ -1283,22 +1329,25 @@ mod tests {
     #[test]
     fn dispatch() {
         use StreetEngine::*;
-        assert!(wanted(Auto, Mode::Walk, false, 1000, 1, || 1.0));
-        assert!(!wanted(Auto, Mode::Walk, false, 10, 1, || 1.0));
-        assert!(!wanted(Auto, Mode::Car, false, 200, 1, || 1.0));
+        assert!(wanted(Auto, Mode::Walk, false, 1000, 1, 0.0, || 1.0));
+        assert!(!wanted(Auto, Mode::Walk, false, 10, 1, 0.0, || 1.0));
+        assert!(!wanted(Auto, Mode::Car, false, 200, 1, 0.0, || 1.0));
         // a search that reaches a tenth of the network is cheap
-        assert!(wanted(Auto, Mode::Walk, false, 2000, 1, || 1.0));
-        assert!(!wanted(Auto, Mode::Walk, false, 1000, 1, || 0.1));
+        assert!(wanted(Auto, Mode::Walk, false, 2000, 1, 0.0, || 1.0));
+        assert!(!wanted(Auto, Mode::Walk, false, 1000, 1, 0.0, || 0.1));
+        // small matrices add up
+        assert!(wanted(Auto, Mode::Car, false, 200, 1, 150.0, || 1.0));
+        assert!(!wanted(Auto, Mode::Car, false, 200, 1, 100.0, || 1.0));
         // kept: but for very short searches
-        assert!(wanted(Auto, Mode::Car, true, 1, 1, || 1.0));
-        assert!(wanted(Auto, Mode::Walk, true, 1, 8, || 0.05));
-        assert!(wanted(Auto, Mode::Walk, true, 1000, 8, || 0.002));
-        assert!(!wanted(Auto, Mode::Walk, true, 1, 8, || 0.04));
-        assert!(!wanted(Auto, Mode::Walk, true, 900, 8, || 0.002));
+        assert!(wanted(Auto, Mode::Car, true, 1, 1, 0.0, || 1.0));
+        assert!(wanted(Auto, Mode::Walk, true, 1, 8, 0.0, || 0.05));
+        assert!(wanted(Auto, Mode::Walk, true, 1000, 8, 0.0, || 0.002));
+        assert!(!wanted(Auto, Mode::Walk, true, 1, 8, 0.0, || 0.04));
+        assert!(!wanted(Auto, Mode::Walk, true, 900, 8, 0.0, || 0.002));
         // told to
         let never = || -> f64 { unreachable!() };
-        assert!(!wanted(Search, Mode::Car, true, 10_000, 1, never));
-        assert!(wanted(Hierarchy, Mode::Car, false, 1, 4, never));
+        assert!(!wanted(Search, Mode::Car, true, 10_000, 1, 0.0, never));
+        assert!(wanted(Hierarchy, Mode::Car, false, 1, 4, 0.0, never));
         let net = spo();
         let p = RouteParams::default();
         let extent = Extent::of(&net);
