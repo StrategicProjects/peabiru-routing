@@ -9,13 +9,30 @@ meta_file <- file.path("..", "..", "..", "site", "data", "benchmarks.json")
 have <- file.exists(results)
 if (have) {
   b <- read.csv(results, stringsAsFactors = FALSE)
+  # columns added with the other packages; older results files lack them
+  for (col in c("origins_used", "origins_total", "measured_threads", "cmp_pairs_both",
+                "cmp_only_peabiru", "cmp_only_engine", "cmp_median_abs_diff_min",
+                "cmp_p90_abs_diff_min")) {
+    if (!col %in% names(b)) b[[col]] <- NA
+  }
   ok <- b[b$status == "ok", ]
+  # the comparison with peabiru is made once per engine, city and task (with
+  # the first thread count): copy it to the other thread counts
+  cmp <- grep("^cmp_", names(ok), value = TRUE)
+  key <- paste(ok$engine, ok$city, ok$task)
+  for (k in unique(key[!is.na(ok$cmp_pairs_both)])) {
+    src <- which(key == k & !is.na(ok$cmp_pairs_both))[1]
+    ok[key == k, cmp] <- ok[rep(src, sum(key == k)), cmp]
+  }
   meta <- if (requireNamespace("jsonlite", quietly = TRUE)) {
     jsonlite::fromJSON(meta_file)$meta
   }
 }
 label <- c("peabiru-cli" = "peabiru CLI", "peabiru-r" = "peabiru (R)",
-           "peabiru-py" = "peabiru (Python)", "r5r" = "r5r", "r5py" = "r5py")
+           "peabiru-py" = "peabiru (Python)", "r5r" = "r5r", "r5py" = "r5py",
+           dodgr = "dodgr", cppRouting = "cppRouting", networkx = "networkx",
+           igraph = "igraph", pandana = "pandana")
+lab <- function(e) ifelse(e %in% names(label), label[e], e)
 task <- c(build = "network build", ttm_walk = "matrix, walk",
           ttm_bicycle = "matrix, bicycle", ttm_car = "matrix, car",
           ttm_transit = "matrix, walk + transit",
@@ -24,14 +41,17 @@ task <- c(build = "network build", ttm_walk = "matrix, walk",
 num <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
 ```
 
-How long peabiru takes, and how much memory it uses, against r5r and r5py on
-the same tasks, inputs and parameters. Every number on this page is read from
-`site/data/benchmarks.csv` in the repository, written by
-`bench/site/run.py`; the methodology is on the
+How long peabiru takes, and how much memory it uses, next to the packages
+people use for travel-time matrices from R and Python: r5r and r5py, which run
+the same model as peabiru, and dodgr, cppRouting, networkx, igraph and
+pandana, which route streets with models of their own. Every number on this
+page is read from `site/data/benchmarks.csv` in the repository, written by
+`bench/site/run.py`; the methodology, the charts and the reasons why each
+package's answers differ are on the
 [benchmarks page of the main site](../../benchmarks.html).
 
-**These numbers are provisional**: they were measured while the engine was
-still being optimised, on a machine that was also busy with other work.
+**These numbers are provisional**: the run date and the machine are listed
+below.
 
 ```{r, echo = FALSE, results = "asis", eval = !have}
 cat("No results file yet: run `bench/site/run.py` at the root of the repository.\n")
@@ -47,52 +67,85 @@ if (!is.null(meta)) {
   eng <- meta$engines
   for (e in names(eng)) {
     s <- eng[[e]]
-    cat(sprintf("- **%s**: %s\n", label[[e]],
+    cat(sprintf("- **%s**: %s\n", lab(e),
                 if (identical(s$status, "ok")) s$version else paste("not run:", s$reason)))
   }
 }
 ```
 
-## Walk + public transport, Porto Alegre
+## Summary
 
 ```{r, echo = FALSE, results = "asis", eval = have}
-row <- function(e, t, c = "poa", n = max(ok$threads)) {
-  ok[ok$engine == e & ok$task == t & ok$city == c & ok$threads == n, ]
-}
-p <- row("peabiru-r", "ttm_transit")
-r <- row("r5r", "ttm_transit")
-if (nrow(p) == 1 && nrow(r) == 1) {
-  cat(sprintf(
-    "With %d threads, the travel-time matrix took %s s with peabiru and %s s with r5r (%s times faster), with a peak memory of %s MiB against %s MiB.\n",
-    max(ok$threads), num(p$seconds), num(r$seconds), num(r$seconds / p$seconds, 1),
-    num(p$peak_rss_mib, 0), num(r$peak_rss_mib, 0)))
+n <- max(ok$threads)
+for (t in c("ttm_transit", "ttm_walk")) {
+  rows <- ok[ok$task == t & ok$city == "poa" & ok$threads == n, ]
+  pick <- intersect(c("peabiru-r", "peabiru-py", "peabiru-cli"), rows$engine)
+  if (length(pick) == 0) next
+  p <- rows[rows$engine == pick[1], ]
+  others <- rows[!startsWith(rows$engine, "peabiru") &
+                   (is.na(rows$origins_used) | rows$origins_used >= rows$origins_total), ]
+  cat(sprintf("- **%s**, Porto Alegre, %d threads: %s %s s and %s MiB",
+              task[[t]], n, lab(p$engine), num(p$seconds), num(p$peak_rss_mib, 0)))
+  if (nrow(others) > 0) {
+    cat(sprintf("; %d other package%s %s to %s s (%s)", nrow(others),
+                if (nrow(others) > 1) "s" else "", num(min(others$seconds)),
+                num(max(others$seconds)),
+                paste(lab(others$engine[order(others$seconds)]), collapse = ", ")))
+  }
+  cat(".\n")
 }
 ```
+
+Only r5r and r5py compute the same matrices as peabiru; for the street
+packages the tables below also show how far their answers are from peabiru's.
 
 ## All tasks
 
 ```{r, echo = FALSE, results = "asis", eval = have}
 charts <- list.files(file.path("..", "..", "..", "site", "assets", "charts"),
                      pattern = "^bench-.*\\.svg$")
-charts <- charts[order(!grepl("-t10\\.svg$", charts), charts)]
+charts <- charts[order(-as.integer(sub(".*-t([0-9]+)\\.svg$", "\\1", charts)), charts)]
 for (f in charts) {
   cat(sprintf("![%s](%s)\n\n", sub("\\.svg$", "", f), fig_path(f)))
 }
 ```
 
-```{r, echo = FALSE, eval = have}
-tab <- ok[ok$task != "", c("city", "threads", "task", "engine", "seconds", "peak_rss_mib")]
-tab$task <- factor(task[tab$task], levels = task)
-tab$engine <- label[tab$engine]
-tab <- tab[order(tab$city, -tab$threads, tab$task, tab$engine), ]
-names(tab) <- c("city", "threads", "task", "engine", "median seconds", "peak MiB")
-knitr::kable(tab, row.names = FALSE)
+```{r, echo = FALSE, results = "asis", eval = have}
+n <- max(ok$threads)
+for (city in unique(ok$city)) {
+  cat(sprintf("\n### %s, %d threads\n\n", if (!is.null(meta)) meta$cities[[city]]$name else city, n))
+  tab <- ok[ok$city == city & ok$threads == n, ]
+  tab <- tab[order(match(tab$task, names(task)), tab$seconds), ]
+  sub <- !is.na(tab$origins_used) & tab$origins_used < tab$origins_total
+  out <- data.frame(
+    task = task[tab$task],
+    package = paste0(lab(tab$engine),
+                     ifelse(sub, sprintf(" (%d origins)", tab$origins_used), ""),
+                     ifelse(!is.na(tab$measured_threads), " (1 thread)", "")),
+    seconds = num(tab$seconds, 3),
+    `peak MiB` = ifelse(is.na(tab$peak_rss_mib), "", num(tab$peak_rss_mib, 0)),
+    `pairs both` = ifelse(is.na(tab$cmp_pairs_both), "", num(tab$cmp_pairs_both, 0)),
+    `only peabiru` = ifelse(is.na(tab$cmp_only_peabiru), "", num(tab$cmp_only_peabiru, 0)),
+    `only package` = ifelse(is.na(tab$cmp_only_engine), "", num(tab$cmp_only_engine, 0)),
+    `median abs. diff. (min)` = ifelse(is.na(tab$cmp_median_abs_diff_min), "",
+                                       num(tab$cmp_median_abs_diff_min, 1)),
+    `p90 abs. diff. (min)` = ifelse(is.na(tab$cmp_p90_abs_diff_min), "",
+                                    num(tab$cmp_p90_abs_diff_min, 1)),
+    check.names = FALSE)
+  print(knitr::kable(out, row.names = FALSE))
+}
 ```
+
+The difference columns compare each package's matrix with peabiru's over the
+same origins; they are empty for results files written before the other
+packages were added, and for tasks that are not travel-time matrices.
 
 ## Reproducing
 
 ```sh
-# from the repository root; r5r needs a JDK 21
-python3 bench/site/run.py          # writes site/data/benchmarks.{json,csv}
-python3 bench/site/charts.py       # charts and the tables of the web pages
+# from the repository root, in a container (Docker; nothing installed on the host)
+bench/docker/run.sh --out /tmp/peabiru-bench
+# or with the packages installed locally; r5r needs a JDK 21
+python3 bench/site/run.py --out /tmp/peabiru-bench   # benchmarks.{json,csv}
+python3 bench/site/charts.py /tmp/peabiru-bench --preview /tmp/peabiru-site
 ```

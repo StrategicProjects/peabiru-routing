@@ -52,13 +52,26 @@ For the Python docs the agreed contract is: `site/build.sh` copies
 
 Numbers are never typed into the pages. The pipeline is:
 
-1. `python3 bench/site/run.py` runs every available engine (peabiru CLI,
-   peabiru R, peabiru Python, r5r, r5py) on the same tasks and writes
-   `site/data/benchmarks.json` and `.csv` (see its docstring for options and
-   environment variables).
-2. `python3 bench/site/charts.py` (also run by `site/build.sh`) draws
-   `site/assets/charts/bench-<city>-t<threads>.svg` and regenerates the blocks
-   between `<!-- BEGIN bench:… -->` and `<!-- END bench:… -->` in
-   `site/index.html` and `site/benchmarks.html`.
+1. `python3 bench/site/run.py` runs every available engine on the same tasks
+   and writes `benchmarks.json` and `.csv` into `--out` (default
+   `site/data/`; see its docstring for options and environment variables).
+   The engines are peabiru (CLI, R, Python), r5r and r5py, which compute the
+   same matrices, and dodgr, cppRouting, networkx, igraph and pandana, which
+   route the street tasks with network models of their own. Every engine
+   writes its matrices, and `run.py` compares them with peabiru's (pairs
+   reached by both or only one, median and 90th percentile of the absolute
+   difference).
+2. `python3 bench/site/charts.py [DATA]` (also run by `site/build.sh`, on
+   `site/data`) draws `site/assets/charts/bench-<city>-t<threads>.svg` and
+   regenerates the blocks between `<!-- BEGIN bench:… -->` and
+   `<!-- END bench:… -->` in `site/index.html` (the summary) and
+   `site/benchmarks.html` (summary, run metadata, charts, tables, why the
+   results differ). With `--preview DIR` it writes into a copy of the pages
+   in `DIR` instead, so a test run never touches the published pages.
 3. The R article `r/vignettes/articles/benchmarks.Rmd` reads the CSV when it
    is rendered.
+
+The published numbers are measured in the container of `bench/docker/`
+(`bench/docker/run.sh`, see its README), not on a development machine. The
+qualitative table of other tools on the benchmarks page is written by hand;
+update it from each tool's documentation.
