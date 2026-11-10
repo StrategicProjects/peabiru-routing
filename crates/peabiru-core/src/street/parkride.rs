@@ -100,8 +100,13 @@ fn add_second_half(
     net.edge_flags[2 * n + 1] = net.edge_flags[2 * k + 1];
     net.edge_speed_cms[2 * n] = net.edge_speed_cms[2 * k];
     net.edge_speed_cms[2 * n + 1] = net.edge_speed_cms[2 * k + 1];
-    net.index.insert_extra(n as u32);
     n
+}
+
+/// Put a new street pair in the edge index, once its geometry is final.
+fn index_pair(net: &mut StreetNetwork, n: usize) {
+    let bbox = super::link::pair_bbox(net, n);
+    net.index.insert_extra(n as u32, bbox);
 }
 
 /// R5 `getOrCreateVertexNear`: link a point for `mode` and, unless the split
@@ -140,6 +145,7 @@ pub(crate) fn get_or_create_vertex_near(
     set_geometry(net, k, &pre);
     let n = add_second_half(net, k, v, old_to, s.distance1_mm);
     set_geometry(net, n, &post);
+    index_pair(net, n);
     Some(v)
 }
 
@@ -204,7 +210,8 @@ fn split_edge(net: &mut StreetNetwork, s: &Split) -> u32 {
     net.pair_length_mm[k] = s.distance0_mm;
     net.pair_to[k] = v;
     set_geometry(net, k, &[]);
-    add_second_half(net, k, v, old_to, s.distance1_mm);
+    let n = add_second_half(net, k, v, old_to, s.distance1_mm);
+    index_pair(net, n);
     v
 }
 
