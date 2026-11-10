@@ -80,7 +80,8 @@ pub fn run(args: &[String]) {
     }
     let (ids, pts) = crate::read_points(cmd, points);
     let t0 = Instant::now();
-    let (net, layer) = peabiru_core::transit::build_from_dir(
+    let (net, layer) = cli::build_from_dir(
+        cmd,
         dir,
         &BuildOptions {
             n_threads: p.n_threads,

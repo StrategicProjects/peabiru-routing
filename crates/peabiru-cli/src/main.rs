@@ -125,7 +125,8 @@ fn transit(args: &[String]) {
     }
     let (ids, pts) = read_points(cmd, points);
     let t0 = Instant::now();
-    let (net, layer) = peabiru_core::transit::build_from_dir(
+    let (net, layer) = cli::build_from_dir(
+        cmd,
         dir,
         &BuildOptions {
             n_threads: p.n_threads,
@@ -284,7 +285,7 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     let (ids, pts) = read_points(cmd, points);
     let t0 = Instant::now();
     let net = if is_dir {
-        let (net, layer) = peabiru_core::transit::build_from_dir(pbf, &BuildOptions { n_threads })
+        let (net, layer) = cli::build_from_dir(cmd, pbf, &BuildOptions { n_threads })
             .unwrap_or_else(|e| runtime_error(cmd, e));
         let linked = layer.stop_vertex.iter().filter(|&&v| v >= 0).count();
         eprintln!(
