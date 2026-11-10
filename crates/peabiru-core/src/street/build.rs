@@ -103,18 +103,19 @@ struct Builder<'a> {
 /// An extract read without reference counts (`ref_count_filter: None`) gets
 /// them from its own non-building ways; ways the read filtered out then do
 /// not count, so a node shared only with such a way is not an intersection.
-///
-/// # Panics
-///
-/// If `lat` or `lon` do not have one entry per `node_ids` entry.
+/// A node without a latitude or longitude (`lat` or `lon` shorter than
+/// `node_ids`) is treated as absent from the file, like `i32::MIN`.
 pub fn network_from_extract(mut ex: Extract) -> StreetNetwork {
     let n = ex.node_ids.len();
-    assert!(
-        ex.lat.len() == n && ex.lon.len() == n,
-        "extract has {n} node ids but {} latitudes and {} longitudes",
-        ex.lat.len(),
-        ex.lon.len()
-    );
+    if ex.lat.len() != n || ex.lon.len() != n {
+        ex.lat.resize(n, i32::MIN);
+        ex.lon.resize(n, i32::MIN);
+        for i in 0..n {
+            if ex.lat[i] == i32::MIN || ex.lon[i] == i32::MIN {
+                (ex.lat[i], ex.lon[i]) = (i32::MIN, i32::MIN);
+            }
+        }
+    }
     if ex.ref_counts.len() != n {
         ex.ref_counts = ref_counts_of_ways(&ex);
     }
@@ -558,5 +559,79 @@ mod tests {
         assert_eq!(a.pair_to, b.pair_to);
         assert_eq!(a.pair_length_mm, b.pair_length_mm);
         assert_eq!(a.geom, b.geom);
+    }
+
+    /// Extracts built by hand do not make the public builder panic: nodes
+    /// without coordinates count as absent from the file, and other
+    /// inconsistencies give some network rather than a crash.
+    #[test]
+    fn inconsistent_extracts_do_not_panic() {
+        use crate::osm::pbf::{Member, MemberKind, Relation, Tags};
+        let ex = jittered_grid(&mut Rng(3), 5, -23.5, -46.6, 0.003);
+        let n = ex.node_ids.len();
+        let full = network_from_extract(ex.clone());
+
+        // Coordinates of the last node missing: same as marking it absent.
+        let mut short = ex.clone();
+        short.lat.truncate(n - 1);
+        short.lon.pop();
+        short.lon.pop();
+        let mut absent = ex.clone();
+        for i in [n - 2, n - 1] {
+            (absent.lat[i], absent.lon[i]) = (i32::MIN, i32::MIN);
+        }
+        let (a, b) = (network_from_extract(short), network_from_extract(absent));
+        assert_eq!(a.pair_from, b.pair_from);
+        assert_eq!(a.pair_length_mm, b.pair_length_mm);
+        assert!(a.pair_from.len() < full.pair_from.len());
+
+        // No coordinates at all, unsorted and repeated ids, odd ways and
+        // relations.
+        let mut bare = ex.clone();
+        bare.lat.clear();
+        bare.lon.clear();
+        assert_eq!(network_from_extract(bare).n_edges(), 0);
+        let mut odd = ex.clone();
+        odd.node_ids.reverse();
+        odd.node_ids[0] = odd.node_ids[1];
+        odd.ref_counts.truncate(3);
+        let highway = || Tags(vec![("highway".into(), "residential".into())]);
+        odd.ways.push(Way {
+            id: 1 << 40,
+            tags: highway(),
+            nodes: vec![],
+        });
+        odd.ways.push(Way {
+            id: (1 << 40) + 1,
+            tags: highway(),
+            nodes: vec![1, 1, 1, 999_999],
+        });
+        odd.relations.push(Relation {
+            id: 7,
+            tags: Tags(vec![
+                ("type".into(), "restriction".into()),
+                ("restriction".into(), "no_left_turn".into()),
+            ]),
+            members: vec![
+                Member {
+                    kind: MemberKind::Way,
+                    id: 1 << 40,
+                    role: "from".into(),
+                },
+                Member {
+                    kind: MemberKind::Node,
+                    id: 1,
+                    role: "via".into(),
+                },
+                Member {
+                    kind: MemberKind::Way,
+                    id: 424_242,
+                    role: "to".into(),
+                },
+            ],
+        });
+        odd.member_ways_present = vec![1 << 40];
+        odd.member_nodes_present = vec![1];
+        network_from_extract(odd);
     }
 }
