@@ -985,6 +985,8 @@ export class Network {
     if (this.#raw) return [{ offset: 0, result: RAW[fn](this.#raw, ...args(o.lat, o.lon)) }];
     const pool = this.#pool;
     const wanted = nThreads === null || nThreads === undefined || !Number.isFinite(nThreads) ? pool.size : Math.round(nThreads);
+    // one contiguous block per worker: smaller blocks were slower (every
+    // block links the destinations and sets a call up again)
     const k = Math.max(1, Math.min(pool.size, wanted, o.length));
     const calls = [];
     const offsets = [];

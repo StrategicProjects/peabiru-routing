@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 // Parity of the npm package (WebAssembly) with the native command-line tool:
-// for each city, the same matrices computed by `peabiru` (the CLI, one
-// thread) and by js/lib/index.js must agree cell for cell. Street matrices
+// for each city, the same matrices computed by `peabiru` (the CLI) and by
+// js/lib/index.js must agree cell for cell. Street matrices
 // (WALK, BICYCLE, CAR), a transit matrix with five percentiles,
 // accessibility (transit and street), expanded and arrival matrices.
 //
-// Usage: node bench/compare/js_parity.mjs [city ...]   (default: poa spo)
-//   poa, spo  r5r's sample networks and hexgrids (R5R_EXTDATA/<city>)
-//   sample    the sample shipped with the Python package (python/peabiru/data/spo)
+// Usage: node bench/compare/js_parity.mjs [--threads N] [--workers] [city ...]
+//   poa, spo   r5r's sample networks and hexgrids (R5R_EXTDATA/<city>)
+//   sample     the sample shipped with the Python package (python/peabiru/data/spo)
+//   --threads  threads of the CLI and workers of the networks built in
+//              JavaScript (buildNetwork's nThreads); default 1, which routes
+//              on the calling thread
+//   --workers  route in workers even with --threads 1 (useWorkers)
 // Env:  PEABIRU_BIN  the native CLI (default: build it with cargo)
 //       R5R_EXTDATA  r5r's extdata directory (default: ask the installed r5r)
 //       PARITY_OUT   directory for the CLI's CSV files (default: a temp dir)
@@ -23,8 +27,10 @@
 // rest the network with the feeds' stops linked.
 //
 // The timings printed at the end are the routing times the CLI reports
-// (one thread; for expanded and arrival matrices they include writing the
-// CSV) and those of the JavaScript calls in this process.
+// (for expanded and arrival matrices they include writing the CSV) and
+// those of the JavaScript calls in this process. The first street call on
+// a network builds its contraction hierarchy, on both sides (in every
+// worker, in JavaScript).
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
@@ -153,14 +159,26 @@ function compare(name, csvPath, js, spec) {
 }
 
 const timings = [];
-function time(_label, f) {
+async function time(_label, f) {
   const t = performance.now();
-  const r = f();
+  const r = await f();
   return [r, (performance.now() - t) / 1000];
 }
 
 let ok = true;
-const cities = process.argv.slice(2);
+const args = process.argv.slice(2);
+let THREADS = 1;
+let WORKERS = false;
+const cities = [];
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === "--threads") {
+    THREADS = Number(args[++i]);
+    if (!Number.isInteger(THREADS) || THREADS < 1) throw new Error("--threads takes a whole number >= 1");
+  } else if (args[i] === "--workers") WORKERS = true;
+  else cities.push(args[i]);
+}
+const T = String(THREADS);
+const BUILD = { nThreads: THREADS, useWorkers: WORKERS || THREADS > 1 };
 for (const city of cities.length ? cities : ["poa", "spo"]) {
   const dir = city === "sample" ? join(repo, "python", "peabiru", "data", "spo") : join(X, city);
   const pbfName = readdirSync(dir).filter((f) => f.endsWith(".pbf")).pop();
@@ -178,18 +196,18 @@ for (const city of cities.length ? cities : ["poa", "spo"]) {
     if (!existsSync(join(dir, f))) throw new Error(`feed id ${id} is not a file name: cannot tell the feed order`);
     return f;
   });
-  console.log(`== ${city}: feeds in the CLI's order ${JSON.stringify(feedFiles)}; ${pts.id.length} points`);
+  console.log(`== ${city}: feeds in the CLI's order ${JSON.stringify(feedFiles)}; ${pts.id.length} points; ${THREADS} thread(s)`);
 
   const pbf = readFileSync(pbfPath);
   const gtfs = feedFiles.map((f) => ({ name: f, data: readFileSync(join(dir, f)) }));
   const [streets, tStreets] = await (async () => {
     const t = performance.now();
-    const n = await peabiru.buildNetwork({ pbf });
+    const n = await peabiru.buildNetwork({ pbf, ...BUILD });
     return [n, (performance.now() - t) / 1000];
   })();
   const [net, tNet] = await (async () => {
     const t = performance.now();
-    const n = await peabiru.buildNetwork({ pbf, gtfs });
+    const n = await peabiru.buildNetwork({ pbf, gtfs, ...BUILD });
     return [n, (performance.now() - t) / 1000];
   })();
   const feeds = net.info().feeds;
@@ -204,9 +222,9 @@ for (const city of cities.length ? cities : ["poa", "spo"]) {
   // street matrices
   for (const mode of ["WALK", "BICYCLE", "CAR"]) {
     const f = join(OUT, `${city}_${mode}.csv`);
-    const [, tc, tb] = cli(["ttm", pbfPath, ptsPath, mode, f, "1"]);
+    const [, tc, tb] = cli(["ttm", pbfPath, ptsPath, mode, f, T]);
     if (mode === "WALK") buildStreets[2] = tb;
-    const [js, tj] = time(mode, () => peabiru.travelTimeMatrix(streets, pts, pts, { mode }));
+    const [js, tj] = await time(mode, () => peabiru.travelTimeMatrix(streets, pts, pts, { mode }));
     timings.push([city, `street ${mode}`, tc, tj]);
     ok &= compare(`${city} ${mode}`, f, js, {
       rowsFrom: "from_id",
@@ -219,9 +237,9 @@ for (const city of cities.length ? cities : ["poa", "spo"]) {
   // transit matrix
   {
     const f = join(OUT, `${city}_TRANSIT.csv`);
-    const [, tc, tb] = cli(["transit", dir, ptsPath, f, ...when, "--percentiles", "5,25,50,75,95", "--seed", "42", "--threads", "1"]);
+    const [, tc, tb] = cli(["transit", dir, ptsPath, f, ...when, "--percentiles", "5,25,50,75,95", "--seed", "42", "--threads", T]);
     buildAll[2] = tb;
-    const [js, tj] = time("transit", () =>
+    const [js, tj] = await time("transit", () =>
       peabiru.travelTimeMatrix(net, pts, pts, {
         mode: ["WALK", "TRANSIT"],
         departureDatetime: "2019-05-13 14:00:00",
@@ -295,8 +313,8 @@ for (const city of cities.length ? cities : ["poa", "spo"]) {
   ];
   for (const c of accCases) {
     const f = join(OUT, `${city}_ACC_${c.name.replace(" ", "_")}.csv`);
-    const [, tc] = cli(["accessibility", c.net, ptsPath, f, ...c.args, "--threads", "1"]);
-    const [js, tj] = time(c.name, c.js);
+    const [, tc] = cli(["accessibility", c.net, ptsPath, f, ...c.args, "--threads", T]);
+    const [js, tj] = await time(c.name, c.js);
     timings.push([city, `accessibility ${c.name}`, tc, tj]);
     const columns = { id: "str", opportunity: "str", percentile: "int", accessibility: "dbl" };
     if (js.cutoff) columns.cutoff = "int";
@@ -363,8 +381,8 @@ for (const city of cities.length ? cities : ["poa", "spo"]) {
   ];
   for (const c of expCases) {
     const f = join(OUT, `${city}_EXP_${c.name.replace(" ", "_")}.csv`);
-    const [, tc] = cli(["expanded", dir, ptsPath, f, ...c.args, "--origins", String(nOrigins), "--threads", "1"]);
-    const [js, tj] = time(c.name, c.js);
+    const [, tc] = cli(["expanded", dir, ptsPath, f, ...c.args, "--origins", String(nOrigins), "--threads", T]);
+    const [js, tj] = await time(c.name, c.js);
     timings.push([city, `${c.name} (${nOrigins} origins)`, tc, tj]);
     const mtd = c.mtd ?? 120;
     const columns = { from_id: "str", to_id: "str", departure_time: "str", draw_number: "int", routes: "route", total_time: "dbl" };
@@ -382,7 +400,8 @@ for (const city of cities.length ? cities : ["poa", "spo"]) {
   net.free();
 }
 
-console.log("\nseconds (routing only; CLI with 1 thread as it reports it, JS in Node on the calling thread)");
+const where = BUILD.useWorkers ? `${THREADS} worker(s)` : "the calling thread";
+console.log(`\nseconds (routing only; CLI with ${THREADS} thread(s) as it reports it, JS in Node on ${where})`);
 console.log("city  step                                   CLI      JS   JS/CLI");
 for (const [c, s, a, b] of timings) {
   const r = Number.isFinite(a) && a > 0 ? (b / a).toFixed(2) : "";
