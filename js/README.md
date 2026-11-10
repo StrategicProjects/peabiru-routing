@@ -28,7 +28,7 @@ const points = {
   lat: [-23.5563, -23.5577, -23.5601],
 };
 
-const ttm = peabiru.travelTimeMatrix(network, points, points, {
+const ttm = await peabiru.travelTimeMatrix(network, points, points, {
   mode: ["WALK", "TRANSIT"],
   departureDatetime: "2019-05-13 14:00:00",
   percentiles: [25, 50, 75],
@@ -42,19 +42,24 @@ network.free();
 In a browser, read the files with `fetch(url).then((r) => r.arrayBuffer())`
 or from an `<input type="file">` (`file.arrayBuffer()`).
 
+Every function returns a Promise. To route on several threads, build the
+network with workers: `buildNetwork({ pbf, gtfs, nThreads: 4 })` (see
+[Threads](#threads)).
+
 | Function | What it computes |
 |---|---|
-| `buildNetwork({ pbf, gtfs })` | a network from an OpenStreetMap extract and any GTFS feeds |
+| `buildNetwork({ pbf, gtfs, nThreads })` | a network from an OpenStreetMap extract and any GTFS feeds |
 | `travelTimeMatrix(network, origins, destinations, options)` | travel times between every origin and destination |
 | `accessibility(network, origins, destinations, options)` | cumulative or decay-weighted access to opportunities |
 | `expandedTravelTimeMatrix(network, origins, destinations, options)` | travel times minute by minute, with a breakdown of each trip |
 | `arrivalTravelTimeMatrix(network, origins, destinations, options)` | the latest trip that arrives by a given time |
 | `coreVersion()`, `version` | versions of the Rust core and of this package |
 
-`network.info()` gives the sizes of a network, `network.transitAvailability(date)`
+`network.info()` gives the sizes of a network, `await network.transitAvailability(date)`
 the services running on a date, `network.r5rWarnings()` the feeds that r5r
-would refuse, and `network.free()` releases its memory (a network lives in
-the WebAssembly module's memory until then).
+would refuse, `network.workers` its number of workers, and `network.free()`
+releases its memory and stops its workers (a network lives in the
+WebAssembly module's memory, or in its workers' memory, until then).
 
 The full types are in `lib/index.d.ts`.
 
@@ -82,8 +87,13 @@ that receives the warnings r5r would give (by default `console.warn`).
 - **Frequency-based GTFS** (`frequencies.txt`) is routed with Monte Carlo
   draws: results are reproducible, and equal to r5r's, only with a `seed`.
   Without one, a random seed is drawn for each call.
-- `nThreads`, `verbose` and `progress` are checked as r5r checks them, but
-  this version always routes on one thread and prints nothing.
+- `nThreads` of a routing call is the number of the network's workers it
+  uses (null, the default, or `Infinity`: all of them; more than the
+  network has: all it has; a network without workers ignores it). It is
+  checked as r5r checks it, so 0 is an error there.
+- `signal` takes an `AbortSignal` to stop a call (see [Threads](#threads)).
+- `verbose` and `progress` are checked as r5r checks them; peabiru prints
+  nothing.
 
 ## Results
 
@@ -127,16 +137,6 @@ egress, transit modes other than `"TRANSIT"` (such as `"BUS"`), fares
 alone. Elevation is not supported either: `buildNetwork()` takes no
 elevation raster.
 
-Not available in this version:
-
-- **Cancelling** a running computation. It runs on the calling thread and
-  cannot be interrupted from JavaScript; to be able to stop it, run it in a
-  Worker (below) and call `worker.terminate()`.
-- **Several threads.** Everything runs on one thread. The results never
-  depend on the number of threads, so a later version can share the origins
-  of one call out among a pool of Web Workers, each holding its own copy of
-  the network, and give the same results.
-
 ## Feed order
 
 r5r loads the GTFS feeds of its data directory in the order the operating
@@ -153,45 +153,89 @@ A feed's `name` stands for its file name: it names the feed in messages
 and, when the feed has no `feed_info.feed_id`, gives the feed id (the name
 without `.zip`), which prefixes its stop ids.
 
-## In a Worker
+## Threads
 
-A large matrix can take seconds, and on the main thread of a page the page
-freezes meanwhile. Run peabiru in a module Worker instead:
-
-```js
-// worker.js
-import * as peabiru from "peabiru";
-
-let network;
-self.onmessage = async ({ data }) => {
-  try {
-    if (data.type === "build") {
-      network?.free();
-      network = await peabiru.buildNetwork({ pbf: data.pbf, gtfs: data.gtfs });
-      self.postMessage({ type: "built", info: network.info() });
-    } else if (data.type === "ttm") {
-      const m = peabiru.travelTimeMatrix(network, data.origins, data.destinations, data.options);
-      const times = Object.keys(m).filter((k) => k.startsWith("travel_time_p")).map((k) => m[k].buffer);
-      self.postMessage({ type: "ttm", result: m }, times); // move the typed arrays, do not copy them
-    }
-  } catch (e) {
-    self.postMessage({ type: "error", message: e.message, name: e.name });
-  }
-};
-```
+By default (`nThreads: 1`) a network routes on the calling thread, with no
+workers: the memory is predictable, but a large matrix blocks the thread
+(a page freezes) until it is done, and it cannot be stopped. With
+`nThreads` above 1, `buildNetwork()` starts a pool of that many workers
+(module Web Workers in browsers, `worker_threads` in Node) and builds a
+copy of the network in each, all at once:
 
 ```js
-// main.js
-const worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
-worker.postMessage({ type: "build", pbf, gtfs }, [pbf.buffer, ...gtfs.map((f) => f.data.buffer)]);
-worker.onmessage = ({ data }) => { /* "built", then the results */ };
+const network = await peabiru.buildNetwork({ pbf, gtfs, nThreads: 4 });
+const ttm = await peabiru.travelTimeMatrix(network, origins, destinations, {
+  mode: "TRANSIT", departureDatetime: "2019-05-13 14:00:00", seed: 42,
+});
 ```
 
-A `Network` cannot be sent from one Worker to another: build it in the
-Worker that routes on it. A Worker that loads the module itself can call
-`peabiru.initSync(bytes)` with the bytes of `peabiru_bg.wasm` (exported as
-`peabiru/peabiru_bg.wasm`), or `await peabiru.init(url)` to fetch it from
-elsewhere.
+- `nThreads: 0`, `null` or `Infinity` start one worker per core
+  (`navigator.hardwareConcurrency`, or `os.availableParallelism()` in
+  Node). `useWorkers: true` with `nThreads: 1` starts a single worker:
+  one thread, but off the calling thread and stoppable.
+- A routing call shares its origins out in contiguous blocks, one per
+  worker it uses (its own `nThreads`, all the network's workers by
+  default), and puts the columns back together in origin order. **The
+  results are those of the calling thread exactly** (same rows, same
+  order, same values): the core routes every origin on its own, and the
+  Monte Carlo draws of a transit origin are seeded from the `seed` and
+  the origin's coordinates, not from its position. Without a `seed`, one
+  is drawn per call and given to every worker. The tests check every
+  routing function with 1 to 4 workers against the calling thread.
+- Calls made while the workers are busy wait for them; several calls can
+  be in flight on one network.
+- Street matrices: each worker decides on its own share of the origins
+  whether to build a contraction hierarchy (which it then keeps for later
+  calls), as the core does for a whole call. With many workers and a few
+  hundred origins each, a worker may keep using the plain search, and
+  repeated street matrices can then be slower than with fewer workers (on
+  the Porto Alegre sample, 1227 points by car: about 0.1 s per call with
+  2 workers, 0.75 s with 4). The results are the same either way.
+- Each call takes a `signal` (an `AbortSignal`). On abort the call
+  rejects with the signal's reason (an `AbortError` for
+  `controller.abort()`), its workers are terminated at once, and new ones
+  are built in the background from the same input; the network stays
+  usable and later calls wait for them. A WebAssembly computation cannot
+  be interrupted any other way. On the calling thread (no workers) the
+  signal is checked only before the call starts.
+- Errors raised in a worker reach the caller with the class and message
+  they have on the calling thread.
+- `network.free()` terminates the workers (and rejects the calls still
+  running). In Node an idle worker does not keep the program alive, so a
+  script can end without calling it.
+
+Memory. Each worker holds a whole network, about as much as a network on
+the calling thread, plus its own WebAssembly instance. A pool also keeps
+one copy of the input bytes (`.pbf` and GTFS), to rebuild a worker after an
+abort: in a `SharedArrayBuffer` that every worker reads where one is
+available (Node, and pages that are cross-origin isolated), otherwise as a
+copy that is sent to each worker, which drops it once its network is built.
+Measured on the r5r sample of Porto Alegre (`.pbf` 0.9 MB, two GTFS feeds
+1.1 MB, 1227 points), in Node 24 on an Apple M2 Pro, peak resident memory
+of the whole process (build and one transit matrix):
+
+| Workers | Peak memory | Input sent as |
+|---|---|---|
+| none (calling thread) | 287 MiB | - |
+| 1 | 336 MiB | `SharedArrayBuffer` |
+| 2 | 408 MiB | `SharedArrayBuffer` |
+| 4 | 563 MiB | `SharedArrayBuffer` |
+| 1 | 412 MiB | copies |
+| 4 | 627 MiB | copies |
+
+About 75 MiB more per worker on this network; a larger network costs
+more per worker, roughly in proportion to its size.
+
+Use workers for city-sized matrices and for pages that must stay
+responsive; keep the default for small networks and tight memory.
+
+The worker script is `lib/worker.js`, loaded with
+`new Worker(new URL("./worker.js", import.meta.url), { type: "module" })`,
+a form that Vite and webpack 5 recognise and emit with the bundle; in plain
+ES modules in a browser it is fetched next to `lib/index.js`. The workers
+receive the module already compiled by `init()`, so they do not fetch the
+`.wasm` file again. A `Network` cannot be sent to another Worker: to use
+peabiru inside a Worker of your own, build the network there.
 
 ## Loading the WebAssembly module
 
@@ -227,7 +271,10 @@ package's crate.
 
 `bench/compare/js_parity.mjs` compares the results with those of the
 native command-line tool, cell by cell, on r5r's sample data
-(`node bench/compare/js_parity.mjs poa spo sample`).
+(`node bench/compare/js_parity.mjs poa spo sample`; add `--threads 4` to
+route on four workers, and the command-line tool on four threads).
+`tests/threads.test.mjs` checks every routing function on a pool of
+workers against the calling thread.
 
 ## Licence and credits
 
