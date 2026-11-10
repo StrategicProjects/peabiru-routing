@@ -43,15 +43,7 @@ impl TransitParams {
     /// midnight of the service day.
     pub fn validate(&self) -> Result<(), String> {
         validate_date(self.date)?;
-        if self.percentiles.is_empty() || self.percentiles.len() > 5 {
-            return Err(format!(
-                "between 1 and 5 percentiles are allowed, got {}",
-                self.percentiles.len()
-            ));
-        }
-        if let Some(p) = self.percentiles.iter().find(|p| !(1..=99).contains(*p)) {
-            return Err(format!("percentiles must be in 1..=99, got {p}"));
-        }
+        validate_percentiles(&self.percentiles)?;
         let check_in = |name: &str, v: i64, lo: i64, hi: i64, unit: &str| {
             if (lo..=hi).contains(&v) {
                 Ok(())
@@ -141,6 +133,28 @@ impl Default for TransitParams {
             n_threads: 0,
         }
     }
+}
+
+/// `AnalysisWorkerTask.MAX_PERCENTILES`.
+pub const MAX_PERCENTILES: usize = 5;
+
+/// Check travel-time percentiles as R5 does
+/// (`AnalysisWorkerTask.validatePercentiles`): 1 to 5 of them, each in
+/// 1..=99. R5 wants them ascending and accepts equal neighbours, so in any
+/// order and with repeats they pass here (the results sort them). Street
+/// modes have one travel time, reported for every percentile; they take
+/// the same check, so that an empty list is an error there too.
+pub fn validate_percentiles(percentiles: &[i32]) -> Result<(), String> {
+    if percentiles.is_empty() || percentiles.len() > MAX_PERCENTILES {
+        return Err(format!(
+            "between 1 and {MAX_PERCENTILES} percentiles are allowed, got {}",
+            percentiles.len()
+        ));
+    }
+    if let Some(p) = percentiles.iter().find(|p| !(1..=99).contains(*p)) {
+        return Err(format!("percentiles must be in 1..=99, got {p}"));
+    }
+    Ok(())
 }
 
 /// Days in month `m` (1-12) of year `y`, proleptic Gregorian calendar.
@@ -484,6 +498,9 @@ pub(crate) fn par_origins<T: Send>(
 
 /// Travel times in minutes, `[origin][destination][percentile]`, `None`
 /// where r5r reports NA; a pair is reported when its lowest percentile is.
+/// The percentiles are returned in ascending order, whatever the order of
+/// `p.percentiles`; a repeated percentile, which R5 accepts, gets one
+/// column per occurrence (see [`validate_percentiles`]).
 pub fn travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
@@ -674,6 +691,21 @@ mod tests {
             speed,
             "walk_speed_kmh must be at least 0.0036 km/h (1 mm/s), got 1e-300"
         );
+    }
+
+    #[test]
+    fn percentiles_follow_r5() {
+        assert!(validate_percentiles(&[50]).is_ok());
+        assert!(validate_percentiles(&[75, 25, 50]).is_ok());
+        // R5 checks `percentiles[p] >= percentiles[p - 1]`: repeats pass
+        assert!(validate_percentiles(&[50, 50]).is_ok());
+        assert_eq!(
+            validate_percentiles(&[]).unwrap_err(),
+            "between 1 and 5 percentiles are allowed, got 0"
+        );
+        assert!(validate_percentiles(&[1, 2, 3, 4, 5, 6]).is_err());
+        assert!(validate_percentiles(&[0]).is_err());
+        assert!(validate_percentiles(&[100]).is_err());
     }
 
     #[test]

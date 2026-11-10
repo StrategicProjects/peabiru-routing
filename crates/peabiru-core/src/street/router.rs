@@ -77,11 +77,18 @@ pub(crate) fn check_speed(name: &str, v: f64) -> Result<(), String> {
 
 impl RouteParams {
     /// Check the parameters: speeds must give at least 1 mm/s (R5's
-    /// bound), the trip limit must be a positive number of minutes that
-    /// fits R5's `int` seconds.
+    /// bound), `max_lts` must be 1 to 4 (r5r's bound), the trip limit must
+    /// be a positive number of minutes that fits R5's `int` seconds.
     pub fn validate(&self) -> Result<(), ParamError> {
         check_speed("walk_speed_kmh", self.walk_speed_kmh).map_err(ParamError)?;
         check_speed("bike_speed_kmh", self.bike_speed_kmh).map_err(ParamError)?;
+        // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
+        if !(1..=4).contains(&self.max_lts) {
+            return Err(ParamError(format!(
+                "max_lts must be from 1 to 4 (the highest level of traffic stress), got {}",
+                self.max_lts
+            )));
+        }
         let max_minutes = i32::MAX / 60;
         if !(1..=max_minutes).contains(&self.max_trip_duration_min) {
             return Err(ParamError(format!(
@@ -962,6 +969,14 @@ pub(crate) mod tests {
             },
             RouteParams {
                 max_trip_duration_min: i32::MAX,
+                ..RouteParams::default()
+            },
+            RouteParams {
+                max_lts: 0,
+                ..RouteParams::default()
+            },
+            RouteParams {
+                max_lts: 7,
                 ..RouteParams::default()
             },
         ];

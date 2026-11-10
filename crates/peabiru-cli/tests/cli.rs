@@ -168,6 +168,25 @@ fn bad_mode_and_rejected_parameters_are_usage_errors() {
     let mut a = WHEN.to_vec();
     a.extend_from_slice(&["--percentiles", "100"]);
     fails(&transit(&a), 2, "percentiles");
+    let (p, o) = (points(), tmp("o.csv"));
+    let o = o.to_str().unwrap();
+    for lts in ["0", "7"] {
+        let out = run(&[
+            "accessibility",
+            SPO,
+            &p,
+            o,
+            "--opportunities",
+            "jobs",
+            "--cutoffs",
+            "30",
+            "--mode",
+            "BICYCLE",
+            "--max-lts",
+            lts,
+        ]);
+        fails(&out, 2, "max_lts must be from 1 to 4");
+    }
 }
 
 #[test]

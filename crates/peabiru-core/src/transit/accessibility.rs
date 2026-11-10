@@ -12,14 +12,14 @@
 //! raw double (no rounding on the R side either).
 
 use super::decay::{Decay, DecayFunction};
-use super::matrix::{par_origins, percentile_index, Query, TransitData, TransitParams};
+use super::matrix::{
+    par_origins, percentile_index, validate_percentiles, Query, TransitData, TransitParams,
+};
 use super::raptor::UNREACHED;
 use super::TransitLayer;
 use crate::street::router::{travel_time_seconds, Mode, RouteParams};
 use crate::street::StreetNetwork;
 
-/// `AnalysisWorkerTask.MAX_PERCENTILES`.
-const MAX_PERCENTILES: usize = 5;
 /// `AnalysisWorkerTask.MAX_REGIONAL_CUTOFFS`.
 const MAX_CUTOFFS: usize = 12;
 
@@ -92,17 +92,9 @@ impl Reducer {
         n_destinations: usize,
     ) -> Result<Self, String> {
         // AnalysisWorkerTask.validatePercentiles (r5r sorts them first)
+        validate_percentiles(percentiles)?;
         let mut percentiles = percentiles.to_vec();
         percentiles.sort_unstable();
-        if percentiles.is_empty() || percentiles.len() > MAX_PERCENTILES {
-            return Err(format!(
-                "between 1 and {MAX_PERCENTILES} percentiles are allowed, got {}",
-                percentiles.len()
-            ));
-        }
-        if let Some(p) = percentiles.iter().find(|p| !(1..=99).contains(*p)) {
-            return Err(format!("percentiles must be in 1..=99, got {p}"));
-        }
         // AnalysisWorkerTask.validateCutoffsMinutes (r5r sorts them first)
         let mut cutoffs = a.cutoffs.clone();
         cutoffs.sort_unstable();
