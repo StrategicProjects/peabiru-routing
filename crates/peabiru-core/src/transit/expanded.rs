@@ -173,14 +173,86 @@ fn path_order(a: &PathBreakdown, b: &PathBreakdown) -> Ordering {
 /// (sorted by `PATH_ORDER`) and walk-only records (`DIRECT_KEY = -1`).
 #[derive(Default)]
 struct DestinationPaths {
-    /// Indexed by minute of the window (0 = first departure).
+    /// Indexed by minute of the window (0 = first departure); a minute's
+    /// list is filled when [`Records::minute`] first asks for it.
     by_minute: Vec<Vec<PathBreakdown>>,
+    /// Whether `by_minute[k]` has been filled.
+    built: Vec<bool>,
     walk: Vec<PathBreakdown>,
 }
 
-impl DestinationPaths {
+/// What the transit records of a destination are built from: the best
+/// path and egress behind each iteration's time after propagation.
+struct TransitSource<'a> {
+    layer: &'a TransitLayer,
+    paths: &'a PathArena,
+    best: &'a [i32],
+    best_path: &'a [u32],
+    best_egress: &'a [i32],
+    access_time: &'a [i32],
+    /// The route list of each path, built once per path and origin.
+    routes: &'a mut [Option<Arc<str>>],
+    per_minute: usize,
+    to_time: i32,
+}
+
+/// One destination's records as the callers of [`Context::origin_paths`]
+/// read them: the walk-only records, sorted, and each minute's transit
+/// records, built and sorted on first request. The arrival search usually
+/// reads only the last minutes of its window, so the other minutes are
+/// never built; the expanded matrix reads them all.
+struct Records<'a> {
+    dp: &'a mut DestinationPaths,
+    src: Option<TransitSource<'a>>,
+    /// Whether some iteration reached the destination by transit.
+    has_transit: bool,
+}
+
+impl Records<'_> {
     fn is_empty(&self) -> bool {
-        self.walk.is_empty() && self.by_minute.iter().all(Vec::is_empty)
+        self.dp.walk.is_empty() && !self.has_transit
+    }
+
+    fn walk(&self) -> &[PathBreakdown] {
+        &self.dp.walk
+    }
+
+    /// The transit records of departure minute `k` (0 = first departure)
+    /// in `PATH_ORDER`: one per iteration of that minute with a transit
+    /// path, in iteration order before the (stable) sort, as
+    /// `extractPathResults` adds them.
+    fn minute(&mut self, k: usize) -> Result<&[PathBreakdown], String> {
+        if !self.dp.built[k] {
+            let list = &mut self.dp.by_minute[k];
+            list.clear();
+            if let Some(s) = &mut self.src {
+                // iterations run from the latest minute down
+                let block = self.dp.built.len() - 1 - k;
+                let dep = s.to_time - 60 * (1 + block as i32);
+                let end = ((block + 1) * s.per_minute).min(s.best_path.len());
+                for i in block * s.per_minute..end {
+                    let path_k = s.best_path[i];
+                    if path_k == NO_PATH {
+                        continue;
+                    }
+                    let path = s.paths.legs(path_k);
+                    let routes = s.routes[path_k as usize]
+                        .get_or_insert_with(|| route_list(s.layer, path))
+                        .clone();
+                    list.push(transit_breakdown(
+                        path,
+                        routes,
+                        dep,
+                        s.access_time,
+                        s.best_egress[i],
+                        s.best[i],
+                    )?);
+                }
+                list.sort_by(path_order); // stable, as `List.sort`
+            }
+            self.dp.built[k] = true;
+        }
+        Ok(&self.dp.by_minute[k])
     }
 }
 
@@ -278,7 +350,7 @@ impl<'a> Context<'a> {
         lat: f64,
         lon: f64,
         sc: &mut OriginScratch,
-        mut on_destination: impl FnMut(usize, &DestinationPaths) -> Result<(), String>,
+        mut on_destination: impl FnMut(usize, &mut Records) -> Result<(), String>,
     ) -> Result<bool, String> {
         let p = self.p;
         let m = p.max_trip_duration;
@@ -311,8 +383,9 @@ impl<'a> Context<'a> {
         let direct = &sc.direct;
         let dp = &mut sc.records;
         dp.by_minute.resize_with(tw, Vec::new);
+        dp.built.resize(tw, false);
         let clear = |dp: &mut DestinationPaths| {
-            dp.by_minute.iter_mut().for_each(Vec::clear);
+            dp.built.iter_mut().for_each(|b| *b = false);
             dp.walk.clear();
         };
         if access.is_empty() {
@@ -328,7 +401,12 @@ impl<'a> Context<'a> {
                     dp.walk
                         .push(PathBreakdown::walk(&self.walk_routes, f64::from(minutes)));
                 }
-                on_destination(j, dp)?;
+                let mut rec = Records {
+                    dp: &mut *dp,
+                    src: None,
+                    has_transit: false,
+                };
+                on_destination(j, &mut rec)?;
             }
             return Ok(true);
         }
@@ -369,7 +447,6 @@ impl<'a> Context<'a> {
         let per_minute = req.iterations_per_minute(self.layer.has_frequencies)?;
         let n_iter = times.len() / n_stops.max(1);
         let to_time = p.departure_time + p.time_window * 60;
-        let departure_of = |i: usize| to_time - 60 * (1 + (i / per_minute) as i32);
         let mut access_time = vec![-1; self.layer.stop_ids.len()];
         for &(s, t) in &access {
             access_time[s as usize] = t;
@@ -395,39 +472,32 @@ impl<'a> Context<'a> {
                 &mut best_path,
                 &mut best_egress,
             );
-            // `recordPathsForTarget` + `extractPathResults`.
+            // `recordPathsForTarget` + `extractPathResults`: the walk-only
+            // records now, the transit ones per minute on request.
             clear(dp);
             for i in 0..n_iter {
-                let dep = departure_of(i);
-                match best_path[i] {
-                    NO_PATH if best[i] < UNREACHED => {
-                        dp.walk
-                            .push(PathBreakdown::walk(&self.walk_routes, minutes_f32(best[i])));
-                    }
-                    NO_PATH => {}
-                    k => {
-                        let path = paths.legs(k);
-                        let route_list = routes[k as usize]
-                            .get_or_insert_with(|| route_list(self.layer, path))
-                            .clone();
-                        let pb = transit_breakdown(
-                            path,
-                            route_list,
-                            dep,
-                            &access_time,
-                            best_egress[i],
-                            best[i],
-                        )?;
-                        let minute = ((dep - p.departure_time) / 60) as usize;
-                        dp.by_minute[minute].push(pb);
-                    }
+                if best_path[i] == NO_PATH && best[i] < UNREACHED {
+                    dp.walk
+                        .push(PathBreakdown::walk(&self.walk_routes, minutes_f32(best[i])));
                 }
             }
-            for list in &mut dp.by_minute {
-                list.sort_by(path_order); // stable, as `List.sort`
-            }
             dp.walk.sort_by(path_order);
-            on_destination(j, dp)?;
+            let mut rec = Records {
+                dp: &mut *dp,
+                has_transit: best_path.iter().any(|&k| k != NO_PATH),
+                src: Some(TransitSource {
+                    layer: self.layer,
+                    paths,
+                    best: &best,
+                    best_path: &best_path,
+                    best_egress: &best_egress,
+                    access_time: &access_time,
+                    routes: &mut routes,
+                    per_minute,
+                    to_time,
+                }),
+            };
+            on_destination(j, &mut rec)?;
         }
         Ok(true)
     }
@@ -634,10 +704,11 @@ pub fn expanded_travel_time_matrix(
             if dp.is_empty() {
                 return Ok(());
             }
-            for (k, list) in dp.by_minute.iter().enumerate() {
+            let walk_first = dp.walk().first().cloned();
+            for k in 0..p.time_window as usize {
                 let departure = p.departure_time + 60 * k as i32;
                 let mut draw = 0;
-                for pb in list {
+                for pb in dp.minute(k)? {
                     draw += 1;
                     rows.push(ExpandedRow {
                         to: j as u32,
@@ -647,10 +718,8 @@ pub fn expanded_travel_time_matrix(
                     });
                 }
                 if (draw as usize) < dpm {
-                    let filler = dp
-                        .walk
-                        .first()
-                        .cloned()
+                    let filler = walk_first
+                        .clone()
                         .unwrap_or_else(|| PathBreakdown::unreachable(&ctx.walk_routes));
                     let trip = filler.report(m);
                     for d in draw as usize + 1..=dpm {
@@ -736,7 +805,7 @@ pub fn arrival_travel_time_matrix(
             for k in (0..p.time_window as usize).rev() {
                 let departure = p.departure_time + 60 * k as i32;
                 let mut count = 0;
-                for pb in &dp.by_minute[k] {
+                for pb in dp.minute(k)? {
                     count += 1;
                     if arrives(departure, pb) <= arrival {
                         rows.push(ExpandedRow {
@@ -749,7 +818,7 @@ pub fn arrival_travel_time_matrix(
                     }
                 }
                 if (count as usize) < dpm {
-                    if let Some(pb) = dp.walk.first() {
+                    if let Some(pb) = dp.walk().first() {
                         if arrives(departure, pb) <= arrival {
                             rows.push(ExpandedRow {
                                 to: j as u32,
