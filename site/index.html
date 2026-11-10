@@ -135,15 +135,16 @@ ttm = peabiru.travel_time_matrix(
       <h3>Rust and the command line <span class="tag ok">works today</span></h3>
 <pre><code><span class="c"># Cargo.toml (not on crates.io yet):</span>
 <span class="c"># peabiru-core = { git = "https://github.com/StrategicProjects/peabiru-routing" }</span>
-use peabiru_core::street::BuildOptions;
-use peabiru_core::transit::{build_from_dir, matrix::{travel_time_matrix, TransitData, TransitParams}};
+use peabiru_core::{build_from_dir, transit_travel_time_matrix, BuildOptions, TransitData, TransitParams};
 
 <span class="c">// the sample in the repository; any directory with one .pbf and GTFS .zip files</span>
 let (net, layer) = build_from_dir("r/inst/extdata/spo", &amp;BuildOptions::default())?;
 let data = TransitData::new(&amp;net, &amp;layer);
-let params = TransitParams { date: 20190513, departure_time: 14 * 3600,
-                             seed: Some(42), ..TransitParams::default() };
-let ttm = travel_time_matrix(&amp;net, &amp;layer, &amp;data, &amp;points, &amp;points, &amp;params)?;</code></pre>
+let mut params = TransitParams::default();
+params.date = 20190513;
+params.departure_time = 14 * 3600;
+params.seed = Some(42);
+let ttm = transit_travel_time_matrix(&amp;net, &amp;layer, &amp;data, &amp;points, &amp;points, &amp;params)?;</code></pre>
 <pre><code><span class="c"># the same from the shell, CSV in and out</span>
 cargo run --release -p peabiru-cli -- transit r/inst/extdata/spo \
     r/inst/extdata/spo/spo_points.csv ttm.csv \
