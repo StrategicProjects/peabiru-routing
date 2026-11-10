@@ -59,11 +59,31 @@ const KEPT_OTHER: usize = 3;
 
 /// What a mode's graph depends on besides the network: the speeds as the
 /// search holds them (`f32` bits) and, cycling, `max_lts`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Key {
     Car,
     Walk { walk: u32 },
     Bicycle { walk: u32, bike: u32, max_lts: i32 },
+}
+
+impl std::fmt::Debug for Key {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ms = f32::from_bits;
+        match *self {
+            Key::Car => write!(f, "car"),
+            Key::Walk { walk } => write!(f, "walk {} m/s", ms(walk)),
+            Key::Bicycle {
+                walk,
+                bike,
+                max_lts,
+            } => write!(
+                f,
+                "bicycle {} m/s, walk {} m/s, max_lts {max_lts}",
+                ms(bike),
+                ms(walk)
+            ),
+        }
+    }
 }
 
 impl Key {
@@ -179,7 +199,6 @@ impl Extent {
 /// A copy of everything in a network that a mode's graph is built from
 /// (see `ModeGraph::new` and [`Problem`]) or that the query reads to map
 /// points onto nodes.
-#[derive(PartialEq, Eq)]
 struct Snapshot {
     n_vertices: usize,
     edge_flags: Vec<u32>,
