@@ -1,6 +1,8 @@
 import os
 import pickle
 import shutil
+import warnings
+import zipfile
 
 import pytest
 
@@ -100,3 +102,66 @@ def test_the_service_count_takes_a_calendar_date_only(network):
     for bad in (20190230, 20191301, 0):
         with pytest.raises(ValueError, match="calendar date"):
             network._core.transit_availability(bad)
+
+
+# A small feed around the sample streets; each test breaks it in one way.
+FEED = {
+    "agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n"
+    "A,A,http://a,America/Sao_Paulo\n",
+    "stops.txt": "stop_id,stop_lat,stop_lon\nA,-23.5563,-46.6290\nB,-23.5577,-46.6321\n",
+    "routes.txt": "route_id,route_type\nR,3\n",
+    "trips.txt": "route_id,service_id,trip_id\nR,S,T1\n",
+    "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
+    "T1,14:00:00,14:00:00,A,1\nT1,14:05:00,14:05:00,B,2\n",
+    "calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,"
+    "sunday,start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n",
+}
+
+REFUSES = "r5r refuses to build a network from this feed."
+
+
+def network_dir(tmp_path, feed, folder=""):
+    """A data directory with the sample streets and `feed` as bus.zip."""
+    shutil.copy(os.path.join(peabiru.sample_data_path(), "spo_osm.pbf"), tmp_path)
+    with zipfile.ZipFile(tmp_path / "bus.zip", "w") as z:
+        for name, text in feed.items():
+            z.writestr(folder + name, text)
+    return tmp_path
+
+
+def test_feed_in_a_subfolder_warns(tmp_path):
+    path = network_dir(tmp_path, FEED, folder="gtfs/")
+    with pytest.warns(UserWarning) as record:
+        network = peabiru.build_network(path, n_threads=2)
+    assert [str(w.message) for w in record] == [
+        f"GTFS feed 'bus.zip': its tables are in a subfolder of the .zip ('gtfs/'). {REFUSES}"
+    ]
+    assert network.info()["patterns"] == 1  # built all the same
+
+
+def test_feed_without_agency_warns(tmp_path):
+    feed = {k: v for k, v in FEED.items() if k != "agency.txt"}
+    with pytest.warns(UserWarning, match=r"^GTFS feed 'bus\.zip': it has no agency\.txt\. "):
+        peabiru.build_network(network_dir(tmp_path, feed), n_threads=2)
+
+
+def test_trips_with_missing_stop_or_route_warn(tmp_path):
+    feed = dict(FEED)
+    feed["trips.txt"] += "R,S,T2\nX,S,T3\n"
+    feed["stop_times.txt"] += (
+        "T2,14:00:00,14:00:00,A,1\nT2,14:05:00,14:05:00,Z,2\n"
+        "T3,14:00:00,14:00:00,A,1\nT3,14:05:00,14:05:00,B,2\n"
+    )
+    with pytest.warns(UserWarning) as record:
+        peabiru.build_network(network_dir(tmp_path, feed), n_threads=2)
+    assert [str(w.message) for w in record] == [
+        "GTFS feed 'bus.zip': 2 trips left out (1 refers to a stop that does not exist, "
+        f"1 to a route that does not exist). {REFUSES}"
+    ]
+
+
+def test_clean_feeds_give_no_warning(tmp_path):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        peabiru.build_network(peabiru.sample_data_path(), n_threads=2)
+        peabiru.build_network(network_dir(tmp_path, FEED), n_threads=2)
