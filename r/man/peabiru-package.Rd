@@ -57,6 +57,10 @@ Other contributors:
   \item Conveyal LLC ('R5' routing engine, from which the routing logic is ported) [copyright holder]
   \item The Apache Software Foundation ('Apache Commons Math', parts of which are translated in the 'Rust' core) [copyright holder]
   \item Ipea - Institute for Applied Economic Research (Sample data, taken from the 'r5r' package) [copyright holder]
+  \item Makoto Matsumoto (Mersenne Twister generator, translated in the 'Rust' core) [copyright holder]
+  \item Takuji Nishimura (Mersenne Twister generator, translated in the 'Rust' core) [copyright holder]
+  \item CERN - European Organization for Nuclear Research (Table of prime numbers from the 'Colt' library, in the 'Rust' core) [copyright holder]
+  \item OpenStreetMap contributors (Map data of the sample network, inst/extdata/spo/spo_osm.pbf) [copyright holder]
 }
 
 }
