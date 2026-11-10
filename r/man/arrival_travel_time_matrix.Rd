@@ -44,8 +44,8 @@ arrival_travel_time_matrix(
 \item{mode_egress}{A string, the mode from the last stop to the
 destination. Only \code{"WALK"} is supported with transit.}
 
-\item{arrival_datetime}{A POSIXct, the time by which trips must arrive,
-taken in its own time zone.}
+\item{arrival_datetime}{A POSIXct (or a POSIXlt, converted as r5r does),
+the time by which trips must arrive, taken in its own time zone.}
 
 \item{breakdown}{A logical. Whether to break each trip down into access,
 waiting, in-vehicle, transfer and egress times, and the number of rides.}

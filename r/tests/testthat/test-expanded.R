@@ -64,6 +64,22 @@ test_that("arrival matrices keep the latest departure arriving in time", {
   expect_true(all(dep + round(a$total_time * 60) <= arrival))
 })
 
+test_that("arrival_datetime may be a POSIXlt, as in r5r", {
+  # r5r computes arrival_datetime - difftime, which turns a POSIXlt into a
+  # POSIXct
+  network <- fixture_network()
+  pts <- fixture_points()
+  arrival <- as.POSIXct("2019-05-13 15:00:00", tz = "America/Sao_Paulo")
+  arr <- function(a) {
+    arrival_travel_time_matrix(network, pts[1:2, ], pts, mode = "TRANSIT",
+                               arrival_datetime = a, max_trip_duration = 30,
+                               seed = 1, n_threads = 2)
+  }
+  expect_identical(arr(as.POSIXlt(arrival)), arr(arrival))
+  expect_error(arr(as.Date("2019-05-13")), "POSIXct")
+  expect_error(arr("2019-05-13 15:00:00"), "POSIXct")
+})
+
 test_that("an arrival window crossing midnight reads the previous service day", {
   network <- fixture_network()
   pts <- fixture_points()
