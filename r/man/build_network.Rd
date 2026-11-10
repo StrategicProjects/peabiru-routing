@@ -59,6 +59,11 @@ depends on the file system, so the same directory can give slightly
 different expanded and arrival matrices on two machines (another stop or
 route for a few trips); r5r behaves in the same way, and on one machine
 the results are always the same.
+
+Some 'GTFS' feeds that r5r refuses to build a network from are built, with
+a warning naming the feed: its tables are in a subfolder of the \code{.zip}, it
+has no \code{agency.txt}, or a trip refers to a stop or route that does not
+exist (such trips are left out).
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")

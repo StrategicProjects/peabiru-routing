@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import time
+import warnings
 from typing import Any, Dict, Optional, Union
 
 from . import _peabiru
@@ -119,6 +120,11 @@ def build_network(
     or route for a few trips); r5r behaves in the same way, and on one
     machine the results are always the same.
 
+    Some GTFS feeds that r5r refuses to build a network from are built,
+    with a ``UserWarning`` naming the feed: its tables are in a subfolder of
+    the ``.zip``, it has no ``agency.txt``, or a trip refers to a stop or
+    route that does not exist (such trips are left out).
+
     Parameters
     ----------
     data_path : str or os.PathLike
@@ -217,6 +223,8 @@ def build_network(
     t0 = time.perf_counter()
     core = _peabiru.build_network(data_path, threads)
     network = Network(core, data_path, elevation, any_tif)
+    for message in core.r5r_warnings():
+        warnings.warn(message, stacklevel=2)
     if verbose:
         print(
             f"Finished building network at '{data_path}' in "

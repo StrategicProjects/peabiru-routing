@@ -193,6 +193,14 @@ impl Network {
         Ok(d)
     }
 
+    /// Warnings for the GTFS feeds that r5r refuses to build a network
+    /// from, one per feed.
+    fn r5r_warnings(&self) -> Vec<String> {
+        self.transit
+            .as_ref()
+            .map_or_else(Vec::new, |t| t.layer.r5r_warnings())
+    }
+
     /// Number of services in the network and of those active on `date`
     /// (`yyyymmdd`), as r5r's `getTransitServiceAvailability`.
     fn transit_availability(&self, date: u32) -> PyResult<(usize, usize)> {

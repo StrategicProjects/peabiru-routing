@@ -101,7 +101,9 @@ cycling level of traffic stress.
 
 A bad argument ends the command with a one-line message and exit status 2;
 a file that cannot be read or a network that cannot be built, with exit
-status 1.
+status 1. A GTFS feed that r5r refuses to build a network from (tables in
+a subfolder of the `.zip`, no `agency.txt`, trips that refer to a stop or
+route that does not exist) is built, with a warning line on stderr.
 
 ## Licence and credits
 

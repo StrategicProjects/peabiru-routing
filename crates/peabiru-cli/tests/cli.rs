@@ -252,3 +252,86 @@ fn only_r5_bounds_and_the_int_clock_remain() {
         "reduce time_window or max_trip_duration",
     );
 }
+
+/// A zip archive of stored entries (the reader does not check CRCs).
+fn stored_zip(files: &[(&str, &str)]) -> Vec<u8> {
+    let (mut out, mut cd) = (Vec::new(), Vec::new());
+    for (name, data) in files {
+        let offset = out.len() as u32;
+        let sizes = [(data.len() as u32).to_le_bytes(); 2].concat();
+        out.extend(0x0403_4b50u32.to_le_bytes());
+        out.extend([20, 0, 0, 0, 0, 0]); // version, flags, method 0
+        out.extend([0; 8]); // time, date, crc
+        out.extend(&sizes);
+        out.extend((name.len() as u16).to_le_bytes());
+        out.extend([0, 0]);
+        out.extend(name.as_bytes());
+        out.extend(data.as_bytes());
+        cd.extend(0x0201_4b50u32.to_le_bytes());
+        cd.extend([20, 0, 20, 0, 0, 0, 0, 0]);
+        cd.extend([0; 8]);
+        cd.extend(&sizes);
+        cd.extend((name.len() as u16).to_le_bytes());
+        cd.extend([0; 12]); // extra, comment, disk, attributes
+        cd.extend(offset.to_le_bytes());
+        cd.extend(name.as_bytes());
+    }
+    let cd_offset = out.len() as u32;
+    out.extend(&cd);
+    out.extend(0x0605_4b50u32.to_le_bytes());
+    out.extend([0; 4]);
+    out.extend([(files.len() as u16).to_le_bytes(); 2].concat());
+    out.extend((cd.len() as u32).to_le_bytes());
+    out.extend(cd_offset.to_le_bytes());
+    out.extend([0, 0]);
+    out
+}
+
+/// A feed that r5r refuses to build (here: no agency.txt) is built, with
+/// one warning line naming the file; the sample feed gives none.
+#[test]
+fn feeds_r5r_refuses_are_warned_about() {
+    let dir = tmp("no-agency-net");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::copy(format!("{SPO}/spo_osm.pbf"), dir.join("spo_osm.pbf")).unwrap();
+    let feed = stored_zip(&[
+        (
+            "stops.txt",
+            "stop_id,stop_lat,stop_lon\nA,-23.5563,-46.6290\nB,-23.5577,-46.6321\n",
+        ),
+        ("routes.txt", "route_id,route_type\nR,3\n"),
+        ("trips.txt", "route_id,service_id,trip_id\nR,S,T1\n"),
+        (
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,14:00:00,14:00:00,A,1\nT1,14:05:00,14:05:00,B,2\n",
+        ),
+        (
+            "calendar.txt",
+            "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,\
+start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n",
+        ),
+    ]);
+    std::fs::write(dir.join("bus.zip"), feed).unwrap();
+    let o = tmp("no-agency.csv");
+    let p = points();
+    let mut args = vec!["transit", dir.to_str().unwrap(), &p, o.to_str().unwrap()];
+    args.extend_from_slice(&WHEN);
+    let out = run(&args);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(0), "stderr: {err}");
+    let warnings: Vec<&str> = err.lines().filter(|l| l.contains("warning")).collect();
+    assert_eq!(
+        warnings,
+        [
+            "peabiru transit: warning: GTFS feed 'bus.zip': it has no agency.txt. \
+r5r refuses to build a network from this feed."
+        ],
+        "{err}"
+    );
+
+    let out = transit(&WHEN);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(0), "stderr: {err}");
+    assert!(!err.contains("warning"), "{err}");
+}

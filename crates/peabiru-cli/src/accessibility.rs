@@ -291,7 +291,7 @@ pub fn run(args: &[String]) {
     let build_s;
     if let Some(mode) = street_mode {
         let net = if is_dir {
-            peabiru_core::transit::build_from_dir(net_path, &build)
+            cli::build_from_dir(CMD, net_path, &build)
                 .unwrap_or_else(|e| fail_io(e))
                 .0
         } else {
@@ -317,7 +317,7 @@ pub fn run(args: &[String]) {
         }
     } else {
         let (net, layer) =
-            peabiru_core::transit::build_from_dir(net_path, &build).unwrap_or_else(|e| fail_io(e));
+            cli::build_from_dir(CMD, net_path, &build).unwrap_or_else(|e| fail_io(e));
         let data = TransitData::new(&net, &layer);
         build_s = t0.elapsed().as_secs_f64();
         tp.percentiles = percentiles.clone();
