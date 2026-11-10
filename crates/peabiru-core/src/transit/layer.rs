@@ -444,16 +444,23 @@ impl TransitLayer {
     }
 }
 
-/// The `.zip` files of a directory in the order the operating system lists
-/// them, which is the order R5 (Java `File.listFiles`) loads feeds in.
+/// Whether a file name ends with `suffix`, case-sensitively, as r5r's
+/// `NetworkBuilder.loadDirectory` tests names (`String.endsWith`).
+pub(crate) fn has_suffix(name: &std::ffi::OsStr, suffix: &str) -> bool {
+    name.as_encoded_bytes().ends_with(suffix.as_bytes())
+}
+
+/// The `.zip` files of a directory (lower-case extension, as r5r matches
+/// it) in the order the operating system lists them, which is the order R5
+/// (Java `File.listFiles`) loads feeds in.
 pub fn gtfs_files_in_dir(
     dir: impl AsRef<std::path::Path>,
 ) -> std::io::Result<Vec<std::path::PathBuf>> {
     let mut out = Vec::new();
     for e in std::fs::read_dir(dir)? {
-        let p = e?.path();
-        if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("zip")) {
-            out.push(p);
+        let e = e?;
+        if has_suffix(&e.file_name(), ".zip") {
+            out.push(e.path());
         }
     }
     Ok(out)
@@ -498,6 +505,25 @@ mod tests {
                 headway: 600
             }]
         );
+    }
+
+    /// Extensions are matched case-sensitively, as r5r does.
+    #[test]
+    fn data_files_match_lower_case_extensions() {
+        use std::ffi::OsStr;
+        assert!(has_suffix(OsStr::new("feed.zip"), ".zip"));
+        assert!(has_suffix(OsStr::new("sp.osm.pbf"), ".pbf"));
+        assert!(!has_suffix(OsStr::new("FEED.ZIP"), ".zip"));
+        assert!(!has_suffix(OsStr::new("sp.osm.PBF"), ".pbf"));
+        assert!(!has_suffix(OsStr::new("feed.zip.bak"), ".zip"));
+        let dir = std::env::temp_dir().join(format!("peabiru-feed-names-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for n in ["a.zip", "B.ZIP", "c.Zip", "d.txt"] {
+            std::fs::write(dir.join(n), b"").unwrap();
+        }
+        let found = gtfs_files_in_dir(&dir).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(found, [dir.join("a.zip")]);
     }
 
     /// With several feeds in a directory, errors say which one failed.

@@ -52,12 +52,12 @@ pub fn build_from_dir(
             format!("{}: {e}", dir.display()),
         ))
     };
+    // r5r's NetworkBuilder.loadDirectory keeps the last `.pbf` listed.
     let mut pbf = None;
     for e in std::fs::read_dir(dir).map_err(io)? {
-        let p = e.map_err(io)?.path();
-        if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("pbf")) {
-            pbf = Some(p);
-            break;
+        let e = e.map_err(io)?;
+        if layer::has_suffix(&e.file_name(), ".pbf") {
+            pbf = Some(e.path());
         }
     }
     let pbf = pbf.ok_or_else(|| NetworkError::NoPbf(dir.to_path_buf()))?;

@@ -157,17 +157,38 @@ impl Archive {
         })
     }
 
-    /// The entry whose file name (ignoring any directory) is `name`.
+    /// The table `name`, looked up as gtfs-lib does (`Entity.Loader.loadTable`):
+    /// the entry of that name at the archive root (the last one if repeated,
+    /// as `java.util.zip.ZipFile.getEntry` returns), else the last entry in a
+    /// subfolder with that file name. Unlike gtfs-lib, a subfolder match must
+    /// be the whole file name (gtfs-lib takes any name ending in it, such as
+    /// `old_stops.txt`) and macOS resource forks under `__MACOSX` are skipped.
     pub fn find(&self, name: &str) -> Option<&Entry> {
         self.entries
             .iter()
-            .find(|e| e.name.rsplit('/').next() == Some(name) && !e.name.starts_with("__MACOSX"))
+            .rev()
+            .find(|e| e.name == name)
+            .or_else(|| {
+                self.entries.iter().rev().find(|e| {
+                    e.name.rsplit('/').next() == Some(name) && !e.name.starts_with("__MACOSX")
+                })
+            })
     }
 
     /// Uncompressed contents of an entry.
     pub fn read(&self, e: &Entry) -> Result<Vec<u8>, ZipError> {
         if e.flags & 1 != 0 {
             return err(format!("{}: encrypted entries are not supported", e.name));
+        }
+        // Sizes or offset saturated: the real values are in a ZIP64 extra field.
+        if [
+            e.compressed_size,
+            e.uncompressed_size,
+            e.local_header_offset,
+        ]
+        .contains(&0xffff_ffff)
+        {
+            return err(format!("{}: ZIP64 entries are not supported", e.name));
         }
         if e.uncompressed_size > self.limits.max_entry {
             return err(format!(
@@ -325,5 +346,53 @@ pub(crate) mod tests {
         };
         assert!(a.read(&a.entries[0]).is_ok());
         assert!(a.read(&a.entries[1]).is_err());
+    }
+
+    /// Tables are looked up as gtfs-lib does: the root entry first (the
+    /// last if repeated), then the last one in a subfolder.
+    #[test]
+    fn table_lookup_follows_gtfs_lib() {
+        let name = |files: &[(&str, &[u8])]| {
+            let a = Archive::from_bytes(make_zip(files, false)).unwrap();
+            a.read(a.find("stops.txt").unwrap()).unwrap()
+        };
+        assert_eq!(
+            name(&[("old/stops.txt", b"OLD"), ("stops.txt", b"ROOT")]),
+            b"ROOT"
+        );
+        assert_eq!(
+            name(&[("stops.txt", b"FIRST"), ("stops.txt", b"SECOND")]),
+            b"SECOND"
+        );
+        assert_eq!(name(&[("a/stops.txt", b"A"), ("b/stops.txt", b"B")]), b"B");
+        assert_eq!(
+            name(&[
+                ("feed/stops.txt", b"FEED"),
+                ("__MACOSX/feed/._stops.txt", b"FORK")
+            ]),
+            b"FEED"
+        );
+        let a = Archive::from_bytes(make_zip(
+            &[("STOPS.TXT", b"x"), ("my_stops.txt", b"y")],
+            false,
+        ))
+        .unwrap();
+        assert!(a.find("stops.txt").is_none());
+    }
+
+    #[test]
+    fn zip64_entries_are_reported_as_unsupported() {
+        let mut z = make_zip(&[("stops.txt", b"stop_id\nA\n")], false);
+        let cd = z
+            .windows(4)
+            .position(|w| w == [0x50, 0x4b, 0x01, 0x02])
+            .unwrap();
+        z[cd + 20..cd + 28].copy_from_slice(&[0xff; 8]);
+        let a = Archive::from_bytes(z).unwrap();
+        let e = a.read(&a.entries[0]).unwrap_err();
+        assert_eq!(
+            e.to_string(),
+            "malformed zip file: stops.txt: ZIP64 entries are not supported"
+        );
     }
 }

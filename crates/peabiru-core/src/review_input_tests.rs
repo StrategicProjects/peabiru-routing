@@ -138,23 +138,6 @@ fn make_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
 const ROUTES: &[u8] = b"route_id,route_type\nR,3\n";
 const CAL: &[u8] = b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n";
 
-/// A ZIP64 entry (sizes 0xFFFFFFFF in the central directory, real sizes in
-/// the extra field; written e.g. by streaming writers) is reported as an
-/// entry too large for the limit, not as unsupported ZIP64.
-#[test]
-fn zip64_entry_message() {
-    let mut z = make_zip(&[("stops.txt", b"stop_id\nA\n")]);
-    let cd = z
-        .windows(4)
-        .position(|w| w == [0x50, 0x4b, 0x01, 0x02])
-        .unwrap();
-    z[cd + 20..cd + 28].copy_from_slice(&[0xff; 8]);
-    let a = Archive::from_bytes(z).unwrap();
-    let e = a.read(&a.entries[0]).unwrap_err();
-    eprintln!("zip64_entry_message: {e}");
-    assert!(e.to_string().contains("exceeds the limit"));
-}
-
 /// Reads every entry of the zip named by `PEABIRU_REVIEW_ZIP` (manual check
 /// of archives written by other tools).
 #[test]
@@ -171,20 +154,6 @@ fn zip_from_env() {
             a.read(e).map(|b| b.len())
         );
     }
-}
-
-/// gtfs-lib looks for the table at the archive root first and only then in
-/// subfolders; the reader takes the first entry with that base name in
-/// directory order, so a stray `old/stops.txt` listed before the root
-/// `stops.txt` wins.
-#[test]
-fn zip_root_table_not_preferred() {
-    let z = make_zip(&[
-        ("old/stops.txt", b"stop_id\nOLD\n"),
-        ("stops.txt", b"stop_id\nNEW\n"),
-    ]);
-    let a = Archive::from_bytes(z).unwrap();
-    assert_eq!(a.find("stops.txt").unwrap().name, "old/stops.txt");
 }
 
 // ---------------------------------------------------------------- network
