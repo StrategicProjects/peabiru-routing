@@ -92,7 +92,7 @@ def build_network(
     temp_dir: bool = False,
     elevation: str = "TOBLER",
     overwrite: bool = False,
-    n_threads: Optional[int] = None,
+    n_threads: Optional[Union[int, float]] = None,
 ) -> Network:
     """Build a transport network.
 
@@ -131,7 +131,7 @@ def build_network(
     overwrite : bool, default False
         Accepted for compatibility with r5r, which uses it to rebuild a
         cached ``network.dat``; the network is always built anew.
-    n_threads : int, optional
+    n_threads : int or math.inf, optional
         The number of threads used to read the ``.pbf`` file. ``None`` (the
         default) or ``math.inf`` use all cores.
 

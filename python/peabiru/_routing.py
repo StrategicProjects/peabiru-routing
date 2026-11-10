@@ -40,6 +40,9 @@ from ._checks import assert_count, assert_flag, assert_number, fail_assert, unsu
 from ._network import Network, assert_network
 
 Mode = Union[str, Sequence[str]]
+# Numbers, and also the integer arguments: as in r5r, a whole-valued float
+# such as 60.0 is accepted (and math.inf for n_threads and the street time
+# limits); the checks reject a fractional value at run time.
 Number = Union[int, float]
 
 _NA = _peabiru.NA_I32
@@ -108,24 +111,24 @@ def travel_time_matrix(
     mode: Mode = "WALK",
     mode_egress: str = "WALK",
     departure_datetime: Optional[Any] = None,
-    time_window: int = 10,
+    time_window: Number = 10,
     percentiles: Union[int, Sequence[int]] = 50,
     max_walk_time: Number = math.inf,
     max_bike_time: Number = math.inf,
     max_car_time: Number = math.inf,
-    max_trip_duration: int = 120,
+    max_trip_duration: Number = 120,
     walk_speed: float = 3.6,
     bike_speed: float = 12,
-    max_rides: int = 3,
-    max_lts: int = 2,
+    max_rides: Number = 3,
+    max_lts: Number = 2,
     fare_structure: Any = None,
     max_fare: Number = math.inf,
     new_carspeeds: Optional[pd.DataFrame] = None,
     carspeed_scale: float = 1,
     new_lts: Optional[pd.DataFrame] = None,
-    draws_per_minute: int = 5,
-    seed: Optional[int] = None,
-    n_threads: Optional[int] = None,
+    draws_per_minute: Number = 5,
+    seed: Optional[Number] = None,
+    n_threads: Optional[Number] = None,
     verbose: bool = False,
     progress: bool = True,
     output_dir: Optional[str] = None,
@@ -207,7 +210,7 @@ def travel_time_matrix(
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
         are reproducible (and equal to r5r's) only with a seed.
-    n_threads : int, optional
+    n_threads : int or math.inf, optional
         The number of threads; ``None`` (the default) or ``math.inf`` use
         all cores.
     verbose : bool, default False
@@ -314,7 +317,7 @@ def accessibility(
     mode: Mode = "WALK",
     mode_egress: str = "WALK",
     departure_datetime: Optional[Any] = None,
-    time_window: int = 10,
+    time_window: Number = 10,
     percentiles: Union[int, Sequence[int]] = 50,
     decay_function: str = "step",
     cutoffs: Optional[Union[int, Sequence[int]]] = None,
@@ -322,19 +325,19 @@ def accessibility(
     max_walk_time: Number = math.inf,
     max_bike_time: Number = math.inf,
     max_car_time: Number = math.inf,
-    max_trip_duration: int = 120,
+    max_trip_duration: Number = 120,
     walk_speed: float = 3.6,
     bike_speed: float = 12,
-    max_rides: int = 3,
-    max_lts: int = 2,
+    max_rides: Number = 3,
+    max_lts: Number = 2,
     fare_structure: Any = None,
     max_fare: Number = math.inf,
     new_carspeeds: Optional[pd.DataFrame] = None,
     carspeed_scale: float = 1,
     new_lts: Optional[pd.DataFrame] = None,
-    draws_per_minute: int = 5,
-    seed: Optional[int] = None,
-    n_threads: Optional[int] = None,
+    draws_per_minute: Number = 5,
+    seed: Optional[Number] = None,
+    n_threads: Optional[Number] = None,
     verbose: bool = False,
     progress: bool = True,
     output_dir: Optional[str] = None,
@@ -435,7 +438,7 @@ def accessibility(
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
         are reproducible (and equal to r5r's) only with a seed.
-    n_threads : int, optional
+    n_threads : int or math.inf, optional
         The number of threads; ``None`` (the default) or ``math.inf`` use
         all cores.
     verbose : bool, default False
@@ -545,22 +548,22 @@ def expanded_travel_time_matrix(
     mode: Mode = "WALK",
     mode_egress: str = "WALK",
     departure_datetime: Optional[Any] = None,
-    time_window: int = 10,
+    time_window: Number = 10,
     breakdown: bool = False,
     max_walk_time: Number = math.inf,
     max_bike_time: Number = math.inf,
     max_car_time: Number = math.inf,
-    max_trip_duration: int = 120,
+    max_trip_duration: Number = 120,
     walk_speed: float = 3.6,
     bike_speed: float = 12,
-    max_rides: int = 3,
-    max_lts: int = 2,
+    max_rides: Number = 3,
+    max_lts: Number = 2,
     new_carspeeds: Optional[pd.DataFrame] = None,
     carspeed_scale: float = 1,
     new_lts: Optional[pd.DataFrame] = None,
-    draws_per_minute: int = 5,
-    seed: Optional[int] = None,
-    n_threads: Optional[int] = None,
+    draws_per_minute: Number = 5,
+    seed: Optional[Number] = None,
+    n_threads: Optional[Number] = None,
     verbose: bool = False,
     progress: bool = True,
     output_dir: Optional[str] = None,
@@ -639,7 +642,7 @@ def expanded_travel_time_matrix(
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
         are reproducible (and equal to r5r's) only with a seed.
-    n_threads : int, optional
+    n_threads : int or math.inf, optional
         The number of threads; ``None`` (the default) or ``math.inf`` use
         all cores.
     verbose : bool, default False
@@ -723,17 +726,17 @@ def arrival_travel_time_matrix(
     max_walk_time: Number = math.inf,
     max_bike_time: Number = math.inf,
     max_car_time: Number = math.inf,
-    max_trip_duration: int = 120,
+    max_trip_duration: Number = 120,
     walk_speed: float = 3.6,
     bike_speed: float = 12,
-    max_rides: int = 3,
-    max_lts: int = 2,
+    max_rides: Number = 3,
+    max_lts: Number = 2,
     new_carspeeds: Optional[pd.DataFrame] = None,
     carspeed_scale: float = 1,
     new_lts: Optional[pd.DataFrame] = None,
-    draws_per_minute: int = 5,
-    seed: Optional[int] = None,
-    n_threads: Optional[int] = None,
+    draws_per_minute: Number = 5,
+    seed: Optional[Number] = None,
+    n_threads: Optional[Number] = None,
     verbose: bool = False,
     progress: bool = True,
     output_dir: Optional[str] = None,
@@ -810,7 +813,7 @@ def arrival_travel_time_matrix(
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
         are reproducible (and equal to r5r's) only with a seed.
-    n_threads : int, optional
+    n_threads : int or math.inf, optional
         The number of threads; ``None`` (the default) or ``math.inf`` use
         all cores.
     verbose : bool, default False
