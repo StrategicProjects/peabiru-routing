@@ -3,16 +3,25 @@
 
 use std::path::PathBuf;
 
-/// The network directory given as the first argument, or the small Sao Paulo
-/// network bundled with the R package (`r/inst/extdata/spo`): one `.pbf`
-/// and one frequency-based GTFS `.zip`.
+/// The network directory given as the first argument, or, in a checkout of
+/// the repository, the small Sao Paulo network bundled with the R package
+/// (`r/inst/extdata/spo`): one `.pbf` and one frequency-based GTFS `.zip`.
+/// Outside the repository (the crate as published) there is no default, and
+/// the example stops with a message asking for the directory.
 pub fn data_dir() -> PathBuf {
-    std::env::args_os()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../r/inst/extdata/spo")
-        })
+    if let Some(dir) = std::env::args_os().nth(1) {
+        return PathBuf::from(dir);
+    }
+    let sample = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../r/inst/extdata/spo");
+    if !sample.is_dir() {
+        eprintln!(
+            "usage: pass a network directory (one .pbf, the GTFS .zip feeds and a .csv \
+             of points with id, lon and lat) as the first argument; the sample network \
+             is in the repository, at r/inst/extdata/spo"
+        );
+        std::process::exit(2);
+    }
+    sample
 }
 
 /// Points of a CSV file with a header: ids, `(lat, lon)` pairs, and the

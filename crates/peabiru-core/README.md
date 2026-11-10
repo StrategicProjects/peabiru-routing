@@ -47,9 +47,15 @@ let ttm = travel_time_matrix(&net, &layer, &data, &points, &points, &params)?;
 `build_from_dir` recognises the files by their extension in lower case only
 (`.pbf`, `.zip`), as r5r does: a `map.PBF` or a `feed.ZIP` is ignored.
 
-More in the `examples/` directory (`cargo run --release -p peabiru-core
---example transit_matrix`) and in the Rust guide built by `site/build.sh` in
-the repository.
+The `examples/` directory has four complete programs (street and transit
+matrices, accessibility, expanded matrices). Each takes a network directory
+as its first argument: one `.pbf`, the GTFS `.zip` feeds and a `.csv` of
+points with `id`, `lon` and `lat`. In a checkout of the
+[repository](https://github.com/StrategicProjects/peabiru-routing) they
+default to the São Paulo sample, as in
+`cargo run --release -p peabiru-core --example transit_matrix`. The
+repository also has a Rust guide, in Markdown, under
+[`site/rust/src`](https://github.com/StrategicProjects/peabiru-routing/tree/main/site/rust/src).
 
 **Status**: version 0.0.1, early development; not published yet. Isochrones,
 detailed itineraries, fares, bicycle or car access to public transport and
