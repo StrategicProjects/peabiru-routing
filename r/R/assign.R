@@ -85,18 +85,20 @@ assign_points_input <- function(df, name, unique_ids = TRUE) {
 assign_mode <- function(mode, mode_egress) {
   all_modes <- c(r5r_transit_modes, r5r_direct_modes)
 
+  # as in r5r, unique() and toupper() come before the checks, so a factor or
+  # a repeated mode is accepted
+  mode <- toupper(unique(mode))
   if (!is.character(mode) || length(mode) < 1L || anyNA(mode)) {
     fail_assert("mode", "Must be of type 'character' with at least 1 element and no missing values")
   }
-  mode <- toupper(unique(mode))
   if (!all(mode %in% all_modes)) {
     fail_assert("mode", paste0(
       "Must be a subset of {", paste0("'", all_modes, "'", collapse = ","), "}"
     ))
   }
 
-  assert_string(mode_egress, "mode_egress")
   mode_egress <- toupper(unique(mode_egress))
+  assert_string(mode_egress, "mode_egress")
   if (!mode_egress %in% c("WALK", "BICYCLE", "CAR")) {
     fail_assert("mode_egress", "Must be a subset of {'WALK','BICYCLE','CAR'}")
   }

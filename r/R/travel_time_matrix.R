@@ -46,6 +46,9 @@
 #' @param verbose,progress Logicals, checked as in r5r; peabiru prints no
 #'   progress counter.
 #' @param output_dir Not supported yet; must be `NULL`.
+#' @param r5r_core Deprecated: the network under the name r5r used before
+#'   version 2.3.0. As in r5r, it is accepted with a warning and used as
+#'   `r5r_network`.
 #'
 #' @return A `data.frame` with `from_id`, `to_id` and one integer column
 #'   `travel_time_pXX` per percentile (minutes). Pairs that cannot be
@@ -99,8 +102,13 @@ travel_time_matrix <- function(r5r_network,
                                n_threads = Inf,
                                verbose = FALSE,
                                progress = TRUE,
-                               output_dir = NULL) {
+                               output_dir = NULL,
+                               r5r_core) {
   # mirrors r5r R/travel_time_matrix.R
+  if (!missing(r5r_core)) {
+    warn_r5r_core()
+    r5r_network <- r5r_core
+  }
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
   mode_list <- assign_mode(mode, mode_egress)

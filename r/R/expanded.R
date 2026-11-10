@@ -64,8 +64,13 @@ expanded_travel_time_matrix <- function(r5r_network,
                                         n_threads = Inf,
                                         verbose = FALSE,
                                         progress = TRUE,
-                                        output_dir = NULL) {
+                                        output_dir = NULL,
+                                        r5r_core) {
   # mirrors r5r R/expanded_travel_time_matrix.R
+  if (!missing(r5r_core)) {
+    warn_r5r_core()
+    r5r_network <- r5r_core
+  }
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
   mode_list <- assign_mode(mode, mode_egress)
@@ -165,8 +170,13 @@ arrival_travel_time_matrix <- function(r5r_network,
                                        n_threads = Inf,
                                        verbose = FALSE,
                                        progress = TRUE,
-                                       output_dir = NULL) {
+                                       output_dir = NULL,
+                                       r5r_core) {
   # mirrors r5r R/arrival_travel_time_matrix.R
+  if (!missing(r5r_core)) {
+    warn_r5r_core()
+    r5r_network <- r5r_core
+  }
   if (missing(arrival_datetime) || is.null(arrival_datetime)) {
     stop("'arrival_datetime' is required. Supply a POSIXct value specifying ",
          "when trips must arrive. For trips that do not depend on time, use ",

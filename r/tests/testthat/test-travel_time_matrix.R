@@ -132,3 +132,105 @@ test_that("what the core does not support is an error, never ignored", {
     ttm(mode = "TRANSIT", seed = 1)
   )
 })
+
+test_that("mode and mode_egress go through unique() and toupper() first, as in r5r", {
+  network <- fixture_network()
+  pts <- fixture_points()
+  walk <- travel_time_matrix(network, pts, pts, mode = "WALK", n_threads = 2)
+  expect_identical(
+    travel_time_matrix(network, pts, pts, mode = factor("WALK"), n_threads = 2),
+    walk
+  )
+  expect_identical(
+    travel_time_matrix(network, pts, pts, mode = c("WALK", "WALK"), n_threads = 2),
+    walk
+  )
+  # unique() runs before toupper(), so these are two modes for r5r too
+  expect_error(
+    travel_time_matrix(network, pts, pts, mode = c("walk", "WALK"), n_threads = 2),
+    "Please use only 1 of"
+  )
+  transit <- function(...) {
+    travel_time_matrix(network, pts[1:2, ], pts, mode = "TRANSIT",
+                       departure_datetime = departure, seed = 1,
+                       n_threads = 2, ...)
+  }
+  expect_identical(transit(mode_egress = c("WALK", "WALK")), transit())
+  expect_identical(transit(mode_egress = factor("walk")), transit())
+  expect_error(transit(mode_egress = c("WALK", "CAR")), "mode_egress")
+})
+
+test_that("the deprecated r5r_core argument is accepted with a warning, as in r5r", {
+  network <- fixture_network()
+  pts <- fixture_points()
+  walk <- travel_time_matrix(network, pts, pts, mode = "WALK", n_threads = 2)
+  expect_warning(
+    old <- travel_time_matrix(r5r_core = network, origins = pts,
+                              destinations = pts, mode = "WALK", n_threads = 2),
+    "`r5r_core` argument is deprecated"
+  )
+  expect_identical(old, walk)
+  expect_warning(
+    accessibility(r5r_core = network, origins = pts, destinations = pts,
+                  opportunities_colnames = "jobs", cutoffs = 20, n_threads = 2),
+    "deprecated"
+  )
+  expect_warning(
+    expanded_travel_time_matrix(r5r_core = network, origins = pts[1, ],
+                                destinations = pts, mode = "TRANSIT",
+                                departure_datetime = departure, n_threads = 2),
+    "deprecated"
+  )
+  expect_warning(
+    arrival_travel_time_matrix(r5r_core = network, origins = pts[1, ],
+                               destinations = pts, mode = "TRANSIT",
+                               arrival_datetime = departure, n_threads = 2),
+    "deprecated"
+  )
+})
+
+test_that("sf and data.table points give the data.frame result", {
+  skip_if_not_installed("sf")
+  network <- fixture_network()
+  pts <- fixture_points()
+  s <- sf::st_as_sf(pts, coords = c("lon", "lat"), crs = 4326)
+  expect_identical(
+    travel_time_matrix(network, s, s, mode = "CAR", n_threads = 2),
+    travel_time_matrix(network, pts, pts, mode = "CAR", n_threads = 2)
+  )
+  # attribute columns named lon/lat are ignored in favour of the geometry
+  s$lat <- 0
+  expect_identical(
+    accessibility(network, s, s, opportunities_colnames = "jobs", cutoffs = 20,
+                  n_threads = 2),
+    accessibility(network, pts, pts, opportunities_colnames = "jobs", cutoffs = 20,
+                  n_threads = 2)
+  )
+  expect_error(
+    travel_time_matrix(network, sf::st_transform(s, 3857), s, n_threads = 2),
+    "WGS 84"
+  )
+  skip_if_not_installed("data.table")
+  dt <- data.table::as.data.table(pts)
+  expect_identical(
+    travel_time_matrix(network, dt, dt, mode = "WALK", n_threads = 2),
+    travel_time_matrix(network, pts, pts, mode = "WALK", n_threads = 2)
+  )
+})
+
+test_that("empty tables give typed empty results", {
+  network <- fixture_network()
+  pts <- fixture_points()
+  ttm <- travel_time_matrix(network, pts[0, ], pts, mode = "TRANSIT",
+                            departure_datetime = departure, n_threads = 2)
+  expect_identical(nrow(ttm), 0L)
+  expect_type(ttm$travel_time_p50, "integer")
+  e <- expanded_travel_time_matrix(network, pts[0, ], pts, mode = "TRANSIT",
+                                   departure_datetime = departure, n_threads = 2)
+  expect_identical(nrow(e), 0L)
+  expect_type(e$total_time, "double")
+  a <- accessibility(network, pts, pts[0, ], opportunities_colnames = "jobs",
+                     cutoffs = 30, n_threads = 2)
+  expect_identical(nrow(a), nrow(pts))
+  expect_true(all(a$accessibility == 0))
+})
