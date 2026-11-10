@@ -19,6 +19,9 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering}
 pub enum PbfError {
     Io(std::io::Error),
     Format(String),
+    /// The file holds no way a street network can be built from (an empty
+    /// file, a header only, or no routable way).
+    NoStreets,
     /// An error in the file at `path`.
     InFile {
         path: std::path::PathBuf,
@@ -31,6 +34,10 @@ impl fmt::Display for PbfError {
         match self {
             PbfError::Io(e) => write!(f, "cannot read the PBF file: {e}"),
             PbfError::Format(m) => write!(f, "malformed PBF file: {m}"),
+            PbfError::NoStreets => write!(
+                f,
+                "no street network: the file has no way that can be walked, cycled or driven"
+            ),
             PbfError::InFile { path, error } => write!(f, "{}: {error}", path.display()),
         }
     }
@@ -132,7 +139,8 @@ pub struct ReadOptions<'f> {
     /// Ways whose node references are counted (see [`Extract::ref_counts`]);
     /// `None` counts nothing.
     pub ref_count_filter: Option<TagFilter<'f>>,
-    /// Worker threads; 0 means all available cores.
+    /// Worker threads; 0 means all available cores, and more than the
+    /// cores available are not used.
     pub n_threads: usize,
 }
 
@@ -199,7 +207,7 @@ fn position(blob: usize, item: u32) -> u64 {
 /// while reference counts count every occurrence.
 pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
     let blobs: Vec<(usize, &[u8])> = split_blobs(bytes)?.into_iter().enumerate().collect();
-    let n_threads = resolve_threads(opts.n_threads);
+    let n_threads = read_threads(opts.n_threads, blobs.len());
 
     // Pass 1: ways and relations, with their positions.
     let parts = par_map(&blobs, n_threads, |&(b, blob)| {
@@ -415,14 +423,6 @@ pub fn read_pbf(bytes: &[u8], opts: &ReadOptions) -> Result<Extract> {
         }
     }
     Ok(ex)
-}
-
-fn resolve_threads(n: usize) -> usize {
-    if n > 0 {
-        n
-    } else {
-        std::thread::available_parallelism().map_or(1, |n| n.get())
-    }
 }
 
 /// Split the file into the payloads of its `OSMData` blobs, checking the
@@ -812,6 +812,13 @@ fn decode_relation<'s>(
     keys_vals(&keys, &vals, st, tags)?;
     visit(Item::Relation { id, tags, members });
     Ok(())
+}
+
+/// Threads for reading `n_blobs` blobs when `requested` were asked for (0 =
+/// all cores): at most one per core and per blob, as the routing functions
+/// do. The extract does not depend on it.
+pub(crate) fn read_threads(requested: usize, n_blobs: usize) -> usize {
+    crate::street::router::worker_threads(requested, n_blobs)
 }
 
 /// Map `f` over `items` on `n_threads` threads, keeping the input order and

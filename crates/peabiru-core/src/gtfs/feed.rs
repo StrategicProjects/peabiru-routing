@@ -3,7 +3,7 @@
 //! patterns) is decided by the transit layer, following R5.
 
 use super::csv::{for_each_row, CsvError, Header, ReadError, Row};
-use super::zip::{Archive, ZipError};
+use super::zip::{Archive, Limits, ZipError};
 use std::fmt;
 
 #[derive(Debug)]
@@ -166,8 +166,17 @@ pub(crate) fn parse_time(s: &str) -> Result<Option<i32>, ()> {
 impl Feed {
     /// Read a feed from a GTFS zip file. Errors name the file.
     pub fn read_zip(path: impl AsRef<std::path::Path>) -> Result<Feed, GtfsError> {
+        Self::read_zip_with_limits(path, Limits::default())
+    }
+
+    /// [`Feed::read_zip`] with other bounds on how far the archive may
+    /// expand.
+    pub fn read_zip_with_limits(
+        path: impl AsRef<std::path::Path>,
+        limits: Limits,
+    ) -> Result<Feed, GtfsError> {
         let path = path.as_ref();
-        Archive::open(path)
+        Archive::open_with_limits(path, limits)
             .map_err(GtfsError::from)
             .and_then(|a| Self::from_archive(&a))
             .map_err(|error| GtfsError::InFeed {

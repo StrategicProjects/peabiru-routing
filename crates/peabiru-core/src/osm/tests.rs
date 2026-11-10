@@ -190,6 +190,25 @@ fn reads_ways_relations_and_only_referenced_nodes() {
     }
 }
 
+/// Reader threads are capped at the cores available and the blobs, and the
+/// extract is the same whatever the count asked for.
+#[test]
+fn reader_threads_are_capped() {
+    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    assert_eq!(read_threads(0, 10_000), cores.min(10_000));
+    assert_eq!(read_threads(5041, 10_000), cores.min(10_000));
+    assert_eq!(read_threads(usize::MAX, 10_000), cores.min(10_000));
+    assert_eq!(read_threads(1, 10_000), 1);
+    assert_eq!(read_threads(5041, 2), cores.min(2));
+    let mut f = file(true, &[]);
+    f.extend(line_block("residential"));
+    let one = read_pbf(&f, &opts(1)).unwrap();
+    let many = read_pbf(&f, &opts(usize::MAX)).unwrap();
+    assert_eq!(one.ways, many.ways);
+    assert_eq!(one.node_ids, many.node_ids);
+    assert_eq!(one.ref_counts, many.ref_counts);
+}
+
 #[test]
 fn rejects_unsupported_required_features() {
     let err = read_pbf(&file(false, &["HistoricalInformation"]), &opts(1)).unwrap_err();
@@ -392,4 +411,39 @@ fn file_errors_name_the_file() {
         absent.contains("absent.pbf: cannot read the PBF file"),
         "{absent}"
     );
+}
+
+/// A file without a single street edge does not build an empty network:
+/// R5 fails on it as well (`StreetLayer.loadFromOsm` seeks edge 0 of an
+/// empty edge store).
+#[test]
+fn file_without_streets_is_an_error() {
+    use crate::street::{build_network, BuildOptions};
+    let dir = std::env::temp_dir().join(format!("peabiru-no-streets-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let cases: [(&str, Vec<u8>); 4] = [
+        ("empty.osm.pbf", Vec::new()),
+        ("header.osm.pbf", blob("OSMHeader", &[], false)),
+        ("proposed.osm.pbf", line_block("proposed")),
+        ("street.osm.pbf", line_block("residential")),
+    ];
+    let mut results = Vec::new();
+    for (name, bytes) in &cases {
+        let path = dir.join(name);
+        std::fs::write(&path, bytes).unwrap();
+        results.push((path.clone(), build_network(&path, &BuildOptions::default())));
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+    for (path, r) in &results[..3] {
+        let err = r.as_ref().unwrap_err().to_string();
+        assert_eq!(
+            err,
+            format!(
+                "{}: no street network: the file has no way that can be walked, cycled or driven",
+                path.display()
+            )
+        );
+    }
+    // One street is enough, even an island R5 prunes: R5 builds it too.
+    assert_eq!(results[3].1.as_ref().unwrap().pair_from.len(), 1);
 }
