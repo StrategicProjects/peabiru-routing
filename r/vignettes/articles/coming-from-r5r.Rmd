@@ -15,13 +15,21 @@ there yet.
 - **Function names, arguments and defaults** of `build_network()`,
   `travel_time_matrix()`, `accessibility()`, `expanded_travel_time_matrix()`
   and `arrival_travel_time_matrix()`. The first argument is still called
-  `r5r_network`.
-- **Argument checks** follow r5r's, so invalid arguments fail in the same cases.
+  `r5r_network`; the older name `r5r_core`, deprecated in r5r 2.3.0, is
+  still accepted with a warning, as r5r does.
+- **Argument checks** follow r5r's, in the same order and with the same
+  bounds and conversions (a factor `mode`, a POSIXlt `arrival_datetime`), so
+  an argument r5r rejects is rejected here too. The messages say the same
+  thing but are not word for word r5r's (which come from cli and checkmate).
+  A few calls that r5r accepts are errors here; they are listed
+  [below](#differences).
 - **Results**: the same rows, in the same order, with the same column names,
   types and values. For a frequency-based feed this needs the same `seed`
   (without one, both packages draw from the clock and every run differs).
 
-A call written for r5r runs as is once the package is swapped. Here both
+A call written for r5r runs unchanged once the package is swapped, as long as
+it passes a network built by `peabiru::build_network()`, uses only what is
+supported, and does not rely on the result being a `data.table`. Here both
 packages compute the same matrix on the sample network, and the results are
 compared with `identical()`:
 
@@ -111,9 +119,10 @@ reference outputs are only valid for the machine that produced them.
 network
 ```
 
-## Not supported yet
+## Not supported yet {#differences}
 
 Anything below stops with an error that says so; nothing is silently ignored.
+These are the calls that r5r accepts and peabiru does not.
 
 | r5r feature | In peabiru |
 |---|---|
@@ -122,9 +131,11 @@ Anything below stops with an error that says so; nothing is silently ignored.
 | Fares: `fare_structure`, `max_fare` | error |
 | Scenarios: `new_carspeeds`, `carspeed_scale`, `new_lts` | error |
 | `output_dir` | error |
-| Elevation (a `.tif` in the data directory with `elevation` other than `"NONE"`) | error |
+| Elevation (a `.tif` or `.tiff` raster in the data directory with `elevation` other than `"NONE"`) | error |
 | More than one `.pbf` in the data directory | error |
 | Expanded and arrival matrices with a street mode alone | error |
+| Values beyond the engine's limits: `time_window` over 1,440 minutes (and so an arrival `max_trip_duration` over 1,440, which becomes the departure window), `draws_per_minute` over 1,000, `time_window * draws_per_minute` over 100,000, `max_rides` over 100 | error |
+| A network built by `r5r::build_network()` | error (build it with `peabiru::build_network()`) |
 
 ```{r, error = TRUE}
 travel_time_matrix(network, points, points, mode = c("WALK", "BUS"),
