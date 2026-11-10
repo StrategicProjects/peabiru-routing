@@ -35,7 +35,8 @@ pub struct RouteParams {
     pub max_lts: i32,
     /// Trip limit in whole minutes.
     pub max_trip_duration_min: i32,
-    /// Worker threads; 0 means all cores.
+    /// Worker threads; 0 means all cores, and more than the cores
+    /// available run as many as there are cores.
     pub n_threads: usize,
 }
 
@@ -110,6 +111,21 @@ impl Default for RouteParams {
             n_threads: 0,
         }
     }
+}
+
+/// Worker threads for `n_items` origins when `requested` were asked for
+/// (0 = all cores): never more than the cores available, since each worker
+/// holds its own search state and more threads than cores only add memory,
+/// and never more than the origins. Results never depend on it: origins
+/// are handed out one at a time and stored by index.
+pub(crate) fn worker_threads(requested: usize, n_items: usize) -> usize {
+    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    let n = if requested == 0 {
+        cores
+    } else {
+        requested.min(cores)
+    };
+    n.clamp(1, n_items.max(1))
 }
 
 /// Speeds as R5 holds them: km/h to m/s in double, then `(float)`.
@@ -822,12 +838,7 @@ pub fn travel_time_matrix(
         .collect();
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
-    let n_threads = if params.n_threads > 0 {
-        params.n_threads
-    } else {
-        std::thread::available_parallelism().map_or(1, |n| n.get())
-    }
-    .clamp(1, origins.len().max(1));
+    let n_threads = worker_threads(params.n_threads, origins.len());
 
     let next = AtomicUsize::new(0);
     let chunks: Vec<Vec<(usize, Vec<Option<u32>>)>> = std::thread::scope(|scope| {
@@ -896,12 +907,7 @@ pub fn travel_time_seconds<T: Send>(
         .iter()
         .map(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch))
         .collect();
-    let n_threads = if params.n_threads > 0 {
-        params.n_threads
-    } else {
-        std::thread::available_parallelism().map_or(1, |n| n.get())
-    }
-    .clamp(1, origins.len().max(1));
+    let n_threads = worker_threads(params.n_threads, origins.len());
     let next = AtomicUsize::new(0);
     let chunks: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)
@@ -946,6 +952,16 @@ pub fn travel_time_seconds<T: Send>(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+
+    #[test]
+    fn worker_threads_are_capped_by_cores_and_origins() {
+        let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+        assert_eq!(worker_threads(0, 1_000_000), cores);
+        assert_eq!(worker_threads(5041, 1_000_000), cores);
+        assert_eq!(worker_threads(1, 1_000_000), 1);
+        assert_eq!(worker_threads(5041, 3), cores.min(3));
+        assert_eq!(worker_threads(4, 0), 1);
+    }
 
     #[test]
     fn invalid_parameters_are_rejected() {

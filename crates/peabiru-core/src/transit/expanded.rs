@@ -24,7 +24,7 @@ use super::walk;
 use super::TransitLayer;
 use crate::jcompat::TroveIntKeys;
 use crate::street::link::{find_split, Split};
-use crate::street::router::{search_from, Mode, ModeGraph, Search};
+use crate::street::router::{search_from, worker_threads, Mode, ModeGraph, Search};
 use crate::street::StreetNetwork;
 use std::cmp::Ordering;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -550,12 +550,7 @@ fn per_origin<T: Send>(
     n_threads: usize,
     f: impl Fn(f64, f64, &mut OriginScratch) -> Result<T, String> + Sync,
 ) -> Result<Vec<T>, String> {
-    let n_threads = if n_threads > 0 {
-        n_threads
-    } else {
-        std::thread::available_parallelism().map_or(1, |n| n.get())
-    }
-    .clamp(1, origins.len().max(1));
+    let n_threads = worker_threads(n_threads, origins.len());
     let next = AtomicUsize::new(0);
     let done: Vec<Vec<(usize, Result<T, String>)>> = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)

@@ -7,7 +7,7 @@ use super::raptor::{self, Filtered, RaptorRequest, StopTimes, UNREACHED};
 use super::walk;
 use super::TransitLayer;
 use crate::street::link::{find_split, Split};
-use crate::street::router::{check_speed, search_from, Mode, ModeGraph, Search};
+use crate::street::router::{check_speed, search_from, worker_threads, Mode, ModeGraph, Search};
 use crate::street::StreetNetwork;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -28,6 +28,8 @@ pub struct TransitParams {
     pub max_rides: usize,
     pub draws_per_minute: i32,
     pub seed: Option<i32>,
+    /// Worker threads; 0 means all cores, and more than the cores
+    /// available run as many as there are cores.
     pub n_threads: usize,
 }
 
@@ -451,18 +453,14 @@ impl<'a> Query<'a> {
 }
 
 /// Run `f(origin_index, scratch)` for every origin on `n_threads` threads
-/// (0 = all cores), results in origin order.
+/// (0 = all cores; capped at the cores and the origins), results in origin
+/// order.
 pub(crate) fn par_origins<T: Send>(
     n_threads: usize,
     n_origins: usize,
     f: impl Fn(usize, &mut Scratch) -> T + Sync,
 ) -> Vec<T> {
-    let n_threads = if n_threads > 0 {
-        n_threads
-    } else {
-        std::thread::available_parallelism().map_or(1, |n| n.get())
-    }
-    .clamp(1, n_origins.max(1));
+    let n_threads = worker_threads(n_threads, n_origins);
     let next = AtomicUsize::new(0);
     let chunks: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)
