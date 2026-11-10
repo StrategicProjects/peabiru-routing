@@ -435,8 +435,10 @@ def meta_block(meta):
         pins += f"; CRAN snapshot {esc(v['cran_snapshot'])}"
     if v.get("java"):
         pins += f"; {esc(v['java'])}"
+    parts = len(meta.get("resumed") or []) + 1
+    span = f" (in {parts} parts, each engine whole within one)" if parts > 1 else ""
     return f'''<ul class="meta">
-<li><strong>Run</strong>: {esc(meta["generated"])} to {esc(meta.get("finished", "?"))}; peabiru commit
+<li><strong>Run</strong>: {esc(meta["generated"])} to {esc(meta.get("finished", "?"))}{span}; peabiru commit
 <code>{esc(v.get("peabiru_commit"))}</code>{" (core modified)" if v.get("peabiru_core_dirty") else ""}, {esc(v.get("rustc"))}, {esc(v.get("R"))}{pins}</li>
 <li><strong>Machine</strong>: {machine}{f"; 1-minute load average {load[0]} when the run started" if load else ""}{f" and {load_end[0]} when it ended" if load_end else ""}</li>
 {"".join(eng)}

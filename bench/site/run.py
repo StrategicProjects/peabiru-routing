@@ -12,6 +12,10 @@ bench/site/charts.py turns it into the charts and tables of the sites.
     python3 bench/site/run.py                       # every engine, both cities
     python3 bench/site/run.py --engines peabiru-cli,r5r --cities spo --threads 10
     python3 bench/site/run.py --out /tmp/bench      # a test run: site/data untouched
+    python3 bench/site/run.py --resume              # go on after an interrupted run
+
+The results file is rewritten as each engine finishes, so a run that is
+interrupted keeps the engines it completed, and --resume runs the others.
 
 Engines (each one is skipped cleanly, with the reason recorded, when it
 cannot run):
@@ -595,7 +599,36 @@ def parse_limits(text):
     return lim
 
 
-def write_outputs(outdir, meta, records):
+def resume_from(path, meta):
+    """The records of an interrupted run and its metadata, to go on from: the
+    engines it finished are not run again. Results measured with other
+    parameters, versions, inputs or limits are refused, not mixed."""
+    if not path.exists():
+        return meta, []
+    with open(path) as f:
+        prev = json.load(f)
+    old = prev["meta"]
+    loads = ("load_avg_at_start", "load_avg_at_end")
+    for key in ("parameters", "versions", "cities", "tasks", "machine"):
+        a, b = ({k: v for k, v in m.get(key, {}).items() if k not in loads} for m in (old, meta))
+        if a != b:
+            sys.exit(f"--resume: {path} was measured with other {key} ({a} then, {b} now); "
+                     "start again without --resume or with another --out")
+    done = {e: s for e, s in old["engines"].items() if s["status"] == "ok"}
+    meta["resumed"] = old.get("resumed", []) + [meta["generated"]]  # when each later part began
+    meta["generated"] = old["generated"]
+    meta["machine"]["load_avg_at_start"] = old["machine"].get("load_avg_at_start")
+    meta["engines"] = done
+    return meta, [r for r in prev["records"] if r["engine"] in done]
+
+
+def write_outputs(outdir, meta, records, quiet=False):
+    """benchmarks.json and benchmarks.csv, engines in the order of ENGINES
+    whatever the order they ran in."""
+    order = {e: i for i, e in enumerate(ENGINES)}
+    rank = lambda e: order.get(e, len(order))  # noqa: E731
+    meta = dict(meta, engines={e: meta["engines"][e] for e in sorted(meta["engines"], key=rank)})
+    records = sorted(records, key=lambda r: rank(r["engine"]))
     outdir.mkdir(parents=True, exist_ok=True)
     out = outdir / "benchmarks.json"
     with open(out, "w") as f:
@@ -624,7 +657,8 @@ def write_outputs(outdir, meta, records):
                     s = '"' + s.replace('"', '""') + '"'
                 vals.append(s)
             f.write(",".join(vals) + "\n")
-    log(f"wrote {out} and {out.with_suffix('.csv')}")
+    if not quiet:
+        log(f"wrote {out} and {out.with_suffix('.csv')}")
 
 
 def main():
@@ -637,6 +671,9 @@ def main():
     ap.add_argument("--origins-limit", default="",
                     help="engine:city:N,... run that engine on the first N origins of the city")
     ap.add_argument("--no-compare", action="store_true", help="skip the comparison with peabiru")
+    ap.add_argument("--resume", action="store_true",
+                    help="go on from the benchmarks.json in --out: the engines it has are kept, "
+                         "not run again")
     ap.add_argument("--work", default=str(ROOT / "bench" / "data" / "site"),
                     help="scratch directory for inputs and outputs (gitignored)")
     ap.add_argument("--out", default=str(ROOT / "site" / "data"),
@@ -678,12 +715,18 @@ def main():
         meta["cities"][c] = {"name": CITIES[c]["name"], "points": len(ids),
                              "gtfs": CITIES[c]["gtfs"], "pbf": f"{c}_osm.pbf"}
     reference = Reference(inputs, outdir)
+    if a.resume:
+        meta, records = resume_from(out / "benchmarks.json", meta)
+    kept = set(meta["engines"])
 
     env_base = dict(os.environ)
     java_home = (os.environ.get("JAVA_HOME_21") or os.environ.get("JAVA_HOME")
                  or "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home")
 
     for engine in engines:
+        if engine in kept:
+            log(f"[{engine}] kept from the interrupted run")
+            continue
         status = {"status": "ok", "reason": None, "version": None,
                   "tier": ENGINE_TIER.get(engine, "other")}
         meta["engines"][engine] = status
@@ -692,6 +735,7 @@ def main():
         except Skip as e:
             status.update(status="skipped", reason=str(e))
             log(f"[{engine}] skipped: {e}")
+            write_outputs(out, meta, records, quiet=True)
             continue
 
         compared = set()
@@ -769,6 +813,8 @@ def main():
                                     "rss_scope": None})
                     if engine in SINGLE_THREADED and n != threads[0]:
                         records[-1]["measured_threads"] = threads[0]
+        # what is done so far, for --resume if the run is interrupted
+        write_outputs(out, meta, records, quiet=True)
 
     meta["finished"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     meta["machine"]["load_avg_at_end"] = [round(x, 2) for x in os.getloadavg()]

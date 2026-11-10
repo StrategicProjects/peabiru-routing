@@ -6,7 +6,8 @@
 #   image      peabiru-bench:latest       (docker image rm peabiru-bench)
 #   container  peabiru-bench-run          (removed when it exits: --rm)
 #
-# It never prunes anything.
+# It never prunes anything. On a host that runs out of memory the kernel
+# stops this container before anything else (--oom-score-adj 1000).
 #
 # Usage: bench/docker/run.sh [options] [-- run.py options]
 #   --out DIR       host directory for the results (default: ./bench-results)
@@ -20,6 +21,9 @@
 #
 # Everything after `--` goes to bench/site/run.py, for example
 #   bench/docker/run.sh --out /tmp/b -- --cities spo --engines peabiru-cli,dodgr
+# The results are written as each engine finishes; after an interrupted run,
+#   bench/docker/run.sh --no-build --out /tmp/b -- --resume
+# runs the engines that are missing (same options otherwise).
 #
 # The results directory gets benchmarks.json and benchmarks.csv (what
 # site/data holds), versions.txt (every package version in the image), the
@@ -49,7 +53,7 @@ while [ $# -gt 0 ]; do
     --no-build) build=0; shift ;;
     --no-cache) cache=(--no-cache); shift ;;
     --) shift; break ;;
-    -h|--help) sed -n '2,30p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) sed -n '2,32p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown option $1 (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -84,6 +88,7 @@ echo "== running $container: $cpus CPUs (0-$((cpus - 1))), $memory, threads $thr
 docker rm -f "$container" >/dev/null 2>&1 || true
 docker run --rm --name "$container" \
   --cpus "$cpus" --cpuset-cpus "0-$((cpus - 1))" --memory "$memory" --memory-swap "$memory" \
+  --oom-score-adj 1000 \
   -e PEABIRU_COMMIT="$commit" \
   -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   -v "$out:/out" \
