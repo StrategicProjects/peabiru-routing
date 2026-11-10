@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import math
 import numbers
-from typing import Any, List, Optional, Sequence
+import re
+from contextlib import contextmanager
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence
 
 import numpy as np
 
@@ -29,6 +31,56 @@ class UnsupportedError(NotImplementedError):
 
 def fail_assert(name: str, msg: str, exc: type = ValueError) -> None:
     raise exc(f"Assertion on '{name}' failed: {msg}.")
+
+
+# the engine's parameter names that differ from the functions' arguments
+_CORE_NAMES: Dict[str, str] = {
+    "walk_speed_kmh": "walk_speed",
+    "bike_speed_kmh": "bike_speed",
+    "max_trip_duration_min": "max_trip_duration",
+}
+_NUMBER = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w.])")
+_PATHS = re.compile(r"at most (\d+) destinations are supported with paths")
+
+
+def _short_number(m: "re.Match[str]") -> str:
+    tok = m.group(0)
+    if "e" in tok.lower() or len(tok) > 10 and "." in tok:
+        return f"{float(tok):g}"
+    return tok
+
+
+def user_message(
+    msg: str,
+    function: str,
+    names: Optional[Mapping[str, str]] = None,
+    n_destinations: Optional[int] = None,
+) -> str:
+    """An error message of the engine in the terms of ``function``'s
+    arguments: the engine's parameter names become the argument names, and
+    numbers in scientific or long decimal notation are shortened."""
+    renames = dict(_CORE_NAMES)
+    renames.update(names or {})
+    for core in sorted(renames, key=len, reverse=True):
+        msg = re.sub(rf"\b{re.escape(core)}\b", renames[core], msg)
+    paths = _PATHS.search(msg)
+    if paths:
+        got = "" if n_destinations is None else f", got {n_destinations}"
+        msg = f"{function}() supports at most {paths.group(1)} destinations{got}"
+    return _NUMBER.sub(_short_number, msg)
+
+
+@contextmanager
+def core_errors(
+    function: str,
+    names: Optional[Mapping[str, str]] = None,
+    n_destinations: Optional[int] = None,
+) -> Iterator[None]:
+    """Re-raise the engine's ``ValueError`` with :func:`user_message`."""
+    try:
+        yield
+    except ValueError as e:
+        raise ValueError(user_message(str(e), function, names, n_destinations)) from None
 
 
 def unsupported(what: str) -> None:
