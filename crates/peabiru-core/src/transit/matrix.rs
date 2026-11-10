@@ -22,6 +22,12 @@ pub struct TransitParams {
     /// Departure, seconds after midnight.
     pub departure_time: i32,
     pub time_window: i32,
+    /// Travel-time percentiles: 1 to 5 values in 1..=99 (see
+    /// [`validate_percentiles`]). Any order and repeats are accepted; the
+    /// results list them in ascending order, a repeated value once per
+    /// occurrence. r5r sorts them and rejects repeats before calling R5,
+    /// which wants them ascending. The expanded and arrival matrices do not
+    /// use them but check them all the same, so keep the default there.
     pub percentiles: Vec<i32>,
     pub max_walk_time: i32,
     pub max_trip_duration: i32,
