@@ -65,8 +65,14 @@ pip install peabiru            # once published on PyPI
 pip install "peabiru[geo]"     # with geopandas
 ```
 
-Requires Python 3.9 or later and pandas. From a clone of the repository
-(needs a Rust toolchain):
+Requires Python 3.9 or later and pandas. The release builds wheels for
+Linux with glibc (x86_64 and aarch64), macOS (arm64 and x86_64) and Windows
+(x64), one wheel per platform for every Python from 3.9. There are no wheels for
+Linux with musl (Alpine) or for Windows on Arm: there pip builds the package
+from the source distribution, which needs a Rust toolchain (rustc 1.81 or
+later).
+
+From a clone of the repository (needs a Rust toolchain):
 
 ```sh
 cd python

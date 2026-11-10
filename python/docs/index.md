@@ -40,6 +40,11 @@ pip install peabiru            # once published on PyPI
 pip install "peabiru[geo]"     # with geopandas
 ```
 
+Wheels are built for Linux with glibc (x86_64 and aarch64), macOS (arm64
+and x86_64) and Windows (x64). On Linux with musl (Alpine) and on Windows on
+Arm, pip builds the package from the source distribution, which needs a Rust
+toolchain (rustc 1.81 or later).
+
 From a clone of the repository, with a Rust toolchain and
 [maturin](https://www.maturin.rs):
 
