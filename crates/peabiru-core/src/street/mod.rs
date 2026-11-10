@@ -6,6 +6,7 @@
 //! fixed-point degrees (1e-7), lengths millimetres, times whole seconds.
 
 pub mod build;
+mod ch;
 pub mod geom;
 pub mod labels;
 pub mod link;

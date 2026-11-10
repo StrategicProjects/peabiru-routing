@@ -137,17 +137,17 @@ pub(crate) fn worker_threads(requested: usize, n_items: usize) -> usize {
 
 /// Speeds as R5 holds them: km/h to m/s in double, then `(float)`.
 #[derive(Debug, Clone, Copy)]
-struct Speeds {
-    walk: f32,
-    bike: f32,
+pub(super) struct Speeds {
+    pub(super) walk: f32,
+    pub(super) bike: f32,
     /// `(int)(walkSpeed * 1000)`, mm/s, the off-street speed.
-    walk_mms: i32,
+    pub(super) walk_mms: i32,
     /// `(int)(speed * 1000)` for walk/bike destination edges, mm/s.
     on_street_mms: i32,
 }
 
 impl Speeds {
-    fn new(p: &RouteParams, mode: Mode) -> Self {
+    pub(super) fn new(p: &RouteParams, mode: Mode) -> Self {
         let walk = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
         let bike = (p.bike_speed_kmh * 5.0 / 18.0) as f32;
         let on = match mode {
@@ -316,15 +316,15 @@ const CLEAN: u32 = u32::MAX;
 
 /// An outgoing edge as one mode's search sees it.
 #[derive(Debug, Clone, Copy)]
-struct Arc {
-    edge: u32,
-    to: u32,
+pub(super) struct Arc {
+    pub(super) edge: u32,
+    pub(super) to: u32,
     /// Traversal seconds for the mode (before the car turn cost); negative
     /// when the mode cannot use the edge.
-    step: i32,
+    pub(super) step: i32,
     /// Car: bearing entering the edge, whole degrees (R5 `getInAngle`).
-    in_deg: i16,
-    link: bool,
+    pub(super) in_deg: i16,
+    pub(super) link: bool,
 }
 
 /// The street graph as one mode's search reads it: every vertex's outgoing
@@ -332,16 +332,16 @@ struct Arc {
 /// (`arcs[out_offsets[v]..out_offsets[v + 1]]`, in `out_edges` order), so
 /// the inner loop of the search reads one array. Built once per query.
 pub(crate) struct ModeGraph {
-    mode: Mode,
-    sp: Speeds,
+    pub(super) mode: Mode,
+    pub(super) sp: Speeds,
     arcs: Vec<Arc>,
     /// The search must pop equal times in `java.util.PriorityQueue` order:
     /// car searches on a network with turn restrictions.
-    java_order: bool,
+    pub(super) java_order: bool,
 }
 
 impl ModeGraph {
-    fn new(net: &StreetNetwork, mode: Mode, sp: Speeds, max_lts: i32) -> Self {
+    pub(super) fn new(net: &StreetNetwork, mode: Mode, sp: Speeds, max_lts: i32) -> Self {
         let step_of = |f: usize| -> i32 {
             let flags = net.edge_flags[f];
             let len = net.pair_length_mm[f / 2];
@@ -404,7 +404,7 @@ impl ModeGraph {
     }
 
     #[inline]
-    fn arcs(&self, net: &StreetNetwork, v: usize) -> &[Arc] {
+    pub(super) fn arcs(&self, net: &StreetNetwork, v: usize) -> &[Arc] {
         &self.arcs[net.out_offsets[v] as usize..net.out_offsets[v + 1] as usize]
     }
 }
@@ -415,7 +415,7 @@ pub(crate) struct Search {
     /// restriction progress.
     edge_time: Vec<i32>,
     /// Best time at each vertex (min over all incoming edge states).
-    vertex_time: Vec<i32>,
+    pub(super) vertex_time: Vec<i32>,
     touched_edges: Vec<u32>,
     touched_vertices: Vec<u32>,
     /// States in the middle of turn restrictions: `(edge, progress)`. R5
@@ -575,7 +575,7 @@ fn start_restrictions(net: &StreetNetwork, map: &mut RMap, f: u32) {
 /// Turn cost for a car leaving an edge at bearing `out` (whole degrees) onto
 /// one entered at bearing `inn` (R5 `turnTimeSeconds`).
 #[inline]
-fn car_turn_cost(out: i32, inn: i32) -> i32 {
+pub(super) fn car_turn_cost(out: i32, inn: i32) -> i32 {
     let mut out = out;
     if out < inn {
         out += 360;
@@ -601,7 +601,13 @@ fn traversal_seconds(length_mm: i32, speed: f32) -> i32 {
 }
 
 /// Run the street search from an origin split; fills `s.vertex_time`.
-fn route(net: &StreetNetwork, g: &ModeGraph, origin: &Split, limit: i32, s: &mut Search) {
+pub(super) fn route(
+    net: &StreetNetwork,
+    g: &ModeGraph,
+    origin: &Split,
+    limit: i32,
+    s: &mut Search,
+) {
     if g.java_order {
         route_impl::<true>(net, g, origin, limit, s);
     } else {
@@ -704,7 +710,7 @@ fn route_impl<const JAVA: bool>(
 
 /// Time in seconds from the searched origin to a linked destination
 /// (R5 `LinkedPointSet.eval`), or `None` when unreachable.
-fn time_to_point(
+pub(super) fn time_to_point(
     net: &StreetNetwork,
     g: &ModeGraph,
     origin: &Split,
@@ -839,6 +845,15 @@ pub fn travel_time_matrix(
     params.validate()?;
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let m = params.max_trip_duration_min;
+    if super::ch::applies(&g, origins.len(), destinations.len()) {
+        return Ok(super::ch::travel_time_matrix(
+            net,
+            &g,
+            origins,
+            destinations,
+            params,
+        ));
+    }
     let limit = m * 60;
     let mut scratch = Vec::new();
     let dest_splits: Vec<Option<Split>> = destinations
