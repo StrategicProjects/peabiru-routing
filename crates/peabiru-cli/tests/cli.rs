@@ -169,3 +169,39 @@ fn bad_mode_and_rejected_parameters_are_usage_errors() {
     a.extend_from_slice(&["--percentiles", "100"]);
     fails(&transit(&a), 2, "percentiles");
 }
+
+#[test]
+fn transit_commands_need_a_real_date() {
+    fails(
+        &transit(&["--time", "14:00"]),
+        2,
+        "--date and --time are required",
+    );
+    fails(
+        &transit(&["--date", "2019-05-13"]),
+        2,
+        "--date and --time are required",
+    );
+    let bad = ["--date", "2019-02-30", "--time", "14:00"];
+    fails(&transit(&bad), 2, "date must be a calendar date");
+    let o = tmp("o.csv");
+    let (p, o) = (points(), o.to_str().unwrap().to_string());
+    let mut args = vec!["expanded", SPO, &p, &o];
+    args.extend_from_slice(&bad);
+    fails(&run(&args), 2, "date must be a calendar date");
+    let acc = [
+        "accessibility",
+        SPO,
+        &p,
+        &o,
+        "--opportunities",
+        "jobs",
+        "--cutoffs",
+        "30",
+    ];
+    let mut args = acc.to_vec();
+    args.extend_from_slice(&["--mode", "WALK,TRANSIT"]);
+    fails(&run(&args), 2, "--date and --time are required");
+    args.extend_from_slice(&bad);
+    fails(&run(&args), 2, "date must be a calendar date");
+}

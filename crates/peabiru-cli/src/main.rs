@@ -93,13 +93,20 @@ fn transit(args: &[String]) {
     let (dir, points, out) = positional3(cmd, args);
     let mut p = TransitParams::default();
     let mut repeats = 1usize;
+    let (mut have_date, mut have_time) = (false, false);
     let mut i = 3;
     while i < args.len() {
         let name = args[i].as_str();
         let v = cli::value(cmd, args, i);
         match name {
-            "--date" => p.date = cli::date(cmd, name, v),
-            "--time" => p.departure_time = cli::time_of_day(cmd, name, v),
+            "--date" => {
+                p.date = cli::date(cmd, name, v);
+                have_date = true;
+            }
+            "--time" => {
+                p.departure_time = cli::time_of_day(cmd, name, v);
+                have_time = true;
+            }
             "--tw" => p.time_window = cli::count(cmd, name, v),
             "--percentiles" => p.percentiles = cli::list(cmd, name, v),
             "--max-walk" => p.max_walk_time = cli::count(cmd, name, v),
@@ -112,6 +119,9 @@ fn transit(args: &[String]) {
             _ => usage_error(cmd, format!("unknown option '{name}'")),
         }
         i += 2;
+    }
+    if !(have_date && have_time) {
+        usage_error(cmd, "--date and --time are required");
     }
     let (ids, pts) = read_points(cmd, points);
     let t0 = Instant::now();

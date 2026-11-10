@@ -14,7 +14,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// Routing parameters with r5r's defaults.
 #[derive(Debug, Clone)]
 pub struct TransitParams {
-    /// Service date `yyyymmdd`.
+    /// Service date `yyyymmdd`; it must be a real calendar date. The
+    /// default, 0, is a placeholder that [`TransitParams::validate`]
+    /// rejects: there is no default date, as r5r has no default departure.
     pub date: u32,
     /// Departure, seconds after midnight.
     pub departure_time: i32,
@@ -35,6 +37,7 @@ impl TransitParams {
     /// the other bounds keep every value an int in seconds and bound what a
     /// parameter can make RAPTOR allocate (iterations x stops per origin).
     pub fn validate(&self) -> Result<(), String> {
+        validate_date(self.date)?;
         if self.percentiles.is_empty() || self.percentiles.len() > 5 {
             return Err(format!(
                 "between 1 and 5 percentiles are allowed, got {}",
@@ -97,21 +100,56 @@ impl Default for TransitParams {
     }
 }
 
-/// Day of week of `yyyymmdd`, 0 = Monday.
-pub fn weekday(date: u32) -> usize {
+/// Days in month `m` (1-12) of year `y`, proleptic Gregorian calendar.
+fn days_in_month(y: i64, m: i64) -> i64 {
+    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    match m {
+        2 if leap => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
+}
+
+/// Check that `yyyymmdd` is a real calendar date (Gregorian, years 1 to
+/// 9999): `20190513` passes, `20190230`, `20191301` and `0` do not. The
+/// service calendar is looked up by this date, so a date that does not
+/// exist would silently match no service.
+pub fn validate_date(date: u32) -> Result<(), String> {
     let (y, m, d) = (
-        (date / 10000) as i64,
-        ((date / 100) % 100) as i64,
-        (date % 100) as i64,
+        i64::from(date / 10000),
+        i64::from((date / 100) % 100),
+        i64::from(date % 100),
     );
-    // days from civil (Howard Hinnant), 1970-01-01 is a Thursday
+    if (1..=9999).contains(&y) && (1..=12).contains(&m) && d >= 1 && d <= days_in_month(y, m) {
+        Ok(())
+    } else {
+        Err(format!(
+            "date must be a calendar date written yyyymmdd, got {date}"
+        ))
+    }
+}
+
+/// Days since 1970-01-01 of a valid `yyyymmdd` (Howard Hinnant's
+/// `days_from_civil`).
+pub(crate) fn days_from_civil(date: u32) -> i64 {
+    let (y, m, d) = (
+        i64::from(date / 10000),
+        i64::from((date / 100) % 100),
+        i64::from(date % 100),
+    );
     let y = if m <= 2 { y - 1 } else { y };
     let era = y.div_euclid(400);
     let yoe = y - era * 400;
     let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    let days = era * 146_097 + doe - 719_468;
-    ((days + 3).rem_euclid(7)) as usize
+    era * 146_097 + doe - 719_468
+}
+
+/// Day of week of `yyyymmdd`, 0 = Monday.
+pub fn weekday(date: u32) -> usize {
+    // 1970-01-01 is a Thursday
+    ((days_from_civil(date) + 3).rem_euclid(7)) as usize
 }
 
 /// Network data precomputed once and shared by every query.
@@ -428,45 +466,72 @@ mod tests {
 
     #[test]
     fn invalid_parameters_are_rejected() {
-        let ok = TransitParams::default();
+        let ok = TransitParams {
+            date: 20190513,
+            ..TransitParams::default()
+        };
         assert!(ok.validate().is_ok());
         for bad in [
             TransitParams {
                 percentiles: vec![],
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 percentiles: vec![100],
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 time_window: 0,
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 draws_per_minute: 0,
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 time_window: 1440,
                 draws_per_minute: 1000,
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 max_trip_duration: 0,
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 max_rides: 0,
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 walk_speed_kmh: f64::NAN,
-                ..TransitParams::default()
+                ..ok.clone()
+            },
+            TransitParams {
+                date: 0,
+                ..ok.clone()
+            },
+            TransitParams {
+                date: 20190230,
+                ..ok.clone()
             },
         ] {
             assert!(bad.validate().is_err(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn dates_are_calendar_dates() {
+        for ok in [20190513, 20200229, 20000229, 19700101, 10101, 99991231] {
+            assert!(validate_date(ok).is_ok(), "{ok}");
+        }
+        for bad in [
+            0, 20190230, 20190229, 19000229, 20191301, 20190500, 20190001, 101,
+        ] {
+            assert!(validate_date(bad).is_err(), "{bad}");
+        }
+        assert_eq!(
+            validate_date(20190230).unwrap_err(),
+            "date must be a calendar date written yyyymmdd, got 20190230"
+        );
     }
 
     #[test]

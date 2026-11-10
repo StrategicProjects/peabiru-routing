@@ -178,6 +178,7 @@ pub fn run(args: &[String]) {
     let mut rp = RouteParams::default();
     let mut dest_path: Option<String> = None;
     let mut repeats = 1usize;
+    let (mut have_date, mut have_time) = (false, false);
     let mut i = 3;
     while i < args.len() {
         let name = args[i].as_str();
@@ -197,8 +198,14 @@ pub fn run(args: &[String]) {
             "--decay-value" => decay_value = Some(num()),
             "--cutoffs" => cutoffs = Some(cli::list(CMD, name, v)),
             "--percentiles" => percentiles = cli::list(CMD, name, v),
-            "--date" => tp.date = cli::date(CMD, name, v),
-            "--time" => tp.departure_time = cli::time_of_day(CMD, name, v),
+            "--date" => {
+                tp.date = cli::date(CMD, name, v);
+                have_date = true;
+            }
+            "--time" => {
+                tp.departure_time = cli::time_of_day(CMD, name, v);
+                have_time = true;
+            }
             "--tw" => tp.time_window = cli::count(CMD, name, v),
             "--max-walk" => {
                 max_walk = if v.eq_ignore_ascii_case("inf") {
@@ -248,6 +255,9 @@ pub fn run(args: &[String]) {
             "unsupported mode '{mode}' (WALK,TRANSIT | WALK | BICYCLE | CAR)"
         )),
     };
+    if street_mode.is_none() && !(have_date && have_time) {
+        fail("--date and --time are required with TRANSIT");
+    }
     let f = decay_function(&decay, decay_value, &cutoffs);
     let (m, w) = r5r_trip_limits(
         &f,
@@ -306,9 +316,6 @@ pub fn run(args: &[String]) {
             times.push(t.elapsed().as_secs_f64());
         }
     } else {
-        if tp.date == 0 {
-            fail("--date and --time are required with TRANSIT");
-        }
         let (net, layer) =
             peabiru_core::transit::build_from_dir(net_path, &build).unwrap_or_else(|e| fail_io(e));
         let data = TransitData::new(&net, &layer);
