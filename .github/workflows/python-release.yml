@@ -14,6 +14,9 @@
 #   repository   peabiru-routing
 #   workflow     python-release.yml
 #   environment  pypi
+# Give the pypi environment protection rules on GitHub (Settings >
+# Environments > pypi: required reviewers, and deployments only from tags
+# v*), so that publishing a release cannot upload without an approval.
 #
 # Actions are pinned to commit hashes; Dependabot proposes the updates
 # (.github/dependabot.yml).
