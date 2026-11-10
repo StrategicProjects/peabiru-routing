@@ -1,8 +1,10 @@
 name: CI
 
 # The Rust core and command-line tool on the three platforms, the oldest
-# supported compiler, and the R package installed from the checkout. The
-# Python wheels are built and tested by python-release.yml.
+# supported compiler, the R package installed from the checkout, and the
+# Python package built as a wheel on Linux and tested with the oldest and
+# newest supported Python. The wheels of every platform are built and tested
+# by python-release.yml.
 
 on:
   push:
@@ -49,6 +51,41 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: rustup toolchain install 1.81 --profile minimal
       - run: cargo +1.81 check --locked -p peabiru-core -p peabiru-cli
+
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # the oldest and newest supported (pyproject.toml); ubuntu-24.04, not
+        # ubuntu-latest: setup-python has no Python 3.9 for the newer image
+        python: ["3.9", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Lint the extension crate
+        # the root's default members leave the Python crate out of the rust
+        # job's clippy; PyO3 finds the interpreter set up above
+        run: cargo clippy -p peabiru-python --all-targets --locked -- -D warnings
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          working-directory: python
+          manylinux: auto
+          args: --release --out dist
+      - name: Install the test dependencies, then the wheel just built
+        # the dependencies and the "test" extra of pyproject.toml; the wheel
+        # comes from dist only, never from PyPI
+        run: |
+          python -m pip install "pandas>=1.5" "pytest>=7" "geopandas>=0.12"
+          python -m pip install --no-index --find-links python/dist peabiru
+      - name: Run the tests against the installed wheel
+        # from the repository root, so that `import peabiru` finds the
+        # installed wheel and not the source directory
+        run: python -m pytest python/tests
 
   r:
     name: R package ${{ matrix.os }}
