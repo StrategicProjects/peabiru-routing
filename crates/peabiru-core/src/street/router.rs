@@ -846,13 +846,7 @@ pub fn travel_time_matrix(
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let m = params.max_trip_duration_min;
     if super::ch::applies(&g, origins.len(), params.n_threads) {
-        return Ok(super::ch::travel_time_matrix(
-            net,
-            &g,
-            origins,
-            destinations,
-            params,
-        ));
+        return super::ch::travel_time_matrix(net, &g, origins, destinations, params);
     }
     let limit = m * 60;
     let mut scratch = Vec::new();

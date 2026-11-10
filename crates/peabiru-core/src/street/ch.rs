@@ -28,6 +28,7 @@
 use super::link::{find_split, Split};
 use super::router::{car_turn_cost, time_to_point, Mode, ModeGraph, RouteParams, Search};
 use super::StreetNetwork;
+use crate::RouteError;
 use contract::Hierarchy;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
@@ -486,14 +487,16 @@ pub(super) fn travel_time_matrix(
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     params: &RouteParams,
-) -> Vec<Option<u32>> {
+) -> Result<Vec<Option<u32>>, RouteError> {
     let mode = g.mode;
     let m = params.max_trip_duration_min;
     let limit = (m * 60) as u32;
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
+    let cancel = &params.cancel;
     if out.is_empty() {
-        return out;
+        cancel.check()?;
+        return Ok(out);
     }
     let t0 = Instant::now();
     let mut scratch = Vec::new();
@@ -508,6 +511,7 @@ pub(super) fn travel_time_matrix(
         .collect();
     let threads = super::router::worker_threads(params.n_threads, usize::MAX);
     let p = Prepared::new(net, g, vertices, threads);
+    cancel.check()?;
     let t_query = Instant::now();
     let n_threads = super::router::worker_threads(params.n_threads, origins.len().div_ceil(LANES));
     // Each worker takes the next LANES origins' rows of `out`.
@@ -520,7 +524,7 @@ pub(super) fn travel_time_matrix(
                     let mut search = Search::new(net);
                     let mut scratch = Vec::new();
                     let mut splits = [None; LANES];
-                    loop {
+                    while !cancel.is_cancelled() {
                         let next = batches.lock().expect("batch queue").next();
                         let Some((b, rows)) = next else { break };
                         for (k, s) in splits.iter_mut().enumerate() {
@@ -576,7 +580,8 @@ pub(super) fn travel_time_matrix(
             t0.elapsed().as_secs_f64()
         );
     }
-    out
+    cancel.check()?;
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -645,6 +650,7 @@ mod tests {
             max_lts,
             max_trip_duration_min: minutes,
             n_threads,
+            ..RouteParams::default()
         }
     }
 
@@ -783,7 +789,7 @@ mod tests {
                         ..p.clone()
                     };
                     let g = ModeGraph::new(&net, mode, Speeds::new(&p, mode), p.max_lts);
-                    let got = travel_time_matrix(&net, &g, &origins, &destinations, &p);
+                    let got = travel_time_matrix(&net, &g, &origins, &destinations, &p).unwrap();
                     ENGINE.with(|e| e.set(Some(Engine::Dijkstra)));
                     let want = crate::street::router::travel_time_matrix(
                         &net,
