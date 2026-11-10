@@ -37,7 +37,7 @@ street network and the transit layer, and links the stops to the streets:
 use peabiru_core::street::BuildOptions;
 use peabiru_core::transit::{build_from_dir, matrix::TransitData};
 
-let (net, layer) = build_from_dir("data/spo", &BuildOptions { n_threads: 0 })?;
+let (net, layer) = build_from_dir("r/inst/extdata/spo", &BuildOptions { n_threads: 0 })?;
 // Walking transfers and egress distances, computed once per network and
 // shared by every public transport query:
 let data = TransitData::new(&net, &layer);

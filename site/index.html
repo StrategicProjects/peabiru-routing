@@ -138,13 +138,15 @@ ttm = peabiru.travel_time_matrix(
 use peabiru_core::street::BuildOptions;
 use peabiru_core::transit::{build_from_dir, matrix::{travel_time_matrix, TransitData, TransitParams}};
 
-let (net, layer) = build_from_dir("data/spo", &amp;BuildOptions::default())?;
+<span class="c">// the sample in the repository; any directory with one .pbf and GTFS .zip files</span>
+let (net, layer) = build_from_dir("r/inst/extdata/spo", &amp;BuildOptions::default())?;
 let data = TransitData::new(&amp;net, &amp;layer);
 let params = TransitParams { date: 20190513, departure_time: 14 * 3600,
                              seed: Some(42), ..TransitParams::default() };
 let ttm = travel_time_matrix(&amp;net, &amp;layer, &amp;data, &amp;points, &amp;points, &amp;params)?;</code></pre>
 <pre><code><span class="c"># the same from the shell, CSV in and out</span>
-cargo run --release -p peabiru-cli -- transit data/spo points.csv ttm.csv \
+cargo run --release -p peabiru-cli -- transit r/inst/extdata/spo \
+    r/inst/extdata/spo/spo_points.csv ttm.csv \
     --date 2019-05-13 --time 14:00:00 --tw 10 --percentiles 25,50,75 --seed 42</code></pre>
       <p class="muted"><a href="rust/">The Rust guide</a> · <a href="rust/api/peabiru_core/">API reference</a></p>
     </div>

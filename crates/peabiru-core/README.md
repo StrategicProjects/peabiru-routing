@@ -30,7 +30,9 @@ use peabiru_core::street::BuildOptions;
 use peabiru_core::transit::build_from_dir;
 use peabiru_core::transit::matrix::{travel_time_matrix, TransitData, TransitParams};
 
-let (net, layer) = build_from_dir("data/spo", &BuildOptions::default())?;
+// a directory with one OpenStreetMap .pbf and the GTFS .zip feeds: here the
+// São Paulo sample of the repository; use your own data directory
+let (net, layer) = build_from_dir("r/inst/extdata/spo", &BuildOptions::default())?;
 let data = TransitData::new(&net, &layer);
 let points = vec![(-23.5563, -46.6290), (-23.5577, -46.6321)]; // (lat, lon)
 let params = TransitParams {
