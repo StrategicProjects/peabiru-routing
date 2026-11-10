@@ -8,7 +8,7 @@ build-backend = "maturin"
 name = "peabiru"
 description = "Multimodal routing on OpenStreetMap and GTFS networks: travel-time matrices and accessibility, with a Rust engine and no Java"
 readme = "README.md"
-license = "MIT"
+license = "MIT AND Apache-2.0 AND BSD-3-Clause"
 license-files = ["LICENSE-MIT", "LICENSE-THIRD-PARTY", "LICENSE-RUST-CRATES"]
 requires-python = ">=3.9"
 authors = [

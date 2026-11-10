@@ -9,6 +9,8 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 readme = "README.md"
+# A test and benchmark tool for now: built from the repository, not published.
+publish = false
 keywords = ["routing", "gtfs", "openstreetmap", "accessibility", "cli"]
 categories = ["command-line-utilities", "science::geo"]
 

@@ -20,7 +20,7 @@ authors = [
 ]
 edition = "2021"
 rust-version = "1.81"
-license = "MIT"
+license = "MIT AND Apache-2.0 AND BSD-3-Clause"
 repository = "https://github.com/StrategicProjects/peabiru-routing"
 homepage = "https://github.com/StrategicProjects/peabiru-routing"
 
