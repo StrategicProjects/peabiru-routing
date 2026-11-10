@@ -10,8 +10,9 @@ cargo build --release -p peabiru-cli
 ```
 
 Points files are CSV with a header and at least `id`, `lon` and `lat`
-columns, like r5r's sample grids. Unless said otherwise, the same points are
-the origins and the destinations. Outputs are CSV in r5r's long format.
+columns. Unless said otherwise, the same points are the origins and the
+destinations. Outputs are CSV in long format, one row per pair (or per
+origin), with the columns of the R and Python packages.
 
 ## Street matrix
 
@@ -42,8 +43,8 @@ peabiru accessibility <dir | file.osm.pbf> <points.csv> <out.csv> --opportunitie
 ```
 
 The opportunity columns are read from the points file (or from
-`--destinations`). Arguments are checked, and trip limits derived, as r5r
-does.
+`--destinations`). Arguments are checked, and trip limits derived, as in the
+R and Python packages.
 
 ## Expanded and arrival matrices
 
@@ -64,7 +65,8 @@ peabiru osm-stats <file.osm.pbf> [n_threads]   # what the PBF reader sees
 peabiru dump-edges <file.osm.pbf>              # every directed edge, as CSV
 ```
 
-`dump-edges` writes the columns of r5r's `street_network_to_sf()` edges, for
-comparing two networks edge by edge (see [Parity with r5r](parity.md)).
+`dump-edges` writes one row per directed edge with its permissions, speeds
+and traffic stress, for comparing two networks edge by edge (see
+[Parity with r5r](parity.md)).
 
 Each command prints the build and routing times on standard output.

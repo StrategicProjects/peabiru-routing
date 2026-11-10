@@ -55,10 +55,35 @@ identical(as.data.frame(from_r5r), from_peabiru)
 cat("*(This chunk was not run when the page was built: it needs r5r and a JDK 21.)*\n")
 ```
 
-The last line is how parity is tested: `bench/compare/r_parity.R` in the
-repository runs dozens of such comparisons on r5r's Porto Alegre and São
-Paulo samples (street and transit matrices, accessibility, expanded and
-arrival matrices, edge cases) and fails on any difference.
+## How parity is checked {#parity}
+
+```{r, echo = FALSE, fig.alt = "Parity: the same inputs go through r5r 2.5.0 (R5 7.6 on Java) and peabiru, and the outputs are compared for exact equality: matrices pair by pair, accessibility bit for bit, expanded and arrival matrices column by column and in order, and data frames with identical() in R."}
+fig("parity.svg")
+```
+
+The `identical()` comparison above is how parity is tested:
+`bench/compare/r_parity.R` in the repository runs dozens of such comparisons
+on r5r's Porto Alegre and São Paulo samples (street and transit matrices,
+accessibility, expanded and arrival matrices, edge cases) and fails on any
+difference.
+
+"The same results" is meant literally: every travel time, every accessibility
+value (as a double, to the last bit) and every row of the expanded and arrival
+matrices, in the same order. The comparisons run on r5r's two sample cities,
+Porto Alegre (timetables) and São Paulo (frequencies), with parameters chosen
+to exercise the edge cases: short time windows, walking limits, every
+percentile and decay function, origins that cannot be linked, trips across
+midnight. The scripts are in `bench/compare/` in the repository.
+
+This works because the engine is a port of R5 7.6, the engine r5r drives, and
+follows its rules down to details that only matter on ties: the order in
+which ways, feeds and stops are read, which of two equal paths is kept, how
+lengths and speeds are rounded, the random number generator behind the
+Monte Carlo draws (a Mersenne Twister seeded from `seed` and the origin's
+coordinates, as in R5), and the exponential of the decay functions
+(Apache Commons Math's `FastMath.exp`, which R5 calls, instead of the C
+library's). Limits are R5's too, such as the 5,000 destinations accepted by
+the expanded and arrival matrices.
 
 ## Different on purpose
 

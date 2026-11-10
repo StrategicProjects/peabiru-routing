@@ -13,10 +13,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 peabiru computes travel times and accessibility on transport networks built
 from an [OpenStreetMap](https://www.openstreetmap.org) extract and
-[GTFS](https://gtfs.org) public transport feeds. Its functions are those of
-the [r5r](https://ipeagit.github.io/r5r/) package, with the same arguments and
-defaults, and its results are the same as r5r 2.5.0's: the routing engine is a
-port of Conveyal's R5 to Rust, so no Java is needed.
+[GTFS](https://gtfs.org) public transport feeds, by walking, cycling, driving
+and public transport. The routing engine is written in Rust and runs inside
+the R session: no Java is needed, and the network is built once, in memory.
+If you know r5r, the functions and arguments will look familiar; the article
+"Coming from r5r" on the package website lists what carries over.
 
 This vignette runs on the small network that ships with the package: the
 streets around Avenida Paulista in São Paulo, the city's frequency-based bus
@@ -30,8 +31,7 @@ library(peabiru)
 ## Build a network
 
 A network is built from a directory holding one `.pbf` file and any number of
-GTFS `.zip` files, as with `r5r::build_network()`. It lives in memory and is
-reused by every routing call.
+GTFS `.zip` files. It lives in memory and is reused by every routing call.
 
 ```{r}
 data_path <- system.file("extdata/spo", package = "peabiru")
@@ -80,8 +80,7 @@ With `mode = c("WALK", "TRANSIT")` the trip combines walking and public
 transport. A departure time is needed, and the result summarises the trips
 that leave in each minute of `time_window` as percentiles. This feed is
 frequency-based, so the departures are simulated with random draws: give a
-`seed` to make them reproducible (with the same seed, r5r gives the same
-numbers).
+`seed` to make them reproducible.
 
 ```{r}
 departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
@@ -174,4 +173,4 @@ travel_time_matrix(network, points, points, mode = c("BICYCLE", "TRANSIT"),
 
 The help pages of `travel_time_matrix()`, `accessibility()`,
 `expanded_travel_time_matrix()` and `arrival_travel_time_matrix()` list each
-argument; they match r5r's.
+argument and its default.

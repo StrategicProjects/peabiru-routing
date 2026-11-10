@@ -2,8 +2,8 @@
 
 [`accessibility()`](reference.md#peabiru.accessibility) counts the
 opportunities (jobs, schools, people...) that can be reached from each
-origin, as `r5r::accessibility()` does, and gives the same values to the last
-bit.
+origin, either within cutoffs or weighted by a decay function of the travel
+time.
 
 ```python
 import datetime as dt
@@ -58,7 +58,7 @@ There is one row per origin, opportunity, percentile and cutoff, in that
 order: origins and opportunities as given, percentiles and cutoffs
 ascending. Missing opportunity counts count as zero, with a warning.
 
-As in r5r, with the `"step"` function trips longer than the largest cutoff
+With the `"step"` function, trips longer than the largest cutoff
 are not considered (`max_trip_duration` becomes `max(cutoffs)`), and
 `max_trip_duration` may never be shorter than the largest cutoff.
 
@@ -116,10 +116,11 @@ print(a.head(3))
 2  89a8100c077ffff        jobs          50   24385.802656
 ```
 
-Accessibility values are doubles (`float64`). They are bit-identical to
-r5r's, including the decay functions that go through the `FastMath.exp()`
-of Apache Commons Math that R5 uses (which is not correctly rounded, and is
-reproduced as such).
+Accessibility values are doubles (`float64`). The travel time given to the
+decay function is the percentile in seconds, not rounded to minutes, and the
+exponential is a port of Apache Commons Math's `FastMath.exp()` (which is not
+correctly rounded, and is reproduced as such) rather than the C library's,
+so the values do not depend on the platform's maths library.
 
 ## Street modes
 

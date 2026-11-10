@@ -6,23 +6,23 @@ title: "How it works"
 source("setup.R")
 ```
 
-peabiru is a port of the routing engine behind r5r, Conveyal's
-[R5](https://github.com/conveyal/r5) 7.6, to Rust. This page follows a
-request from the input files to the numbers, with the same diagrams as the
+peabiru's routing engine is written in Rust and runs inside the R session.
+This page follows a request from the input files to the numbers, with the same diagrams as the
 [Rust guide](../../rust/how-it-works.html). It describes what is computed
 and in which order, not the data structures, which change as the engine is
 optimised.
 
 ## One engine, three packages
 
-```{r, echo = FALSE, fig.alt = "Architecture: an OpenStreetMap .pbf and GTFS .zip feeds go into peabiru-core, a Rust crate that builds the street network and transit layer in memory and computes every result; the R package, the Python package (in development) and the command line are front-ends over it."}
+```{r, echo = FALSE, fig.alt = "Architecture: an OpenStreetMap .pbf and GTFS .zip feeds go into peabiru-core, a Rust crate that builds the street network and transit layer in memory and computes every result; the R package, the Python package and the command line are front-ends over it."}
 fig("architecture.svg")
 ```
 
-The Rust crate `peabiru-core` does all the work. This R package converts
-arguments and results, as r5r's R code does around R5, and the Python package
-(in development) and the `peabiru` command-line tool do the same for their
-users.
+The Rust crate `peabiru-core` does all the work. This R package checks the
+arguments, converts points and results between R and Rust, and returns a
+`data.frame`; the Python package (which returns pandas data frames) and the
+`peabiru` command-line tool (CSV in, CSV out) do the same for their users.
+There is no separate process to start and nothing is written to disk.
 
 ## Building the network
 
@@ -39,9 +39,10 @@ nearest walkable street, and two walking tables are computed once: transfers
 between nearby stops (up to 1 km) and walking distances from every stop (up
 to 2 km), used to reach destinations.
 
-To give the same answers as R5, each step follows R5's rules, down to details
-that only matter on ties: the order in which ways, feeds and stops are read,
-which of two equal paths is kept, and how lengths and speeds are rounded.
+Each step has fixed rules down to details that only matter on ties: the
+order in which ways, feeds and stops are read, which of two equal paths is
+kept, and how lengths and speeds are rounded. The same inputs therefore give
+the same network, and the same results, whatever the number of threads.
 
 ## Street routing
 
@@ -64,8 +65,8 @@ much cheaper than independent searches.
 
 Frequency-based trips have no fixed departure times. For them every minute is
 repeated `draws_per_minute` times with random offsets, drawn from a Mersenne
-Twister seeded, as in R5, from `seed` and the origin's coordinates; that is
-why the same `seed` gives the same numbers as r5r.
+Twister seeded from `seed` and the origin's coordinates, so the same `seed`
+gives the same numbers on every run and with any number of threads.
 
 ## Accessibility
 
@@ -83,24 +84,14 @@ For these, the search also keeps, for every stop and iteration, the path that
 led there (which vehicles, boarded where and when), so each trip can be
 broken down into access, waiting, riding, transfers and egress.
 
-## Parity with r5r {#parity}
-
-```{r, echo = FALSE, fig.alt = "Parity: the same inputs go through r5r 2.5.0 (R5 7.6 on Java) and peabiru, and the outputs are compared for exact equality: matrices pair by pair, accessibility bit for bit, expanded and arrival matrices column by column and in order, and data frames with identical() in R."}
-fig("parity.svg")
-```
-
-"The same results" is meant literally: every travel time, every accessibility
-value (as a double, to the last bit) and every row of the expanded and arrival
-matrices, in the same order. The comparisons run on r5r's two sample cities,
-Porto Alegre (timetables) and São Paulo (frequencies), with parameters chosen
-to exercise the edge cases: short time windows, walking limits, every
-percentile and decay function, origins that cannot be linked, trips across
-midnight. The scripts are in `bench/compare/` in the repository.
+How the results are checked against r5r's is described in
+[Coming from r5r](coming-from-r5r.html#parity).
 
 ## Credits
 
-The algorithms and their fine print are R5's (MIT licence, © Conveyal),
-including RAPTOR as implemented in R5's `FastRaptorWorker`; the decay
-functions' exponential reproduces Apache Commons Math 3's `FastMath.exp`
-(Apache-2.0). r5r, by IPEA, defined the interface this package mirrors and
-supplies the reference results.
+The algorithms and their fine print are ported from Conveyal's
+[R5](https://github.com/conveyal/r5) 7.6 (MIT licence, © Conveyal), including
+RAPTOR as implemented in R5's `FastRaptorWorker`; the decay functions'
+exponential reproduces Apache Commons Math 3's `FastMath.exp` (Apache-2.0).
+r5r, by Ipea, defined the interface this package follows and supplies the
+reference results.

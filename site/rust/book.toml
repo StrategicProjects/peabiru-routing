@@ -1,6 +1,6 @@
 [book]
 title = "peabiru for Rust"
-description = "Guide to the peabiru-core crate and the peabiru command-line tool: multimodal routing on OpenStreetMap and GTFS networks with r5r's results."
+description = "Guide to the peabiru-core crate and the peabiru command-line tool: a multimodal routing engine for OpenStreetMap and GTFS networks, written in Rust."
 authors = [
   "André Leite",
   "Marcos Wasiliew",

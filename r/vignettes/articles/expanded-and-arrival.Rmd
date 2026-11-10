@@ -57,7 +57,7 @@ Trips longer than `max_trip_duration` keep their row with `NA` times.
 ## The latest trip that arrives in time
 
 `arrival_travel_time_matrix()` takes an `arrival_datetime` instead of a
-departure. As r5r does, it searches departures minute by minute over the
+departure. It searches departures minute by minute over the
 `max_trip_duration` minutes before the arrival (the window may start on the
 previous day) and, for each pair, keeps the first trip, from the latest
 departure backwards, that arrives by the arrival time.
@@ -80,7 +80,7 @@ absent.
 
 ## Limits
 
-r5r computes these matrices with R5's path bookkeeping, which refuses more
-than 5,000 destinations; peabiru keeps the same limit. The expanded matrix
+These functions keep the path of every trip and accept at most 5,000
+destinations. The expanded matrix
 grows with origins × destinations × minutes × draws, so it is meant for a
 few origins at a time.

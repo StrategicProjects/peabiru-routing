@@ -113,5 +113,5 @@
   <text class="t s" x="617" y="242">street network</text>
 
   <text class="t s" x="24" y="432">Steps 1–8 run once per network (in R, inside <tspan class="code">build_network()</tspan>); the result stays in memory and every query reuses it.</text>
-  <text class="t s" x="24" y="452">Each step follows R5 7.6, down to its iteration and tie-breaking orders: that is what makes the results match r5r exactly.</text>
+  <text class="t s" x="24" y="452">Each step keeps fixed iteration and tie-breaking orders, so the same inputs always give the same network and the same results.</text>
 </svg>

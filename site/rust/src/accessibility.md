@@ -1,8 +1,8 @@
 # Accessibility
 
 `transit::accessibility::transit_accessibility` (walk + public transport) and
-`street_accessibility` (one street mode) are r5r's `accessibility()`: for
-each origin, the sum over destinations of the opportunities at the
+`street_accessibility` (one street mode) compute what `accessibility()`
+returns in R and Python: for each origin, the sum over destinations of the opportunities at the
 destination times a decay weight of the travel time.
 
 <img src="../assets/diagrams/accessibility.svg" alt="Accessibility is the sum over destinations of opportunities times a decay weight of the travel time; five decay functions drawn for a 30 minute cutoff." width="980" height="420">
@@ -18,14 +18,16 @@ destination times a decay weight of the travel time.
   one.
 
 The travel time given to the decay function is the percentile in seconds,
-not rounded to minutes, and the exponential is a port of the one R5 calls
-(`FastMath.exp` from Apache Commons Math 3), so the values are bit-identical
-to r5r's.
+not rounded to minutes, and the exponential is a port of `FastMath.exp` from
+Apache Commons Math 3 rather than the platform's `exp`, so the values do not
+depend on the C library.
 
-r5r adjusts the trip limits before calling R5 (with `Step`,
-`max_trip_duration` becomes the largest cutoff; `max_walk_time = Inf` becomes
-`max_trip_duration`). `r5r_trip_limits` does the same, so that the crate
-gives r5r's numbers for r5r's arguments.
+The R and Python packages adjust the trip limits before routing: with
+`Step`, `max_trip_duration` becomes the largest cutoff, and an unlimited
+`max_walk_time` becomes `max_trip_duration`. `r5r_trip_limits` applies the
+same rules, so the crate gives the packages' numbers for their arguments
+(the name records that the rules are r5r's; see
+[Parity with r5r](parity.md)).
 
 ## Example
 

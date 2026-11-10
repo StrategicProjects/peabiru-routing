@@ -19,8 +19,7 @@ points = peabiru.sample_points()
 [`expanded_travel_time_matrix()`](reference.md#peabiru.expanded_travel_time_matrix)
 gives the travel time of the trip found for every departure minute of
 `time_window` and, with frequency-based GTFS, for every Monte Carlo draw
-(`draws_per_minute`, 5 by default), as `r5r::expanded_travel_time_matrix()`
-does. With `breakdown=True` each trip is split into access, waiting,
+(`draws_per_minute`, 5 by default). With `breakdown=True` each trip is split into access, waiting,
 in-vehicle, transfer and egress times, and the number of rides:
 
 ```python
@@ -64,7 +63,7 @@ dtype: object
 
 Times are minutes with one decimal (`float64`). `routes` joins the route ids
 of the rides with `"|"`, or is `"[WALK]"` for a trip on foot. Trips longer
-than `max_trip_duration` are kept with missing values, as in r5r: `NaN`
+than `max_trip_duration` are kept with missing values: `NaN`
 times, `None` routes and `<NA>` rides.
 
 ```python
@@ -92,8 +91,7 @@ print(short[short["total_time"].isna()][["to_id", "routes", "n_rides", "total_ti
 
 [`arrival_travel_time_matrix()`](reference.md#peabiru.arrival_travel_time_matrix)
 finds, for each origin and destination, the trip that leaves latest and
-still arrives by `arrival_datetime`, as `r5r::arrival_travel_time_matrix()`
-does: departures are searched minute by minute from
+still arrives by `arrival_datetime`: departures are searched minute by minute from
 `arrival_datetime - max_trip_duration`.
 
 ```python
@@ -121,7 +119,7 @@ print(attm.sort_values("total_time", ascending=False)[cols].head().to_string())
 ### Around midnight and time zones
 
 The search window may start on the day before; departure times after
-midnight are then written past `24:00:00`, as R5 does:
+midnight are then written past `24:00:00`:
 
 ```python
 late = peabiru.arrival_travel_time_matrix(

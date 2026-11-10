@@ -46,7 +46,7 @@
   <text class="t h" x="356" y="156">w</text>
   <text class="t s" x="392" y="156">the decay function, drawn below for a 30 min cutoff (dashed line)</text>
 
-  <text class="t xs" x="40" y="404">Weight against travel time (minutes). With "step", trips longer than the largest cutoff are not routed at all (r5r sets max_trip_duration to it).</text>
+  <text class="t xs" x="40" y="404">Weight against travel time (minutes). With "step", trips longer than the largest cutoff are not routed at all (max_trip_duration is lowered to it).</text>
   <text class="t h code" x="40" y="216">"step"</text>
   <line class="ax" x1="40" y1="246" x2="40" y2="342"/>
   <line class="ax" x1="40" y1="342" x2="190" y2="342"/>

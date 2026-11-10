@@ -95,10 +95,9 @@ head(ttm)
 When a feed gives frequencies (a bus every 10 minutes) instead of timetables,
 the exact departure times are unknown. Each departure minute is then
 simulated `draws_per_minute` times with random offsets, so the percentiles
-also reflect the uncertainty of the schedule. The draws come from the same
-random number generator as r5r's, seeded by `seed` and the origin's
-coordinates: with a seed the result is reproducible and equal to r5r's; without
-one it changes from run to run, as r5r's does.
+also reflect the uncertainty of the schedule. The draws come from a random
+number generator seeded by `seed` and the origin's coordinates: with a seed
+the result is reproducible; without one it changes from run to run.
 
 ```{r}
 again <- travel_time_matrix(

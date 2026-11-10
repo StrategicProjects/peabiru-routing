@@ -1,17 +1,24 @@
 # peabiru
 
+[![CI](https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml/badge.svg)](https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-MIT)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](#install)
+<!-- After the first release on PyPI, uncomment:
+[![PyPI](https://img.shields.io/pypi/v/peabiru.svg)](https://pypi.org/project/peabiru/)
+-->
+
 peabiru computes travel-time matrices and accessibility on multimodal
 transport networks (walking, cycling, driving and public transport) built
 from an [OpenStreetMap](https://www.openstreetmap.org) extract and
 [GTFS](https://gtfs.org) feeds.
 
-Its functions, their arguments and their results are those of the R package
-[r5r](https://ipeagit.github.io/r5r/) 2.5.0. The routing engine is a Rust
-port of [R5](https://github.com/conveyal/r5), the engine r5r drives (R5
-7.6), and it gives **the same results as r5r, pair for pair**: the same
-travel times, the same accessibility values to the last bit, the same rows
-in the same order. No Java is needed. The same Rust core powers the R
-package of the same name.
+The routing engine is written in Rust and runs inside the Python process:
+no Java is needed, the network is built once in memory and reused by every
+call, and results come back as `pandas.DataFrame`s. The same Rust core
+powers the R package of the same name, with the same functions and
+arguments. Coming from r5r or r5py? See
+[Coming from r5py / r5r](coming-from-r5.md).
 
 | Function | What it computes |
 |---|---|
@@ -45,7 +52,8 @@ maturin develop --uv --release
 
 peabiru ships a small network for examples and tests: the streets around
 Avenida Paulista, in Sao Paulo, with the frequency-based GTFS feed of
-SPTrans, cut from r5r's sample data. Build a network from its directory:
+SPTrans, cut from the sample data of the R package r5r. Build a network
+from its directory:
 
 ```python
 import peabiru
@@ -62,7 +70,7 @@ print(network.info())
 
 The network lives in memory and is reused by every routing call. Origins and
 destinations are `pandas.DataFrame`s with columns `id`, `lon` and `lat` (in
-WGS 84); the sample comes with 27 points of r5r's hexagonal grid:
+WGS 84); the sample comes with 27 points of a hexagonal grid:
 
 ```python
 points = peabiru.sample_points()
@@ -99,7 +107,7 @@ print(len(ttm), "pairs")
 By public transport, leaving at 14:00 on a Monday and over a 10-minute
 window of departure times, the 25th, 50th and 75th percentiles of the travel
 time. The sample feed is frequency-based, so the departures are drawn at
-random: give a `seed` to make the result reproducible (and equal to r5r's).
+random: give a `seed` to make the result reproducible.
 
 ```python
 import datetime as dt
@@ -150,13 +158,14 @@ print(access.head())
 
 ## What is not supported yet
 
-Anything peabiru cannot compute exactly as r5r does is an error
+Anything peabiru does not implement yet is an error
 ([`UnsupportedError`](reference.md#peabiru.UnsupportedError)), never
 silently ignored: public transport with bicycle or car access or with a
 non-walking egress, routing on a subset of transit modes (such as `"BUS"`),
 fares, scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`), writing to
 `output_dir`, elevation, and expanded or arrival matrices by a street mode
-alone. See [Coming from r5py / r5r](coming-from-r5.md) for the full list.
+alone. The full list is under
+[Not supported yet](coming-from-r5.md#not-supported-yet).
 
 ## Sample data
 

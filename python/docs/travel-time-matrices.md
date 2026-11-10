@@ -1,9 +1,8 @@
 # Travel-time matrices
 
 [`travel_time_matrix()`](reference.md#peabiru.travel_time_matrix) computes
-the travel time from every origin to every destination, as
-`r5r::travel_time_matrix()` does. The examples on this page use the sample
-network:
+the travel time from every origin to every destination, by a street mode
+or by public transport. The examples on this page use the sample network:
 
 ```python
 import datetime as dt
@@ -40,7 +39,7 @@ dtype: object
 ```
 
 `from_id` and `to_id` are strings (object dtype); travel times are whole
-minutes in pandas' nullable `Int32`. Speeds and limits are r5r's arguments:
+minutes in pandas' nullable `Int32`. Speeds and limits are arguments:
 
 ```python
 bike = peabiru.travel_time_matrix(
@@ -59,7 +58,7 @@ print(len(bike), "pairs within 10 minutes;", bike["travel_time_p50"].max(), "at 
 ```
 
 A street trip has one travel time, so every requested percentile gets the
-same value (as in r5r):
+same value:
 
 ```python
 walk = peabiru.travel_time_matrix(
@@ -73,11 +72,10 @@ print(list(walk.columns))
 ```
 
 !!! note "Walking with more origins than destinations"
-    r5r routes walking trips *from the destinations* when there are more
-    origins than destinations (and no elevation raster), and swaps the
-    columns back. The two directions can differ on one-way paths, so
-    peabiru does the same; the result still has `from_id` as the caller's
-    origins.
+    When there are more origins than destinations (and no elevation
+    raster), walking trips are routed *from the destinations* and the
+    columns are swapped back. The two directions can differ on one-way
+    paths; the result still has `from_id` as the caller's origins.
 
 ## Public transport
 
@@ -108,14 +106,13 @@ print(ttm[ttm["travel_time_p95"].isna()].head(3).to_string())
 ```
 
 A pair is reported when its lowest percentile is within `max_trip_duration`;
-a higher percentile beyond the limit is missing (`<NA>`), as in r5r.
+a higher percentile beyond the limit is missing (`<NA>`).
 
 ### Departure times
 
-The date and the clock time of `departure_datetime` are used as they read,
-like r5r does with a `POSIXct` in its own time zone: a naive datetime and an
-aware datetime with the same clock time give the same result, whatever the
-time zone.
+The date and the clock time of `departure_datetime` are used as they read:
+a naive datetime and an aware datetime with the same clock time give the
+same result, whatever the time zone.
 
 ```python
 from zoneinfo import ZoneInfo
@@ -139,10 +136,9 @@ True
 ### Frequency-based GTFS and the seed
 
 When a feed describes trips by frequency (`frequencies.txt`, as the sample
-feed does), R5 draws `draws_per_minute` random schedules for each departure
-minute. Without a `seed` the result varies from call to call, in r5r and in
-peabiru alike; with a seed it is reproducible and equal to r5r's with the same
-seed.
+feed does), the engine draws `draws_per_minute` random schedules for each
+departure minute. Without a `seed` the result varies from call to call; with
+a seed it is reproducible.
 
 ```python
 kw = dict(mode="TRANSIT", departure_datetime=dt.datetime(2019, 5, 13, 14, 0), n_threads=2)
@@ -158,7 +154,7 @@ True
 ## Odd inputs
 
 Points with missing coordinates are not routed (with a warning), and points
-too far from any street are simply absent from the result, as in r5r. Ids
+too far from any street are simply absent from the result. Ids
 that are not strings are converted with `str()`, with a warning.
 
 ```python
@@ -210,7 +206,7 @@ True
 
 ## From long to wide
 
-The result is in long format, as r5r's. A wide origin-by-destination table
+The result is in long format, one row per pair. A wide origin-by-destination table
 is one `pivot` away:
 
 ```python
@@ -228,6 +224,6 @@ from_id
 
 ## Threads
 
-`n_threads=None` (the default) uses all cores, like r5r's `Inf`
-(`math.inf` is accepted too). The Python interpreter lock is released while
+`n_threads=None` (the default) uses all cores (`math.inf` is accepted
+too). The Python interpreter lock is released while
 the Rust core routes, so other Python threads keep running.

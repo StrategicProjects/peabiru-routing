@@ -115,3 +115,9 @@ footer p { margin: 4px 0; }
   .hero { padding-top: 32px; }
   .top nav { margin-left: 0; }
 }
+
+/* badge row under the hero: small and quiet */
+.hero .badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 20px 0 0; opacity: 0.85; }
+.hero .badges a, .hero .badges img { display: block; line-height: 0; }
+.hero .badges img { height: 20px; width: auto; }
+.hero .badges a:hover { opacity: 1; }

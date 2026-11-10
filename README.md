@@ -1,10 +1,28 @@
-# peabiru
+<h1 align="center"><img src="site/assets/logo.svg" alt="peabiru" width="252" height="64"></h1>
 
-A multimodal routing engine written in Rust. It builds a network from an
-OpenStreetMap extract and GTFS feeds and computes travel-time matrices and
-accessibility by walking, cycling, driving and public transport. The same
-engine is behind an R package, a Python package, a Rust crate and a
-command-line tool, and it needs no Java runtime.
+<p align="center">
+<a href="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml"><img src="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+<a href="https://lifecycle.r-lib.org/articles/stages.html#experimental"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a>
+<a href="crates/peabiru-core"><img src="https://img.shields.io/badge/rustc-1.81%2B-blue.svg" alt="rustc 1.81+"></a>
+<a href="python"><img src="https://img.shields.io/badge/python-3.9%2B-blue.svg" alt="Python 3.9+"></a>
+<a href="r"><img src="https://img.shields.io/badge/R-%3E%3D%204.2-blue.svg" alt="R >= 4.2"></a>
+<!-- After the first release on each registry, uncomment the matching badge;
+     the Zenodo one needs the DOI that Zenodo assigns to the first release.
+<a href="https://crates.io/crates/peabiru-core"><img src="https://img.shields.io/crates/v/peabiru-core.svg" alt="crates.io"></a>
+<a href="https://docs.rs/peabiru-core"><img src="https://docs.rs/peabiru-core/badge.svg" alt="docs.rs"></a>
+<a href="https://pypi.org/project/peabiru/"><img src="https://img.shields.io/pypi/v/peabiru.svg" alt="PyPI"></a>
+<a href="https://CRAN.R-project.org/package=peabiru"><img src="https://www.r-pkg.org/badges/version/peabiru" alt="CRAN"></a>
+<a href="https://doi.org/10.5281/zenodo.XXXXXXX"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg" alt="DOI"></a>
+-->
+</p>
+
+A multimodal routing engine written in Rust, for R, Python, Rust and the
+shell. It builds a network in memory from an OpenStreetMap extract and GTFS
+feeds and computes travel-time matrices and accessibility by walking,
+cycling, driving and public transport. It needs no Java runtime, keeps
+nothing on disk, and the network is built once and shared by every query
+and thread.
 
 | Package | For | Directory | Registry |
 |---|---|---|---|
@@ -15,6 +33,8 @@ command-line tool, and it needs no Java runtime.
 
 The name comes from the Peabiru, the pre-Columbian network of trails that
 crossed South America from the Atlantic to the Andes.
+
+![Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the street network and the transit layer in memory and computes every result; the R package, the Python package and the command-line tool are thin front-ends over it.](site/assets/diagrams/architecture.svg)
 
 ## What it computes
 
@@ -35,6 +55,46 @@ elevation. Asking for any of them is an error; nothing is silently ignored.
 
 **Status:** version 0.0.1, early development. The interfaces may still
 change.
+
+## How it works
+
+**Building the network.** One `.pbf` becomes a street network with one edge
+per direction, the modes allowed on it, car speeds and the cyclists' level of
+traffic stress; the GTFS feeds become patterns of trips, each stop is linked
+to the nearest walkable street, and walking tables for transfers and egress
+are computed once.
+
+![Network build in eight steps: read the extract; ways to edges with permissions, speeds and traffic stress; clean up; index, park-and-ride and turn restrictions; read the GTFS feeds; trips to patterns; link stops to streets; walking tables for transfers (1 km) and egress (2 km).](site/assets/diagrams/network-build.svg)
+
+**Street routing.** Each point is linked to the nearest street open to the
+mode, and a search over directed edges, cheapest first, runs from every
+origin up to the time limit, with walking and cycling speeds, traffic stress,
+car speeds, turn costs and turn restrictions.
+
+![Street routing: link each point to the nearest street open to the mode; search directed edges from the origin, earliest arrival first, up to the time limit; reach each destination through either end of its edge.](site/assets/diagrams/street-routing.svg)
+
+**Public transport.** For each origin, a walk reaches the nearby stops; RAPTOR
+then runs for every minute of the departure window, from the last minute back
+to the first so that each minute reuses the later one's results, with Monte
+Carlo draws for frequency-based trips; a walk from the stops reaches each
+destination, and the times of all the iterations are summarised as
+percentiles.
+
+![Transit travel-time matrix: walk from the origin; RAPTOR over each departure minute, latest first, with Monte Carlo draws for frequency-based trips; walk from stops to each destination; percentiles of the iteration times.](site/assets/diagrams/transit-matrix.svg)
+
+<details>
+<summary><b>Accessibility</b>: opportunities weighted by a decay function of the travel time</summary>
+
+![Accessibility is the sum over destinations of opportunities times a decay weight of the travel-time percentile in seconds; the five decay functions are drawn for a 30 minute cutoff.](site/assets/diagrams/accessibility.svg)
+
+</details>
+
+<details>
+<summary><b>Expanded and arrival matrices</b>: every departure minute, and the latest trip that arrives in time</summary>
+
+![Expanded matrix: one row per departure minute and draw with the trip breakdown. Arrival matrix: departures scanned from the latest minute back, keeping the first trip that arrives in time.](site/assets/diagrams/expanded-arrival.svg)
+
+</details>
 
 ## Example
 
@@ -75,8 +135,9 @@ ttm = peabiru.travel_time_matrix(
 ```
 
 Both use the small network of São Paulo that ships with the packages. More
-in [`python/README.md`](python/README.md) and in the documentation of each
-package.
+in the README of each package ([R](r/README.md), [Python](python/README.md),
+[Rust](crates/peabiru-core/README.md)) and in the documentation sites, built
+by [`site/build.sh`](site/README.md).
 
 ## Installing from source
 
@@ -104,6 +165,7 @@ the comparisons are exact.
 cargo test                                          # core and command-line tool
 cd python && maturin develop --uv && .venv/bin/python -m pytest
 Rscript -e 'devtools::test("r")'
+site/build.sh                                       # documentation sites, into _site/
 ```
 
 ## Licence and credits
