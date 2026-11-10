@@ -45,9 +45,11 @@ frontiers, bicycle or car access to public transport, elevation. The results
 are checked against r5r's on every scenario in the repository; see
 [Parity with r5r](parity.md).
 
-The API follows the structure of the engine more than a polished Rust
-interface: expect it to change before 1.0. The [API reference](api.md)
-(rustdoc) documents the current one.
+The API is a small set of functions and types at the root of the crate;
+the engine's internals are private, and the parameter structs are
+non-exhaustive, so that new fields and functions can be added without
+breaking your code. It may still change before 1.0. The
+[API reference](api.md) (rustdoc) documents the current one.
 
 ## Credits
 

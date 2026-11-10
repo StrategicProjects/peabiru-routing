@@ -11,11 +11,19 @@ use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-/// Street mode.
+/// Street mode, as r5r's `mode` for street-only routing. Non-exhaustive:
+/// R5 has further street modes (bike or car rental and parking) that a
+/// later version may add.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Mode {
+    /// `WALK`, at [`RouteParams::walk_speed_kmh`].
     Walk,
+    /// `BICYCLE`, at [`RouteParams::bike_speed_kmh`] on streets up to
+    /// [`RouteParams::max_lts`], walking where cycling is not allowed.
     Bicycle,
+    /// `CAR`, at the speed limits of OpenStreetMap (or R5's defaults by
+    /// road type), with turn costs and turn restrictions.
     Car,
 }
 
@@ -26,9 +34,10 @@ const RIGHT_TURN: i32 = 10;
 const LEFT_TURN: i32 = 30;
 const U_TURN: i32 = 90;
 
-/// How [`travel_time_matrix`] computes a street matrix. Every choice gives
+/// How [`street_travel_time_matrix`] computes a street matrix. Every choice gives
 /// the same matrix; they differ only in speed and memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum StreetEngine {
     /// The faster of the two for the matrix at hand: the contraction
     /// hierarchy when the network already holds one for the mode and
@@ -44,16 +53,26 @@ pub enum StreetEngine {
     Hierarchy,
 }
 
-/// Routing parameters, with r5r's defaults.
+/// Street routing parameters, with r5r's defaults. Fill it in by changing
+/// the fields of [`RouteParams::default()`]:
+///
+/// ```
+/// let mut p = peabiru_core::RouteParams::default();
+/// p.bike_speed_kmh = 15.0;
+/// p.max_lts = 3;
+/// assert!(p.validate().is_ok());
+/// ```
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct RouteParams {
-    /// Walking speed, km/h.
+    /// Walking speed, km/h (default 3.6).
     pub walk_speed_kmh: f64,
-    /// Cycling speed, km/h.
+    /// Cycling speed, km/h (default 12).
     pub bike_speed_kmh: f64,
-    /// Highest level of traffic stress a cyclist rides on (1-4).
+    /// Highest level of traffic stress a cyclist rides on, 1 to 4
+    /// (default 2).
     pub max_lts: i32,
-    /// Trip limit in whole minutes.
+    /// Trip limit in whole minutes (default 120).
     pub max_trip_duration_min: i32,
     /// Worker threads; 0 means all cores, and more than the cores
     /// available run as many as there are cores.
@@ -63,21 +82,9 @@ pub struct RouteParams {
     /// which nothing cancels unless a clone of it is kept.
     pub cancel: CancelToken,
     /// How a street travel-time matrix is computed (see [`StreetEngine`]);
-    /// it changes the speed of [`travel_time_matrix`], never its result.
+    /// it changes the speed of [`street_travel_time_matrix`], never its result.
     pub engine: StreetEngine,
 }
-
-/// Invalid routing parameters.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParamError(pub String);
-
-impl std::fmt::Display for ParamError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl std::error::Error for ParamError {}
 
 /// A number for an error message: as written when short, else in
 /// scientific notation (`1e300`, not 301 digits).
@@ -106,20 +113,22 @@ pub(crate) fn check_speed(name: &str, v: f64) -> Result<(), String> {
 impl RouteParams {
     /// Check the parameters: speeds must give at least 1 mm/s (R5's
     /// bound), `max_lts` must be 1 to 4 (r5r's bound), the trip limit must
-    /// be a positive number of minutes that fits R5's `int` seconds.
-    pub fn validate(&self) -> Result<(), ParamError> {
-        check_speed("walk_speed_kmh", self.walk_speed_kmh).map_err(ParamError)?;
-        check_speed("bike_speed_kmh", self.bike_speed_kmh).map_err(ParamError)?;
+    /// be a positive number of minutes that fits R5's `int` seconds. Every
+    /// street routing function calls it first; [`RouteError::Invalid`]
+    /// says what is wrong.
+    pub fn validate(&self) -> Result<(), RouteError> {
+        check_speed("walk_speed_kmh", self.walk_speed_kmh)?;
+        check_speed("bike_speed_kmh", self.bike_speed_kmh)?;
         // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
         if !(1..=4).contains(&self.max_lts) {
-            return Err(ParamError(format!(
+            return Err(RouteError::Invalid(format!(
                 "max_lts must be from 1 to 4 (the highest level of traffic stress), got {}",
                 self.max_lts
             )));
         }
         let max_minutes = i32::MAX / 60;
         if !(1..=max_minutes).contains(&self.max_trip_duration_min) {
-            return Err(ParamError(format!(
+            return Err(RouteError::Invalid(format!(
                 "max_trip_duration must be from 1 to {max_minutes} minutes, got {}",
                 self.max_trip_duration_min
             )));
@@ -778,10 +787,11 @@ pub(super) fn time_to_point(
     Some(via(t0, dest.distance0_mm).min(via(t1, dest.distance1_mm)))
 }
 
+#[cfg(test)]
 /// Seconds by street from one point to another with r5r's defaults, before
 /// rounding to minutes; `None` if either point is unlinked or the
 /// destination is unreachable. For tests and diagnostics.
-pub fn street_seconds(
+pub(crate) fn street_seconds(
     net: &StreetNetwork,
     from: (f64, f64),
     to: (f64, f64),
@@ -797,20 +807,21 @@ pub fn street_seconds(
     time_to_point(net, &g, &o, &d, &search)
 }
 
+#[cfg(test)]
 /// One street search from a linked origin: the time at every vertex
 /// (`i32::MAX` where unreached; states kept only below `limit` seconds) and
 /// the direct time in seconds to each linked destination (`i32::MAX` where
 /// unreachable), as R5's `TravelTimeComputer` uses for access and for the
 /// non-transit option. An error when `walk_speed_kmh` is not a valid speed
 /// (see [`RouteParams::validate`]).
-pub fn street_vertex_times(
+pub(crate) fn street_vertex_times(
     net: &StreetNetwork,
     origin: &Split,
     destinations: &[Option<Split>],
     mode: Mode,
     walk_speed_kmh: f64,
     limit: i32,
-) -> Result<(Vec<i32>, Vec<i32>), ParamError> {
+) -> Result<(Vec<i32>, Vec<i32>), RouteError> {
     RouteParams {
         walk_speed_kmh,
         ..RouteParams::default()
@@ -863,9 +874,85 @@ pub(crate) fn search_from(
     }));
 }
 
-/// Travel-time matrix in whole minutes, row-major `origins x destinations`;
-/// `None` where r5r reports no time (unlinked, unreachable or beyond
-/// `max_trip_duration_min`). Points are `(lat, lon)` degrees.
+/// A street travel-time matrix: whole minutes from each origin to each
+/// destination, `None` where r5r reports no time (an origin or destination
+/// that cannot be linked to the streets, an unreachable destination, or a
+/// time beyond `max_trip_duration_min`).
+///
+/// The minutes are held in one buffer, row by row (all destinations of the
+/// first origin, then of the second, ...), which
+/// [`into_vec`](StreetMatrix::into_vec) hands over without copying.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StreetMatrix {
+    n_origins: usize,
+    n_destinations: usize,
+    /// `minutes[origin * n_destinations + destination]`.
+    minutes: Vec<Option<u32>>,
+}
+
+impl StreetMatrix {
+    pub(crate) fn new(n_origins: usize, n_destinations: usize, minutes: Vec<Option<u32>>) -> Self {
+        debug_assert_eq!(minutes.len(), n_origins * n_destinations);
+        StreetMatrix {
+            n_origins,
+            n_destinations,
+            minutes,
+        }
+    }
+
+    /// Number of origins (rows).
+    pub fn n_origins(&self) -> usize {
+        self.n_origins
+    }
+
+    /// Number of destinations (columns).
+    pub fn n_destinations(&self) -> usize {
+        self.n_destinations
+    }
+
+    /// Minutes from origin `origin` to destination `destination` (indices
+    /// in the order the points were given). Panics when either is out of
+    /// range.
+    pub fn get(&self, origin: usize, destination: usize) -> Option<u32> {
+        assert!(
+            origin < self.n_origins && destination < self.n_destinations,
+            "({origin}, {destination}) is outside a {} x {} matrix",
+            self.n_origins,
+            self.n_destinations
+        );
+        self.minutes[origin * self.n_destinations + destination]
+    }
+
+    /// The minutes from origin `origin` to every destination. Panics when
+    /// `origin` is out of range.
+    pub fn row(&self, origin: usize) -> &[Option<u32>] {
+        assert!(origin < self.n_origins, "origin {origin} out of range");
+        let nd = self.n_destinations;
+        &self.minutes[origin * nd..(origin + 1) * nd]
+    }
+
+    /// The rows in origin order, as [`row`](StreetMatrix::row) gives them.
+    pub fn rows(&self) -> impl ExactSizeIterator<Item = &[Option<u32>]> + '_ {
+        (0..self.n_origins).map(move |i| self.row(i))
+    }
+
+    /// The whole matrix as one slice, row by row.
+    pub fn as_slice(&self) -> &[Option<u32>] {
+        &self.minutes
+    }
+
+    /// The whole matrix as one vector, row by row, without copying:
+    /// the value for `(origin, destination)` is at
+    /// `origin * n_destinations + destination`.
+    pub fn into_vec(self) -> Vec<Option<u32>> {
+        self.minutes
+    }
+}
+
+/// Street travel-time matrix in whole minutes by walking, cycling or
+/// driving, as r5r's `travel_time_matrix()` with a single street mode.
+/// Points are `(lat, lon)` degrees. [`RouteError::Invalid`] when the
+/// parameters are invalid (see [`RouteParams::validate`]),
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled before the
 /// matrix is complete.
 ///
@@ -873,7 +960,23 @@ pub(crate) fn search_from(
 /// [`StreetEngine`]); the result is the same either way. A contraction
 /// hierarchy built here is kept with the network and makes later matrices
 /// of the same mode and speeds faster.
-pub fn travel_time_matrix(
+pub fn street_travel_time_matrix(
+    net: &StreetNetwork,
+    origins: &[(f64, f64)],
+    destinations: &[(f64, f64)],
+    mode: Mode,
+    params: &RouteParams,
+) -> Result<StreetMatrix, RouteError> {
+    let minutes = matrix_minutes(net, origins, destinations, mode, params)?;
+    Ok(StreetMatrix::new(
+        origins.len(),
+        destinations.len(),
+        minutes,
+    ))
+}
+
+/// The minutes of [`street_travel_time_matrix`], row by row.
+fn matrix_minutes(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
@@ -941,12 +1044,12 @@ pub fn travel_time_matrix(
 /// origin: `reduce(i, Some(times))` gets origin `i`'s time to every
 /// destination (`i32::MAX` where the destination is unlinked or
 /// unreachable), and `reduce(i, None)` an origin that cannot be linked.
-/// The search is the one behind [`travel_time_matrix`], so a time can
+/// The search is the one behind [`street_travel_time_matrix`], so a time can
 /// exceed `max_trip_duration_min` by the partial edges at both ends, as in
 /// R5's `LinkedPointSet.eval`. Results are in origin order;
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled before every
 /// origin is done.
-pub fn travel_time_seconds<T: Send>(
+pub(crate) fn travel_time_seconds<T: Send>(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
@@ -1055,7 +1158,8 @@ pub(crate) mod tests {
         ];
         for p in bad {
             assert!(
-                travel_time_matrix(&net, &[(0.0, 0.0)], &[(0.0, 0.0)], Mode::Walk, &p).is_err()
+                street_travel_time_matrix(&net, &[(0.0, 0.0)], &[(0.0, 0.0)], Mode::Walk, &p)
+                    .is_err()
             );
         }
         assert!(RouteParams::default().validate().is_ok());
@@ -1220,7 +1324,15 @@ pub(crate) mod tests {
                 n_threads: 1,
                 ..RouteParams::default()
             };
-            let m1 = travel_time_matrix(&net, &pts, dest, mode, &one).unwrap();
+            let m = street_travel_time_matrix(&net, &pts, dest, mode, &one).unwrap();
+            assert_eq!((m.n_origins(), m.n_destinations()), (pts.len(), dest.len()));
+            for (i, row) in m.rows().enumerate() {
+                assert_eq!(row, m.row(i));
+                for (j, &cell) in row.iter().enumerate() {
+                    assert_eq!(cell, m.get(i, j));
+                }
+            }
+            let m1 = m.into_vec();
             assert_eq!(m1.len(), pts.len() * dest.len());
             assert!(m1.iter().filter(|c| c.is_some()).count() > 100);
             for n_threads in [0, 3, 64] {
@@ -1228,15 +1340,21 @@ pub(crate) mod tests {
                     n_threads,
                     ..RouteParams::default()
                 };
-                assert_eq!(travel_time_matrix(&net, &pts, dest, mode, &p).unwrap(), m1);
+                let m = street_travel_time_matrix(&net, &pts, dest, mode, &p).unwrap();
+                assert_eq!(m.as_slice(), m1);
             }
             for (i, &o) in pts.iter().enumerate() {
-                let row = travel_time_matrix(&net, &[o], dest, mode, &one).unwrap();
-                assert_eq!(row[..], m1[i * dest.len()..(i + 1) * dest.len()], "{i}");
+                let row = street_travel_time_matrix(&net, &[o], dest, mode, &one).unwrap();
+                assert_eq!(
+                    row.as_slice(),
+                    &m1[i * dest.len()..(i + 1) * dest.len()],
+                    "{i}"
+                );
             }
-            assert!(travel_time_matrix(&net, &pts, &[], mode, &one)
-                .unwrap()
-                .is_empty());
+            let empty = street_travel_time_matrix(&net, &pts, &[], mode, &one).unwrap();
+            assert!(empty.as_slice().is_empty());
+            assert_eq!(empty.rows().len(), pts.len());
+            assert!(empty.rows().all(<[_]>::is_empty));
         }
     }
 }

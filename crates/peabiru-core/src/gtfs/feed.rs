@@ -164,22 +164,9 @@ pub(crate) fn parse_time(s: &str) -> Result<Option<i32>, ()> {
 }
 
 impl Feed {
-    /// Read a feed from a GTFS zip file. Errors name the file.
-    pub fn read_zip(path: impl AsRef<std::path::Path>) -> Result<Feed, GtfsError> {
-        Self::read_zip_with_limits(path, Limits::default())
-    }
-
-    /// [`Feed::read_zip`] with other bounds on how far the archive may
-    /// expand.
-    pub fn read_zip_with_limits(
-        path: impl AsRef<std::path::Path>,
-        limits: Limits,
-    ) -> Result<Feed, GtfsError> {
-        Self::read_zip_checked(path, limits).map(|(feed, _)| feed)
-    }
-
-    /// [`Feed::read_zip_with_limits`], also saying how the archive is laid
-    /// out (for the warnings about feeds that r5r refuses).
+    /// Read a feed from a GTFS zip file, with bounds on how far the archive
+    /// may expand, also saying how the archive is laid out (for the
+    /// warnings about feeds that r5r refuses). Errors name the file.
     pub(crate) fn read_zip_checked(
         path: impl AsRef<std::path::Path>,
         limits: Limits,

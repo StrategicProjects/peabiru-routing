@@ -15,9 +15,8 @@ and change as the engine is optimised.
 
 <img src="../assets/diagrams/network-build.svg" alt="Network build in eight steps: read the extract; ways to edges with permissions, speeds and traffic stress; clean up (intersection stress, islands); index, park-and-ride and turn restrictions; read the GTFS feeds; trips to patterns; link stops to streets; walking tables for transfers (1 km) and egress (2 km)." width="980" height="470">
 
-In the API: steps 1 to 4 are `street::build_network`; steps 5 to 7 happen in
-`transit::build_from_dir` (`TransitLayer::load` and `link_stops`); step 8 is
-`TransitData::new`.
+In the API: steps 1 to 4 are `build_network`; `build_from_dir` runs them and
+steps 5 to 7; step 8 is `TransitData::new`.
 
 ## Street routing
 

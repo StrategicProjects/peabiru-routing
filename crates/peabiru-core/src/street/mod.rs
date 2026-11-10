@@ -5,21 +5,21 @@
 //! (along the OSM way) and the backward edge `2k + 1`. Coordinates are
 //! fixed-point degrees (1e-7), lengths millimetres, times whole seconds.
 
-pub mod build;
+pub(crate) mod build;
 mod ch;
-pub mod geom;
-pub mod labels;
-pub mod link;
-pub mod parkride;
-pub mod restrictions;
-pub mod router;
+pub(crate) mod geom;
+pub(crate) mod labels;
+pub(crate) mod link;
+pub(crate) mod parkride;
+pub(crate) mod restrictions;
+pub(crate) mod router;
 
 pub use build::{build_network, BuildOptions};
-pub use link::Split;
-pub use restrictions::TurnRestriction;
-pub use router::{travel_time_matrix, Mode, ParamError, RouteParams, StreetEngine};
+pub(crate) use restrictions::TurnRestriction;
+pub use router::{street_travel_time_matrix, Mode, RouteParams, StreetEngine, StreetMatrix};
 
 /// Edge flags (bit set per directed edge).
+#[allow(missing_docs)]
 pub mod flags {
     pub const ALLOWS_PEDESTRIAN: u32 = 1 << 0;
     pub const ALLOWS_BIKE: u32 = 1 << 1;
@@ -52,75 +52,101 @@ pub mod vertex_flags {
     pub const IMPASSABLE: u8 = 1 << 1;
 }
 
-/// A routable street network.
+/// A routable street network for walking, cycling and driving, built by
+/// [`build_network`] or, with its transit stops linked to the streets, by
+/// [`build_from_dir`](crate::build_from_dir).
 ///
-/// Street matrices may build contraction hierarchies and keep them in the
-/// network for later calls (a few megabytes for a city; see
-/// [`router::StreetEngine`]). They are checked against the network's
-/// arrays before every use, so changing the public fields between calls is
-/// safe: the hierarchies are then dropped and built again when needed.
+/// A network is read-only once built: share it between threads by
+/// reference, as every routing function takes `&StreetNetwork`. Street
+/// matrices may build contraction hierarchies and keep them in the network
+/// for later calls (a few megabytes for a city; see [`StreetEngine`]);
+/// a clone shares them.
 #[derive(Debug, Clone, Default)]
 pub struct StreetNetwork {
+    // Invariant: the arrays below never change once a network has been
+    // handed out. They are written only while building, by
+    // `build::network_from_extract` and, in `build_from_dir`, by
+    // `TransitLayer::link_stops`, both before any street matrix can have
+    // run, so the hierarchies kept in `hierarchies` (built from these
+    // arrays) are never stale. `link_stops` drops kept hierarchies all the
+    // same. Any new code that changes the arrays of a network that may
+    // have been routed on must drop them too (`forget_hierarchies`).
     /// Vertex latitude, fixed-point 1e-7 degrees.
-    pub v_lat: Vec<i32>,
+    pub(crate) v_lat: Vec<i32>,
     /// Vertex longitude, fixed-point 1e-7 degrees.
-    pub v_lon: Vec<i32>,
-    pub v_flags: Vec<u8>,
+    pub(crate) v_lon: Vec<i32>,
+    pub(crate) v_flags: Vec<u8>,
 
     /// Per pair: from and to vertex of the forward edge.
-    pub pair_from: Vec<u32>,
-    pub pair_to: Vec<u32>,
+    pub(crate) pair_from: Vec<u32>,
+    pub(crate) pair_to: Vec<u32>,
     /// Per pair: length in millimetres (haversine over the OSM nodes).
-    pub pair_length_mm: Vec<i32>,
+    pub(crate) pair_length_mm: Vec<i32>,
     /// Per pair: OSM way id.
-    pub pair_way: Vec<i64>,
+    pub(crate) pair_way: Vec<i64>,
     /// Per pair: intermediate geometry `geom[a..b]` for `pair_geom[k] = (a, b)`,
     /// as `(lat, lon)` fixed-point, in forward order. A split appends the new
     /// geometry and moves the range.
-    pub pair_geom: Vec<(u32, u32)>,
-    pub geom: Vec<(i32, i32)>,
+    pub(crate) pair_geom: Vec<(u32, u32)>,
+    pub(crate) geom: Vec<(i32, i32)>,
     /// Per pair: bearing leaving the first point and entering the last one,
     /// in binary radians (R5 brads).
-    pub pair_in_brad: Vec<i8>,
-    pub pair_out_brad: Vec<i8>,
+    pub(crate) pair_in_brad: Vec<i8>,
+    pub(crate) pair_out_brad: Vec<i8>,
 
     /// Per directed edge: flags and car speed in cm/s.
-    pub edge_flags: Vec<u32>,
-    pub edge_speed_cms: Vec<i16>,
+    pub(crate) edge_flags: Vec<u32>,
+    pub(crate) edge_speed_cms: Vec<i16>,
 
     /// Outgoing edges of each vertex: `out_edges[out_offsets[v]..out_offsets[v + 1]]`.
-    pub out_offsets: Vec<u32>,
-    pub out_edges: Vec<u32>,
+    pub(crate) out_offsets: Vec<u32>,
+    pub(crate) out_edges: Vec<u32>,
     /// Incoming edges of each vertex.
-    pub in_offsets: Vec<u32>,
-    pub in_edges: Vec<u32>,
+    pub(crate) in_offsets: Vec<u32>,
+    pub(crate) in_edges: Vec<u32>,
 
     /// Spatial index over the forward edges, for linking.
-    pub index: link::EdgeIndex,
+    pub(crate) index: link::EdgeIndex,
 
     /// Car turn restrictions.
-    pub restrictions: Vec<TurnRestriction>,
+    pub(crate) restrictions: Vec<TurnRestriction>,
     /// `(from_edge, restriction index)`, sorted: restrictions that start when
     /// a car enters an edge.
-    pub restriction_starts: Vec<(u32, u32)>,
+    pub(crate) restriction_starts: Vec<(u32, u32)>,
 
     /// Contraction hierarchies built by street matrices, kept for later
-    /// ones (see [`router::StreetEngine`]); a clone shares them.
+    /// ones (see [`StreetEngine`]); a clone shares them.
     hierarchies: ch::Cache,
 }
 
 impl StreetNetwork {
+    /// Number of vertices: street intersections and ends, split points,
+    /// and the vertices of transit stops and park-and-ride connectors.
     pub fn n_vertices(&self) -> usize {
         self.v_lat.len()
     }
 
+    /// Number of directed edges (two per street segment, one each way,
+    /// whether or not a mode may use it).
     pub fn n_edges(&self) -> usize {
         self.edge_flags.len()
     }
 
+    /// Number of car turn restrictions read from OpenStreetMap and kept.
+    pub fn n_restrictions(&self) -> usize {
+        self.restrictions.len()
+    }
+
+    /// Drop the contraction hierarchies kept for street matrices: to be
+    /// called by anything that changes the network's arrays (see the
+    /// invariant on the fields).
+    pub(crate) fn forget_hierarchies(&mut self) {
+        self.hierarchies = ch::Cache::default();
+    }
+
     /// Indices of the restrictions that start on edge `e`.
     #[inline]
-    pub fn restrictions_starting_at(&self, e: u32) -> impl Iterator<Item = u32> + '_ {
+    pub(crate) fn restrictions_starting_at(&self, e: u32) -> impl Iterator<Item = u32> + '_ {
         let lo = self.restriction_starts.partition_point(|&(f, _)| f < e);
         self.restriction_starts[lo..]
             .iter()
@@ -129,7 +155,7 @@ impl StreetNetwork {
     }
 
     #[inline]
-    pub fn edge_from(&self, e: usize) -> usize {
+    pub(crate) fn edge_from(&self, e: usize) -> usize {
         let k = e / 2;
         (if e % 2 == 0 {
             self.pair_from[k]
@@ -139,7 +165,7 @@ impl StreetNetwork {
     }
 
     #[inline]
-    pub fn edge_to(&self, e: usize) -> usize {
+    pub(crate) fn edge_to(&self, e: usize) -> usize {
         let k = e / 2;
         (if e % 2 == 0 {
             self.pair_to[k]
@@ -149,18 +175,18 @@ impl StreetNetwork {
     }
 
     #[inline]
-    pub fn out_edges(&self, v: usize) -> &[u32] {
+    pub(crate) fn out_edges(&self, v: usize) -> &[u32] {
         &self.out_edges[self.out_offsets[v] as usize..self.out_offsets[v + 1] as usize]
     }
 
     #[inline]
-    pub fn in_edges(&self, v: usize) -> &[u32] {
+    pub(crate) fn in_edges(&self, v: usize) -> &[u32] {
         &self.in_edges[self.in_offsets[v] as usize..self.in_offsets[v + 1] as usize]
     }
 
     /// All points of a pair's forward geometry, vertices included, as
     /// `(lat, lon)` fixed-point.
-    pub fn pair_points(&self, k: usize) -> impl Iterator<Item = (i32, i32)> + '_ {
+    pub(crate) fn pair_points(&self, k: usize) -> impl Iterator<Item = (i32, i32)> + '_ {
         let v0 = self.pair_from[k] as usize;
         let v1 = self.pair_to[k] as usize;
         let (a, b) = self.pair_geom[k];
@@ -172,7 +198,7 @@ impl StreetNetwork {
 
     /// Bearing in whole degrees entering a directed edge (R5 `getInAngle`).
     #[inline]
-    pub fn in_angle(&self, e: usize) -> i32 {
+    pub(crate) fn in_angle(&self, e: usize) -> i32 {
         let k = e / 2;
         if e % 2 == 0 {
             geom::brads_to_degrees(self.pair_in_brad[k])
@@ -183,7 +209,7 @@ impl StreetNetwork {
 
     /// Bearing in whole degrees leaving a directed edge (R5 `getOutAngle`).
     #[inline]
-    pub fn out_angle(&self, e: usize) -> i32 {
+    pub(crate) fn out_angle(&self, e: usize) -> i32 {
         let k = e / 2;
         if e % 2 == 0 {
             geom::brads_to_degrees(self.pair_out_brad[k])

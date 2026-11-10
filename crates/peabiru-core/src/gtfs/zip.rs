@@ -162,10 +162,6 @@ pub struct Archive {
 }
 
 impl Archive {
-    pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self, ZipError> {
-        Self::from_bytes(std::fs::read(path)?)
-    }
-
     pub fn open_with_limits(
         path: impl AsRef<std::path::Path>,
         limits: Limits,

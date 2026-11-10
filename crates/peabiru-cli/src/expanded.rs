@@ -2,11 +2,10 @@
 //! `--arrival`, `arrival_travel_time_matrix()`, written as r5r's CSV.
 
 use crate::cli::{self, runtime_error, usage_error};
-use peabiru_core::street::BuildOptions;
-use peabiru_core::transit::expanded::{
-    arrival_departure, arrival_travel_time_matrix, expanded_travel_time_matrix, ExpandedRow,
+use peabiru_core::{
+    arrival_departure, arrival_travel_time_matrix, expanded_travel_time_matrix, BuildOptions,
+    ExpandedRow, TransitData, TransitParams,
 };
-use peabiru_core::transit::matrix::{TransitData, TransitParams};
 use std::io::Write;
 use std::time::Instant;
 
@@ -80,14 +79,10 @@ pub fn run(args: &[String]) {
     }
     let (ids, pts) = crate::read_points(cmd, points);
     let t0 = Instant::now();
-    let (net, layer) = cli::build_from_dir(
-        cmd,
-        dir,
-        &BuildOptions {
-            n_threads: p.n_threads,
-        },
-    )
-    .unwrap_or_else(|e| runtime_error(cmd, e));
+    let mut opts = BuildOptions::default();
+    opts.n_threads = p.n_threads;
+    let (net, layer) =
+        cli::build_from_dir(cmd, dir, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
     let data = TransitData::new(&net, &layer);
     let build_s = t0.elapsed().as_secs_f64();
     let origins = &pts[..n_origins.min(pts.len())];
@@ -113,7 +108,7 @@ pub fn run(args: &[String]) {
             expanded_travel_time_matrix(&net, &layer, &data, batch, &pts, &p)
         };
         let rows = res.unwrap_or_else(|e| usage_error(cmd, e));
-        for (k, origin_rows) in rows.iter().enumerate() {
+        for (k, origin_rows) in rows.origins().enumerate() {
             let from = &ids[b * ORIGIN_BATCH + k];
             for r in origin_rows {
                 write_row(&mut w, from, &ids, r, breakdown).unwrap_or_else(|e| write_failed(e));
@@ -124,8 +119,8 @@ pub fn run(args: &[String]) {
     w.flush().unwrap_or_else(|e| write_failed(e));
     println!(
         "stops {}  patterns {}  build {:.3}s  route {:.3}s  origins {}  rows {}",
-        layer.stop_ids.len(),
-        layer.patterns.len(),
+        layer.n_stops(),
+        layer.n_patterns(),
         build_s,
         t1.elapsed().as_secs_f64(),
         origins.len(),

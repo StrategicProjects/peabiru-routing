@@ -37,6 +37,7 @@ impl Header {
         self.names.iter().position(|h| h == name)
     }
 
+    #[cfg(test)]
     pub fn names(&self) -> &[String] {
         &self.names
     }

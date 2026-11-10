@@ -8,6 +8,7 @@ use crate::gtfs::zip::Limits;
 use crate::gtfs::GtfsError;
 use crate::street::geom::{haversine_m, java_int, FIXED_FACTOR};
 use crate::street::{parkride, Mode, StreetNetwork};
+use crate::transit::matrix::weekday;
 use std::collections::{BTreeMap, HashMap};
 
 /// One frequency entry of a trip: departures from the first stop every
@@ -78,31 +79,36 @@ impl Service {
     }
 }
 
-/// All transit data of a network.
+/// The public transport of a network: the stops, trip patterns and
+/// timetables of its GTFS feeds, loaded as R5 7.6 loads them, with each stop
+/// linked to the street network it was built with. Made by
+/// [`build_from_dir`](crate::build_from_dir), together with that street
+/// network; read-only once built.
 #[derive(Debug, Clone, Default)]
 pub struct TransitLayer {
-    pub feed_ids: Vec<String>,
+    pub(crate) feed_ids: Vec<String>,
     /// `feed_id:stop_id`, in stop index order.
-    pub stop_ids: Vec<String>,
-    pub stop_lat: Vec<f64>,
-    pub stop_lon: Vec<f64>,
+    pub(crate) stop_ids: Vec<String>,
+    pub(crate) stop_lat: Vec<f64>,
+    pub(crate) stop_lon: Vec<f64>,
     /// Street vertex created for each stop, or -1 when unlinked.
-    pub stop_vertex: Vec<i32>,
-    pub services: Vec<Service>,
-    pub patterns: Vec<Pattern>,
-    pub patterns_for_stop: Vec<Vec<u32>>,
-    pub has_frequencies: bool,
-    pub has_schedules: bool,
+    pub(crate) stop_vertex: Vec<i32>,
+    pub(crate) services: Vec<Service>,
+    pub(crate) patterns: Vec<Pattern>,
+    pub(crate) patterns_for_stop: Vec<Vec<u32>>,
+    pub(crate) has_frequencies: bool,
+    pub(crate) has_schedules: bool,
     /// Trips of all feeds left out of the timetable, by reason.
-    pub dropped_trips: DroppedTrips,
+    pub(crate) dropped_trips: DroppedTrips,
     /// What was found in each feed, in loading order (see
     /// [`TransitLayer::r5r_warnings`]).
-    pub feed_reports: Vec<FeedReport>,
+    pub(crate) feed_reports: Vec<FeedReport>,
 }
 
 /// Trips left out of the timetable while loading, by reason. R5 leaves out
 /// the same trips (most of them without a word).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct DroppedTrips {
     /// No row in `stop_times.txt`.
     pub no_stop_times: usize,
@@ -366,15 +372,75 @@ fn feed_id(feed: &Feed, path: &std::path::Path) -> String {
 }
 
 impl TransitLayer {
+    /// The id of each feed, in loading order: the `feed_id` of its
+    /// `feed_info.txt`, or else the file name without `.zip` (as R5 names
+    /// them). Empty when the network has no public transport.
+    pub fn feed_ids(&self) -> &[String] {
+        &self.feed_ids
+    }
+
+    /// Number of stops, all feeds together.
+    pub fn n_stops(&self) -> usize {
+        self.stop_ids.len()
+    }
+
+    /// Number of stops linked to the street network (a stop too far from
+    /// any walkable street is not).
+    pub fn n_linked_stops(&self) -> usize {
+        self.stop_vertex.iter().filter(|&&v| v >= 0).count()
+    }
+
+    /// Number of trip patterns (trips of a route with the same stops), all
+    /// feeds together.
+    pub fn n_patterns(&self) -> usize {
+        self.patterns.len()
+    }
+
+    /// Number of services (calendars), all feeds together.
+    pub fn n_services(&self) -> usize {
+        self.services.len()
+    }
+
+    /// Number of services running on `date` (`yyyymmdd`), as r5r's
+    /// `getTransitServiceAvailability` counts them;
+    /// [`RouteError::Invalid`](crate::RouteError::Invalid) when `date` is
+    /// not a calendar date (see [`validate_date`](crate::validate_date)).
+    pub fn n_services_active_on(&self, date: u32) -> Result<usize, crate::RouteError> {
+        crate::validate_date(date)?;
+        let wd = weekday(date);
+        Ok(self
+            .services
+            .iter()
+            .filter(|s| s.active_on(date, wd))
+            .count())
+    }
+
+    /// Whether any trip runs by frequency (`frequencies.txt`) rather than
+    /// by timetable; their departures are drawn at random (see
+    /// [`TransitParams::seed`](crate::TransitParams::seed)).
+    pub fn has_frequencies(&self) -> bool {
+        self.has_frequencies
+    }
+
+    /// Trips of all feeds left out of the timetable, by reason.
+    pub fn dropped_trips(&self) -> DroppedTrips {
+        self.dropped_trips
+    }
+
+    /// What was found in each feed, in loading order.
+    pub fn feed_reports(&self) -> &[FeedReport] {
+        &self.feed_reports
+    }
+
     /// Load feeds in the given order (R5 uses the data directory's listing
     /// order; see [`gtfs_files_in_dir`]).
-    pub fn load(paths: &[std::path::PathBuf]) -> Result<TransitLayer, GtfsError> {
+    pub(crate) fn load(paths: &[std::path::PathBuf]) -> Result<TransitLayer, GtfsError> {
         Self::load_with_limits(paths, Limits::default())
     }
 
     /// [`TransitLayer::load`] with other bounds on how far each zip file
     /// may expand.
-    pub fn load_with_limits(
+    pub(crate) fn load_with_limits(
         paths: &[std::path::PathBuf],
         limits: Limits,
     ) -> Result<TransitLayer, GtfsError> {
@@ -591,7 +657,12 @@ impl TransitLayer {
     /// Link every stop to the street network (R5 `associateStops`): a stop
     /// vertex, a split of the nearest walkable street, and a LINK pair whose
     /// length is the haversine distance from the stop to the street vertex.
-    pub fn link_stops(&mut self, net: &mut StreetNetwork) {
+    ///
+    /// It changes `net`, so it drops any contraction hierarchy kept with
+    /// it (see the invariant on `StreetNetwork`'s fields); the only caller,
+    /// `build_from_dir`, links before the network is handed out.
+    pub(crate) fn link_stops(&mut self, net: &mut StreetNetwork) {
+        net.forget_hierarchies();
         for s in 0..self.stop_ids.len() {
             let (lat, lon) = (self.stop_lat[s], self.stop_lon[s]);
             let stop_vertex = parkride::add_vertex_fixed(
@@ -618,7 +689,7 @@ impl TransitLayer {
     }
 
     /// Active service codes for a date (`yyyymmdd`, weekday 0 = Monday).
-    pub fn active_services(&self, date: u32, weekday: usize) -> Vec<bool> {
+    pub(crate) fn active_services(&self, date: u32, weekday: usize) -> Vec<bool> {
         self.services
             .iter()
             .map(|s| s.active_on(date, weekday))

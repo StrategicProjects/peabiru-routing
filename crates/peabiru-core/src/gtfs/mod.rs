@@ -4,4 +4,4 @@ pub mod csv;
 pub mod feed;
 pub mod zip;
 
-pub use feed::{Feed, GtfsError};
+pub use feed::GtfsError;

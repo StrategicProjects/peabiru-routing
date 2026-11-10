@@ -15,17 +15,12 @@
 
 use extendr_api::prelude::*;
 use extendr_api::{Error, Result};
-use peabiru_core::street::{self, BuildOptions, Mode, RouteParams, StreetNetwork};
-use peabiru_core::transit::accessibility::{
-    street_accessibility, transit_accessibility, AccessibilityParams, Destinations,
+use peabiru_core::{
+    arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix, street_accessibility,
+    street_travel_time_matrix, transit_accessibility, transit_travel_time_matrix, validate_date,
+    AccessibilityParams, BuildOptions, CancelToken, DecayFunction, Destinations, Mode, RouteError,
+    RouteParams, StreetNetwork, TransitData, TransitLayer, TransitParams,
 };
-use peabiru_core::transit::decay::DecayFunction;
-use peabiru_core::transit::expanded::{
-    arrival_travel_time_matrix, expanded_travel_time_matrix, ExpandedRow,
-};
-use peabiru_core::transit::matrix::{self, TransitData, TransitParams};
-use peabiru_core::transit::{self as tr, TransitLayer};
-use peabiru_core::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -258,11 +253,10 @@ fn rs_core_version() -> &'static str {
 /// @noRd
 #[extendr]
 fn rs_build_network(data_path: &str, n_threads: i32) -> Result<Robj> {
-    let opts = BuildOptions {
-        n_threads: threads(n_threads),
-    };
-    let (net, layer) = tr::build_from_dir(data_path, &opts).map_err(err)?;
-    let transit = if layer.feed_ids.is_empty() {
+    let mut opts = BuildOptions::default();
+    opts.n_threads = threads(n_threads);
+    let (net, layer) = build_from_dir(data_path, &opts).map_err(err)?;
+    let transit = if layer.feed_ids().is_empty() {
         None
     } else {
         let data = TransitData::new(&net, &layer);
@@ -297,11 +291,11 @@ fn rs_network_info(ptr: Robj) -> Result<Robj> {
     let n = network(&ptr)?;
     let (feeds, stops, patterns, services, freq) = match &n.transit {
         Some(t) => (
-            t.layer.feed_ids.clone(),
-            t.layer.stop_ids.len(),
-            t.layer.patterns.len(),
-            t.layer.services.len(),
-            t.layer.has_frequencies,
+            t.layer.feed_ids().to_vec(),
+            t.layer.n_stops(),
+            t.layer.n_patterns(),
+            t.layer.n_services(),
+            t.layer.has_frequencies(),
         ),
         None => (Vec::new(), 0, 0, 0, false),
     };
@@ -324,18 +318,12 @@ fn rs_network_info(ptr: Robj) -> Result<Robj> {
 fn rs_transit_availability(ptr: Robj, date: i32) -> Result<Vec<f64>> {
     let n = network(&ptr)?;
     let date = u32::try_from(date).unwrap_or(0);
-    matrix::validate_date(date).map_err(err)?;
+    validate_date(date).map_err(err)?;
     let Some(t) = &n.transit else {
         return Ok(vec![0.0, 0.0]);
     };
-    let wd = matrix::weekday(date);
-    let active = t
-        .layer
-        .services
-        .iter()
-        .filter(|s| s.active_on(date, wd))
-        .count();
-    Ok(vec![t.layer.services.len() as f64, active as f64])
+    let active = t.layer.n_services_active_on(date).map_err(err)?;
+    Ok(vec![t.layer.n_services() as f64, active as f64])
 }
 
 fn street_mode(mode: &str) -> Result<Mode> {
@@ -367,22 +355,20 @@ fn rs_street_ttm(
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
-    let params = RouteParams {
-        walk_speed_kmh: walk_speed,
-        bike_speed_kmh: bike_speed,
+    let params = route_params(
+        walk_speed,
+        bike_speed,
         max_lts,
-        max_trip_duration_min: max_trip_duration,
-        n_threads: threads(n_threads),
-        cancel: CancelToken::new(),
-        ..RouteParams::default()
-    };
+        max_trip_duration,
+        n_threads,
+    );
     let mode = street_mode(mode)?;
     let m = done!(interruptible(&params.cancel, || {
-        street::travel_time_matrix(&n.net, &o, &d, mode, &params)
+        street_travel_time_matrix(&n.net, &o, &d, mode, &params)
     })?);
     let nd = d.len();
     let (mut from, mut to, mut tt) = (Vec::new(), Vec::new(), Vec::new());
-    for (k, v) in m.iter().enumerate() {
+    for (k, v) in m.as_slice().iter().enumerate() {
         if let Some(v) = v {
             from.push((k / nd) as i32 + 1);
             to.push((k % nd) as i32 + 1);
@@ -406,20 +392,38 @@ fn transit_params(
     seed: Option<i32>,
     n_threads: i32,
 ) -> TransitParams {
-    TransitParams {
-        date: date as u32,
-        departure_time,
-        time_window,
-        percentiles: percentiles.to_vec(),
-        max_walk_time,
-        max_trip_duration,
-        walk_speed_kmh: walk_speed,
-        max_rides: max_rides.max(0) as usize,
-        draws_per_minute,
-        seed,
-        n_threads: threads(n_threads),
-        cancel: CancelToken::new(),
-    }
+    let mut p = TransitParams::default();
+    p.date = date as u32;
+    p.departure_time = departure_time;
+    p.time_window = time_window;
+    p.percentiles = percentiles.to_vec();
+    p.max_walk_time = max_walk_time;
+    p.max_trip_duration = max_trip_duration;
+    p.walk_speed_kmh = walk_speed;
+    p.max_rides = max_rides.max(0) as usize;
+    p.draws_per_minute = draws_per_minute;
+    p.seed = seed;
+    p.n_threads = threads(n_threads);
+    p.cancel = CancelToken::new();
+    p
+}
+
+/// Street routing parameters with a fresh cancellation token.
+fn route_params(
+    walk_speed: f64,
+    bike_speed: f64,
+    max_lts: i32,
+    max_trip_duration: i32,
+    n_threads: i32,
+) -> RouteParams {
+    let mut p = RouteParams::default();
+    p.walk_speed_kmh = walk_speed;
+    p.bike_speed_kmh = bike_speed;
+    p.max_lts = max_lts;
+    p.max_trip_duration_min = max_trip_duration;
+    p.n_threads = threads(n_threads);
+    p.cancel = CancelToken::new();
+    p
 }
 
 fn seed_of(has_seed: bool, seed: i32) -> Option<i32> {
@@ -468,13 +472,13 @@ fn rs_transit_ttm(
         n_threads,
     );
     let m = done!(interruptible(&p.cancel, || {
-        matrix::travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+        transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
     })?);
     let np = percentiles.len();
     let (mut from, mut to) = (Vec::new(), Vec::new());
     let mut cols: Vec<Vec<Option<i32>>> = vec![Vec::new(); np];
-    for (i, row) in m.iter().enumerate() {
-        for (j, cell) in row.iter().enumerate() {
+    for (i, row) in m.rows().enumerate() {
+        for (j, cell) in row.chunks_exact(np).enumerate() {
             if cell[0].is_none() {
                 continue;
             }
@@ -549,14 +553,10 @@ fn rs_accessibility(
                 .ok_or_else(|| err("opportunities must be double vectors"))
         })
         .collect::<Result<_>>()?;
-    let dest = Destinations {
-        points: &d,
-        opportunities: &opp,
-    };
-    let a = AccessibilityParams {
-        cutoffs: cutoffs.to_vec(),
-        decay: decay(decay_function, decay_value)?,
-    };
+    let dest = Destinations::new(&d, &opp);
+    let mut a = AccessibilityParams::default();
+    a.cutoffs = cutoffs.to_vec();
+    a.decay = decay(decay_function, decay_value)?;
     let acc = if mode == "TRANSIT" {
         let t = transit(n)?;
         let p = transit_params(
@@ -576,21 +576,19 @@ fn rs_accessibility(
             transit_accessibility(&n.net, &t.layer, &t.data, &o, &dest, &p, &a)
         })?)
     } else {
-        let params = RouteParams {
-            walk_speed_kmh: walk_speed,
-            bike_speed_kmh: bike_speed,
+        let params = route_params(
+            walk_speed,
+            bike_speed,
             max_lts,
-            max_trip_duration_min: max_trip_duration,
-            n_threads: threads(n_threads),
-            cancel: CancelToken::new(),
-            ..RouteParams::default()
-        };
+            max_trip_duration,
+            n_threads,
+        );
         let mode = street_mode(mode)?;
         done!(interruptible(&params.cancel, || {
             street_accessibility(&n.net, &o, &dest, mode, &params, percentiles, &a)
         })?)
     };
-    Ok(acc.values.into())
+    Ok(acc.into_values().into())
 }
 
 /// Expanded (or, with `arrival`, arrival) travel-time matrix as columns:
@@ -637,14 +635,14 @@ fn rs_expanded(
         seed_of(has_seed, seed),
         n_threads,
     );
-    let rows: Vec<Vec<ExpandedRow>> = done!(interruptible(&p.cancel, || {
+    let rows = done!(interruptible(&p.cancel, || {
         if arrival {
             arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
         } else {
             expanded_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
         }
     })?);
-    let len: usize = rows.iter().map(Vec::len).sum();
+    let len = rows.n_rows();
     let mut from = Vec::with_capacity(len);
     let mut to = Vec::with_capacity(len);
     let mut dep = Vec::with_capacity(len);
@@ -652,7 +650,7 @@ fn rs_expanded(
     let mut times: [Vec<Option<f64>>; 6] = Default::default();
     let mut routes: Vec<Option<String>> = Vec::with_capacity(len);
     let mut n_rides: Vec<Option<i32>> = Vec::with_capacity(len);
-    for (i, origin_rows) in rows.into_iter().enumerate() {
+    for (i, origin_rows) in rows.into_vec().into_iter().enumerate() {
         for r in origin_rows {
             from.push(i as i32 + 1);
             to.push(r.to as i32 + 1);

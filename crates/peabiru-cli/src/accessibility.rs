@@ -19,13 +19,11 @@
 //! percentile and cutoff in that order, with every double written in full.
 
 use crate::cli::{self, runtime_error, usage_error};
-use peabiru_core::street::{build_network, BuildOptions, Mode, RouteParams};
-use peabiru_core::transit::accessibility::{
-    r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
-    AccessibilityParams, Destinations,
+use peabiru_core::{
+    build_network, r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
+    AccessibilityParams, BuildOptions, DecayFunction, Destinations, Mode, RouteParams, TransitData,
+    TransitParams,
 };
-use peabiru_core::transit::decay::DecayFunction;
-use peabiru_core::transit::matrix::{TransitData, TransitParams};
 use std::time::Instant;
 
 const CMD: &str = "accessibility";
@@ -268,24 +266,19 @@ pub fn run(args: &[String]) {
     )
     .unwrap_or_else(|e| fail(e));
     let fixed = matches!(f, DecayFunction::FixedExponential { .. });
-    let a = AccessibilityParams {
-        // r5r passes the placeholder 0 when cutoffs is NULL
-        cutoffs: cutoffs.unwrap_or_else(|| vec![0]),
-        decay: f,
-    };
+    let mut a = AccessibilityParams::default();
+    // r5r passes the placeholder 0 when cutoffs is NULL
+    a.cutoffs = cutoffs.unwrap_or_else(|| vec![0]);
+    a.decay = f;
 
     let origins = read_points(points_path, &[]);
     let dest = read_points(dest_path.as_deref().unwrap_or(points_path), &opportunities);
-    let destinations = Destinations {
-        points: &dest.coords,
-        opportunities: &dest.columns,
-    };
+    let destinations = Destinations::new(&dest.coords, &dest.columns);
 
     let t0 = Instant::now();
     let is_dir = std::path::Path::new(net_path).is_dir();
-    let build = BuildOptions {
-        n_threads: tp.n_threads,
-    };
+    let mut build = BuildOptions::default();
+    build.n_threads = tp.n_threads;
     let mut times = Vec::new();
     let mut result: Option<Accessibility> = None;
     let build_s;
@@ -342,8 +335,8 @@ pub fn run(args: &[String]) {
     });
     for (o, id) in origins.ids.iter().enumerate() {
         for (k, name) in opportunities.iter().enumerate() {
-            for (p, pc) in acc.percentiles.iter().enumerate() {
-                for (c, cut) in acc.cutoffs.iter().enumerate() {
+            for (p, pc) in acc.percentiles().iter().enumerate() {
+                for (c, cut) in acc.cutoffs().iter().enumerate() {
                     // `{}` prints the shortest string that parses back to
                     // the same double
                     let v = acc.get(o, k, p, c);
@@ -362,7 +355,7 @@ pub fn run(args: &[String]) {
         build_s,
         times[times.len() / 2],
         times.len(),
-        acc.values.len(),
+        acc.values().len(),
         m,
         w
     );

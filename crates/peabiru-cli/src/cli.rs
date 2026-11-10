@@ -21,22 +21,16 @@ pub fn runtime_error(cmd: &str, msg: impl Display) -> ! {
 }
 
 /// Build the network of a data directory, as
-/// [`peabiru_core::transit::build_from_dir`], and print to stderr one
+/// [`peabiru_core::build_from_dir`], and print to stderr one
 /// `peabiru <cmd>: warning: ...` line per GTFS feed and case that r5r
 /// refuses to build a network from.
 pub fn build_from_dir(
     cmd: &str,
     dir: impl AsRef<std::path::Path>,
-    opts: &peabiru_core::street::BuildOptions,
-) -> Result<
-    (
-        peabiru_core::street::StreetNetwork,
-        peabiru_core::transit::TransitLayer,
-    ),
-    peabiru_core::transit::NetworkError,
-> {
-    let built = peabiru_core::transit::build_from_dir(dir, opts)?;
-    for report in &built.1.feed_reports {
+    opts: &peabiru_core::BuildOptions,
+) -> Result<(peabiru_core::StreetNetwork, peabiru_core::TransitLayer), peabiru_core::NetworkError> {
+    let built = peabiru_core::build_from_dir(dir, opts)?;
+    for report in built.1.feed_reports() {
         for w in report.r5r_warnings_per_case() {
             eprintln!("peabiru {cmd}: warning: {w}");
         }

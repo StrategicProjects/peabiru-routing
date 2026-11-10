@@ -147,7 +147,9 @@ pub struct ReadOptions<'f> {
 /// The part of an extract a caller asked for.
 #[derive(Debug, Clone, Default)]
 pub struct Extract {
+    /// The ways the way filter kept, in file order.
     pub ways: Vec<Way>,
+    /// The relations the relation filter kept, in file order.
     pub relations: Vec<Relation>,
     /// Ids of every node referenced by a kept way, sorted and unique.
     pub node_ids: Vec<i64>,

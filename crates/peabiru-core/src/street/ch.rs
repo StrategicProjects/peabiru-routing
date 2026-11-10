@@ -28,10 +28,11 @@
 //! A hierarchy depends only on its graph, so the network keeps the ones it
 //! builds ([`Cache`]): the car one, which depends on nothing but the
 //! network, and a few for walking and cycling, whose graphs also depend on
-//! the speeds (and, cycling, on `max_lts`). A network changed through its
-//! public fields never meets a stale hierarchy: the cache compares the
-//! network with a copy of what the hierarchies were built from before
-//! handing one out.
+//! the speeds (and, cycling, on `max_lts`). A network's arrays do not
+//! change once anything can route on it (see the invariant on
+//! [`StreetNetwork`]'s fields), so a kept hierarchy is never stale; the
+//! one function that changes a built network, `TransitLayer::link_stops`,
+//! drops the kept hierarchies all the same.
 
 use super::link::{find_split, Split};
 use super::router::{
@@ -196,86 +197,17 @@ impl Extent {
     }
 }
 
-/// A copy of everything in a network that a mode's graph is built from
-/// (see `ModeGraph::new` and [`Problem`]) or that the query reads to map
-/// points onto nodes.
-struct Snapshot {
-    n_vertices: usize,
-    edge_flags: Vec<u32>,
-    edge_speed_cms: Vec<i16>,
-    pair_length_mm: Vec<i32>,
-    pair_from: Vec<u32>,
-    pair_to: Vec<u32>,
-    pair_in_brad: Vec<i8>,
-    pair_out_brad: Vec<i8>,
-    out_offsets: Vec<u32>,
-    out_edges: Vec<u32>,
-    in_offsets: Vec<u32>,
-    in_edges: Vec<u32>,
-}
-
-impl Snapshot {
-    fn of(net: &StreetNetwork) -> Self {
-        Snapshot {
-            n_vertices: net.n_vertices(),
-            edge_flags: net.edge_flags.clone(),
-            edge_speed_cms: net.edge_speed_cms.clone(),
-            pair_length_mm: net.pair_length_mm.clone(),
-            pair_from: net.pair_from.clone(),
-            pair_to: net.pair_to.clone(),
-            pair_in_brad: net.pair_in_brad.clone(),
-            pair_out_brad: net.pair_out_brad.clone(),
-            out_offsets: net.out_offsets.clone(),
-            out_edges: net.out_edges.clone(),
-            in_offsets: net.in_offsets.clone(),
-            in_edges: net.in_edges.clone(),
-        }
-    }
-
-    fn matches(&self, net: &StreetNetwork) -> bool {
-        self.n_vertices == net.n_vertices()
-            && self.edge_flags == net.edge_flags
-            && self.edge_speed_cms == net.edge_speed_cms
-            && self.pair_length_mm == net.pair_length_mm
-            && self.pair_from == net.pair_from
-            && self.pair_to == net.pair_to
-            && self.pair_in_brad == net.pair_in_brad
-            && self.pair_out_brad == net.pair_out_brad
-            && self.out_offsets == net.out_offsets
-            && self.out_edges == net.out_edges
-            && self.in_offsets == net.in_offsets
-            && self.in_edges == net.in_edges
-    }
-
-    fn bytes(&self) -> usize {
-        4 * (self.edge_flags.len()
-            + self.pair_length_mm.len()
-            + self.pair_from.len()
-            + self.pair_to.len()
-            + self.out_offsets.len()
-            + self.out_edges.len()
-            + self.in_offsets.len()
-            + self.in_edges.len())
-            + 2 * self.edge_speed_cms.len()
-            + self.pair_in_brad.len()
-            + self.pair_out_brad.len()
-    }
-}
-
-/// What a [`Cache`] holds: the hierarchies, most recently used first, and
-/// a copy of the network they were built from.
+/// What a [`Cache`] holds: the hierarchies, most recently used first.
 #[derive(Default)]
 struct Kept {
-    snapshot: Option<Arc<Snapshot>>,
     entries: Vec<Arc<Entry>>,
 }
 
-/// The hierarchies a [`StreetNetwork`] keeps. A network's fields are
-/// public, so one can change between calls: every lookup first compares
-/// the network with the copy taken when the hierarchies were built (a
-/// memory comparison, far cheaper than a query) and forgets them all on
-/// any difference. Clones share the hierarchies, which never change once
-/// built.
+/// The hierarchies a [`StreetNetwork`] keeps. They are built from the
+/// network's arrays, which never change once the network can be routed on
+/// (see the invariant on [`StreetNetwork`]'s fields), so a kept hierarchy
+/// stays valid for the network's whole life. Clones share the hierarchies,
+/// which never change once built.
 #[derive(Default)]
 pub(crate) struct Cache(Mutex<Kept>);
 
@@ -286,31 +218,19 @@ impl Cache {
         self.0.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    /// The hierarchy kept for `key` and built from `net` as it is now,
-    /// marked the most recently used.
-    fn get(&self, net: &StreetNetwork, key: Key) -> Option<Arc<Entry>> {
+    /// The hierarchy kept for `key`, marked the most recently used.
+    fn get(&self, key: Key) -> Option<Arc<Entry>> {
         let mut k = self.lock();
-        if !k.snapshot.as_ref().is_some_and(|s| s.matches(net)) {
-            *k = Kept::default();
-            return None;
-        }
         let i = k.entries.iter().position(|e| e.key == key)?;
         let e = k.entries.remove(i);
         k.entries.insert(0, Arc::clone(&e));
         Some(e)
     }
 
-    /// Keep `e`, built from `net`, in place of any other for its key,
-    /// dropping the least recently used walking and cycling ones beyond
-    /// [`KEPT_OTHER`].
-    fn put(&self, net: &StreetNetwork, e: Arc<Entry>) {
+    /// Keep `e` in place of any other for its key, dropping the least
+    /// recently used walking and cycling ones beyond [`KEPT_OTHER`].
+    fn put(&self, e: Arc<Entry>) {
         let mut k = self.lock();
-        if !k.snapshot.as_ref().is_some_and(|s| s.matches(net)) {
-            *k = Kept {
-                snapshot: Some(Arc::new(Snapshot::of(net))),
-                entries: Vec::new(),
-            };
-        }
         k.entries.retain(|x| x.key != e.key);
         k.entries.insert(0, e);
         let mut other = 0;
@@ -333,7 +253,6 @@ impl Clone for Cache {
     fn clone(&self) -> Self {
         let k = self.lock();
         Cache(Mutex::new(Kept {
-            snapshot: k.snapshot.clone(),
             entries: k.entries.clone(),
         }))
     }
@@ -343,9 +262,6 @@ impl std::fmt::Debug for Cache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let k = self.lock();
         let mut l = f.debug_list();
-        if let Some(s) = &k.snapshot {
-            l.entry(&format_args!("network copy: {} bytes", s.bytes()));
-        }
         for e in &k.entries {
             l.entry(&format_args!(
                 "{:?}: {} nodes, {} arcs, {} shortcuts, {} rounds, {} bytes",
@@ -760,7 +676,7 @@ fn hierarchy(
         return Ok(None);
     }
     let key = Key::of(g, params.max_lts);
-    let kept = net.hierarchies.get(net, key);
+    let kept = net.hierarchies.get(key);
     let mut extent = kept.as_ref().map(|e| e.extent);
     let limit_s = f64::from(params.max_trip_duration_min) * 60.0;
     let use_it = wanted(
@@ -784,11 +700,12 @@ fn hierarchy(
     let e =
         Entry::build(key, problem, extent, threads, &params.cancel).ok_or(RouteError::Cancelled)?;
     let e = Arc::new(e);
-    net.hierarchies.put(net, Arc::clone(&e));
+    net.hierarchies.put(Arc::clone(&e));
     Ok(Some(e))
 }
 
-/// The street travel-time matrix of [`super::router::travel_time_matrix`]
+/// The street travel-time matrix of
+/// [`super::router::street_travel_time_matrix`]
 /// by contraction hierarchy, or `None` when the plain search should
 /// compute it (see [`wanted`]).
 pub(super) fn travel_time_matrix(
@@ -1098,7 +1015,7 @@ mod tests {
         mode: Mode,
         p: &RouteParams,
     ) -> Result<Vec<Option<u32>>, RouteError> {
-        crate::street::router::travel_time_matrix(net, o, d, mode, p)
+        crate::street::router::street_travel_time_matrix(net, o, d, mode, p).map(|m| m.into_vec())
     }
 
     /// The matrix by the plain search.
@@ -1195,7 +1112,7 @@ mod tests {
         let copy = net.clone();
         assert!(Arc::ptr_eq(
             &first,
-            &copy.hierarchies.get(&copy, Key::Car).unwrap()
+            &copy.hierarchies.get(Key::Car).unwrap()
         ));
         // the search when told to, kept hierarchy or not
         assert!(
@@ -1252,22 +1169,25 @@ mod tests {
         // a kept hierarchy survives a cancelled call
         let want = plain(&net, &pts, &pts, Mode::Car, &p);
         assert_eq!(matrix_of(&net, &pts, &pts, Mode::Car, &p).unwrap(), want);
-        let kept = net.hierarchies.get(&net, Key::Car).unwrap();
+        let kept = net.hierarchies.get(Key::Car).unwrap();
         let auto = with(&p, StreetEngine::Auto);
         assert_eq!(
             matrix_of(&net, &pts, &pts, Mode::Car, &cancelled(&auto)),
             Err(RouteError::Cancelled)
         );
-        let now = net.hierarchies.get(&net, Key::Car).unwrap();
+        let now = net.hierarchies.get(Key::Car).unwrap();
         assert!(Arc::ptr_eq(&kept, &now));
         assert_eq!(matrix_of(&net, &pts, &pts, Mode::Car, &auto).unwrap(), want);
     }
 
-    /// A network changed through its public fields after a hierarchy was
-    /// kept gets the plain search's matrix of the changed network: the kept
-    /// hierarchy is found stale, dropped, and built again when wanted.
+    /// Kept hierarchies are not compared with the network (see the
+    /// invariant on `StreetNetwork`'s fields): code that changes a
+    /// network's arrays drops them with `forget_hierarchies`. A network so
+    /// changed after hierarchies were kept gets the plain search's matrix
+    /// of the changed network, the hierarchies built again when wanted; a
+    /// clone made before the change keeps its own.
     #[test]
-    fn a_changed_network_drops_its_stale_hierarchy() {
+    fn a_changed_network_drops_its_hierarchies() {
         let mut net = spo();
         let pts = sample_points();
         let p = RouteParams {
@@ -1277,7 +1197,7 @@ mod tests {
         };
         matrix_of(&net, &pts, &pts, Mode::Car, &p).unwrap();
         matrix_of(&net, &pts, &pts, Mode::Walk, &p).unwrap();
-        let before = net.hierarchies.get(&net, Key::Car).unwrap();
+        let before = net.hierarchies.get(Key::Car).unwrap();
         let original = net.clone();
         for s in &mut net.edge_speed_cms {
             *s = (*s / 2).max(1);
@@ -1285,7 +1205,9 @@ mod tests {
         for l in net.pair_length_mm.iter_mut().step_by(3) {
             *l += 5000;
         }
-        // a small call (Auto would search): the stale one is not used
+        net.forget_hierarchies();
+        assert!(net.hierarchies.keys().is_empty());
+        // a small call (Auto would search): no hierarchy is built
         let auto = with(&p, StreetEngine::Auto);
         let few = &pts[..3];
         let got = matrix_of(&net, few, &pts, Mode::Car, &auto).unwrap();
@@ -1296,12 +1218,41 @@ mod tests {
             assert_eq!(got, plain(&net, &pts, &pts, mode, &p));
             assert_ne!(got, plain(&original, &pts, &pts, mode, &p));
         }
-        let after = net.hierarchies.get(&net, Key::Car).unwrap();
+        let after = net.hierarchies.get(Key::Car).unwrap();
         assert!(!Arc::ptr_eq(&before, &after));
         // the unchanged clone kept its own
-        let still = original.hierarchies.get(&original, Key::Car).unwrap();
+        let still = original.hierarchies.get(Key::Car).unwrap();
         assert!(Arc::ptr_eq(&before, &still));
         assert_eq!(original.hierarchies.keys().len(), 2);
+    }
+
+    /// The one change the crate makes to a built network, linking transit
+    /// stops to it, drops the hierarchies kept with it: the matrices after
+    /// it are the plain search's on the linked network, for every mode.
+    #[test]
+    fn linking_stops_drops_the_hierarchies() {
+        use crate::transit::{gtfs_files_in_dir, TransitLayer};
+        let mut net = spo();
+        let pts = sample_points();
+        let p = RouteParams {
+            n_threads: 2,
+            engine: StreetEngine::Hierarchy,
+            ..RouteParams::default()
+        };
+        for mode in [Mode::Car, Mode::Walk, Mode::Bicycle] {
+            matrix_of(&net, &pts, &pts, mode, &p).unwrap();
+        }
+        assert_eq!(net.hierarchies.keys().len(), 3);
+        let before = net.n_vertices();
+        let mut layer = TransitLayer::load(&gtfs_files_in_dir(SPO).unwrap()).unwrap();
+        layer.link_stops(&mut net);
+        assert!(net.n_vertices() > before, "the stops changed the network");
+        assert!(net.hierarchies.keys().is_empty());
+        for mode in [Mode::Car, Mode::Walk, Mode::Bicycle] {
+            let got = matrix_of(&net, &pts, &pts, mode, &p).unwrap();
+            assert_eq!(got, plain(&net, &pts, &pts, mode, &p), "{mode:?}");
+        }
+        assert_eq!(net.hierarchies.keys().len(), 3);
     }
 
     /// The contraction gives the same hierarchy at any thread count.

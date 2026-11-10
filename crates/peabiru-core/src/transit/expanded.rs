@@ -42,20 +42,33 @@ const MAX_ITERATION_STOPS: u64 = 1 << 28;
 
 /// One trip as r5r reports it, every time in minutes with one decimal.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct Breakdown {
+    /// Walking from the origin to the first stop (or the whole walk of a
+    /// walk-only trip).
     pub access_time: f64,
+    /// Waiting at stops, the first boarding included.
     pub wait_time: f64,
+    /// In vehicles.
     pub ride_time: f64,
+    /// Walking between stops.
     pub transfer_time: f64,
+    /// Walking from the last stop to the destination.
     pub egress_time: f64,
     /// Route ids joined by `|`, or `[WALK]` for a walk-only trip.
     pub routes: String,
+    /// Vehicles boarded.
     pub n_rides: u32,
+    /// Total travel time: as r5r computes it, the sum of the five times
+    /// above rounded to one decimal (when that sum is 0, the trip's own
+    /// total, rounded).
     pub total_time: f64,
 }
 
-/// One output row.
+/// One row of an expanded or arrival matrix (the origin is the row's place
+/// in [`ExpandedMatrix`]).
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct ExpandedRow {
     /// Destination index.
     pub to: u32,
@@ -66,6 +79,40 @@ pub struct ExpandedRow {
     pub draw: u32,
     /// `None` where r5r reports NA (no trip within `max_trip_duration`).
     pub trip: Option<Breakdown>,
+}
+
+/// The rows of an expanded or arrival matrix, origin by origin, each
+/// origin's rows in r5r's order (see [`expanded_travel_time_matrix`] and
+/// [`arrival_travel_time_matrix`]).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExpandedMatrix(Vec<Vec<ExpandedRow>>);
+
+impl ExpandedMatrix {
+    /// Number of origins.
+    pub fn n_origins(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Number of rows, all origins together.
+    pub fn n_rows(&self) -> usize {
+        self.0.iter().map(Vec::len).sum()
+    }
+
+    /// The rows of origin `origin` (an index in the order the origins were
+    /// given). Panics when `origin` is out of range.
+    pub fn origin(&self, origin: usize) -> &[ExpandedRow] {
+        &self.0[origin]
+    }
+
+    /// Each origin's rows, in origin order.
+    pub fn origins(&self) -> impl ExactSizeIterator<Item = &[ExpandedRow]> + '_ {
+        self.0.iter().map(Vec::as_slice)
+    }
+
+    /// Each origin's rows, in origin order, without copying.
+    pub fn into_vec(self) -> Vec<Vec<ExpandedRow>> {
+        self.0
+    }
 }
 
 /// `Math.round(double)` for the values met here: the nearest integer,
@@ -635,7 +682,7 @@ fn validate(layer: &TransitLayer, n_destinations: usize, p: &TransitParams) -> R
     }
     // the bounds shared with the plain matrix (they also keep the walk
     // speed a non-zero divisor); percentiles are not used here
-    p.validate()?;
+    p.check()?;
     let per_minute = if layer.has_frequencies {
         p.draws_per_minute as u64
     } else {
@@ -698,9 +745,13 @@ fn per_origin<T: Send>(
 /// the transit records come first in `PATH_ORDER`, numbered 1.., then the
 /// remaining draws repeat the walk-only record (or an unreachable, NA one)
 /// up to the draws per minute (`populateTravelTimesBreakdown`). A
-/// destination with no record at all has no rows.
-/// [`RouteError::Cancelled`] when `p.cancel` is cancelled before every
-/// origin is done.
+/// destination with no record at all has no rows. Points are `(lat, lon)`
+/// degrees; `p.percentiles` are not used.
+///
+/// [`RouteError::Invalid`] when the parameters are invalid (see
+/// [`TransitParams::validate`]) or there are more than 5,000 destinations
+/// (R5's limit for paths); [`RouteError::Cancelled`] when `p.cancel` is
+/// cancelled before every origin is done.
 pub fn expanded_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
@@ -708,7 +759,7 @@ pub fn expanded_travel_time_matrix(
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TransitParams,
-) -> Result<Vec<Vec<ExpandedRow>>, RouteError> {
+) -> Result<ExpandedMatrix, RouteError> {
     let ctx = Context::new(net, layer, data, destinations, p)?;
     let dpm = ctx.draws_per_minute;
     let m = p.max_trip_duration;
@@ -750,6 +801,7 @@ pub fn expanded_travel_time_matrix(
         })?;
         Ok(rows)
     })
+    .map(ExpandedMatrix)
 }
 
 /// The service date and departure of an arrival search: r5r subtracts
@@ -764,12 +816,12 @@ pub fn arrival_departure(
     date: u32,
     arrival_time: i32,
     max_trip_duration: i32,
-) -> Result<(u32, i32), String> {
+) -> Result<(u32, i32), RouteError> {
     validate_date(date)?;
     if max_trip_duration < 1 {
-        return Err(format!(
+        return Err(RouteError::Invalid(format!(
             "max_trip_duration must be at least 1, got {max_trip_duration}"
-        ));
+        )));
     }
     let t = i64::from(arrival_time) - i64::from(max_trip_duration) * 60;
     if t >= 0 {
@@ -789,8 +841,9 @@ pub fn arrival_departure(
 /// with a record arriving by `departure + max_trip_duration` wins: its
 /// first transit record in `PATH_ORDER`, else the walk-only record
 /// (`filterLatestBeforeArrivalTime`, offs 31-266). At most one row per
-/// destination. [`RouteError::Cancelled`] when `p.cancel` is cancelled
-/// before every origin is done.
+/// destination. Errors as [`expanded_travel_time_matrix`], and
+/// [`RouteError::Invalid`] when `p.time_window` is not
+/// `p.max_trip_duration`.
 pub fn arrival_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
@@ -798,7 +851,7 @@ pub fn arrival_travel_time_matrix(
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TransitParams,
-) -> Result<Vec<Vec<ExpandedRow>>, RouteError> {
+) -> Result<ExpandedMatrix, RouteError> {
     if p.time_window != p.max_trip_duration {
         return Err("an arrival search needs time_window = max_trip_duration".into());
     }
@@ -850,6 +903,7 @@ pub fn arrival_travel_time_matrix(
         })?;
         Ok(rows)
     })
+    .map(ExpandedMatrix)
 }
 
 #[cfg(test)]

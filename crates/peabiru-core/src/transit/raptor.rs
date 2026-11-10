@@ -480,6 +480,7 @@ pub struct RaptorRequest {
 }
 
 impl RaptorRequest {
+    #[cfg(test)]
     /// Check that the search can run: a window of at least one minute,
     /// positive durations and speeds, and clock times (`from_time` plus the
     /// window plus `max_duration`) that fit the `i32` seconds every state
@@ -572,6 +573,7 @@ impl RaptorRequest {
     }
 }
 
+#[cfg(test)]
 /// The checks of the public entry points: the request, and access stops
 /// that exist with non-negative times.
 fn check_input(
@@ -855,6 +857,7 @@ impl Worker<'_> {
     }
 }
 
+#[cfg(test)]
 /// A transit itinerary to a stop, as R5's `Path` (`transit/path/Path.java`):
 /// the vehicles ridden at clock times, read back from the round states.
 /// One `TransitPath` can serve several departure minutes.
@@ -872,6 +875,7 @@ pub struct TransitPath {
     pub transfer_times: Vec<i32>,
 }
 
+#[cfg(test)]
 impl TransitPath {
     /// `computeWaitTimes(departureTime)` (`Path.java:103-117`) given the
     /// access walk to the first boarding stop. R5 asserts the waits are
@@ -895,6 +899,7 @@ impl TransitPath {
 /// No path to a stop in an iteration.
 pub const NO_PATH: u32 = u32::MAX;
 
+#[cfg(test)]
 /// Paths kept by a search with [`route_with_paths`].
 pub struct PathResults {
     /// Distinct path objects; several iterations may share one.
@@ -905,6 +910,7 @@ pub struct PathResults {
     pub slot: Vec<u32>,
 }
 
+#[cfg(test)]
 impl PathResults {
     /// Path to `stop` in `iteration`, if any.
     pub fn get(&self, iteration: usize, stop: usize) -> Option<&TransitPath> {
@@ -1073,6 +1079,7 @@ impl PathArena {
         }
     }
 
+    #[cfg(test)]
     /// The same paths as public [`PathResults`].
     fn to_results(&self) -> PathResults {
         let n = self.retained.len();
@@ -1098,6 +1105,7 @@ impl PathArena {
     }
 }
 
+#[cfg(test)]
 /// Run the search for one origin. `access` holds `(stop, seconds)`.
 /// Returns, per iteration, the vehicle-arrival duration at every stop
 /// (`UNREACHED` where none), in R5 iteration order (latest minute first);
@@ -1195,6 +1203,7 @@ pub(crate) fn route_stop_major(
     debug_assert!(k == n_iter || cancel.is_cancelled());
 }
 
+#[cfg(test)]
 /// [`route`] that also keeps, at every iteration, the path to each stop
 /// flagged in `retain` (R5 with `retainPaths`). r5r reconstructs paths to
 /// all stops; a path depends only on its own stop, so restricting the set

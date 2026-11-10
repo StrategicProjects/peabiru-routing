@@ -12,15 +12,29 @@ use crate::street::StreetNetwork;
 use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-/// Routing parameters with r5r's defaults.
+/// Public transport routing parameters (walk access, egress and transfers),
+/// with r5r's defaults but for the date and departure time, which have
+/// none. Fill it in by changing the fields of [`TransitParams::default()`]:
+///
+/// ```
+/// let mut p = peabiru_core::TransitParams::default();
+/// p.date = 20190513; // a Monday
+/// p.departure_time = 14 * 3600; // 14:00
+/// p.percentiles = vec![25, 50, 75];
+/// assert!(p.validate().is_ok());
+/// ```
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct TransitParams {
     /// Service date `yyyymmdd`; it must be a real calendar date. The
     /// default, 0, is a placeholder that [`TransitParams::validate`]
     /// rejects: there is no default date, as r5r has no default departure.
     pub date: u32,
-    /// Departure, seconds after midnight.
+    /// Departure, seconds after midnight of `date` (up to 7 days; the
+    /// default 0 is midnight).
     pub departure_time: i32,
+    /// Departure window in minutes: a search departs at every minute of
+    /// `[departure_time, departure_time + time_window)` (default 10).
     pub time_window: i32,
     /// Travel-time percentiles: 1 to 5 values in 1..=99 (see
     /// [`validate_percentiles`]). Any order and repeats are accepted; the
@@ -29,11 +43,23 @@ pub struct TransitParams {
     /// which wants them ascending. The expanded and arrival matrices do not
     /// use them but check them all the same, so keep the default there.
     pub percentiles: Vec<i32>,
+    /// Longest walk in minutes at each end of a trip and in each transfer
+    /// (default 120); r5r's `max_walk_time`, where its `Inf` is
+    /// `max_trip_duration`.
     pub max_walk_time: i32,
+    /// Trip limit in whole minutes (default 120).
     pub max_trip_duration: i32,
+    /// Walking speed, km/h (default 3.6).
     pub walk_speed_kmh: f64,
+    /// Most vehicles boarded in one trip (default 3).
     pub max_rides: usize,
+    /// Monte Carlo draws per departure minute for frequency-based routes
+    /// (default 5).
     pub draws_per_minute: i32,
+    /// Seed of the Monte Carlo draws, r5r's `seed`: with the same seed the
+    /// results are those of r5r with that seed. `None` (the default) seeds
+    /// from the clock, as R5 does, so frequency-based results vary from
+    /// call to call.
     pub seed: Option<i32>,
     /// Worker threads; 0 means all cores, and more than the cores
     /// available run as many as there are cores.
@@ -53,10 +79,16 @@ impl TransitParams {
     /// R5's `int` seconds: minutes times 60 must fit, and so must the
     /// departure plus the window plus `max_trip_duration`, the latest clock
     /// time a search can hold. A departure is at most 7 days after
-    /// midnight of the service day.
-    pub fn validate(&self) -> Result<(), String> {
-        validate_date(self.date)?;
-        validate_percentiles(&self.percentiles)?;
+    /// midnight of the service day. Every public transport function calls
+    /// it first; [`RouteError::Invalid`] says what is wrong.
+    pub fn validate(&self) -> Result<(), RouteError> {
+        self.check().map_err(RouteError::Invalid)
+    }
+
+    /// [`TransitParams::validate`] with the message alone.
+    pub(crate) fn check(&self) -> Result<(), String> {
+        check_date(self.date)?;
+        check_percentiles(&self.percentiles)?;
         let check_in = |name: &str, v: i64, lo: i64, hi: i64, unit: &str| {
             if (lo..=hi).contains(&v) {
                 Ok(())
@@ -158,7 +190,12 @@ pub const MAX_PERCENTILES: usize = 5;
 /// order and with repeats they pass here (the results sort them). Street
 /// modes have one travel time, reported for every percentile; they take
 /// the same check, so that an empty list is an error there too.
-pub fn validate_percentiles(percentiles: &[i32]) -> Result<(), String> {
+pub fn validate_percentiles(percentiles: &[i32]) -> Result<(), RouteError> {
+    check_percentiles(percentiles).map_err(RouteError::Invalid)
+}
+
+/// [`validate_percentiles`] with the message alone.
+pub(crate) fn check_percentiles(percentiles: &[i32]) -> Result<(), String> {
     if percentiles.is_empty() || percentiles.len() > MAX_PERCENTILES {
         return Err(format!(
             "between 1 and {MAX_PERCENTILES} percentiles are allowed, got {}",
@@ -186,7 +223,12 @@ fn days_in_month(y: i64, m: i64) -> i64 {
 /// 9999): `20190513` passes, `20190230`, `20191301` and `0` do not. The
 /// service calendar is looked up by this date, so a date that does not
 /// exist would silently match no service.
-pub fn validate_date(date: u32) -> Result<(), String> {
+pub fn validate_date(date: u32) -> Result<(), RouteError> {
+    check_date(date).map_err(RouteError::Invalid)
+}
+
+/// [`validate_date`] with the message alone.
+pub(crate) fn check_date(date: u32) -> Result<(), String> {
     let (y, m, d) = (
         i64::from(date / 10000),
         i64::from((date / 100) % 100),
@@ -241,22 +283,31 @@ pub fn weekday(date: u32) -> usize {
     ((days_from_civil(date) + 3).rem_euclid(7)) as usize
 }
 
-/// Network data precomputed once and shared by every query.
+/// Walking tables of a network with public transport, computed once by
+/// [`TransitData::new`] and shared by every public transport query on it:
+/// the transfers between stops and the streets reached on foot from each
+/// stop (for the walk to the destinations).
+#[derive(Debug, Clone)]
 pub struct TransitData {
-    pub transfers: Vec<Vec<(u32, i32)>>,
-    pub trees: Vec<Option<Vec<(u32, i32)>>>,
+    /// Per stop: `(target stop, millimetres)` of its transfers (see
+    /// `walk::find_transfers`).
+    pub(crate) transfers: Vec<Vec<(u32, i32)>>,
+    /// Per stop: `(vertex, millimetres)` reached on foot within 2 km, or
+    /// `None` for an unlinked stop.
+    pub(crate) trees: Vec<Option<Vec<(u32, i32)>>>,
 }
 
 impl TransitData {
+    /// Compute the tables of `layer` on `net`, the network and layer
+    /// [`build_from_dir`](crate::build_from_dir) returned together. This is
+    /// most of the work of building a network with public transport (it
+    /// walks from every stop), so do it once per network.
     pub fn new(net: &StreetNetwork, layer: &TransitLayer) -> Self {
         let trees = walk::stop_trees(net, layer);
         let transfers = walk::find_transfers(layer, &trees);
         TransitData { transfers, trees }
     }
 }
-
-/// One origin's results: `[destination][percentile]`.
-type Row = Vec<Vec<Option<u32>>>;
 
 /// Percentile index into `n` sorted values (R5: `ceil(p / 100 * n) - 1`).
 pub(crate) fn percentile_index(p: i32, n: usize) -> usize {
@@ -306,7 +357,7 @@ impl<'a> Query<'a> {
         destinations: &[(f64, f64)],
         p: &'a TransitParams,
     ) -> Result<Self, String> {
-        p.validate()?;
+        p.check()?;
         // RAPTOR keeps iterations x stops durations per origin; their byte
         // count must be a valid allocation size
         let per_minute = if layer.has_frequencies {
@@ -514,26 +565,106 @@ pub(crate) fn par_origins<T: Send>(
         .collect())
 }
 
-/// Travel times in minutes, `[origin][destination][percentile]`, `None`
-/// where r5r reports NA; a pair is reported when its lowest percentile is.
-/// The percentiles are returned in ascending order, whatever the order of
-/// `p.percentiles`; a repeated percentile, which R5 accepts, gets one
-/// column per occurrence (see [`validate_percentiles`]).
-pub fn travel_time_matrix(
+/// A walk + transit travel-time matrix: for each origin and destination,
+/// whole minutes at each requested percentile, `None` where r5r reports NA.
+/// A pair is reported (its lowest percentile is `Some`) when that
+/// percentile is within `max_trip_duration`.
+///
+/// The percentiles are in ascending order, whatever the order of
+/// [`TransitParams::percentiles`]; a repeated percentile, which R5
+/// accepts, gets one value per occurrence (see [`validate_percentiles`]).
+/// The values are held in one buffer, origin by origin, destination by
+/// destination, percentile by percentile, which
+/// [`into_vec`](TransitMatrix::into_vec) hands over without copying.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransitMatrix {
+    n_origins: usize,
+    n_destinations: usize,
+    percentiles: Vec<i32>,
+    /// `minutes[(origin * n_destinations + destination) * n_percentiles + k]`.
+    minutes: Vec<Option<u32>>,
+}
+
+impl TransitMatrix {
+    /// Number of origins.
+    pub fn n_origins(&self) -> usize {
+        self.n_origins
+    }
+
+    /// Number of destinations.
+    pub fn n_destinations(&self) -> usize {
+        self.n_destinations
+    }
+
+    /// The percentiles, ascending: the order of the values of each pair.
+    pub fn percentiles(&self) -> &[i32] {
+        &self.percentiles
+    }
+
+    /// Minutes from origin `origin` to destination `destination` at each
+    /// percentile, in the order of [`percentiles`](TransitMatrix::percentiles).
+    /// Panics when either index is out of range.
+    pub fn get(&self, origin: usize, destination: usize) -> &[Option<u32>] {
+        assert!(
+            origin < self.n_origins && destination < self.n_destinations,
+            "({origin}, {destination}) is outside a {} x {} matrix",
+            self.n_origins,
+            self.n_destinations
+        );
+        let np = self.percentiles.len();
+        let k = (origin * self.n_destinations + destination) * np;
+        &self.minutes[k..k + np]
+    }
+
+    /// The values from origin `origin`: destination by destination, one
+    /// value per percentile each (`n_destinations * percentiles().len()`
+    /// values). Panics when `origin` is out of range.
+    pub fn row(&self, origin: usize) -> &[Option<u32>] {
+        assert!(origin < self.n_origins, "origin {origin} out of range");
+        let per = self.n_destinations * self.percentiles.len();
+        &self.minutes[origin * per..(origin + 1) * per]
+    }
+
+    /// The rows in origin order, as [`row`](TransitMatrix::row) gives them.
+    pub fn rows(&self) -> impl ExactSizeIterator<Item = &[Option<u32>]> + '_ {
+        (0..self.n_origins).map(move |i| self.row(i))
+    }
+
+    /// The whole matrix as one slice, in the order of
+    /// [`into_vec`](TransitMatrix::into_vec).
+    pub fn as_slice(&self) -> &[Option<u32>] {
+        &self.minutes
+    }
+
+    /// The whole matrix as one vector, without copying: the value for
+    /// `(origin, destination)` at the `k`-th percentile is at
+    /// `(origin * n_destinations + destination) * percentiles().len() + k`.
+    pub fn into_vec(self) -> Vec<Option<u32>> {
+        self.minutes
+    }
+}
+
+/// Walk + transit travel-time matrix, as r5r's `travel_time_matrix()` with
+/// `mode = c("WALK", "TRANSIT")`. Points are `(lat, lon)` degrees.
+/// [`RouteError::Invalid`] when the parameters are invalid (see
+/// [`TransitParams::validate`]), [`RouteError::Cancelled`] when `p.cancel`
+/// is cancelled before every origin is done.
+pub fn transit_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
     data: &TransitData,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TransitParams,
-) -> Result<Vec<Row>, RouteError> {
+) -> Result<TransitMatrix, RouteError> {
     let q = Query::new(net, layer, data, destinations, p)?;
     let m = p.max_trip_duration;
     let mut percentiles = p.percentiles.clone();
     percentiles.sort_unstable();
     let nd = destinations.len();
-    par_origins(p.n_threads, origins.len(), &p.cancel, |i, scratch| {
-        let mut row = vec![vec![None; percentiles.len()]; nd];
+    let np = percentiles.len();
+    let rows = par_origins(p.n_threads, origins.len(), &p.cancel, |i, scratch| {
+        let mut row = vec![None; nd * np];
         q.route_origin(origins[i], scratch, |j, tt| {
             // TravelTimeReducer.extractTravelTimePercentilesAndRecord
             tt.sort_unstable();
@@ -550,7 +681,7 @@ pub fn travel_time_matrix(
                 })
                 .collect();
             if vals[0] <= m {
-                for (c, &v) in row[j].iter_mut().zip(&vals) {
+                for (c, &v) in row[j * np..(j + 1) * np].iter_mut().zip(&vals) {
                     if v <= m {
                         *c = Some(v as u32);
                     }
@@ -558,6 +689,16 @@ pub fn travel_time_matrix(
             }
         });
         row
+    })?;
+    let mut minutes = Vec::with_capacity(origins.len() * nd * np);
+    for row in rows {
+        minutes.extend_from_slice(&row);
+    }
+    Ok(TransitMatrix {
+        n_origins: origins.len(),
+        n_destinations: nd,
+        percentiles,
+        minutes,
     })
 }
 
@@ -579,7 +720,7 @@ mod tests {
             date: 20190513,
             ..TransitParams::default()
         };
-        assert!(ok.validate().is_ok());
+        assert!(ok.check().is_ok());
         for bad in [
             TransitParams {
                 percentiles: vec![],
@@ -641,7 +782,7 @@ mod tests {
                 ..ok.clone()
             },
         ] {
-            assert!(bad.validate().is_err(), "{bad:?}");
+            assert!(bad.check().is_err(), "{bad:?}");
         }
     }
 
@@ -678,9 +819,9 @@ mod tests {
                 ..ok.clone()
             },
         ] {
-            assert_eq!(fine.validate(), Ok(()), "{fine:?}");
+            assert_eq!(fine.check(), Ok(()), "{fine:?}");
         }
-        let err = |p: TransitParams| p.validate().unwrap_err();
+        let err = |p: TransitParams| p.check().unwrap_err();
         // max_walk_time = Inf in r5r is max_trip_duration: the message
         // names max_trip_duration
         let huge = err(TransitParams {
@@ -718,7 +859,7 @@ mod tests {
         // R5 checks `percentiles[p] >= percentiles[p - 1]`: repeats pass
         assert!(validate_percentiles(&[50, 50]).is_ok());
         assert_eq!(
-            validate_percentiles(&[]).unwrap_err(),
+            check_percentiles(&[]).unwrap_err(),
             "between 1 and 5 percentiles are allowed, got 0"
         );
         assert!(validate_percentiles(&[1, 2, 3, 4, 5, 6]).is_err());
@@ -737,7 +878,7 @@ mod tests {
             assert!(validate_date(bad).is_err(), "{bad}");
         }
         assert_eq!(
-            validate_date(20190230).unwrap_err(),
+            check_date(20190230).unwrap_err(),
             "date must be a calendar date written yyyymmdd, got 20190230"
         );
     }
