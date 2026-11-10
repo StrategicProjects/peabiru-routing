@@ -54,5 +54,5 @@ interface: expect it to change before 1.0. The [API reference](api.md)
 The routing logic is a port of Conveyal's [R5](https://github.com/conveyal/r5)
 (MIT, © Conveyal); the exponential of the decay functions reproduces Apache
 Commons Math 3 (Apache-2.0), which R5 uses. The interface of the R and Python
-packages follows [r5r](https://github.com/ipeaGIT/r5r) (Ipea), whose results
+packages follows [r5r](https://github.com/ipea/r5r) (Ipea), whose results
 are the reference for the tests.

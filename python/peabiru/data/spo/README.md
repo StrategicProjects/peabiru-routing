@@ -1,7 +1,7 @@
 # Sample network: Sao Paulo (Avenida Paulista)
 
 A small network for examples and tests, cut from the Sao Paulo sample data
-of the r5r package (https://github.com/ipeaGIT/r5r):
+of the r5r package (https://github.com/ipea/r5r):
 
 - `spo_osm.pbf`: the streets around Avenida Paulista. Map data (c)
   OpenStreetMap contributors, available under the Open Database License

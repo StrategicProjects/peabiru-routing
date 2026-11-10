@@ -62,7 +62,7 @@ ttm <- travel_time_matrix(
 ## Coming from r5r
 
 The functions, arguments and defaults are those of
-[r5r](https://github.com/ipeaGIT/r5r) 2.5.0, and so are the results: with the
+[r5r](https://github.com/ipea/r5r) 2.5.0, and so are the results: with the
 same arguments and `seed`, r5r returns the same `data.frame` (`identical()`
 after converting r5r's `data.table`). The article "Coming from r5r" lists
 what is the same, what differs on purpose and what is not there yet.

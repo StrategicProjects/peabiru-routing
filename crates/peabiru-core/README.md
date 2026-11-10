@@ -54,7 +54,7 @@ elevation are not implemented.
 
 MIT (`LICENSE-MIT`). The routing logic is ported from Conveyal's
 [R5](https://github.com/conveyal/r5) 7.6 (MIT), and the results are checked
-value for value against those of [r5r](https://github.com/ipeaGIT/r5r)
+value for value against those of [r5r](https://github.com/ipea/r5r)
 2.5.0. `fastmath.rs` and part of `jcompat.rs` are translations of parts of
 Apache Commons Math 3.0 (Apache-2.0). The notices and licence texts of these works are in
 `LICENSE-THIRD-PARTY`.
