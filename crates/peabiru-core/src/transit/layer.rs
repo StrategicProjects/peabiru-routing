@@ -500,6 +500,54 @@ mod tests {
         );
     }
 
+    /// With several feeds in a directory, errors say which one failed.
+    #[test]
+    fn feed_errors_name_the_file() {
+        use crate::gtfs::zip::tests::make_zip;
+        let dir = std::env::temp_dir().join(format!("peabiru-feed-error-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let good = dir.join("good.zip");
+        let bad = dir.join("broken_feed.zip");
+        std::fs::write(
+            &good,
+            make_zip(
+                &[
+                    ("stops.txt", b"stop_id,stop_lat,stop_lon\nA,1,1\nC,1.001,1\n"),
+                    ("routes.txt", b"route_id,route_type\nR,3\n"),
+                    ("trips.txt", b"route_id,service_id,trip_id\nR,S,T1\n"),
+                    (
+                        "stop_times.txt",
+                        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,C,2\n",
+                    ),
+                ],
+                false,
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            &bad,
+            make_zip(&[("routes.txt", b"route_id,route_type\nR,3\n")], false),
+        )
+        .unwrap();
+        let missing = TransitLayer::load(&[good.clone(), bad.clone()]).unwrap_err();
+        std::fs::write(&bad, b"not a zip").unwrap();
+        let garbage = TransitLayer::load(&[good.clone(), bad.clone()]).unwrap_err();
+        let absent = TransitLayer::load(&[good, dir.join("absent.zip")]).unwrap_err();
+        std::fs::remove_dir_all(&dir).unwrap();
+        let bad = bad.display().to_string();
+        assert_eq!(
+            missing.to_string(),
+            format!("{bad}: GTFS feed has no stops.txt")
+        );
+        assert_eq!(
+            garbage.to_string(),
+            format!("{bad}: malformed zip file: no end of central directory record")
+        );
+        assert!(absent
+            .to_string()
+            .contains("absent.zip: cannot read the zip file"));
+    }
+
     #[test]
     fn vincenty_matches_known_distance() {
         // Flinders Peak - Buninyong (Vincenty's paper): 54 972.271 m

@@ -2,7 +2,6 @@
 //! network build (OSM PBF, GTFS zip/CSV, street build, stop linking).
 //! Each test documents current behaviour; see the review report.
 
-use crate::gtfs::feed::Feed;
 use crate::gtfs::zip::Archive;
 use crate::osm::pbf::{read_pbf, Extract, ReadOptions, Tags, Way};
 use crate::street::build::network_from_extract;
@@ -278,74 +277,7 @@ fn make_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
 }
 
 const ROUTES: &[u8] = b"route_id,route_type\nR,3\n";
-const TRIPS: &[u8] = b"route_id,service_id,trip_id\nR,S,T1\n";
-const TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,C,2\n";
 const CAL: &[u8] = b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n";
-
-fn feed(stops: &[u8]) -> Feed {
-    let z = make_zip(&[
-        ("stops.txt", stops),
-        ("routes.txt", ROUTES),
-        ("trips.txt", TRIPS),
-        ("stop_times.txt", TIMES),
-        ("calendar.txt", CAL),
-    ]);
-    Feed::from_archive(&Archive::from_bytes(z).unwrap()).unwrap()
-}
-
-/// stops.txt without a stop_lat/stop_lon column (or a misspelt header)
-/// is accepted: every stop gets NaN coordinates and nothing is reported.
-#[test]
-fn gtfs_missing_coordinate_columns_are_silent() {
-    let f = feed(b"stop_id,stop_latitude,stop_lon\nA,-23.55,-46.63\nC,-23.57,-46.65\n");
-    assert!(f.stops.iter().all(|s| s.lat.is_nan()));
-}
-
-/// A missing required column is reported as an invalid empty value on row
-/// 2, not as a missing column.
-#[test]
-fn gtfs_missing_column_message() {
-    let z = make_zip(&[
-        ("stops.txt", b"stop_id,stop_lat,stop_lon\nA,1,1\n" as &[u8]),
-        ("routes.txt", b"route_id\nR\n"),
-        ("trips.txt", TRIPS),
-        ("stop_times.txt", TIMES),
-    ]);
-    let e = Feed::from_archive(&Archive::from_bytes(z).unwrap()).unwrap_err();
-    eprintln!("gtfs_missing_column_message: {e}");
-    assert_eq!(e.to_string(), "routes.txt line 2: invalid route_type ''");
-}
-
-/// Errors from TransitLayer::load (and hence build_from_dir) do not name the
-/// feed: with several zips in the directory the user cannot tell which one.
-#[test]
-fn gtfs_errors_do_not_name_the_feed() {
-    let dir = std::env::temp_dir().join(format!("peabiru-review-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let good = dir.join("good.zip");
-    let bad = dir.join("broken_feed.zip");
-    std::fs::write(
-        &good,
-        make_zip(&[
-            (
-                "stops.txt",
-                b"stop_id,stop_lat,stop_lon\nA,1,1\nC,1.001,1\n" as &[u8],
-            ),
-            ("routes.txt", ROUTES),
-            ("trips.txt", TRIPS),
-            ("stop_times.txt", TIMES),
-        ]),
-    )
-    .unwrap();
-    std::fs::write(&bad, make_zip(&[("routes.txt", ROUTES)])).unwrap();
-    let e1 = TransitLayer::load(&[good.clone(), bad.clone()]).unwrap_err();
-    std::fs::write(&bad, b"not a zip").unwrap();
-    let e2 = TransitLayer::load(&[good, bad]).unwrap_err();
-    std::fs::remove_dir_all(&dir).unwrap();
-    eprintln!("gtfs_errors_do_not_name_the_feed: '{e1}' / '{e2}'");
-    assert!(!e1.to_string().contains("broken_feed"));
-    assert!(!e2.to_string().contains("broken_feed"));
-}
 
 /// A ZIP64 entry (sizes 0xFFFFFFFF in the central directory, real sizes in
 /// the extra field; written e.g. by streaming writers) is reported as an

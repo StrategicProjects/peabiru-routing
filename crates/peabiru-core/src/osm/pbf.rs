@@ -19,6 +19,11 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 pub enum PbfError {
     Io(std::io::Error),
     Format(String),
+    /// An error in the file at `path`.
+    InFile {
+        path: std::path::PathBuf,
+        error: Box<PbfError>,
+    },
 }
 
 impl fmt::Display for PbfError {
@@ -26,6 +31,7 @@ impl fmt::Display for PbfError {
         match self {
             PbfError::Io(e) => write!(f, "cannot read the PBF file: {e}"),
             PbfError::Format(m) => write!(f, "malformed PBF file: {m}"),
+            PbfError::InFile { path, error } => write!(f, "{}: {error}", path.display()),
         }
     }
 }
@@ -167,10 +173,16 @@ impl Extract {
     }
 }
 
-/// Read an extract from a `.osm.pbf` file.
+/// Read an extract from a `.osm.pbf` file. Errors name the file.
 pub fn read_pbf_file(path: impl AsRef<std::path::Path>, opts: &ReadOptions) -> Result<Extract> {
-    let bytes = std::fs::read(path)?;
-    read_pbf(&bytes, opts)
+    let path = path.as_ref();
+    std::fs::read(path)
+        .map_err(PbfError::Io)
+        .and_then(|bytes| read_pbf(&bytes, opts))
+        .map_err(|error| PbfError::InFile {
+            path: path.to_path_buf(),
+            error: Box::new(error),
+        })
 }
 
 /// Read an extract from the bytes of a `.osm.pbf` file.

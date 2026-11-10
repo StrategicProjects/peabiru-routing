@@ -240,3 +240,27 @@ fn raw_size_mismatch_is_an_error() {
     f.extend(b);
     assert!(read_pbf(&f, &opts(1)).is_err());
 }
+
+#[test]
+fn file_errors_name_the_file() {
+    let dir = std::env::temp_dir().join(format!("peabiru-pbf-error-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let bad = dir.join("broken.osm.pbf");
+    let mut f = file(false, &[]);
+    f.truncate(f.len() - 3);
+    std::fs::write(&bad, f).unwrap();
+    let truncated = read_pbf_file(&bad, &opts(1)).unwrap_err().to_string();
+    let absent = read_pbf_file(dir.join("absent.pbf"), &opts(1))
+        .unwrap_err()
+        .to_string();
+    std::fs::remove_dir_all(&dir).unwrap();
+    let bad = bad.display().to_string();
+    assert!(
+        truncated.starts_with(&format!("{bad}: malformed PBF file")),
+        "{truncated}"
+    );
+    assert!(
+        absent.contains("absent.pbf: cannot read the PBF file"),
+        "{absent}"
+    );
+}

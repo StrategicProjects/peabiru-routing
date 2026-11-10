@@ -19,7 +19,8 @@ pub enum NetworkError {
     Io(std::io::Error),
     Osm(crate::osm::pbf::PbfError),
     Gtfs(crate::gtfs::GtfsError),
-    NoPbf,
+    /// The data directory holds no `.pbf` file.
+    NoPbf(std::path::PathBuf),
 }
 
 impl std::fmt::Display for NetworkError {
@@ -28,7 +29,9 @@ impl std::fmt::Display for NetworkError {
             NetworkError::Io(e) => write!(f, "{e}"),
             NetworkError::Osm(e) => write!(f, "{e}"),
             NetworkError::Gtfs(e) => write!(f, "{e}"),
-            NetworkError::NoPbf => f.write_str("the directory has no .pbf file"),
+            NetworkError::NoPbf(dir) => {
+                write!(f, "{}: the directory has no .pbf file", dir.display())
+            }
         }
     }
 }
@@ -43,17 +46,23 @@ pub fn build_from_dir(
     opts: &BuildOptions,
 ) -> Result<(StreetNetwork, TransitLayer), NetworkError> {
     let dir = dir.as_ref();
+    let io = |e: std::io::Error| {
+        NetworkError::Io(std::io::Error::new(
+            e.kind(),
+            format!("{}: {e}", dir.display()),
+        ))
+    };
     let mut pbf = None;
-    for e in std::fs::read_dir(dir).map_err(NetworkError::Io)? {
-        let p = e.map_err(NetworkError::Io)?.path();
+    for e in std::fs::read_dir(dir).map_err(io)? {
+        let p = e.map_err(io)?.path();
         if p.extension().is_some_and(|x| x.eq_ignore_ascii_case("pbf")) {
             pbf = Some(p);
             break;
         }
     }
-    let pbf = pbf.ok_or(NetworkError::NoPbf)?;
+    let pbf = pbf.ok_or_else(|| NetworkError::NoPbf(dir.to_path_buf()))?;
     let mut net = build_network(&pbf, opts).map_err(NetworkError::Osm)?;
-    let feeds = gtfs_files_in_dir(dir).map_err(NetworkError::Io)?;
+    let feeds = gtfs_files_in_dir(dir).map_err(io)?;
     let mut layer = TransitLayer::load(&feeds).map_err(NetworkError::Gtfs)?;
     layer.link_stops(&mut net);
     Ok((net, layer))
