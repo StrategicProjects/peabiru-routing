@@ -4,6 +4,7 @@ use super::NONE;
 use crate::CancelToken;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// A contraction hierarchy with nodes renumbered by rank, highest first
 /// (`id[node]`), so a sweep from the top runs through memory in order.
@@ -41,6 +42,10 @@ const WITNESS_SETTLE: usize = 32;
 const ESTIMATE_SETTLE: usize = 2;
 /// Fewer items than this are not worth spawning threads for.
 const PAR_MIN_ITEMS: usize = 64;
+/// Items a worker takes at a time: their costs vary a lot (the last nodes
+/// have many neighbours), so the workers share them out as they go rather
+/// than in fixed shares.
+const PAR_GRAIN: usize = 16;
 
 impl Witness {
     fn new(n: usize) -> Self {
@@ -155,9 +160,10 @@ fn add_arc(list: &mut Vec<(u32, u32)>, v: u32, w: u32) {
     }
 }
 
-/// `f(worker scratch, item)` over `items`, in contiguous chunks over the
-/// workers when there are enough items to pay for the threads; results in
-/// item order.
+/// `f(worker scratch, item)` over `items`, over the workers when there are
+/// enough items to pay for the threads; results in item order. A result
+/// does not depend on the worker that computes it (a witness search starts
+/// from clean scratch), so neither does the hierarchy.
 fn par_map<T: Send>(
     items: &[u32],
     workers: &mut [Witness],
@@ -167,19 +173,39 @@ fn par_map<T: Send>(
         let w = &mut workers[0];
         return items.iter().map(|&x| f(w, x)).collect();
     }
-    let chunk = items.len().div_ceil(workers.len());
     let f = &f;
-    std::thread::scope(|scope| {
-        let handles: Vec<_> = items
-            .chunks(chunk)
-            .zip(workers.iter_mut())
-            .map(|(part, w)| scope.spawn(move || part.iter().map(|&x| f(w, x)).collect::<Vec<T>>()))
+    let next = &AtomicUsize::new(0);
+    let parts: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
+        let handles: Vec<_> = workers
+            .iter_mut()
+            .map(|w| {
+                scope.spawn(move || {
+                    let mut part = Vec::new();
+                    loop {
+                        let a = next.fetch_add(PAR_GRAIN, Ordering::Relaxed);
+                        if a >= items.len() {
+                            break;
+                        }
+                        let b = (a + PAR_GRAIN).min(items.len());
+                        part.extend((a..b).map(|i| (i, f(w, items[i]))));
+                    }
+                    part
+                })
+            })
             .collect();
         handles
             .into_iter()
-            .flat_map(|h| h.join().expect("contraction thread panicked"))
+            .map(|h| h.join().expect("contraction thread panicked"))
             .collect()
-    })
+    });
+    let mut slots: Vec<Option<T>> = (0..items.len()).map(|_| None).collect();
+    for (i, r) in parts.into_iter().flatten() {
+        slots[i] = Some(r);
+    }
+    slots
+        .into_iter()
+        .map(|r| r.expect("every item is mapped"))
+        .collect()
 }
 
 /// Shortcuts added against arcs removed, plus the neighbours already

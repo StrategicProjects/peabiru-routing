@@ -1201,6 +1201,27 @@ mod tests {
         assert_eq!(original.hierarchies.keys().len(), 2);
     }
 
+    /// The contraction gives the same hierarchy at any thread count.
+    #[test]
+    fn hierarchy_does_not_depend_on_threads() {
+        let net = spo();
+        for mode in [Mode::Car, Mode::Walk] {
+            let p = RouteParams::default();
+            let g = ModeGraph::new(&net, mode, Speeds::new(&p, mode), p.max_lts);
+            let build = |t| {
+                let e = Entry::build(Key::Car, Problem::new(&net, &g), t, &CancelToken::new());
+                e.unwrap().h
+            };
+            let one = build(1);
+            for t in [2, 3, 8] {
+                let h = build(t);
+                assert_eq!(h.id, one.id, "{mode:?} {t}");
+                assert_eq!((&h.up_off, &h.up), (&one.up_off, &one.up));
+                assert_eq!((&h.down_off, &h.down), (&one.down_off, &one.down));
+            }
+        }
+    }
+
     /// Which engine computes the matrix.
     #[test]
     fn dispatch() {
