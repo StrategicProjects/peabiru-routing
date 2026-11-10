@@ -7,14 +7,16 @@ use super::raptor::{self, Filtered, RaptorRequest, StopTimes, UNREACHED};
 use super::walk;
 use super::TransitLayer;
 use crate::street::link::{find_split, Split};
-use crate::street::router::{search_from, Mode, ModeGraph, Search};
+use crate::street::router::{check_speed, search_from, worker_threads, Mode, ModeGraph, Search};
 use crate::street::StreetNetwork;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Routing parameters with r5r's defaults.
 #[derive(Debug, Clone)]
 pub struct TransitParams {
-    /// Service date `yyyymmdd`.
+    /// Service date `yyyymmdd`; it must be a real calendar date. The
+    /// default, 0, is a placeholder that [`TransitParams::validate`]
+    /// rejects: there is no default date, as r5r has no default departure.
     pub date: u32,
     /// Departure, seconds after midnight.
     pub departure_time: i32,
@@ -26,55 +28,93 @@ pub struct TransitParams {
     pub max_rides: usize,
     pub draws_per_minute: i32,
     pub seed: Option<i32>,
+    /// Worker threads; 0 means all cores, and more than the cores
+    /// available run as many as there are cores.
     pub n_threads: usize,
 }
 
 impl TransitParams {
-    /// Check the parameters before routing. The percentile rules are R5's
-    /// (`AnalysisWorkerTask.validatePercentiles`: at most 5, in 1..=99);
-    /// the other bounds keep every value an int in seconds and bound what a
-    /// parameter can make RAPTOR allocate (iterations x stops per origin).
+    /// Check the parameters before routing. The bounds are those of R5 and
+    /// r5r 2.5.0 (percentiles: `AnalysisWorkerTask.validatePercentiles`;
+    /// counts: r5r's `checkmate::assert_count(positive = TRUE)` and R5's
+    /// `int` fields; walk speed: at least 1 mm/s, as
+    /// `TravelTimeComputer` requires), plus what keeps the arithmetic in
+    /// R5's `int` seconds: minutes times 60 must fit, and so must the
+    /// departure plus the window plus `max_trip_duration`, the latest clock
+    /// time a search can hold. A departure is at most 7 days after
+    /// midnight of the service day.
     pub fn validate(&self) -> Result<(), String> {
-        if self.percentiles.is_empty() || self.percentiles.len() > 5 {
-            return Err(format!(
-                "between 1 and 5 percentiles are allowed, got {}",
-                self.percentiles.len()
-            ));
-        }
-        if let Some(p) = self.percentiles.iter().find(|p| !(1..=99).contains(*p)) {
-            return Err(format!("percentiles must be in 1..=99, got {p}"));
-        }
-        let check = |name: &str, v: i64, lo: i64, hi: i64| {
+        validate_date(self.date)?;
+        validate_percentiles(&self.percentiles)?;
+        let check_in = |name: &str, v: i64, lo: i64, hi: i64, unit: &str| {
             if (lo..=hi).contains(&v) {
                 Ok(())
             } else {
-                Err(format!("{name} must be between {lo} and {hi}, got {v}"))
+                Err(format!("{name} must be from {lo} to {hi}{unit}, got {v}"))
             }
         };
-        check("departure_time", self.departure_time.into(), 0, 7 * 86_400)?;
-        check("time_window", self.time_window.into(), 1, 1440)?;
-        check("draws_per_minute", self.draws_per_minute.into(), 1, 1000)?;
-        check(
-            "time_window * draws_per_minute",
-            i64::from(self.time_window) * i64::from(self.draws_per_minute),
-            1,
-            100_000,
+        let check = |name: &str, v: i64, lo: i64, hi: i64| check_in(name, v, lo, hi, "");
+        let int_max = i64::from(i32::MAX);
+        let max_minutes = int_max / 60;
+        check_in(
+            "departure_time",
+            self.departure_time.into(),
+            0,
+            7 * 86_400,
+            " seconds",
         )?;
-        check("max_walk_time", self.max_walk_time.into(), 1, 1_000_000)?;
-        check(
+        check_in(
+            "time_window",
+            self.time_window.into(),
+            1,
+            int_max,
+            " minutes",
+        )?;
+        check("draws_per_minute", self.draws_per_minute.into(), 1, int_max)?;
+        // r5r hands R5 `as.integer(time_window * draws_per_minute)`
+        let draws = i64::from(self.time_window) * i64::from(self.draws_per_minute);
+        if draws > int_max {
+            return Err(format!(
+                "time_window x draws_per_minute ({} x {} = {draws} Monte Carlo draws) must be \
+                 at most {int_max}",
+                self.time_window, self.draws_per_minute
+            ));
+        }
+        // max_trip_duration first: r5r passes max_walk_time = Inf as
+        // max_trip_duration, so a value too large is reported under the
+        // name the user set
+        let mins = " minutes";
+        check_in(
             "max_trip_duration",
             self.max_trip_duration.into(),
             1,
-            1_000_000,
+            max_minutes,
+            mins,
         )?;
-        check("max_rides", self.max_rides as i64, 1, 100)?;
-        let v = self.walk_speed_kmh;
-        // (int)(speed m/s * 1000) is a divisor, so it must be >= 1
-        if !v.is_finite() || ((v * 5.0 / 18.0) as f32 * 1000.0f32) < 1.0 || v > 1000.0 {
+        check_in(
+            "max_walk_time",
+            self.max_walk_time.into(),
+            1,
+            max_minutes,
+            mins,
+        )?;
+        let last_clock = i64::from(self.departure_time)
+            + 60 * (i64::from(self.time_window) + i64::from(self.max_trip_duration));
+        if last_clock > int_max {
             return Err(format!(
-                "walk_speed_kmh must be between 0.0036 and 1000 km/h, got {v}"
+                "time_window + max_trip_duration ({} + {} min) after a departure at {} s must \
+                 end within {int_max} s (about 68 years); reduce time_window or \
+                 max_trip_duration",
+                self.time_window, self.max_trip_duration, self.departure_time
             ));
         }
+        check(
+            "max_rides",
+            i64::try_from(self.max_rides).unwrap_or(i64::MAX),
+            1,
+            int_max,
+        )?;
+        check_speed("walk_speed_kmh", self.walk_speed_kmh)?;
         Ok(())
     }
 }
@@ -97,21 +137,96 @@ impl Default for TransitParams {
     }
 }
 
-/// Day of week of `yyyymmdd`, 0 = Monday.
-pub fn weekday(date: u32) -> usize {
+/// `AnalysisWorkerTask.MAX_PERCENTILES`.
+pub const MAX_PERCENTILES: usize = 5;
+
+/// Check travel-time percentiles as R5 does
+/// (`AnalysisWorkerTask.validatePercentiles`): 1 to 5 of them, each in
+/// 1..=99. R5 wants them ascending and accepts equal neighbours, so in any
+/// order and with repeats they pass here (the results sort them). Street
+/// modes have one travel time, reported for every percentile; they take
+/// the same check, so that an empty list is an error there too.
+pub fn validate_percentiles(percentiles: &[i32]) -> Result<(), String> {
+    if percentiles.is_empty() || percentiles.len() > MAX_PERCENTILES {
+        return Err(format!(
+            "between 1 and {MAX_PERCENTILES} percentiles are allowed, got {}",
+            percentiles.len()
+        ));
+    }
+    if let Some(p) = percentiles.iter().find(|p| !(1..=99).contains(*p)) {
+        return Err(format!("percentiles must be in 1..=99, got {p}"));
+    }
+    Ok(())
+}
+
+/// Days in month `m` (1-12) of year `y`, proleptic Gregorian calendar.
+fn days_in_month(y: i64, m: i64) -> i64 {
+    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    match m {
+        2 if leap => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
+}
+
+/// Check that `yyyymmdd` is a real calendar date (Gregorian, years 1 to
+/// 9999): `20190513` passes, `20190230`, `20191301` and `0` do not. The
+/// service calendar is looked up by this date, so a date that does not
+/// exist would silently match no service.
+pub fn validate_date(date: u32) -> Result<(), String> {
     let (y, m, d) = (
-        (date / 10000) as i64,
-        ((date / 100) % 100) as i64,
-        (date % 100) as i64,
+        i64::from(date / 10000),
+        i64::from((date / 100) % 100),
+        i64::from(date % 100),
     );
-    // days from civil (Howard Hinnant), 1970-01-01 is a Thursday
+    if (1..=9999).contains(&y) && (1..=12).contains(&m) && d >= 1 && d <= days_in_month(y, m) {
+        Ok(())
+    } else {
+        Err(format!(
+            "date must be a calendar date written yyyymmdd, got {date}"
+        ))
+    }
+}
+
+/// Days since 1970-01-01 of a valid `yyyymmdd` (Howard Hinnant's
+/// `days_from_civil`).
+pub(crate) fn days_from_civil(date: u32) -> i64 {
+    let (y, m, d) = (
+        i64::from(date / 10000),
+        i64::from((date / 100) % 100),
+        i64::from(date % 100),
+    );
     let y = if m <= 2 { y - 1 } else { y };
     let era = y.div_euclid(400);
     let yoe = y - era * 400;
     let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    let days = era * 146_097 + doe - 719_468;
-    ((days + 3).rem_euclid(7)) as usize
+    era * 146_097 + doe - 719_468
+}
+
+/// The `yyyymmdd` of a day count since 1970-01-01 (`civil_from_days`), or
+/// `None` outside years 1 to 9999.
+pub(crate) fn civil_from_days(days: i64) -> Option<u32> {
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    if !(1..=9999).contains(&y) {
+        return None;
+    }
+    u32::try_from(y * 10000 + m * 100 + d).ok()
+}
+
+/// Day of week of `yyyymmdd`, 0 = Monday.
+pub fn weekday(date: u32) -> usize {
+    // 1970-01-01 is a Thursday
+    ((days_from_civil(date) + 3).rem_euclid(7)) as usize
 }
 
 /// Network data precomputed once and shared by every query.
@@ -180,6 +295,19 @@ impl<'a> Query<'a> {
         p: &'a TransitParams,
     ) -> Result<Self, String> {
         p.validate()?;
+        // RAPTOR keeps iterations x stops durations per origin; their byte
+        // count must be a valid allocation size
+        let per_minute = if layer.has_frequencies {
+            p.draws_per_minute as u64
+        } else {
+            1
+        };
+        let cells = p.time_window as u64 * per_minute * layer.stop_ids.len() as u64;
+        if cells > isize::MAX as u64 / 4 {
+            return Err(format!(
+                "time_window x draws_per_minute x stops ({cells}) is too large to allocate"
+            ));
+        }
         let active = layer.active_services(p.date, weekday(p.date));
         let filtered = Filtered::new(layer, &active)?;
         let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
@@ -325,18 +453,14 @@ impl<'a> Query<'a> {
 }
 
 /// Run `f(origin_index, scratch)` for every origin on `n_threads` threads
-/// (0 = all cores), results in origin order.
+/// (0 = all cores; capped at the cores and the origins), results in origin
+/// order.
 pub(crate) fn par_origins<T: Send>(
     n_threads: usize,
     n_origins: usize,
     f: impl Fn(usize, &mut Scratch) -> T + Sync,
 ) -> Vec<T> {
-    let n_threads = if n_threads > 0 {
-        n_threads
-    } else {
-        std::thread::available_parallelism().map_or(1, |n| n.get())
-    }
-    .clamp(1, n_origins.max(1));
+    let n_threads = worker_threads(n_threads, n_origins);
     let next = AtomicUsize::new(0);
     let chunks: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)
@@ -372,6 +496,9 @@ pub(crate) fn par_origins<T: Send>(
 
 /// Travel times in minutes, `[origin][destination][percentile]`, `None`
 /// where r5r reports NA; a pair is reported when its lowest percentile is.
+/// The percentiles are returned in ascending order, whatever the order of
+/// `p.percentiles`; a repeated percentile, which R5 accepts, gets one
+/// column per occurrence (see [`validate_percentiles`]).
 pub fn travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
@@ -428,45 +555,182 @@ mod tests {
 
     #[test]
     fn invalid_parameters_are_rejected() {
-        let ok = TransitParams::default();
+        let ok = TransitParams {
+            date: 20190513,
+            ..TransitParams::default()
+        };
         assert!(ok.validate().is_ok());
         for bad in [
             TransitParams {
                 percentiles: vec![],
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 percentiles: vec![100],
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 time_window: 0,
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 draws_per_minute: 0,
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
-                time_window: 1440,
-                draws_per_minute: 1000,
-                ..TransitParams::default()
+                time_window: 1 << 16,
+                draws_per_minute: 1 << 16,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_trip_duration: i32::MAX / 60 + 1,
+                max_walk_time: i32::MAX / 60 + 1,
+                ..ok.clone()
+            },
+            TransitParams {
+                time_window: i32::MAX / 100,
+                max_trip_duration: i32::MAX / 100,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_rides: i32::MAX as usize + 1,
+                ..ok.clone()
+            },
+            TransitParams {
+                walk_speed_kmh: 0.0,
+                ..ok.clone()
             },
             TransitParams {
                 max_trip_duration: 0,
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 max_rides: 0,
-                ..TransitParams::default()
+                ..ok.clone()
             },
             TransitParams {
                 walk_speed_kmh: f64::NAN,
-                ..TransitParams::default()
+                ..ok.clone()
+            },
+            TransitParams {
+                date: 0,
+                ..ok.clone()
+            },
+            TransitParams {
+                date: 20190230,
+                ..ok.clone()
             },
         ] {
             assert!(bad.validate().is_err(), "{bad:?}");
         }
+    }
+
+    /// Values r5r 2.5.0 accepts that earlier caps rejected, and the
+    /// messages of what remains bounded.
+    #[test]
+    fn bounds_are_r5s_and_the_int_clock() {
+        let ok = TransitParams {
+            date: 20190513,
+            departure_time: 14 * 3600,
+            ..TransitParams::default()
+        };
+        for fine in [
+            TransitParams {
+                time_window: 2000,
+                ..ok.clone()
+            },
+            TransitParams {
+                time_window: 1000,
+                draws_per_minute: 1000,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_rides: 1000,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_trip_duration: 5_000_000,
+                max_walk_time: 5_000_000,
+                ..ok.clone()
+            },
+            TransitParams {
+                walk_speed_kmh: 5000.0,
+                ..ok.clone()
+            },
+        ] {
+            assert_eq!(fine.validate(), Ok(()), "{fine:?}");
+        }
+        let err = |p: TransitParams| p.validate().unwrap_err();
+        // max_walk_time = Inf in r5r is max_trip_duration: the message
+        // names max_trip_duration
+        let huge = err(TransitParams {
+            max_trip_duration: i32::MAX,
+            max_walk_time: i32::MAX,
+            ..ok.clone()
+        });
+        assert!(
+            huge.starts_with("max_trip_duration must be from 1 to 35791394"),
+            "{huge}"
+        );
+        let clock = err(TransitParams {
+            time_window: 30_000_000,
+            max_trip_duration: 10_000_000,
+            ..ok.clone()
+        });
+        assert!(
+            clock.starts_with("time_window + max_trip_duration"),
+            "{clock}"
+        );
+        let speed = err(TransitParams {
+            walk_speed_kmh: 1e-300,
+            ..ok.clone()
+        });
+        assert_eq!(
+            speed,
+            "walk_speed_kmh must be at least 0.0036 km/h (1 mm/s), got 1e-300"
+        );
+    }
+
+    #[test]
+    fn percentiles_follow_r5() {
+        assert!(validate_percentiles(&[50]).is_ok());
+        assert!(validate_percentiles(&[75, 25, 50]).is_ok());
+        // R5 checks `percentiles[p] >= percentiles[p - 1]`: repeats pass
+        assert!(validate_percentiles(&[50, 50]).is_ok());
+        assert_eq!(
+            validate_percentiles(&[]).unwrap_err(),
+            "between 1 and 5 percentiles are allowed, got 0"
+        );
+        assert!(validate_percentiles(&[1, 2, 3, 4, 5, 6]).is_err());
+        assert!(validate_percentiles(&[0]).is_err());
+        assert!(validate_percentiles(&[100]).is_err());
+    }
+
+    #[test]
+    fn dates_are_calendar_dates() {
+        for ok in [20190513, 20200229, 20000229, 19700101, 10101, 99991231] {
+            assert!(validate_date(ok).is_ok(), "{ok}");
+        }
+        for bad in [
+            0, 20190230, 20190229, 19000229, 20191301, 20190500, 20190001, 101,
+        ] {
+            assert!(validate_date(bad).is_err(), "{bad}");
+        }
+        assert_eq!(
+            validate_date(20190230).unwrap_err(),
+            "date must be a calendar date written yyyymmdd, got 20190230"
+        );
+    }
+
+    #[test]
+    fn day_counts_round_trip() {
+        assert_eq!(days_from_civil(19700101), 0);
+        assert_eq!(civil_from_days(-1), Some(19691231));
+        for date in [10101, 20000229, 20190513, 20191231, 99991231] {
+            assert_eq!(civil_from_days(days_from_civil(date)), Some(date));
+        }
+        assert_eq!(civil_from_days(days_from_civil(10101) - 1), None);
+        assert_eq!(civil_from_days(days_from_civil(99991231) + 1), None);
     }
 
     #[test]

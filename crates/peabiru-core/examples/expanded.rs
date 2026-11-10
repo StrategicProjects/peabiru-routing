@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Arrival by 15:00 within 60 minutes: the search window is the 60
     // minutes before the arrival time, as in r5r.
     let max_trip = 60;
-    let (date, departure) = arrival_departure(20190513, 15 * 3600, max_trip);
+    let (date, departure) = arrival_departure(20190513, 15 * 3600, max_trip)?;
     let params = TransitParams {
         date,
         departure_time: departure,

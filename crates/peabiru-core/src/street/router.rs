@@ -8,6 +8,7 @@ use super::labels::cms_to_ms;
 use super::link::{find_split, Split};
 use super::StreetNetwork;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 /// Street mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,7 +36,8 @@ pub struct RouteParams {
     pub max_lts: i32,
     /// Trip limit in whole minutes.
     pub max_trip_duration_min: i32,
-    /// Worker threads; 0 means all cores.
+    /// Worker threads; 0 means all cores, and more than the cores
+    /// available run as many as there are cores.
     pub n_threads: usize,
 }
 
@@ -51,24 +53,48 @@ impl std::fmt::Display for ParamError {
 
 impl std::error::Error for ParamError {}
 
+/// A number for an error message: as written when short, else in
+/// scientific notation (`1e300`, not 301 digits).
+pub(crate) fn compact(v: f64) -> String {
+    let s = format!("{v}");
+    if s.len() <= 16 {
+        s
+    } else {
+        format!("{v:e}")
+    }
+}
+
+/// Check a speed in km/h as R5 does: finite, and at least 1 mm/s once
+/// converted to `(int)(m/s as float * 1000)`, which is a divisor
+/// (`TravelTimeComputer`: "Speed of access mode must be greater than 0").
+pub(crate) fn check_speed(name: &str, v: f64) -> Result<(), String> {
+    if !v.is_finite() || ((v * 5.0 / 18.0) as f32 * 1000.0f32) < 1.0 {
+        return Err(format!(
+            "{name} must be at least 0.0036 km/h (1 mm/s), got {}",
+            compact(v)
+        ));
+    }
+    Ok(())
+}
+
 impl RouteParams {
-    /// Check the parameters: speeds must give at least 1 mm/s, the trip limit
-    /// must be a positive number of minutes that fits in seconds.
+    /// Check the parameters: speeds must give at least 1 mm/s (R5's
+    /// bound), `max_lts` must be 1 to 4 (r5r's bound), the trip limit must
+    /// be a positive number of minutes that fits R5's `int` seconds.
     pub fn validate(&self) -> Result<(), ParamError> {
-        for (name, v) in [
-            ("walk_speed_kmh", self.walk_speed_kmh),
-            ("bike_speed_kmh", self.bike_speed_kmh),
-        ] {
-            // (int)(speed m/s * 1000) is a divisor, so it must be >= 1
-            if !v.is_finite() || ((v * 5.0 / 18.0) as f32 * 1000.0f32) < 1.0 || v > 1000.0 {
-                return Err(ParamError(format!(
-                    "{name} must be between 0.0036 and 1000 km/h, got {v}"
-                )));
-            }
-        }
-        if !(1..=1_000_000).contains(&self.max_trip_duration_min) {
+        check_speed("walk_speed_kmh", self.walk_speed_kmh).map_err(ParamError)?;
+        check_speed("bike_speed_kmh", self.bike_speed_kmh).map_err(ParamError)?;
+        // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
+        if !(1..=4).contains(&self.max_lts) {
             return Err(ParamError(format!(
-                "max_trip_duration_min must be between 1 and 1000000, got {}",
+                "max_lts must be from 1 to 4 (the highest level of traffic stress), got {}",
+                self.max_lts
+            )));
+        }
+        let max_minutes = i32::MAX / 60;
+        if !(1..=max_minutes).contains(&self.max_trip_duration_min) {
+            return Err(ParamError(format!(
+                "max_trip_duration must be from 1 to {max_minutes} minutes, got {}",
                 self.max_trip_duration_min
             )));
         }
@@ -86,6 +112,21 @@ impl Default for RouteParams {
             n_threads: 0,
         }
     }
+}
+
+/// Worker threads for `n_items` origins when `requested` were asked for
+/// (0 = all cores): never more than the cores available, since each worker
+/// holds its own search state and more threads than cores only add memory,
+/// and never more than the origins. Results never depend on it: origins
+/// are handed out one at a time and stored by index.
+pub(crate) fn worker_threads(requested: usize, n_items: usize) -> usize {
+    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    let n = if requested == 0 {
+        cores
+    } else {
+        requested.min(cores)
+    };
+    n.clamp(1, n_items.max(1))
 }
 
 /// Speeds as R5 holds them: km/h to m/s in double, then `(float)`.
@@ -715,7 +756,8 @@ pub fn street_seconds(
 /// (`i32::MAX` where unreached; states kept only below `limit` seconds) and
 /// the direct time in seconds to each linked destination (`i32::MAX` where
 /// unreachable), as R5's `TravelTimeComputer` uses for access and for the
-/// non-transit option.
+/// non-transit option. An error when `walk_speed_kmh` is not a valid speed
+/// (see [`RouteParams::validate`]).
 pub fn street_vertex_times(
     net: &StreetNetwork,
     origin: &Split,
@@ -723,7 +765,12 @@ pub fn street_vertex_times(
     mode: Mode,
     walk_speed_kmh: f64,
     limit: i32,
-) -> (Vec<i32>, Vec<i32>) {
+) -> Result<(Vec<i32>, Vec<i32>), ParamError> {
+    RouteParams {
+        walk_speed_kmh,
+        ..RouteParams::default()
+    }
+    .validate()?;
     let g = ModeGraph::with_walk_speed(net, mode, walk_speed_kmh);
     let mut search = Search::new(net);
     let mut direct = Vec::new();
@@ -736,7 +783,7 @@ pub fn street_vertex_times(
         &mut search,
         &mut direct,
     );
-    (search.vertex_time, direct)
+    Ok((search.vertex_time, direct))
 }
 
 impl ModeGraph {
@@ -792,28 +839,23 @@ pub fn travel_time_matrix(
         .collect();
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
-    let n_threads = if params.n_threads > 0 {
-        params.n_threads
-    } else {
-        std::thread::available_parallelism().map_or(1, |n| n.get())
+    if out.is_empty() {
+        return Ok(out);
     }
-    .clamp(1, origins.len().max(1));
-
-    let next = AtomicUsize::new(0);
-    let chunks: Vec<Vec<(usize, Vec<Option<u32>>)>> = std::thread::scope(|scope| {
+    let n_threads = worker_threads(params.n_threads, origins.len());
+    // Each worker takes the next origin's row of `out` and writes it in
+    // place: the rows are disjoint, so the matrix is never held twice.
+    let rows = Mutex::new(out.chunks_mut(nd).enumerate());
+    std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)
             .map(|_| {
                 scope.spawn(|| {
                     let mut search = Search::new(net);
                     let mut scratch = Vec::new();
-                    let mut rows = Vec::new();
                     loop {
-                        let i = next.fetch_add(1, Ordering::Relaxed);
-                        if i >= origins.len() {
-                            break;
-                        }
+                        let next = rows.lock().expect("row queue").next();
+                        let Some((i, row)) = next else { break };
                         let (lat, lon) = origins[i];
-                        let mut row = vec![None; nd];
                         if let Some(o) = find_split(net, lat, lon, mode, &mut scratch) {
                             route(net, &g, &o, limit, &mut search);
                             for (j, d) in dest_splits.iter().enumerate() {
@@ -826,20 +868,14 @@ pub fn travel_time_matrix(
                                 }
                             }
                         }
-                        rows.push((i, row));
                     }
-                    rows
                 })
             })
             .collect();
-        handles
-            .into_iter()
-            .map(|h| h.join().expect("routing thread panicked"))
-            .collect()
+        for h in handles {
+            h.join().expect("routing thread panicked");
+        }
     });
-    for (i, row) in chunks.into_iter().flatten() {
-        out[i * nd..(i + 1) * nd].copy_from_slice(&row);
-    }
     Ok(out)
 }
 
@@ -866,12 +902,7 @@ pub fn travel_time_seconds<T: Send>(
         .iter()
         .map(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch))
         .collect();
-    let n_threads = if params.n_threads > 0 {
-        params.n_threads
-    } else {
-        std::thread::available_parallelism().map_or(1, |n| n.get())
-    }
-    .clamp(1, origins.len().max(1));
+    let n_threads = worker_threads(params.n_threads, origins.len());
     let next = AtomicUsize::new(0);
     let chunks: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)
@@ -918,6 +949,16 @@ pub(crate) mod tests {
     use super::*;
 
     #[test]
+    fn worker_threads_are_capped_by_cores_and_origins() {
+        let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+        assert_eq!(worker_threads(0, 1_000_000), cores);
+        assert_eq!(worker_threads(5041, 1_000_000), cores);
+        assert_eq!(worker_threads(1, 1_000_000), 1);
+        assert_eq!(worker_threads(5041, 3), cores.min(3));
+        assert_eq!(worker_threads(4, 0), 1);
+    }
+
+    #[test]
     fn invalid_parameters_are_rejected() {
         let net = StreetNetwork::default();
         let bad = [
@@ -939,6 +980,14 @@ pub(crate) mod tests {
             },
             RouteParams {
                 max_trip_duration_min: i32::MAX,
+                ..RouteParams::default()
+            },
+            RouteParams {
+                max_lts: 0,
+                ..RouteParams::default()
+            },
+            RouteParams {
+                max_lts: 7,
                 ..RouteParams::default()
             },
         ];
@@ -1086,6 +1135,46 @@ pub(crate) mod tests {
                 }
             }
             assert!(searched > 500, "{mode:?}: {searched}");
+        }
+    }
+
+    /// Rows written in place by the workers: every row lands at its
+    /// origin's offset whatever the thread count, and each cell is the
+    /// single-origin search's time.
+    #[test]
+    fn matrix_rows_are_in_origin_order_for_any_thread_count() {
+        let net = jittered_grid();
+        let pts: Vec<(f64, f64)> = (0..40)
+            .map(|k| {
+                (
+                    (k % 7) as f64 * 9.7e-4 + 1e-5,
+                    (k / 7) as f64 * 9.3e-4 + 2e-5,
+                )
+            })
+            .collect();
+        let dest = &pts[..13];
+        for mode in [Mode::Walk, Mode::Car] {
+            let one = RouteParams {
+                n_threads: 1,
+                ..RouteParams::default()
+            };
+            let m1 = travel_time_matrix(&net, &pts, dest, mode, &one).unwrap();
+            assert_eq!(m1.len(), pts.len() * dest.len());
+            assert!(m1.iter().filter(|c| c.is_some()).count() > 100);
+            for n_threads in [0, 3, 64] {
+                let p = RouteParams {
+                    n_threads,
+                    ..RouteParams::default()
+                };
+                assert_eq!(travel_time_matrix(&net, &pts, dest, mode, &p).unwrap(), m1);
+            }
+            for (i, &o) in pts.iter().enumerate() {
+                let row = travel_time_matrix(&net, &[o], dest, mode, &one).unwrap();
+                assert_eq!(row[..], m1[i * dest.len()..(i + 1) * dest.len()], "{i}");
+            }
+            assert!(travel_time_matrix(&net, &pts, &[], mode, &one)
+                .unwrap()
+                .is_empty());
         }
     }
 }

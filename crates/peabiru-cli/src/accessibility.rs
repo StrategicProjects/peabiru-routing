@@ -18,6 +18,7 @@
 //! (no `cutoff` with `fixed_exponential`), one row per origin, opportunity,
 //! percentile and cutoff in that order, with every double written in full.
 
+use crate::cli::{self, runtime_error, usage_error};
 use peabiru_core::street::{build_network, BuildOptions, Mode, RouteParams};
 use peabiru_core::transit::accessibility::{
     r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
@@ -27,9 +28,16 @@ use peabiru_core::transit::decay::DecayFunction;
 use peabiru_core::transit::matrix::{TransitData, TransitParams};
 use std::time::Instant;
 
+const CMD: &str = "accessibility";
+
+/// A bad argument: exit status 2.
 fn fail(msg: impl std::fmt::Display) -> ! {
-    eprintln!("accessibility: {msg}");
-    std::process::exit(2)
+    usage_error(CMD, msg)
+}
+
+/// A file or network that cannot be read: exit status 1.
+fn fail_io(msg: impl std::fmt::Display) -> ! {
+    runtime_error(CMD, msg)
 }
 
 /// Points and the named numeric columns of a CSV (header required).
@@ -40,11 +48,12 @@ struct Points {
 }
 
 fn read_points(path: &str, columns: &[String]) -> Points {
-    let text = std::fs::read_to_string(path).unwrap_or_else(|e| fail(format!("{path}: {e}")));
-    let mut lines = text.lines();
+    let text = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| fail_io(format!("cannot read {path}: {e}")));
+    let mut lines = text.lines().enumerate();
     let header: Vec<&str> = lines
         .next()
-        .unwrap_or("")
+        .map_or("", |(_, l)| l)
         .split(',')
         .map(|h| h.trim().trim_matches('"'))
         .collect();
@@ -52,7 +61,7 @@ fn read_points(path: &str, columns: &[String]) -> Points {
         header
             .iter()
             .position(|h| *h == name)
-            .unwrap_or_else(|| fail(format!("{path}: no '{name}' column")))
+            .unwrap_or_else(|| fail_io(format!("{path}:1: no '{name}' column")))
     };
     let (ci, clon, clat) = (col("id"), col("lon"), col("lat"));
     let cols: Vec<usize> = columns.iter().map(|c| col(c)).collect();
@@ -61,7 +70,8 @@ fn read_points(path: &str, columns: &[String]) -> Points {
         coords: Vec::new(),
         columns: vec![Vec::new(); cols.len()],
     };
-    for (n, line) in lines.filter(|l| !l.trim().is_empty()).enumerate() {
+    for (n, line) in lines.filter(|(_, l)| !l.trim().is_empty()) {
+        let line_no = n + 1;
         let f: Vec<&str> = line
             .split(',')
             .map(|x| x.trim().trim_matches('"'))
@@ -69,14 +79,14 @@ fn read_points(path: &str, columns: &[String]) -> Points {
         let get = |i: usize| {
             f.get(i)
                 .copied()
-                .unwrap_or_else(|| fail(format!("{path}: line {} is short", n + 2)))
+                .unwrap_or_else(|| fail_io(format!("{path}:{line_no}: line is short")))
         };
         // NA / empty -> NaN; the core treats a NaN count as 0, like r5r
         let num = |i: usize| match get(i) {
             "" | "NA" => f64::NAN,
             s => s
                 .parse::<f64>()
-                .unwrap_or_else(|_| fail(format!("{path}: line {}: bad number '{s}'", n + 2))),
+                .unwrap_or_else(|_| fail_io(format!("{path}:{line_no}: '{s}' is not a number"))),
         };
         p.ids.push(get(ci).to_string());
         p.coords.push((num(clat), num(clon)));
@@ -85,16 +95,6 @@ fn read_points(path: &str, columns: &[String]) -> Points {
         }
     }
     p
-}
-
-fn list<T: std::str::FromStr>(s: &str, what: &str) -> Vec<T> {
-    s.split([',', ';'])
-        .map(|x| {
-            x.trim()
-                .parse()
-                .unwrap_or_else(|_| fail(format!("bad {what} '{x}'")))
-        })
-        .collect()
 }
 
 /// r5r `assign_decay_function` and `set_cutoffs` checks.
@@ -165,10 +165,7 @@ fn decay_function(name: &str, value: Option<f64>, cutoffs: &Option<Vec<i32>>) ->
 }
 
 pub fn run(args: &[String]) {
-    if args.len() < 3 {
-        super::usage();
-    }
-    let (net_path, points_path, out) = (&args[0], &args[1], &args[2]);
+    let (net_path, points_path, out) = crate::positional3(CMD, args);
     let mut mode = "WALK".to_string();
     let mut opportunities: Vec<String> = Vec::new();
     let mut decay = "step".to_string();
@@ -181,63 +178,58 @@ pub fn run(args: &[String]) {
     let mut rp = RouteParams::default();
     let mut dest_path: Option<String> = None;
     let mut repeats = 1usize;
+    let (mut have_date, mut have_time) = (false, false);
     let mut i = 3;
     while i < args.len() {
-        let v = args
-            .get(i + 1)
-            .unwrap_or_else(|| fail(format!("{} needs a value", args[i])));
-        let num = |what: &str| -> f64 {
-            v.parse()
-                .unwrap_or_else(|_| fail(format!("bad {what} '{v}'")))
+        let name = args[i].as_str();
+        let v = cli::value(CMD, args, i);
+        // decay_value may be given as Inf; decay_function rejects it with
+        // r5r's message
+        let num = || -> f64 {
+            v.trim()
+                .parse()
+                .unwrap_or_else(|_| fail(format!("{name} must be a number, got '{v}'")))
         };
-        let int = |what: &str| -> i32 {
-            v.parse()
-                .unwrap_or_else(|_| fail(format!("bad {what} '{v}'")))
-        };
-        match args[i].as_str() {
+        let any_int = || cli::int(CMD, name, v, i32::MIN, i32::MAX);
+        match name {
             "--mode" => mode = v.to_uppercase(),
-            "--opportunities" => opportunities = list(v, "opportunity column"),
+            "--opportunities" => opportunities = cli::list(CMD, name, v),
             "--decay" => decay = v.to_lowercase(),
-            "--decay-value" => decay_value = Some(num("decay value")),
-            "--cutoffs" => cutoffs = Some(list(v, "cutoff")),
-            "--percentiles" => percentiles = list(v, "percentile"),
+            "--decay-value" => decay_value = Some(num()),
+            "--cutoffs" => cutoffs = Some(cli::list(CMD, name, v)),
+            "--percentiles" => percentiles = cli::list(CMD, name, v),
             "--date" => {
-                tp.date = v
-                    .replace('-', "")
-                    .parse()
-                    .unwrap_or_else(|_| fail(format!("bad date '{v}'")))
+                tp.date = cli::date(CMD, name, v);
+                have_date = true;
             }
             "--time" => {
-                let t: Vec<i32> = list(&v.replace(':', ","), "time");
-                if t.len() < 2 || t.len() > 3 {
-                    fail(format!("bad time '{v}'"));
-                }
-                tp.departure_time = t[0] * 3600 + t[1] * 60 + t.get(2).copied().unwrap_or(0);
+                tp.departure_time = cli::time_of_day(CMD, name, v);
+                have_time = true;
             }
-            "--tw" => tp.time_window = int("time window"),
+            "--tw" => tp.time_window = cli::count(CMD, name, v),
             "--max-walk" => {
                 max_walk = if v.eq_ignore_ascii_case("inf") {
                     None
                 } else {
-                    Some(int("max walk time"))
+                    Some(cli::count(CMD, name, v))
                 }
             }
-            "--max-trip" => max_trip = int("max trip duration"),
-            "--max-rides" => tp.max_rides = int("max rides").max(0) as usize,
-            "--draws" => tp.draws_per_minute = int("draws per minute"),
-            "--seed" => tp.seed = Some(int("seed")),
+            "--max-trip" => max_trip = cli::count(CMD, name, v),
+            "--max-rides" => tp.max_rides = cli::count(CMD, name, v) as usize,
+            "--draws" => tp.draws_per_minute = cli::count(CMD, name, v),
+            "--seed" => tp.seed = Some(any_int()),
             "--walk-speed" => {
-                tp.walk_speed_kmh = num("walk speed");
+                tp.walk_speed_kmh = cli::float(CMD, name, v);
                 rp.walk_speed_kmh = tp.walk_speed_kmh;
             }
-            "--bike-speed" => rp.bike_speed_kmh = num("bike speed"),
-            "--max-lts" => rp.max_lts = int("max lts"),
-            "--destinations" => dest_path = Some(v.clone()),
+            "--bike-speed" => rp.bike_speed_kmh = cli::float(CMD, name, v),
+            "--max-lts" => rp.max_lts = any_int(),
+            "--destinations" => dest_path = Some(v.to_string()),
             "--threads" => {
-                tp.n_threads = int("threads").max(0) as usize;
+                tp.n_threads = cli::size(CMD, name, v);
                 rp.n_threads = tp.n_threads;
             }
-            "--repeats" => repeats = int("repeats").max(1) as usize,
+            "--repeats" => repeats = cli::count(CMD, name, v) as usize,
             other => fail(format!("unknown option '{other}'")),
         }
         i += 2;
@@ -263,6 +255,9 @@ pub fn run(args: &[String]) {
             "unsupported mode '{mode}' (WALK,TRANSIT | WALK | BICYCLE | CAR)"
         )),
     };
+    if street_mode.is_none() && !(have_date && have_time) {
+        fail("--date and --time are required with TRANSIT");
+    }
     let f = decay_function(&decay, decay_value, &cutoffs);
     let (m, w) = r5r_trip_limits(
         &f,
@@ -297,10 +292,10 @@ pub fn run(args: &[String]) {
     if let Some(mode) = street_mode {
         let net = if is_dir {
             peabiru_core::transit::build_from_dir(net_path, &build)
-                .unwrap_or_else(|e| fail(e))
+                .unwrap_or_else(|e| fail_io(e))
                 .0
         } else {
-            build_network(net_path, &build).unwrap_or_else(|e| fail(e))
+            build_network(net_path, &build).unwrap_or_else(|e| fail_io(e))
         };
         build_s = t0.elapsed().as_secs_f64();
         rp.max_trip_duration_min = m;
@@ -321,11 +316,8 @@ pub fn run(args: &[String]) {
             times.push(t.elapsed().as_secs_f64());
         }
     } else {
-        if tp.date == 0 {
-            fail("--date and --time are required with TRANSIT");
-        }
         let (net, layer) =
-            peabiru_core::transit::build_from_dir(net_path, &build).unwrap_or_else(|e| fail(e));
+            peabiru_core::transit::build_from_dir(net_path, &build).unwrap_or_else(|e| fail_io(e));
         let data = TransitData::new(&net, &layer);
         build_s = t0.elapsed().as_secs_f64();
         tp.percentiles = percentiles.clone();
@@ -364,7 +356,7 @@ pub fn run(args: &[String]) {
             }
         }
     }
-    std::fs::write(out, csv).unwrap_or_else(|e| fail(format!("{out}: {e}")));
+    cli::write_file(CMD, out, csv);
     println!(
         "build {:.3}s  route {:.3}s (median of {})  rows {}  max_trip {}  max_walk {}",
         build_s,
