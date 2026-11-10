@@ -1,0 +1,21 @@
+# Build context of bench/docker/Dockerfile (the repository root): sources
+# only, no build products, local environments or data.
+.git
+.claude
+**/target
+**/.venv
+**/node_modules
+**/__pycache__
+_site
+bench/data
+bench-results
+r/src/rust/target
+r/src/rust/vendor
+r/src/*.o
+r/src/*.so
+r/..Rcheck
+r/*.tar.gz
+python/dist
+python/site
+**/*.so
+**/.DS_Store
