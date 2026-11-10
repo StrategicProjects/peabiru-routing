@@ -121,3 +121,13 @@ footer p { margin: 4px 0; }
 .hero .badges a, .hero .badges img { display: block; line-height: 0; }
 .hero .badges img { height: 20px; width: auto; }
 .hero .badges a:hover { opacity: 1; }
+
+/* benchmarks: two tiers of packages (appended) */
+.stat-other .stat-v { color: var(--pb-ink); }
+.stat-who { font-size: 13.5px; }
+table.bench td, table.bench th { font-size: 14.5px; white-space: nowrap; }
+table.bench tr.fam-peabiru th[scope="row"] { color: var(--pb-route); font-weight: 600; }
+details.bench-notes { margin: -12px 0 20px; font-size: 14.5px; color: var(--pb-ink-soft); }
+details.bench-notes summary { cursor: pointer; }
+details.bench-notes li { margin: 4px 0; }
+ul.why li { margin: 6px 0; }

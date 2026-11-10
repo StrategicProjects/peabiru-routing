@@ -5,6 +5,7 @@
 #
 # Rscript bench/site/engine_r.R --engine peabiru-r|r5r --city poa --dir DIR
 #   --points CSV --task ttm_transit --threads 10 --reps 3 --params JSON
+#   [--result out.csv]
 
 args <- commandArgs(trailingOnly = TRUE)
 opt <- function(name) {
@@ -88,5 +89,15 @@ res <- call() # warm-up
 rows <- nrow(res)
 times <- numeric(reps)
 for (i in seq_len(reps)) times[i] <- elapsed(res <- call())
+# --result: the matrix as from_id,to_id,travel_time for bench/site/run.py's
+# comparison with peabiru (travel-time matrix tasks only)
+i_res <- match("--result", args)
+if (!is.na(i_res) && startsWith(task, "ttm_")) {
+  tt <- grep("^travel_time", names(res), value = TRUE)[1]
+  keep <- !is.na(res[[tt]])
+  utils::write.csv(data.frame(from_id = res$from_id[keep], to_id = res$to_id[keep],
+                              travel_time = res[[tt]][keep]),
+                   args[[i_res + 1]], row.names = FALSE, quote = FALSE)
+}
 cat(jsonlite::toJSON(list(build_s = build_s, times = I(times), rows = rows, version = version),
                      auto_unbox = TRUE, digits = NA), "\n")

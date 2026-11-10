@@ -1,0 +1,18 @@
+# Python packages of the benchmark container (bench/docker/Dockerfile).
+# Direct dependencies, pinned; the full resolved set is written to
+# /opt/bench/pip-freeze.txt in the image and recorded in benchmarks.json.
+r5py==1.1.7
+pyrosm==0.29.0
+osmnx==2.1.1
+networkx==3.7
+igraph==1.0.0
+pandana==0.8
+pandas==3.1.1
+numpy==2.5.4
+geopandas==1.2.0
+shapely==2.2.0
+pyproj==3.8.0
+pyogrio==0.13.0
+scikit-learn==1.9.1
+scipy==1.18.1
+maturin>=1.7,<2

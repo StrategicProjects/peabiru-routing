@@ -1,26 +1,42 @@
 #!/usr/bin/env python3
-"""Benchmarks for the documentation site: peabiru against r5r and r5py.
+"""Benchmarks for the documentation site: peabiru among the packages people
+use for travel-time matrices on OpenStreetMap and GTFS.
 
-Runs the same tasks, on the same inputs and with the same parameters, on every
-engine that is available, and writes one tidy results file,
-site/data/benchmarks.json (metadata + one record per engine, city, task and
-thread count), plus the same records as site/data/benchmarks.csv.
+Runs the same tasks, on the same inputs and with the same parameters (where
+a package lets them be set), on every engine that is available, compares
+each engine's matrices with peabiru's, and writes one tidy results file,
+<out>/benchmarks.json (metadata + one record per engine, city, task and
+thread count), plus the same records as <out>/benchmarks.csv.
 bench/site/charts.py turns it into the charts and tables of the sites.
 
     python3 bench/site/run.py                       # every engine, both cities
     python3 bench/site/run.py --engines peabiru-cli,r5r --cities spo --threads 10
+    python3 bench/site/run.py --out /tmp/bench      # a test run: site/data untouched
 
 Engines (each one is skipped cleanly, with the reason recorded, when it
 cannot run):
 
+  same model (r5r's results):
   peabiru-cli  the `peabiru` binary (cargo build --release -p peabiru-cli, or
                PEABIRU_BIN)
   peabiru-r    the R package (library from PEABIRU_R_LIB, else R's default)
   peabiru-py   the Python package (interpreter from PEABIRU_PYTHON, else
                python/.venv/bin/python, else python3)
-  r5r          r5r with R5 7.6 on a JDK 21 (JAVA_HOME, default Homebrew's
-               openjdk@21), JVM heap R5R_XMX (default 6G)
+  r5r          r5r with R5 7.6 on a JDK 21 (JAVA_HOME_21, else JAVA_HOME,
+               else Homebrew's openjdk@21), JVM heap R5R_XMX (default 6G)
   r5py         r5py (interpreter from R5PY_PYTHON), R5 jar from R5PY_JAR
+
+  other packages (street matrices; their own network models, so their
+  results differ from peabiru's and the differences are measured):
+  dodgr        R: osmdata_sc + weight_streetnet + dodgr_times (the .pbf is
+               converted once, untimed, with osmium to the .osm XML that
+               dodgr_streetnet_sc() would download)
+  cppRouting   R: the same dodgr graph, cpp_contract + get_distance_matrix
+  networkx     Python: pyrosm graph, single_source_dijkstra_path_length
+  igraph       Python: the same graph, Graph.distances
+  pandana      Python: the same graph, Network.shortest_path_lengths
+               (R engines use R_LIBS / BENCH_R_LIB; Python engines the
+               interpreter in BENCH_PYTHON, else python3)
 
 Tasks (r5r's names and defaults; departure 2019-05-13 14:00 America/Sao_Paulo,
 time_window 10, percentile 50, max_trip_duration 120, walk 3.6 km/h, bike
@@ -41,9 +57,22 @@ Timing: each task runs in a fresh process that builds the network and then
 runs the task once untimed (warm-up: JIT for the JVM, caches for everyone)
 and REPS times timed; the record keeps the median, min and max of the timed
 runs. The peabiru CLI times build and run inside the binary; it runs REPS + 1
-processes of build + one run and drops the first one (warm file cache). Build time is the median over the task processes of that
-city. Peak RSS is the maximum resident set size of the task's process
-(network build + warm-up + timed runs), from /usr/bin/time.
+processes of build + one run and drops the first one (warm file cache). Build
+time is the median over the task processes of that city (for the other
+packages it includes reading the .pbf and building the mode's graph). Peak
+RSS is the maximum resident set size of the task's process (network build +
+warm-up + timed runs), from /usr/bin/time. An engine that would need more
+than about ten minutes per run is run on the first N origins (all
+destinations); the record says so in origins_used and the time is the time
+of that subset, never extrapolated. Single-threaded engines (networkx,
+igraph) are measured once, with the smallest thread count, and that record
+is repeated for the other thread counts with measured_threads set.
+
+Comparison: every engine that can write its matrix does so for its first
+thread count; run.py compares it with peabiru's matrix (the CLI, same
+parameters, same origins) and records, over the pairs of the origins used,
+the pairs reached by both, by only one of them, and the median and 90th
+percentile of the absolute difference in minutes (comparison field).
 """
 
 import argparse
@@ -67,7 +96,18 @@ CITIES = {
     "spo": {"name": "São Paulo", "gtfs": ["spo.zip"]},
 }
 TASKS = ["ttm_walk", "ttm_bicycle", "ttm_car", "ttm_transit", "accessibility", "expanded"]
-ENGINES = ["peabiru-cli", "peabiru-r", "peabiru-py", "r5r", "r5py"]
+ENGINES = ["peabiru-cli", "peabiru-r", "peabiru-py", "r5r", "r5py",
+           "dodgr", "cppRouting", "networkx", "igraph", "pandana"]
+R_STREET = ("dodgr", "cppRouting")
+PY_STREET = ("networkx", "igraph", "pandana")
+SINGLE_THREADED = ("networkx", "igraph")
+# Engines that would need more than about ten minutes per run on all origins
+# get the first N origins (all destinations). Sized on an Apple M2 Pro;
+# override with --origins-limit engine:city:N,...
+ORIGIN_LIMITS = {}
+# The matrices compared with peabiru's (the reference is peabiru's CLI)
+COMPARED_TASKS = ("ttm_walk", "ttm_bicycle", "ttm_car", "ttm_transit")
+STREET_TASKS = ("ttm_walk", "ttm_bicycle", "ttm_car")
 
 PARAMS = {
     "date": "2019-05-13",
@@ -121,6 +161,8 @@ def timed(cmd, env=None, cwd=None):
 
 
 def r5r_extdata():
+    if os.environ.get("R5R_EXTDATA"):
+        return Path(os.environ["R5R_EXTDATA"])
     p = sh(["Rscript", "-e", 'cat(system.file("extdata", package = "r5r"))'])
     path = p.stdout.strip()
     if p.returncode != 0 or not path:
@@ -272,17 +314,112 @@ def run_script(cmd, env):
     if out.get("skip"):
         raise Skip(out["skip"])
     return {"build_s": [out["build_s"]], "times": out["times"], "rows": out.get("rows"),
-            "rss": rss, "version": out.get("version"),
+            "rss": rss, "version": out.get("version"), "notes": out.get("notes") or [],
+            "origins_used": out.get("origins_used"), "threads_used": out.get("threads_used"),
             "rss_scope": "one process: build + warm-up + timed runs"}
 
 
-def script_args(city, dirs_key, dirs, points, task, threads, reps):
-    return ["--city", city, "--dir", str(dirs[dirs_key]), "--points", str(points),
-            "--task", task, "--threads", str(threads), "--reps", str(reps),
-            "--params", json.dumps(PARAMS)]
+def script_args(city, dirs_key, dirs, points, task, threads, reps, origins=None, result=None):
+    a = ["--city", city, "--dir", str(dirs[dirs_key]), "--points", str(points),
+         "--task", task, "--threads", str(threads), "--reps", str(reps),
+         "--params", json.dumps(PARAMS)]
+    if origins:
+        a += ["--origins", str(origins)]
+    if result:
+        a += ["--result", str(result)]
+    return a
+
+
+# ---------------------------------------------------------------- comparison
+
+
+def read_matrix(path, origins=None):
+    """{(from_id, to_id): minutes} from a from_id,to_id,travel_time* CSV."""
+    import csv
+    m = {}
+    with open(path, newline="") as f:
+        rd = csv.reader(f)
+        head = next(rd)
+        i_f, i_t = head.index("from_id"), head.index("to_id")
+        i_v = next(i for i, h in enumerate(head) if h.startswith("travel_time"))
+        for row in rd:
+            v = row[i_v]
+            if v in ("", "NA", "nan"):
+                continue
+            if origins is not None and row[i_f] not in origins:
+                continue
+            m[(row[i_f], row[i_t])] = float(v)
+    return m
+
+
+def quantile(xs, q):
+    """Linear-interpolation quantile of a sorted list (R's type 7)."""
+    if not xs:
+        return None
+    h = (len(xs) - 1) * q
+    lo = int(h)
+    hi = min(lo + 1, len(xs) - 1)
+    return xs[lo] + (h - lo) * (xs[hi] - xs[lo])
+
+
+def compare(ref_path, res_path, origin_ids):
+    """Pairs reached by peabiru and the engine, over the engine's origins."""
+    ref = read_matrix(ref_path, origin_ids)
+    res = read_matrix(res_path, origin_ids)
+    both = ref.keys() & res.keys()
+    diffs = sorted(res[k] - ref[k] for k in both)
+    absd = sorted(abs(d) for d in diffs)
+    r = lambda x: None if x is None else round(x, 2)  # noqa: E731
+    return {"reference": "peabiru-cli", "origins": len(origin_ids),
+            "pairs_peabiru": len(ref), "pairs_engine": len(res), "pairs_both": len(both),
+            "only_peabiru": len(ref.keys() - res.keys()),
+            "only_engine": len(res.keys() - ref.keys()),
+            "median_abs_diff_min": r(quantile(absd, 0.5)),
+            "p90_abs_diff_min": r(quantile(absd, 0.9)),
+            "median_diff_min": r(quantile(diffs, 0.5)),
+            "within_1min_pct": r(100 * sum(1 for d in absd if d < 1) / len(absd)) if absd else None}
+
+
+class Reference:
+    """peabiru's matrices (CLI, untimed), computed once per city and task."""
+
+    def __init__(self, inputs, outdir):
+        self.inputs, self.outdir, self.cache = inputs, outdir, {}
+        self.binary, self.error = None, None
+
+    def get(self, city, task):
+        if (city, task) in self.cache:
+            return self.cache[(city, task)]
+        path = None
+        try:
+            if self.binary is None and self.error is None:
+                self.binary = peabiru_cli_bin()
+            if self.binary:
+                path = self.outdir / f"ref_{city}_{task}.csv"
+                d, pts = str(self.inputs[city][0]["shared"]), str(self.inputs[city][1])
+                P = PARAMS
+                if task == "ttm_transit":
+                    cmd = [self.binary, "transit", d, pts, str(path), "--date", P["date"],
+                           "--time", P["time"], "--tw", str(P["time_window"]), "--percentiles", "50",
+                           "--max-walk", str(P["max_trip_duration"]),
+                           "--max-trip", str(P["max_trip_duration"]),
+                           "--max-rides", str(P["max_rides"]), "--draws", str(P["draws_per_minute"]),
+                           "--seed", str(P["seed"]), "--threads", "0"]
+                else:
+                    cmd = [self.binary, "ttm", d, pts, task[4:].upper(), str(path), "0", "1"]
+                p = sh(cmd)
+                if p.returncode != 0:
+                    raise Skip(p.stderr.strip()[-300:])
+        except Skip as e:
+            self.error, path = str(e), None
+        self.cache[(city, task)] = path
+        return path
+
 
 
 # ---------------------------------------------------------------- main
+
+
 
 
 def machine_info():
@@ -296,7 +433,36 @@ def machine_info():
                     ram_gib=round(int(sysctl("hw.memsize") or 0) / 2**30, 1),
                     macos=sh(["sw_vers", "-productVersion"]).stdout.strip())
     else:
-        info.update(cpu=platform.processor(), cores=os.cpu_count())
+        cpu = platform.processor() or None
+        try:
+            for line in open("/proc/cpuinfo"):
+                if line.startswith("model name"):
+                    cpu = line.split(":", 1)[1].strip()
+                    break
+        except OSError:
+            pass
+        info.update(cpu=cpu, cores=os.cpu_count())
+        try:
+            for line in open("/proc/meminfo"):
+                if line.startswith("MemTotal"):
+                    info["ram_gib"] = round(int(line.split()[1]) / 2**20, 1)
+        except OSError:
+            pass
+        if hasattr(os, "sched_getaffinity"):
+            info["cpus_available"] = len(os.sched_getaffinity(0))
+        # limits of a container (docker run --cpus / --memory), cgroup v2
+        try:
+            quota, period = open("/sys/fs/cgroup/cpu.max").read().split()[:2]
+            info["cgroup_cpus"] = None if quota == "max" else round(int(quota) / int(period), 2)
+        except (OSError, ValueError):
+            pass
+        try:
+            mem = open("/sys/fs/cgroup/memory.max").read().strip()
+            info["cgroup_memory_gib"] = None if mem == "max" else round(int(mem) / 2**30, 1)
+        except (OSError, ValueError):
+            pass
+    if os.environ.get("PEABIRU_BENCH_CONTAINER"):
+        info["container"] = os.environ["PEABIRU_BENCH_CONTAINER"]
     load = os.getloadavg()
     info["load_avg_at_start"] = [round(x, 2) for x in load]
     return info
@@ -304,13 +470,161 @@ def machine_info():
 
 def versions():
     v = {}
-    git = sh(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT)
-    v["peabiru_commit"] = git.stdout.strip() or None
+    rev = sh(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT)
+    v["peabiru_commit"] = rev.stdout.strip() or os.environ.get("PEABIRU_COMMIT") or None
     dirty = sh(["git", "status", "--porcelain", "--", "crates"], cwd=ROOT)
     v["peabiru_core_dirty"] = bool(dirty.stdout.strip())
     v["rustc"] = sh(["rustc", "--version"]).stdout.strip() or None
     v["R"] = sh(["Rscript", "-e", "cat(R.version.string)"]).stdout.strip() or None
+    java = os.environ.get("JAVA_HOME_21") or os.environ.get("JAVA_HOME")
+    if java and Path(java, "bin", "java").exists():
+        p = sh([str(Path(java, "bin", "java")), "-version"])
+        v["java"] = (p.stderr.strip().splitlines() or [None])[0]
+    # pinned package sets of the container (bench/docker), when present
+    for key, env in (("cran_snapshot", "CRAN_SNAPSHOT"), ("python_requirements", "BENCH_REQUIREMENTS")):
+        if os.environ.get(env):
+            val = os.environ[env]
+            if key == "python_requirements" and Path(val).exists():
+                val = [ln.strip() for ln in open(val) if ln.strip() and not ln.startswith("#")]
+            v[key] = val
     return v
+
+
+ENGINE_TIER = {"peabiru-cli": "same", "peabiru-r": "same", "peabiru-py": "same", "r5r": "same",
+               "r5py": "same"}
+
+
+def setup_engine(engine, inputs, env_base, java_home, reps, status):
+    """Return runner(city, task, threads, origins, result) for an engine, or raise Skip."""
+    env = dict(env_base)
+    if engine == "peabiru-cli":
+        binary = peabiru_cli_bin()
+        status["version"] = sh([binary, "--version"]).stdout.strip()
+        outdir = inputs["_outdir"]
+        return lambda c, t, n, o, res: run_cli(binary, c, inputs[c][0], inputs[c][1], t, n, reps, outdir)
+    if engine in ("peabiru-r", "r5r"):
+        if engine == "r5r":
+            env["JAVA_HOME"] = java_home
+            env.setdefault("R5R_XMX", "6G")
+        elif os.environ.get("PEABIRU_R_LIB"):
+            env["R_LIBS"] = os.environ["PEABIRU_R_LIB"]
+        script = [shutil.which("Rscript") or "Rscript", str(HERE / "engine_r.R"), "--engine", engine]
+        key = "r5r" if engine == "r5r" else "shared"
+        return lambda c, t, n, o, res: run_script(
+            script + script_args(c, key, inputs[c][0], inputs[c][1], t, n, reps, result=res), env)
+    if engine in R_STREET:
+        if os.environ.get("BENCH_R_LIB"):
+            env["R_LIBS"] = os.environ["BENCH_R_LIB"]
+        script = [shutil.which("Rscript") or "Rscript", str(HERE / "engine_r_streets.R"),
+                  "--engine", engine]
+        probe = sh(script + ["--probe"], env=env)
+        if probe.returncode != 0:
+            raise Skip((probe.stdout + probe.stderr).strip()[-400:] or "probe failed")
+        status["version"] = probe.stdout.strip().splitlines()[-1]
+
+        def run_r_streets(c, t, n, o, res):
+            osm = highways_osm(inputs, c)
+            r = run_script(script + script_args(c, "shared", inputs[c][0], inputs[c][1], t, n,
+                                                reps, o, res) + ["--osm", str(osm)], env)
+            r["notes"] = r.get("notes", []) + [inputs["_osm_note"][c]]
+            return r
+        return run_r_streets
+    if engine in PY_STREET:
+        py = os.environ.get("BENCH_PYTHON") or sys.executable
+        script = [py, str(HERE / "engine_py_streets.py"), "--engine", engine]
+        probe = sh(script + ["--probe"], env=env)
+        if probe.returncode != 0:
+            raise Skip((probe.stdout + probe.stderr).strip()[-400:] or "probe failed")
+        status["version"] = probe.stdout.strip().splitlines()[-1]
+        return lambda c, t, n, o, res: run_script(
+            script + script_args(c, "shared", inputs[c][0], inputs[c][1], t, n, reps, o, res), env)
+    if engine in ("peabiru-py", "r5py"):
+        if engine == "peabiru-py":
+            py = os.environ.get("PEABIRU_PYTHON")
+            venv = ROOT / "python" / ".venv" / "bin" / "python"
+            py = py or (str(venv) if venv.exists() else sys.executable)
+            script = HERE / "engine_peabiru_py.py"
+            key = "shared"
+        else:
+            py = os.environ.get("R5PY_PYTHON")
+            if not py:
+                raise Skip("R5PY_PYTHON is not set (an interpreter with r5py installed)")
+            env["JAVA_HOME"] = java_home
+            script = HERE / "engine_r5py.py"
+            key = "r5py"
+        probe = sh([py, str(script), "--probe"], env=env)
+        if probe.returncode != 0:
+            raise Skip((probe.stdout + probe.stderr).strip()[-400:] or "probe failed")
+        status["version"] = probe.stdout.strip().splitlines()[-1]
+        return lambda c, t, n, o, res: run_script(
+            [py, str(script)] + script_args(c, key, inputs[c][0], inputs[c][1], t, n, reps, result=res),
+            env)
+    raise Skip(f"unknown engine {engine}")
+
+
+def highways_osm(inputs, city):
+    """The city's ways with a highway tag as .osm XML, for osmdata_sc(): what
+    dodgr_streetnet_sc() would download from Overpass. Made once per city with
+    osmium, outside the timed processes (osmium alone peaks at about 1 GiB,
+    which is not dodgr's memory)."""
+    dirs = inputs[city][0]
+    out = dirs["shared"].parent.parent / "osm" / f"{city}_highways.osm"
+    notes = inputs.setdefault("_osm_note", {})
+    if out.exists() and city in notes:
+        return out
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if not shutil.which("osmium"):
+        raise Skip("osmium (osmium-tool) is not on the PATH: it converts the .pbf for osmdata")
+    pbf = dirs["shared"] / f"{city}_osm.pbf"
+    t0 = datetime.datetime.now()
+    p = sh(["osmium", "tags-filter", str(pbf), "w/highway", "-o", str(out), "-f", "osm",
+            "--overwrite"])
+    if p.returncode != 0:
+        raise Skip("osmium tags-filter failed: " + p.stderr.strip()[-300:])
+    secs = (datetime.datetime.now() - t0).total_seconds()
+    notes[city] = (f"input: osmium tags-filter w/highway to .osm XML, made once "
+                   f"before the runs ({secs:.1f} s, not in the build time)")
+    return out
+
+
+def parse_limits(text):
+    lim = dict(ORIGIN_LIMITS)
+    for item in filter(None, (text or "").split(",")):
+        e, c, n = item.split(":")
+        lim[(e, c)] = int(n)
+    return lim
+
+
+def write_outputs(outdir, meta, records):
+    outdir.mkdir(parents=True, exist_ok=True)
+    out = outdir / "benchmarks.json"
+    with open(out, "w") as f:
+        json.dump({"meta": meta, "records": records}, f, indent=1, ensure_ascii=False)
+        f.write("\n")
+    cols = ["engine", "city", "task", "threads", "status", "seconds", "seconds_min", "seconds_max",
+            "reps", "rows", "peak_rss_mib", "rss_scope", "origins_used", "origins_total",
+            "threads_used", "measured_threads", "cmp_pairs_both", "cmp_only_peabiru",
+            "cmp_only_engine", "cmp_median_abs_diff_min", "cmp_p90_abs_diff_min",
+            "cmp_median_diff_min", "cmp_within_1min_pct", "notes", "note"]
+    with open(out.with_suffix(".csv"), "w") as f:
+        f.write(",".join(cols) + "\n")
+        for r in records:
+            flat = dict(r)
+            cmp_ = r.get("comparison") or {}
+            for k in ("pairs_both", "only_peabiru", "only_engine", "median_abs_diff_min",
+                      "p90_abs_diff_min", "median_diff_min", "within_1min_pct"):
+                flat["cmp_" + k] = cmp_.get(k)
+            if isinstance(flat.get("notes"), list):
+                flat["notes"] = "; ".join(flat["notes"])
+            vals = []
+            for k in cols:
+                v = flat.get(k)
+                s = "" if v is None else str(v)
+                if any(ch in s for ch in ',"\n'):
+                    s = '"' + s.replace('"', '""') + '"'
+                vals.append(s)
+            f.write(",".join(vals) + "\n")
+    log(f"wrote {out} and {out.with_suffix('.csv')}")
 
 
 def main():
@@ -320,18 +634,26 @@ def main():
     ap.add_argument("--tasks", default=",".join(TASKS))
     ap.add_argument("--threads", default="1,10", help="comma-separated thread counts")
     ap.add_argument("--reps", type=int, default=3)
+    ap.add_argument("--origins-limit", default="",
+                    help="engine:city:N,... run that engine on the first N origins of the city")
+    ap.add_argument("--no-compare", action="store_true", help="skip the comparison with peabiru")
     ap.add_argument("--work", default=str(ROOT / "bench" / "data" / "site"),
                     help="scratch directory for inputs and outputs (gitignored)")
-    ap.add_argument("--out", default=str(ROOT / "site" / "data" / "benchmarks.json"))
+    ap.add_argument("--out", default=str(ROOT / "site" / "data"),
+                    help="directory for benchmarks.json and benchmarks.csv (default site/data)")
     a = ap.parse_args()
     engines = a.engines.split(",")
     cities = a.cities.split(",")
     tasks = a.tasks.split(",")
     threads = [int(t) for t in a.threads.split(",")]
+    limits = parse_limits(a.origins_limit)
     work = Path(a.work)
     work.mkdir(parents=True, exist_ok=True)
     outdir = work / "outputs"
     outdir.mkdir(exist_ok=True)
+    out = Path(a.out)
+    if out.suffix == ".json":  # the old --out <file.json>
+        out = out.parent
 
     extdata = r5r_extdata()
     started = datetime.datetime.now().astimezone()
@@ -347,76 +669,66 @@ def main():
     }
     records = []
 
-    inputs = {}
+    inputs = {"_outdir": outdir}
     for c in cities:
         dirs, points = prepare_inputs(work, extdata, c)
         with open(points) as f:
-            n = sum(1 for _ in f) - 1
-        inputs[c] = (dirs, points)
-        meta["cities"][c] = {"name": CITIES[c]["name"], "points": n,
+            ids = [ln.split(",", 1)[0] for ln in f][1:]
+        inputs[c] = (dirs, points, ids)
+        meta["cities"][c] = {"name": CITIES[c]["name"], "points": len(ids),
                              "gtfs": CITIES[c]["gtfs"], "pbf": f"{c}_osm.pbf"}
+    reference = Reference(inputs, outdir)
 
     env_base = dict(os.environ)
-    java_home = os.environ.get(
-        "JAVA_HOME_21", "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home")
+    java_home = (os.environ.get("JAVA_HOME_21") or os.environ.get("JAVA_HOME")
+                 or "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home")
 
     for engine in engines:
-        status = {"status": "ok", "reason": None, "version": None}
+        status = {"status": "ok", "reason": None, "version": None,
+                  "tier": ENGINE_TIER.get(engine, "other")}
         meta["engines"][engine] = status
         try:
-            env = dict(env_base)
-            if engine == "peabiru-cli":
-                binary = peabiru_cli_bin()
-                status["version"] = sh([binary, "--version"]).stdout.strip()
-                runner = lambda c, t, n: run_cli(binary, c, inputs[c][0], inputs[c][1], t, n, a.reps, outdir)  # noqa: E731
-            elif engine in ("peabiru-r", "r5r"):
-                if engine == "r5r":
-                    env["JAVA_HOME"] = java_home
-                    env.setdefault("R5R_XMX", "6G")
-                elif os.environ.get("PEABIRU_R_LIB"):
-                    env["R_LIBS"] = os.environ["PEABIRU_R_LIB"]
-                script = [shutil.which("Rscript") or "Rscript", str(HERE / "engine_r.R"), "--engine", engine]
-                key = "r5r" if engine == "r5r" else "shared"
-                runner = lambda c, t, n, script=script, env=env, key=key: run_script(  # noqa: E731
-                    script + script_args(c, key, inputs[c][0], inputs[c][1], t, n, a.reps), env)
-            elif engine in ("peabiru-py", "r5py"):
-                if engine == "peabiru-py":
-                    py = os.environ.get("PEABIRU_PYTHON")
-                    venv = ROOT / "python" / ".venv" / "bin" / "python"
-                    py = py or (str(venv) if venv.exists() else sys.executable)
-                    script = HERE / "engine_peabiru_py.py"
-                    key = "shared"
-                else:
-                    py = os.environ.get("R5PY_PYTHON")
-                    if not py:
-                        raise Skip("R5PY_PYTHON is not set (an interpreter with r5py installed)")
-                    env["JAVA_HOME"] = java_home
-                    script = HERE / "engine_r5py.py"
-                    key = "r5py"
-                probe = sh([py, str(script), "--probe"], env=env)
-                if probe.returncode != 0:
-                    raise Skip((probe.stdout + probe.stderr).strip()[-400:] or "probe failed")
-                status["version"] = probe.stdout.strip().splitlines()[-1]
-                runner = lambda c, t, n, py=py, script=script, env=env, key=key: run_script(  # noqa: E731
-                    [py, str(script)] + script_args(c, key, inputs[c][0], inputs[c][1], t, n, a.reps), env)
-            else:
-                raise Skip(f"unknown engine {engine}")
+            runner = setup_engine(engine, inputs, env_base, java_home, a.reps, status)
         except Skip as e:
             status.update(status="skipped", reason=str(e))
             log(f"[{engine}] skipped: {e}")
             continue
 
+        compared = set()
+        measured = {}  # (city, task) -> record of a single-threaded engine
         for c in cities:
+            npts = len(inputs[c][2])
+            n_orig = min(limits.get((engine, c), npts), npts)
             for n in threads:
                 builds = []
                 for t in tasks:
-                    log(f"[{engine}] {c} {t} threads={n}")
                     rec = {"engine": engine, "city": c, "task": t, "threads": n}
+                    if engine in SINGLE_THREADED and (c, t) in measured:
+                        src, src_builds = measured[(c, t)]
+                        builds += src_builds
+                        rec.update({k: v for k, v in src.items()
+                                    if k not in ("threads", "comparison")})
+                        rec["measured_threads"] = src["threads"]
+                        records.append(rec)
+                        continue
+                    if engine in R_STREET + PY_STREET and t not in STREET_TASKS:
+                        rec.update(status="skipped", note=f"{engine} routes on a street graph "
+                                   "only; this task needs a public transport model")
+                        records.append(rec)
+                        continue
+                    log(f"[{engine}] {c} {t} threads={n}"
+                        + (f" origins={n_orig}/{npts}" if n_orig < npts else ""))
+                    want_cmp = (not a.no_compare and t in COMPARED_TASKS
+                                and (c, t) not in compared and engine != "peabiru-cli")
+                    res_path = outdir / f"res_{engine}_{c}_{t}.csv" if want_cmp else None
+                    if res_path and res_path.exists():
+                        res_path.unlink()
                     try:
-                        r = runner(c, t, n)
-                    except Skip as e:
-                        rec.update(status="skipped", note=str(e))
-                        log(f"   skipped: {e}")
+                        r = runner(c, t, n, n_orig if n_orig < npts else None, res_path)
+                    except Exception as e:  # noqa: BLE001 - Skip, or a bug: record it, go on
+                        msg = str(e) if isinstance(e, Skip) else f"error: {type(e).__name__}: {e}"
+                        rec.update(status="skipped", note=msg)
+                        log(f"   skipped: {msg}")
                         records.append(rec)
                         continue
                     if r.get("version") and not status["version"]:
@@ -428,8 +740,26 @@ def main():
                                reps=len(times), rows=r.get("rows"),
                                peak_rss_mib=round(r["rss"], 1) if r.get("rss") else None,
                                rss_scope=r.get("rss_scope"))
+                    used = r.get("origins_used")
+                    if used and used < npts:
+                        rec.update(origins_used=used, origins_total=npts)
+                    if r.get("threads_used") is not None:
+                        rec["threads_used"] = r["threads_used"]
+                    if r.get("notes"):
+                        rec["notes"] = r["notes"]
+                    if res_path and res_path.exists():
+                        compared.add((c, t))
+                        ref = reference.get(c, t)
+                        if ref:
+                            ids = set(inputs[c][2][: used or npts])
+                            rec["comparison"] = compare(ref, res_path, ids)
+                            log(f"   vs peabiru: {rec['comparison']}")
+                        elif reference.error:
+                            rec["comparison_note"] = f"no reference: {reference.error}"
                     log(f"   {rec['seconds']} s  rows {rec['rows']}  rss {rec['peak_rss_mib']} MiB")
                     records.append(rec)
+                    if engine in SINGLE_THREADED:
+                        measured[(c, t)] = (rec, [x for x in r["build_s"] if x is not None])
                 if builds:
                     records.append({"engine": engine, "city": c, "task": "build", "threads": n,
                                     "status": "ok", "seconds": round(statistics.median(builds), 4),
@@ -437,28 +767,12 @@ def main():
                                     "seconds_max": round(max(builds), 4), "reps": len(builds),
                                     "rows": None, "peak_rss_mib": None,
                                     "rss_scope": None})
+                    if engine in SINGLE_THREADED and n != threads[0]:
+                        records[-1]["measured_threads"] = threads[0]
 
     meta["finished"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     meta["machine"]["load_avg_at_end"] = [round(x, 2) for x in os.getloadavg()]
-    out = Path(a.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "w") as f:
-        json.dump({"meta": meta, "records": records}, f, indent=1, ensure_ascii=False)
-        f.write("\n")
-    cols = ["engine", "city", "task", "threads", "status", "seconds", "seconds_min", "seconds_max",
-            "reps", "rows", "peak_rss_mib", "rss_scope", "note"]
-    with open(out.with_suffix(".csv"), "w") as f:
-        f.write(",".join(cols) + "\n")
-        for r in records:
-            vals = []
-            for k in cols:
-                v = r.get(k)
-                s = "" if v is None else str(v)
-                if any(ch in s for ch in ',"\n'):
-                    s = '"' + s.replace('"', '""') + '"'
-                vals.append(s)
-            f.write(",".join(vals) + "\n")
-    log(f"wrote {out} and {out.with_suffix('.csv')}")
+    write_outputs(out, meta, records)
 
 
 if __name__ == "__main__":
