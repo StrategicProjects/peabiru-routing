@@ -26,6 +26,7 @@ use crate::jcompat::TroveIntKeys;
 use crate::street::link::{find_split, Split};
 use crate::street::router::{search_from, worker_threads, Mode, ModeGraph, Search};
 use crate::street::StreetNetwork;
+use crate::{CancelToken, RouteError};
 use std::cmp::Ordering;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Arc;
@@ -428,9 +429,14 @@ impl<'a> Context<'a> {
             &access,
             &req,
             &self.retain,
+            &p.cancel,
             &mut sc.times,
             &mut sc.arena,
         );
+        if p.cancel.is_cancelled() {
+            // the search stopped early; the caller discards the origin
+            return Ok(true);
+        }
         let (times, paths) = (&sc.times, &sc.arena);
         let n_stops = self.layer.stop_ids.len();
         // Per stop, the least duration over the iterations: a lower bound
@@ -457,6 +463,9 @@ impl<'a> Context<'a> {
         let mut best_path: Vec<u32> = vec![NO_PATH; n_iter];
         let mut best_egress = vec![0; n_iter];
         for (j, &d) in direct.iter().enumerate() {
+            if p.cancel.is_cancelled() {
+                return Ok(true);
+            }
             best.iter_mut().for_each(|t| *t = d);
             best_path.iter_mut().for_each(|x| *x = NO_PATH);
             propagate(
@@ -639,13 +648,15 @@ fn validate(layer: &TransitLayer, n_destinations: usize, p: &TransitParams) -> R
     Ok(())
 }
 
-/// Run `f` for every origin on `p.n_threads` threads, results in origin
-/// order.
+/// Run `f` for every origin on `n_threads` threads, results in origin
+/// order; `Cancelled` when `cancel` is, and then the workers stop before
+/// their next origin.
 fn per_origin<T: Send>(
     origins: &[(f64, f64)],
     n_threads: usize,
+    cancel: &CancelToken,
     f: impl Fn(f64, f64, &mut OriginScratch) -> Result<T, String> + Sync,
-) -> Result<Vec<T>, String> {
+) -> Result<Vec<T>, RouteError> {
     let n_threads = worker_threads(n_threads, origins.len());
     let next = AtomicUsize::new(0);
     let done: Vec<Vec<(usize, Result<T, String>)>> = std::thread::scope(|scope| {
@@ -654,7 +665,7 @@ fn per_origin<T: Send>(
                 scope.spawn(|| {
                     let mut done = Vec::new();
                     let mut scratch = OriginScratch::default();
-                    loop {
+                    while !cancel.is_cancelled() {
                         let i = next.fetch_add(1, AtomicOrdering::Relaxed);
                         if i >= origins.len() {
                             break;
@@ -671,6 +682,7 @@ fn per_origin<T: Send>(
             .map(|h| h.join().expect("transit routing thread panicked"))
             .collect()
     });
+    cancel.check()?;
     let mut out: Vec<Option<T>> = (0..origins.len()).map(|_| None).collect();
     for (i, r) in done.into_iter().flatten() {
         out[i] = Some(r?);
@@ -687,6 +699,8 @@ fn per_origin<T: Send>(
 /// remaining draws repeat the walk-only record (or an unreachable, NA one)
 /// up to the draws per minute (`populateTravelTimesBreakdown`). A
 /// destination with no record at all has no rows.
+/// [`RouteError::Cancelled`] when `p.cancel` is cancelled before every
+/// origin is done.
 pub fn expanded_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
@@ -694,11 +708,11 @@ pub fn expanded_travel_time_matrix(
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TransitParams,
-) -> Result<Vec<Vec<ExpandedRow>>, String> {
+) -> Result<Vec<Vec<ExpandedRow>>, RouteError> {
     let ctx = Context::new(net, layer, data, destinations, p)?;
     let dpm = ctx.draws_per_minute;
     let m = p.max_trip_duration;
-    per_origin(origins, p.n_threads, |lat, lon, scratch| {
+    per_origin(origins, p.n_threads, &p.cancel, |lat, lon, scratch| {
         let mut rows = Vec::new();
         ctx.origin_paths(lat, lon, scratch, |j, dp| {
             if dp.is_empty() {
@@ -775,7 +789,8 @@ pub fn arrival_departure(
 /// with a record arriving by `departure + max_trip_duration` wins: its
 /// first transit record in `PATH_ORDER`, else the walk-only record
 /// (`filterLatestBeforeArrivalTime`, offs 31-266). At most one row per
-/// destination.
+/// destination. [`RouteError::Cancelled`] when `p.cancel` is cancelled
+/// before every origin is done.
 pub fn arrival_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
@@ -783,7 +798,7 @@ pub fn arrival_travel_time_matrix(
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TransitParams,
-) -> Result<Vec<Vec<ExpandedRow>>, String> {
+) -> Result<Vec<Vec<ExpandedRow>>, RouteError> {
     if p.time_window != p.max_trip_duration {
         return Err("an arrival search needs time_window = max_trip_duration".into());
     }
@@ -796,7 +811,7 @@ pub fn arrival_travel_time_matrix(
     let arrival = i64::from(arrival);
     let arrives =
         |dep: i32, pb: &PathBreakdown| i64::from(dep) + java_round(pb.total * 60.0) as i64;
-    per_origin(origins, p.n_threads, |lat, lon, scratch| {
+    per_origin(origins, p.n_threads, &p.cancel, |lat, lon, scratch| {
         let mut rows = Vec::new();
         ctx.origin_paths(lat, lon, scratch, |j, dp| {
             if dp.is_empty() {

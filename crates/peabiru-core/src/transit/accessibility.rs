@@ -19,6 +19,7 @@ use super::raptor::UNREACHED;
 use super::TransitLayer;
 use crate::street::router::{travel_time_seconds, Mode, RouteParams};
 use crate::street::StreetNetwork;
+use crate::RouteError;
 
 /// `AnalysisWorkerTask.MAX_REGIONAL_CUTOFFS`.
 const MAX_CUTOFFS: usize = 12;
@@ -220,6 +221,8 @@ impl Reducer {
 ///
 /// Every origin gets a value for every (opportunity, percentile, cutoff),
 /// 0 when nothing is reachable or the origin cannot be linked.
+/// [`RouteError::Cancelled`] when `p.cancel` is cancelled before every
+/// origin is done.
 pub fn transit_accessibility(
     net: &StreetNetwork,
     layer: &TransitLayer,
@@ -228,7 +231,7 @@ pub fn transit_accessibility(
     destinations: &Destinations,
     p: &TransitParams,
     a: &AccessibilityParams,
-) -> Result<Accessibility, String> {
+) -> Result<Accessibility, RouteError> {
     let r = Reducer::new(
         &p.percentiles,
         a,
@@ -237,7 +240,7 @@ pub fn transit_accessibility(
     )?;
     let q = Query::new(net, layer, data, destinations.points, p)?;
     let per = r.per_origin();
-    let rows = par_origins(p.n_threads, origins.len(), |i, scratch| {
+    let rows = par_origins(p.n_threads, origins.len(), &p.cancel, |i, scratch| {
         let mut acc = vec![0.0; per];
         let mut pct = Vec::with_capacity(r.percentiles.len());
         // An unlinked origin records nothing: all zeros
@@ -246,7 +249,7 @@ pub fn transit_accessibility(
             r.record(j, times, &mut pct, &mut acc)
         });
         acc
-    });
+    })?;
     Ok(r.finish(origins.len(), rows.concat()))
 }
 
@@ -255,6 +258,8 @@ pub fn transit_accessibility(
 /// destination, so every percentile gets the same value
 /// (`TravelTimeReducer.recordUnvaryingTravelTimeAtTarget`).
 /// `params.max_trip_duration_min` is the search limit r5r passes to R5.
+/// [`RouteError::Cancelled`] when `params.cancel` is cancelled before every
+/// origin is done.
 pub fn street_accessibility(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
@@ -263,7 +268,7 @@ pub fn street_accessibility(
     params: &RouteParams,
     percentiles: &[i32],
     a: &AccessibilityParams,
-) -> Result<Accessibility, String> {
+) -> Result<Accessibility, RouteError> {
     let r = Reducer::new(
         percentiles,
         a,
@@ -289,8 +294,7 @@ pub fn street_accessibility(
             }
             acc
         },
-    )
-    .map_err(|e| e.to_string())?;
+    )?;
     Ok(r.finish(origins.len(), rows.concat()))
 }
 

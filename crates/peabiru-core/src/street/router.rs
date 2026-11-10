@@ -7,6 +7,7 @@ use super::flags::*;
 use super::labels::cms_to_ms;
 use super::link::{find_split, Split};
 use super::StreetNetwork;
+use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
@@ -39,6 +40,10 @@ pub struct RouteParams {
     /// Worker threads; 0 means all cores, and more than the cores
     /// available run as many as there are cores.
     pub n_threads: usize,
+    /// Stops the computation when cancelled, from any thread, through a
+    /// clone of it (see [`CancelToken`]); the default is a fresh token,
+    /// which nothing cancels unless a clone of it is kept.
+    pub cancel: CancelToken,
 }
 
 /// Invalid routing parameters.
@@ -110,6 +115,7 @@ impl Default for RouteParams {
             max_lts: 2,
             max_trip_duration_min: 120,
             n_threads: 0,
+            cancel: CancelToken::default(),
         }
     }
 }
@@ -821,13 +827,15 @@ pub(crate) fn search_from(
 /// Travel-time matrix in whole minutes, row-major `origins x destinations`;
 /// `None` where r5r reports no time (unlinked, unreachable or beyond
 /// `max_trip_duration_min`). Points are `(lat, lon)` degrees.
+/// [`RouteError::Cancelled`] when `params.cancel` is cancelled before the
+/// matrix is complete.
 pub fn travel_time_matrix(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     mode: Mode,
     params: &RouteParams,
-) -> Result<Vec<Option<u32>>, ParamError> {
+) -> Result<Vec<Option<u32>>, RouteError> {
     params.validate()?;
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let m = params.max_trip_duration_min;
@@ -840,8 +848,10 @@ pub fn travel_time_matrix(
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
     if out.is_empty() {
+        params.cancel.check()?;
         return Ok(out);
     }
+    let cancel = &params.cancel;
     let n_threads = worker_threads(params.n_threads, origins.len());
     // Each worker takes the next origin's row of `out` and writes it in
     // place: the rows are disjoint, so the matrix is never held twice.
@@ -852,7 +862,7 @@ pub fn travel_time_matrix(
                 scope.spawn(|| {
                     let mut search = Search::new(net);
                     let mut scratch = Vec::new();
-                    loop {
+                    while !cancel.is_cancelled() {
                         let next = rows.lock().expect("row queue").next();
                         let Some((i, row)) = next else { break };
                         let (lat, lon) = origins[i];
@@ -876,6 +886,7 @@ pub fn travel_time_matrix(
             h.join().expect("routing thread panicked");
         }
     });
+    cancel.check()?;
     Ok(out)
 }
 
@@ -885,7 +896,9 @@ pub fn travel_time_matrix(
 /// unreachable), and `reduce(i, None)` an origin that cannot be linked.
 /// The search is the one behind [`travel_time_matrix`], so a time can
 /// exceed `max_trip_duration_min` by the partial edges at both ends, as in
-/// R5's `LinkedPointSet.eval`. Results are in origin order.
+/// R5's `LinkedPointSet.eval`. Results are in origin order;
+/// [`RouteError::Cancelled`] when `params.cancel` is cancelled before every
+/// origin is done.
 pub fn travel_time_seconds<T: Send>(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
@@ -893,7 +906,7 @@ pub fn travel_time_seconds<T: Send>(
     mode: Mode,
     params: &RouteParams,
     reduce: impl Fn(usize, Option<&[i32]>) -> T + Sync,
-) -> Result<Vec<T>, ParamError> {
+) -> Result<Vec<T>, RouteError> {
     params.validate()?;
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let limit = params.max_trip_duration_min * 60;
@@ -903,6 +916,7 @@ pub fn travel_time_seconds<T: Send>(
         .map(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch))
         .collect();
     let n_threads = worker_threads(params.n_threads, origins.len());
+    let cancel = &params.cancel;
     let next = AtomicUsize::new(0);
     let chunks: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)
@@ -912,7 +926,7 @@ pub fn travel_time_seconds<T: Send>(
                     let mut scratch = Vec::new();
                     let mut times = Vec::with_capacity(dest_splits.len());
                     let mut rows = Vec::new();
-                    loop {
+                    while !cancel.is_cancelled() {
                         let i = next.fetch_add(1, Ordering::Relaxed);
                         if i >= origins.len() {
                             break;
@@ -934,6 +948,7 @@ pub fn travel_time_seconds<T: Send>(
             .map(|h| h.join().expect("routing thread panicked"))
             .collect()
     });
+    cancel.check()?;
     let mut slots: Vec<Option<T>> = (0..origins.len()).map(|_| None).collect();
     for (i, r) in chunks.into_iter().flatten() {
         slots[i] = Some(r);

@@ -14,12 +14,15 @@
 //! [r5r](https://github.com/ipea/r5r) 2.5.0. The notices of R5 and of the
 //! other works this crate derives from are in `LICENSE-THIRD-PARTY`.
 
+mod cancel;
 pub mod fastmath;
 pub mod gtfs;
 pub mod jcompat;
 pub mod osm;
 pub mod street;
 pub mod transit;
+
+pub use cancel::{CancelToken, RouteError};
 
 /// Version of this crate, as published.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

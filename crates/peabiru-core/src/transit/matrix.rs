@@ -9,6 +9,7 @@ use super::TransitLayer;
 use crate::street::link::{find_split, Split};
 use crate::street::router::{check_speed, search_from, worker_threads, Mode, ModeGraph, Search};
 use crate::street::StreetNetwork;
+use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Routing parameters with r5r's defaults.
@@ -31,6 +32,10 @@ pub struct TransitParams {
     /// Worker threads; 0 means all cores, and more than the cores
     /// available run as many as there are cores.
     pub n_threads: usize,
+    /// Stops the computation when cancelled, from any thread, through a
+    /// clone of it (see [`CancelToken`]); the default is a fresh token,
+    /// which nothing cancels unless a clone of it is kept.
+    pub cancel: CancelToken,
 }
 
 impl TransitParams {
@@ -133,6 +138,7 @@ impl Default for TransitParams {
             draws_per_minute: 5,
             seed: None,
             n_threads: 0,
+            cancel: CancelToken::default(),
         }
     }
 }
@@ -410,11 +416,16 @@ impl<'a> Query<'a> {
                 &self.filtered,
                 access,
                 &req,
+                &p.cancel,
                 stop_times,
             );
         }
         let max_t = self.max_t;
         for (j, &d) in direct.iter().enumerate() {
+            if p.cancel.is_cancelled() {
+                // the caller discards the origin
+                return true;
+            }
             // PerTargetPropagater.propagate: start from the non-transit time,
             // improve it by vehicle arrival + egress walk. Only the least
             // candidate per iteration matters, so the order of the stops
@@ -454,12 +465,14 @@ impl<'a> Query<'a> {
 
 /// Run `f(origin_index, scratch)` for every origin on `n_threads` threads
 /// (0 = all cores; capped at the cores and the origins), results in origin
-/// order.
+/// order; `Cancelled` when `cancel` is, and then the workers stop before
+/// their next origin.
 pub(crate) fn par_origins<T: Send>(
     n_threads: usize,
     n_origins: usize,
+    cancel: &CancelToken,
     f: impl Fn(usize, &mut Scratch) -> T + Sync,
-) -> Vec<T> {
+) -> Result<Vec<T>, RouteError> {
     let n_threads = worker_threads(n_threads, n_origins);
     let next = AtomicUsize::new(0);
     let chunks: Vec<Vec<(usize, T)>> = std::thread::scope(|scope| {
@@ -468,7 +481,7 @@ pub(crate) fn par_origins<T: Send>(
                 scope.spawn(|| {
                     let mut done = Vec::new();
                     let mut scratch = Scratch::default();
-                    loop {
+                    while !cancel.is_cancelled() {
                         let i = next.fetch_add(1, Ordering::Relaxed);
                         if i >= n_origins {
                             break;
@@ -484,14 +497,15 @@ pub(crate) fn par_origins<T: Send>(
             .map(|h| h.join().expect("transit routing thread panicked"))
             .collect()
     });
+    cancel.check()?;
     let mut slots: Vec<Option<T>> = (0..n_origins).map(|_| None).collect();
     for (i, r) in chunks.into_iter().flatten() {
         slots[i] = Some(r);
     }
-    slots
+    Ok(slots
         .into_iter()
         .map(|r| r.expect("every origin is routed"))
-        .collect()
+        .collect())
 }
 
 /// Travel times in minutes, `[origin][destination][percentile]`, `None`
@@ -506,13 +520,13 @@ pub fn travel_time_matrix(
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TransitParams,
-) -> Result<Vec<Row>, String> {
+) -> Result<Vec<Row>, RouteError> {
     let q = Query::new(net, layer, data, destinations, p)?;
     let m = p.max_trip_duration;
     let mut percentiles = p.percentiles.clone();
     percentiles.sort_unstable();
     let nd = destinations.len();
-    Ok(par_origins(p.n_threads, origins.len(), |i, scratch| {
+    par_origins(p.n_threads, origins.len(), &p.cancel, |i, scratch| {
         let mut row = vec![vec![None; percentiles.len()]; nd];
         q.route_origin(origins[i], scratch, |j, tt| {
             // TravelTimeReducer.extractTravelTimePercentilesAndRecord
@@ -538,7 +552,7 @@ pub fn travel_time_matrix(
             }
         });
         row
-    }))
+    })
 }
 
 #[cfg(test)]
