@@ -124,6 +124,22 @@ def test_string_dtype_ids_and_nullable_coordinates(network, points):
     pd.testing.assert_frame_equal(ttm(network, shifted, mode="CAR"), ref)
 
 
+@pytest.mark.parametrize("dtype", ["float64", "Int64", "object"])
+def test_missing_numeric_id_stays_missing(network, points, dtype):
+    # r5r: as.character(NA) is NA, so the row's from_id is NA; the other
+    # ids convert with astype(str) as before
+    p = points.copy()
+    p["id"] = pd.Series(np.arange(len(p)), dtype=dtype)
+    p.loc[0, "id"] = None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        m = peabiru.travel_time_matrix(network, p, points.iloc[:1], mode="WALK", n_threads=2)
+    assert m["from_id"].iloc[0] is None
+    expected = p["id"].iloc[1:].astype(str).tolist()
+    assert m["from_id"].iloc[1:].tolist() == expected
+    assert not set(m["from_id"].dropna()) & {"nan", "<NA>", "None"}
+
+
 def test_geodataframe_points(network, points):
     gpd = pytest.importorskip("geopandas")
     geo = gpd.GeoDataFrame(

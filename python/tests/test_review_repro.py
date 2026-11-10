@@ -41,22 +41,6 @@ def test_arrival_with_max_trip_duration_over_a_day(network, points, departure):
     )
 
 
-@pytest.mark.xfail(
-    condition=int(pd.__version__.split(".")[0]) < 3,
-    strict=True,
-    reason="with pandas < 3, astype(str) turns a missing id into the text 'nan'",
-)
-def test_missing_numeric_id_stays_missing(network, points):
-    # r5r: as.character(NA) is NA, so the row's from_id is NA
-    p = points.copy()
-    p["id"] = np.arange(len(p), dtype=float)
-    p.loc[0, "id"] = np.nan
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        ttm = peabiru.travel_time_matrix(network, p, points.iloc[:1], mode="WALK")
-    assert pd.isna(ttm["from_id"].iloc[0])
-
-
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
 @pytest.mark.xfail(strict=True, reason="the core never checks for signals while routing")
 def test_ctrl_c_interrupts_a_long_call(network, points):

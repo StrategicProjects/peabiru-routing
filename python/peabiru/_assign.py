@@ -116,10 +116,14 @@ def assign_points_input(df: Any, name: str, unique_ids: bool = True) -> Points:
     lat = df["lat"].to_numpy(dtype=np.float64, na_value=np.nan)
 
     id_col = df["id"]
+    # a missing id stays missing (None), as as.character(NA) is NA in r5r;
+    # under pandas < 3 astype(str) turns it into the text "nan" or "<NA>"
+    id_missing = id_col.isna().to_numpy(dtype=bool)
     if not _is_string_column(id_col):
         warnings.warn(f"'{name}$id' forcefully cast to character.", stacklevel=4)
         id_col = id_col.astype(str)
     ids = np.array(id_col.tolist(), dtype=object)
+    ids[id_missing] = None
 
     na_coords = np.isnan(lon) | np.isnan(lat)
     if na_coords.any():
