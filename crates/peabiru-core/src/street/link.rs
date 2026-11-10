@@ -31,14 +31,18 @@ pub struct Split {
     pub fixed_lon: i32,
 }
 
-/// Uniform grid over forward-edge bounding boxes, in fixed-point degrees.
+/// Uniform grid over forward-edge bounding boxes, in fixed-point degrees,
+/// storing only the cells that hold a pair (memory follows the network, not
+/// the area of its bounding box).
 #[derive(Debug, Clone, Default)]
 pub struct EdgeIndex {
     min_lat: i32,
     min_lon: i32,
     n_rows: usize,
     n_cols: usize,
-    /// Pairs in each cell: `pairs[offsets[c]..offsets[c + 1]]`.
+    /// Occupied cells, as `row * n_cols + col`, ascending.
+    cells: Vec<u64>,
+    /// Pairs in `cells[i]`: `pairs[offsets[i]..offsets[i + 1]]`.
     offsets: Vec<u32>,
     pairs: Vec<u32>,
     /// Pairs added after the grid was built (edge splits), by cell (row and
@@ -55,8 +59,7 @@ const CELL: i64 = 50_000;
 /// truncated to an integer and whose distances are measured after
 /// truncating the scaled longitude difference (the overshoot is below
 /// `2 + 1 / cos(lat)` units; one cell covers it up to 89.998 degrees).
-/// Split pairs were once returned by every query, so the margin keeps every
-/// split pair a query could select.
+/// The margin keeps every split pair a query could select.
 const EXTRA_MARGIN: i64 = CELL;
 
 /// Bounding box `(min_lat, min_lon, max_lat, max_lon)` of pair `k`.
@@ -81,38 +84,36 @@ impl EdgeIndex {
         let max_lon = boxes.iter().map(|b| b.3).max().unwrap();
         let n_rows = ((i64::from(max_lat) - i64::from(min_lat)) / CELL + 1) as usize;
         let n_cols = ((i64::from(max_lon) - i64::from(min_lon)) / CELL + 1) as usize;
+        let cell_range = |b: &(i32, i32, i32, i32)| {
+            let r0 = ((i64::from(b.0) - i64::from(min_lat)) / CELL) as u64;
+            let r1 = ((i64::from(b.2) - i64::from(min_lat)) / CELL) as u64;
+            let c0 = ((i64::from(b.1) - i64::from(min_lon)) / CELL) as u64;
+            let c1 = ((i64::from(b.3) - i64::from(min_lon)) / CELL) as u64;
+            (r0..=r1).flat_map(move |r| (c0..=c1).map(move |c| r * n_cols as u64 + c))
+        };
+        let mut members: Vec<(u64, u32)> = Vec::new();
+        for (k, b) in boxes.iter().enumerate() {
+            members.extend(cell_range(b).map(|c| (c, k as u32)));
+        }
+        members.sort_unstable();
         let mut idx = EdgeIndex {
             min_lat,
             min_lon,
             n_rows,
             n_cols,
-            offsets: vec![0; n_rows * n_cols + 1],
-            pairs: Vec::new(),
+            cells: Vec::new(),
+            offsets: Vec::new(),
+            pairs: Vec::with_capacity(members.len()),
             extra: HashMap::new(),
         };
-        let cells = |b: &(i32, i32, i32, i32)| {
-            let r0 = ((i64::from(b.0) - i64::from(min_lat)) / CELL) as usize;
-            let r1 = ((i64::from(b.2) - i64::from(min_lat)) / CELL) as usize;
-            let c0 = ((i64::from(b.1) - i64::from(min_lon)) / CELL) as usize;
-            let c1 = ((i64::from(b.3) - i64::from(min_lon)) / CELL) as usize;
-            (r0..=r1).flat_map(move |r| (c0..=c1).map(move |c| r * n_cols + c))
-        };
-        for b in &boxes {
-            for c in cells(b) {
-                idx.offsets[c + 1] += 1;
+        for (c, k) in members {
+            if idx.cells.last() != Some(&c) {
+                idx.cells.push(c);
+                idx.offsets.push(idx.pairs.len() as u32);
             }
+            idx.pairs.push(k);
         }
-        for c in 0..n_rows * n_cols {
-            idx.offsets[c + 1] += idx.offsets[c];
-        }
-        idx.pairs = vec![0; idx.offsets[n_rows * n_cols] as usize];
-        let mut cursor = idx.offsets.clone();
-        for (k, b) in boxes.iter().enumerate() {
-            for c in cells(b) {
-                idx.pairs[cursor[c] as usize] = k as u32;
-                cursor[c] += 1;
-            }
-        }
+        idx.offsets.push(idx.pairs.len() as u32);
         idx
     }
 
@@ -189,12 +190,15 @@ impl EdgeIndex {
         if min_lat >= max_lat_grid || min_lon >= max_lon_grid {
             return;
         }
+        let (c0, c1) = (clamp_col(min_lon) as u64, clamp_col(max_lon) as u64);
         for r in clamp_row(min_lat)..=clamp_row(max_lat) {
-            for c in clamp_col(min_lon)..=clamp_col(max_lon) {
-                let cell = r * self.n_cols + c;
+            let row = r as u64 * self.n_cols as u64;
+            let mut i = self.cells.partition_point(|&cell| cell < row + c0);
+            while i < self.cells.len() && self.cells[i] <= row + c1 {
                 out.extend_from_slice(
-                    &self.pairs[self.offsets[cell] as usize..self.offsets[cell + 1] as usize],
+                    &self.pairs[self.offsets[i] as usize..self.offsets[i + 1] as usize],
                 );
+                i += 1;
             }
         }
     }
@@ -458,5 +462,46 @@ pub(crate) mod tests {
         }
         assert!(checked > 3_000, "{checked}");
         assert!(net.pair_from.len() > 1_500, "{}", net.pair_from.len());
+    }
+
+    /// Two small networks 60 degrees apart: the index holds the occupied
+    /// cells only, and queries in either area select as over every pair.
+    #[test]
+    fn far_apart_areas_index_only_occupied_cells() {
+        let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
+        let mut ex = jittered_grid(&mut rng, 8, -30.0, -51.0, 0.002);
+        let mut far = jittered_grid(&mut rng, 8, 30.0, 9.0, 0.002);
+        const SHIFT: i64 = 1_000_000;
+        for id in &mut far.node_ids {
+            *id += SHIFT;
+        }
+        for w in &mut far.ways {
+            w.id += SHIFT;
+            for n in &mut w.nodes {
+                *n += SHIFT;
+            }
+        }
+        ex.node_ids.append(&mut far.node_ids);
+        ex.lat.append(&mut far.lat);
+        ex.lon.append(&mut far.lon);
+        ex.ref_counts.append(&mut far.ref_counts);
+        ex.ways.append(&mut far.ways);
+        let net = network_from_extract(ex);
+        // A dense grid would have about 12,000 x 12,000 cells.
+        assert!(net.index.cells.len() < 100, "{}", net.index.cells.len());
+        let all: Vec<u32> = (0..net.pair_from.len() as u32).collect();
+        let mut scratch = Vec::new();
+        for (lat0, lon0) in [(-30.0, -51.0), (30.0, 9.0)] {
+            for _ in 0..500 {
+                let lat = lat0 - 0.01 + rng.unit() * 0.035;
+                let lon = lon0 - 0.01 + rng.unit() * 0.035;
+                for radius in [INITIAL_LINK_RADIUS_M, LINK_RADIUS_M] {
+                    assert_eq!(
+                        find_split_radius(&net, lat, lon, radius, Mode::Walk, &mut scratch),
+                        select_split(&net, lat, lon, radius, Mode::Walk, &all)
+                    );
+                }
+            }
+        }
     }
 }
