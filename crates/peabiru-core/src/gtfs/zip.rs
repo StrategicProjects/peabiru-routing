@@ -1,27 +1,40 @@
-//! Minimal ZIP reader for GTFS feeds: stored and deflated entries, no
-//! encryption, no ZIP64. Sizes are bounded so a hostile archive cannot ask
-//! for an unbounded allocation.
+//! Minimal ZIP reader for GTFS feeds: stored and deflated entries, ZIP64
+//! sizes and offsets (as `java.util.zip.ZipFile` reads them), no
+//! encryption. Sizes are bounded so a hostile archive cannot ask for an
+//! unbounded allocation.
 
 use std::fmt;
 
-/// Bounds on what an archive may expand to.
+/// Bounds on what an archive may expand to, against decompression bombs.
+///
+/// The defaults admit any entry a plain (non-ZIP64) archive can hold: the
+/// `stop_times.txt` of a national feed is a few GB at most. Deflate cannot
+/// expand data by more than about 1032:1, so an entry whose directory claims
+/// a larger ratio is rejected whatever the limits.
 #[derive(Debug, Clone, Copy)]
 pub struct Limits {
-    /// Largest uncompressed entry (the `stop_times.txt` of a large
-    /// metropolitan feed is a few hundred MB).
+    /// Largest uncompressed entry, in bytes (default 4 GiB).
     pub max_entry: u64,
-    /// Largest total of all entries read from one archive.
+    /// Largest total of all entries read from one archive, in bytes
+    /// (default 8 GiB).
     pub max_total: u64,
 }
 
 impl Default for Limits {
     fn default() -> Self {
         Limits {
-            max_entry: 1 << 30,
-            max_total: 4 << 30,
+            max_entry: 4 << 30,
+            max_total: 8 << 30,
         }
     }
 }
+
+/// A size or offset field saturated at this value has its real value in
+/// the ZIP64 extra field.
+const ZIP64_MAGIC: u64 = 0xffff_ffff;
+
+/// A saturated value the ZIP64 extra field does not give.
+const UNRESOLVED: u64 = u64::MAX;
 
 /// Deflate cannot expand data by more than about 1032:1; a larger declared
 /// ratio means the directory lies.
@@ -55,15 +68,77 @@ fn err<T>(m: impl Into<String>) -> Result<T, ZipError> {
 }
 
 fn u16_at(b: &[u8], at: usize) -> Result<u16, ZipError> {
-    b.get(at..at + 2)
+    b.get(at..at.saturating_add(2))
         .map(|s| u16::from_le_bytes([s[0], s[1]]))
         .ok_or_else(|| ZipError::Format("truncated".into()))
 }
 
 fn u32_at(b: &[u8], at: usize) -> Result<u32, ZipError> {
-    b.get(at..at + 4)
+    b.get(at..at.saturating_add(4))
         .map(|s| u32::from_le_bytes([s[0], s[1], s[2], s[3]]))
         .ok_or_else(|| ZipError::Format("truncated".into()))
+}
+
+fn u64_at(b: &[u8], at: usize) -> Result<u64, ZipError> {
+    b.get(at..at.saturating_add(8))
+        .map(|s| u64::from_le_bytes([s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7]]))
+        .ok_or_else(|| ZipError::Format("truncated".into()))
+}
+
+/// The ZIP64 end of central directory record named by the locator just
+/// before the end record at `eocd`: entry count, directory size and
+/// offset. As `ZipFile` does, it is used only when every value it gives
+/// agrees with the end record's or replaces a saturated one.
+fn zip64_end(bytes: &[u8], eocd: usize, n: u64, size: u64, offset: u64) -> Option<(u64, u64, u64)> {
+    let loc = eocd.checked_sub(20)?;
+    if u32_at(bytes, loc).ok()? != 0x0706_4b50 {
+        return None;
+    }
+    let at = usize::try_from(u64_at(bytes, loc + 8).ok()?).ok()?;
+    if u32_at(bytes, at).ok()? != 0x0606_4b50 {
+        return None;
+    }
+    let n64 = u64_at(bytes, at.saturating_add(32)).ok()?;
+    let size64 = u64_at(bytes, at.saturating_add(40)).ok()?;
+    let offset64 = u64_at(bytes, at.saturating_add(48)).ok()?;
+    let agrees = |v64: u64, v: u64, magic: u64| v64 == v || v == magic;
+    (agrees(n64, n, 0xffff)
+        && agrees(size64, size, ZIP64_MAGIC)
+        && agrees(offset64, offset, ZIP64_MAGIC))
+    .then_some((n64, size64, offset64))
+}
+
+/// Replace the saturated values among `fields` (uncompressed size,
+/// compressed size, local header offset, in that order) with those of the
+/// ZIP64 extra field (id 1) in `extra`, as `ZipFile` does. A value with no
+/// counterpart becomes [`UNRESOLVED`].
+fn apply_zip64_extra(extra: &[u8], fields: &mut [u64; 3]) {
+    let wanted = fields.map(|f| f == ZIP64_MAGIC);
+    for (f, &w) in fields.iter_mut().zip(&wanted) {
+        if w {
+            *f = UNRESOLVED;
+        }
+    }
+    let mut p = 0;
+    while p + 4 <= extra.len() {
+        let id = u16::from_le_bytes([extra[p], extra[p + 1]]);
+        let len = usize::from(u16::from_le_bytes([extra[p + 2], extra[p + 3]]));
+        let Some(data) = extra.get(p + 4..p + 4 + len) else {
+            return;
+        };
+        if id == 1 {
+            let mut at = 0;
+            for (f, _) in fields.iter_mut().zip(wanted).filter(|&(_, w)| w) {
+                let Ok(v) = u64_at(data, at) else {
+                    return;
+                };
+                *f = v;
+                at += 8;
+            }
+            return;
+        }
+        p += 4 + len;
+    }
 }
 
 /// One entry of the central directory.
@@ -110,19 +185,23 @@ impl Archive {
         let Some(eocd) = eocd else {
             return err("no end of central directory record");
         };
-        let n = u16_at(&bytes, eocd + 10)? as usize;
-        let cd_size = u32_at(&bytes, eocd + 12)? as usize;
-        let cd_offset = u32_at(&bytes, eocd + 16)? as usize;
-        if n == 0xffff || cd_offset == 0xffff_ffff {
-            return err("ZIP64 archives are not supported");
+        let mut n = u64::from(u16_at(&bytes, eocd + 10)?);
+        let mut cd_size = u64::from(u32_at(&bytes, eocd + 12)?);
+        let mut cd_offset = u64::from(u32_at(&bytes, eocd + 16)?);
+        if let Some(z) = zip64_end(&bytes, eocd, n, cd_size, cd_offset) {
+            (n, cd_size, cd_offset) = z;
+        } else if cd_size == ZIP64_MAGIC || cd_offset == ZIP64_MAGIC {
+            return err("ZIP64 end of central directory record missing");
         }
-        if cd_offset
-            .checked_add(cd_size)
-            .map_or(true, |end| end > bytes.len())
-        {
+        let cd = usize::try_from(cd_offset)
+            .ok()
+            .zip(usize::try_from(cd_size).ok())
+            .filter(|&(o, s)| o.checked_add(s).is_some_and(|end| end <= bytes.len()));
+        let Some((cd_offset, cd_size)) = cd else {
             return err("central directory out of range");
-        }
-        let mut entries = Vec::with_capacity(n);
+        };
+        // every directory record takes at least 46 bytes
+        let mut entries = Vec::with_capacity(n.min(cd_size as u64 / 46) as usize);
         let mut p = cd_offset;
         for _ in 0..n {
             if u32_at(&bytes, p)? != 0x0201_4b50 {
@@ -130,15 +209,25 @@ impl Archive {
             }
             let flags = u16_at(&bytes, p + 8)?;
             let method = u16_at(&bytes, p + 10)?;
-            let compressed_size = u64::from(u32_at(&bytes, p + 20)?);
-            let uncompressed_size = u64::from(u32_at(&bytes, p + 24)?);
             let name_len = u16_at(&bytes, p + 28)? as usize;
             let extra_len = u16_at(&bytes, p + 30)? as usize;
             let comment_len = u16_at(&bytes, p + 32)? as usize;
-            let local_header_offset = u64::from(u32_at(&bytes, p + 42)?);
+            let mut fields = [
+                u64::from(u32_at(&bytes, p + 24)?),
+                u64::from(u32_at(&bytes, p + 20)?),
+                u64::from(u32_at(&bytes, p + 42)?),
+            ];
             let Some(name) = bytes.get(p + 46..p + 46 + name_len) else {
                 return err("truncated entry name");
             };
+            if fields.contains(&ZIP64_MAGIC) {
+                let start = p + 46 + name_len;
+                let Some(extra) = bytes.get(start..start + extra_len) else {
+                    return err("truncated extra field");
+                };
+                apply_zip64_extra(extra, &mut fields);
+            }
+            let [uncompressed_size, compressed_size, local_header_offset] = fields;
             entries.push(Entry {
                 name: String::from_utf8_lossy(name).into_owned(),
                 method,
@@ -180,19 +269,18 @@ impl Archive {
         if e.flags & 1 != 0 {
             return err(format!("{}: encrypted entries are not supported", e.name));
         }
-        // Sizes or offset saturated: the real values are in a ZIP64 extra field.
         if [
             e.compressed_size,
             e.uncompressed_size,
             e.local_header_offset,
         ]
-        .contains(&0xffff_ffff)
+        .contains(&UNRESOLVED)
         {
-            return err(format!("{}: ZIP64 entries are not supported", e.name));
+            return err(format!("{}: ZIP64 extra field missing", e.name));
         }
         if e.uncompressed_size > self.limits.max_entry {
             return err(format!(
-                "{}: entry of {} bytes exceeds the limit of {}",
+                "{}: entry of {} bytes exceeds the limit of {} bytes per entry",
                 e.name, e.uncompressed_size, self.limits.max_entry
             ));
         }
@@ -204,26 +292,29 @@ impl Archive {
         let total = self.used.get().saturating_add(e.uncompressed_size);
         if total > self.limits.max_total {
             return err(format!(
-                "archive expands beyond the limit of {} bytes",
+                "archive expands beyond the limit of {} bytes in total",
                 self.limits.max_total
             ));
         }
         self.used.set(total);
-        let h = e.local_header_offset as usize;
-        if u32_at(&self.bytes, h)? != 0x0403_4b50 {
+        let h = usize::try_from(e.local_header_offset).unwrap_or(usize::MAX);
+        if h > self.bytes.len() || u32_at(&self.bytes, h)? != 0x0403_4b50 {
             return err(format!("{}: bad local header", e.name));
         }
         let name_len = u16_at(&self.bytes, h + 26)? as usize;
         let extra_len = u16_at(&self.bytes, h + 28)? as usize;
         let start = h + 30 + name_len + extra_len;
-        let Some(data) = self.bytes.get(start..start + e.compressed_size as usize) else {
+        let data = usize::try_from(e.compressed_size)
+            .ok()
+            .and_then(|n| self.bytes.get(start..start.checked_add(n)?));
+        let Some(data) = data else {
             return err(format!("{}: data out of range", e.name));
         };
         let out = match e.method {
             0 => data.to_vec(),
             8 => miniz_oxide::inflate::decompress_to_vec_with_limit(
                 data,
-                e.uncompressed_size as usize,
+                usize::try_from(e.uncompressed_size).unwrap_or(usize::MAX),
             )
             .map_err(|x| ZipError::Format(format!("{}: deflate: {x:?}", e.name)))?,
             m => {
@@ -380,8 +471,109 @@ pub(crate) mod tests {
         assert!(a.find("stops.txt").is_none());
     }
 
+    /// Build a ZIP64 archive in memory: every size and offset saturated in
+    /// the headers, with the real values in ZIP64 extra fields, and a ZIP64
+    /// end of central directory record. `sizes` overrides the uncompressed
+    /// size written for each entry.
+    fn make_zip64(files: &[(&str, &[u8])], deflate: bool, sizes: Option<&[u64]>) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut cd = Vec::new();
+        for (i, (name, data)) in files.iter().enumerate() {
+            let comp = if deflate {
+                miniz_oxide::deflate::compress_to_vec(data, 6)
+            } else {
+                data.to_vec()
+            };
+            let size = sizes.map_or(data.len() as u64, |s| s[i]);
+            let offset = out.len() as u64;
+            let method: u16 = if deflate { 8 } else { 0 };
+            out.extend(0x0403_4b50u32.to_le_bytes());
+            out.extend([45, 0, 0, 0]);
+            out.extend(method.to_le_bytes());
+            out.extend([0; 8]); // time, date, crc (not checked)
+            out.extend([0xff; 8]); // sizes
+            out.extend((name.len() as u16).to_le_bytes());
+            out.extend(20u16.to_le_bytes());
+            out.extend(name.as_bytes());
+            out.extend(1u16.to_le_bytes());
+            out.extend(16u16.to_le_bytes());
+            out.extend(size.to_le_bytes());
+            out.extend((comp.len() as u64).to_le_bytes());
+            out.extend(&comp);
+            cd.extend(0x0201_4b50u32.to_le_bytes());
+            cd.extend([45, 0, 45, 0, 0, 0]);
+            cd.extend(method.to_le_bytes());
+            cd.extend([0; 8]);
+            cd.extend([0xff; 8]); // sizes
+            cd.extend((name.len() as u16).to_le_bytes());
+            cd.extend(28u16.to_le_bytes()); // extra
+            cd.extend([0; 10]); // comment, disk, attrs
+            cd.extend([0xff; 4]); // offset
+            cd.extend(name.as_bytes());
+            cd.extend(1u16.to_le_bytes());
+            cd.extend(24u16.to_le_bytes());
+            cd.extend(size.to_le_bytes());
+            cd.extend((comp.len() as u64).to_le_bytes());
+            cd.extend(offset.to_le_bytes());
+        }
+        let cd_offset = out.len() as u64;
+        out.extend(&cd);
+        let end64 = out.len() as u64;
+        out.extend(0x0606_4b50u32.to_le_bytes());
+        out.extend(44u64.to_le_bytes());
+        out.extend([45, 0, 45, 0]);
+        out.extend([0; 8]); // disks
+        out.extend((files.len() as u64).to_le_bytes());
+        out.extend((files.len() as u64).to_le_bytes());
+        out.extend((cd.len() as u64).to_le_bytes());
+        out.extend(cd_offset.to_le_bytes());
+        out.extend(0x0706_4b50u32.to_le_bytes());
+        out.extend(0u32.to_le_bytes());
+        out.extend(end64.to_le_bytes());
+        out.extend(1u32.to_le_bytes());
+        out.extend(0x0605_4b50u32.to_le_bytes());
+        out.extend([0; 4]);
+        out.extend([0xff; 4]); // entry counts
+        out.extend([0xff; 8]); // directory size and offset
+        out.extend([0, 0]);
+        out
+    }
+
+    /// ZIP64 archives read as `java.util.zip.ZipFile` reads them.
     #[test]
-    fn zip64_entries_are_reported_as_unsupported() {
+    fn reads_zip64_archives() {
+        for deflate in [false, true] {
+            let z = make_zip64(
+                &[
+                    ("stops.txt", b"stop_id\n1\n"),
+                    ("dir/trips.txt", b"trip_id\nA\n"),
+                ],
+                deflate,
+                None,
+            );
+            let a = Archive::from_bytes(z).unwrap();
+            assert_eq!(a.entries.len(), 2);
+            assert_eq!(
+                a.read(a.find("stops.txt").unwrap()).unwrap(),
+                b"stop_id\n1\n"
+            );
+            assert_eq!(
+                a.read(a.find("trips.txt").unwrap()).unwrap(),
+                b"trip_id\nA\n"
+            );
+        }
+    }
+
+    #[test]
+    fn zip64_errors() {
+        // An entry's 64-bit size is checked against the limit, by default 4 GiB.
+        let z = make_zip64(&[("stop_times.txt", b"x")], false, Some(&[5 << 30]));
+        let a = Archive::from_bytes(z).unwrap();
+        assert_eq!(
+            a.read(&a.entries[0]).unwrap_err().to_string(),
+            "malformed zip file: stop_times.txt: entry of 5368709120 bytes exceeds the limit of 4294967296 bytes per entry"
+        );
+        // Saturated sizes without a ZIP64 extra field.
         let mut z = make_zip(&[("stops.txt", b"stop_id\nA\n")], false);
         let cd = z
             .windows(4)
@@ -389,10 +581,39 @@ pub(crate) mod tests {
             .unwrap();
         z[cd + 20..cd + 28].copy_from_slice(&[0xff; 8]);
         let a = Archive::from_bytes(z).unwrap();
-        let e = a.read(&a.entries[0]).unwrap_err();
         assert_eq!(
-            e.to_string(),
-            "malformed zip file: stops.txt: ZIP64 entries are not supported"
+            a.read(&a.entries[0]).unwrap_err().to_string(),
+            "malformed zip file: stops.txt: ZIP64 extra field missing"
+        );
+        // A saturated directory offset without the ZIP64 end record.
+        let mut z = make_zip64(&[("stops.txt", b"stop_id\nA\n")], false, None);
+        let loc = z.len() - 22 - 20;
+        z[loc] = 0;
+        assert_eq!(
+            Archive::from_bytes(z).err().unwrap().to_string(),
+            "malformed zip file: ZIP64 end of central directory record missing"
+        );
+    }
+
+    #[test]
+    fn limit_errors_say_the_limit() {
+        let big = vec![b'x'; 100_000];
+        let z = make_zip(&[("a.txt", &big), ("b.txt", &big)], true);
+        let a = Archive::from_bytes(z.clone()).unwrap();
+        let mut small = a.limits;
+        small.max_entry = 50_000;
+        let mut a = Archive::from_bytes(z.clone()).unwrap();
+        a.limits = small;
+        assert_eq!(
+            a.read(&a.entries[0]).unwrap_err().to_string(),
+            "malformed zip file: a.txt: entry of 100000 bytes exceeds the limit of 50000 bytes per entry"
+        );
+        let mut a = Archive::from_bytes(z).unwrap();
+        a.limits.max_total = 150_000;
+        a.read(&a.entries[0]).unwrap();
+        assert_eq!(
+            a.read(&a.entries[1]).unwrap_err().to_string(),
+            "malformed zip file: archive expands beyond the limit of 150000 bytes in total"
         );
     }
 }

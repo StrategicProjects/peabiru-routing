@@ -4,6 +4,7 @@
 //! (`StreetLayer.associateStops`).
 
 use crate::gtfs::feed::{Feed, StopTime};
+use crate::gtfs::zip::Limits;
 use crate::gtfs::GtfsError;
 use crate::street::geom::{haversine_m, java_int, FIXED_FACTOR};
 use crate::street::{parkride, Mode, StreetNetwork};
@@ -222,9 +223,18 @@ impl TransitLayer {
     /// Load feeds in the given order (R5 uses the data directory's listing
     /// order; see [`gtfs_files_in_dir`]).
     pub fn load(paths: &[std::path::PathBuf]) -> Result<TransitLayer, GtfsError> {
+        Self::load_with_limits(paths, Limits::default())
+    }
+
+    /// [`TransitLayer::load`] with other bounds on how far each zip file
+    /// may expand.
+    pub fn load_with_limits(
+        paths: &[std::path::PathBuf],
+        limits: Limits,
+    ) -> Result<TransitLayer, GtfsError> {
         let mut layer = TransitLayer::default();
         for p in paths {
-            let feed = Feed::read_zip(p)?;
+            let feed = Feed::read_zip_with_limits(p, limits)?;
             let id = feed_id(&feed, p);
             layer.add_feed(&feed, &id);
             layer.feed_ids.push(id);
@@ -623,6 +633,44 @@ mod tests {
         assert!(absent
             .to_string()
             .contains("absent.zip: cannot read the zip file"));
+    }
+
+    /// Callers can set the bounds on how far a zip file may expand.
+    #[test]
+    fn zip_limits_can_be_set() {
+        use crate::gtfs::zip::tests::make_zip;
+        let dir = std::env::temp_dir().join(format!("peabiru-zip-limits-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("feed.zip");
+        std::fs::write(
+            &path,
+            make_zip(
+                &[
+                    ("stops.txt", b"stop_id,stop_lat,stop_lon\nA,1,1\n"),
+                    ("routes.txt", b"route_id,route_type\nR,3\n"),
+                    ("trips.txt", b"route_id,service_id,trip_id\n"),
+                    ("stop_times.txt", b"trip_id,stop_id,stop_sequence\n"),
+                ],
+                true,
+            ),
+        )
+        .unwrap();
+        let paths = [path.clone()];
+        let tight = Limits {
+            max_entry: 10,
+            ..Limits::default()
+        };
+        let err = TransitLayer::load_with_limits(&paths, tight).unwrap_err();
+        let ok = TransitLayer::load(&paths).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(
+            err.to_string(),
+            format!(
+                "{}: malformed zip file: stops.txt: entry of 32 bytes exceeds the limit of 10 bytes per entry",
+                path.display()
+            )
+        );
+        assert_eq!(ok.stop_ids, ["feed:A"]);
     }
 
     #[test]
