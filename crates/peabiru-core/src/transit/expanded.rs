@@ -355,6 +355,17 @@ impl<'a> Context<'a> {
         );
         let (times, paths) = (&sc.times, &sc.arena);
         let n_stops = self.layer.stop_ids.len();
+        // Per stop, the least duration over the iterations: a lower bound
+        // on every candidate through that stop.
+        let stop_min = &mut sc.stop_min;
+        stop_min.clear();
+        stop_min.resize(n_stops, UNREACHED);
+        for row in times.chunks_exact(n_stops.max(1)) {
+            for (m, &t) in stop_min.iter_mut().zip(row) {
+                *m = (*m).min(t);
+            }
+        }
+        let stop_min = &*stop_min;
         let per_minute = req.iterations_per_minute(self.layer.has_frequencies)?;
         let n_iter = times.len() / n_stops.max(1);
         let to_time = p.departure_time + p.time_window * 60;
@@ -374,6 +385,7 @@ impl<'a> Context<'a> {
             propagate(
                 &self.egress[j],
                 times,
+                stop_min,
                 n_stops,
                 paths,
                 self.walk_mms,
@@ -431,16 +443,20 @@ struct OriginScratch {
     /// RAPTOR durations, iteration-major, and paths.
     times: Vec<i32>,
     arena: PathArena,
+    /// Per stop, the least of `times` over the iterations.
+    stop_min: Vec<i32>,
 }
 
 /// `PerTargetPropagater.propagateTransit` for one destination, keeping the
 /// path (an index into `paths.paths`) and egress time behind each
 /// iteration's best time. Only a strict improvement replaces them, so equal
-/// times keep the stop met first.
+/// times keep the stop met first. `stop_min[s]` is the least of stop `s`'s
+/// durations over the iterations.
 #[allow(clippy::too_many_arguments)]
 fn propagate(
     egress: &[(u32, i32)],
     times: &[i32],
+    stop_min: &[i32],
     n_stops: usize,
     paths: &PathArena,
     walk_mms: i32,
@@ -450,26 +466,36 @@ fn propagate(
     best_path: &mut [u32],
     best_egress: &mut [i32],
 ) {
+    // No candidate at or above `bound` replaces anything: the smaller of
+    // max_t and the worst time so far (only strict improvements count).
+    let mut bound = best.iter().copied().max().map_or(max_t, |w| max_t.min(w));
     for &(stop, mm) in egress {
         let e = mm / walk_mms;
         if e >= egress_limit {
             continue;
         }
+        // every iteration's candidate through this stop is at least its
+        // least duration plus the egress walk
+        if stop_min[stop as usize].saturating_add(e) >= bound {
+            continue;
+        }
+        let mut worst = 0;
         for (i, t) in best.iter_mut().enumerate() {
             let ts = times[i * n_stops + stop as usize];
-            if ts >= max_t || ts >= *t {
-                continue;
-            }
-            // saturating: past i32::MAX is past max_t
-            let c = ts.saturating_add(e);
-            if c < max_t && c < *t {
-                *t = c;
-                if let Some(k) = paths.index(i, stop as usize) {
-                    best_path[i] = k;
-                    best_egress[i] = e;
+            if ts < max_t && ts < *t {
+                // saturating: past i32::MAX is past max_t
+                let c = ts.saturating_add(e);
+                if c < max_t && c < *t {
+                    *t = c;
+                    if let Some(k) = paths.index(i, stop as usize) {
+                        best_path[i] = k;
+                        best_egress[i] = e;
+                    }
                 }
             }
+            worst = worst.max(*t);
         }
+        bound = max_t.min(worst);
     }
 }
 
@@ -822,6 +848,50 @@ mod tests {
                 (10.0, "b", 0.0)
             ]
         );
+    }
+
+    /// The bound in `propagate` skips only stops that cannot improve any
+    /// iteration: the times match a propagation over every stop.
+    #[test]
+    fn propagate_skip_changes_nothing() {
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut next = |n: u64| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state % n
+        };
+        let (n_stops, n_iter, max_t) = (30usize, 40usize, 3600);
+        let paths = PathArena::default();
+        for _ in 0..200 {
+            let times: Vec<i32> = (0..n_stops * n_iter)
+                .map(|_| match next(4) {
+                    0 => UNREACHED,
+                    _ => next(5000) as i32,
+                })
+                .collect();
+            let mut stop_min = vec![UNREACHED; n_stops];
+            for row in times.chunks_exact(n_stops) {
+                for (m, &t) in stop_min.iter_mut().zip(row) {
+                    *m = (*m).min(t);
+                }
+            }
+            let egress: Vec<(u32, i32)> = (0..12)
+                .map(|_| (next(n_stops as u64) as u32, next(2_000_000) as i32))
+                .collect();
+            let direct = [UNREACHED, 900, 4000][next(3) as usize];
+            let run = |stop_min: &[i32]| {
+                let mut best = vec![direct; n_iter];
+                let (mut bp, mut be) = (vec![NO_PATH; n_iter], vec![0; n_iter]);
+                propagate(
+                    &egress, &times, stop_min, n_stops, &paths, 1000, 1200, max_t, &mut best,
+                    &mut bp, &mut be,
+                );
+                best
+            };
+            // a lower bound of i32::MIN never skips
+            assert_eq!(run(&stop_min), run(&vec![i32::MIN; n_stops]));
+        }
     }
 
     #[test]
