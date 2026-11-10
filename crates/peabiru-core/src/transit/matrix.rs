@@ -7,7 +7,7 @@ use super::raptor::{self, Filtered, RaptorRequest, StopTimes, UNREACHED};
 use super::walk;
 use super::TransitLayer;
 use crate::street::link::{find_split, Split};
-use crate::street::router::{search_from, Mode, ModeGraph, Search};
+use crate::street::router::{check_speed, search_from, Mode, ModeGraph, Search};
 use crate::street::StreetNetwork;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -32,10 +32,15 @@ pub struct TransitParams {
 }
 
 impl TransitParams {
-    /// Check the parameters before routing. The percentile rules are R5's
-    /// (`AnalysisWorkerTask.validatePercentiles`: at most 5, in 1..=99);
-    /// the other bounds keep every value an int in seconds and bound what a
-    /// parameter can make RAPTOR allocate (iterations x stops per origin).
+    /// Check the parameters before routing. The bounds are those of R5 and
+    /// r5r 2.5.0 (percentiles: `AnalysisWorkerTask.validatePercentiles`;
+    /// counts: r5r's `checkmate::assert_count(positive = TRUE)` and R5's
+    /// `int` fields; walk speed: at least 1 mm/s, as
+    /// `TravelTimeComputer` requires), plus what keeps the arithmetic in
+    /// R5's `int` seconds: minutes times 60 must fit, and so must the
+    /// departure plus the window plus `max_trip_duration`, the latest clock
+    /// time a search can hold. A departure is at most 7 days after
+    /// midnight of the service day.
     pub fn validate(&self) -> Result<(), String> {
         validate_date(self.date)?;
         if self.percentiles.is_empty() || self.percentiles.len() > 5 {
@@ -47,37 +52,75 @@ impl TransitParams {
         if let Some(p) = self.percentiles.iter().find(|p| !(1..=99).contains(*p)) {
             return Err(format!("percentiles must be in 1..=99, got {p}"));
         }
-        let check = |name: &str, v: i64, lo: i64, hi: i64| {
+        let check_in = |name: &str, v: i64, lo: i64, hi: i64, unit: &str| {
             if (lo..=hi).contains(&v) {
                 Ok(())
             } else {
-                Err(format!("{name} must be between {lo} and {hi}, got {v}"))
+                Err(format!("{name} must be from {lo} to {hi}{unit}, got {v}"))
             }
         };
-        check("departure_time", self.departure_time.into(), 0, 7 * 86_400)?;
-        check("time_window", self.time_window.into(), 1, 1440)?;
-        check("draws_per_minute", self.draws_per_minute.into(), 1, 1000)?;
-        check(
-            "time_window * draws_per_minute",
-            i64::from(self.time_window) * i64::from(self.draws_per_minute),
-            1,
-            100_000,
+        let check = |name: &str, v: i64, lo: i64, hi: i64| check_in(name, v, lo, hi, "");
+        let int_max = i64::from(i32::MAX);
+        let max_minutes = int_max / 60;
+        check_in(
+            "departure_time",
+            self.departure_time.into(),
+            0,
+            7 * 86_400,
+            " seconds",
         )?;
-        check("max_walk_time", self.max_walk_time.into(), 1, 1_000_000)?;
-        check(
+        check_in(
+            "time_window",
+            self.time_window.into(),
+            1,
+            int_max,
+            " minutes",
+        )?;
+        check("draws_per_minute", self.draws_per_minute.into(), 1, int_max)?;
+        // r5r hands R5 `as.integer(time_window * draws_per_minute)`
+        let draws = i64::from(self.time_window) * i64::from(self.draws_per_minute);
+        if draws > int_max {
+            return Err(format!(
+                "time_window x draws_per_minute ({} x {} = {draws} Monte Carlo draws) must be \
+                 at most {int_max}",
+                self.time_window, self.draws_per_minute
+            ));
+        }
+        // max_trip_duration first: r5r passes max_walk_time = Inf as
+        // max_trip_duration, so a value too large is reported under the
+        // name the user set
+        let mins = " minutes";
+        check_in(
             "max_trip_duration",
             self.max_trip_duration.into(),
             1,
-            1_000_000,
+            max_minutes,
+            mins,
         )?;
-        check("max_rides", self.max_rides as i64, 1, 100)?;
-        let v = self.walk_speed_kmh;
-        // (int)(speed m/s * 1000) is a divisor, so it must be >= 1
-        if !v.is_finite() || ((v * 5.0 / 18.0) as f32 * 1000.0f32) < 1.0 || v > 1000.0 {
+        check_in(
+            "max_walk_time",
+            self.max_walk_time.into(),
+            1,
+            max_minutes,
+            mins,
+        )?;
+        let last_clock = i64::from(self.departure_time)
+            + 60 * (i64::from(self.time_window) + i64::from(self.max_trip_duration));
+        if last_clock > int_max {
             return Err(format!(
-                "walk_speed_kmh must be between 0.0036 and 1000 km/h, got {v}"
+                "time_window + max_trip_duration ({} + {} min) after a departure at {} s must \
+                 end within {int_max} s (about 68 years); reduce time_window or \
+                 max_trip_duration",
+                self.time_window, self.max_trip_duration, self.departure_time
             ));
         }
+        check(
+            "max_rides",
+            i64::try_from(self.max_rides).unwrap_or(i64::MAX),
+            1,
+            int_max,
+        )?;
+        check_speed("walk_speed_kmh", self.walk_speed_kmh)?;
         Ok(())
     }
 }
@@ -236,6 +279,19 @@ impl<'a> Query<'a> {
         p: &'a TransitParams,
     ) -> Result<Self, String> {
         p.validate()?;
+        // RAPTOR keeps iterations x stops durations per origin; their byte
+        // count must be a valid allocation size
+        let per_minute = if layer.has_frequencies {
+            p.draws_per_minute as u64
+        } else {
+            1
+        };
+        let cells = p.time_window as u64 * per_minute * layer.stop_ids.len() as u64;
+        if cells > isize::MAX as u64 / 4 {
+            return Err(format!(
+                "time_window x draws_per_minute x stops ({cells}) is too large to allocate"
+            ));
+        }
         let active = layer.active_services(p.date, weekday(p.date));
         let filtered = Filtered::new(layer, &active)?;
         let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
@@ -507,8 +563,26 @@ mod tests {
                 ..ok.clone()
             },
             TransitParams {
-                time_window: 1440,
-                draws_per_minute: 1000,
+                time_window: 1 << 16,
+                draws_per_minute: 1 << 16,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_trip_duration: i32::MAX / 60 + 1,
+                max_walk_time: i32::MAX / 60 + 1,
+                ..ok.clone()
+            },
+            TransitParams {
+                time_window: i32::MAX / 100,
+                max_trip_duration: i32::MAX / 100,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_rides: i32::MAX as usize + 1,
+                ..ok.clone()
+            },
+            TransitParams {
+                walk_speed_kmh: 0.0,
                 ..ok.clone()
             },
             TransitParams {
@@ -534,6 +608,72 @@ mod tests {
         ] {
             assert!(bad.validate().is_err(), "{bad:?}");
         }
+    }
+
+    /// Values r5r 2.5.0 accepts that earlier caps rejected, and the
+    /// messages of what remains bounded.
+    #[test]
+    fn bounds_are_r5s_and_the_int_clock() {
+        let ok = TransitParams {
+            date: 20190513,
+            departure_time: 14 * 3600,
+            ..TransitParams::default()
+        };
+        for fine in [
+            TransitParams {
+                time_window: 2000,
+                ..ok.clone()
+            },
+            TransitParams {
+                time_window: 1000,
+                draws_per_minute: 1000,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_rides: 1000,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_trip_duration: 5_000_000,
+                max_walk_time: 5_000_000,
+                ..ok.clone()
+            },
+            TransitParams {
+                walk_speed_kmh: 5000.0,
+                ..ok.clone()
+            },
+        ] {
+            assert_eq!(fine.validate(), Ok(()), "{fine:?}");
+        }
+        let err = |p: TransitParams| p.validate().unwrap_err();
+        // max_walk_time = Inf in r5r is max_trip_duration: the message
+        // names max_trip_duration
+        let huge = err(TransitParams {
+            max_trip_duration: i32::MAX,
+            max_walk_time: i32::MAX,
+            ..ok.clone()
+        });
+        assert!(
+            huge.starts_with("max_trip_duration must be from 1 to 35791394"),
+            "{huge}"
+        );
+        let clock = err(TransitParams {
+            time_window: 30_000_000,
+            max_trip_duration: 10_000_000,
+            ..ok.clone()
+        });
+        assert!(
+            clock.starts_with("time_window + max_trip_duration"),
+            "{clock}"
+        );
+        let speed = err(TransitParams {
+            walk_speed_kmh: 1e-300,
+            ..ok.clone()
+        });
+        assert_eq!(
+            speed,
+            "walk_speed_kmh must be at least 0.0036 km/h (1 mm/s), got 1e-300"
+        );
     }
 
     #[test]

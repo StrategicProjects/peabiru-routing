@@ -51,24 +51,41 @@ impl std::fmt::Display for ParamError {
 
 impl std::error::Error for ParamError {}
 
+/// A number for an error message: as written when short, else in
+/// scientific notation (`1e300`, not 301 digits).
+pub(crate) fn compact(v: f64) -> String {
+    let s = format!("{v}");
+    if s.len() <= 16 {
+        s
+    } else {
+        format!("{v:e}")
+    }
+}
+
+/// Check a speed in km/h as R5 does: finite, and at least 1 mm/s once
+/// converted to `(int)(m/s as float * 1000)`, which is a divisor
+/// (`TravelTimeComputer`: "Speed of access mode must be greater than 0").
+pub(crate) fn check_speed(name: &str, v: f64) -> Result<(), String> {
+    if !v.is_finite() || ((v * 5.0 / 18.0) as f32 * 1000.0f32) < 1.0 {
+        return Err(format!(
+            "{name} must be at least 0.0036 km/h (1 mm/s), got {}",
+            compact(v)
+        ));
+    }
+    Ok(())
+}
+
 impl RouteParams {
-    /// Check the parameters: speeds must give at least 1 mm/s, the trip limit
-    /// must be a positive number of minutes that fits in seconds.
+    /// Check the parameters: speeds must give at least 1 mm/s (R5's
+    /// bound), the trip limit must be a positive number of minutes that
+    /// fits R5's `int` seconds.
     pub fn validate(&self) -> Result<(), ParamError> {
-        for (name, v) in [
-            ("walk_speed_kmh", self.walk_speed_kmh),
-            ("bike_speed_kmh", self.bike_speed_kmh),
-        ] {
-            // (int)(speed m/s * 1000) is a divisor, so it must be >= 1
-            if !v.is_finite() || ((v * 5.0 / 18.0) as f32 * 1000.0f32) < 1.0 || v > 1000.0 {
-                return Err(ParamError(format!(
-                    "{name} must be between 0.0036 and 1000 km/h, got {v}"
-                )));
-            }
-        }
-        if !(1..=1_000_000).contains(&self.max_trip_duration_min) {
+        check_speed("walk_speed_kmh", self.walk_speed_kmh).map_err(ParamError)?;
+        check_speed("bike_speed_kmh", self.bike_speed_kmh).map_err(ParamError)?;
+        let max_minutes = i32::MAX / 60;
+        if !(1..=max_minutes).contains(&self.max_trip_duration_min) {
             return Err(ParamError(format!(
-                "max_trip_duration_min must be between 1 and 1000000, got {}",
+                "max_trip_duration must be from 1 to {max_minutes} minutes, got {}",
                 self.max_trip_duration_min
             )));
         }

@@ -207,3 +207,29 @@ fn transit_commands_need_a_real_date() {
     args.extend_from_slice(&bad);
     fails(&run(&args), 2, "date must be a calendar date");
 }
+
+/// r5r 2.5.0 answers a 2000-minute window and 200 rides; so does peabiru.
+/// What stays bounded is the int clock, with a message naming the
+/// parameters the user set.
+#[test]
+fn only_r5_bounds_and_the_int_clock_remain() {
+    let with = |extra: &[&str]| {
+        let mut a = WHEN.to_vec();
+        a.extend_from_slice(extra);
+        transit(&a)
+    };
+    for ok in [&["--tw", "2000"][..], &["--max-rides", "200"]] {
+        let out = with(ok);
+        assert_eq!(out.status.code(), Some(0), "{ok:?}: {out:?}");
+    }
+    fails(
+        &with(&["--max-trip", "2147483647"]),
+        2,
+        "max_trip_duration must be from 1 to 35791394 minutes",
+    );
+    fails(
+        &with(&["--tw", "30000000", "--max-trip", "10000000"]),
+        2,
+        "reduce time_window or max_trip_duration",
+    );
+}
