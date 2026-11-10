@@ -26,6 +26,24 @@ const RIGHT_TURN: i32 = 10;
 const LEFT_TURN: i32 = 30;
 const U_TURN: i32 = 90;
 
+/// How [`travel_time_matrix`] computes a street matrix. Every choice gives
+/// the same matrix; they differ only in speed and memory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StreetEngine {
+    /// The faster of the two for the matrix at hand: the contraction
+    /// hierarchy when the network already holds one for the mode and
+    /// speeds, or when there are enough origins to pay for building it;
+    /// otherwise the search.
+    #[default]
+    Auto,
+    /// A street search from every origin, as R5 does.
+    Search,
+    /// A contraction hierarchy of the mode's street graph, built on first
+    /// use and kept with the network for later calls. Cars on a network
+    /// with turn restrictions always take the search.
+    Hierarchy,
+}
+
 /// Routing parameters, with r5r's defaults.
 #[derive(Debug, Clone)]
 pub struct RouteParams {
@@ -44,6 +62,9 @@ pub struct RouteParams {
     /// clone of it (see [`CancelToken`]); the default is a fresh token,
     /// which nothing cancels unless a clone of it is kept.
     pub cancel: CancelToken,
+    /// How a street travel-time matrix is computed (see [`StreetEngine`]);
+    /// it changes the speed of [`travel_time_matrix`], never its result.
+    pub engine: StreetEngine,
 }
 
 /// Invalid routing parameters.
@@ -116,6 +137,7 @@ impl Default for RouteParams {
             max_trip_duration_min: 120,
             n_threads: 0,
             cancel: CancelToken::default(),
+            engine: StreetEngine::Auto,
         }
     }
 }
@@ -137,17 +159,17 @@ pub(crate) fn worker_threads(requested: usize, n_items: usize) -> usize {
 
 /// Speeds as R5 holds them: km/h to m/s in double, then `(float)`.
 #[derive(Debug, Clone, Copy)]
-struct Speeds {
-    walk: f32,
-    bike: f32,
+pub(super) struct Speeds {
+    pub(super) walk: f32,
+    pub(super) bike: f32,
     /// `(int)(walkSpeed * 1000)`, mm/s, the off-street speed.
-    walk_mms: i32,
+    pub(super) walk_mms: i32,
     /// `(int)(speed * 1000)` for walk/bike destination edges, mm/s.
     on_street_mms: i32,
 }
 
 impl Speeds {
-    fn new(p: &RouteParams, mode: Mode) -> Self {
+    pub(super) fn new(p: &RouteParams, mode: Mode) -> Self {
         let walk = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
         let bike = (p.bike_speed_kmh * 5.0 / 18.0) as f32;
         let on = match mode {
@@ -316,15 +338,15 @@ const CLEAN: u32 = u32::MAX;
 
 /// An outgoing edge as one mode's search sees it.
 #[derive(Debug, Clone, Copy)]
-struct Arc {
-    edge: u32,
-    to: u32,
+pub(super) struct Arc {
+    pub(super) edge: u32,
+    pub(super) to: u32,
     /// Traversal seconds for the mode (before the car turn cost); negative
     /// when the mode cannot use the edge.
-    step: i32,
+    pub(super) step: i32,
     /// Car: bearing entering the edge, whole degrees (R5 `getInAngle`).
-    in_deg: i16,
-    link: bool,
+    pub(super) in_deg: i16,
+    pub(super) link: bool,
 }
 
 /// The street graph as one mode's search reads it: every vertex's outgoing
@@ -332,16 +354,16 @@ struct Arc {
 /// (`arcs[out_offsets[v]..out_offsets[v + 1]]`, in `out_edges` order), so
 /// the inner loop of the search reads one array. Built once per query.
 pub(crate) struct ModeGraph {
-    mode: Mode,
-    sp: Speeds,
+    pub(super) mode: Mode,
+    pub(super) sp: Speeds,
     arcs: Vec<Arc>,
     /// The search must pop equal times in `java.util.PriorityQueue` order:
     /// car searches on a network with turn restrictions.
-    java_order: bool,
+    pub(super) java_order: bool,
 }
 
 impl ModeGraph {
-    fn new(net: &StreetNetwork, mode: Mode, sp: Speeds, max_lts: i32) -> Self {
+    pub(super) fn new(net: &StreetNetwork, mode: Mode, sp: Speeds, max_lts: i32) -> Self {
         let step_of = |f: usize| -> i32 {
             let flags = net.edge_flags[f];
             let len = net.pair_length_mm[f / 2];
@@ -404,7 +426,7 @@ impl ModeGraph {
     }
 
     #[inline]
-    fn arcs(&self, net: &StreetNetwork, v: usize) -> &[Arc] {
+    pub(super) fn arcs(&self, net: &StreetNetwork, v: usize) -> &[Arc] {
         &self.arcs[net.out_offsets[v] as usize..net.out_offsets[v + 1] as usize]
     }
 }
@@ -415,7 +437,7 @@ pub(crate) struct Search {
     /// restriction progress.
     edge_time: Vec<i32>,
     /// Best time at each vertex (min over all incoming edge states).
-    vertex_time: Vec<i32>,
+    pub(super) vertex_time: Vec<i32>,
     touched_edges: Vec<u32>,
     touched_vertices: Vec<u32>,
     /// States in the middle of turn restrictions: `(edge, progress)`. R5
@@ -575,7 +597,7 @@ fn start_restrictions(net: &StreetNetwork, map: &mut RMap, f: u32) {
 /// Turn cost for a car leaving an edge at bearing `out` (whole degrees) onto
 /// one entered at bearing `inn` (R5 `turnTimeSeconds`).
 #[inline]
-fn car_turn_cost(out: i32, inn: i32) -> i32 {
+pub(super) fn car_turn_cost(out: i32, inn: i32) -> i32 {
     let mut out = out;
     if out < inn {
         out += 360;
@@ -601,12 +623,42 @@ fn traversal_seconds(length_mm: i32, speed: f32) -> i32 {
 }
 
 /// Run the street search from an origin split; fills `s.vertex_time`.
-fn route(net: &StreetNetwork, g: &ModeGraph, origin: &Split, limit: i32, s: &mut Search) {
+pub(super) fn route(
+    net: &StreetNetwork,
+    g: &ModeGraph,
+    origin: &Split,
+    limit: i32,
+    s: &mut Search,
+) {
     if g.java_order {
         route_impl::<true>(net, g, origin, limit, s);
     } else {
         route_impl::<false>(net, g, origin, limit, s);
     }
+}
+
+/// The two start states of a search from an origin split, as `(edge,
+/// seconds)`: the backward edge, which ends at the split's first vertex,
+/// then the forward edge. They carry the split edge as back edge so turn
+/// costs (and turn restrictions) apply when leaving it, and their times are
+/// not checked against the limit.
+pub(super) fn start_states(
+    net: &StreetNetwork,
+    g: &ModeGraph,
+    origin: &Split,
+) -> [(usize, i32); 2] {
+    let (mode, sp) = (g.mode, &g.sp);
+    let fwd = origin.edge as usize;
+    let bwd = fwd + 1;
+    let off = origin.distance_to_edge_mm / sp.walk_mms;
+    let start_speed = |e: usize| match mode {
+        Mode::Walk => sp.walk,
+        Mode::Bicycle => sp.bike,
+        Mode::Car => cms_to_ms(net.edge_speed_cms[e]),
+    };
+    let t1 = ((origin.distance1_mm / 1000) as f32 / start_speed(fwd)) as i32 + off;
+    let t0 = ((origin.distance0_mm / 1000) as f32 / start_speed(bwd)) as i32 + off;
+    [(bwd, t0), (fwd, t1)]
 }
 
 /// [`route`] with the queue chosen at compile time: `JAVA` for the car
@@ -620,21 +672,8 @@ fn route_impl<const JAVA: bool>(
     s: &mut Search,
 ) {
     s.reset();
-    let (mode, sp) = (g.mode, &g.sp);
-    let fwd = origin.edge as usize;
-    let bwd = fwd + 1;
-    let off = origin.distance_to_edge_mm / sp.walk_mms;
-    // Start states carry the split edge as back edge so turn costs (and turn
-    // restrictions) apply when leaving it. Their times are not checked
-    // against the limit.
-    let start_speed = |e: usize| match mode {
-        Mode::Walk => sp.walk,
-        Mode::Bicycle => sp.bike,
-        Mode::Car => cms_to_ms(net.edge_speed_cms[e]),
-    };
-    let t1 = ((origin.distance1_mm / 1000) as f32 / start_speed(fwd)) as i32 + off;
-    let t0 = ((origin.distance0_mm / 1000) as f32 / start_speed(bwd)) as i32 + off;
-    for (e, t) in [(bwd, t0), (fwd, t1)] {
+    let mode = g.mode;
+    for (e, t) in start_states(net, g, origin) {
         let mut map = RMap::new();
         if JAVA {
             start_restrictions(net, &mut map, e as u32);
@@ -704,7 +743,7 @@ fn route_impl<const JAVA: bool>(
 
 /// Time in seconds from the searched origin to a linked destination
 /// (R5 `LinkedPointSet.eval`), or `None` when unreachable.
-fn time_to_point(
+pub(super) fn time_to_point(
     net: &StreetNetwork,
     g: &ModeGraph,
     origin: &Split,
@@ -829,6 +868,11 @@ pub(crate) fn search_from(
 /// `max_trip_duration_min`). Points are `(lat, lon)` degrees.
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled before the
 /// matrix is complete.
+///
+/// `params.engine` chooses how the matrix is computed (see
+/// [`StreetEngine`]); the result is the same either way. A contraction
+/// hierarchy built here is kept with the network and makes later matrices
+/// of the same mode and speeds faster.
 pub fn travel_time_matrix(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
@@ -839,6 +883,9 @@ pub fn travel_time_matrix(
     params.validate()?;
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let m = params.max_trip_duration_min;
+    if let Some(m) = super::ch::travel_time_matrix(net, &g, origins, destinations, params) {
+        return m;
+    }
     let limit = m * 60;
     let mut scratch = Vec::new();
     let dest_splits: Vec<Option<Split>> = destinations

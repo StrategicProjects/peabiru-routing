@@ -374,6 +374,7 @@ fn rs_street_ttm(
         max_trip_duration_min: max_trip_duration,
         n_threads: threads(n_threads),
         cancel: CancelToken::new(),
+        ..RouteParams::default()
     };
     let mode = street_mode(mode)?;
     let m = done!(interruptible(&params.cancel, || {
@@ -582,6 +583,7 @@ fn rs_accessibility(
             max_trip_duration_min: max_trip_duration,
             n_threads: threads(n_threads),
             cancel: CancelToken::new(),
+            ..RouteParams::default()
         };
         let mode = street_mode(mode)?;
         done!(interruptible(&params.cancel, || {

@@ -6,6 +6,7 @@
 //! fixed-point degrees (1e-7), lengths millimetres, times whole seconds.
 
 pub mod build;
+mod ch;
 pub mod geom;
 pub mod labels;
 pub mod link;
@@ -16,7 +17,7 @@ pub mod router;
 pub use build::{build_network, BuildOptions};
 pub use link::Split;
 pub use restrictions::TurnRestriction;
-pub use router::{travel_time_matrix, Mode, ParamError, RouteParams};
+pub use router::{travel_time_matrix, Mode, ParamError, RouteParams, StreetEngine};
 
 /// Edge flags (bit set per directed edge).
 pub mod flags {
@@ -52,6 +53,12 @@ pub mod vertex_flags {
 }
 
 /// A routable street network.
+///
+/// Street matrices may build contraction hierarchies and keep them in the
+/// network for later calls (a few megabytes for a city; see
+/// [`router::StreetEngine`]). They are checked against the network's
+/// arrays before every use, so changing the public fields between calls is
+/// safe: the hierarchies are then dropped and built again when needed.
 #[derive(Debug, Clone, Default)]
 pub struct StreetNetwork {
     /// Vertex latitude, fixed-point 1e-7 degrees.
@@ -96,6 +103,10 @@ pub struct StreetNetwork {
     /// `(from_edge, restriction index)`, sorted: restrictions that start when
     /// a car enters an edge.
     pub restriction_starts: Vec<(u32, u32)>,
+
+    /// Contraction hierarchies built by street matrices, kept for later
+    /// ones (see [`router::StreetEngine`]); a clone shares them.
+    hierarchies: ch::Cache,
 }
 
 impl StreetNetwork {
