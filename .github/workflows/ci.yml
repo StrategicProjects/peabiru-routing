@@ -73,6 +73,8 @@ jobs:
         run: install.packages("testthat")
         shell: Rscript {0}
       - name: Install the package from the checkout
+        # bash: in PowerShell, R is an alias of Invoke-History
+        shell: bash
         run: R CMD INSTALL r
       - name: Test
         run: |
