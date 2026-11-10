@@ -278,10 +278,49 @@ def test_time_window_longer_than_a_day_is_accepted(network, points, departure):
     assert ttm["travel_time_p50"].tolist() == [0, 7]
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
-@pytest.mark.xfail(strict=True, reason="the core never checks for signals while routing")
-def test_ctrl_c_interrupts_a_long_call(network, points):
+def _long_calls(network, points):
+    """One call per routing entry point, each taking several seconds at one
+    thread on the sample network."""
     start = dt.datetime(2019, 5, 13, 0, 0)
+    many = pd.concat([points] * 1500, ignore_index=True)
+    many["id"] = [str(i) for i in range(len(many))]
+    transit = dict(
+        mode="TRANSIT", time_window=1440, draws_per_minute=20, seed=1, n_threads=1,
+    )
+    return {
+        "street_matrix": lambda: peabiru.travel_time_matrix(
+            network, many, points, mode="CAR", n_threads=1,
+        ),
+        "street_accessibility": lambda: peabiru.accessibility(
+            network, many, points, opportunities_colnames=["jobs"], mode="CAR",
+            cutoffs=[30], n_threads=1,
+        ),
+        "transit_matrix": lambda: peabiru.travel_time_matrix(
+            network, points, points, departure_datetime=start, **transit,
+        ),
+        "transit_accessibility": lambda: peabiru.accessibility(
+            network, points, points, opportunities_colnames=["jobs"], cutoffs=[30],
+            departure_datetime=start, **transit,
+        ),
+        "expanded": lambda: peabiru.expanded_travel_time_matrix(
+            network, points, points, departure_datetime=start, **transit,
+        ),
+        "arrival": lambda: peabiru.arrival_travel_time_matrix(
+            network, points, points, mode="TRANSIT", max_trip_duration=1440,
+            arrival_datetime=start + dt.timedelta(days=1), draws_per_minute=20,
+            seed=1, n_threads=1,
+        ),
+    }
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+@pytest.mark.parametrize(
+    "call",
+    ["street_matrix", "street_accessibility", "transit_matrix",
+     "transit_accessibility", "expanded", "arrival"],
+)
+def test_ctrl_c_interrupts_a_long_call(network, points, call):
+    run = _long_calls(network, points)[call]
 
     def fire():
         time.sleep(0.3)
@@ -290,8 +329,29 @@ def test_ctrl_c_interrupts_a_long_call(network, points):
     threading.Thread(target=fire).start()
     t0 = time.perf_counter()
     with pytest.raises(KeyboardInterrupt):
-        peabiru.travel_time_matrix(
-            network, points, points, mode="TRANSIT", departure_datetime=start,
-            time_window=1440, draws_per_minute=5, seed=1, n_threads=1,
-        )
-    assert time.perf_counter() - t0 < 2.0
+        run()
+    elapsed = time.perf_counter() - t0
+    # uninterrupted, each call takes several seconds
+    assert 0.3 <= elapsed < 1.3
+    # the session goes on: the next call runs to the end
+    m = peabiru.travel_time_matrix(network, points, points, mode="WALK", n_threads=1)
+    assert len(m) > 0
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+def test_an_exception_from_a_signal_handler_stops_a_long_call(network, points):
+    class Stop(Exception):
+        pass
+
+    def handler(signum, frame):
+        raise Stop()
+
+    old = signal.signal(signal.SIGUSR1, handler)
+    try:
+        threading.Timer(0.3, os.kill, (os.getpid(), signal.SIGUSR1)).start()
+        t0 = time.perf_counter()
+        with pytest.raises(Stop):
+            _long_calls(network, points)["transit_matrix"]()
+        assert time.perf_counter() - t0 < 1.3
+    finally:
+        signal.signal(signal.SIGUSR1, old)

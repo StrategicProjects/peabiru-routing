@@ -137,7 +137,7 @@ accessibility <- function(r5r_network,
   check_output_dir(output_dir)
   check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
-  values <- rs_accessibility(
+  values <- raise_if_stopped(rs_accessibility(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     opportunities,
     if (mode_list$transit) "TRANSIT" else mode_list$direct_modes,
@@ -146,7 +146,7 @@ accessibility <- function(r5r_network,
     max_walk_time, max_trip_duration, as.double(walk_speed), as.double(bike_speed),
     as.integer(max_lts), as.integer(max_rides), as.integer(draws_per_minute),
     seed$has, seed$value, threads
-  )
+  ))
 
   # one row per origin, opportunity, percentile and cutoff, in that order
   n_o <- nrow(origins)

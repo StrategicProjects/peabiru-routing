@@ -100,13 +100,13 @@ expanded_travel_time_matrix <- function(r5r_network,
   assert_flag(breakdown, "breakdown")
   check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
-  res <- rs_expanded(
+  res <- raise_if_stopped(rs_expanded(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     FALSE, departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_trip_duration, as.double(walk_speed),
     as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
     threads
-  )
+  ))
   expanded_result(res, origins, destinations, breakdown, max_trip_duration)
 }
 
@@ -223,13 +223,13 @@ arrival_travel_time_matrix <- function(r5r_network,
   assert_flag(breakdown, "breakdown")
   check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
-  res <- rs_expanded(
+  res <- raise_if_stopped(rs_expanded(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     TRUE, departure$yyyymmdd, departure$seconds, max_trip_duration,
     max_walk_time, max_trip_duration, as.double(walk_speed),
     as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
     threads
-  )
+  ))
   expanded_result(res, origins, destinations, breakdown, max_trip_duration)
 }
 

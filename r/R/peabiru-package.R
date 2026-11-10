@@ -34,3 +34,25 @@
 #' @examples
 #' core_version()
 core_version <- function() rs_core_version()
+
+# A routing call that an interrupt (Ctrl-C, the Stop button) or an error
+# raised while it waited (a limit from setTimeLimit()) stopped returns a
+# `peabiru_stopped` object once its workers have stopped; raise its
+# condition here. An interrupt goes to the handlers of the calling code,
+# as R does on Ctrl-C, and if none takes it, back to the top level.
+raise_if_stopped <- function(res) {
+  if (!inherits(res, "peabiru_stopped")) {
+    return(res)
+  }
+  cond <- res$condition
+  if (is.null(cond)) {
+    cond <- structure(list(), class = c("interrupt", "condition"))
+  }
+  if (!inherits(cond, "interrupt")) {
+    stop(cond)
+  }
+  signalCondition(cond)
+  # what R prints for an interrupt nobody handles
+  cat("\n", file = stderr())
+  invokeRestart("abort")
+}

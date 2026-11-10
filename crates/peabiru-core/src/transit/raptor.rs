@@ -6,6 +6,7 @@
 
 use super::layer::{Pattern, TransitLayer};
 use crate::jcompat::{objects_hash_int_double_double, MersenneTwister, TroveIntKeys};
+use crate::CancelToken;
 
 pub const UNREACHED: i32 = i32::MAX;
 const DEPARTURE_STEP_SEC: i32 = 60;
@@ -1118,6 +1119,7 @@ pub fn route(
         filtered,
         access,
         req,
+        &CancelToken::default(),
         &mut arena,
         |_, arr| out.push(arr.to_vec()),
     );
@@ -1152,13 +1154,15 @@ impl StopTimes {
     }
 }
 
-/// [`route`] writing into a reused stop-major buffer.
+/// [`route`] writing into a reused stop-major buffer; incomplete when
+/// `cancel` is cancelled meanwhile.
 pub(crate) fn route_stop_major(
     layer: &TransitLayer,
     transfers: &[Vec<(u32, i32)>],
     filtered: &Filtered,
     access: &[(u32, i32)],
     req: &RaptorRequest,
+    cancel: &CancelToken,
     out: &mut StopTimes,
 ) {
     let n_stops = layer.stop_ids.len();
@@ -1176,6 +1180,7 @@ pub(crate) fn route_stop_major(
         filtered,
         access,
         req,
+        cancel,
         &mut arena,
         |_, arr| {
             for (s, &t) in arr.iter().enumerate() {
@@ -1187,7 +1192,7 @@ pub(crate) fn route_stop_major(
             k += 1;
         },
     );
-    debug_assert_eq!(k, n_iter);
+    debug_assert!(k == n_iter || cancel.is_cancelled());
 }
 
 /// [`route`] that also keeps, at every iteration, the path to each stop
@@ -1213,6 +1218,7 @@ pub fn route_with_paths(
         filtered,
         access,
         req,
+        &CancelToken::default(),
         &mut arena,
         |_, arr| times.push(arr.to_vec()),
     );
@@ -1220,7 +1226,8 @@ pub fn route_with_paths(
 }
 
 /// [`route_with_paths`] into reused buffers: `times` gets the durations
-/// iteration-major (`times[i * n_stops + stop]`), `arena` the paths.
+/// iteration-major (`times[i * n_stops + stop]`), `arena` the paths;
+/// incomplete when `cancel` is cancelled meanwhile.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn route_paths_into(
     layer: &TransitLayer,
@@ -1229,24 +1236,36 @@ pub(crate) fn route_paths_into(
     access: &[(u32, i32)],
     req: &RaptorRequest,
     retain: &[bool],
+    cancel: &CancelToken,
     times: &mut Vec<i32>,
     arena: &mut PathArena,
 ) {
     times.clear();
     arena.reset(layer.stop_ids.len(), retain);
-    route_impl::<true>(layer, transfers, filtered, access, req, arena, |_, arr| {
-        times.extend_from_slice(arr)
-    });
+    route_impl::<true>(
+        layer,
+        transfers,
+        filtered,
+        access,
+        req,
+        cancel,
+        arena,
+        |_, arr| times.extend_from_slice(arr),
+    );
 }
 
 /// The search, handing each iteration's durations at every stop to
-/// `sink(departure, durations)` in R5 iteration order.
+/// `sink(departure, durations)` in R5 iteration order. It stops early,
+/// leaving the iterations after it out, when `cancel` is cancelled: checked
+/// at every departure minute and every Monte Carlo draw.
+#[allow(clippy::too_many_arguments)]
 fn route_impl<const P: bool>(
     layer: &TransitLayer,
     transfers: &[Vec<(u32, i32)>],
     filtered: &Filtered,
     access: &[(u32, i32)],
     req: &RaptorRequest,
+    cancel: &CancelToken,
     arena: &mut PathArena,
     mut sink: impl FnMut(i32, &[i32]),
 ) {
@@ -1285,6 +1304,9 @@ fn route_impl<const P: bool>(
     let to_time = req.from_time + req.time_window * DEPARTURE_STEP_SEC;
     let mut dep = to_time - DEPARTURE_STEP_SEC;
     while dep >= req.from_time {
+        if cancel.is_cancelled() {
+            return;
+        }
         if sched.is_empty() {
             sched = (0..=req.max_rides)
                 .map(|_| State::new(n_stops, req.max_duration, dep))
@@ -1311,6 +1333,9 @@ fn route_impl<const P: bool>(
         }
         if layer.has_frequencies {
             for _ in 0..per_minute {
+                if cancel.is_cancelled() {
+                    return;
+                }
                 if draw.is_empty() {
                     draw = sched.iter().map(State::copy).collect();
                 } else {

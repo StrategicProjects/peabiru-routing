@@ -5,6 +5,13 @@
 //! the package; these functions only take already validated values, run the
 //! core and hand back plain vectors. Points are passed as separate latitude
 //! and longitude vectors; row indices returned to R are 1-based.
+//!
+//! A routing call runs the core on a thread of its own while the R thread
+//! checks every [`POLL`] for a user interrupt (see [`interrupt`]). On an
+//! interrupt the computation is cancelled and, once its workers have
+//! stopped, the function returns a `peabiru_stopped` object holding the
+//! condition, which the R code raises with `raise_if_stopped()`: no R
+//! longjmp ever crosses the Rust frames.
 
 use extendr_api::prelude::*;
 use extendr_api::{Error, Result};
@@ -18,6 +25,9 @@ use peabiru_core::transit::expanded::{
 };
 use peabiru_core::transit::matrix::{self, TransitData, TransitParams};
 use peabiru_core::transit::{self as tr, TransitLayer};
+use peabiru_core::{CancelToken, RouteError};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 /// A network built once and shared by every routing call.
 struct Network {
@@ -33,6 +43,186 @@ struct Transit {
 
 fn err(msg: impl std::fmt::Display) -> Error {
     Error::Other(msg.to_string())
+}
+
+/// Checking for an R interrupt without letting R's longjmp cross Rust
+/// frames.
+///
+/// `R_CheckUserInterrupt` runs inside `R_tryCatch`, which hands the
+/// `interrupt` condition (Ctrl-C, RStudio's Stop button), or an error raised
+/// by the same check (a limit set by `setTimeLimit()`), to a handler that
+/// returns it; the whole runs under `R_ToplevelExec`, so a jump that
+/// escapes the `tryCatch` (an interrupt while R sets it up) still ends
+/// there. The functions R calls back are plain C-ABI frames that own
+/// nothing.
+mod interrupt {
+    use extendr_api::prelude::*;
+    use extendr_api::SEXP;
+    use std::os::raw::{c_int, c_void};
+    use std::ptr;
+
+    /// A `SEXP` as the declarations below take it (`SEXPREC` is opaque).
+    type Sexp = *mut c_void;
+
+    extern "C" {
+        fn R_CheckUserInterrupt();
+        fn R_tryCatch(
+            body: unsafe extern "C" fn(*mut c_void) -> Sexp,
+            bdata: *mut c_void,
+            conds: Sexp,
+            handler: unsafe extern "C" fn(Sexp, *mut c_void) -> Sexp,
+            hdata: *mut c_void,
+            finally: unsafe extern "C" fn(*mut c_void),
+            fdata: *mut c_void,
+        ) -> Sexp;
+        fn R_ToplevelExec(fun: unsafe extern "C" fn(*mut c_void), data: *mut c_void) -> c_int;
+        fn R_PreserveObject(x: Sexp);
+        fn R_ReleaseObject(x: Sexp);
+    }
+
+    /// What [`check`] reads and writes.
+    struct Slots {
+        /// `NULL`, returned by the body when nothing was raised.
+        nil: Sexp,
+        /// `c("interrupt", "error")`.
+        conds: Sexp,
+        /// The condition caught, preserved; null if none.
+        caught: Sexp,
+    }
+
+    unsafe extern "C" fn body(nil: *mut c_void) -> Sexp {
+        R_CheckUserInterrupt();
+        nil
+    }
+
+    unsafe extern "C" fn handler(cond: Sexp, _: *mut c_void) -> Sexp {
+        cond
+    }
+
+    unsafe extern "C" fn finally(_: *mut c_void) {}
+
+    unsafe extern "C" fn check(data: *mut c_void) {
+        let slots = &mut *(data as *mut Slots);
+        let r = R_tryCatch(
+            body,
+            slots.nil,
+            slots.conds,
+            handler,
+            ptr::null_mut(),
+            finally,
+            ptr::null_mut(),
+        );
+        if r != slots.nil {
+            R_PreserveObject(r);
+            slots.caught = r;
+        }
+    }
+
+    /// The condition of a pending interrupt (or of an error raised while
+    /// checking for one); `NULL` for an interrupt whose condition was lost;
+    /// `None` when there is nothing pending. Call on the R thread only.
+    pub fn pending() -> Option<Robj> {
+        let nil = Robj::from(());
+        let conds = Robj::from(vec!["interrupt", "error"]);
+        let mut slots = Slots {
+            nil: unsafe { nil.get() } as Sexp,
+            conds: unsafe { conds.get() } as Sexp,
+            caught: ptr::null_mut(),
+        };
+        let completed = single_threaded(|| unsafe {
+            R_ToplevelExec(check, &mut slots as *mut Slots as *mut c_void)
+        });
+        if !slots.caught.is_null() {
+            let cond = unsafe { Robj::from_sexp(slots.caught as SEXP) };
+            unsafe { R_ReleaseObject(slots.caught) };
+            Some(cond)
+        } else if completed == 0 {
+            Some(nil)
+        } else {
+            None
+        }
+    }
+}
+
+/// How often a routing call checks for an R interrupt while the core runs.
+const POLL: Duration = Duration::from_millis(50);
+
+/// The end of a routing call: its result, or the condition that stopped it.
+enum Outcome<T> {
+    Done(T),
+    Stopped(Robj),
+}
+
+/// Tells the R thread that the work has ended, also when it ended in a
+/// panic: dropped by the worker, it sets the flag and wakes the caller. The
+/// caller waits on the flag and not on the thread having exited, which
+/// happens a moment after the wake-up and would cost it a whole [`POLL`].
+struct Wake<'a> {
+    done: &'a AtomicBool,
+    caller: std::thread::Thread,
+}
+
+impl Drop for Wake<'_> {
+    fn drop(&mut self) {
+        self.done.store(true, Ordering::Release);
+        self.caller.unpark();
+    }
+}
+
+/// Run `work` on a thread of its own and wait for it, checking for an R
+/// interrupt every [`POLL`]. On one, `cancel` is cancelled and the workers
+/// are waited for. `work` must hand `cancel` to the core.
+fn interruptible<T: Send>(
+    cancel: &CancelToken,
+    work: impl FnOnce() -> std::result::Result<T, RouteError> + Send,
+) -> Result<Outcome<T>> {
+    let done = AtomicBool::new(false);
+    let wake = Wake {
+        done: &done,
+        caller: std::thread::current(),
+    };
+    std::thread::scope(|scope| {
+        let worker = scope.spawn(move || {
+            let _wake = wake;
+            work()
+        });
+        let mut stopped = None;
+        while !done.load(Ordering::Acquire) {
+            std::thread::park_timeout(POLL);
+            if stopped.is_none() && !done.load(Ordering::Acquire) {
+                if let Some(cond) = interrupt::pending() {
+                    cancel.cancel();
+                    stopped = Some(cond);
+                }
+            }
+        }
+        let r = worker
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+        match (stopped, r) {
+            (Some(cond), _) => Ok(Outcome::Stopped(cond)),
+            (None, Ok(v)) => Ok(Outcome::Done(v)),
+            (None, Err(e)) => Err(err(e)),
+        }
+    })
+}
+
+/// What a routing function returns to R when an interrupt stopped it:
+/// `raise_if_stopped()` raises `condition` in R.
+fn stopped(condition: Robj) -> Result<Robj> {
+    let mut out: Robj = list!(condition = condition).into();
+    out.set_class(&["peabiru_stopped"])?;
+    Ok(out)
+}
+
+/// Unwrap an [`Outcome`] inside a function returning `Result<Robj>`.
+macro_rules! done {
+    ($outcome:expr) => {
+        match $outcome {
+            Outcome::Done(v) => v,
+            Outcome::Stopped(cond) => return stopped(cond),
+        }
+    };
 }
 
 fn network(ptr: &Robj) -> Result<&Network> {
@@ -122,10 +312,11 @@ fn rs_network_info(ptr: Robj) -> Result<Robj> {
 #[extendr]
 fn rs_transit_availability(ptr: Robj, date: i32) -> Result<Vec<f64>> {
     let n = network(&ptr)?;
+    let date = u32::try_from(date).unwrap_or(0);
+    matrix::validate_date(date).map_err(err)?;
     let Some(t) = &n.transit else {
         return Ok(vec![0.0, 0.0]);
     };
-    let date = date as u32;
     let wd = matrix::weekday(date);
     let active = t
         .layer
@@ -171,8 +362,12 @@ fn rs_street_ttm(
         max_lts,
         max_trip_duration_min: max_trip_duration,
         n_threads: threads(n_threads),
+        cancel: CancelToken::new(),
     };
-    let m = street::travel_time_matrix(&n.net, &o, &d, street_mode(mode)?, &params).map_err(err)?;
+    let mode = street_mode(mode)?;
+    let m = done!(interruptible(&params.cancel, || {
+        street::travel_time_matrix(&n.net, &o, &d, mode, &params)
+    })?);
     let nd = d.len();
     let (mut from, mut to, mut tt) = (Vec::new(), Vec::new(), Vec::new());
     for (k, v) in m.iter().enumerate() {
@@ -211,6 +406,7 @@ fn transit_params(
         draws_per_minute,
         seed,
         n_threads: threads(n_threads),
+        cancel: CancelToken::new(),
     }
 }
 
@@ -259,7 +455,9 @@ fn rs_transit_ttm(
         seed_of(has_seed, seed),
         n_threads,
     );
-    let m = matrix::travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p).map_err(err)?;
+    let m = done!(interruptible(&p.cancel, || {
+        matrix::travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+    })?);
     let np = percentiles.len();
     let (mut from, mut to) = (Vec::new(), Vec::new());
     let mut cols: Vec<Vec<Option<i32>>> = vec![Vec::new(); np];
@@ -328,7 +526,7 @@ fn rs_accessibility(
     has_seed: bool,
     seed: i32,
     n_threads: i32,
-) -> Result<Vec<f64>> {
+) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
     let opp: Vec<Vec<f64>> = opportunities
@@ -362,7 +560,9 @@ fn rs_accessibility(
             seed_of(has_seed, seed),
             n_threads,
         );
-        transit_accessibility(&n.net, &t.layer, &t.data, &o, &dest, &p, &a)
+        done!(interruptible(&p.cancel, || {
+            transit_accessibility(&n.net, &t.layer, &t.data, &o, &dest, &p, &a)
+        })?)
     } else {
         let params = RouteParams {
             walk_speed_kmh: walk_speed,
@@ -370,19 +570,14 @@ fn rs_accessibility(
             max_lts,
             max_trip_duration_min: max_trip_duration,
             n_threads: threads(n_threads),
+            cancel: CancelToken::new(),
         };
-        street_accessibility(
-            &n.net,
-            &o,
-            &dest,
-            street_mode(mode)?,
-            &params,
-            percentiles,
-            &a,
-        )
-    }
-    .map_err(err)?;
-    Ok(acc.values)
+        let mode = street_mode(mode)?;
+        done!(interruptible(&params.cancel, || {
+            street_accessibility(&n.net, &o, &dest, mode, &params, percentiles, &a)
+        })?)
+    };
+    Ok(acc.values.into())
 }
 
 /// Expanded (or, with `arrival`, arrival) travel-time matrix as columns:
@@ -429,12 +624,13 @@ fn rs_expanded(
         seed_of(has_seed, seed),
         n_threads,
     );
-    let rows: Vec<Vec<ExpandedRow>> = if arrival {
-        arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
-    } else {
-        expanded_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
-    }
-    .map_err(err)?;
+    let rows: Vec<Vec<ExpandedRow>> = done!(interruptible(&p.cancel, || {
+        if arrival {
+            arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+        } else {
+            expanded_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+        }
+    })?);
     let len: usize = rows.iter().map(Vec::len).sum();
     let mut from = Vec::with_capacity(len);
     let mut to = Vec::with_capacity(len);
