@@ -385,8 +385,14 @@ def assign_cutoffs(cutoffs: Any, decay_function: str) -> List[int]:
 
 
 def assign_percentiles(percentiles: Any) -> List[int]:
-    """r5r set_percentiles(): ascending, as the output columns."""
-    values = assert_integerish(percentiles, "percentiles", lower=1, upper=99, max_len=5, unique=True)
+    """r5r set_percentiles(): ascending, as the output columns.
+
+    An empty list is an error for every mode (R5 fails on it too; without
+    the check a street matrix would come back with no travel time column).
+    """
+    values = assert_integerish(
+        percentiles, "percentiles", lower=1, upper=99, min_len=1, max_len=5, unique=True
+    )
     assert values is not None
     return sorted(values)
 

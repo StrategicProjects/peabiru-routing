@@ -22,15 +22,6 @@ import pytest
 import peabiru
 
 
-@pytest.mark.xfail(strict=True, reason="street modes return a matrix without time columns")
-def test_empty_percentiles_is_an_error_for_street_modes(network, points):
-    # r5r 2.5.0 fails (ArrayIndexOutOfBoundsException in R5) and peabiru
-    # already fails for transit and for accessibility; a street-mode
-    # travel_time_matrix() returns from_id/to_id only.
-    with pytest.raises(ValueError):
-        peabiru.travel_time_matrix(network, points, points, mode="WALK", percentiles=[])
-
-
 @pytest.mark.xfail(strict=True, reason="core caps time_window at 1440 minutes")
 def test_time_window_longer_than_a_day_is_accepted(network, points, departure):
     # r5r 2.5.0 returns a matrix for time_window = 2000 (same values as 1440

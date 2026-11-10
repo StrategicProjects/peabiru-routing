@@ -153,6 +153,10 @@ def test_arguments_are_checked_as_r5r_checks_them(network, points, departure):
         call(mode=["WALK", 1])
     with pytest.raises(ValueError, match="length <= 5"):
         call(percentiles=[1, 2, 3, 4, 5, 6])
+    # R5 fails on an empty list too; every mode stops before routing
+    for m in ("WALK", "CAR", "TRANSIT"):
+        with pytest.raises(ValueError, match="'percentiles' failed: Must have length >= 1"):
+            call(mode=m, percentiles=[], departure_datetime=departure)
     with pytest.raises(ValueError, match="<= 99"):
         call(percentiles=100)
     with pytest.raises(ValueError, match="Must be >= 1"):

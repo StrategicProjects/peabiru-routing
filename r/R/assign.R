@@ -306,10 +306,12 @@ assign_cutoffs <- function(cutoffs, decay_function) {
   if (is.null(cutoffs)) 0L else sort(as.integer(cutoffs))
 }
 
-# r5r set_percentiles(): ascending, as the output columns.
+# r5r set_percentiles(): ascending, as the output columns. An empty vector is
+# an error for every mode (R5 fails on it too; without the check a street
+# matrix would come back with no travel time column).
 assign_percentiles <- function(percentiles) {
   assert_integerish(percentiles, "percentiles", lower = 1, upper = 99,
-                    max_len = 5, unique = TRUE)
+                    min_len = 1, max_len = 5, unique = TRUE)
   sort(as.integer(percentiles))
 }
 

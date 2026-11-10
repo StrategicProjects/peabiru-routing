@@ -91,6 +91,11 @@ test_that("arguments are checked as r5r checks them", {
   expect_error(ttm(mode = "CAR_PARK"), "unsupported by r5r")
   expect_error(ttm(mode = "PLANE"), "Must be a subset")
   expect_error(ttm(percentiles = 1:6), "length <= 5")
+  # R5 fails on an empty vector too; every mode stops before routing
+  for (m in list("WALK", "CAR", "TRANSIT")) {
+    expect_error(ttm(mode = m, percentiles = integer(0),
+                     departure_datetime = departure), "length >= 1")
+  }
   expect_error(ttm(percentiles = 100), "<= 99")
   expect_error(ttm(time_window = 0), "Must be >= 1")
   expect_error(ttm(max_trip_duration = 1.5), "count")
