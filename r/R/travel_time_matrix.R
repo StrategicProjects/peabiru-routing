@@ -149,20 +149,20 @@ travel_time_matrix <- function(r5r_network,
 
   pct_names <- sprintf("travel_time_p%02d", percentiles)
   if (mode_list$transit) {
-    res <- rs_transit_ttm(
+    res <- raise_if_stopped(rs_transit_ttm(
       r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
       departure$yyyymmdd, departure$seconds, as.integer(time_window),
       percentiles, max_walk_time, max_trip_duration, as.double(walk_speed),
       as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
       threads
-    )
+    ))
     times <- res[-(1:2)]
   } else {
-    res <- rs_street_ttm(
+    res <- raise_if_stopped(rs_street_ttm(
       r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
       mode_list$direct_modes, as.double(walk_speed), as.double(bike_speed),
       as.integer(max_lts), max_trip_duration, threads
-    )
+    ))
     # a street mode has one travel time, reported for every percentile
     times <- rep(list(res[[3]]), length(percentiles))
   }
