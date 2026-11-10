@@ -171,6 +171,10 @@ def test_arguments_are_checked_as_r5r_checks_them(network, points, departure):
         call(mode="PLANE")
     with pytest.raises(TypeError, match="mode"):
         call(mode=["WALK", 1])
+    # as in r5r, a repeated egress mode is one mode
+    assert len(call(mode="WALK", mode_egress=["WALK", "walk"])) == len(call(mode="WALK"))
+    with pytest.raises(TypeError, match="mode_egress"):
+        call(mode="WALK", mode_egress=["WALK", "CAR"])
     with pytest.raises(ValueError, match="length <= 5"):
         call(percentiles=[1, 2, 3, 4, 5, 6])
     # R5 fails on an empty list too; every mode stops before routing
@@ -264,7 +268,6 @@ def test_empty_result(network, points):
     assert str(m["travel_time_p50"].dtype) == "Int32"
 
 
-@pytest.mark.xfail(strict=True, reason="core caps time_window at 1440 minutes")
 def test_time_window_longer_than_a_day_is_accepted(network, points, departure):
     # r5r 2.5.0 returns a matrix for time_window = 2000 (same values as 1440
     # here: 0 and 7 minutes)

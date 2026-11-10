@@ -133,7 +133,6 @@ def test_unsupported_and_invalid(network, points, departure):
         )
 
 
-@pytest.mark.xfail(strict=True, reason="arrival passes max_trip_duration as time_window, capped at 1440")
 def test_arrival_with_max_trip_duration_over_a_day(network, points, departure):
     peabiru.arrival_travel_time_matrix(
         network, points.iloc[:1], points.iloc[:2], mode="TRANSIT",

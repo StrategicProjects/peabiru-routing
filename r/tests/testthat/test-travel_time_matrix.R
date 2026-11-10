@@ -64,6 +64,22 @@ test_that("transit matrices have one column per percentile, ascending", {
   expect_identical(ttm, again)
 })
 
+test_that("values r5r accepts beyond a day are accepted", {
+  network <- fixture_network()
+  pts <- fixture_points()
+  dep <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+  # r5r 2.5.0 returns a matrix for time_window = 2000
+  long <- travel_time_matrix(network, pts[1, ], pts[1:2, ], mode = "TRANSIT",
+                             departure_datetime = dep, time_window = 2000,
+                             seed = 1, n_threads = 2)
+  expect_identical(long$travel_time_p50, c(0L, 7L))
+  # the arrival matrix scans max_trip_duration minutes of departures
+  arr <- arrival_travel_time_matrix(network, pts[1, ], pts[1:2, ], mode = "TRANSIT",
+                                    arrival_datetime = dep, max_trip_duration = 1500,
+                                    seed = 1, n_threads = 2)
+  expect_identical(nrow(arr), 2L)
+})
+
 test_that("points are checked as r5r checks them", {
   network <- fixture_network()
   pts <- fixture_points()

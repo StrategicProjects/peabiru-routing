@@ -164,6 +164,11 @@ def assign_mode(mode: Any, mode_egress: Any) -> ModeList:
             "mode", "Must be a subset of {" + ",".join(f"'{m}'" for m in all_modes) + "}"
         )
 
+    # as in r5r, unique() comes before the check, so a repeated mode passes
+    if isinstance(mode_egress, (list, tuple)) and all(isinstance(m, str) for m in mode_egress):
+        repeated = unique([m.upper() for m in mode_egress])
+        if len(repeated) == 1:
+            mode_egress = repeated[0]
     assert_string(mode_egress, "mode_egress")
     egress = mode_egress.upper()
     if egress not in ("WALK", "BICYCLE", "CAR"):

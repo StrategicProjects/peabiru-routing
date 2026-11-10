@@ -134,7 +134,6 @@ These are the calls that r5r accepts and peabiru does not.
 | Elevation (a `.tif` or `.tiff` raster in the data directory with `elevation` other than `"NONE"`) | error |
 | More than one `.pbf` in the data directory | error |
 | Expanded and arrival matrices with a street mode alone | error |
-| Values beyond the engine's limits: `time_window` over 1,440 minutes (and so an arrival `max_trip_duration` over 1,440, which becomes the departure window), `draws_per_minute` over 1,000, `time_window * draws_per_minute` over 100,000, `max_rides` over 100 | error |
 | A network built by `r5r::build_network()` | error (build it with `peabiru::build_network()`) |
 
 ```{r, error = TRUE}

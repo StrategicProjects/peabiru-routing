@@ -11,7 +11,7 @@
 //!
 //! The routing logic is a port of Conveyal's [R5](https://github.com/conveyal/r5)
 //! (MIT), version 7.6, and returns the results of
-//! [r5r](https://github.com/ipeaGIT/r5r) 2.5.0. The notices of R5 and of the
+//! [r5r](https://github.com/ipea/r5r) 2.5.0. The notices of R5 and of the
 //! other works this crate derives from are in `LICENSE-THIRD-PARTY`.
 
 pub mod fastmath;
