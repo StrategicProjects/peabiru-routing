@@ -63,6 +63,10 @@ cfg <- if (is_debug) "debug" else "release"
 # there may be use cases later where this can be adapted or expanded
 .target <- ifelse(is_wasm, paste0("--target=", webr_target), "")
 
+# regenerate R/extendr-wrappers.R (cargo run --bin document) only in
+# development builds; it cannot run when cross-compiling for webR
+.document <- ifelse(is_not_cran && !is_wasm, "true", "false")
+
 # add panic exports only for WASM builds
 .panic_exports <- ifelse(
   is_wasm,
@@ -102,7 +106,8 @@ new_txt <- gsub("@CRAN_FLAGS@", .cran_flags, mv_txt) |>
   gsub("@CLEAN_TARGET@", .clean_targets, x = _) |>
   gsub("@LIBDIR@", .libdir, x = _) |>
   gsub("@TARGET@", .target, x = _) |>
-  gsub("@PANIC_EXPORTS@", .panic_exports, x = _)
+  gsub("@PANIC_EXPORTS@", .panic_exports, x = _) |>
+  gsub("@DOCUMENT@", .document, x = _)
 
 message("Writing `", mv_ofp, "`.")
 con <- file(mv_ofp, open = "wb")
