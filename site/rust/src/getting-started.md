@@ -33,26 +33,31 @@ the first argument to use your own data.
 
 ## Build a network
 
-`peabiru_core::transit::build_from_dir` reads the directory, builds the
-street network and the transit layer, and links the stops to the streets:
+`peabiru_core::build_from_dir` reads the directory, builds the street
+network and the transit layer, and links the stops to the streets:
 
 ```rust,ignore
-use peabiru_core::street::BuildOptions;
-use peabiru_core::transit::{build_from_dir, matrix::TransitData};
+use peabiru_core::{build_from_dir, BuildOptions, TransitData};
 
-let (net, layer) = build_from_dir("r/inst/extdata/spo", &BuildOptions { n_threads: 0 })?;
+let (net, layer) = build_from_dir("r/inst/extdata/spo", &BuildOptions::default())?;
 // Walking transfers and egress distances, computed once per network and
 // shared by every public transport query:
 let data = TransitData::new(&net, &layer);
+println!("{} stops in {} feeds", layer.n_stops(), layer.feed_ids().len());
+// Feeds that r5r would refuse are built all the same, with a warning:
+for w in layer.r5r_warnings() {
+    eprintln!("warning: {w}");
+}
 ```
 
-`n_threads = 0` means all cores (the threads decode the PBF file). For
-street-only routing, `peabiru_core::street::build_network(path_to_pbf, &opts)`
-reads just the `.pbf`.
+`BuildOptions::default()` uses all cores to decode the PBF file; set
+`n_threads` on it to use fewer. For street-only routing,
+`peabiru_core::build_network(path_to_pbf, &opts)` reads just the `.pbf`.
 
-The network is plain data in memory: share it between threads by reference;
-every query function takes `&StreetNetwork` (and `&TransitLayer`,
-`&TransitData`).
+The network is read-only data in memory: share it between threads by
+reference; every query function takes `&StreetNetwork` (and `&TransitLayer`,
+`&TransitData`). Its contents are private; methods such as `n_vertices()`,
+`n_stops()` or `feed_reports()` describe it.
 
 ## Points
 
@@ -63,9 +68,23 @@ to be the same.
 ## Parameters
 
 Parameter structs (`RouteParams` for streets, `TransitParams` for public
-transport) implement `Default` with the defaults of the R and Python
-packages, so only what differs needs to be written. Invalid values are
-rejected with an error before any routing.
+transport, `AccessibilityParams`, `BuildOptions`) implement `Default` with
+the defaults of the R and Python packages; start from it and set only what
+differs:
+
+```rust,ignore
+use peabiru_core::{street_travel_time_matrix, Mode, RouteParams};
+
+let mut params = RouteParams::default();
+params.max_trip_duration_min = 60;
+let m = street_travel_time_matrix(&net, &points, &points, Mode::Bicycle, &params)?;
+println!("{:?} min from the first point to the second", m.get(0, 1));
+```
+
+The structs are non-exhaustive (later versions may add fields), so they
+cannot be written as struct literals outside the crate, not even with
+`..Default::default()`. Invalid values are rejected with
+`RouteError::Invalid` before any routing.
 
 Next: [how the engine works](how-it-works.md), or straight to the examples,
 starting with [street matrices](street-matrix.md).

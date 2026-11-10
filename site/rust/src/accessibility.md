@@ -1,21 +1,23 @@
 # Accessibility
 
-`transit::accessibility::transit_accessibility` (walk + public transport) and
+`transit_accessibility` (walk + public transport) and
 `street_accessibility` (one street mode) compute what `accessibility()`
 returns in R and Python: for each origin, the sum over destinations of the opportunities at the
 destination times a decay weight of the travel time.
 
 <img src="../assets/diagrams/accessibility.svg" alt="Accessibility is the sum over destinations of opportunities times a decay weight of the travel time; five decay functions drawn for a 30 minute cutoff." width="980" height="420">
 
-- `Destinations` pairs the destination points with one column of counts per
-  kind of opportunity (`opportunities[k][j]`). Counts that are zero,
-  negative or NaN add nothing.
+- `Destinations::new(points, opportunities)` pairs the destination points
+  with one column of counts per kind of opportunity (`opportunities[k][j]`).
+  Counts that are zero, negative or NaN add nothing.
 - `AccessibilityParams` holds the cutoffs (minutes, up to 12) and the
   `DecayFunction`: `Step`, `Exponential`, `FixedExponential { decay_constant }`,
   `Linear { width_minutes }` or `Logistic { standard_deviation_minutes }`.
+  Its default is r5r's: one cutoff of 30 minutes, `Step`.
 - The result, `Accessibility`, has one value per origin, opportunity column,
   percentile and cutoff; `get(origin, opportunity, percentile, cutoff)` reads
-  one.
+  one, and `values()` gives them all in that order (the cutoff varying
+  fastest).
 
 The travel time given to the decay function is the percentile in seconds,
 not rounded to minutes, and the exponential is a port of `FastMath.exp` from
