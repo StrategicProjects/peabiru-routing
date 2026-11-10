@@ -42,8 +42,24 @@ test_that("elevation needs elevation = 'NONE' when there is a raster", {
   on.exit(unlink(dir, recursive = TRUE))
   file.copy(file.path(fixture_path(), "spo_osm.pbf"), dir)
   writeBin(raw(10), file.path(dir, "elevation.tif"))
-  expect_error(build_network(dir), "Elevation .* is not supported")
+  expect_error(build_network(dir),
+               "Elevation is not supported by peabiru yet, and .* has the raster 'elevation.tif'")
   network <- build_network(dir, elevation = "NONE", n_threads = 2)
+  expect_true(network$has_tif)
+})
+
+test_that("a file whose name merely contains 'tif' does not block the build", {
+  # r5r's grep(".tif") is a regular expression, so 'identificacao.csv'
+  # matches; r5r keeps elevation = "TOBLER" and R5 finds no raster.
+  dir <- tempfile("net")
+  dir.create(dir)
+  on.exit(unlink(dir, recursive = TRUE))
+  file.copy(file.path(fixture_path(), "spo_osm.pbf"), dir)
+  writeLines("zone", file.path(dir, "identificacao_zonas.csv"))
+  network <- build_network(dir, n_threads = 2)
+  expect_s3_class(network, "peabiru_network")
+  expect_identical(network$elevation, "NONE")
+  # the swap of origins and destinations stays off, as in r5r
   expect_true(network$has_tif)
 })
 

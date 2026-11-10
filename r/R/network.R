@@ -8,7 +8,8 @@
 #'
 #' Elevation is not supported yet. As in r5r, when the directory has no
 #' `.tif` raster the network is built with `elevation = "NONE"`; when it has
-#' one, `elevation = "NONE"` must be given explicitly (and, as in r5r, the
+#' one (a file ending in `.tif` or `.tiff`), `elevation = "NONE"` must be
+#' given explicitly (and, as in r5r, the
 #' raster still disables the swap of origins and destinations that r5r does
 #' for walking).
 #'
@@ -64,10 +65,14 @@ build_network <- function(data_path,
 
   data_path <- normalizePath(path.expand(data_path), mustWork = TRUE)
   files <- list.files(data_path)
-  # r5r build_network() looks for its inputs with these (regular expression)
-  # patterns
+  # r5r build_network() looks for its inputs with these patterns. They are
+  # regular expressions, so ".tif" also matches a name such as
+  # "identificacao.csv"; any_tif keeps that loose match because r5r uses it
+  # to turn off the swap of origins and destinations (see swap_od()).
   any_pbf <- length(grep(".pbf", files)) > 0
   any_tif <- length(grep(".tif", files)) > 0
+  # an elevation raster that R5 would read
+  rasters <- files[grepl("\\.tiff?$", files, ignore.case = TRUE)]
   pbf <- files[grepl("\\.pbf$", files, ignore.case = TRUE)]
   if (!any_pbf || length(pbf) == 0) {
     stop("An OSM .pbf file is required in '", data_path, "' to build a network.",
@@ -84,11 +89,14 @@ build_network <- function(data_path,
       message("No raster .tif files found in '", data_path,
               "'. Using elevation = \"NONE\".")
     }
+  } else if (length(rasters) == 0) {
+    # r5r keeps the elevation model, and R5 finds no raster to apply it to
+    elevation <- "NONE"
   } else if (elevation != "NONE") {
-    unsupported(paste0(
-      "Elevation (elevation = \"", elevation, "\", with the .tif raster in '",
-      data_path, "'); use elevation = \"NONE\" to ignore the raster"
-    ))
+    stop("Elevation is not supported by peabiru yet, and '", data_path,
+         "' has the raster ", paste0("'", rasters, "'", collapse = ", "),
+         ". Use elevation = \"NONE\" to build the network without it.",
+         call. = FALSE)
   }
 
   t0 <- proc.time()[["elapsed"]]

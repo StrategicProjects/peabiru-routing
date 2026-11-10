@@ -58,9 +58,22 @@ def test_bad_data_paths(tmp_path):
 def test_elevation_needs_none_with_a_raster(tmp_path):
     shutil.copy(os.path.join(peabiru.sample_data_path(), "spo_osm.pbf"), tmp_path)
     (tmp_path / "elevation.tif").write_bytes(bytes(10))
-    with pytest.raises(peabiru.UnsupportedError, match="Elevation .* is not supported"):
+    with pytest.raises(
+        peabiru.UnsupportedError,
+        match="Elevation is not supported by peabiru yet, and .* has the raster 'elevation.tif'",
+    ):
         peabiru.build_network(tmp_path)
     network = peabiru.build_network(tmp_path, elevation="none", n_threads=2)
+    assert network.has_tif
+    assert network.elevation == "NONE"
+
+
+def test_a_name_that_merely_contains_tif_is_not_a_raster(tmp_path):
+    # r5r looks for ".tif" as a regular expression, so this name counts for
+    # the swap of origins and destinations, but R5 finds no raster to read
+    shutil.copy(os.path.join(peabiru.sample_data_path(), "spo_osm.pbf"), tmp_path)
+    (tmp_path / "identificacao_zonas.csv").write_text("zone\n")
+    network = peabiru.build_network(tmp_path, n_threads=2)
     assert network.has_tif
     assert network.elevation == "NONE"
 
