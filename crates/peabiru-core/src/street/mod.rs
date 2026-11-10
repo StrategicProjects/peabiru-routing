@@ -53,6 +53,12 @@ pub mod vertex_flags {
 }
 
 /// A routable street network.
+///
+/// Street matrices may build contraction hierarchies and keep them in the
+/// network for later calls (a few megabytes for a city; see
+/// [`router::StreetEngine`]). They are checked against the network's
+/// arrays before every use, so changing the public fields between calls is
+/// safe: the hierarchies are then dropped and built again when needed.
 #[derive(Debug, Clone, Default)]
 pub struct StreetNetwork {
     /// Vertex latitude, fixed-point 1e-7 degrees.

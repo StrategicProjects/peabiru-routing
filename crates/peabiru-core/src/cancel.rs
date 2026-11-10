@@ -8,8 +8,10 @@ use std::sync::Arc;
 /// [`TransitParams::cancel`](crate::transit::matrix::TransitParams)); keep
 /// a clone, hand the parameters to the call, and call
 /// [`cancel`](CancelToken::cancel) from any thread. The workers notice
-/// between origins and, from a transit origin, at every departure minute and
-/// Monte Carlo draw and between destinations; the call then returns
+/// between origins (between batches of eight in a street matrix computed
+/// by contraction hierarchy, and between the rounds of the contraction)
+/// and, from a transit origin, at every departure minute and Monte Carlo
+/// draw and between destinations; the call then returns
 /// [`RouteError::Cancelled`] instead of a partial result. The check is one
 /// relaxed atomic load.
 ///

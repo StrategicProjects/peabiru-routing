@@ -868,6 +868,11 @@ pub(crate) fn search_from(
 /// `max_trip_duration_min`). Points are `(lat, lon)` degrees.
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled before the
 /// matrix is complete.
+///
+/// `params.engine` chooses how the matrix is computed (see
+/// [`StreetEngine`]); the result is the same either way. A contraction
+/// hierarchy built here is kept with the network and makes later matrices
+/// of the same mode and speeds faster.
 pub fn travel_time_matrix(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
