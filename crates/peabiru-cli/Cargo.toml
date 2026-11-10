@@ -8,6 +8,9 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+readme = "README.md"
+keywords = ["routing", "gtfs", "openstreetmap", "accessibility", "cli"]
+categories = ["command-line-utilities", "science::geo"]
 
 [[bin]]
 name = "peabiru"
