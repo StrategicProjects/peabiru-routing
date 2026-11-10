@@ -26,6 +26,24 @@ const RIGHT_TURN: i32 = 10;
 const LEFT_TURN: i32 = 30;
 const U_TURN: i32 = 90;
 
+/// How [`travel_time_matrix`] computes a street matrix. Every choice gives
+/// the same matrix; they differ only in speed and memory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StreetEngine {
+    /// The faster of the two for the matrix at hand: the contraction
+    /// hierarchy when the network already holds one for the mode and
+    /// speeds, or when there are enough origins to pay for building it;
+    /// otherwise the search.
+    #[default]
+    Auto,
+    /// A street search from every origin, as R5 does.
+    Search,
+    /// A contraction hierarchy of the mode's street graph, built on first
+    /// use and kept with the network for later calls. Cars on a network
+    /// with turn restrictions always take the search.
+    Hierarchy,
+}
+
 /// Routing parameters, with r5r's defaults.
 #[derive(Debug, Clone)]
 pub struct RouteParams {
@@ -44,6 +62,9 @@ pub struct RouteParams {
     /// clone of it (see [`CancelToken`]); the default is a fresh token,
     /// which nothing cancels unless a clone of it is kept.
     pub cancel: CancelToken,
+    /// How a street travel-time matrix is computed (see [`StreetEngine`]);
+    /// it changes the speed of [`travel_time_matrix`], never its result.
+    pub engine: StreetEngine,
 }
 
 /// Invalid routing parameters.
@@ -116,6 +137,7 @@ impl Default for RouteParams {
             max_trip_duration_min: 120,
             n_threads: 0,
             cancel: CancelToken::default(),
+            engine: StreetEngine::Auto,
         }
     }
 }
@@ -615,6 +637,30 @@ pub(super) fn route(
     }
 }
 
+/// The two start states of a search from an origin split, as `(edge,
+/// seconds)`: the backward edge, which ends at the split's first vertex,
+/// then the forward edge. They carry the split edge as back edge so turn
+/// costs (and turn restrictions) apply when leaving it, and their times are
+/// not checked against the limit.
+pub(super) fn start_states(
+    net: &StreetNetwork,
+    g: &ModeGraph,
+    origin: &Split,
+) -> [(usize, i32); 2] {
+    let (mode, sp) = (g.mode, &g.sp);
+    let fwd = origin.edge as usize;
+    let bwd = fwd + 1;
+    let off = origin.distance_to_edge_mm / sp.walk_mms;
+    let start_speed = |e: usize| match mode {
+        Mode::Walk => sp.walk,
+        Mode::Bicycle => sp.bike,
+        Mode::Car => cms_to_ms(net.edge_speed_cms[e]),
+    };
+    let t1 = ((origin.distance1_mm / 1000) as f32 / start_speed(fwd)) as i32 + off;
+    let t0 = ((origin.distance0_mm / 1000) as f32 / start_speed(bwd)) as i32 + off;
+    [(bwd, t0), (fwd, t1)]
+}
+
 /// [`route`] with the queue chosen at compile time: `JAVA` for the car
 /// search with turn restrictions (states may carry restriction progress),
 /// otherwise every state is plain.
@@ -626,21 +672,8 @@ fn route_impl<const JAVA: bool>(
     s: &mut Search,
 ) {
     s.reset();
-    let (mode, sp) = (g.mode, &g.sp);
-    let fwd = origin.edge as usize;
-    let bwd = fwd + 1;
-    let off = origin.distance_to_edge_mm / sp.walk_mms;
-    // Start states carry the split edge as back edge so turn costs (and turn
-    // restrictions) apply when leaving it. Their times are not checked
-    // against the limit.
-    let start_speed = |e: usize| match mode {
-        Mode::Walk => sp.walk,
-        Mode::Bicycle => sp.bike,
-        Mode::Car => cms_to_ms(net.edge_speed_cms[e]),
-    };
-    let t1 = ((origin.distance1_mm / 1000) as f32 / start_speed(fwd)) as i32 + off;
-    let t0 = ((origin.distance0_mm / 1000) as f32 / start_speed(bwd)) as i32 + off;
-    for (e, t) in [(bwd, t0), (fwd, t1)] {
+    let mode = g.mode;
+    for (e, t) in start_states(net, g, origin) {
         let mut map = RMap::new();
         if JAVA {
             start_restrictions(net, &mut map, e as u32);
@@ -845,8 +878,8 @@ pub fn travel_time_matrix(
     params.validate()?;
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let m = params.max_trip_duration_min;
-    if super::ch::applies(&g, origins.len(), params.n_threads) {
-        return super::ch::travel_time_matrix(net, &g, origins, destinations, params);
+    if let Some(m) = super::ch::travel_time_matrix(net, &g, origins, destinations, params) {
+        return m;
     }
     let limit = m * 60;
     let mut scratch = Vec::new();

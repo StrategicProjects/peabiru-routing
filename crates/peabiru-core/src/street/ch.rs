@@ -1,4 +1,4 @@
-//! Street travel-time matrix by contraction hierarchy (prototype).
+//! Street travel-time matrix by contraction hierarchy.
 //!
 //! The street search of [`super::router`] is a Dijkstra over directed-edge
 //! states with integer costs: leaving edge `e` by arc `a` costs
@@ -24,16 +24,26 @@
 //! second), so the vertex times it ends with are those of the unlimited
 //! search where below the limit, and otherwise only the start state that
 //! ends at that vertex (see [`vertex_time`]).
+//!
+//! A hierarchy depends only on its graph, so the network keeps the ones it
+//! builds ([`Cache`]): the car one, which depends on nothing but the
+//! network, and a few for walking and cycling, whose graphs also depend on
+//! the speeds (and, cycling, on `max_lts`). Before a kept hierarchy is used
+//! its graph is built again from the network and compared arc for arc with
+//! the one it was contracted from, so a network changed through its public
+//! fields never meets a stale hierarchy.
 
 use super::link::{find_split, Split};
-use super::router::{car_turn_cost, time_to_point, Mode, ModeGraph, RouteParams, Search};
+use super::router::{
+    car_turn_cost, start_states, time_to_point, worker_threads, Mode, ModeGraph, RouteParams,
+    Search, StreetEngine,
+};
 use super::StreetNetwork;
-use crate::RouteError;
+use crate::{CancelToken, RouteError};
 use contract::Hierarchy;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
-use std::sync::Mutex;
-use std::time::Instant;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 mod contract;
 
@@ -43,58 +53,151 @@ const NONE: u32 = u32::MAX;
 /// Origins swept together.
 const LANES: usize = 8;
 
-/// Which search computes the street travel-time matrix: the env variable
-/// `PEABIRU_STREET_MATRIX` = `dijkstra`, `ch` or `auto` (the default).
+/// Hierarchies kept for walking and cycling (different speeds or
+/// `max_lts`), besides the one for cars.
+const KEPT_OTHER: usize = 3;
+
+/// What a mode's graph depends on besides the network: the speeds as the
+/// search holds them (`f32` bits) and, cycling, `max_lts`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Engine {
-    Auto,
-    Dijkstra,
-    Ch,
+enum Key {
+    Car,
+    Walk { walk: u32 },
+    Bicycle { walk: u32, bike: u32, max_lts: i32 },
 }
 
-#[cfg(test)]
-thread_local! {
-    /// Tests choose the engine per thread.
-    pub(crate) static ENGINE: std::cell::Cell<Option<Engine>> = const { std::cell::Cell::new(None) };
+impl Key {
+    fn of(g: &ModeGraph, max_lts: i32) -> Self {
+        match g.mode {
+            Mode::Car => Key::Car,
+            Mode::Walk => Key::Walk {
+                walk: g.sp.walk.to_bits(),
+            },
+            Mode::Bicycle => Key::Bicycle {
+                walk: g.sp.walk.to_bits(),
+                bike: g.sp.bike.to_bits(),
+                max_lts,
+            },
+        }
+    }
 }
 
-fn engine() -> Engine {
+/// A hierarchy and the graph it was contracted from.
+struct Entry {
+    key: Key,
+    problem: Problem,
+    h: Hierarchy,
+}
+
+impl Entry {
+    /// Contract `problem`; `None` when cancelled first.
+    fn build(key: Key, problem: Problem, n_threads: usize, cancel: &CancelToken) -> Option<Self> {
+        let h = Hierarchy::build(problem.n, &problem.arcs, n_threads, cancel)?;
+        Some(Entry { key, problem, h })
+    }
+
+    /// Memory held, in bytes.
+    fn bytes(&self) -> usize {
+        self.problem.arcs.len() * 12 + self.problem.link_node.len() * 4 + self.h.bytes()
+    }
+}
+
+/// The hierarchies a [`StreetNetwork`] keeps, most recently used first.
+/// Clones share the hierarchies (they are never changed once built).
+#[derive(Default)]
+pub(crate) struct Cache(Mutex<Vec<Arc<Entry>>>);
+
+impl Cache {
+    fn lock(&self) -> MutexGuard<'_, Vec<Arc<Entry>>> {
+        // nothing panics while holding the lock, but a poisoned list is
+        // still a valid one
+        self.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// The hierarchy kept for `key`, now the most recently used.
+    fn get(&self, key: Key) -> Option<Arc<Entry>> {
+        let mut v = self.lock();
+        let i = v.iter().position(|e| e.key == key)?;
+        let e = v.remove(i);
+        v.insert(0, Arc::clone(&e));
+        Some(e)
+    }
+
+    /// Keep `e` in place of any other for its key, dropping the least
+    /// recently used walking and cycling ones beyond [`KEPT_OTHER`].
+    fn put(&self, e: Arc<Entry>) {
+        let mut v = self.lock();
+        v.retain(|x| x.key != e.key);
+        v.insert(0, e);
+        let mut other = 0;
+        v.retain(|x| {
+            if x.key == Key::Car {
+                return true;
+            }
+            other += 1;
+            other <= KEPT_OTHER
+        });
+    }
+
+    /// Forget the hierarchy kept for `key`, if it is `e`.
+    fn drop_stale(&self, e: &Arc<Entry>) {
+        self.lock().retain(|x| !Arc::ptr_eq(x, e));
+    }
+
     #[cfg(test)]
-    if let Some(e) = ENGINE.with(|e| e.get()) {
-        return e;
+    fn keys(&self) -> Vec<Key> {
+        self.lock().iter().map(|e| e.key).collect()
     }
-    static E: std::sync::OnceLock<Engine> = std::sync::OnceLock::new();
-    *E.get_or_init(|| match std::env::var("PEABIRU_STREET_MATRIX").as_deref() {
-        Ok("dijkstra") => Engine::Dijkstra,
-        Ok("ch") => Engine::Ch,
-        _ => Engine::Auto,
-    })
 }
 
-/// Print the phases' times to stderr (`PEABIRU_CH_TIMING` set).
-fn timing() -> bool {
-    static T: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *T.get_or_init(|| std::env::var_os("PEABIRU_CH_TIMING").is_some())
+impl Clone for Cache {
+    fn clone(&self) -> Self {
+        Cache(Mutex::new(self.lock().clone()))
+    }
 }
 
-/// Whether [`travel_time_matrix`] should compute this matrix: never for
-/// cars on a network with turn restrictions (R5's restriction handling
-/// depends on the order equal times leave the queue, so that search stays
-/// as it is), and by default only for enough origins to pay for the
-/// preprocessing. On the Porto Alegre sample the plain search costs about
-/// as much from 60 (cycling) to 310 (car) origins at one thread, and from
-/// 140 to 600 at four, where it gains more from the threads than the
-/// contraction does; the thresholds below follow that.
-pub(super) fn applies(g: &ModeGraph, n_origins: usize, n_threads: usize) -> bool {
-    if g.java_order {
-        return false;
+impl std::fmt::Debug for Cache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let v = self.lock();
+        f.debug_list()
+            .entries(v.iter().map(|e| {
+                format!(
+                    "{:?}: {} nodes, {} arcs, {} shortcuts, {} rounds, {} bytes",
+                    e.key,
+                    e.h.n(),
+                    e.problem.arcs.len(),
+                    e.h.shortcuts,
+                    e.h.rounds,
+                    e.bytes()
+                )
+            }))
+            .finish()
     }
-    match engine() {
-        Engine::Dijkstra => false,
-        Engine::Ch => true,
-        Engine::Auto => {
-            let threads = super::router::worker_threads(n_threads, n_origins) as f64;
-            let at_one_thread = if g.mode == Mode::Car { 320.0 } else { 150.0 };
+}
+
+/// Whether to compute a matrix by hierarchy, given whether one is kept for
+/// its graph. By default a kept one is always used (on the Porto Alegre
+/// sample it beats the plain search from a single origin on); one is built
+/// only for enough origins to pay for the contraction in that call. There
+/// the plain search costs about as much from 60 (cycling) to 310 (car)
+/// origins at one thread, and from 140 to 600 at four, where it gains more
+/// from the threads than the contraction does; the thresholds follow that.
+fn wanted(
+    engine: StreetEngine,
+    mode: Mode,
+    kept: bool,
+    n_origins: usize,
+    n_threads: usize,
+) -> bool {
+    match engine {
+        StreetEngine::Search => false,
+        StreetEngine::Hierarchy => true,
+        StreetEngine::Auto => {
+            if kept {
+                return true;
+            }
+            let threads = worker_threads(n_threads, n_origins) as f64;
+            let at_one_thread = if mode == Mode::Car { 320.0 } else { 150.0 };
             n_origins as f64 >= at_one_thread * threads.sqrt()
         }
     }
@@ -102,6 +205,7 @@ pub(super) fn applies(g: &ModeGraph, n_origins: usize, n_threads: usize) -> bool
 
 /// The searched graph: nodes, arcs `(from, to, seconds)`, and how origins
 /// and destinations map onto nodes.
+#[derive(PartialEq, Eq)]
 struct Problem {
     n: usize,
     arcs: Vec<(u32, u32, u32)>,
@@ -347,25 +451,8 @@ impl Query {
     }
 }
 
-/// The plain search's two start states from an origin split, as
-/// `(edge, seconds)`; mirrors the start of `router::route_impl` (the tests
-/// check the two agree).
+/// The plain search's two start states from an origin split.
 type Starts = [(usize, i32); 2];
-
-fn start_states(net: &StreetNetwork, g: &ModeGraph, origin: &Split) -> Starts {
-    let (mode, sp) = (g.mode, &g.sp);
-    let fwd = origin.edge as usize;
-    let bwd = fwd + 1;
-    let off = origin.distance_to_edge_mm / sp.walk_mms;
-    let start_speed = |e: usize| match mode {
-        Mode::Walk => sp.walk,
-        Mode::Bicycle => sp.bike,
-        Mode::Car => super::labels::cms_to_ms(net.edge_speed_cms[e]),
-    };
-    let t1 = ((origin.distance1_mm / 1000) as f32 / start_speed(fwd)) as i32 + off;
-    let t0 = ((origin.distance0_mm / 1000) as f32 / start_speed(bwd)) as i32 + off;
-    [(bwd, t0), (fwd, t1)]
-}
 
 /// A vertex's time as the plain search leaves it: `best`, the least time
 /// of the nodes ending at it in the unlimited search, when below `limit`;
@@ -381,60 +468,40 @@ fn vertex_time(net: &StreetNetwork, v: usize, best: u32, limit: u32, starts: &St
     t
 }
 
-/// A hierarchy for one mode and one set of parameters, restricted to the
-/// times of some vertices.
+/// A hierarchy restricted to the times of some vertices.
 struct Prepared<'a> {
     net: &'a StreetNetwork,
     g: &'a ModeGraph,
-    problem: Problem,
-    h: Hierarchy,
+    e: &'a Entry,
     r: Restricted,
     /// The target vertices, and the restricted nodes holding each one's
     /// time: `local[node_off[i]..node_off[i + 1]]` for `vertices[i]`.
     vertices: Vec<u32>,
     node_off: Vec<u32>,
     local: Vec<u32>,
-    t_graph: f64,
-    t_contract: f64,
-    t_restrict: f64,
 }
 
 impl<'a> Prepared<'a> {
-    fn new(
-        net: &'a StreetNetwork,
-        g: &'a ModeGraph,
-        mut vertices: Vec<u32>,
-        n_threads: usize,
-    ) -> Self {
-        let t0 = Instant::now();
-        let problem = Problem::new(net, g);
-        let t_graph = t0.elapsed().as_secs_f64();
-        let h = Hierarchy::build(problem.n, &problem.arcs, n_threads);
-        let t_contract = t0.elapsed().as_secs_f64() - t_graph;
+    fn new(net: &'a StreetNetwork, g: &'a ModeGraph, e: &'a Entry, mut vertices: Vec<u32>) -> Self {
         vertices.sort_unstable();
         vertices.dedup();
         let mut node_off = vec![0u32];
         let mut nodes = Vec::new();
         for &v in &vertices {
-            problem.vertex_nodes(net, v as usize, &mut nodes);
+            e.problem.vertex_nodes(net, v as usize, &mut nodes);
             node_off.push(nodes.len() as u32);
         }
-        let seeds: Vec<u32> = nodes.iter().map(|&x| h.id[x as usize]).collect();
-        let r = Restricted::new(&h, &seeds);
+        let seeds: Vec<u32> = nodes.iter().map(|&x| e.h.id[x as usize]).collect();
+        let r = Restricted::new(&e.h, &seeds);
         let local = seeds.iter().map(|&s| r.local[s as usize]).collect();
-        let t_restrict = t0.elapsed().as_secs_f64() - t_graph - t_contract;
         Prepared {
             net,
             g,
-            problem,
-            h,
+            e,
             r,
             vertices,
             node_off,
             local,
-            t_graph,
-            t_contract,
-            t_restrict,
         }
     }
 
@@ -457,11 +524,11 @@ impl<'a> Prepared<'a> {
             debug_assert!(st.iter().all(|&(_, t)| t >= 0));
             let nodes = st.map(|(e, t)| {
                 (
-                    self.h.id[self.problem.node_of_edge(self.net, e) as usize],
+                    self.e.h.id[self.e.problem.node_of_edge(self.net, e) as usize],
                     t as u32,
                 )
             });
-            q.upward(&self.h, &self.r, &nodes, limit, k);
+            q.upward(&self.e.h, &self.r, &nodes, limit, k);
             starts[k] = Some(st);
         }
         q.sweep(&self.r);
@@ -479,11 +546,76 @@ impl<'a> Prepared<'a> {
     }
 }
 
-/// The street travel-time matrix of [`super::router::travel_time_matrix`],
-/// by contraction hierarchy. Callers check [`applies`] first.
+/// The hierarchy for `g` kept with the network or, when there is none
+/// (or the network changed since) and `wanted` says so, a new one, kept
+/// for later calls. `Ok(None)`: compute this matrix by plain search.
+fn hierarchy(
+    net: &StreetNetwork,
+    g: &ModeGraph,
+    n_origins: usize,
+    params: &RouteParams,
+) -> Result<Option<Arc<Entry>>, RouteError> {
+    // R5's turn-restriction handling depends on the order equal times
+    // leave its queue: that search stays as it is.
+    if g.java_order || params.engine == StreetEngine::Search {
+        return Ok(None);
+    }
+    let key = Key::of(g, params.max_lts);
+    let mut kept = net.hierarchies.get(key);
+    if !wanted(
+        params.engine,
+        g.mode,
+        kept.is_some(),
+        n_origins,
+        params.n_threads,
+    ) {
+        return Ok(None);
+    }
+    let problem = Problem::new(net, g);
+    if let Some(e) = kept.take() {
+        if e.problem == problem {
+            return Ok(Some(e));
+        }
+        // the network was changed since
+        net.hierarchies.drop_stale(&e);
+        if !wanted(params.engine, g.mode, false, n_origins, params.n_threads) {
+            return Ok(None);
+        }
+    }
+    let threads = worker_threads(params.n_threads, usize::MAX);
+    let e = Entry::build(key, problem, threads, &params.cancel).ok_or(RouteError::Cancelled)?;
+    let e = Arc::new(e);
+    net.hierarchies.put(Arc::clone(&e));
+    Ok(Some(e))
+}
+
+/// The street travel-time matrix of [`super::router::travel_time_matrix`]
+/// by contraction hierarchy, or `None` when the plain search should
+/// compute it (see [`wanted`]).
 pub(super) fn travel_time_matrix(
     net: &StreetNetwork,
     g: &ModeGraph,
+    origins: &[(f64, f64)],
+    destinations: &[(f64, f64)],
+    params: &RouteParams,
+) -> Option<Result<Vec<Option<u32>>, RouteError>> {
+    let nd = destinations.len();
+    if origins.is_empty() || nd == 0 {
+        return None; // nothing to compute
+    }
+    let e = match hierarchy(net, g, origins.len(), params) {
+        Ok(Some(e)) => e,
+        Ok(None) => return None,
+        Err(err) => return Some(Err(err)),
+    };
+    Some(matrix(net, g, &e, origins, destinations, params))
+}
+
+/// The matrix by the hierarchy `e` of `g`.
+fn matrix(
+    net: &StreetNetwork,
+    g: &ModeGraph,
+    e: &Entry,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     params: &RouteParams,
@@ -494,11 +626,6 @@ pub(super) fn travel_time_matrix(
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
     let cancel = &params.cancel;
-    if out.is_empty() {
-        cancel.check()?;
-        return Ok(out);
-    }
-    let t0 = Instant::now();
     let mut scratch = Vec::new();
     let dest_splits: Vec<Option<Split>> = destinations
         .iter()
@@ -509,18 +636,16 @@ pub(super) fn travel_time_matrix(
         .flatten()
         .flat_map(|d| [d.vertex0, d.vertex1])
         .collect();
-    let threads = super::router::worker_threads(params.n_threads, usize::MAX);
-    let p = Prepared::new(net, g, vertices, threads);
+    let p = Prepared::new(net, g, e, vertices);
     cancel.check()?;
-    let t_query = Instant::now();
-    let n_threads = super::router::worker_threads(params.n_threads, origins.len().div_ceil(LANES));
+    let n_threads = worker_threads(params.n_threads, origins.len().div_ceil(LANES));
     // Each worker takes the next LANES origins' rows of `out`.
     let batches = Mutex::new(out.chunks_mut(nd * LANES).enumerate());
     std::thread::scope(|scope| {
         let handles: Vec<_> = (0..n_threads)
             .map(|_| {
                 scope.spawn(|| {
-                    let mut q = Query::new(&p.h, &p.r);
+                    let mut q = Query::new(&p.e.h, &p.r);
                     let mut search = Search::new(net);
                     let mut scratch = Vec::new();
                     let mut splits = [None; LANES];
@@ -563,23 +688,6 @@ pub(super) fn travel_time_matrix(
             h.join().expect("routing thread panicked");
         }
     });
-    if timing() {
-        eprintln!(
-            "ch: nodes {} arcs {} shortcuts {} rounds {} restricted {} restricted arcs {} | \
-             graph {:.3}s contract {:.3}s restrict {:.3}s query {:.3}s (total {:.3}s)",
-            p.problem.n,
-            p.problem.arcs.len(),
-            p.h.shortcuts,
-            p.h.rounds,
-            p.r.m(),
-            p.r.arcs.len(),
-            p.t_graph,
-            p.t_contract,
-            p.t_restrict,
-            t_query.elapsed().as_secs_f64(),
-            t0.elapsed().as_secs_f64()
-        );
-    }
     cancel.check()?;
     Ok(out)
 }
@@ -688,11 +796,18 @@ mod tests {
             for (si, (mode, p)) in settings().into_iter().enumerate() {
                 let g = ModeGraph::new(net, mode, Speeds::new(&p, mode), p.max_lts);
                 assert!(!g.java_order);
-                let prep = Prepared::new(net, &g, all.clone(), 1 + si % 3);
+                let e = Entry::build(
+                    Key::of(&g, p.max_lts),
+                    Problem::new(net, &g),
+                    1 + si % 3,
+                    &CancelToken::new(),
+                )
+                .unwrap();
+                let prep = Prepared::new(net, &g, &e, all.clone());
                 if mode != Mode::Car {
-                    link_nodes += prep.problem.n - net.n_vertices();
+                    link_nodes += e.problem.n - net.n_vertices();
                 }
-                let mut q = Query::new(&prep.h, &prep.r);
+                let mut q = Query::new(&e.h, &prep.r);
                 let mut scratch = Vec::new();
                 let splits: Vec<Option<Split>> = points
                     .iter()
@@ -767,64 +882,242 @@ mod tests {
         assert!(checked > 200);
     }
 
+    /// `p` with another engine.
+    fn with(p: &RouteParams, engine: StreetEngine) -> RouteParams {
+        RouteParams {
+            engine,
+            ..p.clone()
+        }
+    }
+
+    /// The public matrix.
+    fn matrix_of(
+        net: &StreetNetwork,
+        o: &[(f64, f64)],
+        d: &[(f64, f64)],
+        mode: Mode,
+        p: &RouteParams,
+    ) -> Result<Vec<Option<u32>>, RouteError> {
+        crate::street::router::travel_time_matrix(net, o, d, mode, p)
+    }
+
+    /// The matrix by the plain search.
+    fn plain(
+        net: &StreetNetwork,
+        o: &[(f64, f64)],
+        d: &[(f64, f64)],
+        mode: Mode,
+        p: &RouteParams,
+    ) -> Vec<Option<u32>> {
+        matrix_of(net, o, d, mode, &with(p, StreetEngine::Search)).unwrap()
+    }
+
+    fn spo() -> StreetNetwork {
+        build_network(format!("{SPO}/spo_osm.pbf"), &BuildOptions::default()).unwrap()
+    }
+
     /// The whole matrix, minutes and empty cells, equals the plain
     /// search's: the sample's points and random ones, origins apart from
     /// destinations, every mode and setting, limits from 1 minute, 1 and
-    /// 3 threads.
+    /// 3 threads. All on one network, twice over, so the kept hierarchies
+    /// are reused, and the walking and cycling ones dropped and built
+    /// again as the settings alternate.
     #[test]
     fn matrix_matches_the_plain_search() {
-        let net = build_network(format!("{SPO}/spo_osm.pbf"), &BuildOptions::default()).unwrap();
+        let net = spo();
         let mut origins = sample_points();
         origins.extend(random_points(&net, 40, 11));
         let mut destinations = random_points(&net, 60, 13);
         destinations.extend(sample_points().into_iter().step_by(2));
         let mut cells = 0usize;
         let mut filled = 0usize;
-        for (mode, p) in settings() {
-            for minutes in [1, 4, 15, 120] {
-                for n_threads in [1, 3] {
-                    let p = RouteParams {
-                        max_trip_duration_min: minutes,
-                        n_threads,
-                        ..p.clone()
-                    };
-                    let g = ModeGraph::new(&net, mode, Speeds::new(&p, mode), p.max_lts);
-                    let got = travel_time_matrix(&net, &g, &origins, &destinations, &p).unwrap();
-                    ENGINE.with(|e| e.set(Some(Engine::Dijkstra)));
-                    let want = crate::street::router::travel_time_matrix(
-                        &net,
-                        &origins,
-                        &destinations,
-                        mode,
-                        &p,
-                    )
-                    .unwrap();
-                    ENGINE.with(|e| e.set(None));
-                    assert_eq!(got, want, "{mode:?} {p:?}");
-                    cells += got.len();
-                    filled += got.iter().filter(|c| c.is_some()).count();
+        for _pass in 0..2 {
+            for (mode, p) in settings() {
+                let g = ModeGraph::new(&net, mode, Speeds::new(&p, mode), p.max_lts);
+                for minutes in [1, 4, 15, 120] {
+                    for n_threads in [1, 3] {
+                        let p = RouteParams {
+                            max_trip_duration_min: minutes,
+                            n_threads,
+                            engine: StreetEngine::Hierarchy,
+                            ..p.clone()
+                        };
+                        let got = matrix_of(&net, &origins, &destinations, mode, &p).unwrap();
+                        let want = plain(&net, &origins, &destinations, mode, &p);
+                        assert_eq!(got, want, "{mode:?} {p:?}");
+                        cells += got.len();
+                        filled += got.iter().filter(|c| c.is_some()).count();
+                        let keys = net.hierarchies.keys();
+                        assert_eq!(keys[0], Key::of(&g, p.max_lts));
+                        assert!(keys.iter().filter(|&&k| k != Key::Car).count() <= KEPT_OTHER);
+                    }
                 }
             }
         }
         assert!(filled > cells / 8 && filled < cells, "{filled} of {cells}");
     }
 
-    /// The public matrix takes this path for a large matrix, and the plain
-    /// search for a small one or when told to.
+    /// Once kept, a hierarchy serves later calls with other origins,
+    /// destinations, limits and thread counts, small ones included,
+    /// without being built again; a clone of the network shares it.
+    #[test]
+    fn kept_hierarchy_is_reused() {
+        let net = spo();
+        let p0 = RouteParams {
+            n_threads: 1,
+            ..RouteParams::default()
+        };
+        let g = ModeGraph::new(&net, Mode::Car, Speeds::new(&p0, Mode::Car), p0.max_lts);
+        // a few origins: the search, and nothing kept
+        let (few, dests) = (random_points(&net, 5, 3), random_points(&net, 30, 5));
+        let got = matrix_of(&net, &few, &dests, Mode::Car, &p0).unwrap();
+        assert_eq!(got, plain(&net, &few, &dests, Mode::Car, &p0));
+        assert!(net.hierarchies.keys().is_empty());
+        let forced = with(&p0, StreetEngine::Hierarchy);
+        let first = hierarchy(&net, &g, 1, &forced).unwrap().unwrap();
+        assert_eq!(net.hierarchies.keys(), [Key::Car]);
+        for (i, &(minutes, n_threads)) in [(1, 1), (10, 2), (120, 4), (30, 0), (120, 1)]
+            .iter()
+            .enumerate()
+        {
+            let p = RouteParams {
+                max_trip_duration_min: minutes,
+                n_threads,
+                ..p0.clone()
+            };
+            let o = random_points(&net, 1 + 9 * i, 100 + i as u64);
+            let d = random_points(&net, 1 + 25 * i, 200 + i as u64);
+            let got = matrix_of(&net, &o, &d, Mode::Car, &p).unwrap();
+            assert_eq!(got, plain(&net, &o, &d, Mode::Car, &p), "{p:?}");
+            let again = hierarchy(&net, &g, o.len(), &p).unwrap().unwrap();
+            assert!(Arc::ptr_eq(&first, &again));
+        }
+        let copy = net.clone();
+        assert!(Arc::ptr_eq(
+            &first,
+            &copy.hierarchies.get(Key::Car).unwrap()
+        ));
+        // the search when told to, kept hierarchy or not
+        assert!(
+            hierarchy(&net, &g, 10_000, &with(&p0, StreetEngine::Search))
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    /// A cancelled call keeps no hierarchy it did not finish, and leaves a
+    /// kept one usable.
+    #[test]
+    fn cancelled_calls_keep_no_half_built_hierarchy() {
+        let net = spo();
+        let pts = sample_points();
+        let p = RouteParams {
+            n_threads: 2,
+            engine: StreetEngine::Hierarchy,
+            ..RouteParams::default()
+        };
+        let cancelled = |p: &RouteParams| {
+            let c = CancelToken::new();
+            c.cancel();
+            RouteParams {
+                cancel: c,
+                ..p.clone()
+            }
+        };
+        assert_eq!(
+            matrix_of(&net, &pts, &pts, Mode::Car, &cancelled(&p)),
+            Err(RouteError::Cancelled)
+        );
+        assert!(net.hierarchies.keys().is_empty());
+        // cancelled from another thread while it contracts (or, on a fast
+        // machine, after): either way nothing half-built is kept
+        for delay_us in [0, 200, 1000, 5000] {
+            let fresh = spo();
+            let c = CancelToken::new();
+            let q = RouteParams {
+                cancel: c.clone(),
+                ..p.clone()
+            };
+            let r = std::thread::scope(|s| {
+                s.spawn(|| {
+                    std::thread::sleep(std::time::Duration::from_micros(delay_us));
+                    c.cancel();
+                });
+                matrix_of(&fresh, &pts, &pts, Mode::Car, &q)
+            });
+            assert!(matches!(r, Err(RouteError::Cancelled) | Ok(_)));
+            let ok = matrix_of(&fresh, &pts, &pts, Mode::Car, &p).unwrap();
+            assert_eq!(ok, plain(&fresh, &pts, &pts, Mode::Car, &p), "{delay_us}");
+        }
+        // a kept hierarchy survives a cancelled call
+        let want = plain(&net, &pts, &pts, Mode::Car, &p);
+        assert_eq!(matrix_of(&net, &pts, &pts, Mode::Car, &p).unwrap(), want);
+        let kept = net.hierarchies.get(Key::Car).unwrap();
+        let auto = with(&p, StreetEngine::Auto);
+        assert_eq!(
+            matrix_of(&net, &pts, &pts, Mode::Car, &cancelled(&auto)),
+            Err(RouteError::Cancelled)
+        );
+        assert!(Arc::ptr_eq(&kept, &net.hierarchies.get(Key::Car).unwrap()));
+        assert_eq!(matrix_of(&net, &pts, &pts, Mode::Car, &auto).unwrap(), want);
+    }
+
+    /// A network changed through its public fields after a hierarchy was
+    /// kept gets the plain search's matrix of the changed network: the kept
+    /// hierarchy is found stale, dropped, and built again when wanted.
+    #[test]
+    fn a_changed_network_drops_its_stale_hierarchy() {
+        let mut net = spo();
+        let pts = sample_points();
+        let p = RouteParams {
+            n_threads: 2,
+            engine: StreetEngine::Hierarchy,
+            ..RouteParams::default()
+        };
+        matrix_of(&net, &pts, &pts, Mode::Car, &p).unwrap();
+        matrix_of(&net, &pts, &pts, Mode::Walk, &p).unwrap();
+        let before = net.hierarchies.get(Key::Car).unwrap();
+        for s in &mut net.edge_speed_cms {
+            *s = (*s / 2).max(1);
+        }
+        // a small call (Auto would search): the stale one is not used
+        let auto = with(&p, StreetEngine::Auto);
+        let few = &pts[..3];
+        let got = matrix_of(&net, few, &pts, Mode::Car, &auto).unwrap();
+        assert_eq!(got, plain(&net, few, &pts, Mode::Car, &p));
+        let got = matrix_of(&net, &pts, &pts, Mode::Car, &p).unwrap();
+        assert_eq!(got, plain(&net, &pts, &pts, Mode::Car, &p));
+        let after = net.hierarchies.get(Key::Car).unwrap();
+        assert!(!Arc::ptr_eq(&before, &after));
+        // walking does not read car speeds: its hierarchy still holds
+        let w = net.hierarchies.keys().into_iter().find(|&k| k != Key::Car);
+        let walk = net.hierarchies.get(w.unwrap()).unwrap();
+        matrix_of(&net, &pts, &pts, Mode::Walk, &p).unwrap();
+        assert!(Arc::ptr_eq(
+            &walk,
+            &net.hierarchies.get(w.unwrap()).unwrap()
+        ));
+    }
+
+    /// Which engine computes the matrix.
     #[test]
     fn dispatch() {
-        let net = build_network(format!("{SPO}/spo_osm.pbf"), &BuildOptions::default()).unwrap();
-        let p = RouteParams::default();
+        use StreetEngine::*;
+        assert!(wanted(Auto, Mode::Walk, false, 1000, 1));
+        assert!(!wanted(Auto, Mode::Walk, false, 10, 1));
+        assert!(!wanted(Auto, Mode::Car, false, 200, 1));
+        assert!(wanted(Auto, Mode::Car, true, 1, 1));
+        assert!(wanted(Auto, Mode::Walk, true, 1, 8));
+        assert!(!wanted(Search, Mode::Car, true, 10_000, 1));
+        assert!(wanted(Hierarchy, Mode::Car, false, 1, 4));
+        // cars on a network with turn restrictions always search
+        let mut net = spo();
+        net.restriction_starts.push((0, 0));
+        let p = with(&RouteParams::default(), Hierarchy);
+        let g = ModeGraph::new(&net, Mode::Car, Speeds::new(&p, Mode::Car), p.max_lts);
+        assert!(g.java_order);
+        assert!(hierarchy(&net, &g, 10_000, &p).unwrap().is_none());
         let g = ModeGraph::new(&net, Mode::Walk, Speeds::new(&p, Mode::Walk), p.max_lts);
-        ENGINE.with(|e| e.set(Some(Engine::Auto)));
-        assert!(applies(&g, 1000, 1));
-        assert!(applies(&g, 1000, 4));
-        assert!(!applies(&g, 200, 4));
-        assert!(!applies(&g, 10, 1));
-        ENGINE.with(|e| e.set(Some(Engine::Dijkstra)));
-        assert!(!applies(&g, 1000, 1));
-        ENGINE.with(|e| e.set(Some(Engine::Ch)));
-        assert!(applies(&g, 1, 4));
-        ENGINE.with(|e| e.set(None));
+        assert!(hierarchy(&net, &g, 1, &p).unwrap().is_some());
     }
 }

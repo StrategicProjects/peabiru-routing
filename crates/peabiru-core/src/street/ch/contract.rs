@@ -1,6 +1,7 @@
 //! Contraction of a graph with integer arc times into a hierarchy.
 
 use super::NONE;
+use crate::CancelToken;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
@@ -208,8 +209,17 @@ impl Hierarchy {
     /// `u -> x -> v` with `u` and `v` outside the round, so it is replaced
     /// by a shortcut or by a witness that avoids the round: every time
     /// between the remaining nodes is kept. The result does not depend on
-    /// the thread count.
-    pub(super) fn build(n: usize, arcs: &[(u32, u32, u32)], n_threads: usize) -> Self {
+    /// the thread count. `None` when `cancel` is cancelled first (checked
+    /// before every round).
+    pub(super) fn build(
+        n: usize,
+        arcs: &[(u32, u32, u32)],
+        n_threads: usize,
+        cancel: &CancelToken,
+    ) -> Option<Self> {
+        if cancel.is_cancelled() {
+            return None;
+        }
         let mut out: Vec<Vec<(u32, u32)>> = vec![Vec::new(); n];
         let mut inn: Vec<Vec<(u32, u32)>> = vec![Vec::new(); n];
         for &(u, v, w) in arcs {
@@ -239,6 +249,9 @@ impl Hierarchy {
         let mut dirty: Vec<u32> = Vec::new();
         let mut is_dirty = vec![false; n];
         while !remaining.is_empty() {
+            if cancel.is_cancelled() {
+                return None;
+            }
             rounds += 1;
             let key = |x: u32| (prio[x as usize], x);
             round.clear();
@@ -313,7 +326,7 @@ impl Hierarchy {
             up_off.push(up.len() as u32);
             down_off.push(down.len() as u32);
         }
-        Hierarchy {
+        Some(Hierarchy {
             id,
             up_off,
             up,
@@ -321,10 +334,16 @@ impl Hierarchy {
             down,
             shortcuts,
             rounds,
-        }
+        })
     }
 
     pub(super) fn n(&self) -> usize {
         self.id.len()
+    }
+
+    /// Memory held, in bytes.
+    pub(super) fn bytes(&self) -> usize {
+        4 * (self.id.len() + self.up_off.len() + self.down_off.len())
+            + 8 * (self.up.len() + self.down.len())
     }
 }

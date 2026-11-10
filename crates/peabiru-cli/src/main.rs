@@ -271,7 +271,7 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     // A directory is a network folder like r5r's: one .pbf plus GTFS zips.
     let is_dir = std::path::Path::new(pbf).is_dir();
     use peabiru_core::street::{
-        build_network, travel_time_matrix, BuildOptions, Mode, RouteParams,
+        build_network, travel_time_matrix, BuildOptions, Mode, RouteParams, StreetEngine,
     };
     let mode = match mode {
         "WALK" => Mode::Walk,
@@ -301,8 +301,20 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
         build_network(pbf, &BuildOptions { n_threads }).unwrap_or_else(|e| runtime_error(cmd, e))
     };
     let build_s = t0.elapsed().as_secs_f64();
+    // For benchmarks: force one way of computing the matrix (the result is
+    // the same either way).
+    let engine = match std::env::var("PEABIRU_STREET_MATRIX").as_deref() {
+        Ok("dijkstra") => StreetEngine::Search,
+        Ok("ch") => StreetEngine::Hierarchy,
+        Ok("auto") | Err(_) => StreetEngine::Auto,
+        Ok(other) => usage_error(
+            cmd,
+            format!("PEABIRU_STREET_MATRIX must be dijkstra, ch or auto, got '{other}'"),
+        ),
+    };
     let params = RouteParams {
         n_threads,
+        engine,
         ..RouteParams::default()
     };
     let mut times = Vec::new();
@@ -313,6 +325,10 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
             .unwrap_or_else(|e| usage_error(cmd, e));
         times.push(t.elapsed().as_secs_f64());
     }
+    // The first call may build a contraction hierarchy the later ones reuse.
+    let first_s = times[0];
+    let mut later = times[1..].to_vec();
+    later.sort_by(|a, b| a.total_cmp(b));
     times.sort_by(|a, b| a.total_cmp(b));
     let route_s = times[times.len() / 2];
     let n = pts.len();
@@ -338,6 +354,14 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
         n * n,
         reached
     );
+    if !later.is_empty() {
+        println!(
+            "first call {:.3}s  later calls {:.3}s (median of {})",
+            first_s,
+            later[later.len() / 2],
+            later.len()
+        );
+    }
 }
 
 fn osm_stats(path: &str, n_threads: usize) {

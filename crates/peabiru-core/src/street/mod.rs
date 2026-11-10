@@ -17,7 +17,7 @@ pub mod router;
 pub use build::{build_network, BuildOptions};
 pub use link::Split;
 pub use restrictions::TurnRestriction;
-pub use router::{travel_time_matrix, Mode, ParamError, RouteParams};
+pub use router::{travel_time_matrix, Mode, ParamError, RouteParams, StreetEngine};
 
 /// Edge flags (bit set per directed edge).
 pub mod flags {
@@ -97,6 +97,10 @@ pub struct StreetNetwork {
     /// `(from_edge, restriction index)`, sorted: restrictions that start when
     /// a car enters an edge.
     pub restriction_starts: Vec<(u32, u32)>,
+
+    /// Contraction hierarchies built by street matrices, kept for later
+    /// ones (see [`router::StreetEngine`]); a clone shares them.
+    hierarchies: ch::Cache,
 }
 
 impl StreetNetwork {

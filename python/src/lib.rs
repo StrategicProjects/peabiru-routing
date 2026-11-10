@@ -278,6 +278,7 @@ fn street_ttm<'py>(
         max_trip_duration_min: max_trip_duration,
         n_threads,
         cancel: CancelToken::new(),
+        ..RouteParams::default()
     };
     let (from, to, tt) = interruptible(py, &params.cancel, || {
         let m = street::travel_time_matrix(&n.net, &o, &d, mode, &params)?;
@@ -503,6 +504,7 @@ fn accessibility<'py>(
                     max_trip_duration_min: max_trip_duration,
                     n_threads,
                     cancel: cancel.clone(),
+                    ..RouteParams::default()
                 };
                 street_accessibility(&n.net, &o, &dest, m, &params, &percentiles, &a)
             }
