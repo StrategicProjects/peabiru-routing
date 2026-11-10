@@ -17,17 +17,12 @@
 //! handlers: Ctrl-C cancels the computation, and once its workers have
 //! stopped the call raises `KeyboardInterrupt`.
 
-use peabiru_core::street::{self, BuildOptions, Mode, RouteParams, StreetNetwork};
-use peabiru_core::transit::accessibility::{
-    street_accessibility, transit_accessibility, AccessibilityParams, Destinations,
+use peabiru_core::{
+    arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix, street_accessibility,
+    street_travel_time_matrix, transit_accessibility, transit_travel_time_matrix, validate_date,
+    AccessibilityParams, BuildOptions, CancelToken, DecayFunction, Destinations, ExpandedRow, Mode,
+    RouteError, RouteParams, StreetNetwork, TransitData, TransitLayer, TransitParams,
 };
-use peabiru_core::transit::decay::DecayFunction;
-use peabiru_core::transit::expanded::{
-    arrival_travel_time_matrix, expanded_travel_time_matrix, ExpandedRow,
-};
-use peabiru_core::transit::matrix::{self, TransitData, TransitParams};
-use peabiru_core::transit::{self as tr, TransitLayer};
-use peabiru_core::{CancelToken, RouteError};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
@@ -176,11 +171,11 @@ impl Network {
         d.set_item("edges", self.net.n_edges())?;
         match &self.transit {
             Some(t) => {
-                d.set_item("feeds", t.layer.feed_ids.clone())?;
-                d.set_item("stops", t.layer.stop_ids.len())?;
-                d.set_item("patterns", t.layer.patterns.len())?;
-                d.set_item("services", t.layer.services.len())?;
-                d.set_item("frequencies", t.layer.has_frequencies)?;
+                d.set_item("feeds", t.layer.feed_ids().to_vec())?;
+                d.set_item("stops", t.layer.n_stops())?;
+                d.set_item("patterns", t.layer.n_patterns())?;
+                d.set_item("services", t.layer.n_services())?;
+                d.set_item("frequencies", t.layer.has_frequencies())?;
             }
             None => {
                 d.set_item("feeds", Vec::<String>::new())?;
@@ -204,18 +199,12 @@ impl Network {
     /// Number of services in the network and of those active on `date`
     /// (`yyyymmdd`), as r5r's `getTransitServiceAvailability`.
     fn transit_availability(&self, date: u32) -> PyResult<(usize, usize)> {
-        matrix::validate_date(date).map_err(value_err)?;
+        validate_date(date).map_err(value_err)?;
         let Some(t) = &self.transit else {
             return Ok((0, 0));
         };
-        let wd = matrix::weekday(date);
-        let active = t
-            .layer
-            .services
-            .iter()
-            .filter(|s| s.active_on(date, wd))
-            .count();
-        Ok((t.layer.services.len(), active))
+        let active = t.layer.n_services_active_on(date).map_err(value_err)?;
+        Ok((t.layer.n_services(), active))
     }
 }
 
@@ -229,9 +218,10 @@ fn core_version() -> &'static str {
 #[pyfunction]
 fn build_network(py: Python<'_>, data_path: String, n_threads: usize) -> PyResult<Network> {
     py.detach(move || {
-        let opts = BuildOptions { n_threads };
-        let (net, layer) = tr::build_from_dir(&data_path, &opts).map_err(runtime_err)?;
-        let transit = if layer.feed_ids.is_empty() {
+        let mut opts = BuildOptions::default();
+        opts.n_threads = n_threads;
+        let (net, layer) = build_from_dir(&data_path, &opts).map_err(runtime_err)?;
+        let transit = if layer.feed_ids().is_empty() {
             None
         } else {
             let data = TransitData::new(&net, &layer);
@@ -271,17 +261,15 @@ fn street_ttm<'py>(
     let n = network.get();
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let mode = street_mode(mode)?;
-    let params = RouteParams {
-        walk_speed_kmh: walk_speed,
-        bike_speed_kmh: bike_speed,
+    let params = route_params(
+        walk_speed,
+        bike_speed,
         max_lts,
-        max_trip_duration_min: max_trip_duration,
+        max_trip_duration,
         n_threads,
-        cancel: CancelToken::new(),
-        ..RouteParams::default()
-    };
+    );
     let (from, to, tt) = interruptible(py, &params.cancel, || {
-        let m = street::street_travel_time_matrix(&n.net, &o, &d, mode, &params)?;
+        let m = street_travel_time_matrix(&n.net, &o, &d, mode, &params)?;
         let nd = d.len();
         let (mut from, mut to, mut tt) = (Vec::new(), Vec::new(), Vec::new());
         for (k, v) in m.as_slice().iter().enumerate() {
@@ -314,20 +302,38 @@ fn transit_params(
     seed: Option<i32>,
     n_threads: usize,
 ) -> TransitParams {
-    TransitParams {
-        date,
-        departure_time,
-        time_window,
-        percentiles,
-        max_walk_time,
-        max_trip_duration,
-        walk_speed_kmh: walk_speed,
-        max_rides,
-        draws_per_minute,
-        seed,
-        n_threads,
-        cancel: CancelToken::new(),
-    }
+    let mut p = TransitParams::default();
+    p.date = date;
+    p.departure_time = departure_time;
+    p.time_window = time_window;
+    p.percentiles = percentiles;
+    p.max_walk_time = max_walk_time;
+    p.max_trip_duration = max_trip_duration;
+    p.walk_speed_kmh = walk_speed;
+    p.max_rides = max_rides;
+    p.draws_per_minute = draws_per_minute;
+    p.seed = seed;
+    p.n_threads = n_threads;
+    p.cancel = CancelToken::new();
+    p
+}
+
+/// Street routing parameters with a fresh cancellation token.
+fn route_params(
+    walk_speed: f64,
+    bike_speed: f64,
+    max_lts: i32,
+    max_trip_duration: i32,
+    n_threads: usize,
+) -> RouteParams {
+    let mut p = RouteParams::default();
+    p.walk_speed_kmh = walk_speed;
+    p.bike_speed_kmh = bike_speed;
+    p.max_lts = max_lts;
+    p.max_trip_duration_min = max_trip_duration;
+    p.n_threads = n_threads;
+    p.cancel = CancelToken::new();
+    p
 }
 
 /// Walk + transit travel-time matrix: the reported pairs as `from`, `to`
@@ -372,7 +378,7 @@ fn transit_ttm<'py>(
         n_threads,
     );
     let (from, to, cols) = interruptible(py, &p.cancel, || {
-        let m = matrix::transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)?;
+        let m = transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)?;
         let (mut from, mut to) = (Vec::new(), Vec::new());
         let mut cols: Vec<Vec<i32>> = vec![Vec::new(); np];
         for (i, row) in m.rows().enumerate() {
@@ -474,34 +480,31 @@ fn accessibility<'py>(
         let dest = Destinations::new(&d, &opp);
         match (street, t) {
             (None, Some(t)) => {
-                let p = TransitParams {
-                    cancel: cancel.clone(),
-                    ..transit_params(
-                        date,
-                        departure_time,
-                        time_window,
-                        percentiles,
-                        max_walk_time,
-                        max_trip_duration,
-                        walk_speed,
-                        max_rides,
-                        draws_per_minute,
-                        seed,
-                        n_threads,
-                    )
-                };
+                let mut p = transit_params(
+                    date,
+                    departure_time,
+                    time_window,
+                    percentiles,
+                    max_walk_time,
+                    max_trip_duration,
+                    walk_speed,
+                    max_rides,
+                    draws_per_minute,
+                    seed,
+                    n_threads,
+                );
+                p.cancel = cancel.clone();
                 transit_accessibility(&n.net, &t.layer, &t.data, &o, &dest, &p, &a)
             }
             (Some(m), _) => {
-                let params = RouteParams {
-                    walk_speed_kmh: walk_speed,
-                    bike_speed_kmh: bike_speed,
+                let mut params = route_params(
+                    walk_speed,
+                    bike_speed,
                     max_lts,
-                    max_trip_duration_min: max_trip_duration,
+                    max_trip_duration,
                     n_threads,
-                    cancel: cancel.clone(),
-                    ..RouteParams::default()
-                };
+                );
+                params.cancel = cancel.clone();
                 street_accessibility(&n.net, &o, &dest, m, &params, &percentiles, &a)
             }
             (None, None) => unreachable!("transit checked above"),

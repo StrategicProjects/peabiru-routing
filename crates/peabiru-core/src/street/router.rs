@@ -11,11 +11,19 @@ use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-/// Street mode.
+/// Street mode, as r5r's `mode` for street-only routing. Non-exhaustive:
+/// R5 has further street modes (bike or car rental and parking) that a
+/// later version may add.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Mode {
+    /// `WALK`, at [`RouteParams::walk_speed_kmh`].
     Walk,
+    /// `BICYCLE`, at [`RouteParams::bike_speed_kmh`] on streets up to
+    /// [`RouteParams::max_lts`], walking where cycling is not allowed.
     Bicycle,
+    /// `CAR`, at the speed limits of OpenStreetMap (or R5's defaults by
+    /// road type), with turn costs and turn restrictions.
     Car,
 }
 
@@ -29,6 +37,7 @@ const U_TURN: i32 = 90;
 /// How [`street_travel_time_matrix`] computes a street matrix. Every choice gives
 /// the same matrix; they differ only in speed and memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum StreetEngine {
     /// The faster of the two for the matrix at hand: the contraction
     /// hierarchy when the network already holds one for the mode and
@@ -44,16 +53,26 @@ pub enum StreetEngine {
     Hierarchy,
 }
 
-/// Routing parameters, with r5r's defaults.
+/// Street routing parameters, with r5r's defaults. Fill it in by changing
+/// the fields of [`RouteParams::default()`]:
+///
+/// ```
+/// let mut p = peabiru_core::RouteParams::default();
+/// p.bike_speed_kmh = 15.0;
+/// p.max_lts = 3;
+/// assert!(p.validate().is_ok());
+/// ```
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct RouteParams {
-    /// Walking speed, km/h.
+    /// Walking speed, km/h (default 3.6).
     pub walk_speed_kmh: f64,
-    /// Cycling speed, km/h.
+    /// Cycling speed, km/h (default 12).
     pub bike_speed_kmh: f64,
-    /// Highest level of traffic stress a cyclist rides on (1-4).
+    /// Highest level of traffic stress a cyclist rides on, 1 to 4
+    /// (default 2).
     pub max_lts: i32,
-    /// Trip limit in whole minutes.
+    /// Trip limit in whole minutes (default 120).
     pub max_trip_duration_min: i32,
     /// Worker threads; 0 means all cores, and more than the cores
     /// available run as many as there are cores.
@@ -66,18 +85,6 @@ pub struct RouteParams {
     /// it changes the speed of [`street_travel_time_matrix`], never its result.
     pub engine: StreetEngine,
 }
-
-/// Invalid routing parameters.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParamError(pub String);
-
-impl std::fmt::Display for ParamError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl std::error::Error for ParamError {}
 
 /// A number for an error message: as written when short, else in
 /// scientific notation (`1e300`, not 301 digits).
@@ -106,20 +113,22 @@ pub(crate) fn check_speed(name: &str, v: f64) -> Result<(), String> {
 impl RouteParams {
     /// Check the parameters: speeds must give at least 1 mm/s (R5's
     /// bound), `max_lts` must be 1 to 4 (r5r's bound), the trip limit must
-    /// be a positive number of minutes that fits R5's `int` seconds.
-    pub fn validate(&self) -> Result<(), ParamError> {
-        check_speed("walk_speed_kmh", self.walk_speed_kmh).map_err(ParamError)?;
-        check_speed("bike_speed_kmh", self.bike_speed_kmh).map_err(ParamError)?;
+    /// be a positive number of minutes that fits R5's `int` seconds. Every
+    /// street routing function calls it first; [`RouteError::Invalid`]
+    /// says what is wrong.
+    pub fn validate(&self) -> Result<(), RouteError> {
+        check_speed("walk_speed_kmh", self.walk_speed_kmh)?;
+        check_speed("bike_speed_kmh", self.bike_speed_kmh)?;
         // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
         if !(1..=4).contains(&self.max_lts) {
-            return Err(ParamError(format!(
+            return Err(RouteError::Invalid(format!(
                 "max_lts must be from 1 to 4 (the highest level of traffic stress), got {}",
                 self.max_lts
             )));
         }
         let max_minutes = i32::MAX / 60;
         if !(1..=max_minutes).contains(&self.max_trip_duration_min) {
-            return Err(ParamError(format!(
+            return Err(RouteError::Invalid(format!(
                 "max_trip_duration must be from 1 to {max_minutes} minutes, got {}",
                 self.max_trip_duration_min
             )));
@@ -778,10 +787,11 @@ pub(super) fn time_to_point(
     Some(via(t0, dest.distance0_mm).min(via(t1, dest.distance1_mm)))
 }
 
+#[cfg(test)]
 /// Seconds by street from one point to another with r5r's defaults, before
 /// rounding to minutes; `None` if either point is unlinked or the
 /// destination is unreachable. For tests and diagnostics.
-pub fn street_seconds(
+pub(crate) fn street_seconds(
     net: &StreetNetwork,
     from: (f64, f64),
     to: (f64, f64),
@@ -797,20 +807,21 @@ pub fn street_seconds(
     time_to_point(net, &g, &o, &d, &search)
 }
 
+#[cfg(test)]
 /// One street search from a linked origin: the time at every vertex
 /// (`i32::MAX` where unreached; states kept only below `limit` seconds) and
 /// the direct time in seconds to each linked destination (`i32::MAX` where
 /// unreachable), as R5's `TravelTimeComputer` uses for access and for the
 /// non-transit option. An error when `walk_speed_kmh` is not a valid speed
 /// (see [`RouteParams::validate`]).
-pub fn street_vertex_times(
+pub(crate) fn street_vertex_times(
     net: &StreetNetwork,
     origin: &Split,
     destinations: &[Option<Split>],
     mode: Mode,
     walk_speed_kmh: f64,
     limit: i32,
-) -> Result<(Vec<i32>, Vec<i32>), ParamError> {
+) -> Result<(Vec<i32>, Vec<i32>), RouteError> {
     RouteParams {
         walk_speed_kmh,
         ..RouteParams::default()
@@ -1038,7 +1049,7 @@ fn matrix_minutes(
 /// R5's `LinkedPointSet.eval`. Results are in origin order;
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled before every
 /// origin is done.
-pub fn travel_time_seconds<T: Send>(
+pub(crate) fn travel_time_seconds<T: Send>(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],

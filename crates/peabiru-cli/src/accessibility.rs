@@ -19,13 +19,11 @@
 //! percentile and cutoff in that order, with every double written in full.
 
 use crate::cli::{self, runtime_error, usage_error};
-use peabiru_core::street::{build_network, BuildOptions, Mode, RouteParams};
-use peabiru_core::transit::accessibility::{
-    r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
-    AccessibilityParams, Destinations,
+use peabiru_core::{
+    build_network, r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
+    AccessibilityParams, BuildOptions, DecayFunction, Destinations, Mode, RouteParams, TransitData,
+    TransitParams,
 };
-use peabiru_core::transit::decay::DecayFunction;
-use peabiru_core::transit::matrix::{TransitData, TransitParams};
 use std::time::Instant;
 
 const CMD: &str = "accessibility";
@@ -279,9 +277,8 @@ pub fn run(args: &[String]) {
 
     let t0 = Instant::now();
     let is_dir = std::path::Path::new(net_path).is_dir();
-    let build = BuildOptions {
-        n_threads: tp.n_threads,
-    };
+    let mut build = BuildOptions::default();
+    build.n_threads = tp.n_threads;
     let mut times = Vec::new();
     let mut result: Option<Accessibility> = None;
     let build_s;

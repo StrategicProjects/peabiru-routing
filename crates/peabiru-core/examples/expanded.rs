@@ -8,12 +8,10 @@
 
 mod common;
 
-use peabiru_core::street::BuildOptions;
-use peabiru_core::transit::build_from_dir;
-use peabiru_core::transit::expanded::{
-    arrival_departure, arrival_travel_time_matrix, expanded_travel_time_matrix,
+use peabiru_core::{
+    arrival_departure, arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix,
+    BuildOptions, TransitData, TransitParams,
 };
-use peabiru_core::transit::matrix::{TransitData, TransitParams};
 
 fn hhmm(s: i32) -> String {
     format!("{:02}:{:02}", s / 3600, (s / 60) % 60)
@@ -22,19 +20,19 @@ fn hhmm(s: i32) -> String {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dir = common::data_dir();
     let points = common::read_points(&dir, &[]);
-    let (net, layer) = build_from_dir(&dir, &BuildOptions { n_threads: 2 })?;
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let (net, layer) = build_from_dir(&dir, &opts)?;
     let data = TransitData::new(&net, &layer);
     let origin = &points.coords[..1];
 
     // Expanded: one row per departure minute (and per draw with frequencies).
-    let params = TransitParams {
-        date: 20190513,
-        departure_time: 14 * 3600,
-        time_window: 2,
-        seed: Some(42),
-        n_threads: 2,
-        ..TransitParams::default()
-    };
+    let mut params = TransitParams::default();
+    params.date = 20190513;
+    params.departure_time = 14 * 3600;
+    params.time_window = 2;
+    params.seed = Some(42);
+    params.n_threads = 2;
     let rows = expanded_travel_time_matrix(&net, &layer, &data, origin, &points.coords, &params)?;
     // One destination, a ride on metro line 1 away.
     let to = points.ids.iter().position(|id| id == "89a8100c02fffff");
@@ -56,16 +54,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // minutes before the arrival time, as in r5r.
     let max_trip = 60;
     let (date, departure) = arrival_departure(20190513, 15 * 3600, max_trip)?;
-    let params = TransitParams {
-        date,
-        departure_time: departure,
-        time_window: max_trip,
-        max_trip_duration: max_trip,
-        max_walk_time: max_trip,
-        seed: Some(42),
-        n_threads: 2,
-        ..TransitParams::default()
-    };
+    let mut params = TransitParams::default();
+    params.date = date;
+    params.departure_time = departure;
+    params.time_window = max_trip;
+    params.max_trip_duration = max_trip;
+    params.max_walk_time = max_trip;
+    params.seed = Some(42);
+    params.n_threads = 2;
     let rows = arrival_travel_time_matrix(&net, &layer, &data, origin, &points.coords, &params)?;
     for r in rows.origin(0).iter().take(5) {
         if let Some(t) = &r.trip {

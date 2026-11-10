@@ -7,19 +7,18 @@
 
 mod common;
 
-use peabiru_core::street::BuildOptions;
-use peabiru_core::transit::accessibility::{
-    r5r_trip_limits, transit_accessibility, AccessibilityParams, Destinations,
+use peabiru_core::{
+    build_from_dir, r5r_trip_limits, transit_accessibility, AccessibilityParams, BuildOptions,
+    DecayFunction, Destinations, TransitData, TransitParams,
 };
-use peabiru_core::transit::build_from_dir;
-use peabiru_core::transit::decay::DecayFunction;
-use peabiru_core::transit::matrix::{TransitData, TransitParams};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dir = common::data_dir();
     // The points file has one column per kind of opportunity.
     let points = common::read_points(&dir, &["jobs"]);
-    let (net, layer) = build_from_dir(&dir, &BuildOptions { n_threads: 2 })?;
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let (net, layer) = build_from_dir(&dir, &opts)?;
     let data = TransitData::new(&net, &layer);
 
     let decay = DecayFunction::Logistic {
@@ -28,15 +27,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cutoffs = vec![15, 30];
     // The limits r5r derives from max_trip_duration = 120, max_walk_time = Inf.
     let (max_trip, max_walk) = r5r_trip_limits(&decay, Some(&cutoffs), 120, None, false)?;
-    let params = TransitParams {
-        date: 20190513,
-        departure_time: 14 * 3600,
-        max_trip_duration: max_trip,
-        max_walk_time: max_walk,
-        seed: Some(42),
-        n_threads: 2,
-        ..TransitParams::default()
-    };
+    let mut params = TransitParams::default();
+    params.date = 20190513;
+    params.departure_time = 14 * 3600;
+    params.max_trip_duration = max_trip;
+    params.max_walk_time = max_walk;
+    params.seed = Some(42);
+    params.n_threads = 2;
     let destinations = Destinations::new(&points.coords, &points.columns);
     let mut a = AccessibilityParams::default();
     a.cutoffs = cutoffs;

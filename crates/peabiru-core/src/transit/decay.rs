@@ -15,21 +15,35 @@ const FOUR_HOURS_IN_SECONDS: i32 = 14_400;
 /// looking for the zero point.
 const ZERO_EPSILON: f64 = 0.001;
 
-/// A decay function and its parameter, in r5r's terms.
+/// A decay function and its parameter, in r5r's terms (`decay_function`
+/// and `decay_value`): how much an opportunity reached in `t` counts
+/// towards accessibility, given a cutoff. The weights are bit-identical to
+/// R5's. Non-exhaustive: R5 may gain other functions.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum DecayFunction {
-    /// Cumulative opportunities: weight 1 strictly below the cutoff.
+    /// `step`, cumulative opportunities: weight 1 strictly below the
+    /// cutoff, 0 from it on.
     Step,
-    /// Half-life = cutoff: `2^(-t / cutoff)`, 0 from two hours on.
+    /// `exponential`: half-life = cutoff, `2^(-t / cutoff)`, 0 from two
+    /// hours on.
     Exponential,
-    /// `exp(-decay_constant * t)` with `t` in seconds, ignoring the cutoff;
-    /// `0 < decay_constant < 1`.
-    FixedExponential { decay_constant: f64 },
-    /// Linear ramp of `width_minutes` (`0..60`) centred on the cutoff.
-    Linear { width_minutes: i32 },
-    /// Logistic CDF with median = cutoff and this standard deviation in
-    /// minutes (`> 0`, under two hours).
-    Logistic { standard_deviation_minutes: f64 },
+    /// `fixed_exponential`: `exp(-decay_constant * t)` with `t` in seconds,
+    /// ignoring the cutoff.
+    FixedExponential {
+        /// `0 < decay_constant < 1`.
+        decay_constant: f64,
+    },
+    /// `linear`: a linear ramp from 1 to 0 centred on the cutoff.
+    Linear {
+        /// Width of the ramp in minutes, `0..60`.
+        width_minutes: i32,
+    },
+    /// `logistic`: a logistic CDF with median = cutoff.
+    Logistic {
+        /// Standard deviation in minutes, `> 0` and under two hours.
+        standard_deviation_minutes: f64,
+    },
 }
 
 /// A validated decay function, ready to evaluate (R5 after `prepare()`).
@@ -101,11 +115,6 @@ impl Decay {
             }
         }
         Ok(d)
-    }
-
-    /// The function this was built from.
-    pub fn function(&self) -> &DecayFunction {
-        &self.function
     }
 
     /// `computeWeight(cutoffSeconds, travelTimeSeconds)`.

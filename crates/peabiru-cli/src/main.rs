@@ -3,7 +3,7 @@ mod cli;
 mod expanded;
 
 use cli::{runtime_error, usage_error};
-use peabiru_core::osm::pbf::{read_pbf_file, tag, ReadOptions};
+use peabiru_core::unstable::{read_pbf_file, tag, ReadOptions};
 use std::time::Instant;
 
 fn usage_text() -> String {
@@ -87,8 +87,7 @@ pub(crate) fn positional3<'a>(cmd: &str, args: &'a [String]) -> (&'a str, &'a st
 ///  [--tw 10] [--percentiles 50] [--max-walk 120] [--max-trip 120] [--max-rides 3]
 ///  [--draws 5] [--seed N] [--threads 0] [--repeats 1]`
 fn transit(args: &[String]) {
-    use peabiru_core::street::BuildOptions;
-    use peabiru_core::transit::matrix::{transit_travel_time_matrix, TransitData, TransitParams};
+    use peabiru_core::{transit_travel_time_matrix, BuildOptions, TransitData, TransitParams};
     let cmd = "transit";
     let (dir, points, out) = positional3(cmd, args);
     let mut p = TransitParams::default();
@@ -125,14 +124,10 @@ fn transit(args: &[String]) {
     }
     let (ids, pts) = read_points(cmd, points);
     let t0 = Instant::now();
-    let (net, layer) = cli::build_from_dir(
-        cmd,
-        dir,
-        &BuildOptions {
-            n_threads: p.n_threads,
-        },
-    )
-    .unwrap_or_else(|e| runtime_error(cmd, e));
+    let mut opts = BuildOptions::default();
+    opts.n_threads = p.n_threads;
+    let (net, layer) =
+        cli::build_from_dir(cmd, dir, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
     let data = TransitData::new(&net, &layer);
     let build_s = t0.elapsed().as_secs_f64();
     let mut times = Vec::new();
@@ -173,8 +168,8 @@ fn transit(args: &[String]) {
     cli::write_file(cmd, out, csv);
     println!(
         "stops {}  patterns {}  build {:.3}s  route {:.3}s (median of {})  rows {}",
-        layer.stop_ids.len(),
-        layer.patterns.len(),
+        layer.n_stops(),
+        layer.n_patterns(),
         build_s,
         times[times.len() / 2],
         times.len(),
@@ -185,9 +180,9 @@ fn transit(args: &[String]) {
 /// Every directed edge with the attributes r5r's `street_network_to_sf()`
 /// reports, for comparing networks edge by edge (bench/compare/edges.py).
 fn dump_edges(pbf: &str) {
-    use peabiru_core::street::flags::*;
-    use peabiru_core::street::labels::{cms_to_ms, lts_of};
-    use peabiru_core::street::{build_network, BuildOptions};
+    use peabiru_core::unstable::flags::*;
+    use peabiru_core::unstable::{cms_to_ms, edge, lts_of};
+    use peabiru_core::{build_network, BuildOptions};
     use std::io::Write;
     let cmd = "dump-edges";
     let net =
@@ -201,23 +196,23 @@ fn dump_edges(pbf: &str) {
     )
     .unwrap_or_else(|e| fail(e));
     for e in 0..net.n_edges() {
-        let f = net.edge_flags[e];
-        let (v0, v1) = (net.edge_from(e), net.edge_to(e));
+        let d = edge(&net, e);
+        let f = d.flags;
         writeln!(
             w,
             "{},{},{:.3},{},{},{},{},{},{:.7},{:.7},{:.7},{:.7}",
             e,
-            net.pair_way[e / 2],
-            f64::from(net.pair_length_mm[e / 2]) / 1000.0,
+            d.way,
+            f64::from(d.length_mm) / 1000.0,
             f & ALLOWS_PEDESTRIAN != 0,
             f & ALLOWS_CAR != 0,
-            f64::from(cms_to_ms(net.edge_speed_cms[e])) * 3.6,
+            f64::from(cms_to_ms(d.speed_cms)) * 3.6,
             f & ALLOWS_BIKE != 0,
             lts_of(f),
-            f64::from(net.v_lon[v0]) / 1e7,
-            f64::from(net.v_lat[v0]) / 1e7,
-            f64::from(net.v_lon[v1]) / 1e7,
-            f64::from(net.v_lat[v1]) / 1e7
+            f64::from(d.from.1) / 1e7,
+            f64::from(d.from.0) / 1e7,
+            f64::from(d.to.1) / 1e7,
+            f64::from(d.to.0) / 1e7
         )
         .unwrap_or_else(|e| fail(e));
     }
@@ -272,7 +267,7 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     let cmd = "ttm";
     // A directory is a network folder like r5r's: one .pbf plus GTFS zips.
     let is_dir = std::path::Path::new(pbf).is_dir();
-    use peabiru_core::street::{
+    use peabiru_core::{
         build_network, street_travel_time_matrix, BuildOptions, Mode, RouteParams, StreetEngine,
     };
     let mode = match mode {
@@ -286,21 +281,22 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     };
     let (ids, pts) = read_points(cmd, points);
     let t0 = Instant::now();
+    let mut opts = BuildOptions::default();
+    opts.n_threads = n_threads;
     let net = if is_dir {
-        let (net, layer) = cli::build_from_dir(cmd, pbf, &BuildOptions { n_threads })
-            .unwrap_or_else(|e| runtime_error(cmd, e));
-        let linked = layer.stop_vertex.iter().filter(|&&v| v >= 0).count();
+        let (net, layer) =
+            cli::build_from_dir(cmd, pbf, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
         eprintln!(
             "feeds {:?}  stops {} (linked {})  patterns {}  frequencies {}",
-            layer.feed_ids,
-            layer.stop_ids.len(),
-            linked,
-            layer.patterns.len(),
-            layer.has_frequencies
+            layer.feed_ids(),
+            layer.n_stops(),
+            layer.n_linked_stops(),
+            layer.n_patterns(),
+            layer.has_frequencies()
         );
         net
     } else {
-        build_network(pbf, &BuildOptions { n_threads }).unwrap_or_else(|e| runtime_error(cmd, e))
+        build_network(pbf, &opts).unwrap_or_else(|e| runtime_error(cmd, e))
     };
     let build_s = t0.elapsed().as_secs_f64();
     // For benchmarks: force one way of computing the matrix (the result is
@@ -314,11 +310,9 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
             format!("PEABIRU_STREET_MATRIX must be dijkstra, ch or auto, got '{other}'"),
         ),
     };
-    let params = RouteParams {
-        n_threads,
-        engine,
-        ..RouteParams::default()
-    };
+    let mut params = RouteParams::default();
+    params.n_threads = n_threads;
+    params.engine = engine;
     let mut times = Vec::new();
     let mut m = None;
     for _ in 0..repeats {
@@ -352,7 +346,7 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
         "vertices {}  edges {}  restrictions {}  build {:.3}s  route {:.3}s (median of {})  pairs {}  reached {}",
         net.n_vertices(),
         net.n_edges(),
-        net.restrictions.len(),
+        net.n_restrictions(),
         build_s,
         route_s,
         times.len(),

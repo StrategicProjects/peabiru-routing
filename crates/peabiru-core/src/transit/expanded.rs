@@ -682,7 +682,7 @@ fn validate(layer: &TransitLayer, n_destinations: usize, p: &TransitParams) -> R
     }
     // the bounds shared with the plain matrix (they also keep the walk
     // speed a non-zero divisor); percentiles are not used here
-    p.validate()?;
+    p.check()?;
     let per_minute = if layer.has_frequencies {
         p.draws_per_minute as u64
     } else {
@@ -745,9 +745,13 @@ fn per_origin<T: Send>(
 /// the transit records come first in `PATH_ORDER`, numbered 1.., then the
 /// remaining draws repeat the walk-only record (or an unreachable, NA one)
 /// up to the draws per minute (`populateTravelTimesBreakdown`). A
-/// destination with no record at all has no rows.
-/// [`RouteError::Cancelled`] when `p.cancel` is cancelled before every
-/// origin is done.
+/// destination with no record at all has no rows. Points are `(lat, lon)`
+/// degrees; `p.percentiles` are not used.
+///
+/// [`RouteError::Invalid`] when the parameters are invalid (see
+/// [`TransitParams::validate`]) or there are more than 5,000 destinations
+/// (R5's limit for paths); [`RouteError::Cancelled`] when `p.cancel` is
+/// cancelled before every origin is done.
 pub fn expanded_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
@@ -812,12 +816,12 @@ pub fn arrival_departure(
     date: u32,
     arrival_time: i32,
     max_trip_duration: i32,
-) -> Result<(u32, i32), String> {
+) -> Result<(u32, i32), RouteError> {
     validate_date(date)?;
     if max_trip_duration < 1 {
-        return Err(format!(
+        return Err(RouteError::Invalid(format!(
             "max_trip_duration must be at least 1, got {max_trip_duration}"
-        ));
+        )));
     }
     let t = i64::from(arrival_time) - i64::from(max_trip_duration) * 60;
     if t >= 0 {
@@ -837,8 +841,9 @@ pub fn arrival_departure(
 /// with a record arriving by `departure + max_trip_duration` wins: its
 /// first transit record in `PATH_ORDER`, else the walk-only record
 /// (`filterLatestBeforeArrivalTime`, offs 31-266). At most one row per
-/// destination. [`RouteError::Cancelled`] when `p.cancel` is cancelled
-/// before every origin is done.
+/// destination. Errors as [`expanded_travel_time_matrix`], and
+/// [`RouteError::Invalid`] when `p.time_window` is not
+/// `p.max_trip_duration`.
 pub fn arrival_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,

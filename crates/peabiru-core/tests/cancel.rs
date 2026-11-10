@@ -1,14 +1,11 @@
 //! Cancelling the long computations through their parameters' token.
 
-use peabiru_core::street::{self, BuildOptions, Mode, RouteParams, StreetNetwork};
-use peabiru_core::transit::accessibility::{
-    street_accessibility, transit_accessibility, AccessibilityParams, Destinations,
+use peabiru_core::{
+    arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix, street_accessibility,
+    street_travel_time_matrix, transit_accessibility, transit_travel_time_matrix,
+    AccessibilityParams, BuildOptions, CancelToken, Destinations, Mode, RouteError, RouteParams,
+    StreetNetwork, TransitData, TransitLayer, TransitParams,
 };
-use peabiru_core::transit::decay::DecayFunction;
-use peabiru_core::transit::expanded::{arrival_travel_time_matrix, expanded_travel_time_matrix};
-use peabiru_core::transit::matrix::{transit_travel_time_matrix, TransitData, TransitParams};
-use peabiru_core::transit::TransitLayer;
-use peabiru_core::{CancelToken, RouteError};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
@@ -25,8 +22,7 @@ struct Sample {
 fn sample() -> &'static Sample {
     static SAMPLE: OnceLock<Sample> = OnceLock::new();
     SAMPLE.get_or_init(|| {
-        let (net, layer) =
-            peabiru_core::transit::build_from_dir(SPO, &BuildOptions::default()).unwrap();
+        let (net, layer) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
         let data = TransitData::new(&net, &layer);
         let text = std::fs::read_to_string(format!("{SPO}/spo_points.csv")).unwrap();
         let (mut points, mut jobs) = (Vec::new(), Vec::new());
@@ -46,17 +42,16 @@ fn sample() -> &'static Sample {
 }
 
 fn transit_params(time_window: i32, draws_per_minute: i32, cancel: &CancelToken) -> TransitParams {
-    TransitParams {
-        date: 20190513,
-        departure_time: 0,
-        time_window,
-        max_trip_duration: time_window,
-        draws_per_minute,
-        seed: Some(1),
-        n_threads: 1,
-        cancel: cancel.clone(),
-        ..TransitParams::default()
-    }
+    let mut p = TransitParams::default();
+    p.date = 20190513;
+    p.departure_time = 0;
+    p.time_window = time_window;
+    p.max_trip_duration = time_window;
+    p.draws_per_minute = draws_per_minute;
+    p.seed = Some(1);
+    p.n_threads = 1;
+    p.cancel = cancel.clone();
+    p
 }
 
 /// A computation run with a token, its result dropped.
@@ -69,13 +64,13 @@ fn calls(heavy: bool) -> Vec<(&'static str, Call)> {
     let (tw, dpm) = if heavy { (1440, 20) } else { (10, 1) };
     let reps = if heavy { 5000 } else { 1 };
     let many: Vec<(f64, f64)> = s.points.repeat(reps);
-    let mut a = AccessibilityParams::default();
-    a.cutoffs = vec![30];
-    a.decay = DecayFunction::Step;
-    let route = |cancel: &CancelToken| RouteParams {
-        n_threads: 1,
-        cancel: cancel.clone(),
-        ..RouteParams::default()
+    // r5r's defaults: a cutoff of 30 minutes, step decay
+    let a = AccessibilityParams::default();
+    let route = |cancel: &CancelToken| {
+        let mut p = RouteParams::default();
+        p.n_threads = 1;
+        p.cancel = cancel.clone();
+        p
     };
     let many2 = many.clone();
     let a2 = a.clone();
@@ -83,8 +78,7 @@ fn calls(heavy: bool) -> Vec<(&'static str, Call)> {
         (
             "street matrix",
             Box::new(move |c: &CancelToken| {
-                street::street_travel_time_matrix(&s.net, &many, &s.points, Mode::Car, &route(c))
-                    .map(drop)
+                street_travel_time_matrix(&s.net, &many, &s.points, Mode::Car, &route(c)).map(drop)
             }),
         ),
         (
@@ -191,10 +185,8 @@ fn a_single_slow_origin_stops_soon_after_the_cancel() {
 #[test]
 fn invalid_parameters_are_not_a_cancellation() {
     let s = sample();
-    let p = TransitParams {
-        date: 20190230,
-        ..TransitParams::default()
-    };
+    let mut p = TransitParams::default();
+    p.date = 20190230;
     let e = transit_travel_time_matrix(&s.net, &s.layer, &s.data, &s.points, &s.points, &p)
         .unwrap_err();
     assert!(

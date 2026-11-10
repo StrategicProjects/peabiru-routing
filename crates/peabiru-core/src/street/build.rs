@@ -11,27 +11,33 @@ use super::labels::{
 use super::vertex_flags::*;
 use super::{link, StreetNetwork};
 use crate::osm::pbf::{read_pbf_file, Extract, PbfError, ReadOptions, Way};
+use crate::NetworkError;
 
 /// Smallest strongly connected component kept per mode (R5 `MIN_SUBGRAPH_SIZE`).
 pub const MIN_SUBGRAPH_SIZE: usize = 40;
 
-/// Options for [`build_network`].
+/// Options for [`build_network`] and [`build_from_dir`](crate::build_from_dir).
+/// Fill it in by changing the fields of [`BuildOptions::default()`].
 #[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub struct BuildOptions {
-    /// Worker threads for reading the PBF; 0 means all cores, and more
-    /// than the cores available are not used.
+    /// Worker threads for reading the PBF; 0 (the default) means all cores,
+    /// and more than the cores available are not used.
     pub n_threads: usize,
 }
 
-/// Read a PBF file and build the street network.
+/// Read an OpenStreetMap `.pbf` file and build the street network for
+/// walking, cycling and driving, as R5 7.6 builds it for r5r (no transit;
+/// see [`build_from_dir`](crate::build_from_dir) for that).
 ///
-/// A file that gives no street edge at all (empty, a header only, or no
-/// routable way) is an error naming the file. R5 fails on such a file too,
-/// with an `ArrayIndexOutOfBoundsException` from `StreetLayer.loadFromOsm`.
+/// A file that cannot be read or decoded, or that gives no street edge at
+/// all (empty, a header only, or no routable way), is an error naming the
+/// file. R5 fails on such a file too, with an
+/// `ArrayIndexOutOfBoundsException` from `StreetLayer.loadFromOsm`.
 pub fn build_network(
     path: impl AsRef<std::path::Path>,
     opts: &BuildOptions,
-) -> Result<StreetNetwork, PbfError> {
+) -> Result<StreetNetwork, NetworkError> {
     let path = path.as_ref();
     let not_building = |t: &[(&str, &str)]| !t.iter().any(|(k, _)| *k == "building");
     let node_tags = |t: &[(&str, &str)]| {
@@ -53,15 +59,15 @@ pub fn build_network(
         poi_filter: Some(&park_ride),
         n_threads: opts.n_threads,
     };
-    let ex = read_pbf_file(path, &read)?;
+    let ex = read_pbf_file(path, &read).map_err(NetworkError::osm)?;
     let net = network_from_extract(ex);
     // Connectors (park-and-ride links) are the only pairs that do not come
     // from a way, and splits only exist where a street pair does.
     if net.edge_flags.iter().step_by(2).all(|&f| f & LINK != 0) {
-        return Err(PbfError::InFile {
+        return Err(NetworkError::osm(PbfError::InFile {
             path: path.to_path_buf(),
             error: Box::new(PbfError::NoStreets),
-        });
+        }));
     }
     Ok(net)
 }

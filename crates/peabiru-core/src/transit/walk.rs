@@ -19,6 +19,7 @@ const EGRESS_LIMIT_M: f64 = 2000.0;
 /// R5 `SphericalDistanceLibrary.EARTH_CIRCUMFERENCE_METERS`.
 const EARTH_CIRCUMFERENCE_M: f64 = 40_041.438_5 * 1000.0;
 
+#[cfg(test)]
 /// Shortest walking distance (mm) from a vertex to every vertex within
 /// `limit_mm`, as R5's distance-minimising `StreetRouter` from a vertex
 /// origin: edge-based, a vertex's distance is the best state on its incoming

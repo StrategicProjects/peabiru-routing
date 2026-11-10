@@ -4,8 +4,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 /// A flag that stops a running computation. Every routing parameter
-/// struct carries one ([`RouteParams::cancel`](crate::street::RouteParams),
-/// [`TransitParams::cancel`](crate::transit::matrix::TransitParams)); keep
+/// struct carries one ([`RouteParams::cancel`](crate::RouteParams::cancel),
+/// [`TransitParams::cancel`](crate::TransitParams::cancel)); keep
 /// a clone, hand the parameters to the call, and call
 /// [`cancel`](CancelToken::cancel) from any thread. The workers notice
 /// between origins (between batches of eight in a street matrix computed
@@ -81,12 +81,6 @@ impl From<String> for RouteError {
 impl From<&str> for RouteError {
     fn from(msg: &str) -> Self {
         RouteError::Invalid(msg.to_string())
-    }
-}
-
-impl From<crate::street::router::ParamError> for RouteError {
-    fn from(e: crate::street::router::ParamError) -> Self {
-        RouteError::Invalid(e.0)
     }
 }
 

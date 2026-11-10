@@ -13,7 +13,7 @@
 
 use super::decay::{Decay, DecayFunction};
 use super::matrix::{
-    par_origins, percentile_index, validate_percentiles, Query, TransitData, TransitParams,
+    check_percentiles, par_origins, percentile_index, Query, TransitData, TransitParams,
 };
 use super::raptor::UNREACHED;
 use super::TransitLayer;
@@ -177,7 +177,7 @@ impl Reducer {
         n_destinations: usize,
     ) -> Result<Self, String> {
         // AnalysisWorkerTask.validatePercentiles (r5r sorts them first)
-        validate_percentiles(percentiles)?;
+        check_percentiles(percentiles)?;
         let mut percentiles = percentiles.to_vec();
         percentiles.sort_unstable();
         // AnalysisWorkerTask.validateCutoffsMinutes (r5r sorts them first)
@@ -301,12 +301,13 @@ impl Reducer {
 /// `p.percentiles` are the travel-time percentiles; `p.max_trip_duration`
 /// and `p.max_walk_time` must already be what r5r hands to R5 (for the
 /// step function r5r sets `max_trip_duration` to the largest cutoff before
-/// deriving the walk limit; see `r5r_trip_limits`).
+/// deriving the walk limit; see [`r5r_trip_limits`]).
 ///
 /// Every origin gets a value for every (opportunity, percentile, cutoff),
-/// 0 when nothing is reachable or the origin cannot be linked.
-/// [`RouteError::Cancelled`] when `p.cancel` is cancelled before every
-/// origin is done.
+/// 0 when nothing is reachable or the origin cannot be linked. Points are
+/// `(lat, lon)` degrees. [`RouteError::Invalid`] when the parameters,
+/// cutoffs or opportunity columns are invalid, [`RouteError::Cancelled`]
+/// when `p.cancel` is cancelled before every origin is done.
 pub fn transit_accessibility(
     net: &StreetNetwork,
     layer: &TransitLayer,
@@ -341,9 +342,10 @@ pub fn transit_accessibility(
 /// one of `WALK`, `BICYCLE`, `CAR`): one unvarying travel time per
 /// destination, so every percentile gets the same value
 /// (`TravelTimeReducer.recordUnvaryingTravelTimeAtTarget`).
-/// `params.max_trip_duration_min` is the search limit r5r passes to R5.
-/// [`RouteError::Cancelled`] when `params.cancel` is cancelled before every
-/// origin is done.
+/// `params.max_trip_duration_min` is the search limit r5r passes to R5,
+/// and `percentiles` are checked as
+/// [`validate_percentiles`](crate::validate_percentiles) does.
+/// Errors as [`transit_accessibility`].
 pub fn street_accessibility(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
@@ -399,11 +401,11 @@ pub fn r5r_trip_limits(
     max_trip_duration: i32,
     max_walk_time: Option<i32>,
     walk_only: bool,
-) -> Result<(i32, i32), String> {
+) -> Result<(i32, i32), RouteError> {
     if max_trip_duration < 1 {
-        return Err(format!(
+        return Err(RouteError::Invalid(format!(
             "max_trip_duration must be at least 1, got {max_trip_duration}"
-        ));
+        )));
     }
     let mut m = max_trip_duration;
     if let Some(cutoffs) = cutoffs {
@@ -417,7 +419,11 @@ pub fn r5r_trip_limits(
     }
     let w = match max_walk_time {
         Some(w) if w >= 1 => w,
-        Some(w) => return Err(format!("max_walk_time must be at least 1, got {w}")),
+        Some(w) => {
+            return Err(RouteError::Invalid(format!(
+                "max_walk_time must be at least 1, got {w}"
+            )))
+        }
         None => m,
     };
     if walk_only && w < m {
