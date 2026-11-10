@@ -17,9 +17,6 @@ fn varint(out: &mut Vec<u8>, mut v: u64) {
     }
     out.push(v as u8);
 }
-fn zz(v: i64) -> u64 {
-    ((v << 1) ^ (v >> 63)) as u64
-}
 fn fvar(out: &mut Vec<u8>, field: u32, v: u64) {
     varint(out, u64::from(field) << 3);
     varint(out, v);
@@ -28,21 +25,6 @@ fn fbytes(out: &mut Vec<u8>, field: u32, b: &[u8]) {
     varint(out, (u64::from(field) << 3) | 2);
     varint(out, b.len() as u64);
     out.extend_from_slice(b);
-}
-fn packed(vals: impl IntoIterator<Item = u64>) -> Vec<u8> {
-    let mut o = Vec::new();
-    for v in vals {
-        varint(&mut o, v);
-    }
-    o
-}
-fn packed_delta(vals: &[i64]) -> Vec<u8> {
-    let mut prev = 0;
-    packed(vals.iter().map(|&v| {
-        let d = v - prev;
-        prev = v;
-        zz(d)
-    }))
 }
 /// One raw (uncompressed) blob with an explicit `datasize`.
 fn blob_with_datasize(kind: &str, payload: &[u8], datasize: u64) -> Vec<u8> {
@@ -88,70 +70,6 @@ fn pbf_empty_file_is_silently_empty() {
     // also: a file holding only an OSMHeader blob
     let f = blob("OSMHeader", b"");
     assert!(read_pbf(&f, &opts()).unwrap().ways.is_empty());
-}
-
-/// One block with dense nodes 1..=4 on a line and way 10 over them.
-fn line_block() -> Vec<u8> {
-    let mut st = Vec::new();
-    for s in ["", "highway", "residential"] {
-        fbytes(&mut st, 1, s.as_bytes());
-    }
-    let mut dense = Vec::new();
-    fbytes(&mut dense, 1, &packed_delta(&[1, 2, 3, 4]));
-    fbytes(
-        &mut dense,
-        8,
-        &packed_delta(&[-235_000_000, -235_010_000, -235_020_000, -235_030_000]),
-    );
-    fbytes(&mut dense, 9, &packed_delta(&[-466_000_000; 4]));
-    let mut way = Vec::new();
-    fvar(&mut way, 1, 10);
-    fbytes(&mut way, 2, &packed([1]));
-    fbytes(&mut way, 3, &packed([2]));
-    fbytes(&mut way, 8, &packed_delta(&[1, 2, 3, 4]));
-    let (mut g1, mut g2) = (Vec::new(), Vec::new());
-    fbytes(&mut g1, 2, &dense);
-    fbytes(&mut g2, 3, &way);
-    let mut block = Vec::new();
-    fbytes(&mut block, 1, &st);
-    fbytes(&mut block, 2, &g1);
-    fbytes(&mut block, 2, &g2);
-    block
-}
-
-/// The same way present twice (e.g. extracts concatenated with
-/// `osmium cat`, which does not deduplicate) is kept twice: two identical
-/// edge pairs, and every node's reference count doubles, so every node of
-/// the way becomes an "intersection" and the way is cut at every node.
-/// osm-lib (R5) stores ways in a map by id, so the duplicate collapses.
-#[test]
-fn pbf_duplicate_way_is_kept_twice() {
-    let ref_all = |_: &[(&str, &str)]| true;
-    let o = ReadOptions {
-        ref_count_filter: Some(&ref_all),
-        ..opts()
-    };
-    let once = blob("OSMData", &line_block());
-    let mut twice = once.clone();
-    twice.extend(blob("OSMData", &line_block()));
-    let a = read_pbf(&once, &o).unwrap();
-    let b = read_pbf(&twice, &o).unwrap();
-    eprintln!(
-        "pbf_duplicate_way: once: {} ways, ref_counts {:?}; twice: {} ways, ref_counts {:?}",
-        a.ways.len(),
-        a.ref_counts,
-        b.ways.len(),
-        b.ref_counts
-    );
-    let na = network_from_extract(a);
-    let nb = network_from_extract(b);
-    eprintln!(
-        "pbf_duplicate_way: edge pairs once = {}, twice = {}",
-        na.pair_from.len(),
-        nb.pair_from.len()
-    );
-    assert_eq!(na.pair_from.len(), 1);
-    assert_eq!(nb.pair_from.len(), 6);
 }
 
 /// A 0-byte .pbf next to a real GTFS feed builds "successfully": no streets,

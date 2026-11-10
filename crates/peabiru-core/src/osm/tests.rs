@@ -304,6 +304,72 @@ fn coordinates_that_overflow_are_an_error() {
     }
 }
 
+/// One block with dense nodes 1..=4 on a line and way 10 over them, tagged
+/// `highway=<kind>`.
+fn line_block(kind: &str) -> Vec<u8> {
+    let mut st = Vec::new();
+    for x in ["", "highway", kind] {
+        field_bytes(&mut st, 1, x.as_bytes());
+    }
+    let mut dense = Vec::new();
+    field_bytes(&mut dense, 1, &packed_delta(&[1, 2, 3, 4]));
+    field_bytes(
+        &mut dense,
+        8,
+        &packed_delta(&[-235_000_000, -235_010_000, -235_020_000, -235_030_000]),
+    );
+    field_bytes(&mut dense, 9, &packed_delta(&[-466_000_000; 4]));
+    let mut way = Vec::new();
+    field_varint(&mut way, 1, 10);
+    field_bytes(&mut way, 2, &packed([1]));
+    field_bytes(&mut way, 3, &packed([2]));
+    field_bytes(&mut way, 8, &packed_delta(&[1, 2, 3, 4]));
+    let (mut g1, mut g2) = (Vec::new(), Vec::new());
+    field_bytes(&mut g1, 2, &dense);
+    field_bytes(&mut g2, 3, &way);
+    let mut block = Vec::new();
+    field_bytes(&mut block, 1, &st);
+    field_bytes(&mut block, 2, &g1);
+    field_bytes(&mut block, 2, &g2);
+    blob("OSMData", &block, false)
+}
+
+/// A way present twice (extracts concatenated without deduplication) is
+/// kept once, the last occurrence, as osm-lib's map by id does; every
+/// occurrence still counts as a reference, so its nodes all become
+/// intersections, as in R5.
+#[test]
+fn repeated_way_keeps_its_last_occurrence() {
+    use crate::street::build::network_from_extract;
+    let once = line_block("residential");
+    let mut twice = once.clone();
+    twice.extend(line_block("residential"));
+    let a = read_pbf(&once, &opts(1)).unwrap();
+    let b = read_pbf(&twice, &opts(2)).unwrap();
+    assert_eq!((a.ways.len(), b.ways.len()), (1, 1));
+    assert_eq!(a.ref_counts, [1, 1, 1, 1]);
+    assert_eq!(b.ref_counts, [2, 2, 2, 2]);
+    assert_eq!(network_from_extract(a).pair_from.len(), 1);
+    assert_eq!(network_from_extract(b).pair_from.len(), 3);
+
+    // A last occurrence that the filter rejects replaces the kept one.
+    let mut f = line_block("residential");
+    f.extend(line_block("proposed"));
+    let not_highway = |t: &[(&str, &str)]| tag(t, "highway") == Some("residential");
+    let o = ReadOptions {
+        way_filter: &not_highway,
+        ..opts(1)
+    };
+    let c = read_pbf(&f, &o).unwrap();
+    assert!(c.ways.is_empty() && c.node_ids.is_empty() && c.ref_counts.is_empty());
+    // ... and the other way round, the last one is kept.
+    let mut f = line_block("proposed");
+    f.extend(line_block("residential"));
+    let d = read_pbf(&f, &o).unwrap();
+    assert_eq!(d.ways.len(), 1);
+    assert_eq!(d.ways[0].tags.get("highway"), Some("residential"));
+}
+
 #[test]
 fn file_errors_name_the_file() {
     let dir = std::env::temp_dir().join(format!("peabiru-pbf-error-{}", std::process::id()));
