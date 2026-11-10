@@ -23,3 +23,14 @@ reading ways and feeds in R5's order, keeping the first of two equal states as
 R5's priority queue does, mixing `float` and `double` as the Java code does,
 reproducing R5's random number stream, and using Apache Commons Math's
 `FastMath.exp` instead of the platform's `exp`.
+
+Results can differ between machines when a network has more than one GTFS
+feed. R5 loads the feeds in the order in which the operating system lists the
+directory, and peabiru does the same; that order depends on the file system.
+On r5r's Porto Alegre sample (two feeds), r5r on macOS and r5r on Linux give
+the same travel-time matrices and accessibility, but 227 of the 605,460 rows
+of the expanded matrix differ: another stop or route, and a total time up to
+0.2 minutes apart. peabiru matches r5r row for row on each platform, so
+reference outputs are only valid for the machine that produced them. The references in `bench/results/r5r` are
+whatever r5r wrote on the machine that ran `bench/r5r/`; generate them on the
+platform where the comparison runs.

@@ -107,7 +107,11 @@ Some behaviours are r5r's (and R5's), kept so that the results are equal:
   calls, which makes the values bit-identical to r5r's;
 - departure times past midnight are written past `24:00:00`, as R5 writes
   them, and the expanded and arrival matrices accept at most 5,000
-  destinations, R5's limit.
+  destinations, R5's limit;
+- GTFS feeds are loaded in the order in which the operating system lists
+  the directory, as R5 loads them. With more than one feed, the expanded
+  and arrival matrices can therefore differ slightly between machines
+  (another stop or route for a few trips), exactly as r5r's do.
 
 ## From r5py
 

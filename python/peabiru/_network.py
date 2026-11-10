@@ -108,6 +108,13 @@ def build_network(
     the raster still disables the swap of origins and destinations that r5r
     does for walking).
 
+    The GTFS feeds are loaded in the order in which the operating system
+    lists the directory, as R5 does. With more than one feed that order
+    depends on the file system, so the same directory can give slightly
+    different expanded and arrival matrices on two machines (another stop
+    or route for a few trips); r5r behaves in the same way, and on one
+    machine the results are always the same.
+
     Parameters
     ----------
     data_path : str or os.PathLike
