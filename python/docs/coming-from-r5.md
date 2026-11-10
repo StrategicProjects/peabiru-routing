@@ -96,6 +96,7 @@ dtype: object
 - **Some GTFS feeds that r5r refuses to build are accepted**: the tables
   may be in a subfolder of the `.zip`, a trip that refers to a stop or
   route that does not exist is left out, and `agency.txt` is not required.
+  `build_network()` gives a `UserWarning` for each such feed, naming it.
 
 ### Kept for equal results
 
