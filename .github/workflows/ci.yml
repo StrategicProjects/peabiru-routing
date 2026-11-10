@@ -38,6 +38,11 @@ jobs:
       - name: Format
         if: runner.os == 'Linux'
         run: cargo fmt --all --check
+      - name: Licence notices match the lockfiles
+        # the crates' notices shipped in the packages and the copies of the
+        # root licence files; regenerate with the script when this fails
+        if: runner.os == 'Linux'
+        run: python3 tools/third_party_notices.py --check
       - name: Lint
         run: cargo clippy --all-targets --locked -- -D warnings
       - name: Test

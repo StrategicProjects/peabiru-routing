@@ -36,7 +36,14 @@ from ._assign import (
     seed_arg,
     swap_od,
 )
-from ._checks import assert_count, assert_flag, assert_number, fail_assert, unsupported
+from ._checks import (
+    assert_count,
+    assert_flag,
+    assert_number,
+    core_errors,
+    fail_assert,
+    unsupported,
+)
 from ._network import Network, assert_network
 
 Mode = Union[str, Sequence[str]]
@@ -279,19 +286,21 @@ def travel_time_matrix(
     names = [f"travel_time_p{p:02d}" for p in pcts]
     core = r5r_network._core
     if mode_list.transit:
-        fb, tb, cols = _peabiru.transit_ttm(
-            core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
-            departure.yyyymmdd, departure.seconds, int(time_window), pcts,
-            lim["walk"], mtd, float(walk_speed), int(max_rides),
-            int(draws_per_minute), c["seed"], c["threads"],
-        )
+        with core_errors("travel_time_matrix"):
+            fb, tb, cols = _peabiru.transit_ttm(
+                core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+                departure.yyyymmdd, departure.seconds, int(time_window), pcts,
+                lim["walk"], mtd, float(walk_speed), int(max_rides),
+                int(draws_per_minute), c["seed"], c["threads"],
+            )
         times = [_i32(b) for b in cols]
     else:
-        fb, tb, tt = _peabiru.street_ttm(
-            core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
-            mode_list.direct_modes, float(walk_speed), float(bike_speed),
-            int(max_lts), mtd, c["threads"],
-        )
+        with core_errors("travel_time_matrix"):
+            fb, tb, tt = _peabiru.street_ttm(
+                core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+                mode_list.direct_modes, float(walk_speed), float(bike_speed),
+                int(max_lts), mtd, c["threads"],
+            )
         # a street mode has one travel time, reported for every percentile
         times = [_i32(tt)] * len(pcts)
     frm, to = _i32(fb), _i32(tb)
@@ -514,16 +523,17 @@ def accessibility(
     check_output_dir(output_dir)
     check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
-    values = _f64(
-        _peabiru.accessibility(
-            r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
-            opp, "TRANSIT" if mode_list.transit else mode_list.direct_modes,
-            fun, value, cutoffs_r5, pcts,
-            departure.yyyymmdd, departure.seconds, int(time_window),
-            lim["walk"], lim["trip"], float(walk_speed), float(bike_speed),
-            int(max_lts), int(max_rides), int(draws_per_minute), c["seed"], c["threads"],
+    with core_errors("accessibility"):
+        values = _f64(
+            _peabiru.accessibility(
+                r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+                opp, "TRANSIT" if mode_list.transit else mode_list.direct_modes,
+                fun, value, cutoffs_r5, pcts,
+                departure.yyyymmdd, departure.seconds, int(time_window),
+                lim["walk"], lim["trip"], float(walk_speed), float(bike_speed),
+                int(max_lts), int(max_rides), int(draws_per_minute), c["seed"], c["threads"],
+            )
         )
-    )
 
     # one row per origin, opportunity, percentile and cutoff, in that order
     n_o, n_k, n_p, n_c = len(o), len(opp_names), len(pcts), len(cutoffs_r5)
@@ -706,12 +716,13 @@ def expanded_travel_time_matrix(
     assert_flag(breakdown, "breakdown")
     check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
-    res = _peabiru.expanded(
-        r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
-        False, departure.yyyymmdd, departure.seconds, int(time_window),
-        lim["walk"], lim["trip"], float(walk_speed), int(max_rides),
-        int(draws_per_minute), c["seed"], c["threads"],
-    )
+    with core_errors("expanded_travel_time_matrix", n_destinations=len(d)):
+        res = _peabiru.expanded(
+            r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+            False, departure.yyyymmdd, departure.seconds, int(time_window),
+            lim["walk"], lim["trip"], float(walk_speed), int(max_rides),
+            int(draws_per_minute), c["seed"], c["threads"],
+        )
     return _expanded_result(res, o, d, bool(breakdown), lim["trip"])
 
 
@@ -890,12 +901,18 @@ def arrival_travel_time_matrix(
     assert_flag(breakdown, "breakdown")
     check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
-    res = _peabiru.expanded(
-        r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
-        True, departure.yyyymmdd, departure.seconds, mtd,
-        lim["walk"], mtd, float(walk_speed), int(max_rides),
-        int(draws_per_minute), c["seed"], c["threads"],
-    )
+    # the engine's time window is max_trip_duration here
+    with core_errors(
+        "arrival_travel_time_matrix",
+        names={"time_window": "max_trip_duration"},
+        n_destinations=len(d),
+    ):
+        res = _peabiru.expanded(
+            r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+            True, departure.yyyymmdd, departure.seconds, mtd,
+            lim["walk"], mtd, float(walk_speed), int(max_rides),
+            int(draws_per_minute), c["seed"], c["threads"],
+        )
     return _expanded_result(res, o, d, bool(breakdown), mtd)
 
 

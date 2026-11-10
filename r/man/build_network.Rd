@@ -43,6 +43,9 @@ by every routing function; nothing is written to \code{data_path}, and there is
 no \code{network.dat} cache.
 }
 \details{
+As in r5r, the files are recognised by their extension in lower case only:
+a \code{map.PBF} or a \code{feed.ZIP} is ignored.
+
 Elevation is not supported yet. As in r5r, when the directory has no
 \code{.tif} raster the network is built with \code{elevation = "NONE"}; when it has
 one (a file ending in \code{.tif} or \code{.tiff}), \code{elevation = "NONE"} must be

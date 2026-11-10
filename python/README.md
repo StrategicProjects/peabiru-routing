@@ -65,8 +65,14 @@ pip install peabiru            # once published on PyPI
 pip install "peabiru[geo]"     # with geopandas
 ```
 
-Requires Python 3.9 or later and pandas. From a clone of the repository
-(needs a Rust toolchain):
+Requires Python 3.9 or later and pandas. The release builds wheels for
+Linux with glibc (x86_64 and aarch64), macOS (arm64 and x86_64) and Windows
+(x64), one wheel per platform for every Python from 3.9. There are no wheels for
+Linux with musl (Alpine) or for Windows on Arm: there pip builds the package
+from the source distribution, which needs a Rust toolchain (rustc 1.81 or
+later).
+
+From a clone of the repository (needs a Rust toolchain):
 
 ```sh
 cd python
@@ -102,10 +108,15 @@ JAVA_HOME=/path/to/jdk21 python/.venv/bin/python bench/compare/py_parity.py poa 
 `peabiru.sample_data_path()` is a small network cut from r5r's Sao Paulo
 sample data. Its `spo_osm.pbf` contains map data (c) OpenStreetMap
 contributors, available under the
-[Open Database License](https://www.openstreetmap.org/copyright).
+[Open Database License](https://www.openstreetmap.org/copyright), and
+`spo_gtfs.zip` is the SPTrans GTFS feed shipped with r5r, without
+`shapes.txt`. Their sources are detailed in `LICENSE-THIRD-PARTY`.
 
 ## License
 
 MIT. peabiru ports R5 (MIT, Conveyal) and parts of Apache Commons Math
 (Apache-2.0); their notices and licence texts are in `LICENSE-THIRD-PARTY`,
-shipped with the package.
+shipped with the package. The compiled extension module also contains code
+from the Rust crates pyo3, miniz_oxide and others (MIT, Apache-2.0 and
+similar licences); their licences are in `LICENSE-RUST-CRATES`, also shipped
+with the package.

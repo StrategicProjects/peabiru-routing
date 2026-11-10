@@ -9,7 +9,7 @@ name = "peabiru"
 description = "Multimodal routing on OpenStreetMap and GTFS networks: travel-time matrices and accessibility, with a Rust engine and no Java"
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE-MIT", "LICENSE-THIRD-PARTY"]
+license-files = ["LICENSE-MIT", "LICENSE-THIRD-PARTY", "LICENSE-RUST-CRATES"]
 requires-python = ">=3.9"
 authors = [
     { name = "André Leite", email = "leite@castlab.org" },

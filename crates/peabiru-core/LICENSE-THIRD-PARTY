@@ -7,8 +7,14 @@ routing engine, and parts of its source code are translations of, or are
 derived from, the works listed below. Their copyright notices and licence
 texts are reproduced here as those licences require.
 
-The same file is distributed with the peabiru-core crate, the Python package
-and the R package. Paths are relative to crates/peabiru-core/src/.
+The same file is distributed with the peabiru-core and peabiru-cli crates,
+the Python package and the R package. Paths are relative to
+crates/peabiru-core/src/.
+
+The compiled Python extension module, the R package's library and the
+command-line tool also contain code from other Rust crates (pyo3, extendr,
+miniz_oxide and others). Their licences are in LICENSE-RUST-CRATES, next to
+this file in each of those packages (in the R package, inst/).
 
 Contents
 
@@ -423,11 +429,19 @@ here for transparency.
 ==============================================================================
 
 The R and Python packages include a small network of the area around Avenida
-Paulista, in Sao Paulo, cut from the sample data of r5r:
+Paulista, in Sao Paulo, cut from the sample data of r5r 2.5.0
+(inst/extdata/spo in the r5r package):
 
-  spo_osm.pbf     Map data (c) OpenStreetMap contributors, available under
+  spo_osm.pbf     Cut from r5r's spo_osm.pbf, an extract of OpenStreetMap.
+                  Map data (c) OpenStreetMap contributors, available under
                   the Open Database License (ODbL),
                   https://www.openstreetmap.org/copyright
-  spo_gtfs.zip    The SPTrans GTFS feed shipped with r5r, without shapes.txt.
-  spo_points.csv  27 points of r5r's hexagonal grid of Sao Paulo, with their
-                  population and opportunity counts.
+  spo_gtfs.zip    r5r's spo.zip without shapes.txt: a frequency-based GTFS
+                  feed whose agency.txt names the agency SPTRANS,
+                  http://www.sptrans.com.br.
+  spo_points.csv  27 points of r5r's spo_hexgrid.csv, the hexagonal grid of
+                  Sao Paulo, with their population and opportunity counts.
+
+r5r distributes these files as part of its package, under "GPL (>= 3) | MIT
++ file LICENSE" (the MIT notice is in section 4), and states no other
+licence or source for them; peabiru gives the same attribution.

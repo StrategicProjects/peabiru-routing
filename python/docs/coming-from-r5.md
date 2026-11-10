@@ -93,6 +93,9 @@ dtype: object
 - **`arrival_datetime`** has a default of `None` (Python cannot have a
   required argument after optional ones); leaving it out is the same error
   as in r5r.
+- **Some GTFS feeds that r5r refuses to build are accepted**: the tables
+  may be in a subfolder of the `.zip`, a trip that refers to a stop or
+  route that does not exist is left out, and `agency.txt` is not required.
 
 ### Kept for equal results
 

@@ -36,10 +36,14 @@ $(STATLIB):
 	export LIBRARY_PATH="$(LIBRARY_PATH);$(CURDIR)/$(TARGET_DIR)/libgcc_mock" && \
 	RUSTFLAGS="$(RUSTFLAGS) --print=native-static-libs" cargo build @CRAN_FLAGS@ --target=$(TARGET) --lib @PROFILE@ --manifest-path=rust/Cargo.toml --target-dir=$(TARGET_DIR)
 
-	# Generate wrappers
+	# Regenerate R/extendr-wrappers.R only in development builds (NOT_CRAN
+	# set, as devtools::document() does): it compiles the crate a second
+	# time; a CRAN build uses the committed wrappers.
+	if [ "@DOCUMENT@" = "true" ]; then \
 	export CARGO_HOME=$(CARGOTMP) && \
 	export PATH="$(PATH):$(HOME)/.cargo/bin" && \
-	cargo run @CRAN_FLAGS@ --bin document --target $(TARGET) --manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR)
+	cargo run @CRAN_FLAGS@ --bin document --target $(TARGET) --manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR); \
+	fi
 
 	# Always clean up CARGOTMP
 	rm -Rf $(CARGOTMP);

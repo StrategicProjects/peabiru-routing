@@ -38,9 +38,14 @@ $(STATLIB):
 	export PATH="$(PATH):$(HOME)/.cargo/bin" && \
 	@PANIC_EXPORTS@RUSTFLAGS="$(RUSTFLAGS) --print=native-static-libs" cargo build @CRAN_FLAGS@ --lib @PROFILE@ --manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR) @TARGET@
 
+	# Regenerate R/extendr-wrappers.R only in development builds (NOT_CRAN
+	# set, as devtools::document() does): it compiles the crate a second
+	# time; a CRAN build uses the committed wrappers.
+	if [ "@DOCUMENT@" = "true" ]; then \
 	export CARGO_HOME=$(CARGOTMP) && \
 	export PATH="$(PATH):$(HOME)/.cargo/bin" && \
-	cargo run @CRAN_FLAGS@ --bin document --manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR) @TARGET@
+	cargo run @CRAN_FLAGS@ --bin document --manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR) @TARGET@; \
+	fi
 
 	# Always clean up CARGOTMP
 	rm -Rf $(CARGOTMP);
