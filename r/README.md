@@ -79,3 +79,7 @@ arrival matrices, coming from r5r, how the engine works, and benchmarks.
 
 MIT. The routing logic is ported from R5 (MIT, © Conveyal), and r5r (Ipea)
 defined the interface and supplies the reference results for the tests.
+The notices of the works peabiru derives from are in
+`inst/LICENSE-THIRD-PARTY`. The package's compiled code also contains Rust
+crates by other authors (extendr, miniz_oxide and others): they are listed
+in `inst/AUTHORS`, with their licence texts in `inst/LICENSE-RUST-CRATES`.

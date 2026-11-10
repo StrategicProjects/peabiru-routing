@@ -180,3 +180,9 @@ works are in [`LICENSE-THIRD-PARTY`](LICENSE-THIRD-PARTY), which is
 distributed with every package. The sample network in the R and Python
 packages contains map data © OpenStreetMap contributors, under the
 [Open Database License](https://www.openstreetmap.org/copyright).
+
+The Python extension module, the R package's library and the command-line
+tool also contain code from other Rust crates (pyo3, extendr, miniz_oxide and
+others, under MIT, Apache-2.0 and similar licences). Their licences are in a
+`LICENSE-RUST-CRATES` file shipped with each of those packages, generated
+from the lockfiles by `tools/third_party_notices.py`.

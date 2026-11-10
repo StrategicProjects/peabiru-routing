@@ -108,4 +108,7 @@ contributors, available under the
 
 MIT. peabiru ports R5 (MIT, Conveyal) and parts of Apache Commons Math
 (Apache-2.0); their notices and licence texts are in `LICENSE-THIRD-PARTY`,
-shipped with the package.
+shipped with the package. The compiled extension module also contains code
+from the Rust crates pyo3, miniz_oxide and others (MIT, Apache-2.0 and
+similar licences); their licences are in `LICENSE-RUST-CRATES`, also shipped
+with the package.
