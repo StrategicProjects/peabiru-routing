@@ -92,3 +92,11 @@ def test_network_cannot_be_pickled(network):
 
 def test_unsupported_error_is_not_implemented():
     assert issubclass(peabiru.UnsupportedError, NotImplementedError)
+
+
+def test_the_service_count_takes_a_calendar_date_only(network):
+    total, active = network._core.transit_availability(20190513)
+    assert total >= active > 0
+    for bad in (20190230, 20191301, 0):
+        with pytest.raises(ValueError, match="calendar date"):
+            network._core.transit_availability(bad)

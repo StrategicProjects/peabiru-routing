@@ -11,6 +11,11 @@
 //! per column instead of one Python object per cell (a matrix can have
 //! millions of rows), without a compile-time dependency on numpy. Row
 //! indices are 0-based.
+//!
+//! A routing call runs the core on a thread of its own while the calling
+//! thread, without the GIL, wakes up every [`POLL`] to run Python's signal
+//! handlers: Ctrl-C cancels the computation, and once its workers have
+//! stopped the call raises `KeyboardInterrupt`.
 
 use peabiru_core::street::{self, BuildOptions, Mode, RouteParams, StreetNetwork};
 use peabiru_core::transit::accessibility::{
@@ -22,10 +27,12 @@ use peabiru_core::transit::expanded::{
 };
 use peabiru_core::transit::matrix::{self, TransitData, TransitParams};
 use peabiru_core::transit::{self as tr, TransitLayer};
+use peabiru_core::{CancelToken, RouteError};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
 use std::collections::HashMap;
+use std::time::Duration;
 
 /// Missing value in the `i32` columns handed to Python.
 const NA_I32: i32 = i32::MIN;
@@ -52,6 +59,48 @@ fn runtime_err(msg: impl std::fmt::Display) -> PyErr {
 
 fn value_err(msg: impl std::fmt::Display) -> PyErr {
     PyValueError::new_err(msg.to_string())
+}
+
+/// How often a routing call checks for signals while the core runs.
+const POLL: Duration = Duration::from_millis(50);
+
+/// Run `work` on a thread of its own and wait for it with the GIL
+/// released, running Python's signal handlers every [`POLL`]. When they
+/// raise (`KeyboardInterrupt` on Ctrl-C), `cancel` is cancelled, the
+/// workers are waited for, and that exception is raised. `work` must hand
+/// `cancel` to the core.
+fn interruptible<T: Send>(
+    py: Python<'_>,
+    cancel: &CancelToken,
+    work: impl FnOnce() -> Result<T, RouteError> + Send,
+) -> PyResult<T> {
+    let caller = std::thread::current();
+    std::thread::scope(|scope| {
+        let worker = scope.spawn(move || {
+            let r = work();
+            caller.unpark();
+            r
+        });
+        let mut raised = None;
+        while !worker.is_finished() {
+            py.detach(|| std::thread::park_timeout(POLL));
+            if raised.is_none() && !worker.is_finished() {
+                if let Err(e) = py.check_signals() {
+                    cancel.cancel();
+                    raised = Some(e);
+                }
+            }
+        }
+        let r = worker
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+        match (raised, r) {
+            (Some(e), _) => Err(e),
+            (None, Ok(v)) => Ok(v),
+            (None, Err(RouteError::Invalid(msg))) => Err(value_err(msg)),
+            (None, Err(e)) => Err(runtime_err(e)),
+        }
+    })
 }
 
 fn transit(n: &Network) -> PyResult<&Transit> {
@@ -126,9 +175,10 @@ impl Network {
 
     /// Number of services in the network and of those active on `date`
     /// (`yyyymmdd`), as r5r's `getTransitServiceAvailability`.
-    fn transit_availability(&self, date: u32) -> (usize, usize) {
+    fn transit_availability(&self, date: u32) -> PyResult<(usize, usize)> {
+        matrix::validate_date(date).map_err(value_err)?;
         let Some(t) = &self.transit else {
-            return (0, 0);
+            return Ok((0, 0));
         };
         let wd = matrix::weekday(date);
         let active = t
@@ -137,7 +187,7 @@ impl Network {
             .iter()
             .filter(|s| s.active_on(date, wd))
             .count();
-        (t.layer.services.len(), active)
+        Ok((t.layer.services.len(), active))
     }
 }
 
@@ -199,23 +249,21 @@ fn street_ttm<'py>(
         max_lts,
         max_trip_duration_min: max_trip_duration,
         n_threads,
+        cancel: CancelToken::new(),
     };
-    let (from, to, tt) = py
-        .detach(|| {
-            let m = street::travel_time_matrix(&n.net, &o, &d, mode, &params)
-                .map_err(|e| e.to_string())?;
-            let nd = d.len();
-            let (mut from, mut to, mut tt) = (Vec::new(), Vec::new(), Vec::new());
-            for (k, v) in m.iter().enumerate() {
-                if let Some(v) = v {
-                    from.push((k / nd) as i32);
-                    to.push((k % nd) as i32);
-                    tt.push(*v as i32);
-                }
+    let (from, to, tt) = interruptible(py, &params.cancel, || {
+        let m = street::travel_time_matrix(&n.net, &o, &d, mode, &params)?;
+        let nd = d.len();
+        let (mut from, mut to, mut tt) = (Vec::new(), Vec::new(), Vec::new());
+        for (k, v) in m.iter().enumerate() {
+            if let Some(v) = v {
+                from.push((k / nd) as i32);
+                to.push((k % nd) as i32);
+                tt.push(*v as i32);
             }
-            Ok::<_, String>((from, to, tt))
-        })
-        .map_err(value_err)?;
+        }
+        Ok((from, to, tt))
+    })?;
     Ok((
         i32_bytes(py, &from)?,
         i32_bytes(py, &to)?,
@@ -249,6 +297,7 @@ fn transit_params(
         draws_per_minute,
         seed,
         n_threads,
+        cancel: CancelToken::new(),
     }
 }
 
@@ -293,26 +342,24 @@ fn transit_ttm<'py>(
         seed,
         n_threads,
     );
-    let (from, to, cols) = py
-        .detach(|| {
-            let m = matrix::travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)?;
-            let (mut from, mut to) = (Vec::new(), Vec::new());
-            let mut cols: Vec<Vec<i32>> = vec![Vec::new(); np];
-            for (i, row) in m.iter().enumerate() {
-                for (j, cell) in row.iter().enumerate() {
-                    if cell[0].is_none() {
-                        continue;
-                    }
-                    from.push(i as i32);
-                    to.push(j as i32);
-                    for (c, v) in cols.iter_mut().zip(cell) {
-                        c.push(v.map_or(NA_I32, |v| v as i32));
-                    }
+    let (from, to, cols) = interruptible(py, &p.cancel, || {
+        let m = matrix::travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)?;
+        let (mut from, mut to) = (Vec::new(), Vec::new());
+        let mut cols: Vec<Vec<i32>> = vec![Vec::new(); np];
+        for (i, row) in m.iter().enumerate() {
+            for (j, cell) in row.iter().enumerate() {
+                if cell[0].is_none() {
+                    continue;
+                }
+                from.push(i as i32);
+                to.push(j as i32);
+                for (c, v) in cols.iter_mut().zip(cell) {
+                    c.push(v.map_or(NA_I32, |v| v as i32));
                 }
             }
-            Ok::<_, String>((from, to, cols))
-        })
-        .map_err(value_err)?;
+        }
+        Ok((from, to, cols))
+    })?;
     let cols = cols
         .iter()
         .map(|c| i32_bytes(py, c))
@@ -394,15 +441,17 @@ fn accessibility<'py>(
     } else {
         None
     };
-    let values = py
-        .detach(|| {
-            let dest = Destinations {
-                points: &d,
-                opportunities: &opp,
-            };
-            match (street, t) {
-                (None, Some(t)) => {
-                    let p = transit_params(
+    let cancel = CancelToken::new();
+    let values = interruptible(py, &cancel, || {
+        let dest = Destinations {
+            points: &d,
+            opportunities: &opp,
+        };
+        match (street, t) {
+            (None, Some(t)) => {
+                let p = TransitParams {
+                    cancel: cancel.clone(),
+                    ..transit_params(
                         date,
                         departure_time,
                         time_window,
@@ -414,23 +463,24 @@ fn accessibility<'py>(
                         draws_per_minute,
                         seed,
                         n_threads,
-                    );
-                    transit_accessibility(&n.net, &t.layer, &t.data, &o, &dest, &p, &a)
-                }
-                (Some(m), _) => {
-                    let params = RouteParams {
-                        walk_speed_kmh: walk_speed,
-                        bike_speed_kmh: bike_speed,
-                        max_lts,
-                        max_trip_duration_min: max_trip_duration,
-                        n_threads,
-                    };
-                    street_accessibility(&n.net, &o, &dest, m, &params, &percentiles, &a)
-                }
-                (None, None) => unreachable!("transit checked above"),
+                    )
+                };
+                transit_accessibility(&n.net, &t.layer, &t.data, &o, &dest, &p, &a)
             }
-        })
-        .map_err(value_err)?;
+            (Some(m), _) => {
+                let params = RouteParams {
+                    walk_speed_kmh: walk_speed,
+                    bike_speed_kmh: bike_speed,
+                    max_lts,
+                    max_trip_duration_min: max_trip_duration,
+                    n_threads,
+                    cancel: cancel.clone(),
+                };
+                street_accessibility(&n.net, &o, &dest, m, &params, &percentiles, &a)
+            }
+            (None, None) => unreachable!("transit checked above"),
+        }
+    })?;
     f64_bytes(py, &values.values)
 }
 
@@ -480,16 +530,14 @@ fn expanded<'py>(
         seed,
         n_threads,
     );
-    let cols = py
-        .detach(|| {
-            let rows: Vec<Vec<ExpandedRow>> = if arrival {
-                arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
-            } else {
-                expanded_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
-            }?;
-            Ok::<_, String>(ExpandedColumns::new(rows))
-        })
-        .map_err(value_err)?;
+    let cols = interruptible(py, &p.cancel, || {
+        let rows: Vec<Vec<ExpandedRow>> = if arrival {
+            arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+        } else {
+            expanded_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+        }?;
+        Ok(ExpandedColumns::new(rows))
+    })?;
     let out = PyDict::new(py);
     out.set_item("from", i32_bytes(py, &cols.from)?)?;
     out.set_item("to", i32_bytes(py, &cols.to)?)?;
