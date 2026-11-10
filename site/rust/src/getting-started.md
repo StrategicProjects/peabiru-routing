@@ -23,6 +23,9 @@ data/spo/
 └── spo_gtfs.zip     # public transport (optional, several allowed)
 ```
 
+Files are recognised by their extension in lower case only, as in r5r: a
+`map.PBF` or a `feed.ZIP` in the directory is ignored.
+
 The examples use `r/inst/extdata/spo` in the repository, a small network
 around Avenida Paulista, in São Paulo (cut from r5r's sample data), with 27
 points in `spo_points.csv`; pass another directory as

@@ -6,6 +6,9 @@
 #' by every routing function; nothing is written to `data_path`, and there is
 #' no `network.dat` cache.
 #'
+#' As in r5r, the files are recognised by their extension in lower case only:
+#' a `map.PBF` or a `feed.ZIP` is ignored.
+#'
 #' Elevation is not supported yet. As in r5r, when the directory has no
 #' `.tif` raster the network is built with `elevation = "NONE"`; when it has
 #' one (a file ending in `.tif` or `.tiff`), `elevation = "NONE"` must be

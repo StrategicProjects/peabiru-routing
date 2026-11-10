@@ -44,6 +44,9 @@ let params = TransitParams {
 let ttm = travel_time_matrix(&net, &layer, &data, &points, &points, &params)?;
 ```
 
+`build_from_dir` recognises the files by their extension in lower case only
+(`.pbf`, `.zip`), as r5r does: a `map.PBF` or a `feed.ZIP` is ignored.
+
 More in the `examples/` directory (`cargo run --release -p peabiru-core
 --example transit_matrix`) and in the Rust guide built by `site/build.sh` in
 the repository.
