@@ -1,10 +1,11 @@
 name: CI
 
 # The Rust core and command-line tool on the three platforms, the oldest
-# supported compiler, the R package installed from the checkout, and the
-# Python package built as a wheel on Linux and tested with the oldest and
-# newest supported Python. The wheels of every platform are built and tested
-# by python-release.yml.
+# supported compiler, the R package installed from the checkout, the Python
+# package built as a wheel on Linux and tested with the oldest and newest
+# supported Python, and the npm package built as WebAssembly and tested in
+# Node. The wheels of every platform are built and tested by
+# python-release.yml; nothing here publishes the npm package.
 
 on:
   push:
@@ -91,6 +92,32 @@ jobs:
         # from the repository root, so that `import peabiru` finds the
         # installed wheel and not the source directory
         run: python -m pytest python/tests
+
+  js:
+    name: npm package (WebAssembly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # the toolchain of rust-toolchain.toml, with the WebAssembly target
+      - run: rustup target add wasm32-unknown-unknown
+      - name: Install wasm-pack
+        # it fetches the wasm-bindgen matching js/Cargo.lock and wasm-opt
+        run: cargo install wasm-pack --version 0.15.0 --locked
+      - name: Format and lint the bindings crate
+        # js/ is outside the root workspace (own lockfile), so the rust
+        # job's fmt and clippy do not see it
+        run: |
+          cargo fmt --manifest-path js/Cargo.toml --check
+          cargo clippy --manifest-path js/Cargo.toml --target wasm32-unknown-unknown --all-targets --locked -- -D warnings
+      - name: Build
+        run: sh js/build.sh
+      - name: Test in Node
+        # the runner's Node (20 or later); the package needs 18 or later
+        working-directory: js
+        run: |
+          node --version
+          node --test tests/*.test.mjs
 
   r:
     name: R package ${{ matrix.os }}
