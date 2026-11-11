@@ -1,6 +1,7 @@
 {
   vertices: 2609,
   edges: 5518,
+  elevation: 'NONE',
   feeds: [ 'spo_gtfs' ],
   stops: 654,
   patterns: 36,
