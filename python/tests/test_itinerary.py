@@ -71,14 +71,29 @@ def test_pairs_all_to_all_and_output_dir(network, points, departure, tmp_path):
         assert all(line.endswith(')"') and ',"LINESTRING (' in line for line in lines[1:])
 
 
+def test_osm_link_ids(network, points, departure):
+    pytest.importorskip("geopandas")
+    it = peabiru.detailed_itineraries(
+        network, points.iloc[:5], points.iloc[5:10], mode="CAR",
+        departure_datetime=departure, osm_link_ids=True,
+    )
+    ids = ["osm_id_list", "edge_id_list", "board_stop_id", "alight_stop_id"]
+    assert list(it.columns) == COLS + ids + ["geometry"]
+    for c in ids[:2]:
+        assert it[c].str.fullmatch(r"\[(\d+(, \d+)*)?\]").all()
+    assert (it["board_stop_id"] == "").all() and (it["alight_stop_id"] == "").all()
+    plain = peabiru.detailed_itineraries(
+        network, points.iloc[:5], points.iloc[5:10], mode="CAR", departure_datetime=departure,
+    )
+    assert it.drop(columns=ids).equals(plain)
+
+
 def test_unsupported_options(network, points, departure):
     def di(**kw):
         return peabiru.detailed_itineraries(
             network, points.iloc[:1], points.iloc[1:2], departure_datetime=departure, **kw
         )
 
-    with pytest.raises(peabiru.UnsupportedError):
-        di(mode="WALK", osm_link_ids=True)
     with pytest.raises(ValueError, match="drop_geometry"):
         di(mode="WALK", osm_link_ids=True, drop_geometry=True)
     with pytest.raises(ValueError, match="Must be 0"):

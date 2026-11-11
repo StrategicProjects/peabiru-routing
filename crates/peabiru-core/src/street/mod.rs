@@ -39,6 +39,9 @@ pub mod flags {
     /// A connector (park-and-ride, later transit stops): every mode may use
     /// it, points never link to it, and two in a row are not allowed.
     pub const LINK: u32 = 1 << 13;
+    /// A `junction=roundabout` way (R5's `ROUNDABOUT`; only r5r's
+    /// `osm_link_ids` reads it).
+    pub const ROUNDABOUT: u32 = 1 << 14;
 
     pub const ALL_ALLOWS: u32 = ALLOWS_PEDESTRIAN | ALLOWS_BIKE | ALLOWS_CAR;
     /// Flags that make an edge worth creating (R5 `ALL_PERMISSIONS`).

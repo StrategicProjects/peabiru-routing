@@ -61,7 +61,10 @@ for (city in cities) {
     car = list(mode = "CAR"),
     walk_slow = list(mode = "WALK", walk_speed = 2.5, max_walk_time = 50),
     car_short = list(mode = "CAR", max_trip_duration = 20, drop_geometry = TRUE),
-    bike_all = list(mode = "BICYCLE", shortest_path = FALSE)
+    bike_all = list(mode = "BICYCLE", shortest_path = FALSE),
+    walk_osm = list(mode = "WALK", osm_link_ids = TRUE),
+    bike_osm = list(mode = "BICYCLE", max_lts = 1, osm_link_ids = TRUE),
+    car_osm = list(mode = "CAR", osm_link_ids = TRUE)
   )
   if (city == "poa") {
     scenarios <- c(scenarios, list(
@@ -69,7 +72,11 @@ for (city in cities) {
       bus_bike = list(mode = c("BICYCLE", "BUS"), max_bike_time = 15, max_rides = 2),
       car_egress = list(mode = c("WALK", "TRANSIT"), mode_egress = "CAR", time_window = 25,
                         drop_geometry = TRUE),
-      rail = list(mode = c("WALK", "RAIL"), max_walk_time = 30)
+      rail = list(mode = c("WALK", "RAIL"), max_walk_time = 30),
+      transit_osm = list(mode = c("WALK", "TRANSIT"), osm_link_ids = TRUE),
+      car_access_osm = list(mode = c("CAR", "TRANSIT"), max_car_time = 20, osm_link_ids = TRUE),
+      bike_egress_osm = list(mode = c("WALK", "BUS"), mode_egress = "BICYCLE",
+                             osm_link_ids = TRUE)
     ))
   }
   k <- 0
@@ -97,9 +104,11 @@ for (city in cities) {
   if (city == "poa") {
     files <- c(files, list(
       transit = list(mode = c("WALK", "TRANSIT")),
-      bus_bike = list(mode = c("BICYCLE", "BUS"), max_bike_time = 15)
+      bus_bike = list(mode = c("BICYCLE", "BUS"), max_bike_time = 15),
+      transit_osm = list(mode = c("WALK", "TRANSIT"), osm_link_ids = TRUE)
     ))
   }
+  files$car_osm <- list(mode = "CAR", osm_link_ids = TRUE)
   for (name in names(files)) {
     k <- k + 1
     p <- pairs_for(pts, min(n_pairs, 200L), 100 * k + nchar(city))

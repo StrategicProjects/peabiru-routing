@@ -67,11 +67,25 @@ test_that("all_to_all, single points and output_dir", {
   }
 })
 
+test_that("osm_link_ids adds r5r's id columns", {
+  skip_if_not_installed("sf")
+  pts <- fixture_points()
+  it <- detailed_itineraries(fixture_network(), pts[1:5, ], pts[6:10, ], mode = "CAR",
+                             departure_datetime = departure, osm_link_ids = TRUE)
+  expect_identical(names(it)[17:21], c("osm_id_list", "edge_id_list", "board_stop_id",
+                                       "alight_stop_id", "geometry"))
+  expect_true(all(grepl("^\\[([0-9]+(, [0-9]+)*)?\\]$", it$osm_id_list)))
+  expect_true(all(grepl("^\\[([0-9]+(, [0-9]+)*)?\\]$", it$edge_id_list)))
+  expect_true(all(it$board_stop_id == "" & it$alight_stop_id == ""))
+  plain <- detailed_itineraries(fixture_network(), pts[1:5, ], pts[6:10, ], mode = "CAR",
+                                departure_datetime = departure)
+  expect_identical(it[, setdiff(names(it), names(it)[17:20])], plain)
+})
+
 test_that("unsupported options are errors", {
   pts <- fixture_points()
   net <- fixture_network()
   di <- function(...) detailed_itineraries(net, pts[1, ], pts[2, ], departure_datetime = departure, ...)
-  expect_error(di(mode = "WALK", osm_link_ids = TRUE), "not supported")
   expect_error(di(mode = "WALK", osm_link_ids = TRUE, drop_geometry = TRUE), "drop_geometry")
   expect_error(di(mode = "WALK", suboptimal_minutes = 5), "Must be 0")
   expect_error(di(mode = "WALK", fare_structure = list()), "not supported")

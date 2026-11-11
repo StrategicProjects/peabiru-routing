@@ -365,6 +365,11 @@ impl Builder<'_> {
             fwd |= LINKABLE;
             bwd |= LINKABLE;
         }
+        // TypeOfEdgeLabeler
+        if tag(tags, "junction") == Some("roundabout") {
+            fwd |= ROUNDABOUT;
+            bwd |= ROUNDABOUT;
+        }
 
         let net = &mut self.net;
         net.pair_from.push(v0);

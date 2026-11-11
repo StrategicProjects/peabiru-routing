@@ -127,7 +127,9 @@ test_that("detailed itineraries equal r5r's", {
   d[1:3, ] <- o[1:3, ]
   for (a in list(list(mode = "WALK"), list(mode = "BICYCLE", max_lts = 4),
                  list(mode = "CAR", drop_geometry = TRUE),
-                 list(mode = "WALK", walk_speed = 5, max_walk_time = 20))) {
+                 list(mode = "WALK", walk_speed = 5, max_walk_time = 20),
+                 list(mode = "CAR", osm_link_ids = TRUE),
+                 list(mode = "BICYCLE", osm_link_ids = TRUE))) {
     args <- c(list(origins = o, destinations = d, departure_datetime = departure), a)
     pb <- do.call(detailed_itineraries, c(list(n$pb), args, n_threads = 2))
     r5 <- do.call(r5r::detailed_itineraries, c(list(n$r5), args, n_threads = 2, progress = FALSE))

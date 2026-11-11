@@ -15,6 +15,7 @@
 
 pub(crate) mod geom;
 mod hops;
+mod links;
 mod transit;
 mod via;
 mod wkt;
@@ -78,6 +79,10 @@ pub struct ItineraryParams {
     pub n_threads: usize,
     /// Stops the computation when cancelled.
     pub cancel: CancelToken,
+    /// r5r's `osm_link_ids` (default false): fill in each leg's
+    /// [`osm_ids`](ItineraryLeg::osm_ids), [`edge_ids`](ItineraryLeg::edge_ids)
+    /// and stop ids.
+    pub osm_link_ids: bool,
 }
 
 impl Default for ItineraryParams {
@@ -101,6 +106,7 @@ impl Default for ItineraryParams {
             shortest_path: true,
             n_threads: 0,
             cancel: CancelToken::default(),
+            osm_link_ids: false,
         }
     }
 }
@@ -195,6 +201,19 @@ pub struct ItineraryLeg {
     pub geometry: Vec<[f64; 2]>,
     /// The line before JTS's formatting.
     raw: Vec<[f64; 2]>,
+    /// With [`ItineraryParams::osm_link_ids`]: the OpenStreetMap way ids
+    /// and the street edge indices of a street leg, in order and once
+    /// each, as r5r lists them (`osm_id_list`, `edge_id_list`; see
+    /// [`osm_id_list`](Self::osm_id_list)); empty for a ride and otherwise.
+    pub osm_ids: Vec<i64>,
+    #[allow(missing_docs)]
+    pub edge_ids: Vec<u32>,
+    /// With [`ItineraryParams::osm_link_ids`]: the stops a ride is boarded
+    /// and left at, `feed_id:stop_id` (r5r's `board_stop_id`,
+    /// `alight_stop_id`); empty for street legs and otherwise.
+    pub board_stop_id: String,
+    #[allow(missing_docs)]
+    pub alight_stop_id: String,
 }
 
 impl ItineraryLeg {
@@ -205,6 +224,17 @@ impl ItineraryLeg {
         let mut s = String::new();
         wkt::line_wkt(&self.raw, &mut s);
         s
+    }
+
+    /// r5r's `osm_id_list`: [`osm_ids`](Self::osm_ids) as Java prints a
+    /// set, `[id1, id2, ...]`, or `[]`.
+    pub fn osm_id_list(&self) -> String {
+        links::list_text(&self.osm_ids)
+    }
+
+    /// r5r's `edge_id_list`, as [`osm_id_list`](Self::osm_id_list).
+    pub fn edge_id_list(&self) -> String {
+        links::list_text(&self.edge_ids)
     }
 }
 
@@ -244,6 +274,8 @@ struct Leg {
     line: Line,
     /// Metres, as the leg reports it.
     distance: i32,
+    /// `osm_link_ids`.
+    links: links::Links,
 }
 
 impl Leg {
@@ -263,6 +295,10 @@ impl Leg {
             route: self.route,
             geometry,
             raw,
+            osm_ids: self.links.osm,
+            edge_ids: self.links.edges,
+            board_stop_id: self.links.board_stop,
+            alight_stop_id: self.links.alight_stop,
         }
     }
 }
@@ -330,6 +366,11 @@ fn direct_trip(
     let line = street_path_line(&router, last);
     let duration = router.states[last as usize].dur;
     let distance = line_length_m(&line);
+    let links = if p.osm_link_ids {
+        links::compacted(net, &links::path_edges(&router, last))
+    } else {
+        links::Links::default()
+    };
     Some(Trip {
         direct: true,
         departure: p.departure_time,
@@ -343,6 +384,7 @@ fn direct_trip(
             route: String::new(),
             line,
             distance,
+            links,
         }],
     })
 }
@@ -503,8 +545,11 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
 /// Write itineraries as r5r's `detailed_itineraries()` does with
 /// `output_dir`: one file per pair with itineraries,
 /// `<dir>/from_<origin id>_to_<destination id>.csv`, with r5r's columns
-/// and number formats (`RDataFrame.saveToCsv`), the `geometry` column (the
-/// WKT text of [`ItineraryLeg::wkt`]) last unless `drop_geometry`. `ids`
+/// and number formats (`RDataFrame.saveToCsv`): with `osm_link_ids` (the
+/// itineraries routed with it) `osm_id_list`, `edge_id_list`,
+/// `board_stop_id` and `alight_stop_id` after `route`, and the `geometry`
+/// column (the WKT text of [`ItineraryLeg::wkt`]) last unless
+/// `drop_geometry`. `ids`
 /// and `points` are those of the pairs given to [`detailed_itineraries`]
 /// (`(from_id, to_id)` and `((lat, lon), (lat, lon))`).
 #[allow(clippy::type_complexity)]
@@ -514,6 +559,7 @@ pub fn write_itineraries_csv(
     points: &[((f64, f64), (f64, f64))],
     itineraries: &[Vec<Itinerary>],
     drop_geometry: bool,
+    osm_link_ids: bool,
 ) -> std::io::Result<()> {
     use crate::output::{csv_field, java_double, LINE_END};
     for (k, its) in itineraries.iter().enumerate() {
@@ -526,6 +572,9 @@ pub fn write_itineraries_csv(
             "from_id,from_lat,from_lon,to_id,to_lat,to_lon,option,departure_time,\
              total_duration,total_distance,segment,mode,segment_duration,wait,distance,route",
         );
+        if osm_link_ids {
+            s.push_str(",osm_id_list,edge_id_list,board_stop_id,alight_stop_id");
+        }
         if !drop_geometry {
             s.push_str(",geometry");
         }
@@ -555,6 +604,17 @@ pub fn write_itineraries_csv(
                 }
                 s.push_str(&format!(",{},", l.distance));
                 csv_field(&l.route, &mut s);
+                if osm_link_ids {
+                    for v in [
+                        l.osm_id_list(),
+                        l.edge_id_list(),
+                        l.board_stop_id.clone(),
+                        l.alight_stop_id.clone(),
+                    ] {
+                        s.push(',');
+                        csv_field(&v, &mut s);
+                    }
+                }
                 if !drop_geometry {
                     s.push(',');
                     csv_field(&l.wkt(), &mut s);

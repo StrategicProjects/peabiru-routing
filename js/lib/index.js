@@ -1557,7 +1557,6 @@ export async function detailedItineraries(network, origins, destinations, option
     throw new RangeError("Assertion on 'suboptimalMinutes' failed: Must be 0 when 'shortestPath' is true.");
   }
   checkScenarios(opt);
-  if (opt.osmLinkIds) unsupported("'osmLinkIds: true'");
   if (!opt.shortestPath && modeList.transit) unsupported("'shortestPath: false' with public transport (McRAPTOR)");
   let start = 0;
   const parts = await network._route(
@@ -1569,14 +1568,15 @@ export async function detailedItineraries(network, origins, destinations, option
         olat, olon, d.lat.slice(s, s + olat.length), d.lon.slice(s, s + olat.length),
         modeList.directModes, modeList.transitMode, modeList.egressMode, departure.yyyymmdd, departure.seconds,
         Math.round(opt.timeWindow), lim.walk, lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed,
-        Math.round(opt.maxRides), Math.round(opt.maxLts), opt.shortestPath,
+        Math.round(opt.maxRides), Math.round(opt.maxLts), opt.shortestPath, opt.osmLinkIds,
       ];
     },
     opt.nThreads, opt.signal,
   );
   const rows = [];
   for (const { offset, result } of parts) {
-    const [pair, option, totalDistance, segment, distance, nPoints, totalDuration, segmentDuration, wait, x, y, dep, mode, route] = result;
+    const [pair, option, totalDistance, segment, distance, nPoints, totalDuration, segmentDuration, wait, x, y, dep, mode, route,
+      osmIds, edgeIds, boardStop, alightStop] = result;
     let at = 0;
     for (let k = 0; k < pair.length; k++) {
       const i = pair[k] + offset;
@@ -1587,6 +1587,12 @@ export async function detailedItineraries(network, origins, destinations, option
         total_distance: totalDistance[k], segment: segment[k], mode: mode[k],
         segment_duration: segmentDuration[k], wait: wait[k], distance: distance[k], route: route[k],
       };
+      if (opt.osmLinkIds) {
+        row.osm_id_list = osmIds[k];
+        row.edge_id_list = edgeIds[k];
+        row.board_stop_id = boardStop[k];
+        row.alight_stop_id = alightStop[k];
+      }
       const n = nPoints[k];
       if (opt.dropGeometry) {
         rows.push(row);

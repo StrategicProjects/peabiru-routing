@@ -52,7 +52,13 @@ test("pairs, allToAll and the checks", async () => {
   });
   assert.ok(warnings.some((w) => w.includes("'origins' was expanded")));
   await assert.rejects(peabiru.detailedItineraries(net, take([0, 1]), take([2, 3, 4]), { mode: "CAR", departureDatetime: DEPARTURE }), /same number of rows/);
-  await assert.rejects(peabiru.detailedItineraries(net, o, d, { departureDatetime: DEPARTURE, osmLinkIds: true }), peabiru.UnsupportedError);
+  const ids = await peabiru.detailedItineraries(net, o, d, { mode: "CAR", departureDatetime: DEPARTURE, osmLinkIds: true });
+  for (const f of ids.features) {
+    assert.match(f.properties.osm_id_list, /^\[(\d+(, \d+)*)?\]$/);
+    assert.match(f.properties.edge_id_list, /^\[(\d+(, \d+)*)?\]$/);
+    assert.equal(f.properties.board_stop_id, "");
+  }
+  await assert.rejects(peabiru.detailedItineraries(net, o, d, { departureDatetime: DEPARTURE, osmLinkIds: true, dropGeometry: true }), /dropGeometry/);
   await assert.rejects(peabiru.detailedItineraries(net, o, d, { departureDatetime: DEPARTURE, suboptimalMinutes: 3 }), /Must be 0/);
   // the sample's GTFS is frequency-based, which r5r refuses here
   await assert.rejects(peabiru.detailedItineraries(net, o, d, { mode: ["WALK", "TRANSIT"], departureDatetime: DEPARTURE }), /frequencies/);
