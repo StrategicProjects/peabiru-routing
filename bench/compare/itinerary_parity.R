@@ -60,7 +60,8 @@ for (city in cities) {
     bike = list(mode = "BICYCLE", max_lts = 3),
     car = list(mode = "CAR"),
     walk_slow = list(mode = "WALK", walk_speed = 2.5, max_walk_time = 50),
-    car_short = list(mode = "CAR", max_trip_duration = 20, drop_geometry = TRUE)
+    car_short = list(mode = "CAR", max_trip_duration = 20, drop_geometry = TRUE),
+    bike_all = list(mode = "BICYCLE", shortest_path = FALSE)
   )
   if (city == "poa") {
     scenarios <- c(scenarios, list(
