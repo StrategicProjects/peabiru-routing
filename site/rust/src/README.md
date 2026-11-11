@@ -18,11 +18,13 @@ and per-trip (expanded and arrival) matrices on it, by walking, cycling,
 driving and public transport. It needs no Java runtime, keeps nothing on
 disk, and spreads the origins of each query over threads.
 
-The crate is the engine behind three front-ends:
+The crate is the engine behind four front-ends:
 
 - the R package `peabiru` ([its documentation](../r/index.html));
 - the Python package `peabiru` ([its documentation](../python/index.html)),
   which returns pandas data frames;
+- the JavaScript package `peabiru` ([its documentation](../js/index.html)),
+  the crate compiled to WebAssembly, for browsers and Node;
 - the `peabiru` command-line tool (crate `peabiru-cli`), described in
   [The command line](cli.md).
 

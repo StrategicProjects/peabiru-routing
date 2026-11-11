@@ -22,7 +22,13 @@
 // (default: the usual install paths). Without a browser they are skipped,
 // with a message, unless --require-browser is given.
 //
-// Exit status: 0 if every example ran and printed its expected output.
+// The JavaScript examples of the home page (site/index.html) and of the
+// README at the root follow a marker <!-- example: FILE:ANCHOR -->; the
+// code block after it must be that part of the example (--update rewrites
+// it).
+//
+// Exit status: 0 if every example ran and printed its expected output, and
+// the pages show the examples as they are.
 
 import { spawn, spawnSync } from "node:child_process";
 import {
@@ -111,6 +117,51 @@ function check(name, out, label = name) {
 function fail(label, message) {
   failures++;
   console.log(`FAIL   ${label}: ${message}`);
+}
+
+// ---------------------------------------------------------------- pages
+
+/** The lines of a file between `ANCHOR: name` and `ANCHOR_END: name`, as mdBook includes them. */
+function anchored(file, name) {
+  const lines = readFileSync(join(root, file), "utf8").split("\n");
+  const start = lines.findIndex((l) => l.includes(`ANCHOR: ${name}`));
+  const end = lines.findIndex((l) => l.includes(`ANCHOR_END: ${name}`));
+  if (start < 0 || end < start) throw new Error(`${file}: no anchor ${name}`);
+  return lines.slice(start + 1, end).filter((l) => !/ANCHOR(_END)?:/.test(l)).join("\n");
+}
+
+const escapeHtml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+for (const page of ["site/index.html", "README.md"]) {
+  const path = join(root, page);
+  const text = readFileSync(path, "utf8");
+  const html = page.endsWith(".html");
+  const marker = /<!-- example: (\S+):(\S+)[^>]*-->\n/g;
+  let out = "";
+  let at = 0;
+  let m;
+  while ((m = marker.exec(text))) {
+    const code = anchored(m[1], m[2]);
+    const [open, close] = html ? ["<pre><code>", "</code></pre>"] : ["```js\n", "\n```"];
+    const from = m.index + m[0].length;
+    const end = text.indexOf(close, from);
+    if (!text.startsWith(open, from) || end < 0) {
+      fail(page, `no code block after the marker for ${m[1]}:${m[2]}`);
+      continue;
+    }
+    const want = html
+      ? escapeHtml(code).replace(/^(\s*)(\/\/.*)$/gm, '$1<span class="c">$2</span>')
+      : code;
+    const have = text.slice(from + open.length, end);
+    out += text.slice(at, from + open.length) + want;
+    at = end;
+    const label = `${page} (${m[1].split("/").pop()}:${m[2]})`;
+    if (have === want) console.log(`ok     ${label}`);
+    else if (update) console.log(`wrote  ${label}`);
+    else fail(label, "the code block differs from the example: run with --update");
+  }
+  out += text.slice(at);
+  if (update && out !== text) writeFileSync(path, out);
 }
 
 // ---------------------------------------------------------------- Node
@@ -216,7 +267,10 @@ async function runInBrowser(chrome, dir, names, suffix) {
   const profile = mkdtempSync(join(tmpdir(), "peabiru-chrome-"));
   const proc = spawn(chrome, [
     "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
-    "--disable-extensions", `--user-data-dir=${profile}`, url,
+    "--disable-extensions", `--user-data-dir=${profile}`,
+    // Linux CI runners (Ubuntu 24.04) do not let Chrome set up its sandbox
+    ...(process.platform === "linux" ? ["--no-sandbox"] : []),
+    url,
   ], { stdio: "ignore" });
   const deadline = Date.now() + 300_000;
   while (reports.size < names.length && Date.now() < deadline && proc.exitCode === null) {

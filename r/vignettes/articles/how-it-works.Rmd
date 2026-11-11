@@ -12,16 +12,18 @@ This page follows a request from the input files to the numbers, with the same d
 and in which order, not the data structures, which change as the engine is
 optimised.
 
-## One engine, three packages
+## One engine, four packages
 
-```{r, echo = FALSE, fig.alt = "Architecture: an OpenStreetMap .pbf and GTFS .zip feeds go into peabiru-core, a Rust crate that builds the street network and transit layer in memory and computes every result; the R package, the Python package and the command line are front-ends over it."}
+```{r, echo = FALSE, fig.alt = "Architecture: an OpenStreetMap .pbf and GTFS .zip feeds go into peabiru-core, a Rust crate that builds the street network and transit layer in memory and computes every result; the R package, the Python package, the JavaScript package (WebAssembly) and the command line are front-ends over it."}
 fig("architecture.svg")
 ```
 
 The Rust crate `peabiru-core` does all the work. This R package checks the
 arguments, converts points and results between R and Rust, and returns a
-`data.frame`; the Python package (which returns pandas data frames) and the
-`peabiru` command-line tool (CSV in, CSV out) do the same for their users.
+`data.frame`; the Python package (which returns pandas data frames), the
+JavaScript package (the engine compiled to WebAssembly, for browsers and
+Node) and the `peabiru` command-line tool (CSV in, CSV out) do the same for
+their users.
 There is no separate process to start and nothing is written to disk.
 
 ## Building the network

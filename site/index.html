@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>peabiru: multimodal routing in Rust</title>
-<meta name="description" content="peabiru is a multimodal routing engine written in Rust: travel-time matrices and accessibility by walking, cycling, driving and public transport on OpenStreetMap and GTFS networks, without Java. Packages for R, Python and Rust, and a command-line tool.">
+<meta name="description" content="peabiru is a multimodal routing engine written in Rust: travel-time matrices and accessibility by walking, cycling, driving and public transport on OpenStreetMap and GTFS networks, without Java. Packages for R, Python, JavaScript (WebAssembly) and Rust, and a command-line tool.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/brand.css">
 <link rel="stylesheet" href="style.css">
@@ -17,6 +17,7 @@
       <a href="r/">R</a>
       <a href="python/">Python</a>
       <a href="rust/">Rust</a>
+      <a href="js/">JavaScript</a>
       <a href="benchmarks.html">Benchmarks</a>
       <a href="https://github.com/StrategicProjects/peabiru-routing">GitHub</a>
     </nav>
@@ -27,16 +28,18 @@
 <div class="wrap">
 
 <section class="hero">
-  <h1>Multimodal routing in Rust, for R, Python and the shell.</h1>
+  <h1>Multimodal routing in Rust, for R, Python, JavaScript and the shell.</h1>
   <p class="lead">peabiru computes travel-time matrices and accessibility by walking, cycling,
   driving and public transport, on networks built from an OpenStreetMap extract and GTFS
   feeds. The network is built once, in memory, and shared by every query and thread; there
   is no Java runtime to start and nothing is written to disk. The same engine is behind
-  the R package, the Python package, the Rust crate and the command line.</p>
+  the R package, the Python package, the JavaScript package (compiled to WebAssembly, for
+  browsers and Node), the Rust crate and the command line.</p>
   <div class="cta">
     <a class="btn primary" href="r/articles/peabiru.html">Get started in R</a>
     <a class="btn" href="python/">Python docs</a>
     <a class="btn" href="rust/">Rust guide</a>
+    <a class="btn" href="js/">JavaScript guide</a>
     <a class="btn" href="r/articles/how-it-works.html">How it works</a>
   </div>
   <p class="badges">
@@ -46,12 +49,14 @@
     <img src="https://img.shields.io/badge/rustc-1.81%2B-blue.svg" alt="rustc 1.81+" height="20">
     <img src="https://img.shields.io/badge/python-3.9%2B-blue.svg" alt="Python 3.9+" height="20">
     <img src="https://img.shields.io/badge/R-%3E%3D%204.2-blue.svg" alt="R 4.2 or later" height="20">
+    <img src="https://img.shields.io/badge/node-18%2B-blue.svg" alt="Node 18+" height="20">
     <!-- After the first release on each registry, uncomment the matching badge;
          the Zenodo one needs the DOI that Zenodo assigns to the first release.
     <a href="https://crates.io/crates/peabiru-core"><img src="https://img.shields.io/crates/v/peabiru-core.svg" alt="crates.io" height="20"></a>
     <a href="https://docs.rs/peabiru-core"><img src="https://docs.rs/peabiru-core/badge.svg" alt="docs.rs" height="20"></a>
     <a href="https://pypi.org/project/peabiru/"><img src="https://img.shields.io/pypi/v/peabiru.svg" alt="PyPI" height="20"></a>
     <a href="https://CRAN.R-project.org/package=peabiru"><img src="https://www.r-pkg.org/badges/version/peabiru" alt="CRAN" height="20"></a>
+    <a href="https://www.npmjs.com/package/peabiru"><img src="https://img.shields.io/npm/v/peabiru.svg" alt="npm" height="20"></a>
     <a href="https://doi.org/10.5281/zenodo.XXXXXXX"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg" alt="DOI" height="20"></a>
     -->
   </p>
@@ -82,9 +87,9 @@
 </section>
 
 <section aria-labelledby="arch">
-  <h2 id="arch">One engine, three packages</h2>
+  <h2 id="arch">One engine, four packages</h2>
   <figure>
-    <img src="assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the network in memory and computes everything; the R package, the Python package and the command-line tool are thin front-ends over it." width="980" height="470">
+    <img src="assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the network in memory and computes everything; the R package, the Python package, the JavaScript package (WebAssembly) and the command-line tool are thin front-ends over it." width="980" height="470">
     <figcaption>The network is built once in memory and reused by every query. Nothing runs on a JVM and nothing is cached on disk.</figcaption>
   </figure>
 </section>
@@ -130,6 +135,34 @@ ttm = peabiru.travel_time_matrix(
 )</code></pre>
       <p class="muted">Points as a pandas <code>DataFrame</code> or a geopandas <code>GeoDataFrame</code>; results come back as a pandas <code>DataFrame</code>.
       <a href="python/">Get started</a> · <a href="python/reference/">Reference</a></p>
+    </div>
+    <div class="snippet">
+      <h3>JavaScript <span class="tag ok">works today</span></h3>
+<!-- example: site/js/examples/landing.mjs:landing (checked by site/js/run_examples.mjs) -->
+<pre><code><span class="c">// Not on npm yet. From a clone of the repository (needs Rust and wasm-pack):</span>
+<span class="c">//   cd js &amp;&amp; sh build.sh, then npm install /path/to/peabiru-routing/js</span>
+import { readFile } from "node:fs/promises";
+import * as peabiru from "peabiru";
+
+<span class="c">// the sample network of the Python package (python/peabiru/data/spo)</span>
+const network = await peabiru.buildNetwork({
+  pbf: await readFile("spo_osm.pbf"),
+  gtfs: [{ name: "spo_gtfs.zip", data: await readFile("spo_gtfs.zip") }],
+});
+const points = {
+  id: ["a", "b", "c"],
+  lon: [-46.6290, -46.6321, -46.6355],
+  lat: [-23.5563, -23.5577, -23.5601],
+};
+
+const ttm = await peabiru.travelTimeMatrix(network, points, points, {
+  mode: ["WALK", "TRANSIT"],
+  departureDatetime: "2019-05-13 14:00:00",
+  percentiles: [25, 50, 75],
+  seed: 42,
+});</code></pre>
+      <p class="muted">In browsers, bundlers and Node 18+; points as columns or an array of objects; results come back as columns of typed arrays.
+      <a href="js/getting-started.html">Get started</a> · <a href="js/api.html">Reference</a></p>
     </div>
     <div class="snippet">
       <h3>Rust and the command line <span class="tag ok">works today</span></h3>

@@ -7,18 +7,20 @@
 <a href="crates/peabiru-core"><img src="https://img.shields.io/badge/rustc-1.81%2B-blue.svg" alt="rustc 1.81+"></a>
 <a href="python"><img src="https://img.shields.io/badge/python-3.9%2B-blue.svg" alt="Python 3.9+"></a>
 <a href="r"><img src="https://img.shields.io/badge/R-%3E%3D%204.2-blue.svg" alt="R >= 4.2"></a>
+<a href="js"><img src="https://img.shields.io/badge/node-18%2B-blue.svg" alt="Node 18+"></a>
 <!-- After the first release on each registry, uncomment the matching badge;
      the Zenodo one needs the DOI that Zenodo assigns to the first release.
 <a href="https://crates.io/crates/peabiru-core"><img src="https://img.shields.io/crates/v/peabiru-core.svg" alt="crates.io"></a>
 <a href="https://docs.rs/peabiru-core"><img src="https://docs.rs/peabiru-core/badge.svg" alt="docs.rs"></a>
 <a href="https://pypi.org/project/peabiru/"><img src="https://img.shields.io/pypi/v/peabiru.svg" alt="PyPI"></a>
 <a href="https://CRAN.R-project.org/package=peabiru"><img src="https://www.r-pkg.org/badges/version/peabiru" alt="CRAN"></a>
+<a href="https://www.npmjs.com/package/peabiru"><img src="https://img.shields.io/npm/v/peabiru.svg" alt="npm"></a>
 <a href="https://doi.org/10.5281/zenodo.XXXXXXX"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg" alt="DOI"></a>
 -->
 </p>
 
-A multimodal routing engine written in Rust, for R, Python, Rust and the
-shell. It builds a network in memory from an OpenStreetMap extract and GTFS
+A multimodal routing engine written in Rust, for R, Python, JavaScript, Rust
+and the shell. It builds a network in memory from an OpenStreetMap extract and GTFS
 feeds and computes travel-time matrices and accessibility by walking,
 cycling, driving and public transport. It needs no Java runtime, keeps
 nothing on disk, and the network is built once and shared by every query
@@ -28,13 +30,14 @@ and thread.
 |---|---|---|---|
 | `peabiru` | R | [`r/`](r) (extendr) | CRAN, not published yet |
 | `peabiru` | Python | [`python/`](python) (PyO3, maturin) | PyPI, not published yet |
+| `peabiru` | JavaScript (browsers, Node) | [`js/`](js) (WebAssembly, wasm-bindgen) | npm, not published yet |
 | `peabiru-core` | Rust | [`crates/peabiru-core`](crates/peabiru-core) | crates.io, not published yet |
 | `peabiru` | command line | [`crates/peabiru-cli`](crates/peabiru-cli) | |
 
 The name comes from the Peabiru, the pre-Columbian network of trails that
 crossed South America from the Atlantic to the Andes.
 
-![Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the street network and the transit layer in memory and computes every result; the R package, the Python package and the command-line tool are thin front-ends over it.](site/assets/diagrams/architecture.svg)
+![Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the street network and the transit layer in memory and computes every result; the R package, the Python package, the JavaScript package (WebAssembly) and the command-line tool are thin front-ends over it.](site/assets/diagrams/architecture.svg)
 
 ## What it computes
 
@@ -134,8 +137,37 @@ ttm = peabiru.travel_time_matrix(
 )
 ```
 
-Both use the small network of São Paulo that ships with the packages. More
-in the README of each package ([R](r/README.md), [Python](python/README.md),
+In JavaScript (Node; in a browser, the bytes come from `fetch()`):
+
+<!-- example: site/js/examples/landing.mjs:landing (checked by site/js/run_examples.mjs) -->
+```js
+// Not on npm yet. From a clone of the repository (needs Rust and wasm-pack):
+//   cd js && sh build.sh, then npm install /path/to/peabiru-routing/js
+import { readFile } from "node:fs/promises";
+import * as peabiru from "peabiru";
+
+// the sample network of the Python package (python/peabiru/data/spo)
+const network = await peabiru.buildNetwork({
+  pbf: await readFile("spo_osm.pbf"),
+  gtfs: [{ name: "spo_gtfs.zip", data: await readFile("spo_gtfs.zip") }],
+});
+const points = {
+  id: ["a", "b", "c"],
+  lon: [-46.6290, -46.6321, -46.6355],
+  lat: [-23.5563, -23.5577, -23.5601],
+};
+
+const ttm = await peabiru.travelTimeMatrix(network, points, points, {
+  mode: ["WALK", "TRANSIT"],
+  departureDatetime: "2019-05-13 14:00:00",
+  percentiles: [25, 50, 75],
+  seed: 42,
+});
+```
+
+All three use the small network of São Paulo that ships with the R and
+Python packages. More in the README of each package ([R](r/README.md),
+[Python](python/README.md), [JavaScript](js/README.md),
 [Rust](crates/peabiru-core/README.md)) and in the documentation sites, built
 by [`site/build.sh`](site/README.md).
 
@@ -146,13 +178,15 @@ Nothing is published yet. From a clone, with Rust (rustc 1.81 or later):
 ```sh
 R CMD INSTALL r                                     # R package
 cd python && maturin develop --uv --release         # Python package
+cd js && sh build.sh                                # JavaScript package (needs wasm-pack)
 cargo build --release -p peabiru-cli                # command-line tool
 ```
 
 ## Compatibility with r5r
 
 The functions of the R and Python packages have the names, arguments and
-defaults of [r5r](https://github.com/ipea/r5r) 2.5.0, so code written for
+defaults of [r5r](https://github.com/ipea/r5r) 2.5.0 (in camelCase in the
+JavaScript package), so code written for
 r5r needs few changes, and they return the same values: the engine is a port
 of Conveyal's [R5](https://github.com/conveyal/r5) 7.6, the engine r5r
 drives. [`bench/`](bench) runs the same requests on both and compares the
@@ -165,6 +199,8 @@ the comparisons are exact.
 cargo test                                          # core and command-line tool
 cd python && maturin develop --uv && .venv/bin/python -m pytest
 Rscript -e 'devtools::test("r")'
+cd js && sh build.sh && node --test tests/*.test.mjs
+node site/js/run_examples.mjs                       # the examples of the JavaScript guide
 site/build.sh                                       # documentation sites, into _site/
 ```
 
@@ -181,8 +217,9 @@ distributed with every package. The sample network in the R and Python
 packages contains map data © OpenStreetMap contributors, under the
 [Open Database License](https://www.openstreetmap.org/copyright).
 
-The Python extension module, the R package's library and the command-line
-tool also contain code from other Rust crates (pyo3, extendr, miniz_oxide and
+The Python extension module, the R package's library, the WebAssembly module
+of the JavaScript package and the command-line tool also contain code from
+other Rust crates (pyo3, extendr, miniz_oxide and
 others, under MIT, Apache-2.0 and similar licences). Their licences are in a
 `LICENSE-RUST-CRATES` file shipped with each of those packages, generated
 from the lockfiles by `tools/third_party_notices.py`.
