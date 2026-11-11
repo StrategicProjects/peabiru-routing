@@ -16,8 +16,8 @@ Travel-time matrices and accessibility by walking, cycling, driving and
 public transport, on networks built from an OpenStreetMap extract and GTFS
 public transport feeds. The routing engine is written in Rust and runs inside
 the R session: no Java is needed, and the network is built once, in memory,
-and reused by every call. The same engine is behind the Python package and
-the command-line tool of the same name.
+and reused by every call. The same engine is behind the Python and
+JavaScript packages and the command-line tool of the same name.
 
 | Function | What it computes |
 |---|---|

@@ -1,0 +1,7 @@
+from_id to_id departure_time draw_number access_time wait_time ride_time transfer_time egress_time routes n_rides total_time
+89a8100c393ffff 14:00:00 1 2002-10 access 16.1 wait 1 ride 2.2 transfer 0 egress 2.5 total 21.8
+89a8100c393ffff 14:00:00 2 2002-10 access 16.1 wait 1.4 ride 2.2 transfer 0 egress 2.5 total 22.2
+89a8100c393ffff 14:02:00 1 2002-10 access 16.1 wait 1.2 ride 2.2 transfer 0 egress 2.5 total 22
+89a8100c393ffff 14:37:00 2002-10 22.1
+89a8100c02fffff 14:37:00 METRÔ L1 21.6
+89a8100c38bffff 14:27:00 4491-10 32.9

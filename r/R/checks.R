@@ -115,8 +115,8 @@ assert_network <- function(x) {
 }
 
 # An argument peabiru does not support yet: always an error, never ignored.
-unsupported <- function(what) {
-  stop(what, " is not supported by peabiru yet.", call. = FALSE)
+unsupported <- function(what, instead = "") {
+  stop(what, " is not supported by peabiru yet", instead, ".", call. = FALSE)
 }
 
 # r5r >= 2.3.0 still accepts the network as `r5r_core`, with this warning

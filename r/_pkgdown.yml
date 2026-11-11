@@ -1,6 +1,6 @@
 # pkgdown site of the R package. Built by site/build.sh into _site/r/, next to
-# the landing page (../), the Rust guide (../rust/) and the Python docs
-# (../python/). No `url:` on purpose: the site is not deployed yet, and every
+# the landing page (../), the Rust guide (../rust/), the Python docs
+# (../python/) and the JavaScript guide (../js/). No `url:` on purpose: the site is not deployed yet, and every
 # link between the sub-sites is relative.
 
 template:
@@ -26,6 +26,10 @@ home:
   links:
   - text: peabiru home (all languages)
     href: ../index.html
+  - text: Python docs
+    href: ../python/index.html
+  - text: JavaScript guide
+    href: ../js/index.html
   - text: Rust guide
     href: ../rust/index.html
   - text: Benchmarks
@@ -34,8 +38,17 @@ home:
 navbar:
   structure:
     left: [intro, reference, articles, benchmarks, news]
-    right: [search, home, github]
+    right: [search, languages, home, github]
   components:
+    languages:
+      text: Other languages
+      menu:
+      - text: Python
+        href: ../python/index.html
+      - text: Rust
+        href: ../rust/index.html
+      - text: JavaScript
+        href: ../js/index.html
     home:
       icon: fa-house
       href: ../index.html

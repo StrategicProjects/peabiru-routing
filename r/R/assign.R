@@ -144,8 +144,8 @@ assign_mode <- function(mode, mode_egress) {
       unsupported(paste0(
         "Routing on specific transit modes (",
         paste(setdiff(mode, r5r_direct_modes), collapse = ", "),
-        "); use 'TRANSIT'"
-      ))
+        ")"
+      ), "; use 'TRANSIT'")
     }
     if (access_mode != "WALK") {
       unsupported(paste0("Transit with ", access_mode, " access"))

@@ -9,7 +9,7 @@ and change as the engine is optimised.
 
 ## Architecture
 
-<img src="../assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, which builds the network in memory and computes every result; the R package, the Python package and the command line are front-ends over it." width="980" height="470">
+<img src="../assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, which builds the network in memory and computes every result; the R package, the Python package, the JavaScript package (WebAssembly) and the command line are front-ends over it." width="980" height="470">
 
 ## Building the network
 

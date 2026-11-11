@@ -83,9 +83,9 @@ def core_errors(
         raise ValueError(user_message(str(e), function, names, n_destinations)) from None
 
 
-def unsupported(what: str) -> None:
+def unsupported(what: str, instead: str = "") -> None:
     """An argument peabiru does not support yet: always an error."""
-    raise UnsupportedError(f"{what} is not supported by peabiru yet.")
+    raise UnsupportedError(f"{what} is not supported by peabiru yet{instead}.")
 
 
 def is_number(x: Any) -> bool:

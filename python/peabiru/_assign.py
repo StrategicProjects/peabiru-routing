@@ -206,7 +206,7 @@ def assign_mode(mode: Any, mode_egress: Any) -> ModeList:
     if ml.transit:
         if set(transit_modes) != set(R5R_TRANSIT_MODES):
             specific = ", ".join(m for m in modes if m not in R5R_DIRECT_MODES)
-            unsupported(f"Routing on specific transit modes ({specific}); use 'TRANSIT'")
+            unsupported(f"Routing on specific transit modes ({specific})", "; use 'TRANSIT'")
         if ml.access_mode != "WALK":
             unsupported(f"Transit with {ml.access_mode} access")
         if ml.egress_mode != "WALK":

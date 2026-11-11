@@ -1,0 +1,7 @@
+[
+  "'origins.id' forcefully cast to character.",
+  "'destinations.id' forcefully cast to character."
+]
+TypeError: unknown option 'maxTripDurations'
+UnsupportedError: Routing on specific transit modes (BUS) is not supported by peabiru yet; use 'TRANSIT'.
+  (not supported yet)
