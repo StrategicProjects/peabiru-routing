@@ -14,7 +14,9 @@ use wasm_bindgen::prelude::*;
 /// `n_points` (Int32Array), `total_duration`, `segment_duration`, `wait`,
 /// `x` (longitude), `y` (latitude) (Float64Array), `departure_time`,
 /// `mode`, `route` (arrays of strings). The lines' points are `x`, `y`,
-/// leg after leg, `n_points` per leg.
+/// leg after leg, `n_points` per leg. With `osm_link_ids`, four more
+/// arrays of strings: `osm_id_list`, `edge_id_list`, `board_stop_id`,
+/// `alight_stop_id`.
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn itineraries(
@@ -39,6 +41,7 @@ pub fn itineraries(
     max_lts: i32,
     shortest_path: bool,
     scenario: JsValue,
+    osm_link_ids: bool,
 ) -> Result<Array, JsError> {
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     if o.len() != d.len() {
@@ -64,11 +67,12 @@ pub fn itineraries(
     p.max_lts = max_lts;
     p.shortest_path = shortest_path;
     p.n_threads = 1;
+    p.osm_link_ids = osm_link_ids;
     let transit = network.transit.as_ref().map(|t| (&t.layer, &t.data));
     let res = detailed_itineraries(&network.net, transit, &o, &d, &p).map_err(route_err)?;
     let mut ints: [Vec<i32>; 6] = Default::default();
     let mut nums: [Vec<f64>; 5] = Default::default();
-    let mut texts: [Vec<String>; 3] = Default::default();
+    let mut texts: [Vec<String>; 7] = Default::default();
     for (k, its) in res.iter().enumerate() {
         for it in its {
             for (j, l) in it.legs.iter().enumerate() {
@@ -92,6 +96,12 @@ pub fn itineraries(
                 texts[0].push(it.departure_time.clone());
                 texts[1].push(l.mode.clone());
                 texts[2].push(l.route.clone());
+                if osm_link_ids {
+                    texts[3].push(l.osm_id_list());
+                    texts[4].push(l.edge_id_list());
+                    texts[5].push(l.board_stop_id.clone());
+                    texts[6].push(l.alight_stop_id.clone());
+                }
             }
         }
     }
@@ -102,7 +112,7 @@ pub fn itineraries(
     for c in &nums {
         out.push(&f64_array(c));
     }
-    for c in &texts {
+    for c in &texts[..if osm_link_ids { 7 } else { 3 }] {
         out.push(&strings(c));
     }
     Ok(out)

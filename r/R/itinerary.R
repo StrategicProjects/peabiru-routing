@@ -9,13 +9,19 @@
 #' (`shortest_path = TRUE`).
 #'
 #' Not supported yet, and an error: `shortest_path = FALSE` with public
-#' transport (r5r routes it with R5's McRAPTOR), `osm_link_ids = TRUE`,
-#' `output_dir` with the geometry (r5r writes JTS's WKT text; use
-#' `drop_geometry = TRUE`) and fares. As in r5r, networks
+#' transport (r5r routes it with R5's McRAPTOR) and fares. As in r5r, networks
 #' whose GTFS has frequency-based trips cannot be used with public
-#' transport. A car trip whose egress search crosses a turn restriction
-#' with two or more via ways is an error too (R5 changes the restriction
-#' in place on that search, so its results depend on earlier calls).
+#' transport.
+#'
+#' With `mode_egress = "CAR"`, R5 reverses the via edges of turn
+#' restrictions with two or more via ways in place each time its backward
+#' egress search checks one, so what r5r returns for a pair whose car
+#' searches cross such a restriction can depend on the searches that ran
+#' before (in the same call, on other threads, or in earlier calls).
+#' peabiru plans such a pair for every order those via edges can be in:
+#' when the itineraries are the same in all of them, they are returned (they
+#' are r5r's whatever ran before); otherwise the call stops with an error
+#' naming the pair.
 #'
 #' @inheritParams travel_time_matrix
 #' @param suboptimal_minutes An integer, 0 (the default): with
@@ -28,16 +34,25 @@
 #'   other).
 #' @param drop_geometry A logical. Whether to leave the geometry out and
 #'   return a `data.frame`.
-#' @param osm_link_ids A logical, `FALSE`: `TRUE` is not supported yet.
+#' @param osm_link_ids A logical. Whether to add r5r's columns
+#'   `osm_id_list` (the OpenStreetMap way ids of a street leg's edges),
+#'   `edge_id_list` (the indices of the street network's edges, as
+#'   [street_network_to_sf()] numbers them), both as `"[id1, id2, ...]"` and
+#'   `"[]"` for rides, and `board_stop_id`, `alight_stop_id` (a ride's stops,
+#'   `"<feed>:<stop_id>"`; empty for street legs). As in r5r, consecutive
+#'   edges on a roundabout give only their first ids, and connectors none.
+#'   Needs `drop_geometry = FALSE`. Defaults to `FALSE`.
 #'
 #' @return With `drop_geometry = FALSE`, an `sf` of `LINESTRING`s in
 #'   EPSG:4326; otherwise a `data.frame`. One row per leg (`segment`) of
 #'   each itinerary (`option`), with `from_id`, `from_lat`, `from_lon`,
 #'   `to_id`, `to_lat`, `to_lon`, `option`, `departure_time`,
 #'   `total_duration` (minutes), `total_distance` (metres), `segment`,
-#'   `mode`, `segment_duration`, `wait` (minutes), `distance` (metres) and
-#'   `route`. Pairs without an itinerary have no rows. With `output_dir`,
-#'   `output_dir`.
+#'   `mode`, `segment_duration`, `wait` (minutes), `distance` (metres),
+#'   `route` and, with `osm_link_ids`, the four id columns. Pairs without an itinerary have no rows. With `output_dir`,
+#'   one CSV file per pair with itineraries is written,
+#'   `from_<origin id>_to_<destination id>.csv`, byte for byte as r5r writes
+#'   it (the geometry as r5r's WKT text), and `output_dir` is returned.
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -148,15 +163,10 @@ detailed_itineraries <- function(r5r_network,
          "'shortest_path' is TRUE.", call. = FALSE)
   }
   scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
-  if (osm_link_ids) unsupported("'osm_link_ids = TRUE'")
   if (!shortest_path && mode_list$transit) {
     unsupported("'shortest_path = FALSE' with public transport (McRAPTOR)")
   }
-  if (!is.null(output_dir) && !drop_geometry) {
-    unsupported("'output_dir' with the geometry (JTS's WKT text)",
-                "; use 'drop_geometry = TRUE'")
-  }
-  if (!drop_geometry && !requireNamespace("sf", quietly = TRUE)) {
+  if (is.null(output_dir) && !drop_geometry && !requireNamespace("sf", quietly = TRUE)) {
     stop("Package 'sf' is needed for the geometry of detailed itineraries; ",
          "install it or use 'drop_geometry = TRUE'.", call. = FALSE)
   }
@@ -170,7 +180,7 @@ detailed_itineraries <- function(r5r_network,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_bike_time, max_car_time, max_trip_duration,
     as.double(walk_speed), as.double(bike_speed), as.integer(max_rides),
-    as.integer(max_lts), shortest_path, threads, drop_geometry, scenario, output
+    as.integer(max_lts), shortest_path, threads, drop_geometry, scenario, osm_link_ids, output
   ))
   if (!is.null(output_dir)) return(output_dir)
 
@@ -183,6 +193,12 @@ detailed_itineraries <- function(r5r_network,
     segment = res$segment, mode = res$mode, segment_duration = res$segment_duration,
     wait = res$wait, distance = res$distance, route = res$route
   ))
+  if (osm_link_ids) {
+    out$osm_id_list <- res$osm_id_list
+    out$edge_id_list <- res$edge_id_list
+    out$board_stop_id <- res$board_stop_id
+    out$alight_stop_id <- res$alight_stop_id
+  }
   if (drop_geometry) return(out)
   # as r5r builds it: WKT read by sf, then an sf in EPSG:4326
   out$geometry <- if (nrow(out) > 0) {
