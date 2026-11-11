@@ -1,6 +1,9 @@
 # Parity with r5r on networks built with an elevation raster: r5r's Porto
 # Alegre sample with its poa_elevation.tif, and the Sao Paulo fixture with
-# the synthetic fixtures/spo_hills.tif. Needs r5r, a JDK 21 and the R5 jar,
+# the synthetic fixtures/spo_hills.tif, also warped by GDAL to SIRGAS 2000 /
+# UTM zone 23S (spo_hills_31983.tif, 50 m, bilinear) and to SIRGAS 2000
+# longitude and latitude (spo_hills_4674.tif, Float32), which r5r reads
+# through GeoTools' coordinate transforms. Needs r5r, a JDK 21 and the R5 jar,
 # so it is skipped on CRAN and wherever r5r cannot start (see helper-r5r.R).
 # bench/compare/elevation_parity.R runs the full comparison.
 
@@ -22,7 +25,8 @@ elevation_networks <- local({
     } else {
       r5r_sample("spo", packages = "sf")
       file.copy(file.path(fixture_path(), c("spo_osm.pbf", "spo_gtfs.zip")), dir)
-      file.copy(test_path("fixtures", "spo_hills.tif"), dir)
+      tif <- if (city == "spo") "spo_hills.tif" else paste0("spo_hills_", sub("spo", "", city), ".tif")
+      file.copy(test_path("fixtures", tif), dir)
       points <- fixture_points()
     }
     if (is.null(getOption("java.parameters"))) options(java.parameters = "-Xmx2G")
@@ -47,7 +51,8 @@ expect_elevation_parity <- function(key, fun, ...) {
 }
 
 test_that("walking and cycling with elevation equal r5r's", {
-  for (key in c("poa-tobler", "poa-minetti", "spo-tobler")) {
+  for (key in c("poa-tobler", "poa-minetti", "spo-tobler", "spo31983-tobler",
+                 "spo4674-minetti")) {
     pts <- elevation_networks(key)$points
     expect_identical(elevation_networks(key)$pb$elevation, toupper(sub(".*-", "", key)))
     expect_elevation_parity(key, "travel_time_matrix", origins = pts, destinations = pts,
@@ -85,4 +90,17 @@ test_that("a scenario on a network with elevation equals r5r's, with its warning
                             n_threads = 2, progress = FALSE)
   ))
   expect_identical(pb, as.data.frame(r5))
+})
+
+test_that("rasters in SIRGAS 2000 give r5r's transit times and itineraries", {
+  for (key in c("spo31983-tobler", "spo4674-minetti")) {
+    n <- elevation_networks(key)
+    pts <- n$points
+    expect_elevation_parity(key, "travel_time_matrix", origins = pts, destinations = pts,
+                            mode = c("BICYCLE", "TRANSIT"), max_bike_time = 20L,
+                            departure_datetime = departure, seed = 1L)
+    expect_elevation_parity(key, "detailed_itineraries", origins = pts[1:8, ],
+                            destinations = pts[9:16, ], mode = "BICYCLE",
+                            departure_datetime = departure, drop_geometry = TRUE)
+  }
 })

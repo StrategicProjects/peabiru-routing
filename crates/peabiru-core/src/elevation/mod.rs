@@ -23,12 +23,13 @@
 //! `Math.round(float)`), at least 1 s. Partial edges at the origin and the
 //! destination keep their plain times, as in R5.
 
+pub(crate) mod crs;
 pub(crate) mod tiff;
 
 use crate::fastmath;
 use crate::fastmath_trig;
 use crate::street::StreetNetwork;
-use tiff::Raster;
+use tiff::{Near, Raster};
 
 /// The slope cost function of a network (r5r's `elevation` argument).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -114,15 +115,64 @@ pub(crate) struct Samples {
 }
 
 /// `RasterDataSourceSampler.readElevation`: the raster value at the pixel
-/// nearest `(lon, lat)`, 0 outside the raster.
+/// nearest `(lon, lat)` once in the raster's coordinate reference system,
+/// 0 outside the raster.
 fn read_elevation(r: &Raster<'_>, lon: f64, lat: f64) -> ElevResult<f64> {
-    match r.georef.pixel(lon, lat, r.width, r.height) {
-        Ok(None) => Ok(0.0),
-        Ok(Some((x, y))) => r.value(x, y),
-        Err(()) => Err(format!(
+    let (x, y) = r.crs.apply(lon, lat);
+    let edge = || {
+        format!(
             "the point ({lon}, {lat}) lies on the outer edge of the raster, where GeoTools \
              finds no pixel and r5r fails to build the network; extend the raster by a pixel"
-        )),
+        )
+    };
+    let m = match read_at(r, x, y) {
+        Ok(m) => m,
+        Err(None) => return Err(edge()),
+        Err(Some(e)) => return Err(e),
+    };
+    if let Some(margin) = r.crs.margin() {
+        // Where the JVM's sine or cosine could put the point in another
+        // pixel than StrictMath's (see `crs`), r5r's own result depends on
+        // the machine. Within `margin` of the point, the pixels it may
+        // fall in are those at the corners of a square of side `2 margin`
+        // (much smaller than a pixel): if they all give the elevation R5
+        // stores (in decimetres), the answer is the same on every machine.
+        // Near the envelope's edge R5 may also fail, on the sliver past the
+        // last pixel: always ambiguous.
+        let near = r.georef.near_boundary(x, y, margin);
+        if near != Near::No {
+            let dm = |m: f64| java_round(m * 10.0) as i16;
+            let corners = [(-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0), (1.0, 1.0)];
+            let same = near == Near::Pixel
+                && corners.iter().all(|&(sx, sy)| {
+                    read_at(r, x + sx * margin, y + sy * margin).is_ok_and(|c| dm(c) == dm(m))
+                });
+            if !same {
+                return Err(format!(
+                    "the point ({lon}, {lat}) falls within {margin:e} {} of the boundary between \
+                     two pixels of the raster with different elevations (or of its edge) once \
+                     in {}: r5r reads one or the other depending on the machine it runs on (the \
+                     last bits of Java's sines and cosines), so peabiru does not guess; \
+                     reproject the raster to EPSG:4326 (gdalwarp -t_srs EPSG:4326), which needs \
+                     no transform, or shift it by a fraction of a pixel",
+                    r.crs.unit(),
+                    r.crs.label()
+                ));
+            }
+        }
+    }
+    Ok(m)
+}
+
+/// The value R5 reads at `(x, y)` in the raster's system: 0 outside its
+/// envelope, `Err(None)` on its outer edge (inside the envelope, past the
+/// last pixel, where GeoTools throws), `Err(Some(_))` for a raster that
+/// cannot be decoded there.
+fn read_at(r: &Raster<'_>, x: f64, y: f64) -> Result<f64, Option<String>> {
+    match r.georef.pixel(x, y, r.width, r.height) {
+        Ok(None) => Ok(0.0),
+        Ok(Some((px, py))) => r.value(px, py).map_err(Some),
+        Err(()) => Err(None),
     }
 }
 

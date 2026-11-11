@@ -124,6 +124,7 @@ mod elevation;
 mod error;
 mod fastmath;
 mod fastmath_trig;
+mod fdlibm;
 mod gtfs;
 mod inspect;
 mod isochrone;
@@ -246,6 +247,14 @@ pub mod unstable {
         points: &[(f64, f64)],
     ) -> Result<Vec<Result<f64, String>>, String> {
         crate::elevation::read_points(raster, points)
+    }
+
+    /// The transform R5 (GeoTools) applies to WGS 84 `(lon, lat)` points
+    /// for a raster in EPSG `code`, `None` for a system peabiru does not
+    /// support (for comparing with GeoTools).
+    pub fn crs_transform(code: u32, points: &[(f64, f64)]) -> Option<Vec<(f64, f64)>> {
+        let c = crate::elevation::crs::lookup(code)?;
+        Some(points.iter().map(|&(lon, lat)| c.apply(lon, lat)).collect())
     }
 
     /// The slope factor of directed edge `e` (`None` without elevation).

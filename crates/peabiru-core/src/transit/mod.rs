@@ -120,8 +120,9 @@ fn raster_in_dir(dir: &Path, mut rasters: Vec<PathBuf>) -> Result<Option<Named>,
                     one,
                     format!(
                         "the raster has a {} file next to it, whose coordinate reference \
-                         system r5r (GeoTools) uses instead of the GeoTIFF's; remove it (the \
-                         raster must be in EPSG:4326)",
+                         system r5r (GeoTools) uses instead of the GeoTIFF's, and which peabiru \
+                         does not read; remove it (peabiru and r5r then both use the GeoTIFF's \
+                         own system)",
                         prj.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned())
                     ),
                 ));
@@ -210,9 +211,18 @@ pub fn build_from_bytes(
 ///
 /// The raster must be a GeoTIFF of one band of 8, 16 or 32-bit integers
 /// or 32 or 64-bit floats, uncompressed or compressed with LZW,
-/// Deflate or PackBits, in WGS 84 longitude and latitude (EPSG:4326),
-/// north up, georeferenced by a tie point and a pixel scale (what GDAL
-/// writes). Other rasters are an error that says what to change.
+/// Deflate or PackBits, north up, georeferenced by a tie point and a pixel
+/// scale (what GDAL writes), in WGS 84 longitude and latitude (EPSG:4326)
+/// or in another system r5r reads through GeoTools' coordinate transforms
+/// and peabiru reproduces: SIRGAS 2000 (4674), SAD69 (4618), Corrego
+/// Alegre 1970-72 (4225), their UTM zones used in Brazil, SIRGAS 2000 /
+/// Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) and WGS 84 /
+/// Pseudo-Mercator (3857). Other rasters are an error that says what to
+/// change. In a system other than EPSG:4326, a sample that falls within a
+/// few hundredths of a micrometre of the boundary between two pixels with
+/// different values (or of the raster's edge) is an error: r5r reads one
+/// or the other depending on the machine it runs on (see
+/// [`NetworkError`]).
 pub fn build_from_bytes_with_elevation(
     pbf: &[u8],
     feeds: &[(&str, &[u8])],

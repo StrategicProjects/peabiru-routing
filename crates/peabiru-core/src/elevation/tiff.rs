@@ -3,14 +3,18 @@
 //! either byte order, one band of 8, 16 or 32-bit integers or 32 or 64-bit
 //! floats, strips or tiles, no compression, LZW, Deflate or
 //! PackBits, horizontal (2) and floating-point (3) predictors, and the
-//! georeferencing of one tie point and a pixel scale in WGS 84 longitude
-//! and latitude (EPSG:4326). Anything else is an error that says what is
-//! not supported. Every combination of these was compared with what R5
-//! (GeoTools 25 and imageio-ext) reads; where R5 fails (several bands, LZW
-//! with the floating-point predictor, the horizontal predictor on 64-bit
-//! samples, 64-bit integers, ZSTD, no georeferencing) this reader fails
-//! too, and where R5 reprojects (any other coordinate reference system) or
-//! decodes lossily (JPEG) it refuses the raster.
+//! georeferencing of one tie point and a pixel scale in a coordinate
+//! reference system given by its EPSG code, among those whose transform
+//! peabiru reproduces ([`crs::lookup`]: WGS 84 longitude and latitude, and
+//! the geographic and projected systems of Brazilian and world-wide data).
+//! Anything else is an error that says what is not supported. Every
+//! combination of these was compared with what R5 (GeoTools 25 and
+//! imageio-ext) reads; where R5 fails (several bands, LZW with the
+//! floating-point predictor, the horizontal predictor on 64-bit samples,
+//! 64-bit integers, ZSTD, no georeferencing) this reader fails too, and
+//! where R5 reads something peabiru does not reproduce (another or a
+//! user-defined coordinate reference system) or decodes lossily (JPEG) it
+//! refuses the raster.
 //!
 //! The blocks (strips or tiles) are decoded only when a sample falls in
 //! them, once each, and may be read from several threads.
@@ -26,6 +30,7 @@
 //! decoded blocks are kept in a table only for up to 65,536 blocks, in a
 //! map of those read beyond. A malformed file is an error, never a panic.
 
+use super::crs::{self, Crs};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -241,6 +246,34 @@ impl Georef {
         .all(|v| v.is_finite())
     }
 
+    /// Whether `(x, y)` lies within `margin` (in the raster's units) of the
+    /// envelope's edges ([`Near::Edge`]: R5 may then read a pixel, 0 m, or
+    /// fail on the sliver between the last pixel and the envelope), or of
+    /// the boundary between two pixels inside it ([`Near::Pixel`]).
+    pub(crate) fn near_boundary(&self, x: f64, y: f64, margin: f64) -> Near {
+        let (x0, x1) = (self.env_x, self.env_x + self.env_w);
+        let (y0, y1) = (self.env_y, self.env_y + self.env_h);
+        if !(x >= x0 - margin && x <= x1 + margin && y >= y0 - margin && y <= y1 + margin) {
+            // well outside (or NaN): R5 reads 0 m wherever it lands
+            return Near::No;
+        }
+        if (x - x0).abs() <= margin
+            || (x - x1).abs() <= margin
+            || (y - y0).abs() <= margin
+            || (y - y1).abs() <= margin
+        {
+            return Near::Edge;
+        }
+        let near_half = |f: f64, m: f64| (f - f.floor() - 0.5).abs() <= m;
+        if near_half(x * self.i00 + self.i02, margin * self.i00.abs())
+            || near_half(y * self.i11 + self.i12, margin * self.i11.abs())
+        {
+            Near::Pixel
+        } else {
+            Near::No
+        }
+    }
+
     /// The pixel R5 reads at `(lon, lat)`: `None` outside the envelope
     /// (R5 then uses an elevation of 0), `Err(())` inside the envelope
     /// but outside the image, where GeoTools throws and R5's network
@@ -271,6 +304,14 @@ impl Georef {
         }
         Ok(Some((x as u32, y as u32)))
     }
+}
+
+/// What lies within a margin of a point: see [`Georef::near_boundary`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Near {
+    No,
+    Pixel,
+    Edge,
 }
 
 type Block = TiffResult<Vec<f64>>;
@@ -305,6 +346,8 @@ pub(crate) struct Raster<'a> {
     counts: Entry,
     big: bool,
     pub(crate) georef: Georef,
+    /// The coordinate reference system of the georeferencing.
+    pub(crate) crs: Crs,
     decoded: Slots,
     /// Pixels decoded so far, against [`MAX_DECODED_PIXELS`].
     spent: AtomicUsize,
@@ -337,6 +380,77 @@ const KEY_RASTER_TYPE: u16 = 1025;
 const KEY_GEOGRAPHIC_TYPE: u16 = 2048;
 const KEY_GEOG_ANGULAR_UNITS: u16 = 2054;
 const KEY_PROJECTED_TYPE: u16 = 3072;
+const KEY_PROJ_LINEAR_UNITS: u16 = 3076;
+/// The GeoTIFF code of a user-defined system (given by its parameters).
+const USER_DEFINED: u64 = 32767;
+
+/// The coordinate reference system of the GeoTIFF keys, as GeoTools
+/// decodes it (`GeoTiffMetadata2CRSAdapter`): the model type chooses
+/// between the projected and the geographic system, which must be given
+/// by an EPSG code among those [`crs::lookup`] supports.
+fn crs_of(key: &impl Fn(u16) -> Option<u64>) -> TiffResult<Crs> {
+    const HOW: &str = "reproject the raster to one of them, for instance to WGS 84 \
+                       (gdalwarp -t_srs EPSG:4326)";
+    let (code, projected) = match key(KEY_MODEL_TYPE) {
+        Some(1) => (key(KEY_PROJECTED_TYPE), true),
+        Some(2) => (key(KEY_GEOGRAPHIC_TYPE), false),
+        Some(3) => {
+            return Err(
+                "the raster is in geocentric coordinates (model type 3), which r5r \
+                        cannot sample"
+                    .into(),
+            )
+        }
+        m => {
+            return Err(format!(
+                "the raster has no coordinate reference system (GeoTIFF model type {}); r5r \
+                 fails on such a raster too",
+                m.map_or("missing".into(), |v| v.to_string())
+            ))
+        }
+    };
+    let kind = if projected { "projected" } else { "geographic" };
+    let code = match code {
+        None | Some(USER_DEFINED) => {
+            return Err(format!(
+                "the raster's {kind} coordinate reference system is user-defined (given by \
+                 its parameters, not by an EPSG code), which peabiru does not reproduce; \
+                 supported: {}; {HOW}",
+                crs::SUPPORTED
+            ))
+        }
+        Some(c) => c,
+    };
+    let crs = u32::try_from(code)
+        .ok()
+        .and_then(crs::lookup)
+        .filter(|c| c.projection.is_some() == projected)
+        .ok_or_else(|| {
+            format!(
+                "the raster is in EPSG:{code}, a coordinate reference system whose transform \
+                 peabiru has not matched with r5r's (GeoTools'); supported: {}; {HOW}",
+                crs::SUPPORTED
+            )
+        })?;
+    if !projected {
+        if let Some(u) = key(KEY_GEOG_ANGULAR_UNITS) {
+            if u != 9102 {
+                return Err(format!(
+                    "angular unit {u} (not degrees, 9102) for {} is not supported",
+                    crs.label()
+                ));
+            }
+        }
+    } else if let Some(u) = key(KEY_PROJ_LINEAR_UNITS) {
+        if u != 9001 {
+            return Err(format!(
+                "linear unit {u} (not metres, 9001) for {} is not supported",
+                crs.label()
+            ));
+        }
+    }
+    Ok(crs)
+}
 
 impl<'a> Raster<'a> {
     /// Parse the first image of a TIFF file and check that it is one this
@@ -654,25 +768,7 @@ impl<'a> Raster<'a> {
                 (k[0] == u64::from(id) && k[1] == 0).then_some(k[3])
             })
         };
-        let model = key(KEY_MODEL_TYPE);
-        let geographic = key(KEY_GEOGRAPHIC_TYPE);
-        if model != Some(2) || geographic != Some(4326) || key(KEY_PROJECTED_TYPE).is_some() {
-            return Err(format!(
-                "the coordinate reference system is not WGS 84 longitude and latitude \
-                 (EPSG:4326): model type {}, geographic type {}; r5r converts other systems \
-                 with GeoTools, which this reader does not reproduce: reproject the raster to \
-                 EPSG:4326 (for instance with gdalwarp -t_srs EPSG:4326)",
-                model.map_or("none".into(), |v| v.to_string()),
-                geographic.map_or("none".into(), |v| v.to_string()),
-            ));
-        }
-        if let Some(u) = key(KEY_GEOG_ANGULAR_UNITS) {
-            if u != 9102 {
-                return Err(format!(
-                    "angular unit {u} (not degrees, 9102) for EPSG:4326 is not supported"
-                ));
-            }
-        }
+        let crs = crs_of(&key)?;
         let point = match key(KEY_RASTER_TYPE) {
             None | Some(1) => false,
             Some(2) => true,
@@ -702,6 +798,7 @@ impl<'a> Raster<'a> {
             counts,
             big: r.big,
             georef,
+            crs,
             decoded: if n_blocks <= DENSE_BLOCKS {
                 Slots::Dense((0..n_blocks).map(|_| OnceLock::new()).collect())
             } else {
@@ -1345,7 +1442,10 @@ mod tests {
         c[keys_at + 6..keys_at + 8].copy_from_slice(&u16::MAX.to_le_bytes());
         assert!(read_all(&c).is_ok());
         // no CRS keys
-        fails(&tiny(3, 3, &[(34735, 3, 4, 8 + 24 + 48)]), "not WGS 84");
+        fails(
+            &tiny(3, 3, &[(34735, 3, 4, 8 + 24 + 48)]),
+            "no coordinate reference system",
+        );
         // a zero pixel scale, and no georeferencing
         let mut z = b.clone();
         z[8..16].copy_from_slice(&0f64.to_le_bytes());
@@ -1356,6 +1456,60 @@ mod tests {
         let mut n = b;
         n[16..24].copy_from_slice(&f64::NAN.to_le_bytes());
         fails(&n, "positive scales");
+    }
+
+    /// `tiny(5, 4)` with its GeoTIFF key directory replaced by `keys`
+    /// (`(id, value)`, held in the directory).
+    pub(super) fn with_keys(keys: &[(u16, u16)]) -> Vec<u8> {
+        let n = keys.len() as u32;
+        let at = tiny(5, 4, &[(34735, 3, 4 + 4 * n, 0)]).len() as u32;
+        let mut b = tiny(5, 4, &[(34735, 3, 4 + 4 * n, at)]);
+        for v in [1u16, 1, 0, keys.len() as u16] {
+            b.extend_from_slice(&v.to_le_bytes());
+        }
+        for &(id, v) in keys {
+            for w in [id, 0, 1, v] {
+                b.extend_from_slice(&w.to_le_bytes());
+            }
+        }
+        b
+    }
+
+    #[test]
+    fn coordinate_reference_systems() {
+        let crs = |keys: &[(u16, u16)]| Raster::parse(&with_keys(keys)).map(|r| r.crs.code);
+        assert_eq!(crs(&[(1024, 2), (2048, 4326)]), Ok(4326));
+        assert_eq!(crs(&[(1024, 2), (2048, 4674), (2054, 9102)]), Ok(4674));
+        assert_eq!(crs(&[(1024, 1), (3072, 31982), (3076, 9001)]), Ok(31982));
+        // the model type chooses which key counts
+        assert_eq!(crs(&[(1024, 1), (2048, 4674), (3072, 32722)]), Ok(32722));
+        assert_eq!(crs(&[(1024, 2), (2048, 4618), (3072, 32722)]), Ok(4618));
+        let err = |keys: &[(u16, u16)], what: &str| {
+            let e = crs(keys).unwrap_err();
+            assert!(e.contains(what), "{e:?} does not mention {what:?}");
+        };
+        err(&[(1024, 1), (3072, 32767)], "user-defined");
+        err(&[(1024, 1)], "user-defined");
+        err(&[(1024, 2), (2048, 32767)], "user-defined");
+        err(&[(1024, 1), (3072, 2193)], "EPSG:2193");
+        // a projected code given as geographic, and the reverse
+        err(&[(1024, 2), (2048, 31982)], "EPSG:31982");
+        err(&[(1024, 1), (3072, 4674)], "EPSG:4674");
+        err(&[(1024, 3)], "geocentric");
+        err(&[(1024, 7)], "model type 7");
+        err(
+            &[(1024, 1), (3072, 31982), (3076, 9002)],
+            "linear unit 9002",
+        );
+        err(
+            &[(1024, 2), (2048, 4674), (2054, 9101)],
+            "angular unit 9101",
+        );
+        // a key held in another tag (location != 0) is not read
+        let mut b = with_keys(&[(1024, 1), (3072, 31982)]);
+        let last = b.len() - 6;
+        b[last..last + 2].copy_from_slice(&34737u16.to_le_bytes());
+        assert!(Raster::parse(&b).err().unwrap().contains("user-defined"));
     }
 
     /// splitmix64
@@ -1392,6 +1546,9 @@ mod tests {
             include_bytes!("../../tests/data/fuzz_p3.tif").to_vec(),
             include_bytes!("../../tests/data/fuzz_big.tif").to_vec(),
             tiny(7, 5, &[]),
+            with_keys(&[(1024, 1), (3072, 31982), (3076, 9001)]),
+            with_keys(&[(1024, 2), (2048, 4674), (2054, 9102)]),
+            include_bytes!("../../tests/data/spo_hills_31983.tif").to_vec(),
             tiny(
                 7,
                 5,
