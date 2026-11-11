@@ -33,6 +33,7 @@ use peabiru_core::{
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
+mod fares;
 mod inspect;
 mod itinerary;
 
@@ -241,7 +242,7 @@ fn transit_params(
     max_lts: i32,
     max_rides: usize,
     draws_per_minute: i32,
-    seed: i32,
+    seed: Option<i32>,
 ) -> Result<TransitParams, JsError> {
     let mut p = TransitParams::default();
     p.transit_modes = parse_transit_modes(modes)?;
@@ -260,7 +261,7 @@ fn transit_params(
     p.max_lts = max_lts;
     p.max_rides = max_rides;
     p.draws_per_minute = draws_per_minute;
-    p.seed = Some(seed);
+    p.seed = seed;
     Ok(p)
 }
 
@@ -325,12 +326,14 @@ pub fn transit_ttm(
     walk_speed: f64,
     max_rides: usize,
     draws_per_minute: i32,
-    seed: i32,
+    seed: Option<i32>,
+    fare: JsValue,
+    max_fare: f64,
 ) -> Result<Array, JsError> {
     let t = transit(network)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let np = percentiles.len();
-    let p = transit_params(
+    let mut p = transit_params(
         transit_modes,
         access_mode,
         egress_mode,
@@ -349,6 +352,8 @@ pub fn transit_ttm(
         draws_per_minute,
         seed,
     )?;
+    p.fare_structure = fares::fare_arg(&fare)?;
+    p.max_fare = max_fare;
     let m = transit_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
         .map_err(route_err)?;
     let (mut from, mut to) = (Vec::new(), Vec::new());
@@ -425,7 +430,9 @@ pub fn accessibility(
     max_lts: i32,
     max_rides: usize,
     draws_per_minute: i32,
-    seed: i32,
+    seed: Option<i32>,
+    fare: JsValue,
+    max_fare: f64,
 ) -> Result<Float64Array, JsError> {
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     if opportunities.len() != n_opportunities * d.len() {
@@ -442,7 +449,7 @@ pub fn accessibility(
     let dest = Destinations::new(&d, &opp);
     let values = if !transit_modes.is_empty() {
         let t = transit(network)?;
-        let p = transit_params(
+        let mut p = transit_params(
             transit_modes,
             mode,
             egress_mode,
@@ -461,6 +468,8 @@ pub fn accessibility(
             draws_per_minute,
             seed,
         )?;
+        p.fare_structure = fares::fare_arg(&fare)?;
+        p.max_fare = max_fare;
         transit_accessibility(&network.net, &t.layer, &t.data, &o, &dest, &p, &a)
     } else {
         let m = street_mode(mode)?;
@@ -526,7 +535,7 @@ pub fn expanded(
         max_lts,
         max_rides,
         draws_per_minute,
-        seed,
+        Some(seed),
     )?;
     let rows = if arrival {
         arrival_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
@@ -603,7 +612,7 @@ pub fn isochrone_polygons(
             max_lts,
             max_rides,
             draws_per_minute,
-            seed,
+            Some(seed),
         )?;
         transit_travel_time_surface(&network.net, &t.layer, &t.data, &o, &p, zoom)
     } else {

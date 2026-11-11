@@ -17,7 +17,7 @@ function returns a Promise; options are the fields of an options object.
 | Points, dates and shared options | [`Points`](#Points), [`Numbers`](#Numbers), [`DateTime`](#DateTime), [`RoutingOptions`](#RoutingOptions) |
 | Missing values and errors | [`NA_INT32`](#NA_INT32), [`UnsupportedError`](#UnsupportedError) |
 | Loading the module and versions | [`init`](#init), [`initSync`](#initSync), [`InitInput`](#InitInput), [`coreVersion`](#coreVersion), [`version`](#version) |
-| Other declarations | [`DetailedItinerariesOptions`](#DetailedItinerariesOptions), [`ItineraryRow`](#ItineraryRow), [`ItineraryFeature`](#ItineraryFeature), [`detailedItineraries`](#detailedItineraries) |
+| Other declarations | [`DetailedItinerariesOptions`](#DetailedItinerariesOptions), [`ItineraryRow`](#ItineraryRow), [`ItineraryFeature`](#ItineraryFeature), [`detailedItineraries`](#detailedItineraries), [`FareStructure`](#FareStructure), [`SetupFareStructureOptions`](#SetupFareStructureOptions), [`setupFareStructure`](#setupFareStructure), [`readFareStructure`](#readFareStructure), [`writeFareStructure`](#writeFareStructure), [`ParetoFrontierOptions`](#ParetoFrontierOptions), [`ParetoFrontierTable`](#ParetoFrontierTable), [`paretoFrontier`](#paretoFrontier) |
 
 ## Networks
 
@@ -142,8 +142,8 @@ Also takes every option of [`RoutingOptions`](#RoutingOptions).
 - `departureDatetime?: DateTime | null`: Required with transit; the current time otherwise (default null).
 - `timeWindow?: number`: Minutes of departure times, from `departureDatetime` (default 10).
 - `percentiles?: number | number[]`: 1 to 5 distinct values from 1 to 99 (default 50).
-- `fareStructure?: null`: Not supported: must be null (default).
-- `maxFare?: number`: Not supported: must be Infinity (default).
+- `fareStructure?: FareStructure | null`: A fare structure (see `setupFareStructure()`), or null (default): no fares. With one, public transport is routed with R5's multi-criteria router (McRAPTOR) over `timeWindow * drawsPerMinute` sampled departure times, as r5r does.
+- `maxFare?: number`: The highest fare of a trip (default Infinity); a finite value needs a `fareStructure`.
 
 ### TravelTimeMatrix {#TravelTimeMatrix}
 
@@ -844,11 +844,11 @@ Also takes every option of [`RoutingOptions`](#RoutingOptions).
 
 - `departureDatetime?: DateTime | null`: Required with public transport.
 - `timeWindow?: number`: Minutes of departure times, from `departureDatetime` (default 10).
-- `suboptimalMinutes?: number`: Must be 0 (the default) with `shortestPath: true`.
-- `shortestPath?: boolean`: Only the fastest itinerary (default true); `false` with public transport throws [`UnsupportedError`](#UnsupportedError).
+- `suboptimalMinutes?: number`: With `shortestPath: false`, how many minutes slower than the best an alternative may be; must be 0 (the default) with `shortestPath: true` or a `fareStructure`.
+- `shortestPath?: boolean`: Only the fastest itinerary (default true); `false` gives McRAPTOR's alternatives, one per sequence of routes.
 - `allToAll?: boolean`: Route from every origin to every destination (default false: pair them row by row).
-- `fareStructure?: null`: Not supported yet (the defaults only).
-- `maxFare?: number`
+- `fareStructure?: FareStructure | null`: A fare structure (default null): trips routed with fares, and fare columns in the result.
+- `maxFare?: number`: The highest fare of a trip (default Infinity).
 - `dropGeometry?: boolean`: Plain rows instead of GeoJSON features (default false).
 - `osmLinkIds?: boolean`: `true` throws [`UnsupportedError`](#UnsupportedError) (not supported yet).
 
@@ -872,8 +872,10 @@ One leg of an itinerary, as r5r's row: durations and waits are minutes with one 
 - `departure_time: string`
 - `total_duration: number`
 - `total_distance: number`
+- `total_fare?: number`: With a fare structure only.
 - `segment: number`
 - `mode: string`
+- `cumulative_fare?: number`: With a fare structure only: the fare paid up to the end of the leg.
 - `segment_duration: number`
 - `wait: number`
 - `distance: number`
@@ -906,4 +908,116 @@ export declare function detailedItineraries(
 ): Promise<{ type: "FeatureCollection"; features: ItineraryFeature[] } | ItineraryRow[]>;
 ```
 
-Detailed itineraries between origin-destination pairs, as r5r's `detailed_itineraries()` without fares: the direct trip by the street mode and, with public transport, the fastest trip over the window. One row per leg, as a GeoJSON [`FeatureCollection`](#FeatureCollection) or, with `dropGeometry`, plain rows; pairs without an itinerary have none.
+Detailed itineraries between origin-destination pairs, as r5r's `detailed_itineraries()`: the direct trip by the street mode and, with public transport, the fastest trip over the window (or, with `shortestPath: false`, McRAPTOR's alternatives). One row per leg, as a GeoJSON [`FeatureCollection`](#FeatureCollection) or, with `dropGeometry`, plain rows; pairs without an itinerary have none.
+
+### FareStructure {#FareStructure}
+
+*interface*
+
+```typescript
+export interface FareStructure
+```
+
+A fare structure, r5r's object (see `setupFareStructure()`): the global settings, three tables as objects of columns, and r5r's debug settings.
+
+- `max_discounted_transfers: number | null`: Most transfers with a discount (default 1; null where r5r has NA).
+- `transfer_time_allowance: number | null`: Minutes between the boardings of a discounted transfer (default 120).
+- `fare_cap: number`: Highest fare of a trip (Infinity: no cap).
+- `fares_per_type: { type: (string | null)[]; unlimited_transfers: boolean[]; allow_same_route_transfer: boolean[]; use_route_fare: boolean[]; fare: number[]; }`
+- `fares_per_transfer: { first_leg: (string | null)[]; second_leg: (string | null)[]; fare: number[] }`
+- `fares_per_route: { agency_id: (string | null)[]; agency_name: (string | null)[]; route_id: (string | null)[]; route_short_name: (string | null)[]; route_long_name: (string | null)[]; mode: (string | null)[]; route_fare: number[]; fare_type: (string | null)[]; }`
+- `debug_settings: { output_file: string; trip_info: string }`: r5r 2.5.0 writes no debug file whatever these say, and neither does peabiru.
+
+### SetupFareStructureOptions {#SetupFareStructureOptions}
+
+*interface*
+
+```typescript
+export interface SetupFareStructureOptions
+```
+
+- `by?: string`: `"MODE"` (default), `"AGENCY_ID"`, `"AGENCY_NAME"` or `"GENERIC"`.
+- `debugPath?: string | null`: A `.csv` path, kept in `debug_settings` (null by default).
+- `debugInfo?: string | null`: `"MODE"`, `"ROUTE"` or `"MODE_ROUTE"`, kept in `debug_settings`.
+
+### setupFareStructure {#setupFareStructure}
+
+*function*
+
+```typescript
+export declare function setupFareStructure(
+  network: Network,
+  baseFare: number,
+  options?: SetupFareStructureOptions,
+): Promise<FareStructure>;
+```
+
+A fare structure as r5r's `setup_fare_structure()`: every route, fare type and transfer between two types costs `baseFare` (read as a Java float).
+
+### readFareStructure {#readFareStructure}
+
+*function*
+
+```typescript
+export declare function readFareStructure(
+  bytes: Uint8Array | ArrayBuffer | ArrayBufferView,
+  encoding?: "UTF-8" | "unknown" | "Latin-1",
+): FareStructure;
+```
+
+A fare structure read from the bytes of a `.zip` file, as r5r's `read_fare_structure()` (after `init()` or `buildNetwork()`).
+
+### writeFareStructure {#writeFareStructure}
+
+*function*
+
+```typescript
+export declare function writeFareStructure(fareStructure: FareStructure): Uint8Array;
+```
+
+The bytes of a fare structure `.zip` file: the CSV files r5r's `write_fare_structure()` writes, stored uncompressed.
+
+### ParetoFrontierOptions {#ParetoFrontierOptions}
+
+*interface*
+
+```typescript
+export interface ParetoFrontierOptions extends Omit<RoutingOptions, "drawsPerMinute" | "newCarspeeds" | "carspeedScale" | "newLts">
+```
+
+- `departureDatetime?: DateTime | null`: Required with transit.
+- `timeWindow?: number`: Minutes of departure times, from `departureDatetime` (default 10), sampled once a minute.
+- `percentiles?: number | number[]`: 1 to 5 distinct values from 1 to 99 (default 50).
+- `fareStructure?: FareStructure`: Required.
+- `fareCutoffs?: number | number[]`: Required: the fare cutoffs, at least 0, distinct.
+
+### ParetoFrontierTable {#ParetoFrontierTable}
+
+*interface*
+
+```typescript
+export interface ParetoFrontierTable
+```
+
+Columns of a Pareto frontier: one row per origin, destination, percentile and fare cutoff at which the travel time changes. `monetary_cost` is the cutoff as R5 reads it, a Java float.
+
+- `from_id: (string | null)[]`
+- `to_id: (string | null)[]`
+- `percentile: Int32Array`
+- `travel_time: Int32Array`
+- `monetary_cost: Float64Array`
+
+### paretoFrontier {#paretoFrontier}
+
+*function*
+
+```typescript
+export declare function paretoFrontier(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: ParetoFrontierOptions,
+): Promise<ParetoFrontierTable>;
+```
+
+The trade-off between travel time and fare, as r5r's `pareto_frontier()`.

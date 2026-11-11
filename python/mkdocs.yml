@@ -42,6 +42,7 @@ nav:
       - Accessibility: accessibility.md
       - Expanded and arrival matrices: expanded-arrival.md
       - Detailed itineraries: itineraries.md
+      - Fares: fares.md
       - Coming from r5py / r5r: coming-from-r5.md
   - Examples:
       - Isochrones by mode: example-isochrones.md

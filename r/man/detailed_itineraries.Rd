@@ -60,7 +60,9 @@ transit.}
 at \code{departure_datetime}, over which travel times are computed.}
 
 \item{suboptimal_minutes}{An integer, 0 (the default): with
-\code{shortest_path = TRUE}, r5r requires 0.}
+\code{shortest_path = FALSE}, how many minutes slower than the best an
+alternative may be. It must be 0 with \code{shortest_path = TRUE} and with a
+\code{fare_structure}, as in r5r.}
 
 \item{max_walk_time, max_bike_time, max_car_time}{The maximum time in
 minutes for each street mode (\code{Inf}, the default, means the trip limit).}
@@ -82,8 +84,14 @@ every destination (\code{TRUE}) or pair them row by row (\code{FALSE}, the
 default; a single origin or destination is repeated to match the
 other).}
 
-\item{fare_structure, max_fare}{Fares; not supported yet (\code{fare_structure}
-must be \code{NULL} and \code{max_fare} \code{Inf}).}
+\item{fare_structure}{A fare structure (see \code{\link[r5r:setup_fare_structure]{setup_fare_structure()}}) or
+\code{NULL} (the default): no fares. It must have a row for every route of
+the network, as in r5r; R5's own fare calculators (a structure with a
+\code{type}) are not supported.}
+
+\item{max_fare}{A number, the highest fare of a trip (\code{Inf}, the default:
+no limit), in the currency of the fare structure; a finite value needs
+a \code{fare_structure}.}
 
 \item{new_carspeeds, carspeed_scale, new_lts}{Scenarios; not supported yet
 (must be \code{NULL}, \code{1} and \code{NULL}).}
@@ -125,8 +133,10 @@ each itinerary (\code{option}), with \code{from_id}, \code{from_lat}, \code{from
 \code{to_id}, \code{to_lat}, \code{to_lon}, \code{option}, \code{departure_time},
 \code{total_duration} (minutes), \code{total_distance} (metres), \code{segment},
 \code{mode}, \code{segment_duration}, \code{wait} (minutes), \code{distance} (metres) and
-\code{route}. Pairs without an itinerary have no rows. With \code{output_dir},
-\code{output_dir}.
+\code{route}; with a \code{fare_structure}, also \code{total_fare} (after
+\code{total_distance}) and \code{cumulative_fare} (after \code{mode}), the fare paid
+up to the end of the leg. Pairs without an itinerary have no rows. With
+\code{output_dir}, \code{output_dir}.
 }
 \description{
 The itinerary of each trip between pairs of origins and destinations:
@@ -135,13 +145,17 @@ waiting time, distance, route and line. Arguments, defaults and the
 result are those of \code{r5r::detailed_itineraries()} (r5r 2.5.0), with the
 same values: the direct trip by the street mode and, with public
 transport, the fastest trip over the departure window
-(\code{shortest_path = TRUE}).
+(\code{shortest_path = TRUE}) or, with \code{shortest_path = FALSE}, the
+alternatives R5's multi-criteria router (McRAPTOR) finds over
+\code{time_window} sampled departure times, one per sequence of routes (the
+fastest of each), up to \code{suboptimal_minutes} slower than the best. With a
+\code{fare_structure} the trips are routed with fares (and only those within
+\code{max_fare} kept), and the result gets \code{total_fare} and \code{cumulative_fare}
+columns.
 }
 \details{
-Not supported yet, and an error: \code{shortest_path = FALSE} with public
-transport (r5r routes it with R5's McRAPTOR), \code{osm_link_ids = TRUE},
-\code{output_dir} with the geometry (r5r writes JTS's WKT text; use
-\code{drop_geometry = TRUE}), fares and scenarios. As in r5r, networks
+Not supported yet, and an error: \code{osm_link_ids = TRUE}, \code{output_dir}
+with the geometry (r5r writes JTS's WKT text; use \code{drop_geometry = TRUE}) and scenarios. As in r5r, networks
 whose GTFS has frequency-based trips cannot be used with public
 transport. A car trip whose egress search crosses a turn restriction
 with two or more via ways is an error too (R5 changes the restriction

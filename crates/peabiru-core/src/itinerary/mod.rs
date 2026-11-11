@@ -490,6 +490,13 @@ fn plan(
             trips = vec![t];
         }
     }
+    // with a fare structure r5r reports the fare columns, 0 for a trip
+    // without public transport
+    if p.fare_structure.is_some() {
+        for t in &mut trips {
+            t.fares.get_or_insert_with(|| (0, vec![0; t.legs.len()]));
+        }
+    }
     Ok(trips)
 }
 

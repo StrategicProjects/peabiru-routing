@@ -65,9 +65,9 @@ fare_object <- function(x) {
 #' @return A fare structure (a list, see Details).
 #' @family fare structure
 #' @examplesIf identical(tolower(Sys.getenv("NOT_CRAN")), "true")
-#' data_path <- system.file("extdata/poa", package = "peabiru")
-#' network <- build_network(data_path)
-#' fare_structure <- setup_fare_structure(network, base_fare = 5)
+#' data_path <- system.file("extdata/spo", package = "peabiru")
+#' network <- build_network(data_path, n_threads = 2)
+#' fare_structure <- setup_fare_structure(network, base_fare = 4.4)
 #' fare_structure$fares_per_type
 #' @export
 setup_fare_structure <- function(r5r_network,
@@ -135,8 +135,9 @@ setup_fare_structure <- function(r5r_network,
 #' @return The path passed to `file_path`, invisibly.
 #' @family fare structure
 #' @examplesIf identical(tolower(Sys.getenv("NOT_CRAN")), "true")
-#' path <- system.file("extdata/poa/fares/fares_poa.zip", package = "peabiru")
-#' fare_structure <- read_fare_structure(path)
+#' data_path <- system.file("extdata/spo", package = "peabiru")
+#' network <- build_network(data_path, n_threads = 2)
+#' fare_structure <- setup_fare_structure(network, base_fare = 4.4)
 #' tmpfile <- tempfile("sample_fare_structure", fileext = ".zip")
 #' write_fare_structure(fare_structure, tmpfile)
 #' @export
@@ -176,8 +177,12 @@ write_fare_structure <- function(fare_structure, file_path) {
 #' @return A fare structure (see [setup_fare_structure()]).
 #' @family fare structure
 #' @examplesIf identical(tolower(Sys.getenv("NOT_CRAN")), "true")
-#' path <- system.file("extdata/poa/fares/fares_poa.zip", package = "peabiru")
-#' fare_structure <- read_fare_structure(path)
+#' data_path <- system.file("extdata/spo", package = "peabiru")
+#' network <- build_network(data_path, n_threads = 2)
+#' tmpfile <- tempfile("sample_fare_structure", fileext = ".zip")
+#' write_fare_structure(setup_fare_structure(network, base_fare = 4.4), tmpfile)
+#' fare_structure <- read_fare_structure(tmpfile)
+#' fare_structure$transfer_time_allowance
 #' @export
 read_fare_structure <- function(file_path, encoding = "UTF-8") {
   if (!is.character(file_path) || length(file_path) != 1L || is.na(file_path)) {
@@ -299,17 +304,17 @@ check_fares <- function(fare_structure, max_fare, r5r_network) {
 #'   `travel_time` and `monetary_cost`.
 #' @family fare structure
 #' @examplesIf identical(tolower(Sys.getenv("NOT_CRAN")), "true")
-#' data_path <- system.file("extdata/poa", package = "peabiru")
-#' network <- build_network(data_path)
-#' points <- read.csv(file.path(data_path, "poa_hexgrid.csv"))[1:5, ]
-#' fares <- read_fare_structure(file.path(data_path, "fares/fares_poa.zip"))
+#' data_path <- system.file("extdata/spo", package = "peabiru")
+#' network <- build_network(data_path, n_threads = 2)
+#' points <- read.csv(file.path(data_path, "spo_points.csv"))
+#' fares <- setup_fare_structure(network, base_fare = 4.4)
 #' pf <- pareto_frontier(
-#'   network, origins = points, destinations = points,
+#'   network, origins = points[1:3, ], destinations = points,
 #'   mode = c("WALK", "TRANSIT"),
-#'   departure_datetime = as.POSIXct("13-05-2019 14:00:00",
-#'                                   format = "%d-%m-%Y %H:%M:%S"),
-#'   fare_structure = fares, fare_cutoffs = c(4.5, 4.8, 9, 15),
-#'   n_threads = 2
+#'   departure_datetime = as.POSIXct("2019-05-13 14:00:00",
+#'                                   tz = "America/Sao_Paulo"),
+#'   fare_structure = fares, fare_cutoffs = c(0, 4.4, 8.8),
+#'   seed = 42, n_threads = 2
 #' )
 #' head(pf)
 #' @export

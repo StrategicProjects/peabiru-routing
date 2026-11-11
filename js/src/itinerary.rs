@@ -38,6 +38,9 @@ pub fn itineraries(
     max_rides: usize,
     max_lts: i32,
     shortest_path: bool,
+    suboptimal_minutes: i32,
+    fare: JsValue,
+    max_fare: f64,
 ) -> Result<Array, JsError> {
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     if o.len() != d.len() {
@@ -61,11 +64,15 @@ pub fn itineraries(
     p.max_rides = max_rides;
     p.max_lts = max_lts;
     p.shortest_path = shortest_path;
+    p.suboptimal_minutes = suboptimal_minutes;
+    p.fare_structure = super::fares::fare_arg(&fare)?;
+    p.max_fare = max_fare;
     p.n_threads = 1;
     let transit = network.transit.as_ref().map(|t| (&t.layer, &t.data));
     let res = detailed_itineraries(&network.net, transit, &o, &d, &p).map_err(route_err)?;
     let mut ints: [Vec<i32>; 6] = Default::default();
     let mut nums: [Vec<f64>; 5] = Default::default();
+    let mut fare_cols: [Vec<f64>; 2] = Default::default();
     let mut texts: [Vec<String>; 3] = Default::default();
     for (k, its) in res.iter().enumerate() {
         for it in its {
@@ -87,6 +94,8 @@ pub fn itineraries(
                     nums[3].push(c[0]);
                     nums[4].push(c[1]);
                 }
+                fare_cols[0].push(it.total_fare.unwrap_or(f64::NAN));
+                fare_cols[1].push(l.cumulative_fare.unwrap_or(f64::NAN));
                 texts[0].push(it.departure_time.clone());
                 texts[1].push(l.mode.clone());
                 texts[2].push(l.route.clone());
@@ -102,6 +111,10 @@ pub fn itineraries(
     }
     for c in &texts {
         out.push(&strings(c));
+    }
+    // with a fare structure: total_fare, cumulative_fare
+    for c in &fare_cols {
+        out.push(&f64_array(c));
     }
     Ok(out)
 }

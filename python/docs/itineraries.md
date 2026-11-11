@@ -69,8 +69,11 @@ As in r5r:
 - a walk between stops is routed again on the streets for its line and
   distance; its duration is the one public transport routing used.
 
+With `shortest_path=False` the result lists the alternatives R5's
+McRAPTOR finds, one per sequence of routes, up to `suboptimal_minutes`
+slower than the best; with a fare structure, each with its fares (see
+[Fares](fares.md)).
+
 Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]:
-`shortest_path=False` with public transport (r5r then uses R5's McRAPTOR
-to list alternatives), `osm_link_ids=True`, `output_dir` with the geometry,
-fares and scenarios. As in r5r, a network whose GTFS has frequency-based
+`osm_link_ids=True`, `output_dir` with the geometry and scenarios. As in r5r, a network whose GTFS has frequency-based
 trips cannot be used with public transport here.

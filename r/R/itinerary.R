@@ -6,12 +6,17 @@
 #' result are those of `r5r::detailed_itineraries()` (r5r 2.5.0), with the
 #' same values: the direct trip by the street mode and, with public
 #' transport, the fastest trip over the departure window
-#' (`shortest_path = TRUE`).
+#' (`shortest_path = TRUE`) or, with `shortest_path = FALSE`, the
+#' alternatives R5's multi-criteria router (McRAPTOR) finds over
+#' `time_window` sampled departure times, one per sequence of routes (the
+#' fastest of each), up to `suboptimal_minutes` slower than the best. With a
+#' `fare_structure` the trips are routed with fares (and only those within
+#' `max_fare` kept), and the result gets `total_fare` and `cumulative_fare`
+#' columns.
 #'
-#' Not supported yet, and an error: `shortest_path = FALSE` with public
-#' transport (r5r routes it with R5's McRAPTOR), `osm_link_ids = TRUE`,
-#' `output_dir` with the geometry (r5r writes JTS's WKT text; use
-#' `drop_geometry = TRUE`), fares and scenarios. As in r5r, networks
+#' Not supported yet, and an error: `osm_link_ids = TRUE`, `output_dir`
+#' with the geometry (r5r writes JTS's WKT text; use `drop_geometry =
+#' TRUE`) and scenarios. As in r5r, networks
 #' whose GTFS has frequency-based trips cannot be used with public
 #' transport. A car trip whose egress search crosses a turn restriction
 #' with two or more via ways is an error too (R5 changes the restriction
@@ -19,7 +24,9 @@
 #'
 #' @inheritParams travel_time_matrix
 #' @param suboptimal_minutes An integer, 0 (the default): with
-#'   `shortest_path = TRUE`, r5r requires 0.
+#'   `shortest_path = FALSE`, how many minutes slower than the best an
+#'   alternative may be. It must be 0 with `shortest_path = TRUE` and with a
+#'   `fare_structure`, as in r5r.
 #' @param shortest_path A logical. Whether to return only the fastest
 #'   itinerary (`TRUE`, the default).
 #' @param all_to_all A logical. Whether to route from every origin to
@@ -36,8 +43,10 @@
 #'   `to_id`, `to_lat`, `to_lon`, `option`, `departure_time`,
 #'   `total_duration` (minutes), `total_distance` (metres), `segment`,
 #'   `mode`, `segment_duration`, `wait` (minutes), `distance` (metres) and
-#'   `route`. Pairs without an itinerary have no rows. With `output_dir`,
-#'   `output_dir`.
+#'   `route`; with a `fare_structure`, also `total_fare` (after
+#'   `total_distance`) and `cumulative_fare` (after `mode`), the fare paid
+#'   up to the end of the leg. Pairs without an itinerary have no rows. With
+#'   `output_dir`, `output_dir`.
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
 #' data_path <- system.file("extdata/spo", package = "peabiru")

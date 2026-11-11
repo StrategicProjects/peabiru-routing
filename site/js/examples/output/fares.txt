@@ -1,0 +1,5 @@
+fare types: SUBWAY, BUS, RAIL
+routes: 19
+729 pairs within 6.60
+729 rows; cutoffs as R5 reads them: 0
+read back the same: true

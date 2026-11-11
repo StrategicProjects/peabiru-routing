@@ -185,9 +185,10 @@ def setup_fare_structure(
     >>> import peabiru
     >>> network = peabiru.build_network(peabiru.sample_data_path())
     >>> fares = peabiru.setup_fare_structure(network, base_fare=4.4)
-    >>> fares["fares_per_type"]
-      type  unlimited_transfers  allow_same_route_transfer  use_route_fare  fare
-    0  BUS                False                      False           False   4.4
+    >>> sorted(fares["fares_per_type"]["type"])
+    ['BUS', 'RAIL', 'SUBWAY']
+    >>> fares["fares_per_type"]["fare"].tolist()
+    [4.4, 4.4, 4.4]
     """
     assert_network(r5r_network)
     if isinstance(base_fare, bool) or not isinstance(base_fare, (int, float, np.number)):

@@ -11,7 +11,15 @@
 #' while the other functions still weight them; and `max_trip_duration` may
 #' not be shorter than the largest cutoff.
 #'
-#' Not supported yet, and an error when requested: fares; scenarios.
+#' With a `fare_structure` (see [setup_fare_structure()]), public transport
+#' is routed as r5r routes it then: with R5's multi-criteria router
+#' (McRAPTOR) over `time_window * draws_per_minute` departure times sampled
+#' in the window, keeping at each stop the fastest trip whose fare is within
+#' `max_fare`. As in r5r, combinations of `time_window` and
+#' `draws_per_minute` that R5's sampler cannot meet (exactly 200 draws, or
+#' too many draws for the window) are an error.
+#'
+#' Not supported yet, and an error when requested: scenarios.
 #'
 #' @inheritParams travel_time_matrix
 #' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a

@@ -132,7 +132,7 @@ test_that("what the core does not support is an error, never ignored", {
     travel_time_matrix(network, pts, pts, departure_datetime = departure,
                        n_threads = 2, ...)
   }
-  expect_error(ttm(fare_structure = list()), "fare_structure.*not supported")
+  expect_error(ttm(fare_structure = list(type = "boston")), "R5.*not supported")
   expect_error(ttm(carspeed_scale = 0.5), "car speeds.*not supported")
   expect_error(ttm(new_carspeeds = data.frame(osm_id = 1, max_speed = 1)),
                "car speeds.*not supported")

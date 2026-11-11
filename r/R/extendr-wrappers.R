@@ -133,7 +133,7 @@ rs_gtfs_errors <- function(paths) .Call(wrap__rs_gtfs_errors, paths)
 #' @noRd
 rs_check_fare_structure <- function(ptr, fare_structure) .Call(wrap__rs_check_fare_structure, ptr, fare_structure)
 
-#' r5r's `setup_fare_structure()` as a list (see [`structure_to_r`]).
+#' r5r's `setup_fare_structure()` as a list (columns of the tables).
 #' @noRd
 rs_setup_fare_structure <- function(ptr, base_fare, by) .Call(wrap__rs_setup_fare_structure, ptr, base_fare, by)
 

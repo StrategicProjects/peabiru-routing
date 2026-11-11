@@ -216,8 +216,8 @@ def test_unsupported_options_are_errors(network, points, departure):
         return ttm(network, points, departure_datetime=departure, **kw)
 
     U = peabiru.UnsupportedError
-    with pytest.raises(U, match="fare_structure.*not supported"):
-        call(fare_structure={})
+    with pytest.raises(U, match="R5.*not supported"):
+        call(fare_structure={"type": "boston"})
     with pytest.raises(U, match="car speeds.*not supported"):
         call(carspeed_scale=0.5)
     with pytest.raises(U, match="car speeds.*not supported"):

@@ -146,7 +146,7 @@ the same parameters; peabiru is validated against r5r, not r5py.
 
 Each of these raises `peabiru.UnsupportedError` instead of being ignored:
 
-- fares: `fare_structure`, and a finite `max_fare`;
+- R5's own fare calculators (a fare structure with a `type`);
 - scenarios: `new_carspeeds`, `carspeed_scale` other than 1, `new_lts`;
 - elevation: a `.tif` raster in the data directory requires
   `elevation="NONE"`;
@@ -174,9 +174,10 @@ the order gtfs-lib finds them (r5r's order changes from run to run). r5r's
 Java housekeeping functions (`setup_r5()`, `stop_r5()`, `download_r5()`,
 `r5r_cache()`, `r5r_sitrep()`) have no Python counterpart: there is no Java.
 
-r5r's `detailed_itineraries()` is available for the fastest trip
-(`shortest_path=True`) without fares, `osm_link_ids` or `output_dir` with
-the geometry. r5r's `pareto_frontier()`,
-`travel_time_matrix()` with fares and the other functions not listed in the
+r5r's `detailed_itineraries()` is available with and without fares and
+alternatives (`shortest_path=False`), without `osm_link_ids` or
+`output_dir` with the geometry. Fares (`fare_structure`, `max_fare`),
+r5r's fare structure functions and `pareto_frontier()` are those of r5r
+(see [Fares](fares.md)). The functions not listed in the
 [API reference](reference.md) are not available yet. `CAR_PARK` and
 `BICYCLE_RENT` are rejected, as r5r rejects them.

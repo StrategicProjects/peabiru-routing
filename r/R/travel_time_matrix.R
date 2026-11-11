@@ -16,8 +16,16 @@
 #' 5 km by bicycle at any level of traffic stress, up to 30 minutes by
 #' car) and must stay within `max_bike_time` or `max_car_time`.
 #'
-#' Not supported yet, and an error when requested: fares (`fare_structure`,
-#' `max_fare`); scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`).
+#' With a `fare_structure` (see [setup_fare_structure()]), public transport
+#' is routed as r5r routes it then: with R5's multi-criteria router
+#' (McRAPTOR) over `time_window * draws_per_minute` departure times sampled
+#' in the window, keeping at each stop the fastest trip whose fare is within
+#' `max_fare`. As in r5r, combinations of `time_window` and
+#' `draws_per_minute` that R5's sampler cannot meet (exactly 200 draws, or
+#' too many draws for the window) are an error.
+#'
+#' Not supported yet, and an error when requested: scenarios
+#' (`new_carspeeds`, `carspeed_scale`, `new_lts`).
 #'
 #' @param r5r_network A network built with [build_network()].
 #' @param origins,destinations A `data.frame` with columns `id`, `lon` and
@@ -43,8 +51,13 @@
 #' @param max_rides An integer, the maximum number of public transport rides.
 #' @param max_lts An integer from 1 to 4, the highest level of traffic stress
 #'   a cyclist will ride on.
-#' @param fare_structure,max_fare Fares; not supported yet (`fare_structure`
-#'   must be `NULL` and `max_fare` `Inf`).
+#' @param fare_structure A fare structure (see [setup_fare_structure()]) or
+#'   `NULL` (the default): no fares. It must have a row for every route of
+#'   the network, as in r5r; R5's own fare calculators (a structure with a
+#'   `type`) are not supported.
+#' @param max_fare A number, the highest fare of a trip (`Inf`, the default:
+#'   no limit), in the currency of the fare structure; a finite value needs
+#'   a `fare_structure`.
 #' @param new_carspeeds,carspeed_scale,new_lts Scenarios; not supported yet
 #'   (must be `NULL`, `1` and `NULL`).
 #' @param draws_per_minute An integer, the Monte Carlo draws per departure

@@ -4,6 +4,7 @@
 
 - [Getting started](getting-started.md)
 - [Routing functions](routing.md)
+- [Fares](fares.md)
 - [Threads and workers](threads.md)
 - [Bundlers and loading the module](bundlers.md)
 - [Coming from R or Python](differences.md)

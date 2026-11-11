@@ -65,7 +65,7 @@ test_that("unsupported options are errors", {
   expect_error(di(mode = "WALK", osm_link_ids = TRUE, drop_geometry = TRUE), "drop_geometry")
   expect_error(di(mode = "WALK", output_dir = tempdir()), "not supported")
   expect_error(di(mode = "WALK", suboptimal_minutes = 5), "Must be 0")
-  expect_error(di(mode = "WALK", fare_structure = list()), "not supported")
+  expect_error(di(mode = "WALK", fare_structure = list(type = "boston")), "not supported")
   expect_error(di(mode = "WALK", new_lts = data.frame()), "not supported")
   # the fixture's GTFS is frequency-based, which r5r refuses here
   expect_error(di(mode = c("WALK", "TRANSIT")), "frequencies")

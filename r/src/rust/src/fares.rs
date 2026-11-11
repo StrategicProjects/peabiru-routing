@@ -303,7 +303,7 @@ fn rs_check_fare_structure(ptr: Robj, fare_structure: Robj) -> Result<()> {
     Ok(())
 }
 
-/// r5r's `setup_fare_structure()` as a list (see [`structure_to_r`]).
+/// r5r's `setup_fare_structure()` as a list (columns of the tables).
 /// @noRd
 #[extendr]
 fn rs_setup_fare_structure(ptr: Robj, base_fare: f64, by: &str) -> Result<Robj> {
