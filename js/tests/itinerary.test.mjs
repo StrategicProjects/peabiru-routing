@@ -63,3 +63,14 @@ test("pairs, allToAll and the checks", async () => {
   // the sample's GTFS is frequency-based, which r5r refuses here
   await assert.rejects(peabiru.detailedItineraries(net, o, d, { mode: ["WALK", "TRANSIT"], departureDatetime: DEPARTURE }), /frequencies/);
 });
+
+test("scenarios slow the car, the same with workers", async () => {
+  const opts = { mode: "CAR", departureDatetime: DEPARTURE, dropGeometry: true };
+  const base = await peabiru.detailedItineraries(net, o, d, opts);
+  assert.deepEqual(await peabiru.detailedItineraries(net, o, d, { ...opts, carspeedScale: 1 }), base);
+  const slow = await peabiru.detailedItineraries(net, o, d, { ...opts, carspeedScale: 0.5 });
+  assert.equal(slow.length, base.length);
+  assert.ok(slow.every((r, i) => r.total_duration >= base[i].total_duration));
+  assert.ok(slow.some((r, i) => r.total_duration > base[i].total_duration));
+  assert.deepEqual(await peabiru.detailedItineraries(pool, o, d, { ...opts, carspeedScale: 0.5 }), slow);
+});

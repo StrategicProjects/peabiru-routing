@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as peabiru from "../lib/index.js";
-import { read, sampleNetwork, samplePoints } from "./helpers.mjs";
+import { read, sampleNetwork, samplePoints, storedZip } from "./helpers.mjs";
 
 test("findSnap has r5r's columns, and NaN where nothing snaps", async () => {
   const net = await sampleNetwork();
@@ -96,6 +96,29 @@ test("getGtfsErrors lists gtfs-lib's errors of the feeds", async () => {
   const net = await sampleNetwork();
   await assert.rejects(() => peabiru.getGtfsErrors(net), /does not keep/);
   await assert.rejects(() => peabiru.getGtfsErrors(42), TypeError);
+});
+
+test("buildNetwork refuses feeds with errors of priority HIGH, as r5r", async () => {
+  const feed = {
+    "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\nA,A,-23.5563,-46.6290\nB,B,-23.5577,-46.6321\n",
+    "routes.txt": "route_id,route_type\nR,3\n",
+    "trips.txt": "route_id,service_id,trip_id\nR,S,T1\n",
+    "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,14:00:00,14:00:00,A,1\nT1,14:05:00,14:05:00,B,2\n",
+    "calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n",
+  };
+  // no agency.txt: a NoAgencyInFeedError
+  const gtfs = [{ name: "spo_gtfs.zip", data: read("spo_gtfs.zip") }, { name: "bus.zip", data: storedZip(feed) }];
+  const message = "High priority GTFS errors found; network build failed (bus.zip: 1 error). Use getGtfsErrors() on the same feeds to see them.";
+  for (const nThreads of [1, 2]) {
+    await assert.rejects(() => peabiru.buildNetwork({ pbf: read("spo_osm.pbf"), gtfs, nThreads }), { message });
+  }
+  const e = await peabiru.getGtfsErrors(gtfs);
+  assert.deepEqual(e.type.filter((_, i) => e.priority[i] === "HIGH"), ["NoAgencyInFeedError"]);
+  // errors of lower priority only: built
+  feed["agency.txt"] = "agency_id,agency_name,agency_url,agency_timezone\nA,A,www.a,America/Sao_Paulo\n";
+  const net = await peabiru.buildNetwork({ pbf: read("spo_osm.pbf"), gtfs: [{ name: "bus.zip", data: storedZip(feed) }] });
+  assert.deepEqual(net.info().feeds, ["bus"]);
+  net.free();
 });
 
 test("the same results on workers", async () => {

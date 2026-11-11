@@ -40,6 +40,7 @@ pub fn itineraries(
     max_rides: usize,
     max_lts: i32,
     shortest_path: bool,
+    scenario: JsValue,
     osm_link_ids: bool,
 ) -> Result<Array, JsError> {
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
@@ -47,6 +48,7 @@ pub fn itineraries(
         return Err(err("origins and destinations must pair up"));
     }
     let mut p = ItineraryParams::default();
+    p.scenario = crate::scenario::scenario_of(&scenario)?;
     p.mode = street_mode(mode)?;
     p.transit_modes = parse_transit_modes(transit_modes)?;
     if !p.transit_modes.is_empty() {

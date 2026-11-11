@@ -11,7 +11,7 @@
 #' while the other functions still weight them; and `max_trip_duration` may
 #' not be shorter than the largest cutoff.
 #'
-#' Not supported yet, and an error when requested: fares; scenarios.
+#' Not supported yet, and an error when requested: fares.
 #'
 #' @inheritParams travel_time_matrix
 #' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
@@ -134,7 +134,7 @@ accessibility <- function(r5r_network,
   check_messages(verbose, progress)
   check_fares(fare_structure, max_fare)
   check_output_dir(output_dir)
-  check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
 
   values <- raise_if_stopped(rs_accessibility(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
@@ -145,7 +145,7 @@ accessibility <- function(r5r_network,
     max_walk_time, max_bike_time, max_car_time, max_trip_duration,
     as.double(walk_speed), as.double(bike_speed),
     as.integer(max_lts), as.integer(max_rides), as.integer(draws_per_minute),
-    seed$has, seed$value, threads,
+    seed$has, seed$value, threads, scenario,
     csv_output(output_dir, origins, destinations,
                opportunities = opportunities_colnames)
   ))

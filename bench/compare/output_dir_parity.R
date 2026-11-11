@@ -209,6 +209,28 @@ for (city in cities) {
              departure_datetime = departure, cutoffs = c(30L, 60L), max_car_time = 10L,
              seed = 42L))
 
+  # scenarios: the files must honour them too
+  ways <- unique(suppressWarnings(street_network_to_sf(net$pb))$edges$osm_id)
+  set.seed(5)
+  rnd_osm <- data.frame(osm_id = sample(ways, 800), max_speed = sample(c(0, 0.4, 1.3), 800, TRUE),
+                        speed_type = "scale")
+  rnd_lts <- data.frame(osm_id = sample(ways, 800), lts = sample(1:4, 800, TRUE))
+  check(city, "scen_ttm_car", "travel_time_matrix", net,
+        list(origins = points, destinations = points, mode = "CAR",
+             new_carspeeds = rnd_osm, carspeed_scale = 0.8))
+  check(city, "scen_ttm_bike_transit", "travel_time_matrix", net,
+        list(origins = points, destinations = points, mode = c("BICYCLE", "TRANSIT"),
+             new_lts = rnd_lts, departure_datetime = departure, max_bike_time = 20L,
+             seed = 42L))
+  check(city, "scen_access_car", "accessibility", net,
+        list(origins = points, destinations = points, opportunities_colnames = "jobs",
+             mode = c("CAR", "TRANSIT"), carspeed_scale = 0.6, departure_datetime = departure,
+             cutoffs = c(30L, 60L), max_car_time = 15L, seed = 42L))
+  check(city, "scen_expanded_bike", "expanded_travel_time_matrix", net,
+        list(origins = first(30), destinations = points, mode = c("BICYCLE", "TRANSIT"),
+             new_lts = rnd_lts, departure_datetime = departure, time_window = 3L,
+             max_bike_time = 15L, seed = 42L))
+
   check(city, "expanded", "expanded_travel_time_matrix", net,
         list(origins = first(30), destinations = points, mode = transit,
              departure_datetime = departure, time_window = 5L, seed = 42L))

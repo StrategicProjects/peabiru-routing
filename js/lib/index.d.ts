@@ -127,7 +127,11 @@ export declare class Network {
    * in local time, or a string `"YYYY-MM-DD"`).
    */
   transitAvailability(date: Date | string): Promise<{ services: number; active: number }>;
-  /** Warnings for the GTFS feeds that r5r refuses to build a network from. */
+  /**
+   * Warnings for the GTFS feeds that r5r refuses to build a network from:
+   * always empty, since buildNetwork() throws on such feeds as r5r does
+   * (kept for compatibility).
+   */
   r5rWarnings(): string[];
 }
 
@@ -162,6 +166,15 @@ export type Points =
 export type DateTime = Date | string;
 
 /** Options shared by every routing function, with r5r's defaults. */
+/** A table of a scenario: an object of columns, or an array of row objects. */
+export type ScenarioTable = Record<string, ArrayLike<unknown>> | Array<Record<string, unknown>>;
+
+/** A GeoJSON FeatureCollection (WGS 84). */
+export interface GeoJsonFeatureCollection {
+  type: "FeatureCollection";
+  features: Array<{ type: "Feature"; properties: Record<string, unknown>; geometry: { type: string; coordinates: unknown } }>;
+}
+
 export interface RoutingOptions {
   /**
    * `"WALK"` (default), `"BICYCLE"` or `"CAR"` alone, or public transport:
@@ -190,12 +203,28 @@ export interface RoutingOptions {
   maxRides?: number;
   /** Highest level of traffic stress a cyclist rides on, 1 to 4 (default 2). */
   maxLts?: number;
-  /** Not supported: must be null (default). */
-  newCarspeeds?: null;
-  /** Not supported: must be 1 (default). */
+  /**
+   * A scenario of car speeds, as r5r's `new_carspeeds`: a table (an object
+   * of columns or an array of rows) with `osm_id`, `max_speed` and
+   * `speed_type` (`"scale"`, a factor for the car speed of the way's
+   * edges, or `"km/h"`, a speed; 0 closes the way to cars), or a GeoJSON
+   * FeatureCollection of Polygons or MultiPolygons with properties
+   * `poly_id` (string), `scale` and `priority` (integer): each edge takes
+   * the factor of the polygon it meets with the highest priority. Default
+   * null.
+   */
+  newCarspeeds?: ScenarioTable | GeoJsonFeatureCollection | null;
+  /** The factor for the car speeds of the edges `newCarspeeds` leaves out (default 1). */
   carspeedScale?: number;
-  /** Not supported: must be null (default). */
-  newLts?: null;
+  /**
+   * A scenario of levels of traffic stress, as r5r's `new_lts`: a table
+   * with `osm_id` and `lts` (integer), or a GeoJSON FeatureCollection of
+   * LineStrings with properties `line_id`, `lts` (1 to 4) and `priority`:
+   * each edge takes the level of the closest line. As in r5r, a scenario
+   * changes the street search from the origins but not the egress from the
+   * stops. Default null.
+   */
+  newLts?: ScenarioTable | GeoJsonFeatureCollection | null;
   /** Monte Carlo draws per minute for frequency-based GTFS (default 5). */
   drawsPerMinute?: number;
   /**

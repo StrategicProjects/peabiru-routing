@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from . import _peabiru
+from ._scenario import scenario_spec
 from ._assign import (
     Points,
     assign_cutoffs,
@@ -29,7 +30,6 @@ from ._assign import (
     check_max_lts,
     check_messages,
     check_output_dir,
-    check_scenarios,
     check_speed,
     check_transit_availability_on_date,
     minus_minutes,
@@ -150,9 +150,9 @@ def travel_time_matrix(
     max_lts: Number = 2,
     fare_structure: Any = None,
     max_fare: Number = math.inf,
-    new_carspeeds: Optional[pd.DataFrame] = None,
+    new_carspeeds: Optional[Any] = None,
     carspeed_scale: float = 1,
-    new_lts: Optional[pd.DataFrame] = None,
+    new_lts: Optional[Any] = None,
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
     n_threads: Optional[Number] = None,
@@ -179,8 +179,7 @@ def travel_time_matrix(
     ``max_bike_time`` or ``max_car_time``.
 
     Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]
-    when requested: fares (``fare_structure``, ``max_fare``); scenarios (``new_carspeeds``,
-    ``carspeed_scale``, ``new_lts``).
+    when requested: fares (``fare_structure``, ``max_fare``).
 
     Parameters
     ----------
@@ -236,12 +235,28 @@ def travel_time_matrix(
         Fares are not supported yet; must be ``None``.
     max_fare : float, default math.inf
         Fares are not supported yet; must be ``math.inf``.
-    new_carspeeds : None
-        Scenarios are not supported yet; must be ``None``.
+    new_carspeeds : pandas.DataFrame or geopandas.GeoDataFrame, optional
+        A scenario of car speeds, as in r5r: a DataFrame with columns
+        ``osm_id``, ``max_speed`` and ``speed_type`` (``"scale"``, a factor
+        for the car speed of the way's edges, or ``"km/h"``, a speed; 0
+        closes the way to cars), or a GeoDataFrame of polygons in WGS 84
+        with columns ``poly_id`` (str), ``scale`` and ``priority`` (int):
+        each street edge takes the factor of the polygon it meets with the
+        highest priority (ties: the one it overlaps most).
     carspeed_scale : float, default 1
-        Scenarios are not supported yet; must be ``1``.
-    new_lts : None
-        Scenarios are not supported yet; must be ``None``.
+        The factor for the car speeds of the edges ``new_carspeeds`` leaves
+        out (all of them when it is ``None``).
+    new_lts : pandas.DataFrame or geopandas.GeoDataFrame, optional
+        A scenario of levels of traffic stress, as in r5r: a DataFrame with
+        columns ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in
+        WGS 84 with columns ``line_id``, ``lts`` (1 to 4) and ``priority``:
+        each street edge takes the level of the line closest to it among
+        those whose bounding box meets its own. As in r5r, a scenario
+        changes the street search from the origins (the trip without public
+        transport, access by bicycle or car) but not the egress from the
+        stops; a car speed R5's 16-bit cm/s would turn into 0 or less, a
+        polygon that is not valid, and ties between polygons peabiru cannot
+        settle exactly as R5 does are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
@@ -319,7 +334,7 @@ def travel_time_matrix(
     )
     check_fares(fare_structure, max_fare)
     out_dir = check_output_dir(output_dir)
-    check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
 
     names = [f"travel_time_p{p:02d}" for p in pcts]
     core = r5r_network._core
@@ -332,7 +347,7 @@ def travel_time_matrix(
                 float(bike_speed), int(max_lts), lim["bike"], lim["car"],
                 departure.yyyymmdd, departure.seconds, int(time_window), pcts,
                 lim["walk"], mtd, float(walk_speed), int(max_rides),
-                int(draws_per_minute), c["seed"], c["threads"], output,
+                int(draws_per_minute), c["seed"], c["threads"], scenario, output,
             )
         times = [_i32(b) for b in cols]
     else:
@@ -340,7 +355,7 @@ def travel_time_matrix(
             fb, tb, tt = _peabiru.street_ttm(
                 core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
                 mode_list.direct_modes, float(walk_speed), float(bike_speed),
-                int(max_lts), mtd, c["threads"], pcts, output,
+                int(max_lts), mtd, c["threads"], pcts, scenario, output,
             )
         # a street mode has one travel time, reported for every percentile
         times = [_i32(tt)] * len(pcts)
@@ -384,9 +399,9 @@ def accessibility(
     max_lts: Number = 2,
     fare_structure: Any = None,
     max_fare: Number = math.inf,
-    new_carspeeds: Optional[pd.DataFrame] = None,
+    new_carspeeds: Optional[Any] = None,
     carspeed_scale: float = 1,
-    new_lts: Optional[pd.DataFrame] = None,
+    new_lts: Optional[Any] = None,
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
     n_threads: Optional[Number] = None,
@@ -409,7 +424,7 @@ def accessibility(
     ``max_trip_duration`` may not be shorter than the largest cutoff.
 
     Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError] when requested:
-    fares; scenarios.
+    fares.
 
     Parameters
     ----------
@@ -480,12 +495,28 @@ def accessibility(
         Fares are not supported yet; must be ``None``.
     max_fare : float, default math.inf
         Fares are not supported yet; must be ``math.inf``.
-    new_carspeeds : None
-        Scenarios are not supported yet; must be ``None``.
+    new_carspeeds : pandas.DataFrame or geopandas.GeoDataFrame, optional
+        A scenario of car speeds, as in r5r: a DataFrame with columns
+        ``osm_id``, ``max_speed`` and ``speed_type`` (``"scale"``, a factor
+        for the car speed of the way's edges, or ``"km/h"``, a speed; 0
+        closes the way to cars), or a GeoDataFrame of polygons in WGS 84
+        with columns ``poly_id`` (str), ``scale`` and ``priority`` (int):
+        each street edge takes the factor of the polygon it meets with the
+        highest priority (ties: the one it overlaps most).
     carspeed_scale : float, default 1
-        Scenarios are not supported yet; must be ``1``.
-    new_lts : None
-        Scenarios are not supported yet; must be ``None``.
+        The factor for the car speeds of the edges ``new_carspeeds`` leaves
+        out (all of them when it is ``None``).
+    new_lts : pandas.DataFrame or geopandas.GeoDataFrame, optional
+        A scenario of levels of traffic stress, as in r5r: a DataFrame with
+        columns ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in
+        WGS 84 with columns ``line_id``, ``lts`` (1 to 4) and ``priority``:
+        each street edge takes the level of the line closest to it among
+        those whose bounding box meets its own. As in r5r, a scenario
+        changes the street search from the origins (the trip without public
+        transport, access by bicycle or car) but not the egress from the
+        stops; a car speed R5's 16-bit cm/s would turn into 0 or less, a
+        polygon that is not valid, and ties between polygons peabiru cannot
+        settle exactly as R5 does are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
@@ -571,7 +602,7 @@ def accessibility(
     )
     check_fares(fare_structure, max_fare)
     out_dir = check_output_dir(output_dir)
-    check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
 
     # the third element of an accessibility output holds the opportunity
     # names
@@ -586,7 +617,7 @@ def accessibility(
                 lim["walk"], lim["bike"], lim["car"], lim["trip"],
                 float(walk_speed), float(bike_speed),
                 int(max_lts), int(max_rides), int(draws_per_minute), c["seed"], c["threads"],
-                output,
+                scenario, output,
             )
         )
     if output_dir is not None:
@@ -625,9 +656,9 @@ def expanded_travel_time_matrix(
     bike_speed: float = 12,
     max_rides: Number = 3,
     max_lts: Number = 2,
-    new_carspeeds: Optional[pd.DataFrame] = None,
+    new_carspeeds: Optional[Any] = None,
     carspeed_scale: float = 1,
-    new_lts: Optional[pd.DataFrame] = None,
+    new_lts: Optional[Any] = None,
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
     n_threads: Optional[Number] = None,
@@ -647,7 +678,7 @@ def expanded_travel_time_matrix(
     Only public transport is supported: with a street mode alone r5r
     reports the same trip for every minute of a departure time taken from
     the clock, which peabiru does not reproduce; that is an
-    [`UnsupportedError`][peabiru.UnsupportedError], as are scenarios. A trip
+    [`UnsupportedError`][peabiru.UnsupportedError]. A trip
     without public transport has the street mode as ``routes``
     (``"[WALK]"``, ``"[BICYCLE]"`` or ``"[CAR]"``), as in r5r.
 
@@ -699,12 +730,28 @@ def expanded_travel_time_matrix(
         The maximum number of public transport rides.
     max_lts : int, default 2
         The highest level of traffic stress (1 to 4) a cyclist will ride on.
-    new_carspeeds : None
-        Scenarios are not supported yet; must be ``None``.
+    new_carspeeds : pandas.DataFrame or geopandas.GeoDataFrame, optional
+        A scenario of car speeds, as in r5r: a DataFrame with columns
+        ``osm_id``, ``max_speed`` and ``speed_type`` (``"scale"``, a factor
+        for the car speed of the way's edges, or ``"km/h"``, a speed; 0
+        closes the way to cars), or a GeoDataFrame of polygons in WGS 84
+        with columns ``poly_id`` (str), ``scale`` and ``priority`` (int):
+        each street edge takes the factor of the polygon it meets with the
+        highest priority (ties: the one it overlaps most).
     carspeed_scale : float, default 1
-        Scenarios are not supported yet; must be ``1``.
-    new_lts : None
-        Scenarios are not supported yet; must be ``None``.
+        The factor for the car speeds of the edges ``new_carspeeds`` leaves
+        out (all of them when it is ``None``).
+    new_lts : pandas.DataFrame or geopandas.GeoDataFrame, optional
+        A scenario of levels of traffic stress, as in r5r: a DataFrame with
+        columns ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in
+        WGS 84 with columns ``line_id``, ``lts`` (1 to 4) and ``priority``:
+        each street edge takes the level of the line closest to it among
+        those whose bounding box meets its own. As in r5r, a scenario
+        changes the street search from the origins (the trip without public
+        transport, access by bicycle or car) but not the egress from the
+        stops; a car speed R5's 16-bit cm/s would turn into 0 or less, a
+        polygon that is not valid, and ties between polygons peabiru cannot
+        settle exactly as R5 does are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
@@ -778,7 +825,7 @@ def expanded_travel_time_matrix(
     )
     out_dir = check_output_dir(output_dir)
     assert_flag(breakdown, "breakdown")
-    check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
 
     with core_errors("expanded_travel_time_matrix", n_destinations=len(d)):
         res = _peabiru.expanded(
@@ -788,7 +835,7 @@ def expanded_travel_time_matrix(
             False, departure.yyyymmdd, departure.seconds, int(time_window),
             lim["walk"], lim["trip"], float(walk_speed), int(max_rides),
             int(draws_per_minute), c["seed"], c["threads"], bool(breakdown),
-            _csv_output(out_dir, o, d),
+            scenario, _csv_output(out_dir, o, d),
         )
     if output_dir is not None:
         return output_dir
@@ -811,9 +858,9 @@ def arrival_travel_time_matrix(
     bike_speed: float = 12,
     max_rides: Number = 3,
     max_lts: Number = 2,
-    new_carspeeds: Optional[pd.DataFrame] = None,
+    new_carspeeds: Optional[Any] = None,
     carspeed_scale: float = 1,
-    new_lts: Optional[pd.DataFrame] = None,
+    new_lts: Optional[Any] = None,
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
     n_threads: Optional[Number] = None,
@@ -883,12 +930,28 @@ def arrival_travel_time_matrix(
         The maximum number of public transport rides.
     max_lts : int, default 2
         The highest level of traffic stress (1 to 4) a cyclist will ride on.
-    new_carspeeds : None
-        Scenarios are not supported yet; must be ``None``.
+    new_carspeeds : pandas.DataFrame or geopandas.GeoDataFrame, optional
+        A scenario of car speeds, as in r5r: a DataFrame with columns
+        ``osm_id``, ``max_speed`` and ``speed_type`` (``"scale"``, a factor
+        for the car speed of the way's edges, or ``"km/h"``, a speed; 0
+        closes the way to cars), or a GeoDataFrame of polygons in WGS 84
+        with columns ``poly_id`` (str), ``scale`` and ``priority`` (int):
+        each street edge takes the factor of the polygon it meets with the
+        highest priority (ties: the one it overlaps most).
     carspeed_scale : float, default 1
-        Scenarios are not supported yet; must be ``1``.
-    new_lts : None
-        Scenarios are not supported yet; must be ``None``.
+        The factor for the car speeds of the edges ``new_carspeeds`` leaves
+        out (all of them when it is ``None``).
+    new_lts : pandas.DataFrame or geopandas.GeoDataFrame, optional
+        A scenario of levels of traffic stress, as in r5r: a DataFrame with
+        columns ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in
+        WGS 84 with columns ``line_id``, ``lts`` (1 to 4) and ``priority``:
+        each street edge takes the level of the line closest to it among
+        those whose bounding box meets its own. As in r5r, a scenario
+        changes the street search from the origins (the trip without public
+        transport, access by bicycle or car) but not the egress from the
+        stops; a car speed R5's 16-bit cm/s would turn into 0 or less, a
+        polygon that is not valid, and ties between polygons peabiru cannot
+        settle exactly as R5 does are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
@@ -975,7 +1038,7 @@ def arrival_travel_time_matrix(
     )
     out_dir = check_output_dir(output_dir)
     assert_flag(breakdown, "breakdown")
-    check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
 
     # the engine's time window is max_trip_duration here
     with core_errors(
@@ -990,7 +1053,7 @@ def arrival_travel_time_matrix(
             True, departure.yyyymmdd, departure.seconds, mtd,
             lim["walk"], mtd, float(walk_speed), int(max_rides),
             int(draws_per_minute), c["seed"], c["threads"], bool(breakdown),
-            _csv_output(out_dir, o, d),
+            scenario, _csv_output(out_dir, o, d),
         )
     if output_dir is not None:
         return output_dir

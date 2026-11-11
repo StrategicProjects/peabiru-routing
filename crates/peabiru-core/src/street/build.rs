@@ -24,6 +24,17 @@ pub struct BuildOptions {
     /// Worker threads for reading the PBF; 0 (the default) means all cores,
     /// and more than the cores available are not used.
     pub n_threads: usize,
+    /// Build the transit layer even from GTFS feeds with errors of
+    /// priority `HIGH`. By default (`false`) each feed is first checked as
+    /// [`gtfs_errors`](crate::gtfs_errors) checks it and, as r5r's
+    /// `build_network()` does, the build fails when any feed has an error
+    /// of priority `HIGH`, or is one gtfs-lib fails to load at all (see
+    /// [`NetworkError::high_priority_gtfs_errors`](crate::NetworkError::high_priority_gtfs_errors)).
+    /// With `true` the feeds are not checked: peabiru builds what it can
+    /// read, leaving out trips that refer to stops or routes that do not
+    /// exist, and [`TransitLayer::r5r_warnings`](crate::TransitLayer::r5r_warnings)
+    /// says which feeds r5r would refuse.
+    pub ignore_gtfs_errors: bool,
 }
 
 /// Read an OpenStreetMap `.pbf` file and build the street network for

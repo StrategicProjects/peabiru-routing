@@ -35,6 +35,7 @@ use wasm_bindgen::prelude::*;
 
 mod inspect;
 mod itinerary;
+mod scenario;
 
 /// Missing value in the `i32` columns handed to JavaScript.
 const NA_I32: i32 = i32::MIN;
@@ -54,6 +55,30 @@ struct Transit {
 
 fn err(msg: impl std::fmt::Display) -> JsError {
     JsError::new(&msg.to_string())
+}
+
+/// The error of a failed build; for feeds with errors of priority `HIGH`,
+/// r5r's message, pointing to `lister` to see them.
+fn build_error(e: &peabiru_core::NetworkError, lister: &str) -> String {
+    match e.high_priority_gtfs_errors() {
+        None => e.to_string(),
+        Some(feeds) => {
+            let list: Vec<String> = feeds
+                .iter()
+                .map(|(p, n)| {
+                    let name = p.file_name().map_or_else(
+                        || p.display().to_string(),
+                        |f| f.to_string_lossy().into_owned(),
+                    );
+                    format!("{name}: {n} error{}", if *n == 1 { "" } else { "s" })
+                })
+                .collect();
+            format!(
+                "High priority GTFS errors found; network build failed ({}). Use {lister} to see them.",
+                list.join(", ")
+            )
+        }
+    }
 }
 
 fn route_err(e: RouteError) -> JsError {
@@ -116,7 +141,8 @@ impl Network {
             .iter()
             .map(|(n, b)| (n.as_str(), b.as_slice()))
             .collect();
-        let (net, layer) = build_from_bytes(pbf, &feeds, &BuildOptions::default()).map_err(err)?;
+        let (net, layer) = build_from_bytes(pbf, &feeds, &BuildOptions::default())
+            .map_err(|e| err(build_error(&e, "getGtfsErrors() on the same feeds")))?;
         let transit = if layer.feed_ids().is_empty() {
             None
         } else {
@@ -279,10 +305,13 @@ pub fn street_ttm(
     bike_speed: f64,
     max_lts: i32,
     max_trip_duration: i32,
+    scenario: JsValue,
 ) -> Result<Array, JsError> {
+    let scenario = scenario::scenario_of(&scenario)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let mode = street_mode(mode)?;
-    let p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
+    let mut p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
+    p.scenario = scenario.clone();
     let m = street_travel_time_matrix(&network.net, &o, &d, mode, &p).map_err(route_err)?;
     let nd = d.len();
     let (mut from, mut to, mut tt) = (Vec::new(), Vec::new(), Vec::new());
@@ -326,11 +355,13 @@ pub fn transit_ttm(
     max_rides: usize,
     draws_per_minute: i32,
     seed: i32,
+    scenario: JsValue,
 ) -> Result<Array, JsError> {
+    let scenario = scenario::scenario_of(&scenario)?;
     let t = transit(network)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let np = percentiles.len();
-    let p = transit_params(
+    let mut p = transit_params(
         transit_modes,
         access_mode,
         egress_mode,
@@ -349,6 +380,7 @@ pub fn transit_ttm(
         draws_per_minute,
         seed,
     )?;
+    p.scenario = scenario.clone();
     let m = transit_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
         .map_err(route_err)?;
     let (mut from, mut to) = (Vec::new(), Vec::new());
@@ -426,7 +458,9 @@ pub fn accessibility(
     max_rides: usize,
     draws_per_minute: i32,
     seed: i32,
+    scenario: JsValue,
 ) -> Result<Float64Array, JsError> {
+    let scenario = scenario::scenario_of(&scenario)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     if opportunities.len() != n_opportunities * d.len() {
         return Err(err(
@@ -442,7 +476,7 @@ pub fn accessibility(
     let dest = Destinations::new(&d, &opp);
     let values = if !transit_modes.is_empty() {
         let t = transit(network)?;
-        let p = transit_params(
+        let mut p = transit_params(
             transit_modes,
             mode,
             egress_mode,
@@ -461,10 +495,12 @@ pub fn accessibility(
             draws_per_minute,
             seed,
         )?;
+        p.scenario = scenario.clone();
         transit_accessibility(&network.net, &t.layer, &t.data, &o, &dest, &p, &a)
     } else {
         let m = street_mode(mode)?;
-        let p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
+        let mut p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
+        p.scenario = scenario.clone();
         street_accessibility(&network.net, &o, &dest, m, &p, &percentiles, &a)
     }
     .map_err(route_err)?;
@@ -506,10 +542,12 @@ pub fn expanded(
     max_rides: usize,
     draws_per_minute: i32,
     seed: i32,
+    scenario: JsValue,
 ) -> Result<Array, JsError> {
+    let scenario = scenario::scenario_of(&scenario)?;
     let t = transit(network)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
-    let p = transit_params(
+    let mut p = transit_params(
         transit_modes,
         access_mode,
         egress_mode,
@@ -528,6 +566,7 @@ pub fn expanded(
         draws_per_minute,
         seed,
     )?;
+    p.scenario = scenario.clone();
     let rows = if arrival {
         arrival_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
     } else {

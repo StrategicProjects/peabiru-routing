@@ -71,7 +71,7 @@ As in r5r:
 
 Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]:
 `shortest_path=False` with public transport (r5r then uses R5's McRAPTOR
-to list alternatives), fares and scenarios. As in r5r, a network whose GTFS has frequency-based
+to list alternatives) and fares. As in r5r, a network whose GTFS has frequency-based
 trips cannot be used with public transport here.
 
 With `mode_egress="CAR"`, R5 reverses the via edges of turn restrictions

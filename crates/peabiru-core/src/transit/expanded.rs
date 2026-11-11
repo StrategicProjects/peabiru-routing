@@ -312,6 +312,9 @@ impl Records<'_> {
 /// What every origin shares.
 struct Context<'a> {
     net: &'a StreetNetwork,
+    /// The scenario's network, which the access and direct searches run on
+    /// (`None`: they run on `net`).
+    scen: Option<StreetNetwork>,
     layer: &'a TransitLayer,
     data: &'a TransitData,
     filtered: Filtered,
@@ -390,7 +393,12 @@ impl<'a> Context<'a> {
         } else {
             link(p.access_mode)?
         };
-        let access = Access::new(net, p);
+        let scen = crate::street::scenario::scenario_network(
+            net,
+            &p.scenario,
+            p.access_mode == Mode::Car,
+        )?;
+        let access = Access::new(scen.as_ref().unwrap_or(net), p);
         let seconds = egress_seconds(p);
         let mut retain = vec![false; layer.stop_ids.len()];
         let egress = egress
@@ -422,6 +430,7 @@ impl<'a> Context<'a> {
         };
         Ok(Context {
             net,
+            scen,
             layer,
             data,
             filtered,
@@ -452,7 +461,7 @@ impl<'a> Context<'a> {
         let tw = p.time_window as usize;
         let mut access = Vec::new();
         if !self.access.search(
-            self.net,
+            self.scen.as_ref().unwrap_or(self.net),
             self.layer,
             (lat, lon),
             &self.dest_splits,

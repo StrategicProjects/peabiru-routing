@@ -19,7 +19,49 @@
 use super::csv::{for_each_row, Header, ReadError, Row};
 use super::jparse::{parse_double, parse_int, INT_MISSING};
 use super::zip::{Archive, Limits};
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
+use std::hash::{BuildHasherDefault, Hasher};
+
+/// The hash of rustc's `FxHasher`: much faster than SipHash on the short
+/// ids of a feed, and nothing here depends on the order of a map.
+#[derive(Default)]
+struct Fx(u64);
+
+impl Hasher for Fx {
+    fn write(&mut self, bytes: &[u8]) {
+        let mut chunks = bytes.chunks_exact(8);
+        for c in &mut chunks {
+            self.add(u64::from_le_bytes(c.try_into().expect("8 bytes")));
+        }
+        for &b in chunks.remainder() {
+            self.add(u64::from(b));
+        }
+    }
+    fn write_u8(&mut self, i: u8) {
+        self.add(u64::from(i));
+    }
+    fn write_u32(&mut self, i: u32) {
+        self.add(u64::from(i));
+    }
+    fn write_u64(&mut self, i: u64) {
+        self.add(i);
+    }
+    fn write_usize(&mut self, i: usize) {
+        self.add(i as u64);
+    }
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
+
+impl Fx {
+    fn add(&mut self, w: u64) {
+        self.0 = (self.0.rotate_left(5) ^ w).wrapping_mul(0x51_7c_c1_b7_27_22_0a_95);
+    }
+}
+
+type HashMap<K, V> = std::collections::HashMap<K, V, BuildHasherDefault<Fx>>;
+type HashSet<K> = std::collections::HashSet<K, BuildHasherDefault<Fx>>;
 
 /// gtfs-lib's `Priority` of an error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -144,8 +186,8 @@ struct StopTimeRec {
 #[derive(Default)]
 struct Feed {
     errors: Vec<GtfsFeedError>,
-    /// `GTFSFeed.transitIds`: `column:value` already checked.
-    transit_ids: HashSet<String>,
+    /// `GTFSFeed.transitIds`: the values already checked, by column.
+    transit_ids: HashMap<&'static str, HashSet<String>>,
     feed_info_seen: bool,
     agencies: BTreeMap<String, ()>,
     /// Service ids with a calendar, and the dates of their exceptions
@@ -211,19 +253,42 @@ impl Feed {
     }
 }
 
+/// The columns a [`Table`] has looked up: the address and length of each
+/// name asked for, and its index in the header.
+type ColumnCache = std::cell::RefCell<Vec<((usize, usize), Option<usize>)>>;
+
 /// One table being read: gtfs-lib's `Entity.Loader` field getters.
 struct Table<'a, 'r> {
     name: &'static str,
     row: i64,
     h: &'a Header,
     r: &'a Row<'r>,
+    /// Columns already looked up in `h`, by the address of their name.
+    cols: &'a ColumnCache,
 }
 
-impl Table<'_, '_> {
+impl<'a> Table<'a, '_> {
+    /// `h.col(col)`, remembered across the rows of the table.
+    fn col(&self, col: &'static str) -> Option<usize> {
+        let key = (col.as_ptr() as usize, col.len());
+        let mut cols = self.cols.borrow_mut();
+        if let Some(&(_, c)) = cols.iter().find(|e| e.0 == key) {
+            return c;
+        }
+        let c = self.h.col(col);
+        cols.push((key, c));
+        c
+    }
+
     /// `getFieldCheckRequired`: `None` when empty, an `EmptyFieldError`
     /// when also required.
-    fn field(&self, f: &mut Feed, col: &str, required: bool) -> Option<String> {
-        let v = self.r.get(self.h.col(col));
+    fn field(&self, f: &mut Feed, col: &'static str, required: bool) -> Option<String> {
+        self.value(f, col, required).map(str::to_string)
+    }
+
+    /// [`Table::field`] without a copy.
+    fn value(&self, f: &mut Feed, col: &'static str, required: bool) -> Option<&'a str> {
+        let v = self.r.get(self.col(col));
         if v.is_empty() {
             if required {
                 f.push(
@@ -237,7 +302,7 @@ impl Table<'_, '_> {
             }
             None
         } else {
-            Some(v.to_string())
+            Some(v)
         }
     }
 
@@ -257,16 +322,16 @@ impl Table<'_, '_> {
     fn int(
         &self,
         f: &mut Feed,
-        col: &str,
+        col: &'static str,
         required: bool,
         min: i32,
         max: i32,
         default: i32,
     ) -> i32 {
-        let Some(s) = self.field(f, col, required) else {
+        let Some(s) = self.value(f, col, required) else {
             return default;
         };
-        match parse_int(&s) {
+        match parse_int(s) {
             Some(v) => {
                 self.range(f, f64::from(min), f64::from(max), f64::from(v));
                 v
@@ -285,11 +350,11 @@ impl Table<'_, '_> {
         }
     }
 
-    fn double(&self, f: &mut Feed, col: &str, required: bool, min: f64, max: f64) -> f64 {
-        let Some(s) = self.field(f, col, required) else {
+    fn double(&self, f: &mut Feed, col: &'static str, required: bool, min: f64, max: f64) -> f64 {
+        let Some(s) = self.value(f, col, required) else {
             return f64::NAN;
         };
-        match parse_double(&s) {
+        match parse_double(s) {
             Some(v) => {
                 self.range(f, min, max, v);
                 v
@@ -310,8 +375,8 @@ impl Table<'_, '_> {
 
     /// `getTimeField`: `H:M:S`, split as Java's `String.split(":")` does
     /// (trailing empty parts dropped).
-    fn time(&self, f: &mut Feed, col: &str, required: bool) {
-        let Some(s) = self.field(f, col, required) else {
+    fn time(&self, f: &mut Feed, col: &'static str, required: bool) {
+        let Some(s) = self.value(f, col, required) else {
             return;
         };
         let mut parts: Vec<&str> = s.split(':').collect();
@@ -341,9 +406,9 @@ impl Table<'_, '_> {
     /// `getDateField`: `LocalDate.parse(s, BASIC_ISO_DATE)`. A value it
     /// cannot parse throws `DateTimeParseException`, which gtfs-lib does
     /// not catch (it catches `IllegalArgumentException`): the load fails.
-    fn date(&self, f: &mut Feed, col: &str, required: bool) -> Option<u32> {
-        let s = self.field(f, col, required)?;
-        match basic_iso_date(&s) {
+    fn date(&self, f: &mut Feed, col: &'static str, required: bool) -> Option<u32> {
+        let s = self.value(f, col, required)?;
+        match basic_iso_date(s) {
             Some(d) => {
                 self.range(f, 2000.0, 2100.0, f64::from(d / 10000));
                 Some(d)
@@ -362,9 +427,9 @@ impl Table<'_, '_> {
         }
     }
 
-    fn url(&self, f: &mut Feed, col: &str, required: bool) {
-        if let Some(s) = self.field(f, col, required) {
-            if !java_url_ok(&s) {
+    fn url(&self, f: &mut Feed, col: &'static str, required: bool) {
+        if let Some(s) = self.value(f, col, required) {
+            if !java_url_ok(s) {
                 f.push(
                     self.name,
                     self.row,
@@ -382,15 +447,15 @@ impl Table<'_, '_> {
     fn reference(
         &self,
         f: &mut Feed,
-        col: &str,
+        col: &'static str,
         required: bool,
         exists: impl Fn(&Feed, &str) -> bool,
-    ) -> Option<String> {
-        let s = self.field(f, col, required)?;
-        let key = format!("{col}:{s}");
-        if !f.transit_ids.contains(&key) {
-            f.transit_ids.insert(key);
-            if !exists(f, &s) {
+    ) -> Option<&'a str> {
+        let s = self.value(f, col, required)?;
+        let seen = f.transit_ids.entry(col).or_default();
+        if !seen.contains(s) {
+            seen.insert(s.to_string());
+            if !exists(f, s) {
                 f.push(
                     self.name,
                     self.row,
@@ -545,9 +610,16 @@ fn load_table(
     };
     let bytes = a.read(entry).map_err(|e| e.to_string())?;
     let mut row = 1i64;
+    let cols = std::cell::RefCell::new(Vec::new());
     let header = for_each_row::<()>(&bytes, |h, _, r| {
         row += 1;
-        let t = Table { name, row, h, r };
+        let t = Table {
+            name,
+            row,
+            h,
+            r,
+            cols: &cols,
+        };
         row_fn(f, &t);
         Ok(())
     });
@@ -606,13 +678,13 @@ pub(crate) fn validate(bytes: &[u8]) -> Outcome {
 
 fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
     load_table(f, a, "feed_info", false, |f, t| {
-        t.field(f, "feed_id", false);
-        t.field(f, "feed_publisher_name", true);
+        t.value(f, "feed_id", false);
+        t.value(f, "feed_publisher_name", true);
         t.url(f, "feed_publisher_url", true);
-        t.field(f, "feed_lang", true);
+        t.value(f, "feed_lang", true);
         t.date(f, "feed_start_date", false);
         t.date(f, "feed_end_date", false);
-        t.field(f, "feed_version", false);
+        t.value(f, "feed_version", false);
         if !f.feed_info_seen {
             f.feed_info_seen = true;
         } else {
@@ -629,12 +701,12 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
 
     load_table(f, a, "agency", true, |f, t| {
         let id = t.field(f, "agency_id", false);
-        t.field(f, "agency_name", true);
+        t.value(f, "agency_name", true);
         t.url(f, "agency_url", true);
-        t.field(f, "agency_lang", false);
-        t.field(f, "agency_email", false);
-        t.field(f, "agency_phone", false);
-        t.field(f, "agency_timezone", true);
+        t.value(f, "agency_lang", false);
+        t.value(f, "agency_email", false);
+        t.value(f, "agency_phone", false);
+        t.value(f, "agency_timezone", true);
         t.url(f, "agency_fare_url", false);
         t.url(f, "agency_branding_url", false);
         let id = id.unwrap_or_else(|| "NONE".to_string());
@@ -741,7 +813,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
         }
         f.fares.insert(id, true);
         t.double(f, "price", true, 0.0, f64::from(i32::MAX));
-        t.field(f, "currency_type", true);
+        t.value(f, "currency_type", true);
         t.int(f, "payment_method", true, 0, 1, 0);
         t.int(f, "transfers", false, 0, 10, i32::MAX);
         t.int(f, "transfer_duration", false, 0, 24 * 60 * 60, 0);
@@ -761,7 +833,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
         }
         f.fares.entry(id).or_insert(false);
         for c in ["route_id", "origin_id", "destination_id", "contains_id"] {
-            t.field(f, c, false);
+            t.value(f, c, false);
         }
     })?;
     if f.fares.contains_key(&None) {
@@ -776,7 +848,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
     load_table(f, a, "routes", true, |f, t| {
         let id = t.field(f, "route_id", true);
         let agency = t.reference(f, "agency_id", false, |f, s| f.agencies.contains_key(s));
-        let found = agency.is_some_and(|s| f.agencies.contains_key(&s));
+        let found = agency.is_some_and(|s| f.agencies.contains_key(s));
         if !found && f.agencies.is_empty() {
             f.push(
                 "agency",
@@ -788,12 +860,12 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
             );
         }
         for c in ["route_short_name", "route_long_name", "route_desc"] {
-            t.field(f, c, false);
+            t.value(f, c, false);
         }
         t.int(f, "route_type", true, 0, 1500, 0);
         t.url(f, "route_url", false);
-        t.field(f, "route_color", false);
-        t.field(f, "route_text_color", false);
+        t.value(f, "route_color", false);
+        t.value(f, "route_text_color", false);
         t.url(f, "route_branding_url", false);
         match id {
             None => f.push(
@@ -832,18 +904,18 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
 
     load_table(f, a, "stops", true, |f, t| {
         let id = t.field(f, "stop_id", true);
-        t.field(f, "stop_code", false);
-        let named = t.field(f, "stop_name", true).is_some();
-        t.field(f, "stop_desc", false);
-        t.field(f, "zone_id", false);
+        t.value(f, "stop_code", false);
+        let named = t.value(f, "stop_name", true).is_some();
+        t.value(f, "stop_desc", false);
+        t.value(f, "zone_id", false);
         t.url(f, "stop_url", false);
         let location_type = t.int(f, "location_type", false, 0, 4, 0);
         let coords_required = location_type <= 2;
         let lat = t.double(f, "stop_lat", coords_required, -90.0, 90.0);
         let lon = t.double(f, "stop_lon", coords_required, -180.0, 180.0);
         let parent_station = t.field(f, "parent_station", location_type >= 2);
-        t.field(f, "stop_timezone", false);
-        t.field(f, "wheelchair_boarding", false);
+        t.value(f, "stop_timezone", false);
+        t.value(f, "wheelchair_boarding", false);
         match id {
             None => f.push(
                 t.name,
@@ -877,12 +949,12 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
     })?;
 
     load_table(f, a, "transfers", false, |f, t| {
-        t.field(f, "from_stop_id", true);
-        t.field(f, "to_stop_id", true);
+        t.value(f, "from_stop_id", true);
+        t.value(f, "to_stop_id", true);
         t.int(f, "transfer_type", true, 0, 5, 0);
         t.int(f, "min_transfer_time", false, 0, i32::MAX, 0);
         for c in ["from_route_id", "to_route_id", "from_trip_id", "to_trip_id"] {
-            t.field(f, c, false);
+            t.value(f, c, false);
         }
         t.reference(f, "from_stop_id", true, |f, s| f.stops.contains_key(s));
         t.reference(f, "to_stop_id", true, |f, s| f.stops.contains_key(s));
@@ -892,13 +964,13 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
         t.double(f, "safe_duration_factor", false, 1.0, 10.0);
         t.double(f, "safe_duration_offset", false, 0.0, 3600.0);
         let route = t.field(f, "route_id", true);
-        t.field(f, "service_id", true);
+        t.value(f, "service_id", true);
         let id = t.field(f, "trip_id", true);
         for c in ["trip_headsign", "trip_short_name"] {
-            t.field(f, c, false);
+            t.value(f, c, false);
         }
         t.int(f, "direction_id", false, 0, 1, 0);
-        t.field(f, "block_id", false);
+        t.value(f, "block_id", false);
         let shape = t.field(f, "shape_id", false);
         t.int(f, "bikes_allowed", false, 0, 2, 0);
         t.int(f, "wheelchair_accessible", false, 0, 2, 0);
@@ -937,7 +1009,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
 
     load_table(f, a, "frequencies", false, |f, t| {
         let trip = t.reference(f, "trip_id", true, |f, s| f.trips.contains_key(s));
-        if !trip.is_some_and(|s| f.trips.contains_key(&s)) {
+        if !trip.is_some_and(|s| f.trips.contains_key(s)) {
             fails(
                 f,
                 format!(
@@ -956,7 +1028,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
 
     load_table(f, a, "location_groups", false, |f, t| {
         let id = t.field(f, "location_group_id", true);
-        t.field(f, "location_group_name", false);
+        t.value(f, "location_group_name", false);
         f.flex_groups.insert(id);
     })?;
     load_table(f, a, "location_group_stops", false, |f, t| {
@@ -1047,23 +1119,30 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
         let trip = t.field(f, "trip_id", true);
         t.time(f, "arrival_time", false);
         t.time(f, "departure_time", false);
-        let stop = t.field(f, "stop_id", false);
+        let stop = t.value(f, "stop_id", false);
         let seq = t.int(f, "stop_sequence", true, 0, i32::MAX, 0);
-        t.field(f, "stop_headsign", false);
+        t.value(f, "stop_headsign", false);
         let pickup = t.int(f, "pickup_type", false, 0, 3, 0);
         let drop_off = t.int(f, "drop_off_type", false, 0, 3, 0);
         t.double(f, "shape_dist_traveled", false, 0.0, f64::MAX);
         t.int(f, "timepoint", false, 0, 1, INT_MISSING);
         let rec = StopTimeRec {
             line: t.row,
-            stop: stop.as_deref().map(|s| f.intern_stop(s)),
+            stop: stop.map(|s| f.intern_stop(s)),
             pickup,
             drop_off,
         };
-        f.stop_times
-            .entry(trip.clone())
-            .or_default()
-            .insert(seq, rec);
+        match f.stop_times.get_mut(&trip) {
+            Some(times) => {
+                times.insert(seq, rec);
+            }
+            None => {
+                f.stop_times
+                    .entry(trip.clone())
+                    .or_default()
+                    .insert(seq, rec);
+            }
+        }
         t.reference(f, "trip_id", true, |f, s| f.trips.contains_key(s));
         if flex {
             f.flex_trips.insert(trip, ());
@@ -1221,7 +1300,7 @@ fn find_patterns_failure(f: &Feed) -> Option<String> {
         return None;
     }
     type Key<'a> = (Option<&'a str>, Vec<Option<u32>>, Vec<i32>, Vec<i32>);
-    let mut patterns: HashMap<Key, Vec<&str>> = HashMap::new();
+    let mut patterns: HashMap<Key, Vec<&str>> = HashMap::default();
     let mut order: Vec<Key> = Vec::new();
     let mut trip_ids: Vec<&String> = f.trips.keys().collect();
     trip_ids.sort(); // MapDB's map, by trip_id (UTF-16 order for BMP text)

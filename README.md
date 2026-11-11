@@ -61,7 +61,7 @@ Public transport can be any subset of the transit modes (`"BUS"`,
 
 Detailed itineraries give the legs of the fastest trip, with their lines.
 
-Not implemented yet: fares, scenarios, elevation, and the alternative
+Not implemented yet: fares, elevation, and the alternative
 itineraries of `detailed_itineraries(shortest_path = FALSE)` with public
 transport. Asking for any of them is an error; nothing is silently ignored.
 
@@ -211,6 +211,30 @@ cd js && sh build.sh && node --test tests/*.test.mjs
 node site/js/run_examples.mjs                       # the examples of the JavaScript guide
 site/build.sh                                       # documentation sites, into _site/
 ```
+
+### Continuous integration
+
+- [`ci.yml`](.github/workflows/ci.yml), on every push and pull request: the
+  Rust core and command-line tool on Linux, macOS and Windows, the oldest
+  supported Rust, the R package, the Python wheel and the npm package. Its R
+  job does not install r5r, so the parity tests are skipped there.
+- [`r5r-parity.yml`](.github/workflows/r5r-parity.yml), on every push to
+  `main` (and by hand): the R package's tests against r5r 2.5.0, Java 21 and
+  the R5 jar on the same runner, on Linux, Windows and macOS. Linux and
+  Windows matter most: there isoband is built with libstdc++, which orders
+  the isochrone rings differently from macOS, and the file system lists the
+  GTFS feeds of a directory in another order (R5 and peabiru both load them
+  in that order). With `PEABIRU_REQUIRE_R5R=true` the test helpers turn a
+  missing r5r, Java or jar into an error instead of a skip, and
+  [`tools/r5r_parity.R`](tools/r5r_parity.R) fails if any parity test was
+  skipped. To run the same locally, with peabiru, r5r 2.5.0 and a JDK 21
+  installed:
+
+  ```sh
+  NOT_CRAN=true PEABIRU_REQUIRE_R5R=true Rscript tools/r5r_parity.R
+  ```
+- `python-release.yml` and `npm-release.yml` build, test and publish the
+  releases.
 
 ## Licence and credits
 

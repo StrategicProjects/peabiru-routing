@@ -130,16 +130,19 @@ def test_walk_is_routed_from_the_origins(network, points, tmp_path):
 
 def test_ids_are_quoted_and_files_replaced(network, points, tmp_path):
     p = points.iloc[:3].copy()
-    p["id"] = ["a,b", 'q"x', "plain"]
+    # a double quote cannot be in a file name on Windows
+    quoted = "q x" if os.name == "nt" else 'q"x'
+    p["id"] = ["a,b", quoted, "plain"]
     (tmp_path / "from_plain.csv").write_text("old\nold\nold\n")
     (tmp_path / "other.txt").write_text("kept")
     peabiru.travel_time_matrix(network, p, p, n_threads=2, output_dir=tmp_path)
     assert sorted(os.listdir(tmp_path)) == sorted(
-        ["from_a,b.csv", 'from_q"x.csv', "from_plain.csv", "other.txt"]
+        ["from_a,b.csv", f"from_{quoted}.csv", "from_plain.csv", "other.txt"]
     )
     text = (tmp_path / "from_a,b.csv").read_text()
     assert '\n"a,b","a,b",0\n' in text.replace(EOL, "\n")
-    assert '"q""x"' in (tmp_path / 'from_q"x.csv').read_text()
+    if os.name != "nt":
+        assert '"q""x"' in (tmp_path / 'from_q"x.csv').read_text()
     assert "old" not in (tmp_path / "from_plain.csv").read_text()
     assert (tmp_path / "other.txt").read_text() == "kept"
 

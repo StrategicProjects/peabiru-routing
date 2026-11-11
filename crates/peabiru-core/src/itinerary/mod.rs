@@ -83,6 +83,12 @@ pub struct ItineraryParams {
     /// [`osm_ids`](ItineraryLeg::osm_ids), [`edge_ids`](ItineraryLeg::edge_ids)
     /// and stop ids.
     pub osm_link_ids: bool,
+    /// Car speeds and levels of traffic stress changed for this call
+    /// (r5r's `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
+    /// changes nothing. r5r's trip planner routes every street leg (direct
+    /// trip, access, egress, walks between stops) on the scenario's
+    /// network, and so does this.
+    pub scenario: crate::Scenario,
 }
 
 impl Default for ItineraryParams {
@@ -107,6 +113,7 @@ impl Default for ItineraryParams {
             n_threads: 0,
             cancel: CancelToken::default(),
             osm_link_ids: false,
+            scenario: crate::Scenario::default(),
         }
     }
 }
@@ -138,6 +145,7 @@ impl ItineraryParams {
             ..Default::default()
         };
         t.check()?;
+        self.scenario.check()?;
         if self.suboptimal_minutes < 0 {
             return Err(format!(
                 "suboptimal_minutes must be 0 or more, got {}",
@@ -418,6 +426,11 @@ pub fn detailed_itineraries(
             destinations.len()
         )));
     }
+    // the scenario's network for every street leg (r5r's TripPlanner routes
+    // on getTransportNetwork(), the scenario copy)
+    let by_car = p.mode == Mode::Car || (!p.transit_modes.is_empty() && p.egress_mode == Mode::Car);
+    let scen = crate::street::scenario::scenario_network(net, &p.scenario, by_car)?;
+    let net = scen.as_ref().unwrap_or(net);
     let planner = if p.transit_modes.is_empty() {
         None
     } else {

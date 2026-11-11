@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from . import _peabiru
+from ._scenario import scenario_spec
 from ._assign import (
     Points,
     assign_departure,
@@ -22,7 +23,6 @@ from ._assign import (
     check_max_lts,
     check_messages,
     check_output_dir,
-    check_scenarios,
     check_speed,
     check_transit_availability_on_date,
 )
@@ -80,9 +80,9 @@ def detailed_itineraries(
     all_to_all: bool = False,
     fare_structure: Any = None,
     max_fare: Number = math.inf,
-    new_carspeeds: Optional[pd.DataFrame] = None,
+    new_carspeeds: Optional[Any] = None,
     carspeed_scale: float = 1,
-    new_lts: Optional[pd.DataFrame] = None,
+    new_lts: Optional[Any] = None,
     n_threads: Optional[Number] = None,
     verbose: bool = False,
     progress: bool = True,
@@ -102,7 +102,7 @@ def detailed_itineraries(
 
     Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]:
     ``shortest_path=False`` with public transport (r5r routes it with R5's
-    McRAPTOR), fares and scenarios. As in r5r, networks
+    McRAPTOR) and fares. As in r5r, networks
     whose GTFS has frequency-based trips cannot be used with public
     transport. With ``mode_egress="CAR"``, a pair whose itineraries in r5r
     depend on the searches that ran before (R5 reverses the via edges of
@@ -223,7 +223,7 @@ def detailed_itineraries(
         raise ValueError(
             "Assertion on 'suboptimal_minutes' failed: Must be 0 when 'shortest_path' is True."
         )
-    check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
     if not shortest_path and mode_list.transit:
         unsupported("'shortest_path=False' with public transport (McRAPTOR)")
     if out_dir is None and not drop_geometry:
@@ -245,7 +245,7 @@ def detailed_itineraries(
             departure.yyyymmdd, departure.seconds, int(time_window),
             lim["walk"], lim["bike"], lim["car"], lim["trip"],
             float(walk_speed), float(bike_speed), int(max_rides), int(max_lts),
-            bool(shortest_path), threads, bool(drop_geometry), bool(osm_link_ids),
+            bool(shortest_path), threads, scenario, bool(drop_geometry), bool(osm_link_ids),
             None if out_dir is None else (out_dir, [str(i) for i in o.ids], [str(i) for i in d.ids]),
         )
     if r is None:

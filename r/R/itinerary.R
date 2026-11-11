@@ -9,7 +9,7 @@
 #' (`shortest_path = TRUE`).
 #'
 #' Not supported yet, and an error: `shortest_path = FALSE` with public
-#' transport (r5r routes it with R5's McRAPTOR), fares and scenarios. As in r5r, networks
+#' transport (r5r routes it with R5's McRAPTOR) and fares. As in r5r, networks
 #' whose GTFS has frequency-based trips cannot be used with public
 #' transport.
 #'
@@ -162,7 +162,7 @@ detailed_itineraries <- function(r5r_network,
     stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when ",
          "'shortest_path' is TRUE.", call. = FALSE)
   }
-  check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
   if (!shortest_path && mode_list$transit) {
     unsupported("'shortest_path = FALSE' with public transport (McRAPTOR)")
   }
@@ -180,7 +180,7 @@ detailed_itineraries <- function(r5r_network,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_bike_time, max_car_time, max_trip_duration,
     as.double(walk_speed), as.double(bike_speed), as.integer(max_rides),
-    as.integer(max_lts), shortest_path, threads, drop_geometry, osm_link_ids, output
+    as.integer(max_lts), shortest_path, threads, drop_geometry, scenario, osm_link_ids, output
   ))
   if (!is.null(output_dir)) return(output_dir)
 

@@ -78,6 +78,35 @@ for (city in cities) {
       bike_egress_osm = list(mode = c("WALK", "BUS"), mode_egress = "BICYCLE",
                              osm_link_ids = TRUE)
     ))
+    # scenarios: r5r's Porto Alegre files
+    osm <- read.csv(file.path(src, "poa_osm_congestion.csv"))
+    kmh <- transform(osm, max_speed = 15, speed_type = "km/h")
+    poly <- readRDS(file.path(src, "poa_poly_congestion.rds"))
+    lts <- read.csv(file.path(src, "poa_osm_lts.csv"))
+    lines <- readRDS(file.path(src, "poa_ls_lts.rds"))
+    scenarios <- c(scenarios, list(
+      scen_car_osm = list(mode = "CAR", new_carspeeds = osm, carspeed_scale = 0.8),
+      scen_car_kmh = list(mode = "CAR", new_carspeeds = kmh),
+      scen_car_poly = list(mode = "CAR", new_carspeeds = poly, carspeed_scale = 1.1),
+      scen_bike_lts = list(mode = "BICYCLE", new_lts = lts),
+      scen_bike_lines = list(mode = "BICYCLE", new_lts = lines, max_lts = 3),
+      scen_transit_bike = list(mode = c("BICYCLE", "TRANSIT"), new_lts = lines,
+                               max_bike_time = 20),
+      scen_transit_car = list(mode = c("CAR", "TRANSIT"), new_carspeeds = poly,
+                              carspeed_scale = 0.6, max_car_time = 20, drop_geometry = TRUE),
+      scen_egress_bike = list(mode = c("WALK", "TRANSIT"), mode_egress = "BICYCLE",
+                              new_lts = lines, drop_geometry = TRUE),
+      scen_car_ids = list(mode = "CAR", new_carspeeds = osm, carspeed_scale = 0.8,
+                          osm_link_ids = TRUE),
+      scen_bike_ids = list(mode = "BICYCLE", new_lts = lts, osm_link_ids = TRUE),
+      scen_egress_car = list(mode = c("WALK", "TRANSIT"), mode_egress = "CAR",
+                             new_carspeeds = poly, carspeed_scale = 0.7, osm_link_ids = TRUE)
+    ))
+    files_scen <- list(
+      scen_car_files = list(mode = "CAR", new_carspeeds = kmh, osm_link_ids = TRUE),
+      scen_egress_files = list(mode = c("WALK", "TRANSIT"), mode_egress = "CAR",
+                               new_carspeeds = osm)
+    )
   }
   k <- 0
   for (name in names(scenarios)) {
@@ -109,6 +138,7 @@ for (city in cities) {
     ))
   }
   files$car_osm <- list(mode = "CAR", osm_link_ids = TRUE)
+  if (city == "poa") files <- c(files, files_scen)
   for (name in names(files)) {
     k <- k + 1
     p <- pairs_for(pts, min(n_pairs, 200L), 100 * k + nchar(city))

@@ -218,12 +218,6 @@ def test_unsupported_options_are_errors(network, points, departure):
     U = peabiru.UnsupportedError
     with pytest.raises(U, match="fare_structure.*not supported"):
         call(fare_structure={})
-    with pytest.raises(U, match="car speeds.*not supported"):
-        call(carspeed_scale=0.5)
-    with pytest.raises(U, match="car speeds.*not supported"):
-        call(new_carspeeds=pd.DataFrame({"osm_id": [1], "max_speed": [1]}))
-    with pytest.raises(U, match="LTS.*not supported"):
-        call(new_lts=pd.DataFrame({"osm_id": [1], "lts": [1]}))
     # TRANSIT with other transit modes is all transit modes, as in r5r
     pd.testing.assert_frame_equal(
         call(mode=["walk", "TRANSIT", "BUS"], seed=1), call(mode="TRANSIT", seed=1)

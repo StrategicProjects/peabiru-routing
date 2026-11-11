@@ -7,20 +7,12 @@ r5r_network <- local({
   net <- NULL
   function() {
     if (!is.null(net)) return(net)
-    skip_on_cran()
-    skip_if_not_installed("r5r")
-    src <- system.file("extdata/spo", package = "r5r")
-    skip_if(!file.exists(file.path(src, "spo_osm.pbf")), "r5r sample data not found")
+    src <- r5r_sample("spo", packages = "sf") # helper-r5r.R
     dir <- file.path(tempdir(), "peabiru-parity-spo")
     unlink(dir, recursive = TRUE)
     dir.create(dir)
     file.copy(file.path(src, c("spo_osm.pbf", "spo.zip")), dir)
-    if (is.null(getOption("java.parameters"))) options(java.parameters = "-Xmx2G")
-    r5 <- tryCatch(
-      suppressMessages(r5r::build_network(dir)),
-      error = function(e) NULL
-    )
-    skip_if(is.null(r5), "r5r could not build a network (Java 21 or the R5 jar missing?)")
+    r5 <- r5r_network_or_skip(dir)
     pb <- build_network(dir, n_threads = 2)
     points <- read.csv(file.path(src, "spo_hexgrid.csv"), colClasses = c(id = "character"))
     net <<- list(r5 = r5, pb = pb, points = points)
@@ -112,6 +104,65 @@ test_that("isochrones equal r5r's", {
   expect_same_isochrone(origins = o, mode = "TRANSIT", cutoffs = c(0, 15, 30),
                         departure_datetime = departure, polygon_output = FALSE,
                         seed = 42)
+})
+
+test_that("scenarios equal r5r's", {
+  skip_if_not_installed("sf")
+  n <- r5r_network()
+  pts <- n$points[1:80, ]
+  edges <- street_network_to_sf(n$pb)$edges
+  ways <- unique(edges$osm_id)
+  set.seed(3)
+  osm <- data.frame(osm_id = sample(ways, 300), max_speed = sample(c(0, 0.4, 1.7), 300, TRUE),
+                    speed_type = "scale")
+  kmh <- data.frame(osm_id = sample(ways, 300), max_speed = runif(300, 5, 80),
+                    speed_type = "km/h")
+  lts <- data.frame(osm_id = sample(ways, 300), lts = sample(1:4, 300, TRUE))
+  box <- sf::st_bbox(sf::st_as_sf(pts[1:40, ], coords = c("lon", "lat"), crs = 4326))
+  poly <- sf::st_sf(poly_id = "a", scale = 0.6, priority = 1L, geometry = sf::st_as_sfc(box))
+  lines <- sf::st_sf(line_id = as.character(1:200), lts = sample(1:4, 200, TRUE),
+                     priority = 1L, geometry = sf::st_geometry(edges)[1:200])
+  for (s in list(list(mode = "CAR", new_carspeeds = osm, carspeed_scale = 0.8),
+                 list(mode = "CAR", new_carspeeds = kmh),
+                 list(mode = "CAR", new_carspeeds = poly, carspeed_scale = 1.2),
+                 list(mode = "BICYCLE", new_lts = lts),
+                 list(mode = "BICYCLE", new_lts = lines, max_lts = 3),
+                 list(mode = c("BICYCLE", "TRANSIT"), new_lts = lts, seed = 42,
+                      max_bike_time = 20),
+                 list(mode = c("CAR", "TRANSIT"), carspeed_scale = 0.5, seed = 42,
+                      max_car_time = 15))) {
+    suppressWarnings(do.call(expect_same_as_r5r,
+                             c(list("travel_time_matrix", origins = pts, destinations = pts,
+                                    departure_datetime = departure), s)))
+  }
+  # detailed itineraries on the scenario's network: osm_link_ids and
+  # output_dir with the geometry
+  set.seed(4)
+  o <- pts[sample(nrow(pts), 30), ]
+  d <- pts[sample(nrow(pts), 30), ]
+  for (s in list(list(mode = "CAR", new_carspeeds = osm, carspeed_scale = 0.8, osm_link_ids = TRUE),
+                 list(mode = "BICYCLE", new_lts = lines, osm_link_ids = TRUE))) {
+    args <- c(list(origins = o, destinations = d, departure_datetime = departure), s)
+    pb <- suppressWarnings(do.call(detailed_itineraries, c(list(n$pb), args, n_threads = 2)))
+    r5 <- suppressWarnings(do.call(r5r::detailed_itineraries,
+                                   c(list(n$r5), args, n_threads = 2, progress = FALSE)))
+    class(r5) <- setdiff(class(r5), "data.table")
+    attr(r5, ".internal.selfref") <- NULL
+    expect_identical(pb, r5)
+  }
+  dirs <- c(tempfile(), tempfile())
+  for (x in dirs) dir.create(x)
+  args <- list(origins = o, destinations = d, mode = "CAR", new_carspeeds = kmh,
+               departure_datetime = departure)
+  suppressWarnings(do.call(detailed_itineraries, c(list(n$pb), args, output_dir = dirs[1])))
+  suppressWarnings(do.call(r5r::detailed_itineraries,
+                           c(list(n$r5), args, output_dir = dirs[2], progress = FALSE)))
+  files <- list.files(dirs[2])
+  expect_identical(list.files(dirs[1]), files)
+  for (f in files) {
+    expect_identical(readBin(file.path(dirs[1], f), "raw", 1e7),
+                     readBin(file.path(dirs[2], f), "raw", 1e7))
+  }
 })
 
 # r5r's detailed_itineraries() returns an sf data.table; the rest is

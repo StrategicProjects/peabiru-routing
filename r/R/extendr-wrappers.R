@@ -35,14 +35,14 @@ rs_transit_availability <- function(ptr, date) .Call(wrap__rs_transit_availabili
 #' `list(from, to, minutes)`, origin-major. With `output` (see [`Output`],
 #' with `percentiles`), the files are written instead and `NULL` returned.
 #' @noRd
-rs_street_ttm <- function(ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads, output) .Call(wrap__rs_street_ttm, ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads, output)
+rs_street_ttm <- function(ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads, scenario, output) .Call(wrap__rs_street_ttm, ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads, scenario, output)
 
 #' Public transport travel-time matrix: the reported pairs as
 #' `list(from, to, p1, ..., pk)` (percentiles ascending, NA where r5r
 #' gives NA), origin-major. With `output` (see [`Output`]), the files are
 #' written instead and `NULL` returned.
 #' @noRd
-rs_transit_ttm <- function(ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, output) .Call(wrap__rs_transit_ttm, ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, output)
+rs_transit_ttm <- function(ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output) .Call(wrap__rs_transit_ttm, ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output)
 
 #' Accessibility values `[origin][opportunity][percentile][cutoff]`,
 #' flattened. `mode` is the street mode (of the access to public
@@ -51,7 +51,7 @@ rs_transit_ttm <- function(ptr, olat, olon, dlat, dlon, transit_modes, access_mo
 #' `output` (see [`Output`], with the `opportunities` names), the files are
 #' written instead and `NULL` returned.
 #' @noRd
-rs_accessibility <- function(ptr, olat, olon, dlat, dlon, opportunities, mode, transit_modes, egress_mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads, output) .Call(wrap__rs_accessibility, ptr, olat, olon, dlat, dlon, opportunities, mode, transit_modes, egress_mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads, output)
+rs_accessibility <- function(ptr, olat, olon, dlat, dlon, opportunities, mode, transit_modes, egress_mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output) .Call(wrap__rs_accessibility, ptr, olat, olon, dlat, dlon, opportunities, mode, transit_modes, egress_mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output)
 
 #' Expanded (or, with `arrival`, arrival) travel-time matrix as columns:
 #' `from`, `to` (1-based), `departure` (seconds after midnight), `draw`,
@@ -62,7 +62,7 @@ rs_accessibility <- function(ptr, olat, olon, dlat, dlon, opportunities, mode, t
 #' `output` (see [`Output`], with `breakdown`), the files are written
 #' instead and `NULL` returned.
 #' @noRd
-rs_expanded <- function(ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, output) .Call(wrap__rs_expanded, ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, output)
+rs_expanded <- function(ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output) .Call(wrap__rs_expanded, ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output)
 
 #' Polygon isochrones, as flat columns the R code assembles into `sf`:
 #' per row (origin, percentile, cutoff; r5r's order) `origin` (1-based),
@@ -79,6 +79,11 @@ rs_isochrone_polygons <- function(ptr, olat, olon, mode, transit_modes, egress_m
 #' line of each edge as `n_points` and flat `x`, `y`.
 #' @noRd
 rs_street_edges <- function(ptr) .Call(wrap__rs_street_edges, ptr)
+
+#' The street edges of the network a scenario makes (as `rs_street_edges`),
+#' for comparing it with r5r's; `NULL` when the scenario changes nothing.
+#' @noRd
+rs_scenario_street_edges <- function(ptr, scenario) .Call(wrap__rs_scenario_street_edges, ptr, scenario)
 
 #' Line isochrones from an integer matrix of median minutes (`NA` where not
 #' reported), `n_origins` rows of `n_edges` values, origin-major: the rows
@@ -135,6 +140,6 @@ rs_gtfs_errors <- function(paths) .Call(wrap__rs_gtfs_errors, paths)
 #' (`list(dir, from_ids, to_ids)`) the files are written instead and
 #' `NULL` returned.
 #' @noRd
-rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, osm_link_ids, output) .Call(wrap__rs_detailed_itineraries, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, osm_link_ids, output)
+rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output) .Call(wrap__rs_detailed_itineraries, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output)
 
 # nolint end

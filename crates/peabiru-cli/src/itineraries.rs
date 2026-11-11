@@ -74,6 +74,7 @@ pub fn run(args: &[String]) {
     }
     let (dir, origins, dests, out) = (&args[0], &args[1], &args[2], &args[3]);
     let mut p = ItineraryParams::default();
+    p.scenario = crate::cli::scenario(cmd);
     let mut i = 4;
     while i < args.len() {
         let name = args[i].as_str();

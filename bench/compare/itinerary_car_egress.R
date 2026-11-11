@@ -18,7 +18,9 @@
 # listed. Exits with status 1 if any pair peabiru routes differs.
 
 args <- commandArgs(TRUE)
-seeds <- if (length(args)) as.integer(args) else 1:4
+# a seed followed by "s" (e.g. 3s) runs on a car speed scenario: 400 random
+# ways at 0.4 to 1.5 times their speed
+seeds <- if (length(args)) args else as.character(1:4)
 lib <- Sys.getenv("PEABIRU_R_LIB")
 if (nzchar(lib)) .libPaths(c(lib, .libPaths()))
 if (is.null(getOption("java.parameters"))) options(java.parameters = "-Xmx6G")
@@ -42,10 +44,17 @@ plain <- function(x) {
   attr(x, ".internal.selfref") <- NULL
   x
 }
-args_for <- function(o, d) list(origins = o, destinations = d, mode = c("WALK", "TRANSIT"),
-                                mode_egress = "CAR", departure_datetime = dep)
+args_for <- function(o, d) c(list(origins = o, destinations = d, mode = c("WALK", "TRANSIT"),
+                                  mode_egress = "CAR", departure_datetime = dep), scen)
+ways <- unique(street_network_to_sf(pb)$edges$osm_id)
 failed <- 0
-for (seed in seeds) {
+for (tag in seeds) {
+  seed <- as.integer(sub("s$", "", tag))
+  scen <- if (grepl("s$", tag)) {
+    set.seed(1000 + seed)
+    list(new_carspeeds = data.frame(osm_id = sample(ways, 400), max_speed = runif(400, 0.4, 1.5),
+                                    speed_type = "scale"))
+  } else list()
   set.seed(seed)
   n <- 300
   o <- pts[sample(nrow(pts), n, TRUE), ]
@@ -59,7 +68,7 @@ for (seed in seeds) {
   if (!inherits(q, "error")) {
     ok <- identical(q, r)
     if (!ok) failed <- failed + 1
-    message(sprintf("seed %d: %d rows  %s", seed, nrow(r), if (ok) "identical" else "DIFFERENT"))
+    message(sprintf("seed %s: %d rows  %s", tag, nrow(r), if (ok) "identical" else "DIFFERENT"))
     next
   }
   refused <- integer(0)
@@ -77,8 +86,8 @@ for (seed in seeds) {
     if (identical(qi, ri)) same <- same + 1 else differ <- differ + 1
   }
   if (differ > 0) failed <- failed + 1
-  message(sprintf("seed %d: refused pairs %s; the other %d pairs: %d identical, %d different",
-                  seed, paste(refused, collapse = ","), n - length(refused), same, differ))
+  message(sprintf("seed %s: refused pairs %s; the other %d pairs: %d identical, %d different",
+                  tag, paste(refused, collapse = ","), n - length(refused), same, differ))
 }
 r5r::stop_r5(r5)
 if (failed > 0) quit(status = 1)
