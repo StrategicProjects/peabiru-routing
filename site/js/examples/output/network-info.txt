@@ -1,0 +1,12 @@
+{
+  vertices: 2609,
+  edges: 5518,
+  feeds: [ 'spo_gtfs' ],
+  stops: 654,
+  patterns: 36,
+  services: 6,
+  frequencies: true
+}
+{ services: 6, active: 3 }
+feeds r5r would refuse: 0
+workers: 0

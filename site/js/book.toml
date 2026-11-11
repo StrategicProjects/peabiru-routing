@@ -1,0 +1,32 @@
+[book]
+title = "peabiru for JavaScript"
+description = "Guide to the peabiru npm package: multimodal routing on OpenStreetMap and GTFS networks in WebAssembly, in browsers and in Node."
+authors = [
+  "André Leite",
+  "Marcos Wasiliew",
+  "Hugo Vasconcelos",
+  "Carlos Amorim",
+  "Diogo Bezerra",
+  "Júlia Nascimento Barreto",
+]
+language = "en"
+src = "src"
+
+[build]
+# site/build.sh builds into _site/js/
+build-dir = "../../_site/js"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+# copied from site/rust/theme/ by site/build.sh (shared by both guides)
+additional-css = ["theme/peabiru.css"]
+additional-js = ["theme/peabiru-nav.js"]
+git-repository-url = "https://github.com/StrategicProjects/peabiru-routing"
+edit-url-template = "https://github.com/StrategicProjects/peabiru-routing/edit/main/site/js/{path}"
+no-section-label = true
+
+[output.html.playground]
+runnable = false
+copyable = true

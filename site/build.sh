@@ -6,8 +6,10 @@
 #   _site/rust/         mdBook guide (site/rust/)
 #   _site/rust/api/     rustdoc of peabiru-core
 #   _site/python/       MkDocs site of the Python package, when python/mkdocs.yml exists
+#   _site/js/           mdBook guide of the npm package (site/js/), with its API
+#                       reference generated from js/lib/index.d.ts
 #
-# Usage: site/build.sh [--skip-r] [--skip-rust] [--skip-python]
+# Usage: site/build.sh [--skip-r] [--skip-rust] [--skip-python] [--skip-js]
 # Env:   PEABIRU_R_LIB  library with the peabiru R package installed (pkgdown
 #                       renders the articles with it; default: R's libraries,
 #                       and if it is not there, a private library under
@@ -20,12 +22,13 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/.." && pwd)"
 out="$root/_site"
-skip_r=0 skip_rust=0 skip_python=0
+skip_r=0 skip_rust=0 skip_python=0 skip_js=0
 for a in "$@"; do
   case "$a" in
     --skip-r) skip_r=1 ;;
     --skip-rust) skip_rust=1 ;;
     --skip-python) skip_python=1 ;;
+    --skip-js) skip_js=1 ;;
     *) echo "unknown option $a" >&2; exit 2 ;;
   esac
 done
@@ -122,6 +125,18 @@ if [ ! -f "$out/python/index.html" ]; then
 Meanwhile, see the <a href="../r/">R package</a>, the <a href="../rust/">Rust guide</a> or the
 <a href="../">home page</a>.</p></section></main></body></html>
 HTML
+fi
+
+# ---------------------------------------------------------------- JavaScript
+if [ "$skip_js" = 0 ]; then
+  step "JavaScript guide (mdBook)"
+  # the API reference, from the package's type declarations
+  python3 "$here/js/gen_api.py"
+  # the theme of the Rust guide, shared
+  mkdir -p "$here/js/theme"
+  cp "$here/assets/favicon.svg" "$here/rust/theme/peabiru.css" "$here/rust/theme/peabiru-nav.js" "$here/js/theme/"
+  mdbook build "$here/js" -d "$out/js"
+  echo "(the examples are not run here: node site/js/run_examples.mjs, after sh js/build.sh)"
 fi
 
 # ---------------------------------------------------------------- checks
