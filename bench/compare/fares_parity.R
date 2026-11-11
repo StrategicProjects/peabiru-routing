@@ -12,7 +12,10 @@
 # origins and destinations are random sample points, shuffled; Porto Alegre
 # uses the fare structure r5r ships (fares_poa.zip) and edits of it, Sao
 # Paulo one made with setup_fare_structure() (its feed is frequency-based:
-# every run passes a seed). Exits with status 1 if any scenario differs.
+# every run passes a seed). PEABIRU_ELEVATION=TOBLER or MINETTI also copies
+# r5r's poa_elevation.tif into the Porto Alegre directories (poa, city) and
+# builds both networks with that slope cost. Exits with status 1 if any
+# scenario differs.
 
 args <- commandArgs(TRUE)
 n_o <- suppressWarnings(as.integer(args[grepl("^[0-9]+$", args)]))
@@ -69,6 +72,7 @@ t14 <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
 t1430 <- as.POSIXct("2019-05-13 14:30:00", tz = "America/Sao_Paulo")
 fp <- r5r::read_fare_structure(file.path(ext, "poa/fares/fares_poa.zip"))
 edit <- function(s, expr) { s <- copy(s); eval(substitute(expr)); s }
+elev <- Sys.getenv("PEABIRU_ELEVATION", "NONE")
 
 for (city in cities) {
   w <- tempfile(paste0("fares-", city)); dir.create(w)
@@ -80,9 +84,15 @@ for (city in cities) {
     file.copy(list.files(file.path(ext, city), pattern = "\\.(pbf|zip)$", full.names = TRUE), w)
     pts <- fread(file.path(ext, city, paste0(city, "_hexgrid.csv")))
   }
-  rn <- suppressMessages(r5r::build_network(w, verbose = FALSE))
-  pn <- peabiru::build_network(w)
-  set.seed(nchar(city) * 77)
+  e <- "NONE"
+  if (elev != "NONE" && city != "spo") {
+    file.copy(file.path(ext, "poa/poa_elevation.tif"), w)
+    e <- elev
+  }
+  rn <- suppressMessages(r5r::build_network(w, verbose = FALSE, elevation = e))
+  pn <- peabiru::build_network(w, elevation = e)
+  if (e != "NONE") city <- paste0(city, "-", tolower(e))
+  set.seed(nchar(sub("-.*", "", city)) * 77)
   o <- pts[sample(nrow(pts), n_o)]
   d <- pts[sample(nrow(pts), min(nrow(pts), 400))]
   cat("==", city, nrow(o), "origins,", nrow(d), "destinations\n")
@@ -93,7 +103,7 @@ for (city in cities) {
          tryCatch(setup_fare_structure(pn, bf, by = by), error = identity),
          tryCatch(r5r::setup_fare_structure(rn, bf, by = by), error = identity))
   }
-  if (city %in% c("poa", "city")) {
+  if (sub("-.*", "", city) %in% c("poa", "city")) {
     fs <- fp
     fs_cap <- edit(fp, s$fare_cap <- 6)
     fs_allow <- edit(fp, { s$transfer_time_allowance <- 15; s$max_discounted_transfers <- 2 })
