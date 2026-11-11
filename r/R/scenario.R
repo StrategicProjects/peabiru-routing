@@ -18,8 +18,28 @@ cm_fail <- function(name, msg) {
 # checkmate::assert_class(x, "data.frame", null.ok = TRUE)
 cm_data_frame <- function(x, name) {
   if (!is.null(x) && !inherits(x, "data.frame")) {
-    cm_fail(name, paste0("Must inherit from class 'data.frame', but has class '",
-                         class(x)[1L], "'"))
+    cl <- class(x)
+    cm_fail(name, paste0("Must inherit from class 'data.frame', but has class",
+                         if (length(cl) > 1L) "es" else "", " ",
+                         paste0("'", cl, "'", collapse = ",")))
+  }
+}
+
+# checkmate::assert_numeric(x, lower = 0, finite = TRUE, null.ok = FALSE),
+# r5r's check of carspeed_scale; then a clear error for what that check lets
+# through and r5r fails on with an internal R error (`carspeed_scale != 1`
+# of NA, or of a length other than 1).
+cm_scale <- function(x, name = "carspeed_scale") {
+  # checkmate takes a logical vector of NAs as numeric
+  if (!is.numeric(x) && !(is.logical(x) && all(is.na(x)))) {
+    cm_fail(name, paste0("Must be of type 'numeric', not '", cm_type(x), "'"))
+  }
+  low <- which(x < 0)
+  if (length(low)) cm_fail(name, paste0("Element ", low[1L], " is not >= 0"))
+  if (any(is.infinite(x))) cm_fail(name, "Must be finite")
+  if (length(x) != 1L || is.na(x)) {
+    stop("'", name, "' must be a single number that is not NA (r5r 2.5.0 fails ",
+         "on this value with an internal R error)", call. = FALSE)
   }
 }
 
@@ -113,8 +133,7 @@ flatten_lines <- function(geometry) {
 # NULL when it changes nothing.
 scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts) {
   cm_data_frame(new_carspeeds, "new_carspeeds")
-  assert_number(carspeed_scale, "carspeed_scale", lower = 0, finite = TRUE)
-  cm_data_frame(new_lts, "new_lts")
+  cm_scale(carspeed_scale)
   spec <- list(car = "none", carspeed_scale = as.double(carspeed_scale),
                lts = "none")
   changed <- FALSE
@@ -161,6 +180,8 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts) {
       spec$car_values <- as.character(dt$max_speed)
     }
   }
+  # set_new_lts(), after set_new_congestion()
+  cm_data_frame(new_lts, "new_lts")
   if (!is.null(new_lts)) {
     changed <- TRUE
     if (inherits(new_lts, "sf")) {

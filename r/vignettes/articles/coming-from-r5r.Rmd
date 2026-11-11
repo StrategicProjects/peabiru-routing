@@ -136,7 +136,9 @@ row, which goes the other way.
 | r5r feature | In peabiru |
 |---|---|
 | Fares: `fare_structure`, `max_fare` | error |
-| Scenarios: `new_carspeeds`, `carspeed_scale`, `new_lts` | error |
+| Scenarios whose car speeds R5 keeps as 16-bit cm/s that wrap around or reach 0 or less (a negative factor or speed in `new_carspeeds`, a `scale` of `Inf` or 0 in its polygons, `carspeed_scale` far above 1); r5r then routes on the wrapped speeds, or fails dividing by zero | error |
+| `carspeed_scale` above the 32-bit float range (r5r hands R5 `Infinity`) | error |
+| `carspeed_scale` of `NA`, `NaN` or a length other than 1, which r5r's check lets through and then fails on with an internal R error | an error of peabiru's own that says so |
 | Elevation (a `.tif` or `.tiff` raster in the data directory with `elevation` other than `"NONE"`) | error |
 | More than one `.pbf` in the data directory | error |
 | Expanded and arrival matrices with a street mode alone | error |

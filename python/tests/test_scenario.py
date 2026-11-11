@@ -63,6 +63,13 @@ def test_scenario_arguments_are_checked_as_in_r5r(network, points):
         call(new_carspeeds=1)
     with pytest.raises(ValueError, match="Element 1 is not >= 0"):
         call(carspeed_scale=-1)
+    # r5r's check lets NaN through, then fails with an internal R error
+    with pytest.raises(ValueError, match="must be a number that is not NaN"):
+        call(carspeed_scale=float("nan"))
+    with pytest.raises(TypeError, match="Must be of type 'numeric', not 'str'"):
+        call(carspeed_scale="1")
+    with pytest.raises(ValueError, match="32-bit float"):
+        call(carspeed_scale=1e300)
     with pytest.raises(ValueError, match=r"missing elements \{'speed_type'\}"):
         call(new_carspeeds=pd.DataFrame({"osm_id": [1], "max_speed": [1]}))
     with pytest.raises(ValueError, match="Must be TRUE"):

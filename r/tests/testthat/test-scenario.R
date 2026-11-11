@@ -58,6 +58,18 @@ test_that("scenario arguments are checked as r5r checks them", {
   expect_error(ttm(new_carspeeds = 1),
                "Must inherit from class 'data.frame', but has class 'numeric'", fixed = TRUE)
   expect_error(ttm(carspeed_scale = -1), "Element 1 is not >= 0", fixed = TRUE)
+  # checkmate::assert_numeric(), r5r's check, lets NA and vectors through and
+  # r5r then fails with an internal R error: a clear error here
+  for (bad in list(NA, NaN, numeric(0), c(1, 2))) {
+    expect_error(ttm(carspeed_scale = bad), "must be a single number",
+                 fixed = TRUE)
+  }
+  expect_error(ttm(carspeed_scale = "1"),
+               "Must be of type 'numeric', not 'character'", fixed = TRUE)
+  expect_error(ttm(carspeed_scale = 1e300), "32-bit float", fixed = TRUE)
+  expect_error(ttm(new_lts = matrix(1)),
+               "Must inherit from class 'data.frame', but has classes 'matrix','array'",
+               fixed = TRUE)
   expect_error(ttm(new_carspeeds = data.frame(osm_id = 1, max_speed = 1)),
                "Names must include the elements {'osm_id','max_speed','speed_type'}, but is missing elements {'speed_type'}",
                fixed = TRUE)

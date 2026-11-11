@@ -592,7 +592,16 @@ function geometryTypes(features, choices, name) {
 }
 
 function scenarioSpec(o) {
-  assertNumber(o.carspeedScale, "carspeedScale", { lower: 0, finite: true });
+  // r5r's check (checkmate::assert_numeric(lower = 0, finite = TRUE)), then
+  // a clear error for NaN, which r5r lets through and then fails on
+  if (!isNumber(o.carspeedScale)) {
+    fail("carspeedScale", `Must be of type 'numeric', not '${o.carspeedScale === null ? "null" : typeof o.carspeedScale}'`, TypeError);
+  }
+  if (o.carspeedScale < 0) fail("carspeedScale", "Element 1 is not >= 0");
+  if (o.carspeedScale === Infinity) fail("carspeedScale", "Must be finite");
+  if (Number.isNaN(o.carspeedScale)) {
+    throw new RangeError("'carspeedScale' must be a number that is not NaN (r5r 2.5.0 fails on this value with an internal R error)");
+  }
   const spec = { car: "none", carspeed_scale: o.carspeedScale, lts: "none" };
   let changed = false;
   const given = (x) => x !== null && x !== undefined;
