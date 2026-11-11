@@ -16,10 +16,12 @@
 use extendr_api::prelude::*;
 use extendr_api::{Error, Result};
 use peabiru_core::{
-    arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix, street_accessibility,
-    street_travel_time_matrix, transit_accessibility, transit_travel_time_matrix, validate_date,
-    AccessibilityParams, BuildOptions, CancelToken, DecayFunction, Destinations, Mode, RouteError,
-    RouteParams, StreetNetwork, TransitData, TransitLayer, TransitParams,
+    arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix, isochrone_lines,
+    isochrone_polygons, street_accessibility, street_edges, street_travel_time_matrix,
+    street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
+    transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, CancelToken,
+    DecayFunction, Destinations, Mode, RouteError, RouteParams, StreetNetwork, TransitData,
+    TransitLayer, TransitParams,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -692,6 +694,190 @@ fn rs_expanded(
     .into())
 }
 
+/// Polygon isochrones, as flat columns the R code assembles into `sf`:
+/// per row (origin, percentile, cutoff; r5r's order) `origin` (1-based),
+/// `isochrone`, `percentile` and `n_polygons`; per polygon `n_rings`; per
+/// ring `n_points`; per point `x` (longitude) and `y` (latitude). `mode` is
+/// `TRANSIT` (walk access and egress) or a street mode; `max_trip_duration`
+/// is the search limit (r5r: the largest cutoff plus 10).
+/// @noRd
+#[extendr]
+#[allow(clippy::too_many_arguments)]
+fn rs_isochrone_polygons(
+    ptr: Robj,
+    olat: &[f64],
+    olon: &[f64],
+    mode: &str,
+    cutoffs: &[f64],
+    zoom: i32,
+    percentiles: &[i32],
+    date: i32,
+    departure_time: i32,
+    time_window: i32,
+    max_walk_time: i32,
+    max_trip_duration: i32,
+    walk_speed: f64,
+    bike_speed: f64,
+    max_lts: i32,
+    max_rides: i32,
+    draws_per_minute: i32,
+    has_seed: bool,
+    seed: i32,
+    n_threads: i32,
+) -> Result<Robj> {
+    let n = network(&ptr)?;
+    let o = points(olat, olon);
+    let rows = if mode == "TRANSIT" {
+        let t = transit(n)?;
+        let p = transit_params(
+            date,
+            departure_time,
+            time_window,
+            percentiles,
+            max_walk_time,
+            max_trip_duration,
+            walk_speed,
+            max_rides,
+            draws_per_minute,
+            seed_of(has_seed, seed),
+            n_threads,
+        );
+        done!(interruptible(&p.cancel, || {
+            let s = transit_travel_time_surface(&n.net, &t.layer, &t.data, &o, &p, zoom)?;
+            isochrone_polygons(&s, cutoffs)
+        })?)
+    } else {
+        let params = route_params(
+            walk_speed,
+            bike_speed,
+            max_lts,
+            max_trip_duration,
+            n_threads,
+        );
+        let mode = street_mode(mode)?;
+        done!(interruptible(&params.cancel, || {
+            let s = street_travel_time_surface(&n.net, &o, mode, &params, percentiles, zoom)?;
+            isochrone_polygons(&s, cutoffs)
+        })?)
+    };
+    let (mut origin, mut iso, mut pct, mut n_polygons) =
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    let (mut n_rings, mut n_points, mut x, mut y) =
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    for r in &rows {
+        origin.push(r.origin as i32 + 1);
+        iso.push(r.isochrone);
+        pct.push(r.percentile);
+        n_polygons.push(r.polygons.len() as i32);
+        for poly in &r.polygons {
+            n_rings.push(poly.len() as i32);
+            for ring in poly {
+                n_points.push(ring.len() as i32);
+                for &[px, py] in ring {
+                    x.push(px);
+                    y.push(py);
+                }
+            }
+        }
+    }
+    Ok(list!(
+        origin = origin,
+        isochrone = iso,
+        percentile = pct,
+        n_polygons = n_polygons,
+        n_rings = n_rings,
+        n_points = n_points,
+        x = x,
+        y = y
+    )
+    .into())
+}
+
+/// The street edges of r5r's `street_network_to_sf()$edges`, as columns,
+/// with the centroid r5r routes to (`lat`, `lon`; NaN without one) and the
+/// line of each edge as `n_points` and flat `x`, `y`.
+/// @noRd
+#[extendr]
+fn rs_street_edges(ptr: Robj) -> Result<Robj> {
+    let n = network(&ptr)?;
+    let e = street_edges(&n.net);
+    let rows = 0..e.len();
+    let cen = e.centroid_points();
+    let (mut n_points, mut x, mut y) = (Vec::with_capacity(e.len()), Vec::new(), Vec::new());
+    for i in rows.clone() {
+        let g = e.geometry(i);
+        n_points.push(g.len() as i32);
+        for &[px, py] in g {
+            x.push(px);
+            y.push(py);
+        }
+    }
+    Ok(list!(
+        edge_index = rows
+            .clone()
+            .map(|i| e.edge_index(i) as i32)
+            .collect::<Vec<_>>(),
+        osm_id = rows.clone().map(|i| e.osm_id(i) as f64).collect::<Vec<_>>(),
+        from_vertex = rows
+            .clone()
+            .map(|i| e.from_vertex(i) as i32)
+            .collect::<Vec<_>>(),
+        to_vertex = rows
+            .clone()
+            .map(|i| e.to_vertex(i) as i32)
+            .collect::<Vec<_>>(),
+        street_class = rows.clone().map(|i| e.street_class(i)).collect::<Vec<_>>(),
+        length = rows.clone().map(|i| e.length_m(i)).collect::<Vec<_>>(),
+        walk = rows.clone().map(|i| e.walk(i)).collect::<Vec<_>>(),
+        car = rows.clone().map(|i| e.car(i)).collect::<Vec<_>>(),
+        car_speed = rows.clone().map(|i| e.car_speed_kph(i)).collect::<Vec<_>>(),
+        bicycle = rows.clone().map(|i| e.bicycle(i)).collect::<Vec<_>>(),
+        bicycle_lts = rows.clone().map(|i| e.bicycle_lts(i)).collect::<Vec<_>>(),
+        lat = cen.iter().map(|c| c.0).collect::<Vec<_>>(),
+        lon = cen.iter().map(|c| c.1).collect::<Vec<_>>(),
+        n_points = n_points,
+        x = x,
+        y = y
+    )
+    .into())
+}
+
+/// Line isochrones from an integer matrix of median minutes (`NA` where not
+/// reported), `n_origins` rows of `n_edges` values, origin-major: the rows
+/// in r5r's order as `origin`, `edge` (1-based), `travel_time` and
+/// `isochrone`.
+/// @noRd
+#[extendr]
+fn rs_isochrone_lines(
+    n_origins: i32,
+    n_edges: i32,
+    minutes: &[i32],
+    cutoffs: &[f64],
+) -> Result<Robj> {
+    // NA_integer_ is i32::MIN
+    let m: Vec<Option<u32>> = minutes.iter().map(|&v| u32::try_from(v).ok()).collect();
+    let lines = isochrone_lines(
+        n_origins.max(0) as usize,
+        n_edges.max(0) as usize,
+        &m,
+        cutoffs,
+    )
+    .map_err(err)?;
+    Ok(list!(
+        origin = lines
+            .iter()
+            .map(|l| l.origin as i32 + 1)
+            .collect::<Vec<_>>(),
+        edge = lines.iter().map(|l| l.edge as i32 + 1).collect::<Vec<_>>(),
+        travel_time = lines
+            .iter()
+            .map(|l| l.travel_time as i32)
+            .collect::<Vec<_>>(),
+        isochrone = lines.iter().map(|l| l.isochrone).collect::<Vec<_>>()
+    )
+    .into())
+}
+
 // Macro to generate exports.
 // This ensures exported functions are registered with R.
 // See corresponding C code in `entrypoint.c`.
@@ -707,4 +893,7 @@ extendr_module! {
     fn rs_transit_ttm;
     fn rs_accessibility;
     fn rs_expanded;
+    fn rs_isochrone_polygons;
+    fn rs_street_edges;
+    fn rs_isochrone_lines;
 }

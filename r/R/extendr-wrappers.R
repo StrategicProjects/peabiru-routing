@@ -57,4 +57,26 @@ rs_accessibility <- function(ptr, olat, olon, dlat, dlon, opportunities, mode, d
 #' @noRd
 rs_expanded <- function(ptr, olat, olon, dlat, dlon, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads) .Call(wrap__rs_expanded, ptr, olat, olon, dlat, dlon, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads)
 
+#' Polygon isochrones, as flat columns the R code assembles into `sf`:
+#' per row (origin, percentile, cutoff; r5r's order) `origin` (1-based),
+#' `isochrone`, `percentile` and `n_polygons`; per polygon `n_rings`; per
+#' ring `n_points`; per point `x` (longitude) and `y` (latitude). `mode` is
+#' `TRANSIT` (walk access and egress) or a street mode; `max_trip_duration`
+#' is the search limit (r5r: the largest cutoff plus 10).
+#' @noRd
+rs_isochrone_polygons <- function(ptr, olat, olon, mode, cutoffs, zoom, percentiles, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads) .Call(wrap__rs_isochrone_polygons, ptr, olat, olon, mode, cutoffs, zoom, percentiles, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads)
+
+#' The street edges of r5r's `street_network_to_sf()$edges`, as columns,
+#' with the centroid r5r routes to (`lat`, `lon`; NaN without one) and the
+#' line of each edge as `n_points` and flat `x`, `y`.
+#' @noRd
+rs_street_edges <- function(ptr) .Call(wrap__rs_street_edges, ptr)
+
+#' Line isochrones from an integer matrix of median minutes (`NA` where not
+#' reported), `n_origins` rows of `n_edges` values, origin-major: the rows
+#' in r5r's order as `origin`, `edge` (1-based), `travel_time` and
+#' `isochrone`.
+#' @noRd
+rs_isochrone_lines <- function(n_origins, n_edges, minutes, cutoffs) .Call(wrap__rs_isochrone_lines, n_origins, n_edges, minutes, cutoffs)
+
 # nolint end

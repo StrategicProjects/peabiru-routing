@@ -84,3 +84,31 @@ test_that("expanded and arrival matrices equal r5r's", {
                      arrival_datetime = departure + 3600, max_trip_duration = 45,
                      seed = 42)
 })
+
+# r5r's isochrone() returns a data.table for polygons; the rest is identical,
+# geometry included (the same polygons go through sf::st_make_valid()).
+expect_same_isochrone <- function(...) {
+  skip_if_not_installed("sf")
+  n <- r5r_network()
+  pb <- isochrone(n$pb, ..., n_threads = 2)
+  r5 <- r5r::isochrone(n$r5, ..., n_threads = 2, progress = FALSE)
+  class(r5) <- setdiff(class(r5), "data.table")
+  attr(r5, ".internal.selfref") <- NULL
+  expect_identical(pb, r5)
+}
+
+test_that("isochrones equal r5r's", {
+  # isoband's ring order is that of libc++, the C++ library of macOS
+  skip_on_os(c("windows", "linux", "solaris"))
+  o <- r5r_network()$points[c(1, 50, 120), ]
+  expect_same_isochrone(origins = o, mode = "WALK", cutoffs = c(0, 10, 20),
+                        departure_datetime = departure)
+  expect_same_isochrone(origins = o, mode = "TRANSIT", cutoffs = c(0, 15, 30),
+                        departure_datetime = departure, percentiles = c(25, 50),
+                        seed = 42)
+  expect_same_isochrone(origins = o, mode = "CAR", cutoffs = c(0, 5, 10),
+                        departure_datetime = departure, polygon_output = FALSE)
+  expect_same_isochrone(origins = o, mode = "TRANSIT", cutoffs = c(0, 15, 30),
+                        departure_datetime = departure, polygon_output = FALSE,
+                        seed = 42)
+})
