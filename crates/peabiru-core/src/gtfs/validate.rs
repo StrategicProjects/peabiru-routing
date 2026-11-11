@@ -145,7 +145,7 @@ pub(crate) enum Outcome {
 }
 
 /// Columns of a `stop_times.txt` row that make it a GTFS-Flex stop time.
-const FLEX_FIELDS: [&str; 6] = [
+pub(crate) const FLEX_FIELDS: [&str; 6] = [
     "start_pickup_drop_off_window",
     "end_pickup_drop_off_window",
     "location_id",
@@ -201,6 +201,8 @@ struct Feed {
     /// The sequence numbers of each shape's points.
     shapes: HashMap<String, BTreeSet<i32>>,
     flex_groups: HashSet<Option<String>>,
+    /// The ids of the GTFS-Flex zones of `locations.geojson`.
+    locations: HashSet<String>,
     /// Trips with a GTFS-Flex stop time.
     flex_trips: BTreeMap<Option<String>, ()>,
     /// Stop times per trip by `stop_sequence`, a repeated sequence keeping
@@ -656,16 +658,6 @@ pub(crate) fn validate(bytes: &[u8]) -> Outcome {
         Ok(a) => a,
         Err(e) => return Outcome::Fails(e.to_string()),
     };
-    if a.entries
-        .iter()
-        .any(|e| e.name.ends_with("locations.geojson"))
-    {
-        return Outcome::Fails(
-            "the feed has GTFS-Flex zones (locations.geojson), which peabiru does not read, so \
-             the errors gtfs-lib finds in them cannot be listed"
-                .to_string(),
-        );
-    }
     let mut f = Feed::default();
     match load_all(&mut f, &a) {
         Err(e) => Outcome::Fails(e),
@@ -1026,6 +1018,33 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
         t.int(f, "exact_times", false, 0, 1, 0);
     })?;
 
+    // FlexLocationStreamer.loadLocationsJson: the entry at the root only
+    if let Some(e) = a
+        .entries
+        .iter()
+        .rev()
+        .find(|e| e.name == "locations.geojson")
+    {
+        let bytes = a.read(e).map_err(|e| e.to_string())?;
+        match super::flex::read_locations(&bytes) {
+            Ok(super::flex::Locations::Zones(ids)) => f.locations = ids.into_iter().collect(),
+            Ok(super::flex::Locations::Unsupported) => {
+                // the zones already read are dropped, one error recorded
+                f.errors.push(GtfsFeedError {
+                    file: Some("locations.geojson".to_string()),
+                    line: -1,
+                    error_type: "UnsupportedFlexError",
+                    field: Some("geometry".to_string()),
+                    id: None,
+                    priority: GtfsErrorPriority::Medium,
+                });
+            }
+            Err(
+                super::flex::LocationsError::Fails(why) | super::flex::LocationsError::Unread(why),
+            ) => return Err(why),
+        }
+    }
+
     load_table(f, a, "location_groups", false, |f, t| {
         let id = t.field(f, "location_group_id", true);
         t.value(f, "location_group_name", false);
@@ -1034,20 +1053,33 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
     load_table(f, a, "location_group_stops", false, |f, t| {
         let group = t.field(f, "location_group_id", true);
         let stop = t.field(f, "stop_id", true);
-        if !f.flex_groups.contains(&group) {
+        // feed.stops.containsKey(stopId): MapDB refuses a null key
+        let Some(stop) = stop else {
             fails(
                 f,
                 format!(
-                    "location_group_stops.txt line {}: a location_group_id missing from \
-                 location_groups.txt makes gtfs-lib fail (NullPointerException)",
+                    "location_group_stops.txt line {}: a row without stop_id makes gtfs-lib \
+                     fail (NullPointerException)",
                     t.row
                 ),
             );
             return;
-        }
-        if !stop.is_some_and(|s| f.stops.contains_key(&s)) {
-            // FlexGroupStop.Loader.referenceError (no zone can be known
-            // here: locations.geojson is refused above)
+        };
+        if f.stops.contains_key(&stop) {
+            // group.stop_ids.add(stopId) on the group of the row
+            if !f.flex_groups.contains(&group) {
+                fails(
+                    f,
+                    format!(
+                        "location_group_stops.txt line {}: a location_group_id missing from \
+                         location_groups.txt makes gtfs-lib fail (NullPointerException)",
+                        t.row
+                    ),
+                );
+            }
+        } else {
+            // FlexGroupStop.Loader.referenceError, whether the id is a zone
+            // or nothing
             f.push(
                 t.name,
                 t.row,
@@ -1058,6 +1090,15 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
             );
         }
     })?;
+    // location_groups.putAll(groups): MapDB refuses a null key
+    if f.flex_groups.contains(&None) {
+        fails(
+            f,
+            "a location_groups row without location_group_id makes gtfs-lib fail storing the \
+             groups (NullPointerException)"
+                .to_string(),
+        );
+    }
 
     let mut table_has_flex = false;
     load_table(f, a, "stop_times", true, |f, t| {
@@ -1072,8 +1113,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
             let group = t.field(f, "location_group_id", false);
             let pickup_rule = t.field(f, "pickup_booking_rule_id", false);
             let drop_off_rule = t.field(f, "drop_off_booking_rule_id", false);
-            // no zones: locations.geojson is refused above
-            t.reference(f, "location_id", false, |_, _| false);
+            t.reference(f, "location_id", false, |f, s| f.locations.contains(s));
             t.reference(f, "location_group_id", false, |f, s| {
                 f.flex_groups.contains(&Some(s.to_string()))
             });
@@ -1145,6 +1185,17 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
         }
         t.reference(f, "trip_id", true, |f, s| f.trips.contains_key(s));
         if flex {
+            // flexTripIds.add(trip_id): MapDB refuses a null key
+            if trip.is_none() {
+                fails(
+                    f,
+                    format!(
+                        "stop_times.txt line {}: a GTFS-Flex stop time without trip_id makes \
+                         gtfs-lib fail (NullPointerException)",
+                        t.row
+                    ),
+                );
+            }
             f.flex_trips.insert(trip, ());
         } else {
             t.reference(f, "stop_id", true, |f, s| f.stops.contains_key(s));
@@ -1382,8 +1433,8 @@ fn find_patterns_failure(f: &Feed) -> Option<String> {
 /// table, in gtfs-lib's loading order, then by line). An error when the zip
 /// cannot be read, when gtfs-lib would fail on the feed instead of listing
 /// its errors (r5r's `build_network()` then fails without writing
-/// `gtfs_errors.csv`), and for feeds with GTFS-Flex zones
-/// (`locations.geojson`), which peabiru does not read.
+/// `gtfs_errors.csv`), and for a `locations.geojson` (GTFS-Flex zones)
+/// that is not in UTF-8.
 pub fn gtfs_errors(name: &str, zip: &[u8]) -> Result<Vec<GtfsFeedError>, crate::NetworkError> {
     match validate(zip) {
         Outcome::Errors(e) => Ok(e),
@@ -1701,6 +1752,75 @@ mod tests {
             "trip_id,start_time,end_time,headway_secs\nNOPE,08:00:00,09:00:00,600\n".into(),
         )]);
         assert!(freq.unwrap_err().contains("frequencies.txt line 2"));
+    }
+
+    /// GTFS-Flex zones and groups, as gtfs-lib reads them (checked against
+    /// r5r with flex variants of the São Paulo and Porto Alegre samples).
+    #[test]
+    fn flex_zones_and_groups() {
+        let zone = |kind: &str| {
+            format!(
+                r#"{{"type":"FeatureCollection","features":[{{"type":"Feature","id":"z1",
+                "properties":{{}},"geometry":{{"type":"{kind}","coordinates":{c}}}}}]}}"#,
+                c = if kind == "Polygon" {
+                    "[[[-46.63,-23.55],[-46.62,-23.55],[-46.62,-23.54],[-46.63,-23.55]]]"
+                } else {
+                    "[[[[-46.63,-23.55],[-46.62,-23.55],[-46.62,-23.54],[-46.63,-23.55]]]]"
+                }
+            )
+        };
+        let flex_times = format!(
+            "{}T,08:00:00,08:00:00,S1,1,,,\nT,08:10:00,08:10:00,S2,2,,,\n\
+             F,,,,1,z1,08:00:00,20:00:00\nF,,,,2,z1,08:00:00,20:00:00\n",
+            ST_HEADER.trim_end().to_string()
+                + ",location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\n"
+        );
+        let trips = "route_id,service_id,trip_id\nR,S,T\nR,S,F\n".to_string();
+        let ok = check(&[
+            ("locations.geojson", zone("Polygon")),
+            ("stop_times.txt", flex_times.clone()),
+            ("trips.txt", trips.clone()),
+        ])
+        .unwrap();
+        assert_eq!(ok, vec![]);
+        // a MultiPolygon: no zone kept, one error, and then the reference
+        // to the zone is broken
+        let multi = check(&[
+            ("locations.geojson", zone("MultiPolygon")),
+            ("stop_times.txt", flex_times),
+            ("trips.txt", trips),
+        ])
+        .unwrap();
+        let kinds: Vec<(&str, &str)> = multi.iter().map(|r| (r.0.as_str(), r.2)).collect();
+        assert_eq!(
+            kinds,
+            [
+                ("locations.geojson", "UnsupportedFlexError"),
+                ("stop_times", "ReferentialIntegrityError")
+            ]
+        );
+        assert_eq!((multi[0].1, multi[0].3.as_deref()), (-1, Some("geometry")));
+        // a feature gtfs-lib cannot stream
+        let bad = check(&[("locations.geojson", "{\"name\":\"x\"}".to_string())]);
+        assert!(bad.unwrap_err().contains("Failed to parse GeoJSON"));
+        // a group without id, or one a stop of the feed is put in without
+        // the group existing, makes gtfs-lib fail
+        for (groups, members) in [
+            (
+                "location_group_id\ng1\n\n,blank\n",
+                "location_group_id,stop_id\ng1,S1\n",
+            ),
+            (
+                "location_group_id\ng1\n",
+                "location_group_id,stop_id\ng9,S1\n",
+            ),
+        ] {
+            let e = check(&[
+                ("location_groups.txt", groups.to_string()),
+                ("location_group_stops.txt", members.to_string()),
+            ]);
+            assert!(e.unwrap_err().contains("NullPointerException"));
+        }
     }
 
     #[test]

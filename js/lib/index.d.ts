@@ -767,7 +767,9 @@ export interface GtfsErrorsTable {
  * as `buildNetwork()` takes them. Rows come feed by feed in the order
  * gtfs-lib finds them (r5r's order changes from run to run). Rejects with
  * an Error naming the cause for a feed on which gtfs-lib fails instead
- * (r5r's `build_network()` fails then too), and for a feed with GTFS-Flex
- * zones (`locations.geojson`), which peabiru does not read.
+ * (r5r's `build_network()` fails then too), and for a `locations.geojson`
+ * (GTFS-Flex zones) that is not in UTF-8. GTFS-Flex zones and location
+ * groups are read as gtfs-lib reads them, for its errors; on-demand trips
+ * are not routed, as in r5r.
  */
 export declare function getGtfsErrors(feeds: GtfsFeed[] | { gtfs: GtfsFeed[] }): Promise<GtfsErrorsTable>;

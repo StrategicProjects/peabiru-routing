@@ -192,6 +192,9 @@ pub struct Feed {
     /// Per shape and sequence, whether the point's `shape_dist_traveled`
     /// holds a number.
     pub shape_dists: HashMap<String, BTreeMap<i32, bool>>,
+    /// Trips with a GTFS-Flex stop time (gtfs-lib's `flexTripIds`): R5
+    /// leaves them out of the timetable.
+    pub flex_trips: std::collections::HashSet<String>,
 }
 
 /// gtfs-lib's `getTimeField` on a value that is not blank: `H:M:S` split
@@ -332,9 +335,24 @@ impl Feed {
             });
         })?;
 
+        // StopTime.Loader.detectRowIsFlex: a table with a GTFS-Flex column,
+        // a row with a value in one
+        let mut table_has_flex = None;
         table(a, "stop_times.txt", |f| {
             if f.opt("trip_id").is_none() {
                 return; // belongs to no trip
+            }
+            let has_flex = *table_has_flex.get_or_insert_with(|| {
+                super::validate::FLEX_FIELDS
+                    .iter()
+                    .any(|c| f.h.col(c).is_some())
+            });
+            if has_flex
+                && super::validate::FLEX_FIELDS
+                    .iter()
+                    .any(|c| f.opt(c).is_some())
+            {
+                feed.flex_trips.insert(f.string("trip_id"));
             }
             feed.stop_times.push(StopTime {
                 trip_id: f.string("trip_id"),

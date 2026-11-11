@@ -444,8 +444,10 @@ check_transit_availability <- function(r5r_network,
 #' instead of listing errors (a date that is not `YYYYMMDD`, a frequency
 #' of a trip that does not exist, a service or fare without an id), on
 #' which r5r's `build_network()` fails without writing the file, is an
-#' error naming the cause, and so is a feed with GTFS-Flex zones
-#' (`locations.geojson`), which peabiru does not read.
+#' error naming the cause (as is a `locations.geojson`, of GTFS-Flex zones,
+#' that is not in UTF-8). GTFS-Flex zones and location groups are read as
+#' gtfs-lib reads them, for its errors; on-demand trips are not routed, as
+#' in r5r.
 #'
 #' @param r5r_network A network built with [build_network()], or the path
 #'   of a directory with 'GTFS' feeds (`.zip`), for instance one a network

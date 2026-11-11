@@ -831,6 +831,11 @@ impl TransitLayer {
         let first_pattern = self.patterns.len();
         let mut dropped = DroppedTrips::default();
         for (trip_id, trip) in trips {
+            // on-demand (GTFS-Flex) trips are not routed (r5r never asks
+            // R5 for on-demand services)
+            if feed.flex_trips.contains(trip_id) {
+                continue;
+            }
             // gtfs.routes.get(trip.route_id): MapDB refuses a null key
             let Some(route_id) = trip.route_id.as_deref() else {
                 return Err(r5_fails(
