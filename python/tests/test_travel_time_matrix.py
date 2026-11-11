@@ -216,14 +216,6 @@ def test_unsupported_options_are_errors(network, points, departure):
         return ttm(network, points, departure_datetime=departure, **kw)
 
     U = peabiru.UnsupportedError
-    with pytest.raises(U, match="BICYCLE access is not supported"):
-        call(mode=["BICYCLE", "TRANSIT"])
-    with pytest.raises(U, match="CAR access is not supported"):
-        call(mode=["CAR", "TRANSIT"])
-    with pytest.raises(U, match="BICYCLE egress is not supported"):
-        call(mode="TRANSIT", mode_egress="BICYCLE")
-    with pytest.raises(U, match="specific transit modes"):
-        call(mode=["WALK", "BUS"])
     with pytest.raises(U, match="fare_structure.*not supported"):
         call(fare_structure={})
     with pytest.raises(U, match="car speeds.*not supported"):
@@ -238,6 +230,35 @@ def test_unsupported_options_are_errors(network, points, departure):
     pd.testing.assert_frame_equal(
         call(mode=["walk", "TRANSIT", "BUS"], seed=1), call(mode="TRANSIT", seed=1)
     )
+
+
+def test_transit_modes_access_and_egress(network, points, departure):
+    """Subsets of the transit modes and bicycle or car access and egress
+    route (their parity with r5r is checked in bench/compare)."""
+
+    def call(**kw):
+        return ttm(network, points, departure_datetime=departure, seed=1, **kw)
+
+    every = call(mode="TRANSIT")
+    # the fixture has bus and subway: each alone is slower somewhere
+    bus = call(mode=["WALK", "BUS"])
+    subway = call(mode="SUBWAY")
+    for subset in (bus, subway):
+        merged = every.merge(subset, on=["from_id", "to_id"], how="left")
+        assert (merged["travel_time_p50_x"] <= merged["travel_time_p50_y"].fillna(10**6)).all()
+    assert not bus.equals(every) and not subway.equals(every)
+    # TRAM is not in the fixture: walking only
+    walk = ttm(network, points, mode="WALK", max_trip_duration=120)
+    assert call(mode="TRAM").equals(walk.rename(columns={}))
+    for kw in (
+        {"mode": ["BICYCLE", "TRANSIT"], "max_bike_time": 10},
+        {"mode": ["CAR", "BUS"], "max_car_time": 5},
+        {"mode": "TRANSIT", "mode_egress": "BICYCLE"},
+        {"mode": "TRANSIT", "mode_egress": "CAR", "max_car_time": 5},
+    ):
+        res = call(**kw)
+        assert len(res) > 0 and list(res.columns) == list(every.columns)
+        assert not res.equals(every)
 
 
 def test_concurrent_calls_release_the_gil(network, points, departure):

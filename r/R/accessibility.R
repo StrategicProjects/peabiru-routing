@@ -2,8 +2,8 @@
 #'
 #' Cumulative or decay-weighted access to the opportunities at the
 #' destinations from each origin, by one street mode (`"WALK"`, `"BICYCLE"`
-#' or `"CAR"`) or by public transport with walk access and egress
-#' (`c("WALK", "TRANSIT")`). Arguments, defaults and the result are those of
+#' or `"CAR"`) or by public transport (see [travel_time_matrix()] for the
+#' modes). Arguments, defaults and the result are those of
 #' `r5r::accessibility()` (r5r 2.5.0); the values are bit-identical.
 #'
 #' As in r5r, with the `"step"` function trips longer than the largest
@@ -11,9 +11,8 @@
 #' while the other functions still weight them; and `max_trip_duration` may
 #' not be shorter than the largest cutoff.
 #'
-#' Not supported yet, and an error when requested: transit with `"BICYCLE"`
-#' or `"CAR"` access or a non-walk `mode_egress`; a subset of transit modes;
-#' fares; scenarios; `output_dir`.
+#' Not supported yet, and an error when requested: fares; scenarios;
+#' `output_dir`.
 #'
 #' @inheritParams travel_time_matrix
 #' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
@@ -140,10 +139,10 @@ accessibility <- function(r5r_network,
   values <- raise_if_stopped(rs_accessibility(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     opportunities,
-    if (mode_list$transit) "TRANSIT" else mode_list$direct_modes,
+    mode_list$direct_modes, mode_list$transit_mode, mode_list$egress_mode,
     decay_list$fun, decay_list$value, cutoffs_r5, percentiles,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
-    max_walk_time, max_trip_duration, as.double(walk_speed), as.double(bike_speed),
+    max_walk_time, max_bike_time, max_car_time, max_trip_duration, as.double(walk_speed), as.double(bike_speed),
     as.integer(max_lts), as.integer(max_rides), as.integer(draws_per_minute),
     seed$has, seed$value, threads
   ))

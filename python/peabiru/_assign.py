@@ -156,7 +156,7 @@ class ModeList:
 
 
 def assign_mode(mode: Any, mode_egress: Any) -> ModeList:
-    """r5r assign_mode(), plus the restriction to what the core supports."""
+    """r5r assign_mode()."""
     all_modes = R5R_TRANSIT_MODES + R5R_DIRECT_MODES
     modes = unique([m.upper() for m in as_strings(mode, "mode")])
     if not all(m in all_modes for m in modes):
@@ -201,16 +201,6 @@ def assign_mode(mode: Any, mode_egress: Any) -> ModeList:
         transit=transit_modes != [""],
     )
 
-    # What the core can route: walk access and egress around all transit
-    # modes, or one street mode alone.
-    if ml.transit:
-        if set(transit_modes) != set(R5R_TRANSIT_MODES):
-            specific = ", ".join(m for m in modes if m not in R5R_DIRECT_MODES)
-            unsupported(f"Routing on specific transit modes ({specific})", "; use 'TRANSIT'")
-        if ml.access_mode != "WALK":
-            unsupported(f"Transit with {ml.access_mode} access")
-        if ml.egress_mode != "WALK":
-            unsupported(f"Transit with {ml.egress_mode} egress")
     return ml
 
 

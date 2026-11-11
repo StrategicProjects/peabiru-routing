@@ -2,23 +2,34 @@
 #' departure time
 #'
 #' Travel times between every origin and every destination, by one street
-#' mode (`"WALK"`, `"BICYCLE"` or `"CAR"`) or by public transport with walk
-#' access and egress (`c("WALK", "TRANSIT")`). Arguments, defaults and the
-#' result are those of `r5r::travel_time_matrix()` (r5r 2.5.0), and so are
-#' the values: peabiru reproduces R5's routing exactly.
+#' mode (`"WALK"`, `"BICYCLE"` or `"CAR"`) or by public transport (all of it
+#' or some of its modes), reached by walking, bicycle or car and left by
+#' any of them (`mode_egress`). Arguments, defaults and the result are those
+#' of `r5r::travel_time_matrix()` (r5r 2.5.0), and so are the values:
+#' peabiru reproduces R5's routing exactly.
 #'
-#' Not supported yet, and an error when requested: transit with `"BICYCLE"`
-#' or `"CAR"` access or a non-walk `mode_egress`; a subset of transit modes
-#' (such as `"BUS"`); fares (`fare_structure`, `max_fare`); scenarios
-#' (`new_carspeeds`, `carspeed_scale`, `new_lts`); `output_dir`.
+#' As in R5, a bicycle or car trip to public transport goes on on foot from
+#' wherever the vehicle got, within the same `max_bike_time` or
+#' `max_car_time` (so stops in pedestrian-only areas are reached), and the
+#' trip without public transport keeps those walking ends too. Egress by
+#' bicycle or car is searched from every stop with R5's defaults (up to
+#' 5 km by bicycle at any level of traffic stress, up to 30 minutes by
+#' car) and must stay within `max_bike_time` or `max_car_time`.
+#'
+#' Not supported yet, and an error when requested: fares (`fare_structure`,
+#' `max_fare`); scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`);
+#' `output_dir`.
 #'
 #' @param r5r_network A network built with [build_network()].
 #' @param origins,destinations A `data.frame` with columns `id`, `lon` and
 #'   `lat`, or a `POINT sf` with an `id` column, in WGS 84.
 #' @param mode A character vector, the transport modes: one of `"WALK"`,
-#'   `"BICYCLE"` or `"CAR"`, or `"TRANSIT"` (alone or with `"WALK"`).
+#'   `"BICYCLE"` or `"CAR"`, and for public transport `"TRANSIT"` (every
+#'   transit mode) or any of `"TRAM"`, `"SUBWAY"`, `"RAIL"`, `"BUS"`,
+#'   `"FERRY"`, `"CABLE_CAR"`, `"GONDOLA"` and `"FUNICULAR"`; the street
+#'   mode, `"WALK"` by default with transit, is the access mode.
 #' @param mode_egress A string, the mode from the last stop to the
-#'   destination. Only `"WALK"` is supported with transit.
+#'   destination: `"WALK"`, `"BICYCLE"` or `"CAR"`.
 #' @param departure_datetime A POSIXct, the departure date and time. Its
 #'   clock time and date are taken in its own time zone. Required with
 #'   transit.
@@ -151,6 +162,9 @@ travel_time_matrix <- function(r5r_network,
   if (mode_list$transit) {
     res <- raise_if_stopped(rs_transit_ttm(
       r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+      mode_list$transit_mode, mode_list$access_mode, mode_list$egress_mode,
+      as.double(bike_speed),
+      as.integer(max_lts), max_bike_time, max_car_time,
       departure$yyyymmdd, departure$seconds, as.integer(time_window),
       percentiles, max_walk_time, max_trip_duration, as.double(walk_speed),
       as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,

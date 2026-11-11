@@ -207,7 +207,7 @@ test("errors from a worker keep their class and message", async () => {
   assert.match(want[2], /time_window x draws_per_minute/);
   assert.deepEqual(await message(pool), want);
   // the checks on the calling side are the same with workers
-  await assert.rejects(peabiru.travelTimeMatrix(pool, pts, pts, { mode: "BUS", departureDatetime: DEPARTURE }), peabiru.UnsupportedError);
+  await assert.rejects(peabiru.travelTimeMatrix(pool, pts, pts, { mode: "WALK", outputDir: "out" }), peabiru.UnsupportedError);
   // building fails with the message of the calling thread
   for (const nThreads of [1, 3]) {
     await assert.rejects(peabiru.buildNetwork({ pbf: new Uint8Array([1, 2, 3]), nThreads }), /^Error: OpenStreetMap data: /);

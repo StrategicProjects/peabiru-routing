@@ -21,7 +21,7 @@ use peabiru_core::{
     street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
     transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, CancelToken,
     DecayFunction, Destinations, Mode, RouteError, RouteParams, StreetNetwork, TransitData,
-    TransitLayer, TransitParams,
+    TransitLayer, TransitMode, TransitParams,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -337,6 +337,19 @@ fn street_mode(mode: &str) -> Result<Mode> {
     }
 }
 
+/// The transit modes of r5r's `mode_list$transit_mode` (`"BUS;RAIL"`, or
+/// every mode and `TRANSIT` for `"TRANSIT"`); `TRANSIT` itself selects no
+/// route.
+fn transit_modes(modes: &str) -> Result<Vec<TransitMode>> {
+    modes
+        .split(';')
+        .filter(|m| !m.is_empty() && *m != "TRANSIT")
+        .map(|m| {
+            TransitMode::from_name(m).ok_or_else(|| err(format!("unknown transit mode '{m}'")))
+        })
+        .collect()
+}
+
 /// Street-only travel-time matrix: the reported pairs as
 /// `list(from, to, minutes)`, origin-major.
 /// @noRd
@@ -382,32 +395,46 @@ fn rs_street_ttm(
 
 #[allow(clippy::too_many_arguments)]
 fn transit_params(
+    modes: &str,
+    access_mode: &str,
+    egress_mode: &str,
     date: i32,
     departure_time: i32,
     time_window: i32,
     percentiles: &[i32],
     max_walk_time: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     max_trip_duration: i32,
     walk_speed: f64,
+    bike_speed: f64,
+    max_lts: i32,
     max_rides: i32,
     draws_per_minute: i32,
     seed: Option<i32>,
     n_threads: i32,
-) -> TransitParams {
+) -> Result<TransitParams> {
     let mut p = TransitParams::default();
+    p.transit_modes = transit_modes(modes)?;
+    p.access_mode = street_mode(access_mode)?;
+    p.egress_mode = street_mode(egress_mode)?;
     p.date = date as u32;
     p.departure_time = departure_time;
     p.time_window = time_window;
     p.percentiles = percentiles.to_vec();
     p.max_walk_time = max_walk_time;
+    p.max_bike_time = max_bike_time;
+    p.max_car_time = max_car_time;
     p.max_trip_duration = max_trip_duration;
     p.walk_speed_kmh = walk_speed;
+    p.bike_speed_kmh = bike_speed;
+    p.max_lts = max_lts;
     p.max_rides = max_rides.max(0) as usize;
     p.draws_per_minute = draws_per_minute;
     p.seed = seed;
     p.n_threads = threads(n_threads);
     p.cancel = CancelToken::new();
-    p
+    Ok(p)
 }
 
 /// Street routing parameters with a fresh cancellation token.
@@ -432,7 +459,7 @@ fn seed_of(has_seed: bool, seed: i32) -> Option<i32> {
     has_seed.then_some(seed)
 }
 
-/// Walk + transit travel-time matrix: the reported pairs as
+/// Public transport travel-time matrix: the reported pairs as
 /// `list(from, to, p1, ..., pk)` (percentiles ascending, NA where r5r
 /// gives NA), origin-major.
 /// @noRd
@@ -444,6 +471,13 @@ fn rs_transit_ttm(
     olon: &[f64],
     dlat: &[f64],
     dlon: &[f64],
+    transit_modes: &str,
+    access_mode: &str,
+    egress_mode: &str,
+    bike_speed: f64,
+    max_lts: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     date: i32,
     departure_time: i32,
     time_window: i32,
@@ -461,18 +495,25 @@ fn rs_transit_ttm(
     let t = transit(n)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
     let p = transit_params(
+        transit_modes,
+        access_mode,
+        egress_mode,
         date,
         departure_time,
         time_window,
         percentiles,
         max_walk_time,
+        max_bike_time,
+        max_car_time,
         max_trip_duration,
         walk_speed,
+        bike_speed,
+        max_lts,
         max_rides,
         draws_per_minute,
         seed_of(has_seed, seed),
         n_threads,
-    );
+    )?;
     let m = done!(interruptible(&p.cancel, || {
         transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
     })?);
@@ -514,8 +555,9 @@ fn decay(name: &str, value: f64) -> Result<DecayFunction> {
 }
 
 /// Accessibility values `[origin][opportunity][percentile][cutoff]`,
-/// flattened. `mode` is `TRANSIT` (walk access and egress) or a street
-/// mode; `opportunities` is a list of double vectors, one per column.
+/// flattened. `mode` is the street mode (of the access to public
+/// transport when `transit_modes`, r5r's `transit_mode`, is not empty);
+/// `opportunities` is a list of double vectors, one per column.
 /// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]
@@ -527,6 +569,8 @@ fn rs_accessibility(
     dlon: &[f64],
     opportunities: List,
     mode: &str,
+    transit_modes: &str,
+    egress_mode: &str,
     decay_function: &str,
     decay_value: f64,
     cutoffs: &[i32],
@@ -535,6 +579,8 @@ fn rs_accessibility(
     departure_time: i32,
     time_window: i32,
     max_walk_time: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     max_trip_duration: i32,
     walk_speed: f64,
     bike_speed: f64,
@@ -559,21 +605,28 @@ fn rs_accessibility(
     let mut a = AccessibilityParams::default();
     a.cutoffs = cutoffs.to_vec();
     a.decay = decay(decay_function, decay_value)?;
-    let acc = if mode == "TRANSIT" {
+    let acc = if !transit_modes.is_empty() {
         let t = transit(n)?;
         let p = transit_params(
+            transit_modes,
+            mode,
+            egress_mode,
             date,
             departure_time,
             time_window,
             percentiles,
             max_walk_time,
+            max_bike_time,
+            max_car_time,
             max_trip_duration,
             walk_speed,
+            bike_speed,
+            max_lts,
             max_rides,
             draws_per_minute,
             seed_of(has_seed, seed),
             n_threads,
-        );
+        )?;
         done!(interruptible(&p.cancel, || {
             transit_accessibility(&n.net, &t.layer, &t.data, &o, &dest, &p, &a)
         })?)
@@ -608,6 +661,13 @@ fn rs_expanded(
     olon: &[f64],
     dlat: &[f64],
     dlon: &[f64],
+    transit_modes: &str,
+    access_mode: &str,
+    egress_mode: &str,
+    bike_speed: f64,
+    max_lts: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     arrival: bool,
     date: i32,
     departure_time: i32,
@@ -625,18 +685,25 @@ fn rs_expanded(
     let t = transit(n)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
     let p = transit_params(
+        transit_modes,
+        access_mode,
+        egress_mode,
         date,
         departure_time,
         time_window,
         &[50],
         max_walk_time,
+        max_bike_time,
+        max_car_time,
         max_trip_duration,
         walk_speed,
+        bike_speed,
+        max_lts,
         max_rides,
         draws_per_minute,
         seed_of(has_seed, seed),
         n_threads,
-    );
+    )?;
     let rows = done!(interruptible(&p.cancel, || {
         if arrival {
             arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
@@ -698,7 +765,8 @@ fn rs_expanded(
 /// per row (origin, percentile, cutoff; r5r's order) `origin` (1-based),
 /// `isochrone`, `percentile` and `n_polygons`; per polygon `n_rings`; per
 /// ring `n_points`; per point `x` (longitude) and `y` (latitude). `mode` is
-/// `TRANSIT` (walk access and egress) or a street mode; `max_trip_duration`
+/// the street mode (of the access to public transport when
+/// `transit_modes`, r5r's `transit_mode`, is not empty); `max_trip_duration`
 /// is the search limit (r5r: the largest cutoff plus 10).
 /// @noRd
 #[extendr]
@@ -708,6 +776,8 @@ fn rs_isochrone_polygons(
     olat: &[f64],
     olon: &[f64],
     mode: &str,
+    transit_modes: &str,
+    egress_mode: &str,
     cutoffs: &[f64],
     zoom: i32,
     percentiles: &[i32],
@@ -715,6 +785,8 @@ fn rs_isochrone_polygons(
     departure_time: i32,
     time_window: i32,
     max_walk_time: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     max_trip_duration: i32,
     walk_speed: f64,
     bike_speed: f64,
@@ -727,21 +799,28 @@ fn rs_isochrone_polygons(
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let o = points(olat, olon);
-    let rows = if mode == "TRANSIT" {
+    let rows = if !transit_modes.is_empty() {
         let t = transit(n)?;
         let p = transit_params(
+            transit_modes,
+            mode,
+            egress_mode,
             date,
             departure_time,
             time_window,
             percentiles,
             max_walk_time,
+            max_bike_time,
+            max_car_time,
             max_trip_duration,
             walk_speed,
+            bike_speed,
+            max_lts,
             max_rides,
             draws_per_minute,
             seed_of(has_seed, seed),
             n_threads,
-        );
+        )?;
         done!(interruptible(&p.cancel, || {
             let s = transit_travel_time_surface(&n.net, &t.layer, &t.data, &o, &p, zoom)?;
             isochrone_polygons(&s, cutoffs)

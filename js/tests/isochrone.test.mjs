@@ -135,7 +135,6 @@ test("arguments are checked as r5r checks them", async () => {
     [{ polygonOutput: null }, TypeError, /polygonOutput/],
     [{ polygonOutput: false, percentiles: 50 }, RangeError, /Percentiles not supported for line-based isochrones/],
     [{ percentiles: 100 }, RangeError, /percentiles/],
-    [{ mode: ["BICYCLE", "TRANSIT"] }, peabiru.UnsupportedError, /not supported/],
     [{ mode: "TRANSIT" }, RangeError, /departureDatetime/],
     [{ newLts: {} }, TypeError, /unknown option 'newLts'/],
   ];

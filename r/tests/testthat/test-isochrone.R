@@ -80,8 +80,9 @@ test_that("arguments are checked as r5r checks them", {
   expect_error(iso(pts, mode = "WALK", polygon_output = FALSE, percentiles = 50),
                "Percentiles not supported for line-based isochrones")
   expect_error(iso(pts, mode = "WALK", percentiles = 100), "percentiles")
-  expect_error(iso(pts, mode = c("BICYCLE", "TRANSIT")), "not supported")
-  expect_error(iso(pts, mode = "TRANSIT", mode_egress = "BICYCLE"), "not supported")
+  # bicycle access and egress around public transport route
+  expect_gt(nrow(iso(pts, mode = c("BICYCLE", "TRANSIT"), mode_egress = "BICYCLE",
+                     seed = 1L)), 0)
   expect_error(isochrone(fixture_network(), pts, mode = "TRANSIT"), "departure_datetime")
   expect_warning(iso(pts, mode = "WALK", cutoffs = c(0, 5), sample_size = 0.5),
                  "sample_size")

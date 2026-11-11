@@ -108,11 +108,12 @@ test_that("street modes alone and other unsupported options are errors", {
     arrival_travel_time_matrix(network, pts, pts, mode = "TRANSIT"),
     "'arrival_datetime' is required"
   )
-  expect_error(
-    expanded_travel_time_matrix(network, pts, pts, mode = c("CAR", "TRANSIT"),
-                                departure_datetime = departure, n_threads = 2),
-    "CAR access is not supported"
-  )
+  # by car, a record without public transport has r5r's routes "[CAR]"
+  car <- expanded_travel_time_matrix(network, pts, pts, mode = c("CAR", "TRANSIT"),
+                                     departure_datetime = departure, max_car_time = 5L,
+                                     seed = 1L, n_threads = 2)
+  expect_true("[CAR]" %in% car$routes)
+  expect_false("[WALK]" %in% car$routes)
   expect_error(
     expanded_travel_time_matrix(network, pts, pts, mode = "TRANSIT",
                                 departure_datetime = departure, breakdown = NA,
