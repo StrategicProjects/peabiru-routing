@@ -61,7 +61,7 @@ ignored.
 ## Install
 
 ```sh
-pip install peabiru            # once published on PyPI
+pip install peabiru
 pip install "peabiru[geo]"     # with geopandas
 ```
 

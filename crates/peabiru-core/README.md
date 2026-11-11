@@ -74,8 +74,8 @@ default to the São Paulo sample, as in
 repository also has a Rust guide, in Markdown, under
 [`site/rust/src`](https://github.com/StrategicProjects/peabiru-routing/tree/main/site/rust/src).
 
-**Status**: version 0.0.1, early development; not published yet. Detailed
-itineraries, fares, bicycle or car access to public transport and
+**Status**: version 0.0.1, early development; the interfaces may still
+change. Detailed itineraries, fares, bicycle or car access to public transport and
 elevation are not implemented.
 
 ## Licence and credits

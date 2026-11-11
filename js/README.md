@@ -12,7 +12,11 @@ Node (18 or later), with no server and no Java, and gives the same numbers
 as the native packages, which give the numbers of
 [r5r](https://github.com/ipea/r5r) 2.5.0.
 
-**Status**: version 0.0.1, early development; not published on npm yet.
+**Status**: version 0.0.1, early development; the interfaces may still change.
+
+```sh
+npm install peabiru
+```
 
 ```js
 import { readFile } from "node:fs/promises";
