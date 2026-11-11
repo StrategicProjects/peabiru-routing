@@ -1,7 +1,9 @@
 // The isochrone demo of the documentation site: build a network in the
 // browser, draw its streets, and draw isochrones from the point clicked.
 // site/build.sh copies the npm package (js/lib and js/pkg) next to this file,
-// in peabiru/, and the São Paulo sample in data/spo/.
+// in peabiru/, the São Paulo sample in data/spo/, and the streets of Recife
+// and Caruaru (site/demo/data/pe/, written by site/figures/make.sh
+// --pernambuco) in data/pe/.
 
 // ANCHOR: load
 import * as peabiru from "./peabiru/lib/index.js";
@@ -21,7 +23,21 @@ const CITIES = {
     zoom: 11,
     cutoffs: ["10,20,30", "15,30,45", "10,20,30,40,50,60"],
   },
+  // streets only: no open GTFS feed was found for either city
+  recife: {
+    files: ["data/pe/recife.osm.pbf"],
+    origin: [-34.8709722, -8.063374], // Marco Zero
+    zoom: 11,
+    cutoffs: ["10,20,30", "5,10,15", "15,30,45"],
+  },
+  caruaru: {
+    files: ["data/pe/caruaru.osm.pbf"],
+    origin: [-35.9713866, -8.2897512], // Feira de Caruaru
+    zoom: 11,
+    cutoffs: ["10,20,30", "5,10,15", "15,30,45"],
+  },
 };
+const hasTransit = (city) => CITIES[city].files.some((f) => f.endsWith(".zip"));
 
 /** Build a network from the URLs of one .pbf and any GTFS .zip files. */
 async function networkFrom(urls) {
@@ -205,8 +221,18 @@ async function update() {
 }
 // ANCHOR_END: isochrone
 
+// Public transport and the departure time only where the city has GTFS feeds.
+function transitControls(city) {
+  const transitInput = form.querySelector("input[value='WALK,TRANSIT']");
+  const on = hasTransit(city);
+  transitInput.closest("label").hidden = !on;
+  timeInput.closest("label").hidden = !on;
+  if (!on && transitInput.checked) form.querySelector("input[value='WALK']").checked = true;
+}
+
 async function loadCity(city) {
   const c = CITIES[city];
+  transitControls(city);
   cutoffSel.replaceChildren(...c.cutoffs.map((v) => new Option(v.replaceAll(",", ", "), v)));
   form.querySelectorAll("select, input").forEach((el) => { el.disabled = true; });
   state.network?.free();
@@ -222,7 +248,8 @@ async function loadCity(city) {
     state.streets = await streetsOf(state.network, c.origin);
     fitView();
     statusEl.textContent = `Network built in ${Math.round(performance.now() - t0)} ms: ` +
-      `${info.edges.toLocaleString("en")} street edges, ${info.stops.toLocaleString("en")} stops.`;
+      `${info.edges.toLocaleString("en")} street edges` +
+      (info.stops ? `, ${info.stops.toLocaleString("en")} stops.` : " (streets only).");
   } catch (e) {
     statusEl.textContent = `Could not load the network: ${e.message || e}`;
     statusEl.classList.add("error");

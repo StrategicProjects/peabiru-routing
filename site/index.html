@@ -88,8 +88,8 @@
 
 <section aria-labelledby="gallery">
   <h2 id="gallery">Gallery</h2>
-  <p>Every figure here is computed by peabiru on the sample networks of Porto Alegre and São
-  Paulo, and each one links to complete examples, in the languages listed under it, whose output
+  <p>Every figure here is computed by peabiru, on the sample networks of Porto Alegre and São
+  Paulo and, further down, on networks of Recife and Caruaru built from open data; each one links to complete examples, in the languages listed under it, whose output
   on the page is the output they print.</p>
   <div class="gallery">
     <figure class="shot wide">
@@ -135,10 +135,43 @@
       <span class="ex"><a href="r/articles/trips.html#trip-by-trip">R</a> · <a href="python/example-trips/#trip-by-trip">Python</a> · <a href="rust/expanded.html">Rust</a></span></figcaption>
     </figure>
   </div>
-  <p class="muted">The figures are drawn by <code>site/figures/figures.R</code> from the results of
-  the R package; the examples in the other languages print the same numbers. Map data ©
-  OpenStreetMap contributors (ODbL); GTFS: EPTC and Trensurb (Porto Alegre), SPTrans (São Paulo),
-  as cut for the sample data of r5r.</p>
+  <h3 id="gallery-pe">Recife and Caruaru, from open data</h3>
+  <p>Two cities of Pernambuco, built from scratch: streets cut from OpenStreetMap with osmium,
+  residents placed on a hexagonal grid with the Censo 2022, public schools from INEP and primary
+  health care units from CNES. The worked example repeats every step, for any Brazilian
+  municipality. Streets only: no open GTFS feed was found for either city.</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/recife-caruaru.html"><img src="assets/figures/nearest-recife.svg" width="576" height="475" loading="lazy" alt="Two maps of Recife covered by hexagons coloured by the walking time from each cell to the nearest public school and to the nearest primary health care unit: almost every inhabited cell is within 15 minutes of a school; health units are farther apart."></a>
+      <figcaption><strong>Walking to school and to the doctor.</strong> Time to the nearest public
+      school and primary health care unit, from 1,107 cells of Recife.
+      <span class="ex"><a href="r/articles/recife-caruaru.html">R</a> · <a href="python/example-recife-caruaru/">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-caruaru.html#travel-time-to-the-nearest-school-and-health-unit"><img src="assets/figures/access-recife-caruaru.svg" width="576" height="374" loading="lazy" alt="Bars of the share of the population within 15 and 30 minutes of the nearest public school and primary health care unit, walking, cycling and driving: Recife ahead of Caruaru on foot and by bicycle, both near everyone by car."></a>
+      <figcaption><strong>Recife and Caruaru, compared.</strong> The share of residents within 15 and
+      30 minutes of a school and a health unit, by mode.
+      <span class="ex"><a href="r/articles/recife-caruaru.html#travel-time-to-the-nearest-school-and-health-unit">R</a> · <a href="python/example-recife-caruaru/#travel-time-to-the-nearest-school-and-health-unit">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-caruaru.html#isochrones-from-the-centre"><img src="assets/figures/isochrones-recife.svg" width="576" height="382" loading="lazy" alt="Three maps around Marco Zero, Recife, with the areas reached within 10, 20 and 30 minutes walking, cycling and driving."></a>
+      <figcaption><strong>Isochrones from Marco Zero.</strong> Walking, cycling and driving from the
+      old centre of Recife.
+      <span class="ex"><a href="r/articles/recife-caruaru.html#isochrones-from-the-centre">R</a> · <a href="python/example-recife-caruaru/#isochrones-from-the-centre">Python</a> · <a href="demo/">demo</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-caruaru.html#travel-time-to-the-nearest-school-and-health-unit"><img src="assets/figures/nearest-caruaru.svg" width="576" height="367" loading="lazy" alt="Two maps of the urban area of Caruaru covered by hexagons coloured by the walking time to the nearest public school and primary health care unit: the centre within 10 minutes of both; rural cells near rural schools but far from health units."></a>
+      <figcaption><strong>Caruaru, in the Agreste.</strong> A compact city in a rural municipality:
+      rural schools are near, health units are in town.
+      <span class="ex"><a href="r/articles/recife-caruaru.html">R</a> · <a href="python/example-recife-caruaru/">Python</a> · <a href="demo/">demo</a></span></figcaption>
+    </figure>
+  </div>
+  <p class="muted">The figures are drawn by <code>site/figures/figures.R</code> and
+  <code>site/figures/pernambuco.R</code> from the results of the R package; the examples in the
+  other languages print the same numbers. Map data © OpenStreetMap contributors (ODbL); GTFS:
+  EPTC and Trensurb (Porto Alegre), SPTrans (São Paulo), as cut for the sample data of r5r.
+  Recife and Caruaru: boundaries and population © IBGE (Censo 2022); schools: INEP (Catálogo de
+  Escolas 2023, via geobr); health units: CNES, Ministério da Saúde.</p>
 </section>
 
 <section aria-labelledby="arch">

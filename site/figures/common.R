@@ -74,6 +74,17 @@ hexagons <- function(points) {
   st_sf(points, geometry = st_sfc(cells, crs = 3857))
 }
 
+# Hexagons coloured by classes of a value, smallest class drawn first (one
+# SVG path per class).
+hex_layer <- function(data, breaks, labels, values) {
+  data$class <- cut(data$value, breaks, labels = labels, right = FALSE,
+                    include.lowest = TRUE)
+  data <- data[!is.na(data$class), ]
+  data <- data[order(data$panel, data$class), ]
+  list(geom_sf(data = data, aes(fill = class), colour = NA, alpha = 0.9),
+       scale_fill_manual(values = setNames(values, labels), drop = FALSE, name = NULL))
+}
+
 # ------------------------------------------------------------------ palette
 
 # site/assets/brand.css; each light colour has a dark counterpart, applied by
@@ -227,6 +238,9 @@ reuse_paths <- function(lines) {
     d <- sub(re, "\\1", lines[i])
     if (nchar(d) < 2000) next
     sty <- sub(re, "\\2", lines[i])
+    # an outline (a polygon drawn with fill = NA) has no fill of its own: it
+    # relies on svglite's ".svglite path" rule, which a <use> copy would lose
+    if (!grepl("fill:", sty, fixed = TRUE)) next
     xy <- matrix(as.numeric(strsplit(trimws(gsub("[MLZ,]", " ", d)), " +")[[1]]),
                  ncol = 2, byrow = TRUE)
     hit <- 0L

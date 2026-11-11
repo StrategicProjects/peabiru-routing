@@ -84,3 +84,15 @@ draws the lines and the polygons (with the even-odd rule, for the holes) on
 a `<canvas>`. Everything runs on the page's thread; for long computations,
 `buildNetwork({ useWorkers: true })` moves the routing to workers (see
 [Threads and workers](threads.md)).
+
+**Cities without public transport data.** Besides the two samples, the demo
+has the streets of Recife and Caruaru, in Pernambuco, built from open data
+(see the [R](../r/articles/recife-caruaru.html) and
+[Python](../python/example-recife-caruaru/) examples for how the extracts
+are cut). No open GTFS feed was found for either, so their entries pass only
+the `.pbf` file to `buildNetwork()`, and the page hides public transport and
+the departure time for them. The extracts are Recife's municipality and
+Caruaru's urban area, without buildings and without OpenStreetMap's metadata
+(2.8 MB and 0.55 MB): peabiru reads neither, and on these cities the travel times are the
+same as with the full extract of the same area (the other ways are kept,
+since their nodes split the streets).

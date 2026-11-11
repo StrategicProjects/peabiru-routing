@@ -36,6 +36,8 @@
       <select id="city">
         <option value="spo">São Paulo, Avenida Paulista (0.2 MB)</option>
         <option value="poa">Porto Alegre (2 MB, from GitHub)</option>
+        <option value="recife">Recife, streets only (2.8 MB)</option>
+        <option value="caruaru">Caruaru, urban area, streets only (0.6 MB)</option>
       </select>
     </label>
     <fieldset class="modes">
@@ -68,13 +70,20 @@
     Each click calls <code>isochrone()</code> with the chosen mode and cutoffs and draws the
     GeoJSON polygons on a canvas. Public transport uses the median of the departures in the
     10 minutes from the chosen time; the Porto Alegre bus feed only has trips from late morning
-    to early evening, so pick a time between 12:00 and 17:00 there. The code is in
+    to early evening, so pick a time between 12:00 and 17:00 there. Recife and Caruaru have
+    streets only: no open GTFS feed was found for either, so public transport is not offered
+    there; their extracts are Recife's municipality, as cut by IBGE's boundary, and Caruaru's
+    urban area (14 × 12 km around the centre), without buildings
+    (the <a href="../r/articles/recife-caruaru.html">Recife and Caruaru example</a> explains
+    how they are made). Elevation is not modelled, so walking and cycling on Caruaru's hills
+    are faster here than in reality. The code is in
     <a href="https://github.com/StrategicProjects/peabiru-routing/tree/main/site/demo">site/demo</a>,
     and the <a href="../js/examples.html">JavaScript guide</a> walks through it.</p>
     <p class="muted">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL).
     GTFS: SPTrans (São Paulo), EPTC and Trensurb (Porto Alegre), as cut for the sample data of
     <a href="https://github.com/ipea/r5r">r5r</a>, from whose repository the Porto Alegre files are
-    downloaded when chosen.</p>
+    downloaded when chosen. Recife and Caruaru: cut from Geofabrik's extract of the Nordeste of
+    2026-11-01 (Recife with its municipal boundary, from IBGE).</p>
   </section>
 </main>
 <script type="module" src="demo.mjs"></script>

@@ -4,6 +4,14 @@
 #   bash site/figures/make.sh              # every SVG figure, from figures.R
 #   bash site/figures/make.sh iso_modes    # only the ones named
 #   bash site/figures/make.sh --demo       # also the screenshot of the demo
+#   bash site/figures/make.sh --pernambuco # only the Recife and Caruaru ones
+#
+# --pernambuco runs site/figures/pernambuco.R instead of figures.R: it
+# prepares the data of Recife and Caruaru (pernambuco-data.R: about 640 MB of
+# downloads, cached, and osmium), draws their figures, writes the extracts of
+# the browser demo (site/demo/data/pe/), and knits the precomputed R article
+# r/vignettes/articles/recife-caruaru.Rmd from its .Rmd.orig. Names after it
+# select figures of pernambuco.R (pe_iso_recife, pe_share, ...).
 #
 # The SVG figures are computed with the peabiru R package on the sample data
 # of Porto Alegre (r5r 2.5.0's, downloaded once into a cache directory) and
@@ -20,10 +28,12 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
 
 demo=0
+pe=0
 names=()
 for a in "$@"; do
   case "$a" in
     --demo) demo=1 ;;
+    --pernambuco) pe=1 ;;
     *) names+=("$a") ;;
   esac
 done
@@ -40,7 +50,18 @@ if [ -n "$lib" ]; then
   export R_LIBS
 fi
 
-Rscript "$here/figures.R" ${names[@]+"${names[@]}"}
+if [ "$pe" = 1 ]; then
+  Rscript "$here/pernambuco.R" ${names[@]+"${names[@]}"}
+  if [ ${#names[@]} -eq 0 ]; then
+    # the article: knitted here, rendered as plain Markdown by pkgdown; it
+    # reuses the downloads of pernambuco-data.R (PEABIRU_PE_CACHE)
+    (cd "$root/r/vignettes/articles" &&
+      PEABIRU_PE_CACHE="$(Rscript -e 'source("'"$here"'/pernambuco-data.R"); cat(pe_cache())')" \
+      Rscript -e 'knitr::knit("recife-caruaru.Rmd.orig", "recife-caruaru.Rmd", quiet = TRUE)')
+  fi
+else
+  Rscript "$here/figures.R" ${names[@]+"${names[@]}"}
+fi
 
 if [ "$demo" = 1 ]; then
   png="$root/site/assets/figures/demo-poa.png"
