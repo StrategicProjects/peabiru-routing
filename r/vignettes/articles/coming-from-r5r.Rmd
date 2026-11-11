@@ -122,6 +122,15 @@ reference outputs are only valid for the machine that produced them.
   `overwrite` and `temp_dir` are accepted and have no effect.
 - **`build_network()` has `n_threads`**, used to read the `.pbf` file.
 - **`verbose` and `progress` are checked but print nothing.**
+- **Argument errors have r5r's messages**, word for word (checkmate's and
+  cli's, without depending on either; `bench/compare/error_parity.R` checks
+  them against r5r). They differ where peabiru's network class is named
+  (`peabiru_network`), where r5r's errors from cli are `rlang` conditions
+  (peabiru's are plain errors with the same text), and where r5r lets a value
+  through and then fails in Java or with an internal R error (an empty
+  `percentiles`, a missing destination id, an `arrival_datetime` that is not
+  a date-time, a `polygon_output` of `NA`): peabiru stops with an error of its
+  own that says what is wrong.
 
 ```{r}
 network
@@ -136,7 +145,9 @@ row, which goes the other way.
 | r5r feature | In peabiru |
 |---|---|
 | Fares: `fare_structure`, `max_fare` | error |
-| Scenarios: `new_carspeeds`, `carspeed_scale`, `new_lts` | error |
+| Scenarios whose car speeds R5 keeps as 16-bit cm/s that wrap around or reach 0 or less (a negative factor or speed in `new_carspeeds`, a `scale` of `Inf` or 0 in its polygons, `carspeed_scale` far above 1); r5r then routes on the wrapped speeds, or fails dividing by zero | error |
+| `carspeed_scale` above the 32-bit float range (r5r hands R5 `Infinity`) | error |
+| `carspeed_scale` of `NA`, `NaN` or a length other than 1, which r5r's check lets through and then fails on with an internal R error | an error of peabiru's own that says so |
 | An elevation raster other than a one-band GeoTIFF in EPSG:4326, uncompressed or compressed with LZW, Deflate or PackBits (r5r reprojects other rasters with GeoTools) | error |
 | An elevation raster named `.tiff`, or more than one raster in the data directory (r5r fails on the first and reads the last one listed of the second) | error |
 | More than one `.pbf` in the data directory | error |

@@ -11,7 +11,7 @@ import os
 import sys
 import warnings
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -140,9 +140,8 @@ def assign_points_input(df: Any, name: str, unique_ids: bool = True) -> Points:
         if dup.any():
             dups = unique(list(ids[dup.to_numpy()]))
             raise ValueError(
-                f"'{name}' must not contain duplicated ids. Duplicated id(s): "
-                + ", ".join(f'"{i}"' for i in dups)
-                + "."
+                f"`{name}` must not contain duplicated ids.\n\u2716 Duplicated id"
+                + ("" if len(dups) == 1 else "s") + ": " + _val(dups) + "."
             )
     return Points(ids=ids, lat=lat, lon=lon, df=df)
 
@@ -156,14 +155,29 @@ class ModeList:
     transit: bool
 
 
+def _set(values: Sequence[str]) -> str:
+    """checkmate's set_collapse(): {'a','b'}"""
+    return "{" + ",".join(f"'{v}'" for v in unique(list(values))) + "}"
+
+
+def _val(values: Sequence[Any]) -> str:
+    """cli's {.val}: "a", "b", and "c" """
+    q = [f'"{v}"' for v in values]
+    if len(q) <= 1:
+        return "".join(q)
+    if len(q) == 2:
+        return f"{q[0]} and {q[1]}"
+    return ", ".join(q[:-1]) + ", and " + q[-1]
+
+
 def assign_mode(mode: Any, mode_egress: Any) -> ModeList:
     """r5r assign_mode()."""
     all_modes = R5R_TRANSIT_MODES + R5R_DIRECT_MODES
     modes = unique([m.upper() for m in as_strings(mode, "mode")])
-    if not all(m in all_modes for m in modes):
-        fail_assert(
-            "mode", "Must be a subset of {" + ",".join(f"'{m}'" for m in all_modes) + "}"
-        )
+    extra = [m for m in modes if m not in all_modes]
+    if extra:
+        fail_assert("mode", "Names must be a subset of " + _set(all_modes)
+                    + ", but has additional elements " + _set(extra))
 
     # as in r5r, unique() comes before the check, so a repeated mode passes
     if isinstance(mode_egress, (list, tuple)) and all(isinstance(m, str) for m in mode_egress):
@@ -173,7 +187,8 @@ def assign_mode(mode: Any, mode_egress: Any) -> ModeList:
     assert_string(mode_egress, "mode_egress")
     egress = mode_egress.upper()
     if egress not in ("WALK", "BICYCLE", "CAR"):
-        fail_assert("mode_egress", "Must be a subset of {'WALK','BICYCLE','CAR'}")
+        fail_assert("mode_egress", "Names must be a subset of {'WALK','BICYCLE','CAR'}, "
+                    "but has additional elements " + _set([egress]))
 
     direct = [m for m in modes if m in R5R_DIRECT_MODES]
     transit = [m for m in modes if m in R5R_TRANSIT_MODES]
@@ -332,10 +347,8 @@ def assign_decay_function(decay_function: Any, decay_value: Any) -> Tuple[str, f
     """r5r assign_decay_function()"""
     assert_string(decay_function, "decay_function")
     if decay_function not in DECAY_FUNCTIONS:
-        fail_assert(
-            "decay_function",
-            "Must be a subset of {" + ",".join(f"'{f}'" for f in DECAY_FUNCTIONS) + "}",
-        )
+        fail_assert("decay_function", "Names must be a subset of " + _set(DECAY_FUNCTIONS)
+                    + ", but has additional elements " + _set([decay_function]))
     assert_number(decay_value, "decay_value", finite=True, none_ok=True)
 
     if decay_value is not None and decay_function in ("step", "exponential"):

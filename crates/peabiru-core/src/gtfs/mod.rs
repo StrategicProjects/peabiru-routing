@@ -2,6 +2,7 @@
 
 pub mod csv;
 pub mod feed;
+mod flex;
 pub mod jparse;
 mod population;
 pub mod validate;

@@ -94,6 +94,11 @@ accessibility <- function(r5r_network,
   assert_network(r5r_network)
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
+  # r5r's Java side fails on a missing destination id (NullPointerException)
+  if (anyNA(destinations$id)) {
+    stop("'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing ",
+         "destination id in Java).", call. = FALSE)
+  }
   opportunities <- assign_opportunities(destinations, opportunities_colnames)
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)

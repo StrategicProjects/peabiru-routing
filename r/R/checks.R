@@ -1,109 +1,60 @@
-# Argument checks. r5r validates its arguments with 'checkmate'; these are
-# base R equivalents of the few checkmate assertions it uses, so that the
-# same inputs are accepted and rejected without adding a dependency.
+# Argument checks. r5r validates its arguments with 'checkmate'; these call
+# the port of it in checkmate.R with the arguments r5r passes, so that the
+# same inputs are accepted and rejected, with the same messages, without
+# adding a dependency.
 
 fail_assert <- function(name, msg) {
   stop("Assertion on '", name, "' failed: ", msg, ".", call. = FALSE)
 }
 
 # checkmate's default tolerance for "integerish"
-is_integerish <- function(x) {
-  is.numeric(x) && all(is.na(x) | (is.finite(x) & abs(x - round(x)) < sqrt(.Machine$double.eps)))
-}
+is_integerish <- function(x) cm_is_integerish(x) && is.numeric(x)
 
 # checkmate::assert_number
 assert_number <- function(x, name, lower = -Inf, upper = Inf, finite = FALSE,
                           null_ok = FALSE) {
-  if (is.null(x)) {
-    if (null_ok) return(invisible(x))
-    fail_assert(name, "Must be of type 'number', not 'NULL'")
-  }
-  if (!is.numeric(x) || length(x) != 1L) {
-    fail_assert(name, "Must be of type 'number'")
-  }
-  if (is.na(x)) fail_assert(name, "May not be NA")
-  if (finite && !is.finite(x)) fail_assert(name, "Must be finite")
-  if (x < lower) fail_assert(name, paste0("Element 1 is not >= ", lower))
-  if (x > upper) fail_assert(name, paste0("Element 1 is not <= ", upper))
+  cm_assert(check_number(x, lower = lower, upper = upper, finite = finite,
+                         null.ok = null_ok), name)
   invisible(x)
 }
 
 # checkmate::assert_count
 assert_count <- function(x, name, positive = FALSE) {
-  if (!is.numeric(x) || length(x) != 1L) {
-    fail_assert(name, "Must be of type 'count'")
-  }
-  if (is.na(x)) fail_assert(name, "May not be NA")
-  if (!is_integerish(x) || abs(x) > .Machine$integer.max) {
-    fail_assert(name, "Must be of type 'count'")
-  }
-  if (x < as.integer(positive)) {
-    fail_assert(name, paste0("Must be >= ", as.integer(positive)))
-  }
+  cm_assert(check_count(x, positive = positive), name)
   invisible(x)
 }
 
 # checkmate::assert_int
 assert_int <- function(x, name, null_ok = FALSE) {
-  if (is.null(x) && null_ok) return(invisible(x))
-  if (!is.numeric(x) || length(x) != 1L || is.na(x) || !is_integerish(x) ||
-      abs(x) > .Machine$integer.max) {
-    fail_assert(name, "Must be a single integerish value")
-  }
+  cm_assert(check_int(x, null.ok = null_ok), name)
   invisible(x)
 }
 
-# checkmate::assert_integerish with the options r5r uses
+# checkmate::assert_integerish(any.missing = FALSE, ...), as r5r calls it
 assert_integerish <- function(x, name, lower = -Inf, upper = Inf,
-                              min_len = 0L, max_len = Inf, unique = FALSE,
+                              min_len = NULL, max_len = NULL, unique = FALSE,
                               null_ok = FALSE) {
-  if (is.null(x)) {
-    if (null_ok) return(invisible(x))
-    fail_assert(name, "Must be of type 'integerish', not 'NULL'")
-  }
-  if (!is.numeric(x) || !is_integerish(x)) {
-    fail_assert(name, "Must be of type 'integerish'")
-  }
-  if (anyNA(x)) fail_assert(name, "Contains missing values")
-  if (length(x) < min_len) {
-    fail_assert(name, paste0("Must have length >= ", min_len))
-  }
-  if (length(x) > max_len) {
-    fail_assert(name, paste0("Must have length <= ", max_len))
-  }
-  if (any(x < lower)) fail_assert(name, paste0("All elements must be >= ", lower))
-  if (any(x > upper)) fail_assert(name, paste0("All elements must be <= ", upper))
-  if (unique && anyDuplicated(x) > 0) {
-    fail_assert(name, "Contains duplicated values")
-  }
+  cm_assert(check_integerish(x, lower = lower, upper = upper, any.missing = FALSE,
+                             min.len = min_len, max.len = max_len, unique = unique,
+                             null.ok = null_ok), name)
   invisible(x)
 }
 
 # checkmate::assert_logical(x, len = 1, any.missing = FALSE)
 assert_flag <- function(x, name) {
-  if (!is.logical(x) || length(x) != 1L || is.na(x)) {
-    fail_assert(name, "Must be a single TRUE or FALSE")
-  }
+  cm_assert(check_logical(x, len = 1, any.missing = FALSE), name)
   invisible(x)
 }
 
 # checkmate::assert_string
 assert_string <- function(x, name, null_ok = FALSE) {
-  if (is.null(x) && null_ok) return(invisible(x))
-  if (!is.character(x) || length(x) != 1L || is.na(x)) {
-    fail_assert(name, "Must be a single string")
-  }
+  cm_assert(check_string(x, null.ok = null_ok), name)
   invisible(x)
 }
 
 assert_network <- function(x) {
-  if (!inherits(x, "peabiru_network")) {
-    stop(
-      "Assertion on 'r5r_network' failed: Must inherit from class ",
-      "'peabiru_network' (see build_network()).",
-      call. = FALSE
-    )
-  }
+  # checkmate::assert_class(r5r_network, "r5r_network"), with peabiru's class
+  cm_assert(check_class(x, "peabiru_network"), "r5r_network")
   if (!rs_network_valid(x$ptr)) {
     stop(
       "This network is no longer valid (networks cannot be saved and ",

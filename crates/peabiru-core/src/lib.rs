@@ -125,6 +125,7 @@ mod error;
 mod fastmath;
 mod fastmath_trig;
 mod fdlibm;
+mod gdal;
 mod gtfs;
 mod inspect;
 mod isochrone;
@@ -186,6 +187,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// out of the documentation on purpose. Do not use them from other crates.
 #[doc(hidden)]
 pub mod unstable {
+    pub use crate::gdal::{gdal_geojson_coordinate, gdal_geojson_text};
     pub use crate::isochrone::CxxLibrary;
     /// [`isochrone_polygons`](crate::isochrone_polygons) with the rings in
     /// the order isoband gives them when built with `lib`, whatever the

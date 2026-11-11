@@ -29,7 +29,7 @@ test_that("bad data paths are rejected", {
   empty <- tempfile("empty")
   dir.create(empty)
   on.exit(unlink(empty, recursive = TRUE))
-  expect_error(build_network(empty), "OSM .pbf file is required")
+  expect_error(build_network(empty), "OSM '.pbf' file is required")
   file.copy(file.path(fixture_path(), "spo_osm.pbf"), file.path(empty, "a.pbf"))
   file.copy(file.path(fixture_path(), "spo_osm.pbf"), file.path(empty, "b.pbf"))
   expect_error(build_network(empty), "more than one .pbf")
