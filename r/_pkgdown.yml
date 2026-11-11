@@ -96,6 +96,12 @@ articles:
   - articles/accessibility
   - articles/expanded-and-arrival
   - articles/coming-from-r5r
+- title: Examples
+  navbar: Examples
+  contents:
+  - articles/isochrones
+  - articles/accessibility-map
+  - articles/trips
 - title: Under the hood
   navbar: Under the hood
   contents:

@@ -1,0 +1,158 @@
+---
+title: "Example: isochrones by mode"
+description: >
+  Areas reached from one point in Porto Alegre within 10, 20 and 30 minutes,
+  walking, cycling, driving and by public transport.
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+knitr::opts_chunk$set(fig.width = 8, fig.height = 8.4, dpi = 110, out.width = "100%")
+```
+
+An isochrone is the area within a given travel time of a point. This example
+draws them for the four ways of travelling peabiru routes, from one park in
+Porto Alegre, and shows how far each mode gets in 10, 20 and 30 minutes.
+Everything below is one script; the output shown is the output it prints.
+
+## The data
+
+The example uses the Porto Alegre sample of r5r 2.5.0: an OpenStreetMap
+extract of the city, the GTFS feeds of its buses (EPTC) and of its
+metropolitan train (Trensurb), a hexagonal grid with population, jobs and
+schools, and a few points of interest. The files are downloaded once, into a
+temporary directory (about 2 MB).
+
+```{r download, message = FALSE}
+library(peabiru)
+library(sf)
+library(ggplot2)
+
+poa <- file.path(tempdir(), "poa")
+dir.create(poa, showWarnings = FALSE)
+url <- "https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/"
+for (f in c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip",
+            "poa_hexgrid.csv", "poa_points_of_interest.csv")) {
+  if (!file.exists(file.path(poa, f))) {
+    download.file(paste0(url, f), file.path(poa, f), mode = "wb", quiet = TRUE)
+  }
+}
+
+network <- build_network(poa)
+network
+```
+
+The bus feed of the sample only has trips between late morning and early
+evening on weekdays, so public transport is routed at 14:00 on a Monday.
+
+```{r origin}
+poi <- read.csv(file.path(poa, "poa_points_of_interest.csv"))
+park <- poi[poi$id == "farroupilha_park", ]
+park
+departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+```
+
+## Isochrones, mode by mode
+
+`isochrone()` returns an `sf` data frame with one polygon per origin and
+cutoff. The polygons are made from a grid of travel times; `zoom` sets how
+fine that grid is (from 9 to 12; at 11 a cell is about 65 m wide here). With
+public transport, the travel time of each cell is the median over the
+departures of `time_window`, here the 30 minutes from 14:00.
+
+```{r isochrones}
+modes <- list(
+  "Walking" = "WALK",
+  "Cycling" = "BICYCLE",
+  "Driving" = "CAR",
+  "Walking + public transport" = c("WALK", "TRANSIT")
+)
+iso <- do.call(rbind, lapply(names(modes), function(label) {
+  i <- isochrone(network, park, mode = modes[[label]], cutoffs = c(10, 20, 30),
+                 zoom = 11, departure_datetime = departure, time_window = 30)
+  i$mode <- label
+  i
+}))
+iso$mode <- factor(iso$mode, levels = names(modes))
+st_drop_geometry(iso)
+```
+
+The area of each isochrone, in square kilometres, sums up the picture:
+
+```{r areas}
+iso$area_km2 <- round(as.numeric(st_area(iso)) / 1e6, 1)
+xtabs(area_km2 ~ mode + isochrone, data = st_drop_geometry(iso))
+```
+
+## A map
+
+The main streets of the extract give the map some context; the isochrones are
+drawn from the largest to the smallest, so that the shorter times stay on top.
+
+```{r map, fig.alt = "Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes: a small area walking, a few kilometres around the park cycling, most of the map driving, and long arms along the bus corridors with public transport."}
+streets <- st_read(file.path(poa, "poa_osm.pbf"), "lines", quiet = TRUE)
+streets <- streets[streets$highway %in% c("motorway", "trunk", "primary",
+                                          "secondary", "tertiary"), ]
+
+iso <- iso[order(-iso$isochrone), ]
+ggplot() +
+  geom_sf(data = streets, colour = "#dcd3c4", linewidth = 0.2) +
+  geom_sf(data = iso, aes(fill = factor(isochrone)), colour = NA, alpha = 0.8) +
+  geom_sf(data = st_as_sf(park, coords = c("lon", "lat"), crs = 4326),
+          shape = 21, size = 2.5, fill = "#1f2a2e", colour = "white") +
+  scale_fill_manual(values = c("10" = "#7a3318", "20" = "#cf7445", "30" = "#e8a57b"),
+                    name = "Minutes") +
+  coord_sf(xlim = c(-51.25, -51.14), ylim = c(-30.11, -29.99), datum = NA) +
+  facet_wrap(~mode) +
+  theme_void() +
+  theme(legend.position = "top", strip.text = element_text(face = "bold", hjust = 0))
+```
+
+Walking covers a couple of kilometres around the park in half an hour.
+Cycling covers no more than walking in the first ten minutes from this park,
+then pulls ahead. Driving reaches most of the map within 20 minutes.
+Public transport sits in between, and its isochrones follow the bus corridors
+leaving the city centre: a stop within a short walk of the park and a fast
+ride extend the area far along those lines, and nowhere else.
+
+## People within reach
+
+Polygons answer "where"; a matrix to the hexagonal grid of the sample, which
+carries the population of each cell, answers "how many". The share of the
+city's population reached from the park, by mode and travel time:
+
+```{r reach}
+grid <- read.csv(file.path(poa, "poa_hexgrid.csv"))
+reach <- sapply(modes, function(mode) {
+  ttm <- travel_time_matrix(network, park, grid, mode = mode,
+                            departure_datetime = departure, time_window = 30,
+                            max_trip_duration = 60)
+  people <- grid$population[match(ttm$to_id, grid$id)]
+  sapply(c(15, 30, 45, 60), function(t)
+    round(100 * sum(people[ttm$travel_time_p50 <= t]) / sum(grid$population)))
+})
+rownames(reach) <- paste("within", c(15, 30, 45, 60), "min (%)")
+reach
+```
+
+```{r reach-figure, echo = FALSE, fig.alt = "Step curves of the share of the population of Porto Alegre reached from Farroupilha Park within 0 to 60 minutes, by mode: driving reaches nearly everyone within 20 minutes, walking plus public transport most people within an hour, cycling about two thirds and walking about a third."}
+fig("reach-by-mode.svg")
+```
+
+## Variations
+
+- **Several origins.** Give `isochrone()` more than one point; the `id`
+  column tells the polygons apart.
+- **Streets instead of areas.** `polygon_output = FALSE` returns the street
+  segments reached, each with its travel time, instead of polygons.
+- **Traffic stress.** Cycling uses the streets whose level of traffic stress
+  is at most `max_lts` (2 by default) and walks the bike on the others. With
+  `max_lts = 4`, the 30-minute cycling isochrone from the park grows from
+  11.2 to 34.2 km².
+- **Uncertainty.** With `percentiles = c(25, 50, 75)`, public transport
+  isochrones come in one set per percentile: the area reached on a lucky, a
+  typical and an unlucky departure.
+
+The figure on the [home page](../../index.html#gallery) draws the same
+isochrones, styled for the documentation, with `site/figures/figures.R` in the
+repository.

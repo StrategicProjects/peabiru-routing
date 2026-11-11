@@ -1,0 +1,133 @@
+---
+title: "Example: how much a trip by public transport varies"
+description: >
+  Percentiles of the travel time on a frequency-based network, and one trip
+  split into walking, waiting and riding, departure by departure.
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+knitr::opts_chunk$set(fig.width = 7.5, fig.height = 5, dpi = 110, out.width = "100%")
+```
+
+By car or on foot, a trip takes the same time whenever it starts. By public
+transport it does not: it depends on when the next vehicle leaves. This
+example measures that variation in two ways, with percentiles over a window
+of departures, and trip by trip. Everything below is one script; the output
+shown is the output it prints.
+
+```{r}
+library(peabiru)
+library(ggplot2)
+```
+
+## Percentiles on a frequency-based network
+
+The São Paulo sample that ships with the package has a feed described by
+frequencies ("a bus every 8 minutes") rather than timetables. For such
+routes peabiru draws random schedules consistent with the frequencies, 5 per
+departure minute by default, so the travel times of a window of departures
+form a distribution. `seed` makes the draws reproducible.
+
+```{r spo}
+spo <- system.file("extdata/spo", package = "peabiru")
+network <- build_network(spo)
+points <- read.csv(file.path(spo, "spo_points.csv"))
+departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+
+ttm <- travel_time_matrix(
+  network, points[1, ], points[-1, ],
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = departure,
+  time_window = 60,
+  percentiles = c(5, 25, 50, 75, 95),
+  seed = 42
+)
+ttm <- ttm[order(ttm$travel_time_p50, ttm$travel_time_p95), ]
+head(ttm)
+```
+
+The destinations closest to the origin are walked to, and every departure
+takes the same time. Further away, a bus or the metro saves time, and the
+spread between the 5th and 95th percentiles is the price of not knowing when
+it comes:
+
+```{r spread, fig.alt = "Range bars of the travel time from one point in São Paulo to 26 others, sorted by median: the nearest destinations have no spread; those reached by bus or metro spread by up to about ten minutes between the 5th and 95th percentiles."}
+ttm$destination <- factor(ttm$to_id, levels = rev(ttm$to_id))
+ggplot(ttm, aes(y = destination)) +
+  geom_linerange(aes(xmin = travel_time_p05, xmax = travel_time_p95),
+                 colour = "#c98a1d", linewidth = 1) +
+  geom_linerange(aes(xmin = travel_time_p25, xmax = travel_time_p75),
+                 colour = "#b4532a", linewidth = 3) +
+  geom_point(aes(x = travel_time_p50), shape = 21, fill = "white", size = 2) +
+  labs(x = "Travel time (minutes)", y = NULL) +
+  theme_minimal() +
+  theme(axis.text.y = element_blank(), panel.grid.major.y = element_blank())
+```
+
+## Trip by trip
+
+`expanded_travel_time_matrix()` keeps one row per departure minute (and per
+draw, on a frequency-based network) instead of percentiles. With
+`breakdown = TRUE`, each trip is split into its parts, and the routes taken
+are listed. Here, from Farroupilha Park to the PUCRS university campus in
+Porto Alegre, whose sample (from r5r 2.5.0) has bus timetables:
+
+```{r poa}
+poa <- file.path(tempdir(), "poa")
+dir.create(poa, showWarnings = FALSE)
+url <- "https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/"
+for (f in c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip",
+            "poa_points_of_interest.csv")) {
+  if (!file.exists(file.path(poa, f))) {
+    download.file(paste0(url, f), file.path(poa, f), mode = "wb", quiet = TRUE)
+  }
+}
+poa_network <- build_network(poa)
+poi <- read.csv(file.path(poa, "poa_points_of_interest.csv"))
+
+trips <- expanded_travel_time_matrix(
+  poa_network,
+  origins = poi[poi$id == "farroupilha_park", ],
+  destinations = poi[poi$id == "pucrs", ],
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = departure,
+  time_window = 30,
+  breakdown = TRUE
+)
+head(trips[, -(1:2)], 10)
+```
+
+Leaving at 14:02 or at 14:20 means boarding the same line, but waiting
+longer for it; at 14:07 a different pair of buses wins. Stacked bars show
+where the minutes go:
+
+```{r breakdown, fig.height = 6, fig.alt = "Thirty stacked horizontal bars, one per departure minute from 14:00 to 14:29, split into walking to the stop, waiting, riding, transferring and walking from the stop; the totals range from about 30 to 40 minutes, and the waiting time changes most."}
+parts <- c(access_time = "Walk to the stop", wait_time = "Wait",
+           ride_time = "Ride", transfer_time = "Transfer",
+           egress_time = "Walk from the stop")
+long <- do.call(rbind, lapply(names(parts), function(p)
+  data.frame(departure = substr(trips$departure_time, 1, 5),
+             part = factor(parts[[p]], levels = rev(parts)),
+             minutes = trips[[p]])))
+ggplot(long, aes(minutes, departure, fill = part)) +
+  geom_col(width = 0.7) +
+  scale_y_discrete(limits = rev) +
+  scale_fill_manual(values = c("#8db9a0", "#3d4f56", "#b4532a", "#c98a1d", "#2f6b4f"),
+                    breaks = unname(parts), name = NULL) +
+  labs(x = "Minutes", y = "Departure") +
+  theme_minimal() +
+  theme(legend.position = "top", panel.grid.major.y = element_blank())
+```
+
+## Variations
+
+- **Arrive by.** `arrival_travel_time_matrix()` answers the reverse
+  question: the latest departure that arrives by a given time.
+- **Fewer transfers.** `max_rides = 1` keeps only the trips with a single
+  vehicle; compare the totals.
+- **More draws.** `draws_per_minute` sets how many random schedules are
+  drawn per minute on frequency-based routes.
+
+The figures on the [home page](../../index.html#gallery) draw the same results
+with `site/figures/figures.R` in the repository.

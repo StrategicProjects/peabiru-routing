@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>peabiru: isochrones in the browser</title>
+<meta name="description" content="An interactive isochrone map computed in your browser by peabiru, a routing engine compiled to WebAssembly: click a point, pick a mode, and see the areas reached in a few minutes.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/brand.css">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../assets/logo-mark.svg" alt="">peabiru</a>
+    <nav aria-label="Documentation">
+      <a href="../r/">R</a>
+      <a href="../python/">Python</a>
+      <a href="../rust/">Rust</a>
+      <a href="../js/">JavaScript</a>
+      <a href="../benchmarks.html">Benchmarks</a>
+      <a href="https://github.com/StrategicProjects/peabiru-routing">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap demo">
+  <h1>Isochrones in the browser</h1>
+  <p class="lead">Everything on this map is computed here, in your browser, by the peabiru npm
+  package compiled to WebAssembly: the network is built from an OpenStreetMap extract and GTFS
+  feeds, and every click routes from the point you chose. Nothing is sent to a server.</p>
+
+  <form class="controls" id="controls" aria-label="Isochrone options">
+    <label>City
+      <select id="city">
+        <option value="spo">São Paulo, Avenida Paulista (0.2 MB)</option>
+        <option value="poa">Porto Alegre (2 MB, from GitHub)</option>
+      </select>
+    </label>
+    <fieldset class="modes">
+      <legend>Mode</legend>
+      <label><input type="radio" name="mode" value="WALK" checked> Walk</label>
+      <label><input type="radio" name="mode" value="BICYCLE"> Bicycle</label>
+      <label><input type="radio" name="mode" value="CAR"> Car</label>
+      <label><input type="radio" name="mode" value="WALK,TRANSIT"> Walk + public transport</label>
+    </fieldset>
+    <label>Minutes
+      <select id="cutoffs"></select>
+    </label>
+    <label>Departure (Monday 13 May 2019)
+      <input id="time" type="time" value="14:00" step="60">
+    </label>
+  </form>
+
+  <div class="map-wrap">
+    <canvas id="map" role="img" aria-label="Map of the streets of the selected city; isochrones appear around the point you click."></canvas>
+    <div class="legend" id="legend" aria-live="polite"></div>
+  </div>
+  <p class="status" id="status" role="status">Loading the WebAssembly module…</p>
+
+  <section class="notes" aria-labelledby="how">
+    <h2 id="how">How this page works</h2>
+    <p>The page loads the <a href="../js/">peabiru npm package</a> as a plain ES module, fetches
+    the <code>.pbf</code> and GTFS <code>.zip</code> files of the city, and calls
+    <code>buildNetwork()</code> once. The street background is the street network itself, as
+    returned by <code>isochrone(…, { polygonOutput: false })</code>, so no map tiles are needed.
+    Each click calls <code>isochrone()</code> with the chosen mode and cutoffs and draws the
+    GeoJSON polygons on a canvas. Public transport uses the median of the departures in the
+    10 minutes from the chosen time; the Porto Alegre bus feed only has trips from late morning
+    to early evening, so pick a time between 12:00 and 17:00 there. The code is in
+    <a href="https://github.com/StrategicProjects/peabiru-routing/tree/main/site/demo">site/demo</a>,
+    and the <a href="../js/examples.html">JavaScript guide</a> walks through it.</p>
+    <p class="muted">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL).
+    GTFS: SPTrans (São Paulo), EPTC and Trensurb (Porto Alegre), as cut for the sample data of
+    <a href="https://github.com/ipea/r5r">r5r</a>, from whose repository the Porto Alegre files are
+    downloaded when chosen.</p>
+  </section>
+</main>
+<script type="module" src="demo.mjs"></script>
+</body>
+</html>

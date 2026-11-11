@@ -42,6 +42,10 @@ nav:
       - Accessibility: accessibility.md
       - Expanded and arrival matrices: expanded-arrival.md
       - Coming from r5py / r5r: coming-from-r5.md
+  - Examples:
+      - Isochrones by mode: example-isochrones.md
+      - Access to jobs and schools: example-accessibility.md
+      - How much a trip varies: example-trips.md
   - API reference: reference.md
   # the other sites built by site/build.sh, next to this one in _site/
   - Other languages:
@@ -53,6 +57,7 @@ nav:
 markdown_extensions:
   - admonition
   - attr_list
+  - md_in_html
   - tables
   - toc:
       permalink: true
