@@ -26,8 +26,9 @@ JavaScript packages and the command-line tool of the same name.
 | `accessibility()` | opportunities reachable from each origin, with five decay functions |
 | `expanded_travel_time_matrix()` | the trip of every departure minute, with its breakdown |
 | `arrival_travel_time_matrix()` | the latest trip that arrives by a given time |
+| `isochrone()` | the areas or street segments reached within each cutoff |
 
-Not implemented yet: isochrones, detailed itineraries, public transport with
+Not implemented yet: detailed itineraries, public transport with
 bicycle or car access, subsets of transit modes, fares, scenarios and
 elevation. Asking for them stops with an error; nothing is silently ignored.
 

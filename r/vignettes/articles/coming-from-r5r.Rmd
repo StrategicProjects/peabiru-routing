@@ -143,8 +143,13 @@ travel_time_matrix(network, points, points, mode = c("WALK", "BUS"),
                    departure_datetime = departure)
 ```
 
+`isochrone()` returns r5r's polygons and lines; its polygons are the same
+coordinate for coordinate on macOS, where 'isoband' (which r5r calls) is built
+with the same C++ library whose hash table decides where each ring starts.
+Elsewhere r5r's rings may start at another vertex (same area, same shape).
+
 These r5r functions have no peabiru counterpart yet:
-`isochrone()`, `detailed_itineraries()`, `pareto_frontier()`,
+`detailed_itineraries()`, `pareto_frontier()`,
 `street_network_to_sf()`, `transit_network_to_sf()`, `street_network_bbox()`,
 `find_snap()`, `get_gtfs_errors()`, `check_transit_availability()` and the fare
 structure helpers (`setup_fare_structure()`, `read_fare_structure()`,

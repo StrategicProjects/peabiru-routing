@@ -38,3 +38,14 @@ def expanded(
     max_walk_time: int, max_trip_duration: int, walk_speed: float,
     max_rides: int, draws_per_minute: int, seed: Optional[int], n_threads: int,
 ) -> Dict[str, Any]: ...
+def isochrone_polygons(
+    network: Network, olat: bytes, olon: bytes, mode: str, cutoffs: List[float],
+    zoom: int, percentiles: List[int], date: int, departure_time: int,
+    time_window: int, max_walk_time: int, max_trip_duration: int,
+    walk_speed: float, bike_speed: float, max_lts: int, max_rides: int,
+    draws_per_minute: int, seed: Optional[int], n_threads: int,
+) -> Dict[str, bytes]: ...
+def street_edges(network: Network) -> Dict[str, Any]: ...
+def isochrone_lines(
+    n_origins: int, n_edges: int, minutes: bytes, cutoffs: List[float],
+) -> Tuple[bytes, bytes, bytes, bytes]: ...

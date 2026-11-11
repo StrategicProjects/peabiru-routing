@@ -77,6 +77,11 @@ reference:
 - title: Accessibility
   contents:
   - accessibility
+- title: Isochrones
+  desc: >
+    The areas or street segments reached from each origin within each cutoff.
+  contents:
+  - isochrone
 - title: The package
   contents:
   - peabiru-package

@@ -52,6 +52,7 @@ fn add_pair(net: &mut StreetNetwork, from: u32, to: u32, length_mm: i32, way: i6
     net.pair_to.push(to);
     net.pair_length_mm.push(length_mm);
     net.pair_way.push(way);
+    net.pair_class.push(4); // R5 addStreetPair: StreetClass.OTHER
     let at = net.geom.len() as u32;
     net.pair_geom.push((at, at));
     net.pair_in_brad.push(0);
@@ -100,6 +101,7 @@ fn add_second_half(
     net.edge_flags[2 * n + 1] = net.edge_flags[2 * k + 1];
     net.edge_speed_cms[2 * n] = net.edge_speed_cms[2 * k];
     net.edge_speed_cms[2 * n + 1] = net.edge_speed_cms[2 * k + 1];
+    net.pair_class[n] = net.pair_class[k];
     n
 }
 

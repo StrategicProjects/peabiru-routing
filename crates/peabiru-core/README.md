@@ -19,7 +19,9 @@ from one `.pbf` extract and any number of GTFS feeds and computes
 - accessibility, with step, exponential, fixed exponential, linear and
   logistic decay;
 - expanded (every departure minute and draw) and arrival-time matrices with
-  the breakdown of each trip.
+  the breakdown of each trip;
+- isochrones: travel-time surfaces on a Web Mercator grid and their polygons,
+  or the street segments reached within each cutoff.
 
 The same crate is behind the R package, the Python package and the `peabiru`
 command-line tool. The network is plain data, built once and shared by
@@ -72,8 +74,8 @@ default to the São Paulo sample, as in
 repository also has a Rust guide, in Markdown, under
 [`site/rust/src`](https://github.com/StrategicProjects/peabiru-routing/tree/main/site/rust/src).
 
-**Status**: version 0.0.1, early development; not published yet. Isochrones,
-detailed itineraries, fares, bicycle or car access to public transport and
+**Status**: version 0.0.1, early development; not published yet. Detailed
+itineraries, fares, bicycle or car access to public transport and
 elevation are not implemented.
 
 ## Licence and credits

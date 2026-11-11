@@ -159,7 +159,13 @@ Each of these raises `peabiru.UnsupportedError` instead of being ignored:
   departure time from the clock there);
 - more than one `.pbf` file in the data directory.
 
-r5r's `isochrone()`, `detailed_itineraries()`, `pareto_frontier()`,
+[`isochrone()`][peabiru.isochrone] follows r5r's `isochrone()` up to the
+polygons r5r hands to `sf::st_make_valid()` (vertex for vertex); that last
+step, an s2 rebuild in R, is not reproduced, so the polygons cover the same
+areas as r5r's but are not snapped to 1e-7 degrees and are always
+`MultiPolygon`s.
+
+r5r's `detailed_itineraries()`, `pareto_frontier()`,
 `travel_time_matrix()` with fares and the other functions not listed in the
 [API reference](reference.md) are not available yet. `CAR_PARK` and
 `BICYCLE_RENT` are rejected, as r5r rejects them.

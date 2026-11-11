@@ -18,10 +18,13 @@
 //! stopped the call raises `KeyboardInterrupt`.
 
 use peabiru_core::{
-    arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix, street_accessibility,
-    street_travel_time_matrix, transit_accessibility, transit_travel_time_matrix, validate_date,
-    AccessibilityParams, BuildOptions, CancelToken, DecayFunction, Destinations, ExpandedRow, Mode,
-    RouteError, RouteParams, StreetNetwork, TransitData, TransitLayer, TransitParams,
+    arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix,
+    isochrone_lines as isochrone_lines_core, isochrone_polygons as isochrone_polygons_core,
+    street_accessibility, street_edges as street_edges_core, street_travel_time_matrix,
+    street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
+    transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, CancelToken,
+    DecayFunction, Destinations, ExpandedRow, Mode, RouteError, RouteParams, StreetNetwork,
+    TransitData, TransitLayer, TransitParams,
 };
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
@@ -655,6 +658,213 @@ impl ExpandedColumns {
     }
 }
 
+/// Polygon isochrones as a dict of buffers the Python side assembles into
+/// geometries: per row (origin, percentile, cutoff; r5r's order) `origin`
+/// (0-based int32), `isochrone` (f64), `percentile` and `n_polygons`
+/// (int32); per polygon `n_rings`; per ring `n_points` (int32); per point
+/// `x` (longitude) and `y` (latitude), f64. `mode` is `TRANSIT` (walk
+/// access and egress) or a street mode; `max_trip_duration` is the search
+/// limit (r5r: the largest cutoff plus 10).
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn isochrone_polygons<'py>(
+    py: Python<'py>,
+    network: &Bound<'py, Network>,
+    olat: &[u8],
+    olon: &[u8],
+    mode: &str,
+    cutoffs: Vec<f64>,
+    zoom: i32,
+    percentiles: Vec<i32>,
+    date: u32,
+    departure_time: i32,
+    time_window: i32,
+    max_walk_time: i32,
+    max_trip_duration: i32,
+    walk_speed: f64,
+    bike_speed: f64,
+    max_lts: i32,
+    max_rides: usize,
+    draws_per_minute: i32,
+    seed: Option<i32>,
+    n_threads: usize,
+) -> PyResult<Bound<'py, PyDict>> {
+    let n = network.get();
+    let o = points(olat, olon)?;
+    let street = if mode == "TRANSIT" {
+        None
+    } else {
+        Some(street_mode(mode)?)
+    };
+    let t = if street.is_none() {
+        Some(transit(n)?)
+    } else {
+        None
+    };
+    let cancel = CancelToken::new();
+    let rows = interruptible(py, &cancel, || {
+        let surface = match (street, t) {
+            (None, Some(t)) => {
+                let mut p = transit_params(
+                    date,
+                    departure_time,
+                    time_window,
+                    percentiles,
+                    max_walk_time,
+                    max_trip_duration,
+                    walk_speed,
+                    max_rides,
+                    draws_per_minute,
+                    seed,
+                    n_threads,
+                );
+                p.cancel = cancel.clone();
+                transit_travel_time_surface(&n.net, &t.layer, &t.data, &o, &p, zoom)?
+            }
+            (Some(m), _) => {
+                let mut params = route_params(
+                    walk_speed,
+                    bike_speed,
+                    max_lts,
+                    max_trip_duration,
+                    n_threads,
+                );
+                params.cancel = cancel.clone();
+                street_travel_time_surface(&n.net, &o, m, &params, &percentiles, zoom)?
+            }
+            (None, None) => unreachable!("transit checked above"),
+        };
+        isochrone_polygons_core(&surface, &cutoffs)
+    })?;
+    let (mut origin, mut iso, mut pct, mut n_polygons) =
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    let (mut n_rings, mut n_points, mut x, mut y) =
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    for r in &rows {
+        origin.push(r.origin as i32);
+        iso.push(r.isochrone);
+        pct.push(r.percentile);
+        n_polygons.push(r.polygons.len() as i32);
+        for poly in &r.polygons {
+            n_rings.push(poly.len() as i32);
+            for ring in poly {
+                n_points.push(ring.len() as i32);
+                for &[px, py] in ring {
+                    x.push(px);
+                    y.push(py);
+                }
+            }
+        }
+    }
+    let out = PyDict::new(py);
+    out.set_item("origin", i32_bytes(py, &origin)?)?;
+    out.set_item("isochrone", f64_bytes(py, &iso)?)?;
+    out.set_item("percentile", i32_bytes(py, &pct)?)?;
+    out.set_item("n_polygons", i32_bytes(py, &n_polygons)?)?;
+    out.set_item("n_rings", i32_bytes(py, &n_rings)?)?;
+    out.set_item("n_points", i32_bytes(py, &n_points)?)?;
+    out.set_item("x", f64_bytes(py, &x)?)?;
+    out.set_item("y", f64_bytes(py, &y)?)?;
+    Ok(out)
+}
+
+/// The street edges of r5r's `street_network_to_sf()$edges` as a dict of
+/// buffers: `edge_index`, `from_vertex`, `to_vertex`, `bicycle_lts`
+/// (int32), `osm_id` (f64, as r5r reports it), `length`, `car_speed` (f64),
+/// `walk`, `car`, `bicycle` (int32 0/1), `street_class` (a list of
+/// strings), the centroid r5r routes to as `lat`, `lon` (f64, NaN without
+/// one), and the line of each edge as `n_points` (int32) and flat `x`, `y`
+/// (f64).
+#[pyfunction]
+fn street_edges<'py>(
+    py: Python<'py>,
+    network: &Bound<'py, Network>,
+) -> PyResult<Bound<'py, PyDict>> {
+    let n = network.get();
+    let e = py.detach(|| street_edges_core(&n.net));
+    let rows = 0..e.len();
+    let ints = |f: &dyn Fn(usize) -> i32| -> Vec<i32> { rows.clone().map(f).collect() };
+    let floats = |f: &dyn Fn(usize) -> f64| -> Vec<f64> { rows.clone().map(f).collect() };
+    let cen = e.centroid_points();
+    let (mut n_points, mut x, mut y) = (Vec::with_capacity(e.len()), Vec::new(), Vec::new());
+    for i in rows.clone() {
+        let g = e.geometry(i);
+        n_points.push(g.len() as i32);
+        for &[px, py] in g {
+            x.push(px);
+            y.push(py);
+        }
+    }
+    let out = PyDict::new(py);
+    out.set_item(
+        "edge_index",
+        i32_bytes(py, &ints(&|i| e.edge_index(i) as i32))?,
+    )?;
+    out.set_item("osm_id", f64_bytes(py, &floats(&|i| e.osm_id(i) as f64))?)?;
+    out.set_item(
+        "from_vertex",
+        i32_bytes(py, &ints(&|i| e.from_vertex(i) as i32))?,
+    )?;
+    out.set_item(
+        "to_vertex",
+        i32_bytes(py, &ints(&|i| e.to_vertex(i) as i32))?,
+    )?;
+    let classes: Vec<&str> = rows.clone().map(|i| e.street_class(i)).collect();
+    out.set_item("street_class", classes)?;
+    out.set_item("length", f64_bytes(py, &floats(&|i| e.length_m(i)))?)?;
+    out.set_item("walk", i32_bytes(py, &ints(&|i| i32::from(e.walk(i))))?)?;
+    out.set_item("car", i32_bytes(py, &ints(&|i| i32::from(e.car(i))))?)?;
+    out.set_item(
+        "car_speed",
+        f64_bytes(py, &floats(&|i| e.car_speed_kph(i)))?,
+    )?;
+    out.set_item(
+        "bicycle",
+        i32_bytes(py, &ints(&|i| i32::from(e.bicycle(i))))?,
+    )?;
+    out.set_item("bicycle_lts", i32_bytes(py, &ints(&|i| e.bicycle_lts(i)))?)?;
+    let lat: Vec<f64> = cen.iter().map(|c| c.0).collect();
+    let lon: Vec<f64> = cen.iter().map(|c| c.1).collect();
+    out.set_item("lat", f64_bytes(py, &lat)?)?;
+    out.set_item("lon", f64_bytes(py, &lon)?)?;
+    out.set_item("n_points", i32_bytes(py, &n_points)?)?;
+    out.set_item("x", f64_bytes(py, &x)?)?;
+    out.set_item("y", f64_bytes(py, &y)?)?;
+    Ok(out)
+}
+
+/// Line isochrones from a matrix of median minutes (int32, `i32::MIN`
+/// where not reported), `n_origins` rows of `n_edges` values,
+/// origin-major: the rows in r5r's order as `(origin, edge, travel_time)`
+/// int32 buffers (0-based) and `isochrone` f64.
+#[pyfunction]
+fn isochrone_lines<'py>(
+    py: Python<'py>,
+    n_origins: usize,
+    n_edges: usize,
+    minutes: &[u8],
+    cutoffs: Vec<f64>,
+) -> PyResult<(Col<'py>, Col<'py>, Col<'py>, Col<'py>)> {
+    if minutes.len() % 4 != 0 {
+        return Err(value_err("the minutes buffer must hold whole int32 values"));
+    }
+    let m: Vec<Option<u32>> = minutes
+        .chunks_exact(4)
+        .map(|c| u32::try_from(i32::from_ne_bytes(c.try_into().expect("4 bytes"))).ok())
+        .collect();
+    let lines = isochrone_lines_core(n_origins, n_edges, &m, &cutoffs).map_err(value_err)?;
+    let origin: Vec<i32> = lines.iter().map(|l| l.origin as i32).collect();
+    let edge: Vec<i32> = lines.iter().map(|l| l.edge as i32).collect();
+    let tt: Vec<i32> = lines.iter().map(|l| l.travel_time as i32).collect();
+    let iso: Vec<f64> = lines.iter().map(|l| l.isochrone).collect();
+    Ok((
+        i32_bytes(py, &origin)?,
+        i32_bytes(py, &edge)?,
+        i32_bytes(py, &tt)?,
+        f64_bytes(py, &iso)?,
+    ))
+}
+
 #[pymodule]
 fn _peabiru(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -666,5 +876,8 @@ fn _peabiru(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(transit_ttm, m)?)?;
     m.add_function(wrap_pyfunction!(accessibility, m)?)?;
     m.add_function(wrap_pyfunction!(expanded, m)?)?;
+    m.add_function(wrap_pyfunction!(isochrone_polygons, m)?)?;
+    m.add_function(wrap_pyfunction!(street_edges, m)?)?;
+    m.add_function(wrap_pyfunction!(isochrone_lines, m)?)?;
     Ok(())
 }

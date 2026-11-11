@@ -84,6 +84,13 @@ pub struct StreetNetwork {
     pub(crate) pair_length_mm: Vec<i32>,
     /// Per pair: OSM way id.
     pub(crate) pair_way: Vec<i64>,
+    /// Per pair: R5 street class code (`StreetClass.forWay`: 0 motorway,
+    /// 1 primary, 2 secondary, 3 tertiary, 4 other), copied by splits.
+    pub(crate) pair_class: Vec<u8>,
+    /// R5 `StreetLayer.envelope`: the OSM nodes of every way segment an edge
+    /// was attempted for, as `(min_lat, max_lat, min_lon, max_lon)` in node
+    /// fixed-point degrees; `None` when no node was seen.
+    pub(crate) envelope: Option<(i32, i32, i32, i32)>,
     /// Per pair: intermediate geometry `geom[a..b]` for `pair_geom[k] = (a, b)`,
     /// as `(lat, lon)` fixed-point, in forward order. A split appends the new
     /// geometry and moves the range.
