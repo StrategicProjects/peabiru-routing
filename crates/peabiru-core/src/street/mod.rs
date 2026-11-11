@@ -10,6 +10,7 @@ mod ch;
 pub(crate) mod geom;
 pub(crate) mod labels;
 pub(crate) mod link;
+pub(crate) mod p2p;
 pub(crate) mod parkride;
 pub(crate) mod restrictions;
 pub(crate) mod router;

@@ -119,6 +119,7 @@ mod fastmath_trig;
 mod gtfs;
 mod inspect;
 mod isochrone;
+mod itinerary;
 mod jcompat;
 mod osm;
 mod output;
@@ -141,6 +142,7 @@ pub use isochrone::{
     street_travel_time_surface, transit_travel_time_surface, IsochroneLine, IsochronePolygon,
     Polygon, StreetEdges, TravelTimeSurface, WebMercatorGrid,
 };
+pub use itinerary::{detailed_itineraries, Itinerary, ItineraryLeg, ItineraryParams};
 pub use output::CsvOutput;
 pub use street::{
     build_network, street_travel_time_matrix, BuildOptions, Mode, RouteParams, StreetEngine,
