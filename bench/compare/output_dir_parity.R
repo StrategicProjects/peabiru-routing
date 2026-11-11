@@ -183,6 +183,31 @@ for (city in cities) {
         mem_check = FALSE)
   check(city, "ttm_odd_ids_walk", "travel_time_matrix", net,
         list(origins = odd, destinations = odd, mode = "WALK"), mem_check = FALSE)
+  # transit mode subsets, bicycle and car access, bicycle and car egress
+  check(city, "modes_ttm_bus", "travel_time_matrix", net,
+        list(origins = points, destinations = points, mode = c("WALK", "BUS"),
+             departure_datetime = departure, percentiles = c(25L, 75L), seed = 42L))
+  check(city, "via_ttm_bike", "travel_time_matrix", net,
+        list(origins = points, destinations = points, mode = c("BICYCLE", "TRANSIT"),
+             departure_datetime = departure, max_bike_time = 15L, max_lts = 3,
+             seed = 42L))
+  check(city, "egress_ttm_car", "travel_time_matrix", net,
+        list(origins = first(300), destinations = points, mode = "RAIL",
+             mode_egress = "CAR", departure_datetime = departure, max_car_time = 10L,
+             seed = 42L))
+  check(city, "via_expanded_car", "expanded_travel_time_matrix", net,
+        list(origins = first(30), destinations = points, mode = c("CAR", "TRANSIT"),
+             mode_egress = "BICYCLE", departure_datetime = departure, time_window = 3L,
+             breakdown = TRUE, max_car_time = 10L, max_bike_time = 10L, seed = 42L))
+  check(city, "via_arrival_bike", "arrival_travel_time_matrix", net,
+        list(origins = first(30), destinations = points, mode = c("BICYCLE", "BUS"),
+             arrival_datetime = departure + 3600, max_trip_duration = 60L,
+             max_bike_time = 15L, seed = 42L))
+  check(city, "via_access_car_bike", "accessibility", net,
+        list(origins = points, destinations = points, opportunities_colnames = "jobs",
+             mode = c("CAR", "TRANSIT"), mode_egress = "BICYCLE",
+             departure_datetime = departure, cutoffs = c(30L, 60L), max_car_time = 10L,
+             seed = 42L))
 
   check(city, "expanded", "expanded_travel_time_matrix", net,
         list(origins = first(30), destinations = points, mode = transit,
