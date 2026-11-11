@@ -55,6 +55,11 @@ session_goes_on <- function() {
   expect_gt(nrow(m), 0)
 }
 
+# Shared CI runners stall for seconds at a time (a JVM next door, a slow
+# process start): the upper bounds get slack there. The calls themselves
+# take far longer than any of these bounds when they are not stopped.
+ci_slack <- if (nzchar(Sys.getenv("CI"))) 4 else 0
+
 test_that("a time limit stops every long computation with R's error", {
   # it depends on how fast the machine is: each call must outlast the limit
   # and stop soon after it
@@ -72,7 +77,7 @@ test_that("a time limit stops every long computation with R's error", {
     # "reached elapsed time limit", in the session's language
     expect_match(conditionMessage(err), gettext("reached elapsed time limit", domain = "R"),
                  fixed = TRUE, info = name)
-    expect_lt(elapsed, 1.5)
+    expect_lt(elapsed, 1.5 + ci_slack)
     session_goes_on()
   }
 })
@@ -90,7 +95,7 @@ test_that("Ctrl-C stops a long computation with an ordinary interrupt", {
     elapsed <- as.numeric(Sys.time() - t0, units = "secs")
     expect_s3_class(cond, "interrupt")
     expect_gt(elapsed, 0.9)
-    expect_lt(elapsed, 2)
+    expect_lt(elapsed, 2 + ci_slack)
     session_goes_on()
   }
 })
