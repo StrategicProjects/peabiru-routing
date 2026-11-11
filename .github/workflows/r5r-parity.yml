@@ -1,0 +1,113 @@
+name: r5r parity
+
+# The R package's tests against r5r 2.5.0 (R5 7.6) running on the same
+# runner, on Linux, Windows and macOS. The parity tests compare peabiru's
+# results with r5r's with identical(); they are skipped wherever r5r cannot
+# start, so here PEABIRU_REQUIRE_R5R=true turns a missing r5r, Java or R5 jar
+# into an error (r/tests/testthat/helper-r5r.R) and tools/r5r_parity.R fails
+# if any test of the parity files was skipped. Of note on Linux and Windows:
+# isoband (through r5r) is built with libstdc++ there, so the ring order of
+# the isochrones follows libstdc++'s hash table, and the GTFS feeds load in
+# the order the file system lists them, on both sides.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r5r-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: r5r parity ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      NOT_CRAN: "true"
+      PEABIRU_REQUIRE_R5R: "true"
+      R5R_VERSION: "2.5.0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # r5r 2.5.0 needs Java 21; setup-java sets JAVA_HOME
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          use-public-rspm: true
+      # the packages the tests use, with their system libraries on Linux;
+      # r5r at exactly 2.5.0 (checked below)
+      - uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          working-directory: r
+          dependencies: '"hard"'
+          # the vignettes are not built here
+          install-pandoc: false
+          extra-packages: |
+            any::testthat
+            any::sf
+            any::data.table
+            any::rJava
+            r5r@2.5.0
+      - name: Point R at the JDK
+        # rJava finds the JVM through R's Java configuration (on Windows,
+        # through JAVA_HOME alone); after the dependencies, in case the
+        # system requirements of rJava installed another JDK. R's
+        # configuration files belong to root
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME"
+          sudo -E "$(command -v R)" CMD javareconf
+      - name: Check r5r and Java
+        id: r5r
+        shell: Rscript {0}
+        run: |
+          v <- as.character(packageVersion("r5r"))
+          cat("r5r", v, "\n")
+          if (v != Sys.getenv("R5R_VERSION")) stop("r5r ", v, " installed, ", Sys.getenv("R5R_VERSION"), " needed")
+          rJava::.jinit()
+          java <- rJava::.jcall("java/lang/System", "S", "getProperty", "java.version")
+          cat("Java", java, "\n")
+          if (as.integer(sub("^([0-9]+).*", "\\1", java)) < 21) stop("Java ", java, " found, 21 needed")
+          e <- r5r:::r5r_env
+          out <- Sys.getenv("GITHUB_OUTPUT")
+          cat("cache_dir=", normalizePath(e$cache_dir, winslash = "/", mustWork = FALSE), "\n",
+              "jar_version=", e$r5_jar_version, "\n", sep = "", file = out, append = TRUE)
+      - name: Cache the R5 jar
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.r5r.outputs.cache_dir }}
+          key: r5-jar-${{ runner.os }}-${{ steps.r5r.outputs.jar_version }}
+      - name: Download the R5 jar
+        shell: Rscript {0}
+        run: |
+          jar <- r5r::download_r5()
+          if (is.null(jar) || !file.exists(jar)) stop("the R5 jar could not be downloaded")
+          cat(jar, file.size(jar), "bytes\n")
+      # R on Windows links with the GNU toolchain of Rtools
+      - name: Rust target for Rtools
+        if: runner.os == 'Windows'
+        run: rustup target add x86_64-pc-windows-gnu
+      - name: Install the package from the checkout
+        # bash: in PowerShell, R is an alias of Invoke-History
+        shell: bash
+        run: R CMD INSTALL r
+      - name: Test against r5r
+        # Java heap for R5 (runners: 7 GB on Linux and macOS, 16 GB on
+        # Windows); the script fails on any failure, error or skipped
+        # parity test
+        shell: Rscript {0}
+        run: |
+          options(java.parameters = "-Xmx4G")
+          source("tools/r5r_parity.R")
