@@ -176,21 +176,44 @@ fn read_at(r: &Raster<'_>, x: f64, y: f64) -> Result<f64, Option<String>> {
     }
 }
 
-/// `ElevationLoader.clampToShort(Math.round(m * 10))`, an error where R5
-/// would wrap the value around (it logs "int value overflowed short").
-fn to_dm(m: f64, lon: f64, lat: f64) -> ElevResult<i16> {
+/// Samples that are almost certainly not elevations, for the warning.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct Suspect {
+    /// Beyond what 16-bit decimetres hold, stored wrapped around.
+    pub(crate) wrapped: usize,
+    /// Equal to the raster's declared no-data value.
+    pub(crate) nodata: usize,
+}
+
+impl Suspect {
+    fn add(&mut self, o: Suspect) {
+        self.wrapped += o.wrapped;
+        self.nodata += o.nodata;
+    }
+}
+
+/// `ElevationLoader.clampToShort(Math.round(m * 10))`: decimetres as a
+/// 16-bit integer, wrapped around beyond +/-3276.7 m as Java's `(short)`
+/// cast does (R5 logs "int value overflowed short" and keeps the wrapped
+/// value: SRTM's -32768 voids become 0 m, -9999 becomes 3108.2 m).
+fn to_dm(m: f64, nodata: Option<f64>, s: &mut Suspect) -> i16 {
     let d = java_round(m * 10.0);
-    i16::try_from(d).map_err(|_| {
-        format!(
-            "the raster gives an elevation of {m} m at ({lon}, {lat}), beyond the +/-3276.7 m \
-             that R5 keeps (in decimetres, as 16-bit integers): r5r would store a wrong \
-             elevation there; check the raster's no-data value and units"
-        )
-    })
+    let dm = d as i16;
+    if i64::from(dm) != d {
+        s.wrapped += 1;
+    } else if nodata.is_some_and(|v| v == m || (v.is_nan() && m.is_nan())) {
+        s.nodata += 1;
+    }
+    dm
 }
 
 /// `RasterDataSourceSampler.EdgeSampler` over the points of pair `k`.
-fn sample_pair(net: &StreetNetwork, r: &Raster<'_>, k: usize) -> ElevResult<Vec<i16>> {
+fn sample_pair(
+    net: &StreetNetwork,
+    r: &Raster<'_>,
+    k: usize,
+    s: &mut Suspect,
+) -> ElevResult<Vec<i16>> {
     if f64::from(net.pair_length_mm[k]) < SPACING_M * 1000.0 {
         return Ok(Vec::new());
     }
@@ -216,7 +239,7 @@ fn sample_pair(net: &StreetNetwork, r: &Raster<'_>, k: usize) -> ElevResult<Vec<
                 cur_lon += dx * frac;
                 cur_lat += dy * frac;
                 let m = read_elevation(r, cur_lon, cur_lat)?;
-                out.push(to_dm(m, cur_lon, cur_lat)?);
+                out.push(to_dm(m, r.nodata, s));
                 remaining -= to_next;
                 to_next = SPACING_M;
             }
@@ -230,40 +253,86 @@ fn sample_pair(net: &StreetNetwork, r: &Raster<'_>, k: usize) -> ElevResult<Vec<
 
 /// Sample the raster on every vertex and edge pair of `net`
 /// (`ElevationLoader.load`), with up to `threads` workers.
-pub(crate) fn sample(net: &StreetNetwork, r: &Raster<'_>, threads: usize) -> ElevResult<Samples> {
+pub(crate) fn sample(
+    net: &StreetNetwork,
+    r: &Raster<'_>,
+    threads: usize,
+) -> ElevResult<(Samples, Suspect)> {
     let nv = net.n_vertices();
     let np = net.pair_length_mm.len();
     let threads = threads.clamp(1, 64);
     let vchunk = nv.div_ceil(threads).max(1);
-    let vparts = crate::sys::scoped(0..threads, |w| -> ElevResult<Vec<i16>> {
+    let vparts = crate::sys::scoped(0..threads, |w| -> ElevResult<(Vec<i16>, Suspect)> {
         let lo = (w * vchunk).min(nv);
         let hi = ((w + 1) * vchunk).min(nv);
-        (lo..hi)
+        let mut s = Suspect::default();
+        let v = (lo..hi)
             .map(|v| {
                 let lon = f64::from(net.v_lon[v]) / FIXED;
                 let lat = f64::from(net.v_lat[v]) / FIXED;
-                to_dm(read_elevation(r, lon, lat)?, lon, lat)
+                Ok(to_dm(read_elevation(r, lon, lat)?, r.nodata, &mut s))
             })
-            .collect()
+            .collect::<ElevResult<Vec<i16>>>()?;
+        Ok((v, s))
     });
+    let mut suspect = Suspect::default();
     let mut vertex_dm = Vec::with_capacity(nv);
     for p in vparts {
-        vertex_dm.extend(p?);
+        let (v, s) = p?;
+        vertex_dm.extend(v);
+        suspect.add(s);
     }
     let pchunk = np.div_ceil(threads).max(1);
-    let pparts = crate::sys::scoped(0..threads, |w| -> ElevResult<Vec<Vec<i16>>> {
+    let pparts = crate::sys::scoped(0..threads, |w| -> ElevResult<(Vec<Vec<i16>>, Suspect)> {
         let lo = (w * pchunk).min(np);
         let hi = ((w + 1) * pchunk).min(np);
-        (lo..hi).map(|k| sample_pair(net, r, k)).collect()
+        let mut s = Suspect::default();
+        let v = (lo..hi)
+            .map(|k| sample_pair(net, r, k, &mut s))
+            .collect::<ElevResult<Vec<Vec<i16>>>>()?;
+        Ok((v, s))
     });
     let mut profile_dm = Vec::with_capacity(np);
     for p in pparts {
-        profile_dm.extend(p?);
+        let (v, s) = p?;
+        profile_dm.extend(v);
+        suspect.add(s);
     }
-    Ok(Samples {
-        vertex_dm,
-        profile_dm,
-    })
+    Ok((
+        Samples {
+            vertex_dm,
+            profile_dm,
+        },
+        suspect,
+    ))
+}
+
+/// The warning for the suspect samples of a raster (`None` without any).
+fn suspect_warning(s: Suspect, n: usize, nodata: Option<f64>) -> Option<String> {
+    if s.wrapped == 0 && s.nodata == 0 {
+        return None;
+    }
+    let mut parts = Vec::new();
+    if s.wrapped > 0 {
+        parts.push(format!(
+            "{} with a value beyond +/-3276.7 m, which r5r stores wrapped around as 16-bit \
+             decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m \
+             becomes -3053.6 m)",
+            s.wrapped
+        ));
+    }
+    if s.nodata > 0 {
+        parts.push(format!(
+            "{} equal to the raster's no-data value ({}), which r5r reads as an elevation",
+            s.nodata,
+            nodata.map_or_else(String::new, |v| v.to_string())
+        ));
+    }
+    Some(format!(
+        "of the {n} elevation samples on the network, {}; the slope costs are r5r's, but \
+         probably not what you want there: fill the voids or crop the raster",
+        parts.join(", and ")
+    ))
 }
 
 /// `ToblerCalculator.tobler`.
@@ -341,9 +410,11 @@ pub(crate) fn apply(
         return Ok(());
     }
     let r = Raster::parse(raster)?;
-    let s = sample(net, &r, threads)?;
+    let (s, suspect) = sample(net, &r, threads)?;
+    let n = s.vertex_dm.len() + s.profile_dm.iter().map(Vec::len).sum::<usize>();
     net.edge_slope = edge_factors(net, &s, model);
     net.elevation = model;
+    net.elevation_warnings = suspect_warning(suspect, n, r.nodata).into_iter().collect();
     net.forget_kept();
     Ok(())
 }
@@ -363,7 +434,7 @@ pub(crate) fn read_points(
 /// The samples of `raster` on `net`, for comparing with R5's.
 pub(crate) fn samples_of(net: &StreetNetwork, raster: &[u8]) -> ElevResult<Samples> {
     let r = Raster::parse(raster)?;
-    sample(net, &r, crate::sys::cores())
+    sample(net, &r, crate::sys::cores()).map(|(s, _)| s)
 }
 
 #[cfg(test)]
@@ -382,6 +453,35 @@ mod tests {
         assert_eq!(java_round_f32(0.5), 1);
         assert_eq!(java_round_f32(f32::NAN), 0);
         assert_eq!(java_round_f32(-1.5), -1);
+    }
+
+    #[test]
+    fn decimetres_wrap_around_as_java_short_casts() {
+        let mut s = Suspect::default();
+        // (short) Math.round(m * 10), as R5's clampToShort
+        assert_eq!(to_dm(812.34, None, &mut s), 8123);
+        assert_eq!(to_dm(3276.7, None, &mut s), 32767);
+        assert_eq!(s, Suspect::default());
+        assert_eq!(to_dm(-9999.0, None, &mut s), 31082); // 3108.2 m
+        assert_eq!(to_dm(-32768.0, None, &mut s), 0);
+        assert_eq!(to_dm(3500.0, None, &mut s), -30536);
+        assert_eq!(to_dm(f64::INFINITY, None, &mut s), -1); // Long.MAX_VALUE
+        assert_eq!(s.wrapped, 4);
+        assert_eq!(to_dm(f64::NAN, None, &mut s), 0);
+        assert_eq!(to_dm(0.0, Some(0.0), &mut s), 0);
+        assert_eq!(to_dm(f64::NAN, Some(f64::NAN), &mut s), 0);
+        assert_eq!(to_dm(5.0, Some(0.0), &mut s), 50);
+        assert_eq!(
+            s,
+            Suspect {
+                wrapped: 4,
+                nodata: 2
+            }
+        );
+        let w = suspect_warning(s, 100, Some(0.0)).unwrap();
+        assert!(w.starts_with("of the 100 elevation samples on the network, 4 with a value"));
+        assert!(w.contains("and 2 equal to the raster's no-data value (0)"));
+        assert_eq!(suspect_warning(Suspect::default(), 100, None), None);
     }
 
     #[test]

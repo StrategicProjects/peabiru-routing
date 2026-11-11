@@ -146,9 +146,11 @@ export declare class Network {
    */
   transitAvailability(date: Date | string): Promise<{ services: number; active: number }>;
   /**
-   * Warnings for the GTFS feeds that r5r refuses to build a network from:
-   * always empty, since buildNetwork() throws on such feeds as r5r does
-   * (kept for compatibility).
+   * Warnings about the build, which buildNetwork() also hands to
+   * `onWarning`: those about the elevation raster (samples r5r stores
+   * wrapped around, beyond +/-3276.7 m, such as SRTM's -32768 voids, or
+   * equal to the raster's no-data value). GTFS feeds that r5r refuses to
+   * build a network from are an error instead, as in r5r.
    */
   r5rWarnings(): string[];
 }

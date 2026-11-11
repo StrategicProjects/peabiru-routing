@@ -348,6 +348,8 @@ pub(crate) struct Raster<'a> {
     pub(crate) georef: Georef,
     /// The coordinate reference system of the georeferencing.
     pub(crate) crs: Crs,
+    /// GDAL's declared no-data value, if any (only for warnings).
+    pub(crate) nodata: Option<f64>,
     decoded: Slots,
     /// Pixels decoded so far, against [`MAX_DECODED_PIXELS`].
     spent: AtomicUsize,
@@ -374,6 +376,8 @@ const TAG_PIXEL_SCALE: u16 = 33550;
 const TAG_TIEPOINT: u16 = 33922;
 const TAG_TRANSFORMATION: u16 = 34264;
 const TAG_GEO_KEYS: u16 = 34735;
+
+const TAG_GDAL_NODATA: u16 = 42113;
 
 const KEY_MODEL_TYPE: u16 = 1024;
 const KEY_RASTER_TYPE: u16 = 1025;
@@ -450,6 +454,19 @@ fn crs_of(key: &impl Fn(u16) -> Option<u64>) -> TiffResult<Crs> {
         }
     }
     Ok(crs)
+}
+
+/// GDAL's no-data value (TIFF tag 42113, ASCII), if the file declares a
+/// number there: only for the warning about samples that hold it.
+fn nodata_of(r: &Reader<'_>, e: Option<Entry>) -> Option<f64> {
+    let e = e?;
+    // a number takes a few dozen characters: ignore anything longer
+    if e.typ != 2 || e.count == 0 || e.count > 64 {
+        return None;
+    }
+    let n = r.checked_count(e, 1, TAG_GDAL_NODATA).ok()?;
+    let text = std::str::from_utf8(r.bytes(e.at, n).ok()?).ok()?;
+    text.trim_end_matches('\0').trim().parse::<f64>().ok()
 }
 
 impl<'a> Raster<'a> {
@@ -769,6 +786,7 @@ impl<'a> Raster<'a> {
             })
         };
         let crs = crs_of(&key)?;
+        let nodata = nodata_of(&r, get(TAG_GDAL_NODATA));
         let point = match key(KEY_RASTER_TYPE) {
             None | Some(1) => false,
             Some(2) => true,
@@ -799,6 +817,7 @@ impl<'a> Raster<'a> {
             big: r.big,
             georef,
             crs,
+            nodata,
             decoded: if n_blocks <= DENSE_BLOCKS {
                 Slots::Dense((0..n_blocks).map(|_| OnceLock::new()).collect())
             } else {
@@ -1512,6 +1531,30 @@ mod tests {
         assert!(Raster::parse(&b).err().unwrap().contains("user-defined"));
     }
 
+    #[test]
+    fn the_nodata_tag() {
+        // "-9999\0" after the file, as GDAL writes it
+        let text = b"-9999\0";
+        let nodata = |entry: (u16, u16, u32, u32), extra: &[u8]| {
+            let at = tiny(3, 3, &[entry]).len() as u32;
+            let (t, ty, c, _) = entry;
+            let mut b = tiny(3, 3, &[(t, ty, c, at)]);
+            b.extend_from_slice(extra);
+            Raster::parse(&b).map(|r| r.nodata)
+        };
+        assert_eq!(nodata((42113, 2, 6, 0), text), Ok(Some(-9999.0)));
+        assert!(nodata((42113, 2, 5, 0), b"nan\0\0")
+            .unwrap()
+            .unwrap()
+            .is_nan());
+        // not a number, too long, past the end, another type: no value
+        assert_eq!(nodata((42113, 2, 5, 0), b"abcd\0"), Ok(None));
+        assert_eq!(nodata((42113, 2, 1000, 0), &[b'1'; 1000]), Ok(None));
+        assert_eq!(nodata((42113, 2, 60, 0), text), Ok(None));
+        assert_eq!(nodata((42113, 3, 6, 0), text), Ok(None));
+        assert_eq!(Raster::parse(&tiny(3, 3, &[])).map(|r| r.nodata), Ok(None));
+    }
+
     /// splitmix64
     fn next(state: &mut u64) -> u64 {
         *state = state.wrapping_add(0x9e37_79b9_7f4a_7c15);
@@ -1549,6 +1592,7 @@ mod tests {
             with_keys(&[(1024, 1), (3072, 31982), (3076, 9001)]),
             with_keys(&[(1024, 2), (2048, 4674), (2054, 9102)]),
             include_bytes!("../../tests/data/spo_hills_31983.tif").to_vec(),
+            include_bytes!("../../tests/data/spo_hills_4674.tif").to_vec(),
             tiny(
                 7,
                 5,

@@ -42,8 +42,9 @@ pub fn elevation(cmd: &str) -> Option<peabiru_core::Elevation> {
 /// `PEABIRU_IGNORE_GTFS_ERRORS=1` such feeds are built anyway
 /// ([`peabiru_core::BuildOptions::ignore_gtfs_errors`]), with one
 /// `peabiru <cmd>: warning: ...` line on stderr per feed and case that r5r
-/// refuses to build a network from. `PEABIRU_ELEVATION` sets the elevation
-/// model ([`elevation`]).
+/// refuses to build a network from, and one per warning about the
+/// elevation raster. `PEABIRU_ELEVATION` sets the elevation model
+/// ([`elevation`]).
 pub fn build_from_dir(
     cmd: &str,
     dir: impl AsRef<std::path::Path>,
@@ -59,6 +60,9 @@ pub fn build_from_dir(
         for w in report.r5r_warnings_per_case() {
             eprintln!("peabiru {cmd}: warning: {w}");
         }
+    }
+    for w in built.0.elevation_warnings() {
+        eprintln!("peabiru {cmd}: warning: {w}");
     }
     Ok(built)
 }

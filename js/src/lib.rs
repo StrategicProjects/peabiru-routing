@@ -203,13 +203,14 @@ impl Network {
         }
     }
 
-    /// Warnings for the feeds that r5r refuses to build a network from,
-    /// one per feed.
+    /// Warnings about the network build: one per feed that r5r refuses to
+    /// build a network from, then those about the elevation raster.
     pub fn r5r_warnings(&self) -> Array {
-        let w = self
+        let mut w = self
             .transit
             .as_ref()
             .map_or_else(Vec::new, |t| t.layer.r5r_warnings());
+        w.extend(self.net.elevation_warnings().iter().cloned());
         w.iter().map(|s| JsValue::from_str(s)).collect()
     }
 

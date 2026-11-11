@@ -3,7 +3,9 @@
 # the synthetic fixtures/spo_hills.tif, also warped by GDAL to SIRGAS 2000 /
 # UTM zone 23S (spo_hills_31983.tif, 50 m, bilinear) and to SIRGAS 2000
 # longitude and latitude (spo_hills_4674.tif, Float32), which r5r reads
-# through GeoTools' coordinate transforms. Needs r5r, a JDK 21 and the R5 jar,
+# through GeoTools' coordinate transforms; and spo_voids.tif, spo_hills.tif
+# with voids of -32768 and patches of -9999, which r5r stores wrapped
+# around as 16-bit decimetres. Needs r5r, a JDK 21 and the R5 jar,
 # so it is skipped on CRAN and wherever r5r cannot start (see helper-r5r.R).
 # bench/compare/elevation_parity.R runs the full comparison.
 
@@ -25,7 +27,8 @@ elevation_networks <- local({
     } else {
       r5r_sample("spo", packages = "sf")
       file.copy(file.path(fixture_path(), c("spo_osm.pbf", "spo_gtfs.zip")), dir)
-      tif <- if (city == "spo") "spo_hills.tif" else paste0("spo_hills_", sub("spo", "", city), ".tif")
+      tif <- switch(city, spo = "spo_hills.tif", spovoids = "spo_voids.tif",
+                    paste0("spo_hills_", sub("spo", "", city), ".tif"))
       file.copy(test_path("fixtures", tif), dir)
       points <- fixture_points()
     }
@@ -37,7 +40,12 @@ elevation_networks <- local({
                      NULL
                    })
     skip_without_r5r(is.null(r5), paste0("r5r could not build a network: ", why))
-    pb <- build_network(dir, elevation = model, n_threads = 2)
+    # (spo_voids.tif warns about its wrapped values; r5r says nothing)
+    pb <- if (city == "spovoids") {
+      expect_warning(build_network(dir, elevation = model, n_threads = 2), "wrapped around")
+    } else {
+      build_network(dir, elevation = model, n_threads = 2)
+    }
     nets[[key]] <<- list(r5 = r5, pb = pb, points = points)
     nets[[key]]
   }
@@ -102,5 +110,14 @@ test_that("rasters in SIRGAS 2000 give r5r's transit times and itineraries", {
     expect_elevation_parity(key, "detailed_itineraries", origins = pts[1:8, ],
                             destinations = pts[9:16, ], mode = "BICYCLE",
                             departure_datetime = departure, drop_geometry = TRUE)
+  }
+})
+
+test_that("voids and values beyond +/-3276.7 m wrap around as in r5r", {
+  key <- "spovoids-tobler"
+  pts <- elevation_networks(key)$points
+  for (mode in c("WALK", "BICYCLE")) {
+    expect_elevation_parity(key, "travel_time_matrix", origins = pts, destinations = pts,
+                            mode = mode)
   }
 })

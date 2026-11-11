@@ -236,12 +236,16 @@ impl Network {
         Ok(d)
     }
 
-    /// Warnings for the GTFS feeds that r5r refuses to build a network
-    /// from, one per feed.
+    /// Warnings about the network build: one per GTFS feed that r5r
+    /// refuses to build a network from, then those about the elevation
+    /// raster.
     fn r5r_warnings(&self) -> Vec<String> {
-        self.transit
+        let mut w = self
+            .transit
             .as_ref()
-            .map_or_else(Vec::new, |t| t.layer.r5r_warnings())
+            .map_or_else(Vec::new, |t| t.layer.r5r_warnings());
+        w.extend(self.net.elevation_warnings().iter().cloned());
+        w
     }
 
     /// Number of services in the network and of those active on `date`

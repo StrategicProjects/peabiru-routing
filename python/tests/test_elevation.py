@@ -74,3 +74,24 @@ def test_an_upper_case_name_is_not_a_raster(tmp_path):
     network = peabiru.build_network(_dir(tmp_path, {"HILLS.TIF": HILLS}), n_threads=2)
     assert network.elevation == "NONE"
     assert not network.has_tif
+
+
+def test_rasters_in_other_coordinate_reference_systems(tmp_path, network, points):
+    projected = os.path.join(os.path.dirname(__file__), "data", "spo_hills_31983.tif")
+    n = peabiru.build_network(_dir(tmp_path, {"hills.tif": projected}), n_threads=2)
+    assert n.elevation == "TOBLER"
+    assert not _times(n, points, "WALK").equals(_times(network, points, "WALK"))
+
+
+def test_voids_wrap_around_with_a_warning(tmp_path):
+    voids = os.path.join(os.path.dirname(__file__), "data", "spo_voids.tif")
+    a = tmp_path / "a"
+    a.mkdir()
+    with pytest.warns(UserWarning, match=r"[0-9]+ with a value beyond \+/-3276.7 m"):
+        n = peabiru.build_network(_dir(a, {"voids.tif": voids}), n_threads=2)
+    assert n.elevation == "TOBLER"
+    b = tmp_path / "b"
+    b.mkdir()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        peabiru.build_network(_dir(b), n_threads=2)

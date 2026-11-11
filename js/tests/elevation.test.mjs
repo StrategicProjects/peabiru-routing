@@ -66,3 +66,19 @@ test("bad elevation input is an error", async () => {
   assert.equal(net.info().elevation, "NONE");
   net.free();
 });
+
+test("rasters in other coordinate reference systems, and voids with a warning", async () => {
+  const flat = await sampleNetwork();
+  const utm = await build({ tif: readFileSync(new URL("./data/spo_hills_31983.tif", import.meta.url)) });
+  assert.equal(utm.info().elevation, "TOBLER");
+  assert.notDeepEqual(await times(utm, "WALK"), await times(flat, "WALK"));
+  const warnings = [];
+  const voids = await build({
+    tif: readFileSync(new URL("./data/spo_voids.tif", import.meta.url)),
+    onWarning: (w) => warnings.push(w),
+  });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /[0-9]+ with a value beyond \+\/-3276\.7 m/);
+  assert.deepEqual(voids.r5rWarnings(), warnings);
+  for (const n of [utm, voids]) n.free();
+});
