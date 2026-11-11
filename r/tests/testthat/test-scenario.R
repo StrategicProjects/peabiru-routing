@@ -3,6 +3,7 @@
 # what they should, and nothing else.
 
 ways_of <- function(network) {
+  skip_if_not_installed("sf")
   unique(street_network_to_sf(network)$edges$osm_id)
 }
 
