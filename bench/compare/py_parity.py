@@ -201,6 +201,29 @@ def scenarios(n: int) -> List[Dict[str, Any]]:
         mode_egress="CAR", departure_datetime=dep, breakdown=True, max_car_time=10,
         time_window=5, seed=42)
 
+    # scenarios: tables written by scenario_files() (r5r's Porto Alegre files
+    # as GeoJSON, made-up ways of the network)
+    files = SCENARIO_FILES
+    if files:
+        add("scen_car_scale", ttm, "street", mode="CAR", carspeed_scale=0.7)
+        add("scen_car_osm", ttm, "street", mode="CAR", new_carspeeds={"csv": files["osm"]},
+            carspeed_scale=0.9)
+        add("scen_car_kmh", ttm, "street", mode="CAR", new_carspeeds={"csv": files["kmh"]})
+        add("scen_bike_lts", ttm, "street", mode="BICYCLE", new_lts={"csv": files["lts"]})
+        add("scen_transit_bike", ttm, "transit", mode=["BICYCLE", "TRANSIT"],
+            new_lts={"csv": files["lts"]}, departure_datetime=dep, max_bike_time=20, seed=42)
+        add("scen_access_car", "accessibility", "transit", opportunities_colnames="jobs",
+            mode=["CAR", "TRANSIT"], carspeed_scale=0.5, departure_datetime=dep,
+            cutoffs=[30, 45], max_car_time=15, seed=42)
+        add("scen_expanded_bike", ex, "transit", origins=o50, mode=["BICYCLE", "TRANSIT"],
+            new_lts={"csv": files["lts"]}, departure_datetime=dep, breakdown=True,
+            max_bike_time=15, seed=42)
+        if "poly" in files:
+            add("scen_poa_poly", ttm, "street", mode="CAR",
+                new_carspeeds={"geojson": files["poly"]}, carspeed_scale=1.2)
+            add("scen_poa_lines", ttm, "street", mode="BICYCLE",
+                new_lts={"geojson": files["lines"]}, max_lts=3)
+
     # Python-specific inputs: shuffled points, integer ids, a datetime in
     # another time zone, arrival on an aware datetime in UTC
     rng = random.Random(20261109)
@@ -235,6 +258,12 @@ def scenarios(n: int) -> List[Dict[str, Any]]:
 
 
 def to_py(value: Any) -> Any:
+    if isinstance(value, dict) and "csv" in value:
+        return pd.read_csv(value["csv"])
+    if isinstance(value, dict) and "geojson" in value:
+        import geopandas
+
+        return geopandas.read_file(value["geojson"])
     if isinstance(value, dict) and "datetime" in value:
         t = dt.datetime.strptime(value["datetime"], "%Y-%m-%d %H:%M:%S")
         return t if value["naive"] else t.replace(tzinfo=ZoneInfo(value["tz"]))
@@ -317,6 +346,46 @@ def compare(py: pd.DataFrame, ref: pd.DataFrame, types: Dict[str, str]) -> List[
     return out
 
 
+# per city, the scenario tables (see scenario_files())
+SCENARIO_FILES: Dict[str, str] = {}
+
+SCENARIO_R = r"""
+a <- commandArgs(TRUE)
+suppressPackageStartupMessages(library(sf))
+set.seed(11)
+ways <- unique(suppressWarnings(peabiru::street_network_to_sf(
+  peabiru::build_network(a[1], n_threads = 2)))$edges$osm_id)
+write.csv(data.frame(osm_id = sample(ways, 1000, replace = TRUE),
+                     max_speed = sample(c(0, 0.25, 0.6, 1.5), 1000, replace = TRUE),
+                     speed_type = "scale"), file.path(a[2], "osm.csv"), row.names = FALSE)
+write.csv(data.frame(osm_id = sample(ways, 500), max_speed = round(runif(500, 0, 90), 1),
+                     speed_type = "km/h"), file.path(a[2], "kmh.csv"), row.names = FALSE)
+write.csv(data.frame(osm_id = sample(ways, 1000), lts = sample(1:4, 1000, replace = TRUE)),
+          file.path(a[2], "lts.csv"), row.names = FALSE)
+if (a[3] == "poa") {
+  src <- system.file("extdata/poa", package = "r5r")
+  st_write(readRDS(file.path(src, "poa_poly_congestion.rds")),
+           file.path(a[2], "poly.geojson"), quiet = TRUE)
+  st_write(readRDS(file.path(src, "poa_ls_lts.rds")),
+           file.path(a[2], "lines.geojson"), quiet = TRUE)
+}
+"""
+
+
+def scenario_files(street_dir: str, out: Path, city: str) -> Dict[str, str]:
+    """The tables of the scenarios, written by R (with the peabiru R
+    package, which lists the network's ways) into ``out``."""
+    out.mkdir()
+    script = out / "make.R"
+    script.write_text(SCENARIO_R)
+    r = subprocess.run(["Rscript", str(script), street_dir, str(out), city])
+    if r.returncode != 0:
+        raise SystemExit("could not write the scenario tables")
+    names = ["osm", "kmh", "lts"] + (["poly", "lines"] if city == "poa" else [])
+    ext = {"poly": "geojson", "lines": "geojson"}
+    return {n: str(out / f"{n}.{ext.get(n, 'csv')}") for n in names}
+
+
 def main() -> int:
     cities = sys.argv[1:] or ["poa", "spo"]
     assert all(c in N_POINTS for c in cities), cities
@@ -346,6 +415,8 @@ def main() -> int:
         spec["cities"][city] = {
             "hexgrid": str(src / f"{city}_hexgrid.csv"), **dirs,
         }
+        SCENARIO_FILES.clear()
+        SCENARIO_FILES.update(scenario_files(dirs["street"], work / f"{city}-scenarios", city))
         per_city[city] = [
             s for s in scenarios(N_POINTS[city])
             if not only or any(s["name"].startswith(p) for p in only)

@@ -25,6 +25,7 @@ pub fn run(args: &[String]) {
     let cmd = "expanded";
     let (dir, points, out) = crate::positional3(cmd, args);
     let mut p = TransitParams::default();
+    p.scenario = cli::scenario(cmd);
     let (mut arrival, mut breakdown, mut n_origins) = (false, false, usize::MAX);
     let mut have_date = false;
     let mut have_time = false;

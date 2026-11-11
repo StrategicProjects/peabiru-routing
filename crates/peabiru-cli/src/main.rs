@@ -94,6 +94,7 @@ fn transit(args: &[String]) {
     let cmd = "transit";
     let (dir, points, out) = positional3(cmd, args);
     let mut p = TransitParams::default();
+    p.scenario = cli::scenario(cmd);
     let mut repeats = 1usize;
     let (mut have_date, mut have_time) = (false, false);
     let mut i = 3;
@@ -322,6 +323,7 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     let mut params = RouteParams::default();
     params.n_threads = n_threads;
     params.engine = engine;
+    params.scenario = cli::scenario(cmd);
     let mut times = Vec::new();
     let mut m = None;
     for _ in 0..repeats {

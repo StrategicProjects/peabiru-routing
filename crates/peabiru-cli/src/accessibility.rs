@@ -171,9 +171,11 @@ pub fn run(args: &[String]) {
     let mut cutoffs: Option<Vec<i32>> = None;
     let mut percentiles = vec![50];
     let mut tp = TransitParams::default();
+    tp.scenario = cli::scenario(CMD);
     let mut max_walk: Option<i32> = None;
     let mut max_trip = 120;
     let mut rp = RouteParams::default();
+    rp.scenario = tp.scenario.clone();
     let mut dest_path: Option<String> = None;
     let mut repeats = 1usize;
     let (mut have_date, mut have_time) = (false, false);

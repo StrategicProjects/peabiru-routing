@@ -111,6 +111,7 @@ pub fn street_travel_time_surface(
 ) -> Result<TravelTimeSurface, RouteError> {
     check_percentiles(percentiles).map_err(RouteError::Invalid)?;
     params.validate()?;
+    no_scenario(&params.scenario)?;
     let grid = WebMercatorGrid::for_network(net, zoom)?;
     let mut percentiles = percentiles.to_vec();
     percentiles.sort_unstable();
@@ -138,6 +139,20 @@ pub fn street_travel_time_surface(
     })
 }
 
+/// r5r's `isochrone()` has no scenario arguments, so there is nothing to
+/// compare a surface with a scenario with: an error.
+fn no_scenario(s: &crate::Scenario) -> Result<(), RouteError> {
+    if s.is_unchanged() {
+        Ok(())
+    } else {
+        Err(RouteError::Invalid(
+            "travel-time surfaces take no scenario: r5r's isochrone() has no new_carspeeds, \
+             carspeed_scale or new_lts"
+                .into(),
+        ))
+    }
+}
+
 /// Travel-time surface by public transport (r5r's `isochrone()` with
 /// public transport in `mode`, its modes, access and egress as in
 /// [`TransitParams`](crate::TransitParams), and
@@ -152,6 +167,7 @@ pub fn transit_travel_time_surface(
     p: &TransitParams,
     zoom: i32,
 ) -> Result<TravelTimeSurface, RouteError> {
+    no_scenario(&p.scenario)?;
     let grid = WebMercatorGrid::for_network(net, zoom)?;
     let q = Query::new_grid(net, layer, data, &grid, p)?;
     let mut percentiles = p.percentiles.clone();

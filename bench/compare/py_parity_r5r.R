@@ -72,6 +72,13 @@ to_r <- function(name, v) {
     return(as.POSIXct(v$datetime, tz = v$tz))
   }
   if (is.character(v) && length(v) == 1 && v == "Inf") return(Inf)
+  # scenario tables: a CSV, or GeoJSON for the sf frames
+  if (is.list(v) && !is.null(v$csv)) {
+    df <- read.csv(v$csv)
+    if (!is.null(df$lts)) df$lts <- as.integer(df$lts)
+    return(df)
+  }
+  if (is.list(v) && !is.null(v$geojson)) return(sf::st_read(v$geojson, quiet = TRUE))
   v
 }
 

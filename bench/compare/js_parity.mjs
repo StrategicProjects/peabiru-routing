@@ -33,7 +33,7 @@
 // worker, in JavaScript).
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -57,8 +57,8 @@ const OUT = process.env.PARITY_OUT || mkdtempSync(join(tmpdir(), "peabiru-js-par
 mkdirSync(OUT, { recursive: true });
 
 /** Run the CLI; returns [stdout, seconds of routing, seconds of building] as it reports them. */
-function cli(args) {
-  const out = execFileSync(BIN, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+function cli(args, env = {}) {
+  const out = execFileSync(BIN, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env } });
   const secs = (what) => {
     const m = new RegExp(`${what} ([0-9.]+)s`).exec(out);
     return m ? Number(m[1]) : NaN;
@@ -395,6 +395,51 @@ for (const city of cities.length ? cities : ["poa", "spo"]) {
       columns,
       over: (r, col) => r[col("total_time")] !== "" && Number(r[col("total_time")]) > mtd,
     });
+  }
+  // street scenarios by OSM way (the CLI reads them from PEABIRU_SCENARIO;
+  // the polygon and line forms, and scenarios with public transport, are
+  // compared with r5r by bench/compare/r_parity.R and py_parity.py)
+  {
+    const ways = [...new Set((await peabiru.streetNetworkToSf(streets)).edges.features.map((f) => f.properties.osm_id))];
+    let seed = 7;
+    const rnd = (n) => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed % n;
+    };
+    const pick = (n) => Array.from({ length: n }, () => ways[rnd(ways.length)]);
+    const scenarios = [
+      { name: "car factors", mode: "CAR", car: "scale", ids: pick(800), values: () => [0, 0.3, 0.7, 1.6][rnd(4)], scale: 0.9 },
+      { name: "car kmh", mode: "CAR", car: "km/h", ids: pick(500), values: () => rnd(900) / 10, scale: 1 },
+      { name: "bike lts", mode: "BICYCLE", lts: pick(1000) },
+      { name: "car scale", mode: "CAR", scale: 0.63 },
+    ];
+    for (const sc of scenarios) {
+      const lines = [`carspeed_scale ${sc.scale ?? 1}`];
+      const opts = { mode: sc.mode, carspeedScale: sc.scale ?? 1 };
+      if (sc.car) {
+        lines.push(`car ${sc.car}`);
+        const values = sc.ids.map(() => sc.values());
+        sc.ids.forEach((id, i) => lines.push(`way ${id} ${values[i]}`));
+        opts.newCarspeeds = { osm_id: sc.ids, max_speed: values, speed_type: sc.ids.map(() => sc.car) };
+      }
+      if (sc.lts) {
+        const lts = sc.lts.map(() => 1 + rnd(4));
+        sc.lts.forEach((id, i) => lines.push(`lts ${id} ${lts[i]}`));
+        opts.newLts = { osm_id: sc.lts, lts };
+      }
+      const file = join(OUT, `${city}_scenario_${sc.name.replace(/ /g, "_")}.txt`);
+      writeFileSync(file, lines.join("\n") + "\n");
+      const f = join(OUT, `${city}_SCEN_${sc.name.replace(/ /g, "_")}.csv`);
+      const env = { PEABIRU_SCENARIO: file };
+      const [, tc] = cli(["ttm", pbfPath, ptsPath, sc.mode, f, T], env);
+      const [js, tj] = await time(sc.name, () => peabiru.travelTimeMatrix(streets, pts, pts, opts));
+      timings.push([city, `scenario ${sc.name}`, tc, tj]);
+      ok &= compare(`${city} scenario ${sc.name}`, f, js, {
+        rowsFrom: "from_id",
+        columns: { from_id: "str", to_id: "str", travel_time_p50: "int" },
+        intLimit: 120,
+      });
+    }
   }
   streets.free();
   net.free();

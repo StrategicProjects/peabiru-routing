@@ -34,6 +34,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 mod inspect;
+mod scenario;
 
 /// Missing value in the `i32` columns handed to Python.
 const NA_I32: i32 = i32::MIN;
@@ -331,18 +332,21 @@ fn street_ttm<'py>(
     max_trip_duration: i32,
     n_threads: usize,
     percentiles: Vec<i32>,
+    scenario: Option<Bound<'py, PyDict>>,
     output: Output,
 ) -> PyResult<(Col<'py>, Col<'py>, Col<'py>)> {
+    let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let mode = street_mode(mode)?;
-    let params = route_params(
+    let mut params = route_params(
         walk_speed,
         bike_speed,
         max_lts,
         max_trip_duration,
         n_threads,
     );
+    params.scenario = scenario.clone();
     if let Some(out) = &output {
         let w = csv_writer(out, n_threads);
         written(interruptible(py, &params.cancel, || {
@@ -470,8 +474,10 @@ fn transit_ttm<'py>(
     draws_per_minute: i32,
     seed: Option<i32>,
     n_threads: usize,
+    scenario: Option<Bound<'py, PyDict>>,
     output: Output,
 ) -> PyResult<(Col<'py>, Col<'py>, Vec<Col<'py>>)> {
+    let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
     let modes = parse_transit_modes(transit_modes)?;
     let egress = transit_street_mode(egress_mode)?;
@@ -479,7 +485,7 @@ fn transit_ttm<'py>(
     let t = transit(n)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let np = percentiles.len();
-    let p = transit_params(
+    let mut p = transit_params(
         modes.clone(),
         access,
         egress,
@@ -499,6 +505,7 @@ fn transit_ttm<'py>(
         seed,
         n_threads,
     );
+    p.scenario = scenario.clone();
     if let Some(out) = &output {
         let w = csv_writer(out, n_threads);
         written(interruptible(py, &p.cancel, || {
@@ -593,8 +600,10 @@ fn accessibility<'py>(
     draws_per_minute: i32,
     seed: Option<i32>,
     n_threads: usize,
+    scenario: Option<Bound<'py, PyDict>>,
     output: Output,
 ) -> PyResult<Bound<'py, PyBytes>> {
+    let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
     let modes = parse_transit_modes(transit_modes)?;
     let egress = transit_street_mode(egress_mode)?;
@@ -655,6 +664,7 @@ fn accessibility<'py>(
         n_threads,
     );
     p.cancel = cancel.clone();
+    p.scenario = scenario.clone();
     let mut params = route_params(
         walk_speed,
         bike_speed,
@@ -663,6 +673,7 @@ fn accessibility<'py>(
         n_threads,
     );
     params.cancel = cancel.clone();
+    params.scenario = scenario;
     let values = interruptible(py, &cancel, || {
         let dest = Destinations::new(&d, &opp);
         let mut all = None;
@@ -734,15 +745,17 @@ fn expanded<'py>(
     seed: Option<i32>,
     n_threads: usize,
     breakdown: bool,
+    scenario: Option<Bound<'py, PyDict>>,
     output: Output,
 ) -> PyResult<Bound<'py, PyDict>> {
+    let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
     let modes = parse_transit_modes(transit_modes)?;
     let egress = transit_street_mode(egress_mode)?;
     let access = street_mode(access_mode)?;
     let t = transit(n)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
-    let p = transit_params(
+    let mut p = transit_params(
         modes.clone(),
         access,
         egress,
@@ -762,6 +775,7 @@ fn expanded<'py>(
         seed,
         n_threads,
     );
+    p.scenario = scenario.clone();
     let route = |o: &[(f64, f64)]| {
         if arrival {
             arrival_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)

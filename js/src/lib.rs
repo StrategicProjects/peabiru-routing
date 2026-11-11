@@ -34,6 +34,7 @@ use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 mod inspect;
+mod scenario;
 
 /// Missing value in the `i32` columns handed to JavaScript.
 const NA_I32: i32 = i32::MIN;
@@ -303,10 +304,13 @@ pub fn street_ttm(
     bike_speed: f64,
     max_lts: i32,
     max_trip_duration: i32,
+    scenario: JsValue,
 ) -> Result<Array, JsError> {
+    let scenario = scenario::scenario_of(&scenario)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let mode = street_mode(mode)?;
-    let p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
+    let mut p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
+    p.scenario = scenario.clone();
     let m = street_travel_time_matrix(&network.net, &o, &d, mode, &p).map_err(route_err)?;
     let nd = d.len();
     let (mut from, mut to, mut tt) = (Vec::new(), Vec::new(), Vec::new());
@@ -350,11 +354,13 @@ pub fn transit_ttm(
     max_rides: usize,
     draws_per_minute: i32,
     seed: i32,
+    scenario: JsValue,
 ) -> Result<Array, JsError> {
+    let scenario = scenario::scenario_of(&scenario)?;
     let t = transit(network)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let np = percentiles.len();
-    let p = transit_params(
+    let mut p = transit_params(
         transit_modes,
         access_mode,
         egress_mode,
@@ -373,6 +379,7 @@ pub fn transit_ttm(
         draws_per_minute,
         seed,
     )?;
+    p.scenario = scenario.clone();
     let m = transit_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
         .map_err(route_err)?;
     let (mut from, mut to) = (Vec::new(), Vec::new());
@@ -450,7 +457,9 @@ pub fn accessibility(
     max_rides: usize,
     draws_per_minute: i32,
     seed: i32,
+    scenario: JsValue,
 ) -> Result<Float64Array, JsError> {
+    let scenario = scenario::scenario_of(&scenario)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     if opportunities.len() != n_opportunities * d.len() {
         return Err(err(
@@ -466,7 +475,7 @@ pub fn accessibility(
     let dest = Destinations::new(&d, &opp);
     let values = if !transit_modes.is_empty() {
         let t = transit(network)?;
-        let p = transit_params(
+        let mut p = transit_params(
             transit_modes,
             mode,
             egress_mode,
@@ -485,10 +494,12 @@ pub fn accessibility(
             draws_per_minute,
             seed,
         )?;
+        p.scenario = scenario.clone();
         transit_accessibility(&network.net, &t.layer, &t.data, &o, &dest, &p, &a)
     } else {
         let m = street_mode(mode)?;
-        let p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
+        let mut p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
+        p.scenario = scenario.clone();
         street_accessibility(&network.net, &o, &dest, m, &p, &percentiles, &a)
     }
     .map_err(route_err)?;
@@ -530,10 +541,12 @@ pub fn expanded(
     max_rides: usize,
     draws_per_minute: i32,
     seed: i32,
+    scenario: JsValue,
 ) -> Result<Array, JsError> {
+    let scenario = scenario::scenario_of(&scenario)?;
     let t = transit(network)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
-    let p = transit_params(
+    let mut p = transit_params(
         transit_modes,
         access_mode,
         egress_mode,
@@ -552,6 +565,7 @@ pub fn expanded(
         draws_per_minute,
         seed,
     )?;
+    p.scenario = scenario.clone();
     let rows = if arrival {
         arrival_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
     } else {

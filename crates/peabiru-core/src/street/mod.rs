@@ -13,10 +13,12 @@ pub(crate) mod link;
 pub(crate) mod parkride;
 pub(crate) mod restrictions;
 pub(crate) mod router;
+pub(crate) mod scenario;
 
 pub use build::{build_network, BuildOptions};
 pub(crate) use restrictions::TurnRestriction;
 pub use router::{street_travel_time_matrix, Mode, RouteParams, StreetEngine, StreetMatrix};
+pub use scenario::{CarSpeeds, LtsChange, LtsLine, Scenario, SpeedPolygon};
 
 /// Edge flags (bit set per directed edge).
 #[allow(missing_docs)]

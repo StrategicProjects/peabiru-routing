@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional, Tuple
 # (directory, origin ids, destination ids or, for accessibility, the
 # opportunity names): write r5r's CSV files there instead of returning
 Output = Optional[Tuple[str, List[str], List[str]]]
+# the scenario of a call (peabiru._scenario.scenario_spec), None for none
+Scenario = Optional[Dict[str, Any]]
 
 __version__: str
 NA_I32: int
@@ -20,7 +22,7 @@ def street_ttm(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
     mode: str, walk_speed: float, bike_speed: float, max_lts: int,
     max_trip_duration: int, n_threads: int, percentiles: List[int],
-    output: Output,
+    scenario: Scenario, output: Output,
 ) -> Tuple[bytes, bytes, bytes]: ...
 def transit_ttm(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
@@ -29,7 +31,7 @@ def transit_ttm(
     date: int, departure_time: int, time_window: int, percentiles: List[int],
     max_walk_time: int, max_trip_duration: int, walk_speed: float,
     max_rides: int, draws_per_minute: int, seed: Optional[int], n_threads: int,
-    output: Output,
+    scenario: Scenario, output: Output,
 ) -> Tuple[bytes, bytes, List[bytes]]: ...
 def accessibility(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
@@ -39,7 +41,7 @@ def accessibility(
     max_walk_time: int, max_bike_time: int, max_car_time: int,
     max_trip_duration: int, walk_speed: float, bike_speed: float,
     max_lts: int, max_rides: int, draws_per_minute: int, seed: Optional[int],
-    n_threads: int, output: Output,
+    n_threads: int, scenario: Scenario, output: Output,
 ) -> bytes: ...
 def expanded(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
@@ -48,7 +50,7 @@ def expanded(
     arrival: bool, date: int, departure_time: int, time_window: int,
     max_walk_time: int, max_trip_duration: int, walk_speed: float,
     max_rides: int, draws_per_minute: int, seed: Optional[int], n_threads: int,
-    breakdown: bool, output: Output,
+    breakdown: bool, scenario: Scenario, output: Output,
 ) -> Dict[str, Any]: ...
 def isochrone_polygons(
     network: Network, olat: bytes, olon: bytes, mode: str, transit_modes: str,

@@ -147,7 +147,6 @@ the same parameters; peabiru is validated against r5r, not r5py.
 Each of these raises `peabiru.UnsupportedError` instead of being ignored:
 
 - fares: `fare_structure`, and a finite `max_fare`;
-- scenarios: `new_carspeeds`, `carspeed_scale` other than 1, `new_lts`;
 - elevation: a `.tif` raster in the data directory requires
   `elevation="NONE"`;
 - expanded and arrival matrices by a street mode alone (r5r takes the

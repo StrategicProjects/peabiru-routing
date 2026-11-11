@@ -161,8 +161,7 @@ for (let i = 0; i < ttm.from_id.length; i++) {
 
 What peabiru does not support yet throws `peabiru.UnsupportedError`; it is
 never silently ignored: fares
-(`fareStructure`, `maxFare`), scenarios (`newCarspeeds`, `carspeedScale`,
-`newLts`), `outputDir`, expanded and arrival matrices by a street mode
+(`fareStructure`, `maxFare`), `outputDir`, expanded and arrival matrices by a street mode
 alone. Elevation is not supported either: `buildNetwork()` takes no
 elevation raster.
 

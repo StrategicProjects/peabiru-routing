@@ -17,7 +17,7 @@
 #' car) and must stay within `max_bike_time` or `max_car_time`.
 #'
 #' Not supported yet, and an error when requested: fares (`fare_structure`,
-#' `max_fare`); scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`).
+#' `max_fare`).
 #'
 #' @param r5r_network A network built with [build_network()].
 #' @param origins,destinations A `data.frame` with columns `id`, `lon` and
@@ -45,8 +45,28 @@
 #'   a cyclist will ride on.
 #' @param fare_structure,max_fare Fares; not supported yet (`fare_structure`
 #'   must be `NULL` and `max_fare` `Inf`).
-#' @param new_carspeeds,carspeed_scale,new_lts Scenarios; not supported yet
-#'   (must be `NULL`, `1` and `NULL`).
+#' @param new_carspeeds A scenario of car speeds, as in r5r: `NULL`, a data
+#'   frame with columns `osm_id`, `max_speed` and `speed_type` (`"scale"`, a
+#'   factor for the car speed of the way's edges, or `"km/h"`, a speed; 0
+#'   closes the way to cars), or an `sf` data frame of `POLYGON`s or
+#'   `MULTIPOLYGON`s in WGS 84 with columns `poly_id` (character), `scale`
+#'   (numeric) and `priority` (integer): each street edge takes the factor
+#'   of the polygon it meets with the highest priority (ties: the one it
+#'   overlaps most).
+#' @param carspeed_scale A number of at least 0, the factor for the car
+#'   speeds of the edges `new_carspeeds` leaves out (all of them when it is
+#'   `NULL`).
+#' @param new_lts A scenario of levels of traffic stress, as in r5r: `NULL`,
+#'   a data frame with columns `osm_id` and `lts` (integer), or an `sf` data
+#'   frame of `LINESTRING`s in WGS 84 with columns `line_id`, `lts` (1 to 4)
+#'   and `priority`: each street edge takes the level of the line closest to
+#'   it among those whose bounding box meets its own. As in r5r, the
+#'   scenario changes the street search from the origins (the trip without
+#'   public transport, and access by bicycle or car) but not the egress
+#'   from the stops, and `priority` is not used. A car speed that R5's
+#'   16-bit cm/s would turn into 0 or less (a factor too small or too
+#'   large) is an error, as are polygons that are not valid and ties
+#'   between polygons that peabiru cannot settle exactly as R5 does.
 #' @param draws_per_minute An integer, the Monte Carlo draws per departure
 #'   minute for frequency-based 'GTFS'.
 #' @param seed An integer seed for the Monte Carlo draws, or `NULL`. With
@@ -171,7 +191,7 @@ travel_time_matrix <- function(r5r_network,
   check_messages(verbose, progress)
   check_fares(fare_structure, max_fare)
   check_output_dir(output_dir)
-  check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
 
   pct_names <- sprintf("travel_time_p%02d", percentiles)
   output <- csv_output(output_dir, origins, destinations,
@@ -185,7 +205,7 @@ travel_time_matrix <- function(r5r_network,
       departure$yyyymmdd, departure$seconds, as.integer(time_window),
       percentiles, max_walk_time, max_trip_duration, as.double(walk_speed),
       as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
-      threads, output
+      threads, scenario, output
     ))
     if (!is.null(output_dir)) return(output_dir)
     times <- res[-(1:2)]
@@ -193,7 +213,7 @@ travel_time_matrix <- function(r5r_network,
     res <- raise_if_stopped(rs_street_ttm(
       r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
       mode_list$direct_modes, as.double(walk_speed), as.double(bike_speed),
-      as.integer(max_lts), max_trip_duration, threads, output
+      as.integer(max_lts), max_trip_duration, threads, scenario, output
     ))
     if (!is.null(output_dir)) return(output_dir)
     # a street mode has one travel time, reported for every percentile

@@ -27,6 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 mod inspect;
+mod scenario;
 
 /// A network built once and shared by every routing call.
 struct Network {
@@ -452,17 +453,19 @@ fn rs_street_ttm(
     max_lts: i32,
     max_trip_duration: i32,
     n_threads: i32,
+    scenario: Robj,
     output: Robj,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
-    let params = route_params(
+    let mut params = route_params(
         walk_speed,
         bike_speed,
         max_lts,
         max_trip_duration,
         n_threads,
     );
+    params.scenario = scenario::scenario_of(&scenario)?;
     let mode = street_mode(mode)?;
     if let Some(out) = Output::of(&output)? {
         let percentiles: Vec<i32> = out
@@ -593,12 +596,13 @@ fn rs_transit_ttm(
     has_seed: bool,
     seed: i32,
     n_threads: i32,
+    scenario: Robj,
     output: Robj,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let t = transit(n)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
-    let p = transit_params(
+    let mut p = transit_params(
         transit_modes,
         access_mode,
         egress_mode,
@@ -618,6 +622,7 @@ fn rs_transit_ttm(
         seed_of(has_seed, seed),
         n_threads,
     )?;
+    p.scenario = scenario::scenario_of(&scenario)?;
     if let Some(out) = Output::of(&output)? {
         let w = out.writer(n_threads);
         done!(interruptible(&p.cancel, || {
@@ -708,6 +713,7 @@ fn rs_accessibility(
     has_seed: bool,
     seed: i32,
     n_threads: i32,
+    scenario: Robj,
     output: Robj,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
@@ -745,7 +751,7 @@ fn rs_accessibility(
     a.decay = decay(decay_function, decay_value)?;
     let acc = if !transit_modes.is_empty() {
         let t = transit(n)?;
-        let p = transit_params(
+        let mut p = transit_params(
             transit_modes,
             mode,
             egress_mode,
@@ -765,6 +771,7 @@ fn rs_accessibility(
             seed_of(has_seed, seed),
             n_threads,
         )?;
+        p.scenario = scenario::scenario_of(&scenario)?;
         done!(interruptible(&p.cancel, || {
             let mut all = None;
             for r in &chunks {
@@ -780,13 +787,14 @@ fn rs_accessibility(
             Ok(all)
         })?)
     } else {
-        let params = route_params(
+        let mut params = route_params(
             walk_speed,
             bike_speed,
             max_lts,
             max_trip_duration,
             n_threads,
         );
+        params.scenario = scenario::scenario_of(&scenario)?;
         let mode = street_mode(mode)?;
         done!(interruptible(&params.cancel, || {
             let mut all = None;
@@ -852,12 +860,13 @@ fn rs_expanded(
     has_seed: bool,
     seed: i32,
     n_threads: i32,
+    scenario: Robj,
     output: Robj,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let t = transit(n)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
-    let p = transit_params(
+    let mut p = transit_params(
         transit_modes,
         access_mode,
         egress_mode,
@@ -877,6 +886,7 @@ fn rs_expanded(
         seed_of(has_seed, seed),
         n_threads,
     )?;
+    p.scenario = scenario::scenario_of(&scenario)?;
     let route = |o: &[(f64, f64)]| {
         if arrival {
             arrival_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)
@@ -1074,8 +1084,23 @@ fn rs_isochrone_polygons(
 /// @noRd
 #[extendr]
 fn rs_street_edges(ptr: Robj) -> Result<Robj> {
+    Ok(edges_list(&network(&ptr)?.net))
+}
+
+/// The street edges of the network a scenario makes (as `rs_street_edges`),
+/// for comparing it with r5r's; `NULL` when the scenario changes nothing.
+/// @noRd
+#[extendr]
+fn rs_scenario_street_edges(ptr: Robj, scenario: Robj) -> Result<Robj> {
     let n = network(&ptr)?;
-    let e = street_edges(&n.net);
+    let s = scenario::scenario_of(&scenario)?;
+    let net = peabiru_core::unstable::scenario_network(&n.net, &s).map_err(err)?;
+    Ok(net.map_or_else(|| ().into(), |net| edges_list(&net)))
+}
+
+/// The columns of r5r's `street_network_to_sf()` edges.
+fn edges_list(net: &StreetNetwork) -> Robj {
+    let e = street_edges(net);
     let rows = 0..e.len();
     let cen = e.centroid_points();
     let (mut n_points, mut x, mut y) = (Vec::with_capacity(e.len()), Vec::new(), Vec::new());
@@ -1087,7 +1112,7 @@ fn rs_street_edges(ptr: Robj) -> Result<Robj> {
             y.push(py);
         }
     }
-    Ok(list!(
+    list!(
         edge_index = rows
             .clone()
             .map(|i| e.edge_index(i) as i32)
@@ -1114,7 +1139,7 @@ fn rs_street_edges(ptr: Robj) -> Result<Robj> {
         x = x,
         y = y
     )
-    .into())
+    .into()
 }
 
 /// Line isochrones from an integer matrix of median minutes (`NA` where not
@@ -1170,6 +1195,7 @@ extendr_module! {
     fn rs_expanded;
     fn rs_isochrone_polygons;
     fn rs_street_edges;
+    fn rs_scenario_street_edges;
     fn rs_isochrone_lines;
     use inspect;
 }

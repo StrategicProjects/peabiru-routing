@@ -43,6 +43,56 @@ pub fn build_from_dir(
     Ok(built)
 }
 
+/// The scenario of the environment variable `PEABIRU_SCENARIO`, a text
+/// file of lines `carspeed_scale <x>`, `car scale|km/h`, `way <osm id>
+/// <value>` (car speeds by way) and `lts <osm id> <level>` (levels of
+/// traffic stress by way), the values written as r5r hands them to R5;
+/// the default scenario (no change) without the variable. Polygons and
+/// lines are not read here (the packages take them).
+pub fn scenario(cmd: &str) -> peabiru_core::Scenario {
+    use peabiru_core::unstable::{java_parse_float, java_parse_int, java_parse_long};
+    use peabiru_core::{CarSpeeds, LtsChange};
+    let mut s = peabiru_core::Scenario::default();
+    let Ok(path) = std::env::var("PEABIRU_SCENARIO") else {
+        return s;
+    };
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| runtime_error(cmd, format!("cannot read {path}: {e}")));
+    let (mut car, mut kmh, mut ways, mut lts) = (false, false, Vec::new(), Vec::new());
+    for (n, line) in text.lines().enumerate() {
+        let f: Vec<&str> = line.split_whitespace().collect();
+        let bad = || -> ! { runtime_error(cmd, format!("{path}:{}: cannot read '{line}'", n + 1)) };
+        match f.as_slice() {
+            [] => {}
+            ["carspeed_scale", x] => {
+                s.car_speed_scale = java_parse_float(x).unwrap_or_else(|| bad())
+            }
+            ["car", "scale"] => car = true,
+            ["car", "km/h"] => (car, kmh) = (true, true),
+            ["way", id, v] => ways.push((
+                java_parse_long(id).unwrap_or_else(|| bad()),
+                java_parse_float(v).unwrap_or_else(|| bad()),
+            )),
+            ["lts", id, v] => lts.push((
+                java_parse_long(id).unwrap_or_else(|| bad()),
+                java_parse_int(v).unwrap_or_else(|| bad()),
+            )),
+            _ => bad(),
+        }
+    }
+    if car {
+        s.car_speeds = if kmh {
+            CarSpeeds::KmhByWay(ways)
+        } else {
+            CarSpeeds::ScaleByWay(ways)
+        };
+    }
+    if !lts.is_empty() {
+        s.lts = LtsChange::ByWay(lts);
+    }
+    s
+}
+
 /// Whether the user asked for help anywhere on the command line.
 pub fn wants_help(args: &[String]) -> bool {
     args.iter().any(|a| a == "--help" || a == "-h")
