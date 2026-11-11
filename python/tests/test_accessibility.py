@@ -59,7 +59,7 @@ def test_decay_arguments_are_checked(network, points):
         call(decay_function="logistic", decay_value=0.5)
     with pytest.raises(ValueError, match="between 0 and 1"):
         call(decay_function="fixed_exponential", decay_value=1, cutoffs=None)
-    with pytest.raises(ValueError, match="Must be a subset"):
+    with pytest.raises(ValueError, match="Names must be a subset"):
         call(decay_function="gaussian")
     with pytest.raises(ValueError, match="<= 120"):
         call(cutoffs=121)

@@ -125,6 +125,7 @@ mod error;
 mod fares;
 mod fastmath;
 mod fastmath_trig;
+mod gdal;
 mod gtfs;
 mod inspect;
 mod isochrone;
@@ -192,6 +193,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[doc(hidden)]
 pub mod unstable {
     pub use crate::fares::zipio::{fwrite_csv, zip_stored, FwriteColumn};
+    pub use crate::gdal::{gdal_geojson_coordinate, gdal_geojson_text};
     pub use crate::isochrone::CxxLibrary;
     /// [`isochrone_polygons`](crate::isochrone_polygons) with the rings in
     /// the order isoband gives them when built with `lib`, whatever the

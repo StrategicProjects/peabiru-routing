@@ -167,7 +167,7 @@ def test_arguments_are_checked_as_r5r_checks_them(network, points, departure):
         call(mode=["WALK", "CAR"])
     with pytest.raises(ValueError, match="unsupported by r5r"):
         call(mode="CAR_PARK")
-    with pytest.raises(ValueError, match="Must be a subset"):
+    with pytest.raises(ValueError, match="Names must be a subset"):
         call(mode="PLANE")
     with pytest.raises(TypeError, match="mode"):
         call(mode=["WALK", 1])

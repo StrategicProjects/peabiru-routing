@@ -64,8 +64,14 @@ pub(crate) fn scenario_of(spec: Option<&Bound<'_, PyDict>>) -> PyResult<Scenario
             };
         }
         "polygon" => {
-            let x: Vec<f64> = item(d, "poly_x")?;
-            let y: Vec<f64> = item(d, "poly_y")?;
+            // r5r hands the polygons to R5 through GeoJSON written by GDAL
+            let gdal = |v: Vec<f64>| -> Vec<f64> {
+                v.into_iter()
+                    .map(peabiru_core::unstable::gdal_geojson_coordinate)
+                    .collect()
+            };
+            let x: Vec<f64> = gdal(item(d, "poly_x")?);
+            let y: Vec<f64> = gdal(item(d, "poly_y")?);
             let ring_len: Vec<usize> = item(d, "ring_len")?;
             let ring_polygon: Vec<usize> = item(d, "ring_polygon")?;
             let polygon_feature: Vec<usize> = item(d, "polygon_feature")?;

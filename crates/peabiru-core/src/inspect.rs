@@ -333,15 +333,17 @@ pub fn transit_service_dates(layer: &TransitLayer) -> Result<Vec<u32>, RouteErro
         if !used[code] {
             continue;
         }
-        if let Some((_, start, end)) = s.calendar {
-            if !basic_iso_date(start) || !basic_iso_date(end) {
+        if let Some((_, start_int, end_int)) = s.calendar {
+            let (Some(start), Some(end)) = (basic_iso_date(start_int), basic_iso_date(end_int))
+            else {
+                let (start, end) = (start_int, end_int);
                 let id = layer.service_ids.get(code).map_or("", String::as_str);
                 return Err(RouteError::Invalid(format!(
                     "Cannot discover operating dates for service '{id}': invalid calendar \
                      bounds {start} to {end}. Specify dates explicitly or correct the GTFS \
                      calendar."
                 )));
-            }
+            };
             let mut d = start;
             while d <= end {
                 if s.active_on(d, weekday(d)) {
@@ -360,9 +362,11 @@ pub fn transit_service_dates(layer: &TransitLayer) -> Result<Vec<u32>, RouteErro
 }
 
 /// Whether Java's `LocalDate.parse(Integer.toString(d), BASIC_ISO_DATE)`
-/// reads `d`: eight digits making a calendar date.
-fn basic_iso_date(d: u32) -> bool {
-    (10_000_101..=99_991_231).contains(&d) && check_date(d).is_ok()
+/// reads `d`: eight digits making a calendar date; the date.
+fn basic_iso_date(d: i32) -> Option<u32> {
+    u32::try_from(d)
+        .ok()
+        .filter(|&d| (10_000_101..=99_991_231).contains(&d) && check_date(d).is_ok())
 }
 
 /// The day after a valid `yyyymmdd`.

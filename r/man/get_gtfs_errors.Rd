@@ -46,8 +46,10 @@ changes from one run to the next. A feed on which gtfs-lib fails
 instead of listing errors (a date that is not \code{YYYYMMDD}, a frequency
 of a trip that does not exist, a service or fare without an id), on
 which r5r's \code{build_network()} fails without writing the file, is an
-error naming the cause, and so is a feed with GTFS-Flex zones
-(\code{locations.geojson}), which peabiru does not read.
+error naming the cause (as is a \code{locations.geojson}, of GTFS-Flex zones,
+that is not in UTF-8). GTFS-Flex zones and location groups are read as
+gtfs-lib reads them, for its errors; on-demand trips are not routed, as
+in r5r.
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")

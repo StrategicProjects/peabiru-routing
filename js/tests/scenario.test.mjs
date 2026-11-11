@@ -64,6 +64,10 @@ test("GeoJSON scenarios, and r5r's checks", async () => {
   };
   await assert.rejects(() => ttm(net, pts, { mode: "BICYCLE", newLts: line }), /Element 1 is not <= 4/);
   await assert.rejects(() => ttm(net, pts, { mode: "CAR", carspeedScale: -1 }), /Element 1 is not >= 0/);
+  // r5r's check lets NaN through, then fails with an internal R error
+  await assert.rejects(() => ttm(net, pts, { mode: "CAR", carspeedScale: NaN }), /must be a number that is not NaN/);
+  await assert.rejects(() => ttm(net, pts, { mode: "CAR", carspeedScale: "1" }), /Must be of type 'numeric', not 'string'/);
+  await assert.rejects(() => ttm(net, pts, { mode: "CAR", carspeedScale: 1e300 }), /32-bit float/);
   await assert.rejects(() => ttm(net, pts, { mode: "CAR", newCarspeeds: { osm_id: [1], max_speed: [1] } }), /missing elements \{'speed_type'\}/);
   await assert.rejects(() => ttm(net, pts, { mode: "CAR", newLts: { osm_id: [1], lts: [1.5] } }), /Must be of type 'integer'/);
   await assert.rejects(() => ttm(net, pts, { mode: "CAR", carspeedScale: 1e9 }), /speed of 0 or less/);

@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from ._checks import assert_number, fail_assert
+from ._checks import fail_assert, is_number
 
 
 def _q(values: List[str]) -> str:
@@ -136,6 +136,26 @@ def _check_wgs84(gdf: Any, what: str) -> None:
         )
 
 
+def _assert_scale(x: Any, name: str = "carspeed_scale") -> None:
+    """r5r's check of carspeed_scale (checkmate::assert_numeric(lower = 0,
+    finite = TRUE)), then a clear error for NaN, which that check lets
+    through and r5r then fails on with an internal R error."""
+    if x is None:
+        fail_assert(name, "Must be of type 'numeric', not 'None'", TypeError)
+    if not is_number(x):
+        fail_assert(name, f"Must be of type 'numeric', not '{type(x).__name__}'", TypeError)
+    x = float(x)
+    if x < 0:
+        fail_assert(name, "Element 1 is not >= 0")
+    if math.isinf(x):
+        fail_assert(name, "Must be finite")
+    if math.isnan(x):
+        raise ValueError(
+            f"'{name}' must be a number that is not NaN (r5r 2.5.0 fails on this value "
+            "with an internal R error)"
+        )
+
+
 def _is_geodataframe(x: Any) -> bool:
     return type(x).__name__ == "GeoDataFrame" and hasattr(x, "geometry")
 
@@ -164,7 +184,7 @@ def scenario_spec(
                 f"Must inherit from class 'DataFrame', but has class '{type(value).__name__}'",
                 TypeError,
             )
-    assert_number(carspeed_scale, "carspeed_scale", lower=0, finite=True)
+    _assert_scale(carspeed_scale)
     spec: Dict[str, Any] = {"car": "none", "carspeed_scale": float(carspeed_scale), "lts": "none"}
     changed = False
     if new_carspeeds is not None or carspeed_scale != 1:
@@ -192,9 +212,9 @@ def scenario_spec(
                 for p in parts:
                     for ring in [p.exterior, *p.interiors]:
                         c = np.asarray(ring.coords, dtype=float)
-                        # r5r's GeoJSON for R5 keeps 15 decimals
-                        px.extend(float(f"{v:.15f}") for v in c[:, 0])
-                        py.extend(float(f"{v:.15f}") for v in c[:, 1])
+                        # the extension writes them as GDAL does for R5
+                        px.extend(c[:, 0].tolist())
+                        py.extend(c[:, 1].tolist())
                         ring_len.append(len(c))
                         ring_polygon.append(len(polygon_feature))
                     polygon_feature.append(f)

@@ -453,8 +453,10 @@ def get_gtfs_errors(r5r_network: Union[Network, PathLike]) -> pd.DataFrame:
     of a trip that does not exist, a service or fare without an id, the
     first or last stop of a trip without a name), on which r5r's
     ``build_network()`` fails without writing the file, raises
-    ``RuntimeError`` naming the cause, and so does a feed with GTFS-Flex
-    zones (``locations.geojson``), which peabiru does not read.
+    ``RuntimeError`` naming the cause (and so does a ``locations.geojson``,
+    of GTFS-Flex zones, that is not in UTF-8). GTFS-Flex zones and location
+    groups are read as gtfs-lib reads them, for its errors; on-demand trips
+    are not routed, as in r5r.
 
     Parameters
     ----------
