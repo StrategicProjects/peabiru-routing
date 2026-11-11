@@ -159,7 +159,10 @@ Each of these raises `peabiru.UnsupportedError` instead of being ignored:
 - more than one `.pbf` file in the data directory.
 
 [`isochrone()`][peabiru.isochrone] follows r5r's `isochrone()` up to the
-polygons r5r hands to `sf::st_make_valid()` (vertex for vertex); that last
+polygons r5r hands to `sf::st_make_valid()` on the same platform (vertex for
+vertex: the order of the rings and the vertex each starts at follow the C++
+library isoband is built with, libc++ on macOS and libstdc++ on Linux and
+Windows, and so does peabiru); that last
 step, an s2 rebuild in R, is not reproduced, so the polygons cover the same
 areas as r5r's but are not snapped to 1e-7 degrees and are always
 `MultiPolygon`s.

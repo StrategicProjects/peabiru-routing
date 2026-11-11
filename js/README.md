@@ -136,7 +136,10 @@ reached, with r5r's columns as properties (`id`, `edge_index`, `osm_id`,
 `bicycle_lts`) and a `LineString`. The polygons are the rings r5r makes
 with isoband, before its `sf::st_make_valid()` (an s2 rebuild in R that
 snaps vertices to 1e-7 degrees), which is not reproduced: they cover the
-same areas, and the rings of one polygon may touch at a vertex. Their
+same areas, and the rings of one polygon may touch at a vertex. The order
+of the rings and the vertex each starts at are those isoband gives on macOS
+(where it is built with libc++) wherever the package runs; the native
+packages follow their platform (libstdc++ order on Linux and Windows). Their
 coordinates can differ from the native packages' in the last digits
 (about 1e-14 degrees), because WebAssembly has its own `sinh` and `atan`;
 the line isochrones are identical.

@@ -98,8 +98,9 @@ expect_same_isochrone <- function(...) {
 }
 
 test_that("isochrones equal r5r's", {
-  # isoband's ring order is that of libc++, the C++ library of macOS
-  skip_on_os(c("windows", "linux", "solaris"))
+  # isoband's ring order is that of the C++ library it was built with
+  # (libc++ on macOS, libstdc++ on Linux and Windows); the core follows the
+  # platform's
   o <- r5r_network()$points[c(1, 50, 120), ]
   expect_same_isochrone(origins = o, mode = "WALK", cutoffs = c(0, 10, 20),
                         departure_datetime = departure)

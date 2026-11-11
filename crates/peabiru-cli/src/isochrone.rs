@@ -2,10 +2,11 @@
 //! for testing the core against r5r.
 
 use crate::cli::{self, runtime_error, usage_error};
+use peabiru_core::unstable::{isochrone_polygons_in, CxxLibrary};
 use peabiru_core::{
-    build_network, isochrone_lines, isochrone_polygons, isochrone_trip_limit, street_edges,
-    street_travel_time_matrix, street_travel_time_surface, transit_travel_time_matrix,
-    transit_travel_time_surface, BuildOptions, Mode, RouteParams, TransitData, TransitParams,
+    build_network, isochrone_lines, isochrone_trip_limit, street_edges, street_travel_time_matrix,
+    street_travel_time_surface, transit_travel_time_matrix, transit_travel_time_surface,
+    BuildOptions, Mode, RouteParams, TransitData, TransitParams,
 };
 use std::fmt::Write as _;
 
@@ -15,7 +16,7 @@ pub const USAGE: &str = "peabiru isochrone <dir|file.osm.pbf> <points.csv> <out>
      [--mode WALK|BICYCLE|CAR|TRANSIT] [--cutoffs 0,15,30] [--zoom 10] [--lines] \
      [--percentiles 50] [--surface <surface.csv>] [--edges <edges.csv>] [--date YYYY-MM-DD --time HH:MM:SS] [--tw 10] \
      [--max-walk N|inf] [--max-rides 3] [--draws 5] [--seed N] [--walk-speed 3.6] \
-     [--bike-speed 12] [--max-lts 2] [--threads 0]";
+     [--bike-speed 12] [--max-lts 2] [--threads 0] [--cxx-library libc++|libstdc++]";
 
 /// A ring as WKT coordinates, every number in Rust's shortest round-trip form.
 fn ring_wkt(out: &mut String, ring: &[[f64; 2]]) {
@@ -38,6 +39,7 @@ pub fn run(args: &[String]) {
     let mut percentiles: Option<Vec<i32>> = None;
     let mut surface_path: Option<String> = None;
     let mut edges_path: Option<String> = None;
+    let mut cxx = CxxLibrary::NATIVE;
     let mut tp = TransitParams::default();
     let mut rp = RouteParams::default();
     let mut max_walk: Option<i32> = None;
@@ -58,6 +60,15 @@ pub fn run(args: &[String]) {
             "--percentiles" => percentiles = Some(cli::list(CMD, name, v)),
             "--surface" => surface_path = Some(v.to_string()),
             "--edges" => edges_path = Some(v.to_string()),
+            // whose std::unordered_map isoband's ring order follows (the
+            // platform's by default)
+            "--cxx-library" => {
+                cxx = match v {
+                    "libc++" => CxxLibrary::Libcxx,
+                    "libstdc++" => CxxLibrary::Libstdcxx,
+                    _ => usage_error(CMD, format!("{name} must be libc++ or libstdc++")),
+                }
+            }
             "--date" => {
                 tp.date = cli::date(CMD, name, v);
                 have_date = true;
@@ -217,7 +228,8 @@ pub fn run(args: &[String]) {
         }
         cli::write_file(CMD, &path, s);
     }
-    let polys = isochrone_polygons(&surface, &cutoffs).unwrap_or_else(|e| usage_error(CMD, e));
+    let polys =
+        isochrone_polygons_in(&surface, &cutoffs, cxx).unwrap_or_else(|e| usage_error(CMD, e));
     text.push_str("id\tisochrone\tpercentile\tgeometry\n");
     for p in &polys {
         let _ = write!(

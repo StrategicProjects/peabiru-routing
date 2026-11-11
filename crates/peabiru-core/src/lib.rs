@@ -171,6 +171,17 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// out of the documentation on purpose. Do not use them from other crates.
 #[doc(hidden)]
 pub mod unstable {
+    pub use crate::isochrone::CxxLibrary;
+    /// [`isochrone_polygons`](crate::isochrone_polygons) with the rings in
+    /// the order isoband gives them when built with `lib`, whatever the
+    /// platform (for comparing with r5r on another one).
+    pub fn isochrone_polygons_in(
+        surface: &crate::TravelTimeSurface,
+        cutoffs: &[f64],
+        lib: CxxLibrary,
+    ) -> Result<Vec<crate::IsochronePolygon>, crate::RouteError> {
+        crate::isochrone::isochrone_polygons_in(surface, cutoffs, lib)
+    }
     pub use crate::osm::pbf::{read_pbf_file, tag, Extract, ReadOptions};
     pub use crate::street::flags;
     pub use crate::street::labels::{cms_to_ms, lts_of};

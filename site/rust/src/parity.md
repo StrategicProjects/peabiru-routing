@@ -34,3 +34,15 @@ of the expanded matrix differ: another stop or route, and a total time up to
 reference outputs are only valid for the machine that produced them. The references in `bench/results/r5r` are
 whatever r5r wrote on the machine that ran `bench/r5r/`; generate them on the
 platform where the comparison runs.
+
+Polygon isochrones depend on the platform too. The R package isoband, which
+r5r calls to trace them, collects the rings by walking a C++
+`std::unordered_map`, so the order of the rings and the vertex each one
+starts at are those of the C++ library isoband was built with: LLVM's libc++
+on macOS, GCC's libstdc++ on Linux and on Windows (Rtools). peabiru
+reproduces both tables (bucket counts, rehashing and all, checked against
+sequences recorded from the real containers) and uses the one of the target
+it is compiled for, so its polygons equal r5r's on the same platform. Across
+platforms r5r's own polygons also differ in the last bits of some latitudes,
+which come from the system's `sinh` and `atan`. The WebAssembly build always
+uses the libc++ order.
