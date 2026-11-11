@@ -1,0 +1,5 @@
+workers: 4
+same as the calling thread: true
+stopped: AbortError
+rows after the abort: 729
+workers: 1

@@ -118,6 +118,13 @@ jobs:
         run: |
           node --version
           node --test tests/*.test.mjs
+      - name: Examples and API reference of the JavaScript guide
+        # the examples in Node and in the runner's Chrome (plain ES modules;
+        # the Vite run needs VITE, not set here); the reference page must
+        # match js/lib/index.d.ts
+        run: |
+          python3 site/js/gen_api.py --check
+          node site/js/run_examples.mjs --require-browser
 
   r:
     name: R package ${{ matrix.os }}

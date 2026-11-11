@@ -49,3 +49,5 @@ memoria/
 # Documentation sites (site/build.sh)
 /_site/
 /site/rust/theme/favicon.svg
+# copied from site/assets/ and site/rust/theme/ by site/build.sh
+/site/js/theme/

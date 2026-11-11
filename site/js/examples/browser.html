@@ -1,0 +1,41 @@
+<!doctype html>
+<!-- The page that site/js/run_examples.mjs opens in headless Chrome. It runs
+     the first browser example named in ?run=, collects what it prints with
+     console.log, posts that back to the runner, and loads itself again for
+     the next one, so that every example starts with a fresh page (and the
+     WebAssembly module not yet loaded). The import map is the one the guide
+     shows for plain ES modules, with the package at node_modules/peabiru. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>peabiru examples</title>
+<!-- ANCHOR: importmap -->
+<script type="importmap">
+  { "imports": { "peabiru": "./node_modules/peabiru/lib/index.js" } }
+</script>
+<!-- ANCHOR_END: importmap -->
+</head>
+<body>
+<pre id="out"></pre>
+<script type="module">
+  const [name, ...rest] = new URLSearchParams(location.search).get("run").split(",");
+  let output = "";
+  const log = console.log;
+  console.log = (...args) => {
+    output += args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ") + "\n";
+  };
+  let report;
+  try {
+    // this form lets Vite bundle every browser-*.mjs of the directory
+    await import(`./browser-${name.slice("browser-".length)}.mjs`);
+    report = { name, ok: true, output };
+  } catch (e) {
+    report = { name, ok: false, error: String((e && e.stack) || e) };
+  }
+  console.log = log;
+  document.querySelector("#out").textContent = `${name}: ${report.ok ? "ok" : report.error}\n`;
+  await fetch("/__report", { method: "POST", body: JSON.stringify(report) });
+  if (rest.length) location.replace(`?run=${rest.join(",")}`);
+</script>
+</body>
+</html>

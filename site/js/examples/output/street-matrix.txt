@@ -1,0 +1,2 @@
+walk: 234 pairs, bicycle: 641, car: 719
+car: 2 min

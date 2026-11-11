@@ -1,0 +1,6 @@
+from_id to_id travel_time_p25 travel_time_p50 travel_time_p75
+729 rows
+89a8100c00fffff 89a8100c00fffff 0 0 0
+89a8100c00fffff 89a8100c007ffff 7 7 7
+89a8100c00fffff 89a8100c077ffff 10 10 10
+89a8100c00fffff 89a8100c03bffff 8 8 8

@@ -24,6 +24,8 @@ edition = "2021"
 default-theme = "light"
 preferred-dark-theme = "navy"
 additional-css = ["theme/peabiru.css"]
+# links to the other sites in the menu bar (shared with the JavaScript guide)
+additional-js = ["theme/peabiru-nav.js"]
 git-repository-url = "https://github.com/StrategicProjects/peabiru-routing"
 edit-url-template = "https://github.com/StrategicProjects/peabiru-routing/edit/main/site/rust/{path}"
 no-section-label = true

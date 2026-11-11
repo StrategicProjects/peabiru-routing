@@ -1,0 +1,2 @@
+685 pairs, 55 of them NA at the 90th percentile
+same results with the same seed: true

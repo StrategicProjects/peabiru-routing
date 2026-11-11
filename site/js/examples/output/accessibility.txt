@@ -1,0 +1,6 @@
+id opportunity percentile cutoff accessibility
+89a8100c00fffff jobs 50 15 12452
+89a8100c00fffff jobs 50 30 95249
+89a8100c00fffff schools 50 15 1
+89a8100c00fffff schools 50 30 4
+jobs within about 20 min on foot, first origin: 20362.8

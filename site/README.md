@@ -10,12 +10,13 @@ Everything published about peabiru is built from this repository into
 | `_site/rust/` | `site/rust/` (mdBook) and `crates/peabiru-core/examples/` | mdBook |
 | `_site/rust/api/` | `crates/peabiru-core` | `cargo doc --no-deps` |
 | `_site/python/` | `python/mkdocs.yml`, `python/docs/` | MkDocs (Material) |
+| `_site/js/` | `site/js/` (mdBook), `site/js/examples/`, and `js/lib/index.d.ts` for the API reference | mdBook |
 
 ## Build and preview
 
 ```sh
 site/build.sh                      # everything
-site/build.sh --skip-r             # faster: no pkgdown
+site/build.sh --skip-r             # faster: no pkgdown (also --skip-rust, --skip-python, --skip-js)
 python3 -m http.server -d _site 8000   # then open http://localhost:8000/
 ```
 
@@ -25,6 +26,28 @@ otherwise the script installs it from `r/` into `.claude/scratch/site-rlib`),
 mdBook, and a Rust toolchain. The Python site needs `mkdocs` on the `PATH`, in
 `python/.venv`, or `uvx`; without `python/mkdocs.yml` a placeholder page is
 written instead.
+
+## The JavaScript guide
+
+`site/js/` is an mdBook, like the Rust guide, and shares its theme
+(`site/rust/theme/peabiru.css` and `peabiru-nav.js`, the links to the other
+sites in the menu bar of both guides; `site/build.sh` copies them, with the
+favicon, into `site/js/theme/`). Two scripts keep it from going stale:
+
+- `site/js/gen_api.py` writes the API reference, `site/js/src/api.md`, from
+  `js/lib/index.d.ts` (its declarations and their doc comments). The build
+  runs it; `--check` fails if the page is out of date, or if `js/lib/index.js`
+  and `index.d.ts` export different values.
+- `site/js/run_examples.mjs` runs every example of the guide
+  (`site/js/examples/*.mjs`, included in the pages with mdBook's
+  `{{#include file:anchor}}`) on the sample network of the Python package and
+  compares what each prints with `site/js/examples/output/*.txt`, which the
+  pages also include; `--update` rewrites those files. The Node examples run
+  with `node`, the browser ones (`browser-*.mjs`) in headless Chrome (set
+  `CHROME` if it is not found), as plain ES modules and, when `VITE` names a
+  Vite executable, bundled by Vite. It also checks the JavaScript example of
+  the home page and of the root README against `examples/landing.mjs`. It
+  needs the package built (`sh js/build.sh`), so the build does not run it.
 
 The script ends with `site/check_links.py`, which fails if any local link or
 image of the built site is missing. Links between the sub-sites are relative,

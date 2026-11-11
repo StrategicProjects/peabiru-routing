@@ -56,3 +56,10 @@ html.navy {
  * above is for the diagrams). */
 .content main img[src$="logo.svg"] { width: 252px; max-width: 100%; height: auto; }
 .content main a > img[src^="https://"] { width: auto; height: 20px; }
+
+/* Links to the other sites in the menu bar (theme/peabiru-nav.js). */
+.peabiru-sites { display: inline-flex; align-items: center; gap: 14px; margin-right: 12px; font-size: 1.45rem; }
+.peabiru-sites a { color: var(--icons); text-decoration: none; }
+.peabiru-sites a:hover { color: var(--icons-hover); }
+.peabiru-sites a[aria-current="page"] { color: var(--sidebar-active); font-weight: 600; }
+@media (max-width: 860px) { .peabiru-sites { display: none; } }

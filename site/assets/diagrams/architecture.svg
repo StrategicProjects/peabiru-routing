@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 470" width="980" height="470" role="img" aria-labelledby="title desc">
   <title id="title">peabiru architecture</title>
-  <desc id="desc">One OpenStreetMap .pbf and zero or more GTFS .zip feeds are read by peabiru-core, a Rust crate that builds the street network and the transit layer in memory and runs every computation. The R package (extendr), the Python package (PyO3) and the peabiru command-line tool are thin front-ends over the same functions, returning a data.frame, a pandas DataFrame or CSV files.</desc>
+  <desc id="desc">One OpenStreetMap .pbf and zero or more GTFS .zip feeds are read by peabiru-core, a Rust crate that builds the street network and the transit layer in memory and runs every computation. The R package (extendr), the Python package (PyO3), the JavaScript package (the core compiled to WebAssembly, for browsers and Node) and the peabiru command-line tool are thin front-ends over the same functions, returning a data.frame, a pandas DataFrame, columns of typed arrays or CSV files.</desc>
   <style>
     .panel { fill: #fffdf9; stroke: #e1d8c8; }
     .t { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; fill: #1f2a2e; }
@@ -48,8 +48,9 @@
   <text class="t h" x="40" y="188">GTFS feeds</text>
   <text class="t s" x="40" y="210">zero or more <tspan class="code">.zip</tspan></text>
 
-  <text class="t s" x="24" y="268">Both in one directory, read</text>
-  <text class="t s" x="24" y="286">by build_network().</text>
+  <text class="t s" x="24" y="268">Read by build_network() from</text>
+  <text class="t s" x="24" y="286">one directory, or passed as</text>
+  <text class="t s" x="24" y="304">bytes in JavaScript.</text>
 
   <line class="ln" x1="214" y1="100" x2="268" y2="132" marker-end="url(#arr)"/>
   <line class="ln" x1="214" y1="196" x2="268" y2="164" marker-end="url(#arr)"/>
@@ -85,27 +86,30 @@
   <text class="t s" x="270" y="436">and shared by every query and thread.</text>
 
   <!-- front-ends -->
-  <rect class="fe" x="664" y="64" width="292" height="92" rx="8"/>
-  <text class="t h" x="680" y="90">R package <tspan class="code">peabiru</tspan></text>
-  <text class="t s" x="680" y="111">extendr · CRAN</text>
-  <text class="t s" x="680" y="131">accepts data.frame or sf points,</text>
-  <text class="t s" x="680" y="147">returns a data.frame</text>
+  <rect class="fe" x="664" y="64" width="292" height="72" rx="8"/>
+  <text class="t h" x="680" y="88">R package <tspan class="code">peabiru</tspan></text>
+  <text class="t s" x="680" y="107">extendr · CRAN</text>
+  <text class="t s" x="680" y="125">data.frame or sf in, data.frame out</text>
 
-  <rect class="fe" x="664" y="176" width="292" height="92" rx="8"/>
-  <text class="t h" x="680" y="202">Python package <tspan class="code">peabiru</tspan></text>
-  <text class="t s" x="680" y="223">PyO3 · PyPI</text>
-  <text class="t s" x="680" y="243">accepts DataFrame or GeoDataFrame,</text>
-  <text class="t s" x="680" y="259">returns a pandas DataFrame</text>
+  <rect class="fe" x="664" y="150" width="292" height="72" rx="8"/>
+  <text class="t h" x="680" y="174">Python package <tspan class="code">peabiru</tspan></text>
+  <text class="t s" x="680" y="193">PyO3 · PyPI</text>
+  <text class="t s" x="680" y="211">pandas or geopandas in, pandas out</text>
 
-  <rect class="fe" x="664" y="288" width="292" height="92" rx="8"/>
-  <text class="t h" x="680" y="314">Command line <tspan class="code">peabiru</tspan></text>
-  <text class="t s" x="680" y="335">peabiru-cli crate</text>
-  <text class="t s" x="680" y="355">reads points from CSV,</text>
-  <text class="t s" x="680" y="371">writes results as CSV</text>
+  <rect class="fe" x="664" y="236" width="292" height="72" rx="8"/>
+  <text class="t h" x="680" y="260">JavaScript package <tspan class="code">peabiru</tspan></text>
+  <text class="t s" x="680" y="279">WebAssembly · npm · browsers and Node</text>
+  <text class="t s" x="680" y="297">columns of typed arrays out</text>
 
-  <line class="ln" x1="600" y1="110" x2="662" y2="110" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line class="ln" x1="600" y1="222" x2="662" y2="222" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line class="ln" x1="600" y1="334" x2="662" y2="334" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect class="fe" x="664" y="322" width="292" height="72" rx="8"/>
+  <text class="t h" x="680" y="346">Command line <tspan class="code">peabiru</tspan></text>
+  <text class="t s" x="680" y="365">peabiru-cli crate</text>
+  <text class="t s" x="680" y="383">CSV in, CSV out</text>
+
+  <line class="ln" x1="600" y1="100" x2="662" y2="100" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <line class="ln" x1="600" y1="186" x2="662" y2="186" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <line class="ln" x1="600" y1="272" x2="662" y2="272" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <line class="ln" x1="600" y1="358" x2="662" y2="358" marker-start="url(#arr)" marker-end="url(#arr)"/>
   <text class="t s" x="664" y="418">Each front-end passes points and parameters</text>
   <text class="t s" x="664" y="436">to the same core functions: same numbers.</text>
 </svg>
