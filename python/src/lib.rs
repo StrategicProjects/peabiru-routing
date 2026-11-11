@@ -23,8 +23,8 @@ use peabiru_core::{
     street_accessibility, street_edges as street_edges_core, street_travel_time_matrix,
     street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
     transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, CancelToken,
-    DecayFunction, Destinations, ExpandedRow, Mode, RouteError, RouteParams, StreetNetwork,
-    TransitData, TransitLayer, TransitParams,
+    CsvOutput, DecayFunction, Destinations, ExpandedRow, Mode, RouteError, RouteParams,
+    StreetNetwork, TransitData, TransitLayer, TransitParams,
 };
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
@@ -119,6 +119,22 @@ fn interruptible<T: Send>(
             (None, Err(e)) => Err(runtime_err(e)),
         }
     })
+}
+
+/// Where and for which ids to write CSV files instead of returning the
+/// result (r5r's `output_dir`): the `output` argument of a routing
+/// function, `None` or `(dir, origin ids, destination ids)`.
+type Output = Option<(String, Vec<String>, Vec<String>)>;
+
+/// The writer of an [`Output`].
+fn csv_writer(out: &(String, Vec<String>, Vec<String>), n_threads: usize) -> CsvOutput<'_> {
+    CsvOutput::new(&out.0, &out.1, &out.2, n_threads)
+}
+
+/// The outcome of writing the files: a file that could not be written is an
+/// `OSError` (of the subclass its error kind maps to).
+fn written(r: std::io::Result<()>) -> PyResult<()> {
+    r.map_err(PyErr::from)
 }
 
 fn transit(n: &Network) -> PyResult<&Transit> {
@@ -244,7 +260,9 @@ fn street_mode(mode: &str) -> PyResult<Mode> {
 }
 
 /// Street-only travel-time matrix: the reported pairs as
-/// `(from, to, minutes)` int32 buffers, origin-major.
+/// `(from, to, minutes)` int32 buffers, origin-major. With `output` (see
+/// [`Output`]) the files are written instead, with one `travel_time_pXX`
+/// column per value of `percentiles`, and the buffers are empty.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn street_ttm<'py>(
@@ -260,6 +278,8 @@ fn street_ttm<'py>(
     max_lts: i32,
     max_trip_duration: i32,
     n_threads: usize,
+    percentiles: Vec<i32>,
+    output: Output,
 ) -> PyResult<(Col<'py>, Col<'py>, Col<'py>)> {
     let n = network.get();
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
@@ -271,6 +291,20 @@ fn street_ttm<'py>(
         max_trip_duration,
         n_threads,
     );
+    if let Some(out) = &output {
+        let w = csv_writer(out, n_threads);
+        written(interruptible(py, &params.cancel, || {
+            for r in w.origin_chunks(d.len()) {
+                let m = street_travel_time_matrix(&n.net, &o[r.clone()], &d, mode, &params)?;
+                if let Err(e) = w.write_street_matrix(r.start, &m, &percentiles) {
+                    return Ok(Err(e));
+                }
+            }
+            Ok(Ok(()))
+        })?)?;
+        let empty = i32_bytes(py, &[])?;
+        return Ok((empty.clone(), empty.clone(), empty));
+    }
     let (from, to, tt) = interruptible(py, &params.cancel, || {
         let m = street_travel_time_matrix(&n.net, &o, &d, mode, &params)?;
         let nd = d.len();
@@ -341,7 +375,8 @@ fn route_params(
 
 /// Walk + transit travel-time matrix: the reported pairs as `from`, `to`
 /// and one int32 buffer per percentile (ascending), with `i32::MIN` where
-/// r5r gives NA; origin-major.
+/// r5r gives NA; origin-major. With `output` (see [`Output`]) the files
+/// are written instead and the buffers are empty.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn transit_ttm<'py>(
@@ -362,6 +397,7 @@ fn transit_ttm<'py>(
     draws_per_minute: i32,
     seed: Option<i32>,
     n_threads: usize,
+    output: Output,
 ) -> PyResult<(Col<'py>, Col<'py>, Vec<Col<'py>>)> {
     let n = network.get();
     let t = transit(n)?;
@@ -380,6 +416,21 @@ fn transit_ttm<'py>(
         seed,
         n_threads,
     );
+    if let Some(out) = &output {
+        let w = csv_writer(out, n_threads);
+        written(interruptible(py, &p.cancel, || {
+            for r in w.origin_chunks(d.len() * np) {
+                let m =
+                    transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o[r.clone()], &d, &p)?;
+                if let Err(e) = w.write_transit_matrix(r.start, &m) {
+                    return Ok(Err(e));
+                }
+            }
+            Ok(Ok(()))
+        })?)?;
+        let empty = i32_bytes(py, &[])?;
+        return Ok((empty.clone(), empty, Vec::new()));
+    }
     let (from, to, cols) = interruptible(py, &p.cancel, || {
         let m = transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)?;
         let (mut from, mut to) = (Vec::new(), Vec::new());
@@ -425,7 +476,9 @@ fn decay(name: &str, value: f64) -> PyResult<DecayFunction> {
 /// Accessibility values `[origin][opportunity][percentile][cutoff]`,
 /// flattened into one f64 buffer. `mode` is `TRANSIT` (walk access and
 /// egress) or a street mode; `opportunities` holds one f64 buffer per
-/// opportunity column.
+/// opportunity column. With `output` (see [`Output`]; the third element
+/// holds the opportunity column names instead of destination ids) the files
+/// are written instead and the buffer is empty.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn accessibility<'py>(
@@ -453,6 +506,7 @@ fn accessibility<'py>(
     draws_per_minute: i32,
     seed: Option<i32>,
     n_threads: usize,
+    output: Output,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let n = network.get();
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
@@ -465,6 +519,7 @@ fn accessibility<'py>(
             "every opportunity column must have one value per destination",
         ));
     }
+    let per_origin = opp.len() * percentiles.len() * cutoffs.len();
     let mut a = AccessibilityParams::default();
     a.cutoffs = cutoffs;
     a.decay = decay(decay_function, decay_value)?;
@@ -479,41 +534,68 @@ fn accessibility<'py>(
         None
     };
     let cancel = CancelToken::new();
+    let w = output
+        .as_ref()
+        .map(|(dir, ids, _)| CsvOutput::new(dir, ids, &[], n_threads));
+    let names: &[String] = output.as_ref().map_or(&[], |out| &out.2);
+    // every origin's values are few: the origins are routed in slices only
+    // to bound them
+    let chunks: Vec<std::ops::Range<usize>> = match &w {
+        Some(w) => w.origin_chunks(per_origin).collect(),
+        None => std::iter::once(0..o.len()).collect(),
+    };
+    let mut p = transit_params(
+        date,
+        departure_time,
+        time_window,
+        percentiles.clone(),
+        max_walk_time,
+        max_trip_duration,
+        walk_speed,
+        max_rides,
+        draws_per_minute,
+        seed,
+        n_threads,
+    );
+    p.cancel = cancel.clone();
+    let mut params = route_params(
+        walk_speed,
+        bike_speed,
+        max_lts,
+        max_trip_duration,
+        n_threads,
+    );
+    params.cancel = cancel.clone();
     let values = interruptible(py, &cancel, || {
         let dest = Destinations::new(&d, &opp);
-        match (street, t) {
-            (None, Some(t)) => {
-                let mut p = transit_params(
-                    date,
-                    departure_time,
-                    time_window,
-                    percentiles,
-                    max_walk_time,
-                    max_trip_duration,
-                    walk_speed,
-                    max_rides,
-                    draws_per_minute,
-                    seed,
-                    n_threads,
-                );
-                p.cancel = cancel.clone();
-                transit_accessibility(&n.net, &t.layer, &t.data, &o, &dest, &p, &a)
+        let mut all = None;
+        for r in &chunks {
+            let o = &o[r.clone()];
+            let acc = match (street, t) {
+                (None, Some(t)) => {
+                    transit_accessibility(&n.net, &t.layer, &t.data, o, &dest, &p, &a)?
+                }
+                (Some(m), _) => {
+                    street_accessibility(&n.net, o, &dest, m, &params, &percentiles, &a)?
+                }
+                (None, None) => unreachable!("transit checked above"),
+            };
+            match &w {
+                Some(w) => {
+                    if let Err(e) = w.write_accessibility(r.start, &acc, names) {
+                        return Ok(Err(e));
+                    }
+                }
+                None => all = Some(acc),
             }
-            (Some(m), _) => {
-                let mut params = route_params(
-                    walk_speed,
-                    bike_speed,
-                    max_lts,
-                    max_trip_duration,
-                    n_threads,
-                );
-                params.cancel = cancel.clone();
-                street_accessibility(&n.net, &o, &dest, m, &params, &percentiles, &a)
-            }
-            (None, None) => unreachable!("transit checked above"),
         }
+        Ok(Ok(all))
     })?;
-    f64_bytes(py, values.values())
+    match values {
+        Ok(Some(acc)) => f64_bytes(py, acc.values()),
+        Ok(None) => f64_bytes(py, &[]),
+        Err(e) => Err(PyErr::from(e)),
+    }
 }
 
 /// Expanded (or, with `arrival`, arrival) travel-time matrix as a dict of
@@ -524,7 +606,9 @@ fn accessibility<'py>(
 /// the list of strings `route_levels`. For an arrival search the
 /// parameters must already be the departure side (date and time of
 /// `arrival - max_trip_duration`, `time_window = max_trip_duration`), as
-/// r5r's R wrapper sets them.
+/// r5r's R wrapper sets them. With `output` (see [`Output`]) the files are
+/// written instead (with the breakdown columns when `breakdown`) and the
+/// dict is empty.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn expanded<'py>(
@@ -545,6 +629,8 @@ fn expanded<'py>(
     draws_per_minute: i32,
     seed: Option<i32>,
     n_threads: usize,
+    breakdown: bool,
+    output: Output,
 ) -> PyResult<Bound<'py, PyDict>> {
     let n = network.get();
     let t = transit(n)?;
@@ -562,13 +648,35 @@ fn expanded<'py>(
         seed,
         n_threads,
     );
-    let cols = interruptible(py, &p.cancel, || {
-        let rows = if arrival {
-            arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+    let route = |o: &[(f64, f64)]| {
+        if arrival {
+            arrival_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)
         } else {
-            expanded_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
-        }?;
-        Ok(ExpandedColumns::new(rows.into_vec()))
+            expanded_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)
+        }
+    };
+    if let Some(out) = &output {
+        let w = csv_writer(out, n_threads);
+        // at most one row per destination, departure minute and draw
+        let draws = if t.layer.has_frequencies() {
+            draws_per_minute.max(1) as usize
+        } else {
+            1
+        };
+        let per_origin = d.len() * time_window.max(1) as usize * draws;
+        written(interruptible(py, &p.cancel, || {
+            for r in w.origin_chunks(per_origin) {
+                let m = route(&o[r.clone()])?;
+                if let Err(e) = w.write_expanded(r.start, &m, breakdown) {
+                    return Ok(Err(e));
+                }
+            }
+            Ok(Ok(()))
+        })?)?;
+        return Ok(PyDict::new(py));
+    }
+    let cols = interruptible(py, &p.cancel, || {
+        Ok(ExpandedColumns::new(route(&o)?.into_vec()))
     })?;
     let out = PyDict::new(py);
     out.set_item("from", i32_bytes(py, &cols.from)?)?;

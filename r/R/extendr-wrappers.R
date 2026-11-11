@@ -32,30 +32,36 @@ rs_network_info <- function(ptr) .Call(wrap__rs_network_info, ptr)
 rs_transit_availability <- function(ptr, date) .Call(wrap__rs_transit_availability, ptr, date)
 
 #' Street-only travel-time matrix: the reported pairs as
-#' `list(from, to, minutes)`, origin-major.
+#' `list(from, to, minutes)`, origin-major. With `output` (see [`Output`],
+#' with `percentiles`), the files are written instead and `NULL` returned.
 #' @noRd
-rs_street_ttm <- function(ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads) .Call(wrap__rs_street_ttm, ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads)
+rs_street_ttm <- function(ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads, output) .Call(wrap__rs_street_ttm, ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads, output)
 
 #' Walk + transit travel-time matrix: the reported pairs as
 #' `list(from, to, p1, ..., pk)` (percentiles ascending, NA where r5r
-#' gives NA), origin-major.
+#' gives NA), origin-major. With `output` (see [`Output`]), the files are
+#' written instead and `NULL` returned.
 #' @noRd
-rs_transit_ttm <- function(ptr, olat, olon, dlat, dlon, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads) .Call(wrap__rs_transit_ttm, ptr, olat, olon, dlat, dlon, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads)
+rs_transit_ttm <- function(ptr, olat, olon, dlat, dlon, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, output) .Call(wrap__rs_transit_ttm, ptr, olat, olon, dlat, dlon, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, output)
 
 #' Accessibility values `[origin][opportunity][percentile][cutoff]`,
 #' flattened. `mode` is `TRANSIT` (walk access and egress) or a street
-#' mode; `opportunities` is a list of double vectors, one per column.
+#' mode; `opportunities` is a list of double vectors, one per column. With
+#' `output` (see [`Output`], with the `opportunities` names), the files are
+#' written instead and `NULL` returned.
 #' @noRd
-rs_accessibility <- function(ptr, olat, olon, dlat, dlon, opportunities, mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads) .Call(wrap__rs_accessibility, ptr, olat, olon, dlat, dlon, opportunities, mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads)
+rs_accessibility <- function(ptr, olat, olon, dlat, dlon, opportunities, mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads, output) .Call(wrap__rs_accessibility, ptr, olat, olon, dlat, dlon, opportunities, mode, decay_function, decay_value, cutoffs, percentiles, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads, output)
 
 #' Expanded (or, with `arrival`, arrival) travel-time matrix as columns:
 #' `from`, `to` (1-based), `departure` (seconds after midnight), `draw`,
 #' the breakdown times (NA where r5r gives NA), `routes`, `n_rides` and
 #' `total_time`. For an arrival search the parameters must already be the
 #' departure side (date and time of `arrival - max_trip_duration`,
-#' `time_window = max_trip_duration`), as r5r's R wrapper sets them.
+#' `time_window = max_trip_duration`), as r5r's R wrapper sets them. With
+#' `output` (see [`Output`], with `breakdown`), the files are written
+#' instead and `NULL` returned.
 #' @noRd
-rs_expanded <- function(ptr, olat, olon, dlat, dlon, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads) .Call(wrap__rs_expanded, ptr, olat, olon, dlat, dlon, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads)
+rs_expanded <- function(ptr, olat, olon, dlat, dlon, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, output) .Call(wrap__rs_expanded, ptr, olat, olon, dlat, dlon, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, output)
 
 #' Polygon isochrones, as flat columns the R code assembles into `sf`:
 #' per row (origin, percentile, cutoff; r5r's order) `origin` (1-based),
