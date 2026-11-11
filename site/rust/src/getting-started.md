@@ -2,11 +2,11 @@
 
 ## Add the crate
 
-The crate is not on crates.io yet. Use it from the repository:
+The crate is on [crates.io](https://crates.io/crates/peabiru-core):
 
 ```toml
 [dependencies]
-peabiru-core = { git = "https://github.com/StrategicProjects/peabiru-routing" }
+peabiru-core = "0.0.1"
 ```
 
 The minimum supported Rust version is 1.81.

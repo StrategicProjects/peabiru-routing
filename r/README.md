@@ -5,10 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-MIT)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![R >= 4.2](https://img.shields.io/badge/R-%3E%3D%204.2-blue.svg)](https://github.com/StrategicProjects/peabiru-routing/tree/main/r)
-<!-- After the first release on CRAN, uncomment (the DOI one needs the
-     Zenodo DOI of the first release):
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24125477.svg)](https://doi.org/10.5281/zenodo.24125477)
+<!-- After the first release on CRAN, uncomment:
 [![CRAN status](https://www.r-pkg.org/badges/version/peabiru)](https://CRAN.R-project.org/package=peabiru)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
 -->
 <!-- badges: end -->
 

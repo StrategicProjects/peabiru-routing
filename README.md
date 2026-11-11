@@ -8,14 +8,13 @@
 <a href="python"><img src="https://img.shields.io/badge/python-3.9%2B-blue.svg" alt="Python 3.9+"></a>
 <a href="r"><img src="https://img.shields.io/badge/R-%3E%3D%204.2-blue.svg" alt="R >= 4.2"></a>
 <a href="js"><img src="https://img.shields.io/badge/node-18%2B-blue.svg" alt="Node 18+"></a>
-<!-- After the first release on each registry, uncomment the matching badge;
-     the Zenodo one needs the DOI that Zenodo assigns to the first release.
 <a href="https://crates.io/crates/peabiru-core"><img src="https://img.shields.io/crates/v/peabiru-core.svg" alt="crates.io"></a>
 <a href="https://docs.rs/peabiru-core"><img src="https://docs.rs/peabiru-core/badge.svg" alt="docs.rs"></a>
+<a href="https://doi.org/10.5281/zenodo.24125477"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.24125477.svg" alt="DOI"></a>
+<!-- After the first release on each remaining registry, uncomment the matching badge:
 <a href="https://pypi.org/project/peabiru/"><img src="https://img.shields.io/pypi/v/peabiru.svg" alt="PyPI"></a>
 <a href="https://CRAN.R-project.org/package=peabiru"><img src="https://www.r-pkg.org/badges/version/peabiru" alt="CRAN"></a>
 <a href="https://www.npmjs.com/package/peabiru"><img src="https://img.shields.io/npm/v/peabiru.svg" alt="npm"></a>
-<a href="https://doi.org/10.5281/zenodo.XXXXXXX"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg" alt="DOI"></a>
 -->
 </p>
 
@@ -31,7 +30,7 @@ and thread.
 | `peabiru` | R | [`r/`](r) (extendr) | CRAN, not published yet |
 | `peabiru` | Python | [`python/`](python) (PyO3, maturin) | PyPI, not published yet |
 | `peabiru` | JavaScript (browsers, Node) | [`js/`](js) (WebAssembly, wasm-bindgen) | npm, not published yet |
-| `peabiru-core` | Rust | [`crates/peabiru-core`](crates/peabiru-core) | crates.io, not published yet |
+| `peabiru-core` | Rust | [`crates/peabiru-core`](crates/peabiru-core) | [crates.io](https://crates.io/crates/peabiru-core) |
 | `peabiru` | command line | [`crates/peabiru-cli`](crates/peabiru-cli) | |
 
 The name comes from the Peabiru, the pre-Columbian network of trails that
