@@ -66,7 +66,7 @@ print(network.info())
 ```
 
 ```text
-{'vertices': 2609, 'edges': 5518, 'feeds': ['spo_gtfs'], 'stops': 654, 'patterns': 36, 'services': 6, 'frequencies': True}
+{'vertices': 2609, 'edges': 5518, 'elevation': 'NONE', 'feeds': ['spo_gtfs'], 'stops': 654, 'patterns': 36, 'services': 6, 'frequencies': True}
 ```
 
 `print(network)` shows the same summary, with the data path.
@@ -163,7 +163,7 @@ print(access.head())
 
 Anything peabiru does not implement yet is an error
 ([`UnsupportedError`](reference.md#peabiru.UnsupportedError)), never
-silently ignored: elevation, and expanded or arrival matrices by a street mode alone. The full list is under
+silently ignored: R5's own fare calculators, and expanded or arrival matrices by a street mode alone. The full list is under
 [Not supported yet](coming-from-r5.md#not-supported-yet).
 
 ## Sample data

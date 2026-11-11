@@ -238,7 +238,7 @@ def detailed_itineraries(
         raise ValueError(
             "Assertion on 'suboptimal_minutes' failed: Must be 0 when 'shortest_path' is True."
         )
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
     if out_dir is None and not drop_geometry:
         try:
             import geopandas as gpd

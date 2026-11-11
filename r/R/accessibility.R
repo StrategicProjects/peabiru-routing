@@ -140,7 +140,7 @@ accessibility <- function(r5r_network,
   check_messages(verbose, progress)
   check_fares(fare_structure, max_fare, r5r_network)
   check_output_dir(output_dir)
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
 
   values <- raise_if_stopped(rs_accessibility(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,

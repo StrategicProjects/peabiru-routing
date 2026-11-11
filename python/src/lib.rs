@@ -217,6 +217,7 @@ impl Network {
         let d = PyDict::new(py);
         d.set_item("vertices", self.net.n_vertices())?;
         d.set_item("edges", self.net.n_edges())?;
+        d.set_item("elevation", self.net.elevation().r5r_name())?;
         match &self.transit {
             Some(t) => {
                 d.set_item("feeds", t.layer.feed_ids().to_vec())?;
@@ -262,12 +263,21 @@ fn core_version() -> &'static str {
     peabiru_core::VERSION
 }
 
-/// Build a network from a directory with one `.pbf` and any GTFS zips.
+/// Build a network from a directory with one `.pbf`, any GTFS zips and an
+/// optional `.tif` elevation raster (used unless `elevation` is `"NONE"`).
 #[pyfunction]
-fn build_network(py: Python<'_>, data_path: String, n_threads: usize) -> PyResult<Network> {
+fn build_network(
+    py: Python<'_>,
+    data_path: String,
+    n_threads: usize,
+    elevation: String,
+) -> PyResult<Network> {
+    let elevation = peabiru_core::Elevation::from_r5r_name(&elevation)
+        .ok_or_else(|| value_err(format!("unknown elevation model {elevation:?}")))?;
     py.detach(move || {
         let mut opts = BuildOptions::default();
         opts.n_threads = n_threads;
+        opts.elevation = elevation;
         let lister = format!("peabiru.get_gtfs_errors({data_path:?})");
         let (net, layer) =
             build_from_dir(&data_path, &opts).map_err(|e| runtime_err(build_error(&e, &lister)))?;

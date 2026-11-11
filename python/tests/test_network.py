@@ -57,13 +57,10 @@ def test_bad_data_paths(tmp_path):
         peabiru.build_network(peabiru.sample_data_path(), n_threads=0)
 
 
-def test_elevation_needs_none_with_a_raster(tmp_path):
+def test_a_raster_is_not_read_with_elevation_none(tmp_path):
     shutil.copy(os.path.join(peabiru.sample_data_path(), "spo_osm.pbf"), tmp_path)
     (tmp_path / "elevation.tif").write_bytes(bytes(10))
-    with pytest.raises(
-        peabiru.UnsupportedError,
-        match="Elevation is not supported by peabiru yet, and .* has the raster 'elevation.tif'",
-    ):
+    with pytest.raises(RuntimeError, match="elevation.tif: not a TIFF file"):
         peabiru.build_network(tmp_path)
     network = peabiru.build_network(tmp_path, elevation="none", n_threads=2)
     assert network.has_tif

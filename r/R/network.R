@@ -9,12 +9,22 @@
 #' As in r5r, the files are recognised by their extension in lower case only:
 #' a `map.PBF` or a `feed.ZIP` is ignored.
 #'
-#' Elevation is not supported yet. As in r5r, when the directory has no
-#' `.tif` raster the network is built with `elevation = "NONE"`; when it has
-#' one (a file ending in `.tif` or `.tiff`), `elevation = "NONE"` must be
-#' given explicitly (and, as in r5r, the
-#' raster still disables the swap of origins and destinations that r5r does
-#' for walking).
+#' As in r5r, a `.tif` raster in `data_path` gives walking and cycling
+#' times slope costs (`elevation = "TOBLER"`, the default, or `"MINETTI"`;
+#' never for cars), identical to r5r's: the raster is sampled every 10 m
+#' along each street at the nearest pixel, and each street's time is
+#' multiplied by the average cost of its slopes. Points outside the raster
+#' count as 0 m high, as in r5r. Without a `.tif` raster the network is
+#' built with `elevation = "NONE"`. The raster must be a GeoTIFF with one
+#' band in WGS 84 longitude and latitude (EPSG:4326), north up,
+#' uncompressed or compressed with LZW, Deflate or PackBits (what GDAL
+#' writes by default); other rasters are an error that says what to
+#' change, and so are a raster whose name ends in `.tiff` (r5r fails to
+#' read it) and more than one raster (r5r reads the last one the file
+#' system lists). As in r5r, a raster also disables the swap of origins and
+#' destinations that r5r does for walking, and a routing call with a
+#' scenario (`new_carspeeds`, `carspeed_scale`, `new_lts`) runs without the
+#' slope costs, with r5r's warning.
 #'
 #' The 'GTFS' feeds are loaded in the order in which the operating system
 #' lists the directory, as R5 does. With more than one feed that order
@@ -36,9 +46,10 @@
 #' @param verbose A logical. Whether to show informative messages.
 #' @param temp_dir A logical. Accepted for compatibility with r5r, which uses
 #'   it to choose where to keep the R5 jar; it has no effect.
-#' @param elevation A string, `"TOBLER"` (the default), `"MINETTI"` or
-#'   `"NONE"`. Only `"NONE"` can be routed; the default is fine when the
-#'   directory has no `.tif` raster.
+#' @param elevation A string, the slope cost function for walking and
+#'   cycling when `data_path` has a `.tif` elevation raster: `"TOBLER"` (the
+#'   default; Tobler's hiking function), `"MINETTI"` (Minetti's energy cost
+#'   of walking) or `"NONE"` (no slope costs).
 #' @param overwrite A logical. Accepted for compatibility with r5r, which uses
 #'   it to rebuild a cached `network.dat`; the network is always built anew.
 #' @param n_threads The number of threads used to read the `.pbf` file.
@@ -82,8 +93,6 @@ build_network <- function(data_path,
   # to turn off the swap of origins and destinations (see swap_od()).
   any_pbf <- length(grep(".pbf", files)) > 0
   any_tif <- length(grep(".tif", files)) > 0
-  # an elevation raster that R5 would read
-  rasters <- files[grepl("\\.tiff?$", files, ignore.case = TRUE)]
   # lower case only, as r5r and the engine match the extension
   pbf <- files[grepl("\\.pbf$", files)]
   if (!any_pbf || length(pbf) == 0) {
@@ -101,21 +110,14 @@ build_network <- function(data_path,
       message("No raster .tif files found in '", data_path,
               "'. Using elevation = \"NONE\".")
     }
-  } else if (length(rasters) == 0) {
-    # r5r keeps the elevation model, and R5 finds no raster to apply it to
-    elevation <- "NONE"
-  } else if (elevation != "NONE") {
-    stop("Elevation is not supported by peabiru yet, and '", data_path,
-         "' has the raster ", paste0("'", rasters, "'", collapse = ", "),
-         ". Use elevation = \"NONE\" to build the network without it.",
-         call. = FALSE)
   }
 
   t0 <- proc.time()[["elapsed"]]
-  ptr <- rs_build_network(data_path, threads)
+  ptr <- rs_build_network(data_path, threads, elevation)
+  # the model in use: "NONE" when no file ends in .tif (R5 finds no raster)
   network <- structure(
-    list(ptr = ptr, data_path = data_path, elevation = elevation,
-         has_tif = any_tif),
+    list(ptr = ptr, data_path = data_path,
+         elevation = rs_network_info(ptr)$elevation, has_tif = any_tif),
     class = "peabiru_network"
   )
   for (w in rs_network_r5r_warnings(ptr)) {

@@ -136,6 +136,12 @@ pub struct StreetNetwork {
     /// a car enters an edge.
     pub(crate) restriction_starts: Vec<(u32, u32)>,
 
+    /// The slope cost function the network was built with, and per
+    /// directed edge its slope factor (empty without elevation): see
+    /// [`crate::Elevation`].
+    pub(crate) elevation: crate::Elevation,
+    pub(crate) edge_slope: Vec<f32>,
+
     /// Contraction hierarchies built by street matrices, kept for later
     /// ones (see [`StreetEngine`]); a clone shares them.
     hierarchies: ch::Cache,
@@ -155,6 +161,14 @@ impl StreetNetwork {
     /// whether or not a mode may use it).
     pub fn n_edges(&self) -> usize {
         self.edge_flags.len()
+    }
+
+    /// The slope cost function walking and cycling times use on this
+    /// network: [`Elevation::None`](crate::Elevation::None) unless it was
+    /// built with an elevation raster and a model (see
+    /// [`BuildOptions::elevation`]).
+    pub fn elevation(&self) -> crate::Elevation {
+        self.elevation
     }
 
     /// Number of car turn restrictions read from OpenStreetMap and kept.

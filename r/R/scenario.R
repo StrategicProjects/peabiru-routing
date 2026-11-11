@@ -109,9 +109,21 @@ flatten_lines <- function(geometry) {
        line_len = vapply(m, nrow, integer(1)))
 }
 
+# r5r's warning when a scenario is used: R5's scenario copy of the network
+# has no slope costs (r5r issue #555). r5r gives it for every scenario; here
+# only on a network with elevation, where it is true.
+scenario_elevation_warning <- function(r5r_network) {
+  if (!is.null(r5r_network) && !identical(r5r_network$elevation, "NONE")) {
+    warning("A scenario was used for this calculation. This may affect results ",
+            "for WALK or BICYCLE due to missing elevation. See issue #555.",
+            call. = FALSE)
+  }
+}
+
 # r5r set_new_congestion() and set_new_lts(): the scenario of a routing call,
 # NULL when it changes nothing.
-scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts) {
+scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts,
+                          r5r_network = NULL) {
   cm_data_frame(new_carspeeds, "new_carspeeds")
   assert_number(carspeed_scale, "carspeed_scale", lower = 0, finite = TRUE)
   cm_data_frame(new_lts, "new_lts")
@@ -120,6 +132,7 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts) {
   changed <- FALSE
   if (!is.null(new_carspeeds) || carspeed_scale != 1) {
     changed <- TRUE
+    scenario_elevation_warning(r5r_network)
     if (inherits(new_carspeeds, "sf")) {
       # congestion_poly2geojson()
       x <- new_carspeeds
@@ -163,6 +176,7 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts) {
   }
   if (!is.null(new_lts)) {
     changed <- TRUE
+    scenario_elevation_warning(r5r_network)
     if (inherits(new_lts, "sf")) {
       # lts_lines2shp()
       x <- new_lts

@@ -68,6 +68,7 @@ without `.zip`), which prefixes its stop ids.
 
 The options that are not supported are the same in the three packages, and
 throw [`UnsupportedError`](api.md#UnsupportedError) here (an error of the
-same name in Python, an error in R): `outputDir` (here only), and elevation. Missing coordinates, ids that are not strings
+same name in Python, an error in R): `outputDir` (here only), and R5's own
+fare calculators. Missing coordinates, ids that are not strings
 and duplicated ids are treated as in r5r, with the same warnings and
 errors.

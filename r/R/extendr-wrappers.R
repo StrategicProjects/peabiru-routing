@@ -11,7 +11,7 @@ rs_core_version <- function() .Call(wrap__rs_core_version)
 
 #' Build a network from a directory with one `.pbf` and any GTFS zips.
 #' @noRd
-rs_build_network <- function(data_path, n_threads) .Call(wrap__rs_build_network, data_path, n_threads)
+rs_build_network <- function(data_path, n_threads, elevation) .Call(wrap__rs_build_network, data_path, n_threads, elevation)
 
 #' Whether `ptr` points to a live network.
 #' @noRd

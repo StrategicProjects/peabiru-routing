@@ -65,8 +65,8 @@ fare structures (`setup_fare_structure()`, `read_fare_structure()`,
 `write_fare_structure()`) in the matrices, accessibility, itineraries and
 `pareto_frontier()`.
 
-Not implemented yet: elevation. Asking for it is an error; nothing is
-silently ignored.
+Not implemented yet: R5's own fare calculators (a fare structure with a
+`type`). Asking for them is an error; nothing is silently ignored.
 
 **Status:** version 0.0.1, early development. The interfaces may still
 change.

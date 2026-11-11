@@ -201,7 +201,7 @@ travel_time_matrix <- function(r5r_network,
   check_messages(verbose, progress)
   check_fares(fare_structure, max_fare, r5r_network)
   check_output_dir(output_dir)
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
 
   pct_names <- sprintf("travel_time_p%02d", percentiles)
   output <- csv_output(output_dir, origins, destinations,

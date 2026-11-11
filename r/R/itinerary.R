@@ -178,7 +178,7 @@ detailed_itineraries <- function(r5r_network,
     stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when ",
          "'shortest_path' is TRUE.", call. = FALSE)
   }
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
   if (is.null(output_dir) && !drop_geometry && !requireNamespace("sf", quietly = TRUE)) {
     stop("Package 'sf' is needed for the geometry of detailed itineraries; ",
          "install it or use 'drop_geometry = TRUE'.", call. = FALSE)
