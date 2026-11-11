@@ -22,6 +22,10 @@ All functions are available at the top level of the package
 
 ::: peabiru.arrival_travel_time_matrix
 
+## Isochrones
+
+::: peabiru.isochrone
+
 ## Sample data
 
 ::: peabiru.sample_data_path

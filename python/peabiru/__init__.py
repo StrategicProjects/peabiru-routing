@@ -2,8 +2,9 @@
 
 [`build_network()`][peabiru.build_network] builds a network from an
 OpenStreetMap extract and GTFS feeds; [`travel_time_matrix()`][peabiru.travel_time_matrix],
-[`accessibility()`][peabiru.accessibility], [`expanded_travel_time_matrix()`][peabiru.expanded_travel_time_matrix]
-and [`arrival_travel_time_matrix()`][peabiru.arrival_travel_time_matrix] compute travel times
+[`accessibility()`][peabiru.accessibility], [`expanded_travel_time_matrix()`][peabiru.expanded_travel_time_matrix],
+[`arrival_travel_time_matrix()`][peabiru.arrival_travel_time_matrix] and
+[`isochrone()`][peabiru.isochrone] compute travel times
 by walking, cycling, driving and public transport. The routing engine is
 written in Rust; no Java is needed. Options that peabiru does not support yet
 raise [`UnsupportedError`][peabiru.UnsupportedError]; they are never silently ignored.
@@ -15,6 +16,7 @@ results are the same.
 
 from ._checks import UnsupportedError
 from ._data import sample_data_path, sample_points
+from ._isochrone import isochrone
 from ._network import Network, build_network
 from ._peabiru import __version__
 from ._peabiru import core_version as _core_version
@@ -53,6 +55,7 @@ __all__ = [
     "build_network",
     "core_version",
     "expanded_travel_time_matrix",
+    "isochrone",
     "sample_data_path",
     "sample_points",
     "travel_time_matrix",
