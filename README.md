@@ -51,8 +51,10 @@ crossed South America from the Atlantic to the Andes.
 - **Expanded matrices**: the travel time of every departure minute, with the
   routes, the waiting, riding and transfer times of each trip.
 - **Arrival-time matrices**: the latest trips that arrive by a given time.
+- **Isochrones**: the area reached within each cutoff, as polygons traced
+  from a travel-time surface or as the street segments reached.
 
-Not implemented yet: isochrones, detailed itineraries, public transport
+Not implemented yet: detailed itineraries, public transport
 reached by bicycle or car, subsets of transit modes, fares, scenarios and
 elevation. Asking for any of them is an error; nothing is silently ignored.
 
