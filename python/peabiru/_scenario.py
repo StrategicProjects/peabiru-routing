@@ -196,9 +196,9 @@ def scenario_spec(new_carspeeds: Any, carspeed_scale: Any, new_lts: Any) -> Opti
                 for p in parts:
                     for ring in [p.exterior, *p.interiors]:
                         c = np.asarray(ring.coords, dtype=float)
-                        # r5r's GeoJSON for R5 keeps 15 decimals
-                        px.extend(float(f"{v:.15f}") for v in c[:, 0])
-                        py.extend(float(f"{v:.15f}") for v in c[:, 1])
+                        # the extension writes them as GDAL does for R5
+                        px.extend(c[:, 0].tolist())
+                        py.extend(c[:, 1].tolist())
                         ring_len.append(len(c))
                         ring_polygon.append(len(polygon_feature))
                     polygon_feature.append(f)

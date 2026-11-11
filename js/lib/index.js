@@ -620,10 +620,10 @@ function scenarioSpec(o) {
         const parts = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates];
         for (const poly of parts) {
           for (const ring of poly) {
-            // r5r's GeoJSON for R5 keeps 15 decimals
+            // the engine writes them as GDAL does for R5
             for (const c of ring) {
-              x.push(Number(c[0].toFixed(15)));
-              y.push(Number(c[1].toFixed(15)));
+              x.push(c[0]);
+              y.push(c[1]);
             }
             ringLen.push(ring.length);
             ringPolygon.push(polygonFeature.length);
