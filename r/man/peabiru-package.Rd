@@ -60,6 +60,7 @@ Other contributors:
   \item Makoto Matsumoto (Mersenne Twister generator, translated in the 'Rust' core) [copyright holder]
   \item Takuji Nishimura (Mersenne Twister generator, translated in the 'Rust' core) [copyright holder]
   \item CERN - European Organization for Nuclear Research (Table of prime numbers from the 'Colt' library, in the 'Rust' core) [copyright holder]
+  \item isoband authors ('isoband' package, whose contouring algorithm is translated in the 'Rust' core) [copyright holder]
   \item OpenStreetMap contributors (Map data of the sample network, inst/extdata/spo/spo_osm.pbf) [copyright holder]
 }
 

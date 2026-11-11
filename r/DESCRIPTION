@@ -27,6 +27,8 @@ Authors@R: c(
            comment = "Mersenne Twister generator, translated in the 'Rust' core"),
     person("CERN - European Organization for Nuclear Research", role = "cph",
            comment = "Table of prime numbers from the 'Colt' library, in the 'Rust' core"),
+    person("isoband authors", role = "cph",
+           comment = "'isoband' package, whose contouring algorithm is translated in the 'Rust' core"),
     person("OpenStreetMap contributors", role = "cph",
            comment = "Map data of the sample network, inst/extdata/spo/spo_osm.pbf")
   )
