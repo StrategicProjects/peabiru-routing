@@ -21,10 +21,14 @@
 //! checked arithmetic, nothing is allocated from a header value alone, and
 //! the memory spent on decoded pixels has two budgets,
 //! [`MAX_BLOCK_PIXELS`] per strip or tile and [`MAX_DECODED_PIXELS`] for
-//! the whole raster. A malformed file is an error, never a panic.
+//! the whole raster. The block offset and byte count tables are read from
+//! the file a value at a time, and must hold exactly one value per block;
+//! decoded blocks are kept in a table only for up to 65,536 blocks, in a
+//! map of those read beyond. A malformed file is an error, never a panic.
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// Most pixels in one strip or tile: 32 Mi (256 MiB once decoded as
 /// doubles). GDAL writes tiles of 256 x 256 or 512 x 512 pixels and strips
@@ -37,6 +41,9 @@ pub(crate) const MAX_BLOCK_PIXELS: usize = 32 << 20;
 /// so a larger raster is fine as long as the network covers less of it;
 /// past the budget the build fails with a message asking to crop it.
 pub(crate) const MAX_DECODED_PIXELS: usize = 128 << 20;
+/// Up to this many blocks the decoded blocks are kept in a table with a
+/// slot per block (40 bytes each); beyond, in a map of the blocks decoded.
+const DENSE_BLOCKS: usize = 1 << 16;
 
 /// An error reading the raster: what is wrong, without the file name
 /// (the caller adds it).
@@ -266,6 +273,17 @@ impl Georef {
     }
 }
 
+type Block = TiffResult<Vec<f64>>;
+
+/// The decoded blocks: a slot per block for a few blocks, a map of those
+/// decoded for many (so that a file declaring millions of tiny blocks costs
+/// nothing until they are read, and each one read counts against
+/// [`MAX_DECODED_PIXELS`]).
+enum Slots {
+    Dense(Vec<OnceLock<Block>>),
+    Sparse(Mutex<HashMap<usize, Arc<OnceLock<Block>>>>),
+}
+
 /// A GeoTIFF elevation raster, read lazily from its bytes.
 pub(crate) struct Raster<'a> {
     b: &'a [u8],
@@ -281,10 +299,13 @@ pub(crate) struct Raster<'a> {
     block_h: u32,
     blocks_across: u32,
     tiled: bool,
-    offsets: Vec<u64>,
-    counts: Vec<u64>,
+    /// The block offsets and byte counts, read from the file when a block
+    /// is decoded (never copied whole: their number comes from the file).
+    offsets: Entry,
+    counts: Entry,
+    big: bool,
     pub(crate) georef: Georef,
-    decoded: Vec<OnceLock<TiffResult<Vec<f64>>>>,
+    decoded: Slots,
     /// Pixels decoded so far, against [`MAX_DECODED_PIXELS`].
     spent: AtomicUsize,
 }
@@ -498,26 +519,30 @@ impl<'a> Raster<'a> {
         let (block_w, block_h, offsets, counts) = if tiled {
             let tw = int1(TAG_TILE_WIDTH, None)?;
             let th = int1(TAG_TILE_LENGTH, None)?;
-            let offsets = r.ints(
-                get(TAG_TILE_OFFSETS).ok_or("tiles without offsets")?,
-                TAG_TILE_OFFSETS,
-            )?;
-            let counts = r.ints(
-                get(TAG_TILE_COUNTS).ok_or("tiles without byte counts")?,
-                TAG_TILE_COUNTS,
-            )?;
-            (tw, th, offsets, counts)
+            // TIFF 6.0: tile sizes are multiples of 16 (no DEM uses less)
+            if tw % 16 != 0 || th % 16 != 0 {
+                return Err(format!(
+                    "tiles of {tw} by {th} pixels; TIFF tiles are multiples of 16 pixels"
+                ));
+            }
+            let offsets = get(TAG_TILE_OFFSETS).ok_or("tiles without offsets")?;
+            let counts = get(TAG_TILE_COUNTS).ok_or("tiles without byte counts")?;
+            (
+                tw,
+                th,
+                (offsets, TAG_TILE_OFFSETS),
+                (counts, TAG_TILE_COUNTS),
+            )
         } else {
             let rows = int1(TAG_ROWS_PER_STRIP, Some(u64::from(height)))?.min(u64::from(height));
-            let offsets = r.ints(
-                get(TAG_STRIP_OFFSETS).ok_or("strips without offsets")?,
-                TAG_STRIP_OFFSETS,
-            )?;
-            let counts = r.ints(
-                get(TAG_STRIP_COUNTS).ok_or("strips without byte counts")?,
-                TAG_STRIP_COUNTS,
-            )?;
-            (u64::from(width), rows, offsets, counts)
+            let offsets = get(TAG_STRIP_OFFSETS).ok_or("strips without offsets")?;
+            let counts = get(TAG_STRIP_COUNTS).ok_or("strips without byte counts")?;
+            (
+                u64::from(width),
+                rows,
+                (offsets, TAG_STRIP_OFFSETS),
+                (counts, TAG_STRIP_COUNTS),
+            )
         };
         if block_w == 0
             || block_h == 0
@@ -543,13 +568,25 @@ impl<'a> Raster<'a> {
         let n_blocks = (blocks_across as usize)
             .checked_mul(blocks_down as usize)
             .ok_or("too many blocks for the image")?;
-        if offsets.len() < n_blocks || counts.len() < n_blocks {
-            return Err(format!(
-                "{} block offsets and {} byte counts for {n_blocks} blocks",
-                offsets.len(),
-                counts.len()
-            ));
+        // exactly one offset and one byte count per block, all in the file
+        // (so the number of blocks is bounded by the file's size)
+        for (e, tag) in [offsets, counts] {
+            if !matches!(e.typ, 3 | 4 | 16) {
+                return Err(format!(
+                    "tag {tag} has type {}, not SHORT, LONG or LONG8",
+                    e.typ
+                ));
+            }
+            if e.count != n_blocks as u64 {
+                return Err(format!(
+                    "{} block offsets or byte counts (tag {tag}) for the {n_blocks} blocks \
+                     of the image",
+                    e.count
+                ));
+            }
+            r.checked_count(e, Reader::type_size(e.typ).unwrap_or(8), tag)?;
         }
+        let (offsets, counts) = (offsets.0, counts.0);
 
         // Georeferencing.
         if get(TAG_TRANSFORMATION).is_some() {
@@ -663,8 +700,13 @@ impl<'a> Raster<'a> {
             tiled,
             offsets,
             counts,
+            big: r.big,
             georef,
-            decoded: (0..n_blocks).map(|_| OnceLock::new()).collect(),
+            decoded: if n_blocks <= DENSE_BLOCKS {
+                Slots::Dense((0..n_blocks).map(|_| OnceLock::new()).collect())
+            } else {
+                Slots::Sparse(Mutex::new(HashMap::new()))
+            },
             spent: AtomicUsize::new(0),
         })
     }
@@ -678,17 +720,44 @@ impl<'a> Raster<'a> {
         let bx = x / self.block_w;
         let by = y / self.block_h;
         let k = by as usize * self.blocks_across as usize + bx as usize;
-        let slot = self.decoded.get(k).ok_or("a block is missing")?;
-        let block = slot
-            .get_or_init(|| self.decode(k, by))
-            .as_ref()
-            .map_err(Clone::clone)?;
         let i = (y - by * self.block_h) as usize * self.block_w as usize
             + (x - bx * self.block_w) as usize;
-        block
-            .get(i)
-            .copied()
-            .ok_or_else(|| "a block is too short".into())
+        let read = |slot: &OnceLock<Block>| -> TiffResult<f64> {
+            let block = slot
+                .get_or_init(|| self.decode(k, by))
+                .as_ref()
+                .map_err(Clone::clone)?;
+            block
+                .get(i)
+                .copied()
+                .ok_or_else(|| "a block is too short".into())
+        };
+        match &self.decoded {
+            Slots::Dense(v) => read(v.get(k).ok_or("a block is missing")?),
+            Slots::Sparse(m) => {
+                let slot = {
+                    let mut m = m.lock().unwrap_or_else(|p| p.into_inner());
+                    Arc::clone(m.entry(k).or_default())
+                };
+                read(&slot)
+            }
+        }
+    }
+
+    /// Value `k` of a block offset or byte count table (checked in `parse`
+    /// to lie in the file).
+    fn table_value(&self, e: Entry, k: usize) -> Option<usize> {
+        let r = Reader {
+            b: self.b,
+            le: self.le,
+            big: self.big,
+        };
+        let v = match e.typ {
+            3 => u64::from(r.u16(e.at.checked_add(k.checked_mul(2)?)?).ok()?),
+            4 => u64::from(r.u32(e.at.checked_add(k.checked_mul(4)?)?).ok()?),
+            _ => r.u64(e.at.checked_add(k.checked_mul(8)?)?).ok()?,
+        };
+        usize::try_from(v).ok()
     }
 
     /// Rows held by block row `by` (the last strip may be short; tiles are
@@ -711,8 +780,8 @@ impl<'a> Raster<'a> {
                  (gdal_translate -projwin)"
             ));
         }
-        let off = self.offsets.get(k).and_then(|&o| usize::try_from(o).ok());
-        let len = self.counts.get(k).and_then(|&c| usize::try_from(c).ok());
+        let off = self.table_value(self.offsets, k);
+        let len = self.table_value(self.counts, k);
         let (Some(off), Some(len)) = (off, len) else {
             return Err("a block is out of reach".into());
         };
@@ -1098,8 +1167,11 @@ mod tests {
             &tiny(3, 3, &[(256, 99, u32::MAX, 3)]),
             "not an integer type",
         );
-        // strip offsets: a count whose values run past the end
-        fails(&tiny(3, 3, &[(273, 4, 1 << 30, 8)]), "truncated");
+        // strip offsets: more than the blocks of the image
+        fails(
+            &tiny(3, 3, &[(273, 4, 1 << 30, 8)]),
+            "block offsets or byte counts",
+        );
         fails(&tiny(3, 3, &[(256, 3, 0, 0)]), "empty");
         fails(&tiny(3, 3, &[(256, 3, 1, 0)]), "an image of 0 by 3");
         // a strip and its byte count past the end of the file
@@ -1138,7 +1210,8 @@ mod tests {
         };
         fails(&tiled(0, 16), "blocks of 0 by 16");
         fails(&tiled(1 << 16, 1 << 16), "more than the");
-        fails(&tiled(u32::MAX, u32::MAX), "more than the");
+        fails(&tiled(!15, !15), "more than the");
+        fails(&tiled(1, 1), "multiples of 16");
         // a block that decodes short
         fails(&tiny(3, 3, &[(279, 4, 1, 4)]), "decodes to");
         // compressed garbage
@@ -1169,6 +1242,78 @@ mod tests {
         );
         b.extend_from_slice(strip);
         b
+    }
+
+    #[test]
+    fn huge_block_tables_fail_fast() {
+        // a 4 Gi x 4 Gi pixel image in the smallest tiles: 2^56 blocks,
+        // declared with one offset, or with 2^28 offsets the file lacks
+        let t0 = std::time::Instant::now();
+        let huge = |count: u32| {
+            tiny(
+                3,
+                3,
+                &[
+                    (256, 4, 1, u32::MAX),
+                    (257, 4, 1, u32::MAX),
+                    (322, 4, 1, 16),
+                    (323, 4, 1, 16),
+                    (324, 4, count, 8),
+                    (325, 4, count, 8),
+                ],
+            )
+        };
+        fails(&huge(1), "for the 72057594037927936 blocks");
+        fails(&huge(u32::MAX), "block offsets or byte counts");
+        // a strip per row of a tall image: as many offsets as rows, which
+        // must all be in the file
+        fails(
+            &tiny(
+                3,
+                3,
+                &[(257, 4, 1, 1 << 30), (278, 3, 1, 1), (273, 4, 1 << 30, 8)],
+            ),
+            "truncated",
+        );
+        assert!(t0.elapsed().as_millis() < 500);
+        // many blocks that are present: kept sparse, and each one read
+        // counts against the budget
+        let w = 16 * 300u32;
+        let n = 300 * 300;
+        let make = |at: u32| {
+            tiny(
+                3,
+                3,
+                &[
+                    (256, 4, 1, w),
+                    (257, 4, 1, w),
+                    (322, 4, 1, 16),
+                    (323, 4, 1, 16),
+                    (324, 4, n, at),
+                    (325, 4, n, at + 4 * n),
+                ],
+            )
+        };
+        let at = make(0).len() as u32;
+        let mut b = make(at);
+        // offsets all pointing at the same 512 bytes, byte counts 512
+        let pix = (b.len() as u32 + 8 * n).to_le_bytes();
+        let pad = b.len();
+        b.resize(pad + 8 * n as usize, 0);
+        for k in 0..n as usize {
+            b[pad + 4 * k..pad + 4 * k + 4].copy_from_slice(&pix);
+            let c = pad + 4 * n as usize + 4 * k;
+            b[c..c + 4].copy_from_slice(&512u32.to_le_bytes());
+        }
+        b.resize(b.len() + 512, 1);
+        // (the IFD's offsets point at `at`, where the tables begin)
+        assert_eq!(pad as u32, at);
+        let r = Raster::parse(&b).unwrap();
+        assert!(matches!(r.decoded, Slots::Sparse(_)));
+        assert_eq!(
+            r.value(w - 1, w - 1).unwrap(),
+            f64::from(i16::from_le_bytes([1, 1]))
+        );
     }
 
     #[test]

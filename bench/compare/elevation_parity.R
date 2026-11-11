@@ -212,7 +212,7 @@ for (city in cities) {
         mode = bike, osm_link_ids = TRUE, departure_datetime = departure)
     run("itin_walk_links_transit", "detailed_itineraries", origins = o[1:15, ],
         destinations = d[1:15, ], mode = c("WALK", "TRANSIT"), osm_link_ids = TRUE,
-        departure_datetime = departure, drop_geometry = TRUE)
+        departure_datetime = departure)
     if (wanted("itin_output_dir")) {
       # the CSV files written with geometry, compared byte for byte
       d_pb <- tempfile("pb")
