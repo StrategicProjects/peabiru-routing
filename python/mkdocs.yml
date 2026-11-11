@@ -6,6 +6,10 @@ repo_url: https://github.com/StrategicProjects/peabiru-routing
 repo_name: StrategicProjects/peabiru-routing
 edit_uri: ""
 strict: true
+validation:
+  nav:
+    # the "Other languages" links of the nav point outside these docs (../)
+    not_found: info
 
 theme:
   name: material
@@ -39,6 +43,12 @@ nav:
       - Expanded and arrival matrices: expanded-arrival.md
       - Coming from r5py / r5r: coming-from-r5.md
   - API reference: reference.md
+  # the other sites built by site/build.sh, next to this one in _site/
+  - Other languages:
+      - R: ../r/index.html
+      - Rust: ../rust/index.html
+      - JavaScript: ../js/index.html
+      - peabiru home: ../index.html
 
 markdown_extensions:
   - admonition
