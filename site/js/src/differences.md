@@ -68,8 +68,7 @@ without `.zip`), which prefixes its stop ids.
 
 The options that are not supported are the same in the three packages, and
 throw [`UnsupportedError`](api.md#UnsupportedError) here (an error of the
-same name in Python, an error in R): public transport with bicycle or car
-access or egress, transit modes other than `"TRANSIT"`, fares, scenarios,
+same name in Python, an error in R): fares, scenarios,
 `outputDir`, and elevation. Missing coordinates, ids that are not strings
 and duplicated ids are treated as in r5r, with the same warnings and
 errors.

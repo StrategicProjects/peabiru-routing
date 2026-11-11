@@ -132,10 +132,6 @@ test_that("what the core does not support is an error, never ignored", {
     travel_time_matrix(network, pts, pts, departure_datetime = departure,
                        n_threads = 2, ...)
   }
-  expect_error(ttm(mode = c("BICYCLE", "TRANSIT")), "BICYCLE access is not supported")
-  expect_error(ttm(mode = c("CAR", "TRANSIT")), "CAR access is not supported")
-  expect_error(ttm(mode = "TRANSIT", mode_egress = "BICYCLE"), "BICYCLE egress is not supported")
-  expect_error(ttm(mode = c("WALK", "BUS")), "specific transit modes")
   expect_error(ttm(fare_structure = list()), "fare_structure.*not supported")
   expect_error(ttm(carspeed_scale = 0.5), "car speeds.*not supported")
   expect_error(ttm(new_carspeeds = data.frame(osm_id = 1, max_speed = 1)),
@@ -146,6 +142,35 @@ test_that("what the core does not support is an error, never ignored", {
     ttm(mode = c("WALK", "TRANSIT", "BUS"), seed = 1),
     ttm(mode = "TRANSIT", seed = 1)
   )
+})
+
+test_that("transit mode subsets and bicycle or car access and egress route", {
+  network <- fixture_network()
+  pts <- fixture_points()
+  ttm <- function(...) {
+    travel_time_matrix(network, pts, pts, departure_datetime = departure,
+                       n_threads = 2, seed = 1L, ...)
+  }
+  every <- ttm(mode = "TRANSIT")
+  # the fixture has bus and subway: each alone is slower somewhere
+  for (subset in list(ttm(mode = c("WALK", "BUS")), ttm(mode = "SUBWAY"))) {
+    m <- merge(every, subset, by = c("from_id", "to_id"), all.x = TRUE)
+    y <- m$travel_time_p50.y
+    y[is.na(y)] <- 1e6L
+    expect_true(all(m$travel_time_p50.x <= y))
+    expect_false(identical(subset, every))
+  }
+  for (args in list(
+    list(mode = c("BICYCLE", "TRANSIT"), max_bike_time = 10L),
+    list(mode = c("CAR", "BUS"), max_car_time = 5L),
+    list(mode = "TRANSIT", mode_egress = "BICYCLE"),
+    list(mode = "TRANSIT", mode_egress = "CAR", max_car_time = 5L)
+  )) {
+    res <- do.call(ttm, args)
+    expect_identical(names(res), names(every))
+    expect_gt(nrow(res), 0)
+    expect_false(identical(res, every))
+  }
 })
 
 test_that("mode and mode_egress go through unique() and toupper() first, as in r5r", {

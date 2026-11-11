@@ -2,16 +2,16 @@
 #'
 #' The travel time of every trip between each origin and destination, for
 #' every departure minute in the time window (and every Monte Carlo draw
-#' with frequency-based 'GTFS'), by public transport with walk access and
-#' egress (`c("WALK", "TRANSIT")`). Arguments, defaults and the result are
+#' with frequency-based 'GTFS'), by public transport (see
+#' [travel_time_matrix()] for the modes). Arguments, defaults and the result are
 #' those of `r5r::expanded_travel_time_matrix()` (r5r 2.5.0), with the same
 #' values.
 #'
 #' Only public transport is supported: with a street mode alone r5r reports
 #' the same trip for every minute of a departure time taken from the clock
 #' (`Sys.time()`), which peabiru does not reproduce; that is an error, as
-#' are transit with `"BICYCLE"` or `"CAR"` access or a non-walk
-#' `mode_egress`, a subset of transit modes and scenarios.
+#' are scenarios. A trip without public transport has the street mode as
+#' `routes` (`"[WALK]"`, `"[BICYCLE]"` or `"[CAR]"`), as in r5r.
 #'
 #' @inheritParams travel_time_matrix
 #' @param breakdown A logical. Whether to break each trip down into access,
@@ -103,6 +103,9 @@ expanded_travel_time_matrix <- function(r5r_network,
 
   res <- raise_if_stopped(rs_expanded(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    mode_list$transit_mode, mode_list$access_mode, mode_list$egress_mode,
+    as.double(bike_speed),
+    as.integer(max_lts), max_bike_time, max_car_time,
     FALSE, departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_trip_duration, as.double(walk_speed),
     as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
@@ -116,8 +119,8 @@ expanded_travel_time_matrix <- function(r5r_network,
 #' time of arrival
 #'
 #' For each origin and destination, the trip that leaves latest and still
-#' arrives by `arrival_datetime`, by public transport with walk access and
-#' egress (`c("WALK", "TRANSIT")`). Arguments, defaults and the result are
+#' arrives by `arrival_datetime`, by public transport (see
+#' [travel_time_matrix()] for the modes). Arguments, defaults and the result are
 #' those of `r5r::arrival_travel_time_matrix()` (r5r 2.5.0), with the same
 #' values: as r5r does, departures are searched minute by minute from
 #' `arrival_datetime - max_trip_duration`, which may fall on the day before.
@@ -227,6 +230,9 @@ arrival_travel_time_matrix <- function(r5r_network,
 
   res <- raise_if_stopped(rs_expanded(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    mode_list$transit_mode, mode_list$access_mode, mode_list$egress_mode,
+    as.double(bike_speed),
+    as.integer(max_lts), max_bike_time, max_car_time,
     TRUE, departure$yyyymmdd, departure$seconds, max_trip_duration,
     max_walk_time, max_trip_duration, as.double(walk_speed),
     as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,

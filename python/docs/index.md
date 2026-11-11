@@ -163,9 +163,7 @@ print(access.head())
 
 Anything peabiru does not implement yet is an error
 ([`UnsupportedError`](reference.md#peabiru.UnsupportedError)), never
-silently ignored: public transport with bicycle or car access or with a
-non-walking egress, routing on a subset of transit modes (such as `"BUS"`),
-fares, scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`),
+silently ignored: fares, scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`),
 elevation, and expanded or arrival matrices by a street mode alone. The full list is under
 [Not supported yet](coming-from-r5.md#not-supported-yet).
 

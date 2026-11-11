@@ -164,18 +164,21 @@ export type DateTime = Date | string;
 /** Options shared by every routing function, with r5r's defaults. */
 export interface RoutingOptions {
   /**
-   * `"WALK"` (default), `"BICYCLE"` or `"CAR"`, or `"TRANSIT"` (alone or
-   * with `"WALK"`). Transit modes other than `"TRANSIT"`, and bicycle or
-   * car access to transit, throw `UnsupportedError`.
+   * `"WALK"` (default), `"BICYCLE"` or `"CAR"` alone, or public transport:
+   * `"TRANSIT"` (every transit mode) or any of `"TRAM"`, `"SUBWAY"`,
+   * `"RAIL"`, `"BUS"`, `"FERRY"`, `"CABLE_CAR"`, `"GONDOLA"`,
+   * `"FUNICULAR"`, with at most one street mode to reach it (walking by
+   * default; by bicycle or car the trip goes on on foot from where the
+   * vehicle got, as in R5).
    */
   mode?: string | string[];
-  /** Only `"WALK"` (default) is supported with transit. */
+  /** `"WALK"` (default), `"BICYCLE"` or `"CAR"`: from public transport to the destinations. */
   modeEgress?: string;
   /** Minutes; `Infinity` (default) means the trip limit. */
   maxWalkTime?: number;
-  /** Minutes; `Infinity` (default) means the trip limit. */
+  /** Minutes by bicycle to or from public transport, or alone; `Infinity` (default) means the trip limit. */
   maxBikeTime?: number;
-  /** Minutes; `Infinity` (default) means the trip limit. */
+  /** Minutes by car to or from public transport, or alone; `Infinity` (default) means the trip limit. */
   maxCarTime?: number;
   /** Minutes (default 120). */
   maxTripDuration?: number;
@@ -369,7 +372,7 @@ export interface IsochroneOptions
   extends Omit<RoutingOptions, "newCarspeeds" | "carspeedScale" | "newLts" | "outputDir" | "maxTripDuration"> {
   /** As in the other functions, but `"transit"` by default (case does not matter). */
   mode?: string | string[];
-  /** `"walk"` by default; only walking is supported with transit. */
+  /** `"walk"` by default (case does not matter). */
   modeEgress?: string;
   /**
    * Minutes that delimit the isochrones (default `[0, 15, 30]`): finite and

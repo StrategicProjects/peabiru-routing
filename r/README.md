@@ -23,14 +23,13 @@ JavaScript packages and the command-line tool of the same name.
 | Function | What it computes |
 |---|---|
 | `build_network()` | a network from one `.pbf` and any number of GTFS feeds |
-| `travel_time_matrix()` | travel times by `"WALK"`, `"BICYCLE"`, `"CAR"` or `c("WALK", "TRANSIT")`, with percentiles over a departure window |
+| `travel_time_matrix()` | travel times by `"WALK"`, `"BICYCLE"`, `"CAR"` or public transport (`"TRANSIT"` or any of its modes, reached by walking, bicycle or car), with percentiles over a departure window |
 | `accessibility()` | opportunities reachable from each origin, with five decay functions |
 | `expanded_travel_time_matrix()` | the trip of every departure minute, with its breakdown |
 | `arrival_travel_time_matrix()` | the latest trip that arrives by a given time |
 | `isochrone()` | the areas or street segments reached within each cutoff |
 
-Not implemented yet: detailed itineraries, public transport with
-bicycle or car access, subsets of transit modes, fares, scenarios and
+Not implemented yet: detailed itineraries, fares, scenarios and
 elevation. Asking for them stops with an error; nothing is silently ignored.
 
 ## Installation

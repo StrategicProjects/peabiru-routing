@@ -40,10 +40,11 @@ cargo run --release -p peabiru-core --example transit_matrix
 ## Status
 
 Version 0.0.1, on [crates.io](https://crates.io/crates/peabiru-core). Implemented: street matrices (walk,
-bicycle, car), walk + public transport matrices with percentiles and Monte
+bicycle, car), public transport matrices (any subset of the transit modes,
+reached and left on foot, by bicycle or by car) with percentiles and Monte
 Carlo draws, accessibility with five decay functions, expanded and arrival matrices,
 and isochrones. Not yet: detailed itineraries, fares and Pareto
-frontiers, bicycle or car access to public transport, elevation. The results
+frontiers, elevation. The results
 are checked against r5r's on every scenario in the repository; see
 [Parity with r5r](parity.md).
 

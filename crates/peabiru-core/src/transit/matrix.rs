@@ -1,20 +1,25 @@
 //! Public-transport travel-time matrices, as r5r's `travel_time_matrix()`
-//! with `mode = c("WALK", "TRANSIT")`: walk access, RAPTOR over the
-//! departure window, walk egress, percentiles over the iterations (R5
-//! `TravelTimeComputer`, `PerTargetPropagater`, `TravelTimeReducer`).
+//! with public transport in `mode`: access by the street mode (carried on
+//! on foot after a bicycle or car), RAPTOR over the departure window on the
+//! patterns of the chosen transit modes, egress by `mode_egress`,
+//! percentiles over the iterations (R5 `TravelTimeComputer`,
+//! `PerTargetPropagater`, `TravelTimeReducer`).
 
-use super::raptor::{self, Filtered, RaptorRequest, StopTimes, UNREACHED};
+use super::egress::{mode_egress_tables, Targets};
+use super::raptor::{self, Filtered, RaptorRequest, StopTimes, TransitMode, UNREACHED};
 use super::walk;
 use super::TransitLayer;
 use crate::isochrone::linkage::{grid_links, Links};
 use crate::street::link::{find_split, link_points};
-use crate::street::router::{check_speed, search_from, worker_threads, Mode, ModeGraph, Search};
+use crate::street::router::{
+    access_search_from, check_speed, worker_threads, Mode, ModeGraph, Search,
+};
 use crate::street::StreetNetwork;
 use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-/// Public transport routing parameters (walk access, egress and transfers),
+/// Public transport routing parameters (modes, access, egress and transfers),
 /// with r5r's defaults but for the date and departure time, which have
 /// none. Fill it in by changing the fields of [`TransitParams::default()`]:
 ///
@@ -53,8 +58,41 @@ pub struct TransitParams {
     pub max_trip_duration: i32,
     /// Walking speed, km/h (default 3.6).
     pub walk_speed_kmh: f64,
+    /// The street mode that reaches public transport, which is also the
+    /// mode of the trip without it: r5r's street mode next to the transit
+    /// modes in `mode` (default [`Mode::Walk`]). By bicycle or car the
+    /// search goes on on foot from wherever the vehicle got, within the
+    /// same time limit, as R5 does (`keepRoutingOnFoot`), so that stops in
+    /// pedestrian-only areas are reached too; the trip without public
+    /// transport keeps those walking ends as well.
+    pub access_mode: Mode,
+    /// The street mode from public transport to the destinations, r5r's
+    /// `mode_egress` (default [`Mode::Walk`]). By bicycle or car R5 links
+    /// every stop again by that mode and searches up to 5 km by bicycle,
+    /// or below 30 minutes by car, with its default request (any level of
+    /// traffic stress); the egress then must stay below `max_bike_time` or
+    /// `max_car_time`, at `bike_speed_kmh` by bicycle.
+    pub egress_mode: Mode,
+    /// Cycling speed, km/h (default 12), for bicycle access and egress.
+    pub bike_speed_kmh: f64,
+    /// Highest level of traffic stress a cyclist rides on, 1 to 4 (default
+    /// 2), for bicycle access (R5's bicycle egress ignores it, see
+    /// `egress_mode`).
+    pub max_lts: i32,
+    /// Longest bicycle access in minutes, the walk after it included, and
+    /// longest bicycle egress (default 120); r5r's `max_bike_time`, where
+    /// its `Inf` is `max_trip_duration`.
+    pub max_bike_time: i32,
+    /// Longest car access in minutes, the walk after it included, and
+    /// longest car egress (default 120); r5r's `max_car_time`, where its
+    /// `Inf` is `max_trip_duration`.
+    pub max_car_time: i32,
     /// Most vehicles boarded in one trip (default 3).
     pub max_rides: usize,
+    /// The public transport modes to ride, r5r's transit modes in `mode`
+    /// (default: all of them, r5r's `"TRANSIT"`). Routes of other modes
+    /// are left out of the search; it must not be empty.
+    pub transit_modes: Vec<TransitMode>,
     /// Monte Carlo draws per departure minute for frequency-based routes
     /// (default 5).
     pub draws_per_minute: i32,
@@ -145,6 +183,20 @@ impl TransitParams {
             max_minutes,
             mins,
         )?;
+        check_in(
+            "max_bike_time",
+            self.max_bike_time.into(),
+            1,
+            max_minutes,
+            mins,
+        )?;
+        check_in(
+            "max_car_time",
+            self.max_car_time.into(),
+            1,
+            max_minutes,
+            mins,
+        )?;
         let last_clock = i64::from(self.departure_time)
             + 60 * (i64::from(self.time_window) + i64::from(self.max_trip_duration));
         if last_clock > int_max {
@@ -162,6 +214,17 @@ impl TransitParams {
             int_max,
         )?;
         check_speed("walk_speed_kmh", self.walk_speed_kmh)?;
+        check_speed("bike_speed_kmh", self.bike_speed_kmh)?;
+        // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
+        if !(1..=4).contains(&self.max_lts) {
+            return Err(format!(
+                "max_lts must be from 1 to 4 (the highest level of traffic stress), got {}",
+                self.max_lts
+            ));
+        }
+        if self.transit_modes.is_empty() {
+            return Err("transit_modes must hold at least one public transport mode".into());
+        }
         Ok(())
     }
 }
@@ -176,7 +239,14 @@ impl Default for TransitParams {
             max_walk_time: 120,
             max_trip_duration: 120,
             walk_speed_kmh: 3.6,
+            access_mode: Mode::Walk,
+            egress_mode: Mode::Walk,
+            bike_speed_kmh: 12.0,
+            max_lts: 2,
+            max_bike_time: 120,
+            max_car_time: 120,
             max_rides: 3,
+            transit_modes: TransitMode::ALL.to_vec(),
             draws_per_minute: 5,
             seed: None,
             n_threads: 0,
@@ -313,6 +383,22 @@ impl TransitData {
     }
 }
 
+/// The egress time in seconds of an egress cost, or `None` at or beyond
+/// the egress mode's limit (`PerTargetPropagater.propagateTransit`): the
+/// cost is millimetres walked or cycled, at `(int)(speed * 1000)` mm/s, or
+/// seconds driven; the limit is `max_walk_time`, `max_bike_time` or
+/// `max_car_time`.
+pub(crate) fn egress_seconds(p: &TransitParams) -> impl Fn(i32) -> Option<i32> + Sync {
+    let mms = |kmh: f64| (((kmh * 5.0 / 18.0) as f32) * 1000.0f32) as i32;
+    let (speed, limit) = match p.egress_mode {
+        Mode::Walk => (mms(p.walk_speed_kmh), p.max_walk_time),
+        Mode::Bicycle => (mms(p.bike_speed_kmh), p.max_bike_time),
+        Mode::Car => (1, p.max_car_time),
+    };
+    let limit = limit * 60;
+    move |cost: i32| Some(cost / speed).filter(|&e| e < limit)
+}
+
 /// Percentile index into `n` sorted values (R5: `ceil(p / 100 * n) - 1`).
 pub(crate) fn percentile_index(p: i32, n: usize) -> usize {
     ((f64::from(p) / 100.0 * n as f64).ceil() as i64 - 1).max(0) as usize
@@ -328,10 +414,10 @@ pub(crate) struct Query<'a> {
     data: &'a TransitData,
     p: &'a TransitParams,
     filtered: Filtered,
-    /// The walking graph of the access and direct search.
-    walk: ModeGraph,
-    /// Walking links of the destinations (kept with the network for a
-    /// grid's cells).
+    /// The access and direct street search.
+    access: Access,
+    /// Links of the destinations by the access mode, for the direct times
+    /// (kept with the network for a grid's cells).
     dest_splits: Links,
     /// Per destination, `(stop, egress walk seconds)` for the stops within
     /// the egress walk limit, in increasing stop order.
@@ -340,8 +426,87 @@ pub(crate) struct Query<'a> {
     max_t: i32,
     /// `(int)(walkSpeed * 1000)`, mm/s.
     walk_mms: i32,
-    /// Access and direct walk search limit, seconds.
-    street_limit: i32,
+}
+
+/// The street search from an origin of a public transport query (R5
+/// `TravelTimeComputer`, part I): by the access mode within its time
+/// limit, carried on on foot after a bicycle or car (`keepRoutingOnFoot`).
+/// It gives the access times to the stops and the direct times to the
+/// destinations.
+pub(crate) struct Access {
+    /// The graph of the access mode.
+    graph: ModeGraph,
+    /// The walking graph that carries a bicycle or car search on.
+    foot: Option<ModeGraph>,
+    /// `min(max_trip_duration, the access mode's own limit)` in seconds
+    /// (`ProfileRequest.getMaxTimeSeconds`).
+    pub(crate) limit: i32,
+}
+
+impl Access {
+    pub(crate) fn new(net: &StreetNetwork, p: &TransitParams) -> Self {
+        let graph =
+            |mode| ModeGraph::with_speeds(net, mode, p.walk_speed_kmh, p.bike_speed_kmh, p.max_lts);
+        let mode_limit = match p.access_mode {
+            Mode::Walk => p.max_walk_time,
+            Mode::Bicycle => p.max_bike_time,
+            Mode::Car => p.max_car_time,
+        };
+        Access {
+            graph: graph(p.access_mode),
+            foot: (p.access_mode != Mode::Walk).then(|| graph(Mode::Walk)),
+            limit: p.max_trip_duration.min(mode_limit) * 60,
+        }
+    }
+
+    /// The street mode of the access and of the direct trip.
+    pub(crate) fn mode(&self) -> Mode {
+        self.graph.mode()
+    }
+
+    /// Search from `(lat, lon)`: afterwards `access` holds `(stop, seconds)`
+    /// of the stops reached, in stop order, and `direct` the direct time to
+    /// each destination of `dest_splits` (`UNREACHED` where unreachable).
+    /// `false`, with neither filled in, when the origin cannot be linked to
+    /// the streets by the access mode.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn search(
+        &self,
+        net: &StreetNetwork,
+        layer: &TransitLayer,
+        (lat, lon): (f64, f64),
+        dest_splits: &[Option<crate::street::link::Split>],
+        split: &mut Vec<u32>,
+        search: &mut Option<Search>,
+        direct: &mut Vec<i32>,
+        access: &mut Vec<(u32, i32)>,
+    ) -> bool {
+        let Some(origin) = find_split(net, lat, lon, self.mode(), split) else {
+            return false;
+        };
+        let search = search.get_or_insert_with(|| Search::new(net));
+        access_search_from(
+            net,
+            &self.graph,
+            self.foot.as_ref(),
+            &origin,
+            dest_splits,
+            self.limit,
+            search,
+            direct,
+        );
+        let vertex_time = search.vertex_time();
+        access.clear();
+        access.extend(
+            layer
+                .stop_vertex
+                .iter()
+                .enumerate()
+                .filter(|(_, &v)| v >= 0 && vertex_time[v as usize] < self.limit)
+                .map(|(s, &v)| (s as u32, vertex_time[v as usize])),
+        );
+        true
+    }
 }
 
 /// The destinations of a [`Query`].
@@ -409,34 +574,44 @@ impl<'a> Query<'a> {
             )));
         }
         let active = layer.active_services(p.date, weekday(p.date));
-        let filtered = Filtered::new(layer, &active)?;
+        let filtered = Filtered::new(layer, &active, &p.transit_modes)?;
         let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
-        let dest_splits = match destinations {
-            Dests::Points(points) => Arc::new(
-                link_points(
-                    net,
-                    points.len(),
-                    |j| points[j],
-                    Mode::Walk,
-                    p.n_threads,
-                    &p.cancel,
-                )
-                .ok_or(RouteError::Cancelled)?,
-            ),
-            Dests::Grid(g) => grid_links(net, g, Mode::Walk, p.n_threads, &p.cancel)?,
+        let link = |mode| -> Result<Links, RouteError> {
+            Ok(match destinations {
+                Dests::Points(points) => Arc::new(
+                    link_points(
+                        net,
+                        points.len(),
+                        |j| points[j],
+                        mode,
+                        p.n_threads,
+                        &p.cancel,
+                    )
+                    .ok_or(RouteError::Cancelled)?,
+                ),
+                Dests::Grid(g) => grid_links(net, g, mode, p.n_threads, &p.cancel)?,
+            })
+        };
+        // the destinations by the egress mode (walking) and, for the
+        // direct times, by the access mode
+        let egress_splits = link(p.egress_mode)?;
+        let dest_splits = if p.access_mode == p.egress_mode {
+            egress_splits.clone()
+        } else {
+            link(p.access_mode)?
         };
         let walk_mms = (walk_speed * 1000.0f32) as i32;
-        let egress_limit = p.max_walk_time * 60;
-        // PerTargetPropagater: egress seconds `mm / walkSpeedMillimetersPerSecond`,
-        // stops at or beyond the egress limit skipped.
-        let seconds = |mm: i32| Some(mm / walk_mms).filter(|&e| e < egress_limit);
-        let egress = match destinations {
-            Dests::Points(points) => walk::egress_tables(
+        // PerTargetPropagater: egress seconds from the cost (mm at the
+        // mode's speed, or seconds by car), stops at or beyond the mode's
+        // egress limit skipped.
+        let seconds = egress_seconds(p);
+        let egress = match (p.egress_mode, destinations) {
+            (Mode::Walk, Dests::Points(points)) => walk::egress_tables(
                 layer,
                 &data.trees,
                 net,
                 points,
-                &dest_splits,
+                &egress_splits,
                 p.n_threads,
                 &p.cancel,
             )
@@ -450,17 +625,41 @@ impl<'a> Query<'a> {
             })
             .collect(),
             // converted as they are found
-            Dests::Grid(g) => walk::egress_tables_grid(
+            (Mode::Walk, Dests::Grid(g)) => walk::egress_tables_grid(
                 layer,
                 &data.trees,
                 net,
                 g,
-                &dest_splits,
+                &egress_splits,
                 seconds,
                 p.n_threads,
                 &p.cancel,
             )
             .ok_or(RouteError::Cancelled)?,
+            (mode, dests) => {
+                let targets = match dests {
+                    Dests::Points(points) => Targets::Points(points),
+                    Dests::Grid(g) => Targets::Grid(g),
+                };
+                mode_egress_tables(
+                    net,
+                    layer,
+                    mode,
+                    targets,
+                    &egress_splits,
+                    p.n_threads,
+                    &p.cancel,
+                )
+                .ok_or(RouteError::Cancelled)?
+                .into_iter()
+                .map(|table| {
+                    table
+                        .into_iter()
+                        .filter_map(|(stop, c)| Some((stop, seconds(c)?)))
+                        .collect()
+                })
+                .collect()
+            }
         };
         Ok(Query {
             net,
@@ -468,12 +667,11 @@ impl<'a> Query<'a> {
             data,
             p,
             filtered,
-            walk: ModeGraph::with_walk_speed(net, Mode::Walk, p.walk_speed_kmh),
+            access: Access::new(net, p),
             dest_splits,
             egress,
             max_t: p.max_trip_duration * 60,
             walk_mms,
-            street_limit: p.max_trip_duration.min(p.max_walk_time) * 60,
         })
     }
 
@@ -499,30 +697,19 @@ impl<'a> Query<'a> {
             access,
             stop_times,
         } = scratch;
-        let Some(origin) = find_split(net, lat, lon, Mode::Walk, split) else {
-            return false;
-        };
-        // Walk search: direct times and access to stops.
-        let search = search.get_or_insert_with(|| Search::new(net));
-        search_from(
+        // Street search: direct times and access to stops.
+        if !self.access.search(
             net,
-            &self.walk,
-            &origin,
+            layer,
+            (lat, lon),
             &self.dest_splits,
-            self.street_limit,
+            split,
             search,
             direct,
-        );
-        let vertex_time = search.vertex_time();
-        access.clear();
-        access.extend(
-            layer
-                .stop_vertex
-                .iter()
-                .enumerate()
-                .filter(|(_, &v)| v >= 0 && vertex_time[v as usize] < self.street_limit)
-                .map(|(s, &v)| (s as u32, vertex_time[v as usize])),
-        );
+            access,
+        ) {
+            return false;
+        }
         let transit = !access.is_empty();
         if transit {
             let req = RaptorRequest {
@@ -624,7 +811,7 @@ pub(crate) fn par_origins<T: Send>(
         .collect())
 }
 
-/// A walk + transit travel-time matrix: for each origin and destination,
+/// A public transport travel-time matrix: for each origin and destination,
 /// whole minutes at each requested percentile, `None` where r5r reports NA.
 /// A pair is reported (its lowest percentile is `Some`) when that
 /// percentile is within `max_trip_duration`.
@@ -703,8 +890,10 @@ impl TransitMatrix {
     }
 }
 
-/// Walk + transit travel-time matrix, as r5r's `travel_time_matrix()` with
-/// `mode = c("WALK", "TRANSIT")`. Points are `(lat, lon)` degrees.
+/// Public transport travel-time matrix, as r5r's `travel_time_matrix()` with
+/// public transport in `mode` (by default `c("WALK", "TRANSIT")`; see
+/// [`TransitParams::transit_modes`], [`TransitParams::access_mode`] and
+/// [`TransitParams::egress_mode`]). Points are `(lat, lon)` degrees.
 /// [`RouteError::Invalid`] when the parameters are invalid (see
 /// [`TransitParams::validate`]), [`RouteError::Cancelled`] when `p.cancel`
 /// is cancelled before every origin is done.
@@ -838,6 +1027,30 @@ mod tests {
             },
             TransitParams {
                 date: 20190230,
+                ..ok.clone()
+            },
+            TransitParams {
+                transit_modes: vec![],
+                ..ok.clone()
+            },
+            TransitParams {
+                max_lts: 0,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_lts: 5,
+                ..ok.clone()
+            },
+            TransitParams {
+                bike_speed_kmh: 0.0,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_bike_time: 0,
+                ..ok.clone()
+            },
+            TransitParams {
+                max_car_time: i32::MAX / 60 + 1,
                 ..ok.clone()
             },
         ] {

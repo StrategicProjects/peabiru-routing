@@ -336,7 +336,7 @@ function pointsInput(points, name, warn) {
 const TRANSIT_MODES = ["TRANSIT", "TRAM", "SUBWAY", "RAIL", "BUS", "FERRY", "CABLE_CAR", "GONDOLA", "FUNICULAR"];
 const DIRECT_MODES = ["WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK"];
 
-/** r5r assign_mode(), plus the restriction to what the core supports. */
+/** r5r assign_mode(). */
 function assignMode(mode, modeEgress) {
   const all = [...TRANSIT_MODES, ...DIRECT_MODES];
   const modes = uniq(asStrings(mode, "mode").map((m) => m.toUpperCase()));
@@ -365,17 +365,11 @@ function assignMode(mode, modeEgress) {
   }
   const ml = {
     directModes: direct.join(";"),
+    transitMode: transitModes.join(";"),
     accessMode: access.join(";"),
     egressMode,
     transit: !(transitModes.length === 1 && transitModes[0] === ""),
   };
-  if (ml.transit) {
-    if (transitModes.length !== TRANSIT_MODES.length) {
-      unsupported(`Routing on specific transit modes (${modes.filter((m) => !DIRECT_MODES.includes(m)).join(", ")})`, "; use 'TRANSIT'");
-    }
-    if (ml.accessMode !== "WALK") unsupported(`Transit with ${ml.accessMode} access`);
-    if (ml.egressMode !== "WALK") unsupported(`Transit with ${ml.egressMode} egress`);
-  }
   return ml;
 }
 
@@ -1199,7 +1193,8 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
     const parts = await network._route(
       "transit_ttm", o,
       (olat, olon) => [
-        olat, olon, d.lat, d.lon, departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow),
+        olat, olon, d.lat, d.lon, modeList.transitMode, modeList.accessMode, modeList.egressMode,
+        opt.bikeSpeed, Math.round(opt.maxLts), lim.bike, lim.car, departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow),
         Int32Array.from(pcts), lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides),
         Math.round(opt.drawsPerMinute), seed,
       ],
@@ -1334,9 +1329,9 @@ export async function accessibility(network, origins, destinations, options) {
     "accessibility", o,
     (olat, olon) => [
       olat, olon, d.lat, d.lon, opp.flat, opp.names.length,
-      modeList.transit ? "TRANSIT" : modeList.directModes, fun, value, Int32Array.from(cutoffs),
+      modeList.directModes, modeList.transitMode, modeList.egressMode, fun, value, Int32Array.from(cutoffs),
       Int32Array.from(pcts), departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow), lim.walk,
-      lim.trip, opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides),
+      lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides),
       Math.round(opt.drawsPerMinute), seed,
     ],
     opt.nThreads, opt.signal,
@@ -1430,7 +1425,8 @@ export async function expandedTravelTimeMatrix(network, origins, destinations, o
   const parts = await network._route(
     "expanded", o,
     (olat, olon) => [
-      olat, olon, d.lat, d.lon, false, departure.yyyymmdd, departure.seconds,
+      olat, olon, d.lat, d.lon, modeList.transitMode, modeList.accessMode, modeList.egressMode,
+      opt.bikeSpeed, Math.round(opt.maxLts), lim.bike, lim.car, false, departure.yyyymmdd, departure.seconds,
       Math.round(opt.timeWindow), lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides),
       Math.round(opt.drawsPerMinute), seed,
     ],
@@ -1467,7 +1463,8 @@ export async function arrivalTravelTimeMatrix(network, origins, destinations, op
   const parts = await network._route(
     "expanded", o,
     (olat, olon) => [
-      olat, olon, d.lat, d.lon, true, departure.yyyymmdd, departure.seconds, lim.trip,
+      olat, olon, d.lat, d.lon, modeList.transitMode, modeList.accessMode, modeList.egressMode,
+      opt.bikeSpeed, Math.round(opt.maxLts), lim.bike, lim.car, true, departure.yyyymmdd, departure.seconds, lim.trip,
       lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides), Math.round(opt.drawsPerMinute), seed,
     ],
     opt.nThreads, opt.signal,
@@ -1560,14 +1557,16 @@ async function isochronePolygons(network, origins, opt, cuts, limit, warn) {
   const parts = await network._route(
     "isochrone_polygons", o,
     (olat, olon) => [
-      olat, olon, modeList.transit ? "TRANSIT" : modeList.directModes, Float64Array.from(cuts), Math.round(opt.zoom),
-      Int32Array.from(pcts), departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow), lim.walk, lim.trip,
+      olat, olon, modeList.directModes, modeList.transitMode, modeList.egressMode, Float64Array.from(cuts), Math.round(opt.zoom),
+      Int32Array.from(pcts), departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow), lim.walk, lim.bike, lim.car,
+      lim.trip,
       opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides), Math.round(opt.drawsPerMinute), seed,
     ],
     opt.nThreads, opt.signal,
-    // each worker keeps the links of the grid's cells by the mode (public
-    // transport walks): a single origin goes back to a worker that has them
-    `grid ${Math.round(opt.zoom)} ${modeList.transit ? "WALK" : modeList.directModes}`,
+    // each worker keeps the links of the grid's cells by the modes (public
+    // transport links them by the access and the egress mode): a single
+    // origin goes back to a worker that has them
+    `grid ${Math.round(opt.zoom)} ${modeList.directModes} ${modeList.egressMode}`,
   );
   const [origin, iso, pct, nPolygons, nRings, nPoints, x, y] = merge(parts);
   const coords = multipolygons(nPolygons, nRings, nPoints, x, y);

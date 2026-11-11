@@ -39,11 +39,12 @@ isochrone(
 \verb{POINT sf} with an \code{id} column, in WGS 84.}
 
 \item{mode}{A character vector, the transport modes (default
-\code{"transit"}): one of \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}, or \code{"TRANSIT"}
-(alone or with \code{"WALK"}).}
+\code{"transit"}): one of \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}, and for public
+transport \code{"TRANSIT"} or some of its modes (as in
+\code{\link[=travel_time_matrix]{travel_time_matrix()}}).}
 
 \item{mode_egress}{A string, the mode from the last stop to the
-destination. Only \code{"WALK"} is supported with transit.}
+destination: \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}.}
 
 \item{cutoffs}{A numeric vector, the travel times in minutes that delimit
 the isochrones. Values are sorted and duplicates removed; 0 is added and
@@ -119,7 +120,7 @@ then by band and travel time, both descending.
 The areas (\code{polygon_output = TRUE}) or the street segments
 (\code{polygon_output = FALSE}) reached from each origin within each cutoff,
 by one street mode (\code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}) or by public
-transport with walk access and egress (\code{c("WALK", "TRANSIT")}).
+transport (see \code{\link[=travel_time_matrix]{travel_time_matrix()}} for the modes).
 Arguments, defaults and the result are those of \code{r5r::isochrone()}
 (r5r 2.5.0).
 }
@@ -150,8 +151,6 @@ As in r5r, \code{max_trip_duration} is ignored: the trip limit is the largest
 cutoff (plus 10 minutes for polygons, so that the outer band is
 interpolated like the inner ones).
 
-Not supported yet, and an error when requested: transit with \code{"BICYCLE"}
-or \code{"CAR"} access or a non-walk \code{mode_egress}; a subset of transit modes.
 Package 'sf' is required.
 }
 \examples{

@@ -106,8 +106,9 @@ def test_arguments_are_checked(network, points):
         iso(network, o, mode="WALK", polygon_output=False, percentiles=50)
     with pytest.raises(ValueError, match="percentiles"):
         iso(network, o, mode="WALK", percentiles=100)
-    with pytest.raises(peabiru.UnsupportedError):
-        iso(network, o, mode=["BICYCLE", "TRANSIT"])
+    # bicycle access and car egress around public transport route
+    assert len(iso(network, o, mode=["BICYCLE", "TRANSIT"], mode_egress="CAR",
+                   seed=1)) > 0
     with pytest.raises(ValueError, match="departure_datetime"):
         peabiru.isochrone(network, o, mode="TRANSIT")
     with pytest.warns(UserWarning, match="sample_size"):

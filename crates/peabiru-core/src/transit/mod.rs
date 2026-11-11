@@ -3,6 +3,7 @@
 
 pub(crate) mod accessibility;
 pub(crate) mod decay;
+pub(crate) mod egress;
 pub(crate) mod expanded;
 pub(crate) mod layer;
 pub(crate) mod matrix;

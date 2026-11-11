@@ -3,7 +3,7 @@
 #' The areas (`polygon_output = TRUE`) or the street segments
 #' (`polygon_output = FALSE`) reached from each origin within each cutoff,
 #' by one street mode (`"WALK"`, `"BICYCLE"` or `"CAR"`) or by public
-#' transport with walk access and egress (`c("WALK", "TRANSIT")`).
+#' transport (see [travel_time_matrix()] for the modes).
 #' Arguments, defaults and the result are those of `r5r::isochrone()`
 #' (r5r 2.5.0).
 #'
@@ -33,16 +33,15 @@
 #' cutoff (plus 10 minutes for polygons, so that the outer band is
 #' interpolated like the inner ones).
 #'
-#' Not supported yet, and an error when requested: transit with `"BICYCLE"`
-#' or `"CAR"` access or a non-walk `mode_egress`; a subset of transit modes.
 #' Package 'sf' is required.
 #'
 #' @inheritParams travel_time_matrix
 #' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
 #'   `POINT sf` with an `id` column, in WGS 84.
 #' @param mode A character vector, the transport modes (default
-#'   `"transit"`): one of `"WALK"`, `"BICYCLE"` or `"CAR"`, or `"TRANSIT"`
-#'   (alone or with `"WALK"`).
+#'   `"transit"`): one of `"WALK"`, `"BICYCLE"` or `"CAR"`, and for public
+#'   transport `"TRANSIT"` or some of its modes (as in
+#'   [travel_time_matrix()]).
 #' @param cutoffs A numeric vector, the travel times in minutes that delimit
 #'   the isochrones. Values are sorted and duplicates removed; 0 is added and
 #'   at least one value must be greater than 0. Defaults to `c(0, 15, 30)`.
@@ -212,10 +211,10 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
 
   res <- raise_if_stopped(rs_isochrone_polygons(
     r5r_network$ptr, origins$lat, origins$lon,
-    if (mode_list$transit) "TRANSIT" else mode_list$direct_modes,
+    mode_list$direct_modes, mode_list$transit_mode, mode_list$egress_mode,
     as.double(cutoffs), as.integer(zoom), percentiles,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
-    max_walk_time, max_trip_duration, as.double(walk_speed),
+    max_walk_time, max_bike_time, max_car_time, max_trip_duration, as.double(walk_speed),
     as.double(bike_speed), as.integer(max_lts), as.integer(max_rides),
     as.integer(draws_per_minute), seed$has, seed$value, threads
   ))

@@ -179,13 +179,12 @@ head(read.csv(file.path(out, list.files(out)[1])), 3)
 ## What is not supported yet
 
 Options that peabiru does not implement yet stop with an error rather than
-being ignored: public transport with bicycle or car access, a subset of
-transit modes, fares, congestion and traffic-stress scenarios and elevation.
+being ignored: fares, congestion and traffic-stress scenarios and elevation.
 For example:
 
 ```{r, error = TRUE}
-travel_time_matrix(network, points, points, mode = c("BICYCLE", "TRANSIT"),
-                   departure_datetime = departure)
+travel_time_matrix(network, points, points, mode = "CAR",
+                   carspeed_scale = 0.5)
 ```
 
 The help pages of `travel_time_matrix()`, `accessibility()`,

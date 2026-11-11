@@ -159,11 +159,7 @@ test("arrival matrix: every trip arrives in time", async () => {
 });
 
 test("what peabiru does not support is an UnsupportedError", async () => {
-  const transit = { mode: "TRANSIT", departureDatetime: DEPARTURE };
   for (const opts of [
-    { mode: "BUS", departureDatetime: DEPARTURE },
-    { mode: ["BICYCLE", "TRANSIT"], departureDatetime: DEPARTURE },
-    { ...transit, modeEgress: "CAR" },
     { fareStructure: {} },
     { newLts: {} },
     { carspeedScale: 1.5 },
@@ -172,6 +168,24 @@ test("what peabiru does not support is an UnsupportedError", async () => {
     await assert.rejects(() => peabiru.travelTimeMatrix(net, pts, pts, opts), UnsupportedError, JSON.stringify(opts));
   }
   await assert.rejects(() => peabiru.expandedTravelTimeMatrix(net, pts, pts, { mode: "WALK" }), UnsupportedError);
+});
+
+test("transit mode subsets and bicycle or car access and egress route", async () => {
+  const run = (opts) => peabiru.travelTimeMatrix(net, pts, pts, { departureDatetime: DEPARTURE, seed: 1, ...opts });
+  const every = await run({ mode: "TRANSIT" });
+  for (const opts of [
+    { mode: "BUS" },
+    { mode: ["WALK", "SUBWAY"] },
+    { mode: ["BICYCLE", "TRANSIT"], maxBikeTime: 10 },
+    { mode: ["CAR", "BUS"], maxCarTime: 5 },
+    { mode: "TRANSIT", modeEgress: "BICYCLE" },
+    { mode: "TRANSIT", modeEgress: "CAR", maxCarTime: 5 },
+  ]) {
+    const res = await run(opts);
+    assert.deepEqual(Object.keys(res), Object.keys(every), JSON.stringify(opts));
+    assert.ok(res.from_id.length > 0, JSON.stringify(opts));
+    assert.notDeepEqual(res, every, JSON.stringify(opts));
+  }
 });
 
 test("bad arguments are errors, never ignored", async () => {

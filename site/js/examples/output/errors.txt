@@ -3,5 +3,5 @@
   "'destinations.id' forcefully cast to character."
 ]
 TypeError: unknown option 'maxTripDurations'
-UnsupportedError: Routing on specific transit modes (BUS) is not supported by peabiru yet; use 'TRANSIT'.
+UnsupportedError: Writing results to 'outputDir' is not supported by peabiru yet.
   (not supported yet)

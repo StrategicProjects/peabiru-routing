@@ -295,8 +295,9 @@ impl Reducer {
     }
 }
 
-/// Accessibility by walking and public transport (r5r `accessibility()`
-/// with `mode = c("WALK", "TRANSIT")`). Opportunity counts that are zero,
+/// Accessibility by public transport (r5r `accessibility()` with public
+/// transport in `mode`; the modes, access and egress as in
+/// [`transit_travel_time_matrix`](crate::transit_travel_time_matrix)). Opportunity counts that are zero,
 /// negative or NaN contribute nothing (`TravelTimeReducer.java:251-253`).
 /// `p.percentiles` are the travel-time percentiles; `p.max_trip_duration`
 /// and `p.max_walk_time` must already be what r5r hands to R5 (for the

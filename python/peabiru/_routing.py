@@ -164,15 +164,22 @@ def travel_time_matrix(
 
     Travel times between every origin and every destination, by one street
     mode (``"WALK"``, ``"BICYCLE"`` or ``"CAR"``) or by public transport
-    with walk access and egress (``["WALK", "TRANSIT"]``). Arguments,
+    (all of it or some of its modes, reached and left on foot, by bicycle
+    or by car). Arguments,
     defaults and the result are those of ``r5r::travel_time_matrix()``
     (r5r 2.5.0), and so are the values: peabiru reproduces R5's routing
     exactly.
 
+    As in R5, a bicycle or car trip to public transport goes on on foot
+    from wherever the vehicle got, within the same ``max_bike_time`` or
+    ``max_car_time``, and the trip without public transport keeps those
+    walking ends too. Egress by bicycle or car is searched from every stop
+    with R5's defaults (up to 5 km by bicycle at any level of traffic
+    stress, up to 30 minutes by car) and must stay within
+    ``max_bike_time`` or ``max_car_time``.
+
     Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]
-    when requested: transit with ``"BICYCLE"`` or ``"CAR"`` access or a
-    non-walk ``mode_egress``; a subset of transit modes (such as ``"BUS"``);
-    fares (``fare_structure``, ``max_fare``); scenarios (``new_carspeeds``,
+    when requested: fares (``fare_structure``, ``max_fare``); scenarios (``new_carspeeds``,
     ``carspeed_scale``, ``new_lts``).
 
     Parameters
@@ -188,11 +195,14 @@ def travel_time_matrix(
     destinations : pandas.DataFrame
         Points, as ``origins``.
     mode : str or sequence of str, default "WALK"
-        One of ``"WALK"``, ``"BICYCLE"`` or ``"CAR"``, or ``"TRANSIT"``
-        (alone or with ``"WALK"``).
+        One of ``"WALK"``, ``"BICYCLE"`` or ``"CAR"``, and for public
+        transport ``"TRANSIT"`` (every transit mode) or any of ``"TRAM"``,
+        ``"SUBWAY"``, ``"RAIL"``, ``"BUS"``, ``"FERRY"``, ``"CABLE_CAR"``,
+        ``"GONDOLA"`` and ``"FUNICULAR"``; the street mode (walking by
+        default) reaches public transport.
     mode_egress : str, default "WALK"
-        The mode from the last stop to the destination. Only ``"WALK"`` is
-        supported with transit.
+        The mode from the last stop to the destination: ``"WALK"``,
+        ``"BICYCLE"`` or ``"CAR"``.
     departure_datetime : datetime.datetime, optional
         The departure date and time. Its date and clock time are taken as
         they read, in its own time zone when it is timezone-aware. Required
@@ -318,6 +328,8 @@ def travel_time_matrix(
         with core_errors("travel_time_matrix"):
             fb, tb, cols = _peabiru.transit_ttm(
                 core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+                mode_list.transit_mode, mode_list.access_mode, mode_list.egress_mode,
+                float(bike_speed), int(max_lts), lim["bike"], lim["car"],
                 departure.yyyymmdd, departure.seconds, int(time_window), pcts,
                 lim["walk"], mtd, float(walk_speed), int(max_rides),
                 int(draws_per_minute), c["seed"], c["threads"], output,
@@ -386,8 +398,8 @@ def accessibility(
 
     Cumulative or decay-weighted access to the opportunities at the
     destinations from each origin, by one street mode (``"WALK"``,
-    ``"BICYCLE"`` or ``"CAR"``) or by public transport with walk access and
-    egress (``["WALK", "TRANSIT"]``). Arguments, defaults and the result are
+    ``"BICYCLE"`` or ``"CAR"``) or by public transport (see
+    [`travel_time_matrix()`][peabiru.travel_time_matrix]). Arguments, defaults and the result are
     those of ``r5r::accessibility()`` (r5r 2.5.0); the values are
     bit-identical.
 
@@ -397,8 +409,7 @@ def accessibility(
     ``max_trip_duration`` may not be shorter than the largest cutoff.
 
     Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError] when requested:
-    transit with ``"BICYCLE"`` or ``"CAR"`` access or a non-walk
-    ``mode_egress``; a subset of transit modes; fares; scenarios.
+    fares; scenarios.
 
     Parameters
     ----------
@@ -416,11 +427,14 @@ def accessibility(
         The numeric columns of ``destinations`` with the opportunity
         counts. Missing values count as 0, with a warning.
     mode : str or sequence of str, default "WALK"
-        One of ``"WALK"``, ``"BICYCLE"`` or ``"CAR"``, or ``"TRANSIT"``
-        (alone or with ``"WALK"``).
+        One of ``"WALK"``, ``"BICYCLE"`` or ``"CAR"``, and for public
+        transport ``"TRANSIT"`` (every transit mode) or any of ``"TRAM"``,
+        ``"SUBWAY"``, ``"RAIL"``, ``"BUS"``, ``"FERRY"``, ``"CABLE_CAR"``,
+        ``"GONDOLA"`` and ``"FUNICULAR"``; the street mode (walking by
+        default) reaches public transport.
     mode_egress : str, default "WALK"
-        The mode from the last stop to the destination. Only ``"WALK"`` is
-        supported with transit.
+        The mode from the last stop to the destination: ``"WALK"``,
+        ``"BICYCLE"`` or ``"CAR"``.
     departure_datetime : datetime.datetime, optional
         The departure date and time. Its date and clock time are taken as
         they read, in its own time zone when it is timezone-aware. Required
@@ -566,10 +580,11 @@ def accessibility(
         values = _f64(
             _peabiru.accessibility(
                 r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
-                opp, "TRANSIT" if mode_list.transit else mode_list.direct_modes,
+                opp, mode_list.direct_modes, mode_list.transit_mode, mode_list.egress_mode,
                 fun, value, cutoffs_r5, pcts,
                 departure.yyyymmdd, departure.seconds, int(time_window),
-                lim["walk"], lim["trip"], float(walk_speed), float(bike_speed),
+                lim["walk"], lim["bike"], lim["car"], lim["trip"],
+                float(walk_speed), float(bike_speed),
                 int(max_lts), int(max_rides), int(draws_per_minute), c["seed"], c["threads"],
                 output,
             )
@@ -624,17 +639,17 @@ def expanded_travel_time_matrix(
 
     The travel time of every trip between each origin and destination, for
     every departure minute in the time window (and every Monte Carlo draw
-    with frequency-based GTFS), by public transport with walk access and
-    egress (``["WALK", "TRANSIT"]``). Arguments, defaults and the result are
+    with frequency-based GTFS), by public transport (see
+    [`travel_time_matrix()`][peabiru.travel_time_matrix] for the modes). Arguments, defaults and the result are
     those of ``r5r::expanded_travel_time_matrix()`` (r5r 2.5.0), with the
     same values.
 
     Only public transport is supported: with a street mode alone r5r
     reports the same trip for every minute of a departure time taken from
     the clock, which peabiru does not reproduce; that is an
-    [`UnsupportedError`][peabiru.UnsupportedError], as are transit with ``"BICYCLE"`` or
-    ``"CAR"`` access or a non-walk ``mode_egress``, a subset of transit
-    modes and scenarios.
+    [`UnsupportedError`][peabiru.UnsupportedError], as are scenarios. A trip
+    without public transport has the street mode as ``routes``
+    (``"[WALK]"``, ``"[BICYCLE]"`` or ``"[CAR]"``), as in r5r.
 
     Parameters
     ----------
@@ -649,11 +664,12 @@ def expanded_travel_time_matrix(
     destinations : pandas.DataFrame
         Points, as ``origins``.
     mode : str or sequence of str, default "WALK"
-        ``["WALK", "TRANSIT"]`` or ``"TRANSIT"``; a street mode alone is
-        an error.
+        Public transport, as in
+        [`travel_time_matrix()`][peabiru.travel_time_matrix]; a street mode
+        alone is an error.
     mode_egress : str, default "WALK"
-        The mode from the last stop to the destination. Only ``"WALK"`` is
-        supported with transit.
+        The mode from the last stop to the destination: ``"WALK"``,
+        ``"BICYCLE"`` or ``"CAR"``.
     departure_datetime : datetime.datetime, optional
         The departure date and time. Its date and clock time are taken as
         they read, in its own time zone when it is timezone-aware. Required
@@ -767,6 +783,8 @@ def expanded_travel_time_matrix(
     with core_errors("expanded_travel_time_matrix", n_destinations=len(d)):
         res = _peabiru.expanded(
             r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+            mode_list.transit_mode, mode_list.access_mode, mode_list.egress_mode,
+            float(bike_speed), int(max_lts), lim["bike"], lim["car"],
             False, departure.yyyymmdd, departure.seconds, int(time_window),
             lim["walk"], lim["trip"], float(walk_speed), int(max_rides),
             int(draws_per_minute), c["seed"], c["threads"], bool(breakdown),
@@ -806,8 +824,8 @@ def arrival_travel_time_matrix(
     """Travel-time matrix for a time of arrival.
 
     For each origin and destination, the trip that leaves latest and still
-    arrives by ``arrival_datetime``, by public transport with walk access
-    and egress (``["WALK", "TRANSIT"]``). Arguments, defaults and the result
+    arrives by ``arrival_datetime``, by public transport (see
+    [`travel_time_matrix()`][peabiru.travel_time_matrix] for the modes). Arguments, defaults and the result
     are those of ``r5r::arrival_travel_time_matrix()`` (r5r 2.5.0), with the
     same values: as r5r does, departures are searched minute by minute from
     ``arrival_datetime - max_trip_duration``, which may fall on the day
@@ -830,11 +848,12 @@ def arrival_travel_time_matrix(
     destinations : pandas.DataFrame
         Points, as ``origins``.
     mode : str or sequence of str, default "WALK"
-        ``["WALK", "TRANSIT"]`` or ``"TRANSIT"``; a street mode alone is
-        an error.
+        Public transport, as in
+        [`travel_time_matrix()`][peabiru.travel_time_matrix]; a street mode
+        alone is an error.
     mode_egress : str, default "WALK"
-        The mode from the last stop to the destination. Only ``"WALK"`` is
-        supported with transit.
+        The mode from the last stop to the destination: ``"WALK"``,
+        ``"BICYCLE"`` or ``"CAR"``.
     arrival_datetime : datetime.datetime
         The time by which trips must arrive (required; ``None`` is an
         error). Its date and clock time are taken as they read, in its own
@@ -966,6 +985,8 @@ def arrival_travel_time_matrix(
     ):
         res = _peabiru.expanded(
             r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+            mode_list.transit_mode, mode_list.access_mode, mode_list.egress_mode,
+            float(bike_speed), int(max_lts), lim["bike"], lim["car"],
             True, departure.yyyymmdd, departure.seconds, mtd,
             lim["walk"], mtd, float(walk_speed), int(max_rides),
             int(draws_per_minute), c["seed"], c["threads"], bool(breakdown),

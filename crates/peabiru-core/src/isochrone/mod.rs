@@ -138,8 +138,9 @@ pub fn street_travel_time_surface(
     })
 }
 
-/// Travel-time surface by walking and public transport (r5r's
-/// `isochrone()` with `mode = c("WALK", "TRANSIT")` and
+/// Travel-time surface by public transport (r5r's `isochrone()` with
+/// public transport in `mode`, its modes, access and egress as in
+/// [`TransitParams`](crate::TransitParams), and
 /// `polygon_output = TRUE`), at each of `p.percentiles` over the departure
 /// window. `p.max_trip_duration` is the limit r5r hands R5 (the largest
 /// cutoff plus 10 minutes). Otherwise as [`street_travel_time_surface`].

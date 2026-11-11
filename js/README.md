@@ -161,8 +161,7 @@ for (let i = 0; i < ttm.from_id.length; i++) {
 ## What is not supported
 
 What peabiru does not support yet throws `peabiru.UnsupportedError`; it is
-never silently ignored: public transport with bicycle or car access or
-egress, transit modes other than `"TRANSIT"` (such as `"BUS"`), fares
+never silently ignored: fares
 (`fareStructure`, `maxFare`), scenarios (`newCarspeeds`, `carspeedScale`,
 `newLts`), `outputDir`, expanded and arrival matrices by a street mode
 alone. Elevation is not supported either: `buildNetwork()` takes no

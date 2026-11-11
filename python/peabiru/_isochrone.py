@@ -86,7 +86,7 @@ def isochrone(
     The areas (``polygon_output=True``) or the street segments
     (``polygon_output=False``) reached from each origin within each cutoff,
     by one street mode (``"WALK"``, ``"BICYCLE"`` or ``"CAR"``) or by
-    public transport with walk access and egress (``["WALK", "TRANSIT"]``).
+    public transport (see [`travel_time_matrix()`][peabiru.travel_time_matrix]).
     Arguments and defaults are those of ``r5r::isochrone()`` (r5r 2.5.0).
 
     Polygon isochrones are made as r5r makes them: travel times from each
@@ -113,9 +113,7 @@ def isochrone(
     largest cutoff (plus 10 minutes for polygons, so that the outer band is
     interpolated like the inner ones).
 
-    Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]
-    when requested: transit with ``"BICYCLE"`` or ``"CAR"`` access or a
-    non-walk ``mode_egress``; a subset of transit modes. Needs geopandas
+    Needs geopandas
     (``pip install 'peabiru[geo]'``).
 
     Parameters
@@ -127,11 +125,14 @@ def isochrone(
         ``geopandas.GeoDataFrame`` of points in EPSG:4326 with an ``id``
         column, as in [`travel_time_matrix()`][peabiru.travel_time_matrix].
     mode : str or sequence of str, default "transit"
-        One of ``"WALK"``, ``"BICYCLE"`` or ``"CAR"``, or ``"TRANSIT"``
-        (alone or with ``"WALK"``); case does not matter.
+        One of ``"WALK"``, ``"BICYCLE"`` or ``"CAR"``, and for public
+        transport ``"TRANSIT"`` (every transit mode) or any of ``"TRAM"``,
+        ``"SUBWAY"``, ``"RAIL"``, ``"BUS"``, ``"FERRY"``, ``"CABLE_CAR"``,
+        ``"GONDOLA"`` and ``"FUNICULAR"``; the street mode (walking by
+        default) reaches public transport; case does not matter.
     mode_egress : str, default "walk"
-        The mode from the last stop to the destination. Only ``"WALK"`` is
-        supported with transit.
+        The mode from the last stop to the destination: ``"WALK"``,
+        ``"BICYCLE"`` or ``"CAR"``.
     cutoffs : number or sequence of numbers, default (0, 15, 30)
         The travel times in minutes that delimit the isochrones: finite and
         at least 0. They are sorted and duplicates removed; 0 is added, and
@@ -292,9 +293,10 @@ def _polygons(
     with core_errors("isochrone"):
         r = _peabiru.isochrone_polygons(
             network._core, o.lat_bytes(), o.lon_bytes(),
-            "TRANSIT" if mode_list.transit else mode_list.direct_modes,
+            mode_list.direct_modes, mode_list.transit_mode, mode_list.egress_mode,
             cutoffs, zoom, pcts, departure.yyyymmdd, departure.seconds,
-            int(time_window), lim["walk"], lim["trip"], float(walk_speed),
+            int(time_window), lim["walk"], lim["bike"], lim["car"], lim["trip"],
+            float(walk_speed),
             float(bike_speed), int(max_lts), int(max_rides), int(draws_per_minute),
             c["seed"], c["threads"],
         )

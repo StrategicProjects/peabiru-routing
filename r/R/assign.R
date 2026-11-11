@@ -81,7 +81,7 @@ assign_points_input <- function(df, name, unique_ids = TRUE) {
   df
 }
 
-# r5r assign_mode(), plus the restriction to what the core supports.
+# r5r assign_mode().
 assign_mode <- function(mode, mode_egress) {
   all_modes <- c(r5r_transit_modes, r5r_direct_modes)
 
@@ -136,24 +136,6 @@ assign_mode <- function(mode, mode_egress) {
     egress_mode = paste0(egress_mode, collapse = ";"),
     transit = !identical(transit_modes, "")
   )
-
-  # What the core can route: walk access and egress around all transit
-  # modes, or one street mode alone.
-  if (mode_list$transit) {
-    if (!setequal(transit_modes, r5r_transit_modes)) {
-      unsupported(paste0(
-        "Routing on specific transit modes (",
-        paste(setdiff(mode, r5r_direct_modes), collapse = ", "),
-        ")"
-      ), "; use 'TRANSIT'")
-    }
-    if (access_mode != "WALK") {
-      unsupported(paste0("Transit with ", access_mode, " access"))
-    }
-    if (egress_mode != "WALK") {
-      unsupported(paste0("Transit with ", egress_mode, " egress"))
-    }
-  }
 
   mode_list
 }

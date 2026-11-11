@@ -204,6 +204,28 @@ for (city in cities) {
   run("lines_BICYCLE_v2", "lts 4, 10 km/h, 0,3,6,9", both(
     origins = o, mode = "BICYCLE", cutoffs = c(0, 3, 6, 9), max_lts = 4, bike_speed = 10,
     departure_datetime = departure, polygon_output = FALSE))
+  # transit mode subsets, bicycle and car access and egress
+  run("poly_BUS", "WALK+BUS, cutoffs 0,20,40", both(
+    origins = o, mode = c("WALK", "BUS"), cutoffs = c(0, 20, 40),
+    departure_datetime = departure, seed = seed))
+  run("poly_RAIL_SUBWAY", "RAIL+SUBWAY, p 25,75", both(
+    origins = o2, mode = c("RAIL", "SUBWAY"), percentiles = c(25, 75),
+    departure_datetime = departure, seed = seed))
+  run("poly_BICYCLE_TRANSIT", "BICYCLE+TRANSIT, mbt 15, lts 3", both(
+    origins = o, mode = c("BICYCLE", "TRANSIT"), max_bike_time = 15, max_lts = 3,
+    departure_datetime = departure, seed = seed))
+  run("poly_CAR_TRANSIT_egress_BICYCLE", "CAR+TRANSIT, egress BICYCLE, z 10", both(
+    origins = o2, mode = c("CAR", "TRANSIT"), mode_egress = "BICYCLE", zoom = 10,
+    max_car_time = 10, max_bike_time = 10, departure_datetime = departure, seed = seed))
+  run("poly_TRANSIT_egress_CAR", "TRANSIT, egress CAR, 0,15,30", both(
+    origins = o2, mode = "TRANSIT", mode_egress = "CAR", max_car_time = 10,
+    departure_datetime = departure, seed = seed))
+  run("lines_CAR_BUS", "CAR+BUS, mct 10", both(
+    origins = o, mode = c("CAR", "BUS"), max_car_time = 10,
+    departure_datetime = departure, seed = seed, polygon_output = FALSE))
+  run("lines_TRANSIT_egress_BICYCLE", "TRANSIT, egress BICYCLE", both(
+    origins = o, mode = "TRANSIT", mode_egress = "BICYCLE",
+    departure_datetime = departure, seed = seed, polygon_output = FALSE))
 }
 
 res <- do.call(rbind, results)

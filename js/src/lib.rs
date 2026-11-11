@@ -28,7 +28,7 @@ use peabiru_core::{
     street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
     transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, DecayFunction,
     Destinations, ExpandedRow, Mode, RouteError, RouteParams, StreetNetwork, TransitData,
-    TransitLayer, TransitParams,
+    TransitLayer, TransitMode, TransitParams,
 };
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
@@ -200,6 +200,19 @@ fn street_mode(mode: &str) -> Result<Mode, JsError> {
     }
 }
 
+/// The transit modes of r5r's `transit_mode` string (`"BUS;RAIL"`, or
+/// every mode and `TRANSIT` for `"TRANSIT"`); `TRANSIT` itself selects no
+/// route.
+fn parse_transit_modes(modes: &str) -> Result<Vec<TransitMode>, JsError> {
+    modes
+        .split(';')
+        .filter(|m| !m.is_empty() && *m != "TRANSIT")
+        .map(|m| {
+            TransitMode::from_name(m).ok_or_else(|| err(format!("unknown transit mode '{m}'")))
+        })
+        .collect()
+}
+
 fn route_params(walk_speed: f64, bike_speed: f64, max_lts: i32, max_trip: i32) -> RouteParams {
     let mut p = RouteParams::default();
     p.walk_speed_kmh = walk_speed;
@@ -211,29 +224,43 @@ fn route_params(walk_speed: f64, bike_speed: f64, max_lts: i32, max_trip: i32) -
 
 #[allow(clippy::too_many_arguments)]
 fn transit_params(
+    modes: &str,
+    access_mode: &str,
+    egress_mode: &str,
     date: u32,
     departure_time: i32,
     time_window: i32,
     percentiles: Vec<i32>,
     max_walk_time: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     max_trip_duration: i32,
     walk_speed: f64,
+    bike_speed: f64,
+    max_lts: i32,
     max_rides: usize,
     draws_per_minute: i32,
     seed: i32,
-) -> TransitParams {
+) -> Result<TransitParams, JsError> {
     let mut p = TransitParams::default();
+    p.transit_modes = parse_transit_modes(modes)?;
+    p.access_mode = street_mode(access_mode)?;
+    p.egress_mode = street_mode(egress_mode)?;
     p.date = date;
     p.departure_time = departure_time;
     p.time_window = time_window;
     p.percentiles = percentiles;
     p.max_walk_time = max_walk_time;
+    p.max_bike_time = max_bike_time;
+    p.max_car_time = max_car_time;
     p.max_trip_duration = max_trip_duration;
     p.walk_speed_kmh = walk_speed;
+    p.bike_speed_kmh = bike_speed;
+    p.max_lts = max_lts;
     p.max_rides = max_rides;
     p.draws_per_minute = draws_per_minute;
     p.seed = Some(seed);
-    p
+    Ok(p)
 }
 
 /// Street-only travel-time matrix: the reported pairs as
@@ -270,7 +297,7 @@ pub fn street_ttm(
         .collect())
 }
 
-/// Walk + transit travel-time matrix: the reported pairs as `from`, `to`
+/// Public transport travel-time matrix: the reported pairs as `from`, `to`
 /// and one Int32Array per percentile (ascending), with `NA_I32` where r5r
 /// gives NA; origin-major.
 #[wasm_bindgen]
@@ -281,6 +308,13 @@ pub fn transit_ttm(
     olon: &[f64],
     dlat: &[f64],
     dlon: &[f64],
+    transit_modes: &str,
+    access_mode: &str,
+    egress_mode: &str,
+    bike_speed: f64,
+    max_lts: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     date: u32,
     departure_time: i32,
     time_window: i32,
@@ -296,17 +330,24 @@ pub fn transit_ttm(
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let np = percentiles.len();
     let p = transit_params(
+        transit_modes,
+        access_mode,
+        egress_mode,
         date,
         departure_time,
         time_window,
         percentiles,
         max_walk_time,
+        max_bike_time,
+        max_car_time,
         max_trip_duration,
         walk_speed,
+        bike_speed,
+        max_lts,
         max_rides,
         draws_per_minute,
         seed,
-    );
+    )?;
     let m = transit_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
         .map_err(route_err)?;
     let (mut from, mut to) = (Vec::new(), Vec::new());
@@ -350,9 +391,10 @@ fn decay(name: &str, value: f64) -> Result<DecayFunction, JsError> {
 }
 
 /// Accessibility values `[origin][opportunity][percentile][cutoff]` in one
-/// Float64Array. `mode` is `TRANSIT` (walk access and egress) or a street
-/// mode; `opportunities` holds the `n_opportunities` opportunity columns
-/// one after the other, each with one value per destination.
+/// Float64Array. `mode` is the street mode (of the access to public
+/// transport when `transit_modes` is not empty); `opportunities` holds the
+/// `n_opportunities` opportunity columns one after the other, each with
+/// one value per destination.
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn accessibility(
@@ -364,6 +406,8 @@ pub fn accessibility(
     opportunities: &[f64],
     n_opportunities: usize,
     mode: &str,
+    transit_modes: &str,
+    egress_mode: &str,
     decay_function: &str,
     decay_value: f64,
     cutoffs: Vec<i32>,
@@ -372,6 +416,8 @@ pub fn accessibility(
     departure_time: i32,
     time_window: i32,
     max_walk_time: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     max_trip_duration: i32,
     walk_speed: f64,
     bike_speed: f64,
@@ -393,20 +439,27 @@ pub fn accessibility(
     a.cutoffs = cutoffs;
     a.decay = decay(decay_function, decay_value)?;
     let dest = Destinations::new(&d, &opp);
-    let values = if mode == "TRANSIT" {
+    let values = if !transit_modes.is_empty() {
         let t = transit(network)?;
         let p = transit_params(
+            transit_modes,
+            mode,
+            egress_mode,
             date,
             departure_time,
             time_window,
             percentiles,
             max_walk_time,
+            max_bike_time,
+            max_car_time,
             max_trip_duration,
             walk_speed,
+            bike_speed,
+            max_lts,
             max_rides,
             draws_per_minute,
             seed,
-        );
+        )?;
         transit_accessibility(&network.net, &t.layer, &t.data, &o, &dest, &p, &a)
     } else {
         let m = street_mode(mode)?;
@@ -435,6 +488,13 @@ pub fn expanded(
     olon: &[f64],
     dlat: &[f64],
     dlon: &[f64],
+    transit_modes: &str,
+    access_mode: &str,
+    egress_mode: &str,
+    bike_speed: f64,
+    max_lts: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     arrival: bool,
     date: u32,
     departure_time: i32,
@@ -449,17 +509,24 @@ pub fn expanded(
     let t = transit(network)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let p = transit_params(
+        transit_modes,
+        access_mode,
+        egress_mode,
         date,
         departure_time,
         time_window,
         vec![50],
         max_walk_time,
+        max_bike_time,
+        max_car_time,
         max_trip_duration,
         walk_speed,
+        bike_speed,
+        max_lts,
         max_rides,
         draws_per_minute,
         seed,
-    );
+    )?;
     let rows = if arrival {
         arrival_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
     } else {
@@ -486,9 +553,9 @@ pub fn expanded(
 /// `origin` (0-based Int32Array), `isochrone` (Float64Array), `percentile`
 /// and `n_polygons` (Int32Array); per polygon `n_rings`; per ring
 /// `n_points` (Int32Array); per point `x` (longitude) and `y` (latitude),
-/// Float64Array. `mode` is `TRANSIT` (walk access and egress) or a street
-/// mode; `max_trip_duration` is the search limit (r5r: the largest cutoff
-/// plus 10).
+/// Float64Array. `mode` is the street mode (of the access to public
+/// transport when `transit_modes` is not empty); `max_trip_duration` is
+/// the search limit (r5r: the largest cutoff plus 10).
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn isochrone_polygons(
@@ -496,6 +563,8 @@ pub fn isochrone_polygons(
     olat: &[f64],
     olon: &[f64],
     mode: &str,
+    transit_modes: &str,
+    egress_mode: &str,
     cutoffs: Vec<f64>,
     zoom: i32,
     percentiles: Vec<i32>,
@@ -503,6 +572,8 @@ pub fn isochrone_polygons(
     departure_time: i32,
     time_window: i32,
     max_walk_time: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     max_trip_duration: i32,
     walk_speed: f64,
     bike_speed: f64,
@@ -512,20 +583,27 @@ pub fn isochrone_polygons(
     seed: i32,
 ) -> Result<Array, JsError> {
     let o = points(olat, olon)?;
-    let surface = if mode == "TRANSIT" {
+    let surface = if !transit_modes.is_empty() {
         let t = transit(network)?;
         let p = transit_params(
+            transit_modes,
+            mode,
+            egress_mode,
             date,
             departure_time,
             time_window,
             percentiles,
             max_walk_time,
+            max_bike_time,
+            max_car_time,
             max_trip_duration,
             walk_speed,
+            bike_speed,
+            max_lts,
             max_rides,
             draws_per_minute,
             seed,
-        );
+        )?;
         transit_travel_time_surface(&network.net, &t.layer, &t.data, &o, &p, zoom)
     } else {
         let m = street_mode(mode)?;

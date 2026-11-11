@@ -24,7 +24,7 @@ use peabiru_core::{
     street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
     transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, CancelToken,
     CsvOutput, DecayFunction, Destinations, ExpandedRow, Mode, RouteError, RouteParams,
-    StreetNetwork, TransitData, TransitLayer, TransitParams,
+    StreetNetwork, TransitData, TransitLayer, TransitMode, TransitParams,
 };
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
@@ -261,6 +261,30 @@ fn street_mode(mode: &str) -> PyResult<Mode> {
     }
 }
 
+/// A street mode around public transport; empty (no public transport)
+/// is walking, which nothing then reads.
+fn transit_street_mode(mode: &str) -> PyResult<Mode> {
+    if mode.is_empty() {
+        Ok(Mode::Walk)
+    } else {
+        street_mode(mode)
+    }
+}
+
+/// The transit modes of r5r's `transit_mode` string (`"BUS;RAIL"`, or
+/// every mode and `TRANSIT` for `"TRANSIT"`); `TRANSIT` itself selects no
+/// route.
+fn parse_transit_modes(modes: &str) -> PyResult<Vec<TransitMode>> {
+    modes
+        .split(';')
+        .filter(|m| !m.is_empty() && *m != "TRANSIT")
+        .map(|m| {
+            TransitMode::from_name(m)
+                .ok_or_else(|| value_err(format!("unknown transit mode '{m}'")))
+        })
+        .collect()
+}
+
 /// Street-only travel-time matrix: the reported pairs as
 /// `(from, to, minutes)` int32 buffers, origin-major. With `output` (see
 /// [`Output`]) the files are written instead, with one `travel_time_pXX`
@@ -329,26 +353,40 @@ fn street_ttm<'py>(
 
 #[allow(clippy::too_many_arguments)]
 fn transit_params(
+    modes: Vec<TransitMode>,
+    access_mode: Mode,
+    egress_mode: Mode,
     date: u32,
     departure_time: i32,
     time_window: i32,
     percentiles: Vec<i32>,
     max_walk_time: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     max_trip_duration: i32,
     walk_speed: f64,
+    bike_speed: f64,
+    max_lts: i32,
     max_rides: usize,
     draws_per_minute: i32,
     seed: Option<i32>,
     n_threads: usize,
 ) -> TransitParams {
     let mut p = TransitParams::default();
+    p.transit_modes = modes;
+    p.access_mode = access_mode;
+    p.egress_mode = egress_mode;
     p.date = date;
     p.departure_time = departure_time;
     p.time_window = time_window;
     p.percentiles = percentiles;
     p.max_walk_time = max_walk_time;
+    p.max_bike_time = max_bike_time;
+    p.max_car_time = max_car_time;
     p.max_trip_duration = max_trip_duration;
     p.walk_speed_kmh = walk_speed;
+    p.bike_speed_kmh = bike_speed;
+    p.max_lts = max_lts;
     p.max_rides = max_rides;
     p.draws_per_minute = draws_per_minute;
     p.seed = seed;
@@ -375,7 +413,7 @@ fn route_params(
     p
 }
 
-/// Walk + transit travel-time matrix: the reported pairs as `from`, `to`
+/// Public transport travel-time matrix: the reported pairs as `from`, `to`
 /// and one int32 buffer per percentile (ascending), with `i32::MIN` where
 /// r5r gives NA; origin-major. With `output` (see [`Output`]) the files
 /// are written instead and the buffers are empty.
@@ -388,6 +426,13 @@ fn transit_ttm<'py>(
     olon: &[u8],
     dlat: &[u8],
     dlon: &[u8],
+    transit_modes: &str,
+    access_mode: &str,
+    egress_mode: &str,
+    bike_speed: f64,
+    max_lts: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     date: u32,
     departure_time: i32,
     time_window: i32,
@@ -402,17 +447,27 @@ fn transit_ttm<'py>(
     output: Output,
 ) -> PyResult<(Col<'py>, Col<'py>, Vec<Col<'py>>)> {
     let n = network.get();
+    let modes = parse_transit_modes(transit_modes)?;
+    let egress = transit_street_mode(egress_mode)?;
+    let access = street_mode(access_mode)?;
     let t = transit(n)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let np = percentiles.len();
     let p = transit_params(
+        modes.clone(),
+        access,
+        egress,
         date,
         departure_time,
         time_window,
         percentiles,
         max_walk_time,
+        max_bike_time,
+        max_car_time,
         max_trip_duration,
         walk_speed,
+        bike_speed,
+        max_lts,
         max_rides,
         draws_per_minute,
         seed,
@@ -476,8 +531,8 @@ fn decay(name: &str, value: f64) -> PyResult<DecayFunction> {
 }
 
 /// Accessibility values `[origin][opportunity][percentile][cutoff]`,
-/// flattened into one f64 buffer. `mode` is `TRANSIT` (walk access and
-/// egress) or a street mode; `opportunities` holds one f64 buffer per
+/// flattened into one f64 buffer. `mode` is the street mode (of the
+/// access to public transport when `transit_modes` is not empty); `opportunities` holds one f64 buffer per
 /// opportunity column. With `output` (see [`Output`]; the third element
 /// holds the opportunity column names instead of destination ids) the files
 /// are written instead and the buffer is empty.
@@ -492,6 +547,8 @@ fn accessibility<'py>(
     dlon: &[u8],
     opportunities: Vec<Vec<u8>>,
     mode: &str,
+    transit_modes: &str,
+    egress_mode: &str,
     decay_function: &str,
     decay_value: f64,
     cutoffs: Vec<i32>,
@@ -500,6 +557,8 @@ fn accessibility<'py>(
     departure_time: i32,
     time_window: i32,
     max_walk_time: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     max_trip_duration: i32,
     walk_speed: f64,
     bike_speed: f64,
@@ -511,6 +570,9 @@ fn accessibility<'py>(
     output: Output,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let n = network.get();
+    let modes = parse_transit_modes(transit_modes)?;
+    let egress = transit_street_mode(egress_mode)?;
+    let access = street_mode(mode)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let opp: Vec<Vec<f64>> = opportunities
         .iter()
@@ -525,10 +587,10 @@ fn accessibility<'py>(
     let mut a = AccessibilityParams::default();
     a.cutoffs = cutoffs;
     a.decay = decay(decay_function, decay_value)?;
-    let street = if mode == "TRANSIT" {
+    let street = if !modes.is_empty() {
         None
     } else {
-        Some(street_mode(mode)?)
+        Some(access)
     };
     let t = if street.is_none() {
         Some(transit(n)?)
@@ -547,13 +609,20 @@ fn accessibility<'py>(
         None => std::iter::once(0..o.len()).collect(),
     };
     let mut p = transit_params(
+        modes.clone(),
+        access,
+        egress,
         date,
         departure_time,
         time_window,
         percentiles.clone(),
         max_walk_time,
+        max_bike_time,
+        max_car_time,
         max_trip_duration,
         walk_speed,
+        bike_speed,
+        max_lts,
         max_rides,
         draws_per_minute,
         seed,
@@ -620,6 +689,13 @@ fn expanded<'py>(
     olon: &[u8],
     dlat: &[u8],
     dlon: &[u8],
+    transit_modes: &str,
+    access_mode: &str,
+    egress_mode: &str,
+    bike_speed: f64,
+    max_lts: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     arrival: bool,
     date: u32,
     departure_time: i32,
@@ -635,16 +711,26 @@ fn expanded<'py>(
     output: Output,
 ) -> PyResult<Bound<'py, PyDict>> {
     let n = network.get();
+    let modes = parse_transit_modes(transit_modes)?;
+    let egress = transit_street_mode(egress_mode)?;
+    let access = street_mode(access_mode)?;
     let t = transit(n)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let p = transit_params(
+        modes.clone(),
+        access,
+        egress,
         date,
         departure_time,
         time_window,
         vec![50],
         max_walk_time,
+        max_bike_time,
+        max_car_time,
         max_trip_duration,
         walk_speed,
+        bike_speed,
+        max_lts,
         max_rides,
         draws_per_minute,
         seed,
@@ -772,8 +858,8 @@ impl ExpandedColumns {
 /// geometries: per row (origin, percentile, cutoff; r5r's order) `origin`
 /// (0-based int32), `isochrone` (f64), `percentile` and `n_polygons`
 /// (int32); per polygon `n_rings`; per ring `n_points` (int32); per point
-/// `x` (longitude) and `y` (latitude), f64. `mode` is `TRANSIT` (walk
-/// access and egress) or a street mode; `max_trip_duration` is the search
+/// `x` (longitude) and `y` (latitude), f64. `mode` is the street mode (of
+/// the access to public transport when `transit_modes` is not empty); `max_trip_duration` is the search
 /// limit (r5r: the largest cutoff plus 10).
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
@@ -783,6 +869,8 @@ fn isochrone_polygons<'py>(
     olat: &[u8],
     olon: &[u8],
     mode: &str,
+    transit_modes: &str,
+    egress_mode: &str,
     cutoffs: Vec<f64>,
     zoom: i32,
     percentiles: Vec<i32>,
@@ -790,6 +878,8 @@ fn isochrone_polygons<'py>(
     departure_time: i32,
     time_window: i32,
     max_walk_time: i32,
+    max_bike_time: i32,
+    max_car_time: i32,
     max_trip_duration: i32,
     walk_speed: f64,
     bike_speed: f64,
@@ -800,11 +890,14 @@ fn isochrone_polygons<'py>(
     n_threads: usize,
 ) -> PyResult<Bound<'py, PyDict>> {
     let n = network.get();
+    let modes = parse_transit_modes(transit_modes)?;
+    let egress = transit_street_mode(egress_mode)?;
+    let access = street_mode(mode)?;
     let o = points(olat, olon)?;
-    let street = if mode == "TRANSIT" {
+    let street = if !modes.is_empty() {
         None
     } else {
-        Some(street_mode(mode)?)
+        Some(access)
     };
     let t = if street.is_none() {
         Some(transit(n)?)
@@ -816,13 +909,20 @@ fn isochrone_polygons<'py>(
         let surface = match (street, t) {
             (None, Some(t)) => {
                 let mut p = transit_params(
+                    modes.clone(),
+                    access,
+                    egress,
                     date,
                     departure_time,
                     time_window,
                     percentiles,
                     max_walk_time,
+                    max_bike_time,
+                    max_car_time,
                     max_trip_duration,
                     walk_speed,
+                    bike_speed,
+                    max_lts,
                     max_rides,
                     draws_per_minute,
                     seed,

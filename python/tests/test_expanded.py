@@ -122,10 +122,12 @@ def test_unsupported_and_invalid(network, points, departure):
         peabiru.arrival_travel_time_matrix(
             network, points, points, mode="TRANSIT", arrival_datetime="15:00"
         )
-    with pytest.raises(peabiru.UnsupportedError, match="CAR access is not supported"):
-        peabiru.expanded_travel_time_matrix(
-            network, points, points, mode=["CAR", "TRANSIT"], departure_datetime=departure
-        )
+    # by car, a record without public transport has r5r's routes "[CAR]"
+    car = peabiru.expanded_travel_time_matrix(
+        network, points, points, mode=["CAR", "TRANSIT"], departure_datetime=departure,
+        max_car_time=5, seed=1,
+    )
+    assert "[CAR]" in set(car["routes"]) and "[WALK]" not in set(car["routes"])
     with pytest.raises(TypeError, match="breakdown"):
         peabiru.expanded_travel_time_matrix(
             network, points, points, mode="TRANSIT", departure_datetime=departure,

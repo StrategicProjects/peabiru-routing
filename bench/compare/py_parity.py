@@ -171,6 +171,36 @@ def scenarios(n: int) -> List[Dict[str, Any]]:
     add("arrival_midnight", ar, "transit", origins=o50, mode=transit,
         arrival_datetime=when("2019-05-14 00:30:00", naive=False), breakdown=True, seed=42)
 
+    # transit mode subsets, bicycle and car access and egress
+    add("modes_ttm_bus", ttm, "transit", mode=["WALK", "BUS"], departure_datetime=dep,
+        percentiles=pct5, seed=42)
+    add("modes_ttm_rail_subway", ttm, "transit", mode=["RAIL", "SUBWAY"],
+        departure_datetime=dep, time_window=5, max_rides=2, seed=42)
+    add("modes_access_bus", "accessibility", "transit", opportunities_colnames="jobs",
+        mode="BUS", departure_datetime=dep, cutoffs=[30, 60], seed=42)
+    add("modes_expanded_rail", ex, "transit", origins=o50, mode=["WALK", "RAIL"],
+        departure_datetime=dep, breakdown=True, seed=42)
+    add("via_ttm_bike", ttm, "transit", mode=["BICYCLE", "TRANSIT"],
+        departure_datetime=dep, max_bike_time=20, max_lts=3, bike_speed=14,
+        percentiles=[25, 50, 75], seed=42)
+    add("via_ttm_car", ttm, "transit", mode=["CAR", "TRANSIT"], departure_datetime=dep,
+        max_car_time=15, seed=42)
+    add("via_access_car", "accessibility", "transit", opportunities_colnames="jobs",
+        mode=["CAR", "BUS"], departure_datetime=dep, cutoffs=[30, 45], max_car_time=10,
+        seed=42)
+    add("via_expanded_bike", ex, "transit", origins=o50, mode=["BICYCLE", "TRANSIT"],
+        departure_datetime=dep, breakdown=True, max_bike_time=15, seed=42)
+    add("via_arrival_car", ar, "transit", origins=o50, mode=["CAR", "TRANSIT"],
+        arrival_datetime=when("2019-05-13 16:00:00", naive=False), breakdown=True,
+        max_car_time=10, seed=42)
+    add("egress_ttm_bike", ttm, "transit", mode=transit, mode_egress="BICYCLE",
+        departure_datetime=dep, max_bike_time=15, seed=42)
+    add("egress_ttm_car", ttm, "transit", mode=["BICYCLE", "TRANSIT"], mode_egress="CAR",
+        departure_datetime=dep, max_car_time=10, max_bike_time=10, seed=42)
+    add("egress_expanded_car", ex, "transit", origins=o50, mode=transit,
+        mode_egress="CAR", departure_datetime=dep, breakdown=True, max_car_time=10,
+        time_window=5, seed=42)
+
     # Python-specific inputs: shuffled points, integer ids, a datetime in
     # another time zone, arrival on an aware datetime in UTC
     rng = random.Random(20261109)
