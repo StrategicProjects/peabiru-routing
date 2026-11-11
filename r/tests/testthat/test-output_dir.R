@@ -127,15 +127,20 @@ test_that("WALK is routed from the origins, ids are quoted, files replaced", {
   expect_gt(length(list.files(d)), 3)
 
   p <- pts[1:3, ]
-  p$id <- c("a,b", "q\"x", "plain")
+  # a double quote cannot be in a file name on Windows
+  windows <- .Platform$OS.type == "windows"
+  quoted <- if (windows) "q x" else "q\"x"
+  p$id <- c("a,b", quoted, "plain")
   d <- new_dir()
   writeLines(c("old", "old"), file.path(d, "from_plain.csv"))
   writeLines("kept", file.path(d, "other.txt"))
   travel_time_matrix(network, p, p, n_threads = 2, output_dir = d)
-  expect_setequal(list.files(d), c("from_a,b.csv", "from_q\"x.csv",
+  expect_setequal(list.files(d), c("from_a,b.csv", paste0("from_", quoted, ".csv"),
                                    "from_plain.csv", "other.txt"))
   expect_true("\"a,b\",\"a,b\",0" %in% readLines(file.path(d, "from_a,b.csv")))
-  expect_true(any(grepl("\"q\"\"x\"", readLines(file.path(d, "from_q\"x.csv")))))
+  if (!windows) {
+    expect_true(any(grepl("\"q\"\"x\"", readLines(file.path(d, "from_q\"x.csv")))))
+  }
   expect_false("old" %in% readLines(file.path(d, "from_plain.csv")))
   expect_identical(readLines(file.path(d, "other.txt")), "kept")
 })
