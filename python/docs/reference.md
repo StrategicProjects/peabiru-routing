@@ -26,6 +26,10 @@ All functions are available at the top level of the package
 
 ::: peabiru.isochrone
 
+## Itineraries
+
+::: peabiru.detailed_itineraries
+
 ## Inspecting a network
 
 ::: peabiru.find_snap

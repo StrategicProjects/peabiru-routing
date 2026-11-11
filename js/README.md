@@ -164,7 +164,8 @@ What peabiru does not support yet throws `peabiru.UnsupportedError`; it is
 never silently ignored: fares
 (`fareStructure`, `maxFare`), scenarios (`newCarspeeds`, `carspeedScale`,
 `newLts`), `outputDir`, expanded and arrival matrices by a street mode
-alone. Elevation is not supported either: `buildNetwork()` takes no
+alone, and in `detailedItineraries()` `osmLinkIds: true` and `shortestPath:
+false` with public transport. Elevation is not supported either: `buildNetwork()` takes no
 elevation raster.
 
 ## Feed order

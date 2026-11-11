@@ -472,6 +472,12 @@ primes of libstdc++ noted below); they are named here for transparency.
       street/parkride.rs, street/geom.rs: the intersection of two polylines
       and the centroid of a polyline as R5 obtains them from JTS, and the
       fraction of a segment closest to a point.
+  JTS Topology Suite 1.18.1 (the version in the R5 jar)
+      itinerary/hops.rs: where a stop falls along a GTFS shape and the part
+      of the shape between two such places (LocationIndexOfPoint,
+      ExtractLineByLocation, as R5's TripPattern.getHopGeometries uses
+      them); itinerary/geom.rs: the double sf reads back from the WKT JTS
+      writes (at most 16 digits after the point).
   libc++ std::unordered_map (LLVM)
       isochrone/isoband.rs (HashTable): the bucket counts, growth and node
       order of libc++'s hash table, which fix the order in which isoband

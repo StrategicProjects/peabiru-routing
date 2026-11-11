@@ -119,6 +119,7 @@ mod fastmath_trig;
 mod gtfs;
 mod inspect;
 mod isochrone;
+mod itinerary;
 mod jcompat;
 mod osm;
 mod output;
@@ -140,6 +141,9 @@ pub use isochrone::{
     isochrone_cutoffs, isochrone_lines, isochrone_polygons, isochrone_trip_limit, street_edges,
     street_travel_time_surface, transit_travel_time_surface, IsochroneLine, IsochronePolygon,
     Polygon, StreetEdges, TravelTimeSurface, WebMercatorGrid,
+};
+pub use itinerary::{
+    detailed_itineraries, write_itineraries_csv, Itinerary, ItineraryLeg, ItineraryParams,
 };
 pub use output::CsvOutput;
 pub use street::{

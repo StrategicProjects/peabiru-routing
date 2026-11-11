@@ -113,3 +113,31 @@ test_that("isochrones equal r5r's", {
                         departure_datetime = departure, polygon_output = FALSE,
                         seed = 42)
 })
+
+# r5r's detailed_itineraries() returns an sf data.table; the rest is
+# identical, geometry included. bench/compare/itinerary_parity.R covers
+# public transport (Porto Alegre).
+test_that("detailed itineraries equal r5r's", {
+  skip_if_not_installed("sf")
+  n <- r5r_network()
+  pts <- n$points
+  set.seed(7)
+  o <- pts[sample(nrow(pts), 60), ]
+  d <- pts[sample(nrow(pts), 60), ]
+  d[1:3, ] <- o[1:3, ]
+  for (a in list(list(mode = "WALK"), list(mode = "BICYCLE", max_lts = 4),
+                 list(mode = "CAR", drop_geometry = TRUE),
+                 list(mode = "WALK", walk_speed = 5, max_walk_time = 20))) {
+    args <- c(list(origins = o, destinations = d, departure_datetime = departure), a)
+    pb <- do.call(detailed_itineraries, c(list(n$pb), args, n_threads = 2))
+    r5 <- do.call(r5r::detailed_itineraries, c(list(n$r5), args, n_threads = 2, progress = FALSE))
+    class(r5) <- setdiff(class(r5), "data.table")
+    attr(r5, ".internal.selfref") <- NULL
+    expect_identical(pb, r5)
+  }
+  # both refuse public transport on a frequency-based GTFS
+  tr <- list(origins = o[1, ], destinations = d[1, ], mode = c("WALK", "TRANSIT"),
+             departure_datetime = departure)
+  expect_error(suppressMessages(do.call(detailed_itineraries, c(list(n$pb), tr))), "frequencies")
+  expect_error(suppressMessages(do.call(r5r::detailed_itineraries, c(list(n$r5), tr))), "frequencies")
+})
