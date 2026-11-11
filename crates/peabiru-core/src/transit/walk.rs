@@ -264,21 +264,25 @@ pub fn egress_tables(
 }
 
 /// Grid rows per batch of [`egress_tables_grid`].
-const EGRESS_BAND_ROWS: usize = 8;
+const EGRESS_BAND_ROWS: usize = 16;
 
 /// [`egress_tables`] for the cells of a Web Mercator grid
 /// (`WebMercatorGridPointSet`): per stop, every cell the stop's envelope
 /// overlaps, inclusive, rather than the points strictly inside it
 /// (`getPointsInEnvelope`). The grid is shared out by bands of rows among
 /// up to `n_threads` threads (0 = all cores); each cell's pairs are in
-/// increasing stop order, whatever the number of threads. `None` when
-/// `cancel` is cancelled, which the workers check between bands.
+/// increasing stop order, whatever the number of threads. Each distance
+/// in mm goes through `convert`, and the pair is dropped where it gives
+/// `None`. `None` when `cancel` is cancelled, which the workers check
+/// between bands.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn egress_tables_grid(
     layer: &TransitLayer,
     trees: &[Option<Vec<(u32, i32)>>],
     net: &StreetNetwork,
     grid: &crate::WebMercatorGrid,
     dest_splits: &[Option<Split>],
+    convert: impl Fn(i32) -> Option<i32> + Sync,
     n_threads: usize,
     cancel: &crate::CancelToken,
 ) -> Option<Vec<Vec<(u32, i32)>>> {
@@ -300,6 +304,10 @@ pub(crate) fn egress_tables_grid(
     let n_threads = crate::street::router::worker_threads(n_threads, n_bands);
     let bands = std::sync::Mutex::new(out.chunks_mut(band_cells).enumerate());
     crate::sys::scoped(0..n_threads, |_| {
+        // the tree of the stop at hand spread out by vertex, `i32::MAX`
+        // elsewhere: a tree has some thousand vertices, a stop's cells in
+        // a band many more
+        let mut dist = vec![i32::MAX; net.n_vertices()];
         while !cancel.is_cancelled() {
             // nothing panics while the lock is held
             let next = bands.lock().unwrap_or_else(|e| e.into_inner()).next();
@@ -309,25 +317,26 @@ pub(crate) fn egress_tables_grid(
                 b * EGRESS_BAND_ROWS + cells.len() / width,
             );
             for &(s, tree, (y0, y1), (x0, x1)) in &stops {
-                for y in y0.max(top)..=y1.min(bottom - 1) {
+                let rows = y0.max(top)..=y1.min(bottom - 1);
+                if rows.is_empty() {
+                    continue;
+                }
+                for &(v, d) in tree {
+                    dist[v as usize] = d;
+                }
+                for y in rows {
                     let row = y * width;
-                    // neighbouring cells often link to the same edge: its
-                    // ends' distances, looked up once for the run
-                    let mut last = (u32::MAX, i32::MAX, i32::MAX);
                     for x in x0..=x1 {
                         let p = row + x;
                         let Some(sp) = &dest_splits[p] else { continue };
-                        if sp.edge != last.0 {
-                            last = (
-                                sp.edge,
-                                tree_get(tree, sp.vertex0),
-                                tree_get(tree, sp.vertex1),
-                            );
-                        }
-                        if let Some(c) = egress_cost(last.1, last.2, sp) {
+                        let (d0, d1) = (dist[sp.vertex0 as usize], dist[sp.vertex1 as usize]);
+                        if let Some(c) = egress_cost(d0, d1, sp).and_then(&convert) {
                             cells[p - top * width].push((s, c));
                         }
                     }
+                }
+                for &(v, _) in tree {
+                    dist[v as usize] = i32::MAX;
                 }
             }
         }

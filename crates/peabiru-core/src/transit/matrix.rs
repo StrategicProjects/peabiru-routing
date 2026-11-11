@@ -429,31 +429,32 @@ impl<'a> Query<'a> {
         let egress_limit = p.max_walk_time * 60;
         // PerTargetPropagater: egress seconds `mm / walkSpeedMillimetersPerSecond`,
         // stops at or beyond the egress limit skipped.
-        let tables = match destinations {
+        let seconds = |mm: i32| Some(mm / walk_mms).filter(|&e| e < egress_limit);
+        let egress = match destinations {
             Dests::Points(points) => {
                 walk::egress_tables(layer, &data.trees, net, points, &dest_splits)
+                    .into_iter()
+                    .map(|table| {
+                        table
+                            .into_iter()
+                            .filter_map(|(stop, mm)| Some((stop, seconds(mm)?)))
+                            .collect()
+                    })
+                    .collect()
             }
+            // converted as they are found
             Dests::Grid(g) => walk::egress_tables_grid(
                 layer,
                 &data.trees,
                 net,
                 g,
                 &dest_splits,
+                seconds,
                 p.n_threads,
                 &p.cancel,
             )
             .ok_or(RouteError::Cancelled)?,
         };
-        let egress = tables
-            .into_iter()
-            .map(|table| {
-                table
-                    .into_iter()
-                    .map(|(stop, mm)| (stop, mm / walk_mms))
-                    .filter(|&(_, e)| e < egress_limit)
-                    .collect()
-            })
-            .collect();
         Ok(Query {
             net,
             layer,
