@@ -122,6 +122,15 @@ reference outputs are only valid for the machine that produced them.
   `overwrite` and `temp_dir` are accepted and have no effect.
 - **`build_network()` has `n_threads`**, used to read the `.pbf` file.
 - **`verbose` and `progress` are checked but print nothing.**
+- **Argument errors have r5r's messages**, word for word (checkmate's and
+  cli's, without depending on either; `bench/compare/error_parity.R` checks
+  them against r5r). They differ where peabiru's network class is named
+  (`peabiru_network`), where r5r's errors from cli are `rlang` conditions
+  (peabiru's are plain errors with the same text), and where r5r lets a value
+  through and then fails in Java or with an internal R error (an empty
+  `percentiles`, a missing destination id, an `arrival_datetime` that is not
+  a date-time, a `polygon_output` of `NA`): peabiru stops with an error of its
+  own that says what is wrong.
 
 ```{r}
 network

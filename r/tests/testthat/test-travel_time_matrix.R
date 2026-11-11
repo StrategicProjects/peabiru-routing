@@ -102,10 +102,10 @@ test_that("arguments are checked as r5r checks them", {
   network <- fixture_network()
   pts <- fixture_points()
   ttm <- function(...) travel_time_matrix(network, pts, pts, n_threads = 2, ...)
-  expect_error(ttm(mode = "TRANSIT"), "must pass a 'departure_datetime'")
+  expect_error(ttm(mode = "TRANSIT"), "must pass a `departure_datetime`")
   expect_error(ttm(mode = c("WALK", "CAR")), "Please use only 1 of")
   expect_error(ttm(mode = "CAR_PARK"), "unsupported by r5r")
-  expect_error(ttm(mode = "PLANE"), "Must be a subset")
+  expect_error(ttm(mode = "PLANE"), "Names must be a subset")
   expect_error(ttm(percentiles = 1:6), "length <= 5")
   # R5 fails on an empty vector too; every mode stops before routing
   for (m in list("WALK", "CAR", "TRANSIT")) {

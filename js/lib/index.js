@@ -330,7 +330,9 @@ function pointsInput(points, name, warn, uniqueIds = true) {
     else seen.add(id);
   }
   if (uniqueIds && dups.length) {
-    throw new RangeError(`'${name}' must not contain duplicated ids. Duplicated id(s): ${uniq(dups).map((i) => `"${i}"`).join(", ")}.`);
+    const d = uniq(dups).map((i) => `"${i}"`);
+    const vals = d.length <= 2 ? d.join(" and ") : `${d.slice(0, -1).join(", ")}, and ${d[d.length - 1]}`;
+    throw new RangeError(`\`${name}\` must not contain duplicated ids.\n\u2716 Duplicated id${d.length === 1 ? "" : "s"}: ${vals}.`);
   }
   return { ids, lat: coords.lat, lon: coords.lon, points, length: n };
 }
@@ -342,14 +344,16 @@ const DIRECT_MODES = ["WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK"];
 function assignMode(mode, modeEgress) {
   const all = [...TRANSIT_MODES, ...DIRECT_MODES];
   const modes = uniq(asStrings(mode, "mode").map((m) => m.toUpperCase()));
-  if (!modes.every((m) => all.includes(m))) fail("mode", `Must be a subset of {${all.map((m) => `'${m}'`).join(",")}}`);
+  const setOf = (v) => `{${uniq(v).map((m) => `'${m}'`).join(",")}}`;
+  const extra = modes.filter((m) => !all.includes(m));
+  if (extra.length) fail("mode", `Names must be a subset of ${setOf(all)}, but has additional elements ${setOf(extra)}`);
   if (Array.isArray(modeEgress) && modeEgress.every((m) => typeof m === "string")) {
     const repeated = uniq(modeEgress.map((m) => m.toUpperCase()));
     if (repeated.length === 1) modeEgress = repeated[0];
   }
   assertString(modeEgress, "modeEgress");
   const egress = modeEgress.toUpperCase();
-  if (!["WALK", "BICYCLE", "CAR"].includes(egress)) fail("modeEgress", "Must be a subset of {'WALK','BICYCLE','CAR'}");
+  if (!["WALK", "BICYCLE", "CAR"].includes(egress)) fail("modeEgress", `Names must be a subset of {'WALK','BICYCLE','CAR'}, but has additional elements {'${egress}'}`);
 
   let direct = modes.filter((m) => DIRECT_MODES.includes(m));
   const transit = modes.filter((m) => TRANSIT_MODES.includes(m));
@@ -1451,7 +1455,7 @@ const DECAY_FUNCTIONS = ["step", "exponential", "fixed_exponential", "linear", "
 /** r5r assign_decay_function(). */
 function assignDecay(fun, value) {
   assertString(fun, "decayFunction");
-  if (!DECAY_FUNCTIONS.includes(fun)) fail("decayFunction", `Must be a subset of {${DECAY_FUNCTIONS.map((f) => `'${f}'`).join(",")}}`);
+  if (!DECAY_FUNCTIONS.includes(fun)) fail("decayFunction", `Names must be a subset of {${DECAY_FUNCTIONS.map((f) => `'${f}'`).join(",")}}, but has additional elements {'${fun}'}`);
   assertNumber(value, "decayValue", { finite: true, nullOk: true });
   const none = value === null || value === undefined;
   if (!none && (fun === "step" || fun === "exponential")) {

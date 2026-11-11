@@ -67,24 +67,24 @@ build_network <- function(data_path,
                           elevation = "TOBLER",
                           overwrite = FALSE,
                           n_threads = Inf) {
-  assert_string(data_path, "data_path")
-  if (!dir.exists(data_path)) {
-    fail_assert("data_path", paste0("Directory '", data_path, "' does not exist"))
-  }
+  cm_assert(check_directory_exists(data_path), "data_path")
+  cm_assert(check_logical(verbose), "verbose")
+  cm_assert(check_logical(temp_dir), "temp_dir")
+  cm_assert(check_character(elevation), "elevation")
+  cm_assert(check_logical(overwrite), "overwrite")
+  # r5r lets vectors and NA through these checks; one value of each here
   assert_flag(verbose, "verbose")
-  assert_flag(temp_dir, "temp_dir")
-  assert_string(elevation, "elevation")
-  assert_flag(overwrite, "overwrite")
   threads <- assign_n_threads(n_threads)
 
   # r5r set_elevation()
   elevation <- toupper(elevation)
   valid_elev <- c("TOBLER", "MINETTI", "NONE")
   if (!elevation %in% valid_elev) {
-    stop("Invalid value for 'elevation': \"", elevation, "\". Must be one of: ",
-         paste0("\"", valid_elev, "\"", collapse = ", "), ".", call. = FALSE)
+    cli_abort_text(paste0("Invalid value for `elevation`: ", cli_val(elevation), "."),
+                   c(x = paste0("Must be one of: ", cli_val(valid_elev))))
   }
 
+  shown_path <- path.expand(data_path) # as r5r's messages name it
   data_path <- normalizePath(path.expand(data_path), mustWork = TRUE)
   files <- list.files(data_path)
   # r5r build_network() looks for its inputs with these patterns. They are
@@ -96,8 +96,8 @@ build_network <- function(data_path,
   # lower case only, as r5r and the engine match the extension
   pbf <- files[grepl("\\.pbf$", files)]
   if (!any_pbf || length(pbf) == 0) {
-    stop("An OSM .pbf file is required in '", data_path, "' to build a network.",
-         call. = FALSE)
+    cli_abort_text(paste0("An OSM '.pbf' file is required in '", shown_path,
+                          "' to build a network."))
   }
   if (length(pbf) > 1) {
     stop("'", data_path, "' has more than one .pbf file (",

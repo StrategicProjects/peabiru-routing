@@ -40,15 +40,9 @@ assign_points_input <- function(df, name, unique_ids = TRUE) {
   }
   df <- as.data.frame(df)
 
-  missing_cols <- setdiff(c("id", "lat", "lon"), names(df))
-  if (length(missing_cols) > 0) {
-    fail_assert(name, paste0(
-      "Names must include the elements {'id','lat','lon'}, but is missing ",
-      "elements {", paste0("'", missing_cols, "'", collapse = ","), "}"
-    ))
-  }
-  if (!is.numeric(df$lon)) fail_assert(paste0(name, "$lon"), "Must be of type 'numeric'")
-  if (!is.numeric(df$lat)) fail_assert(paste0(name, "$lat"), "Must be of type 'numeric'")
+  cm_assert(check_names(names(df), must.include = c("id", "lat", "lon")), name)
+  cm_assert(check_numeric(df$lon), paste0(name, "$lon"))
+  cm_assert(check_numeric(df$lat), paste0(name, "$lat"))
 
   # the core takes double coordinates
   df$lon <- as.double(df$lon)
@@ -61,21 +55,23 @@ assign_points_input <- function(df, name, unique_ids = TRUE) {
 
   na_coords <- is.na(df$lon) | is.na(df$lat)
   if (any(na_coords)) {
-    warning(
-      sum(na_coords), " point(s) in '", name, "' have missing lon/lat ",
-      "coordinates and will not be routed. Affected id(s): ",
-      paste0("\"", df$id[na_coords], "\"", collapse = ", "), ".",
-      call. = FALSE
-    )
+    n <- sum(na_coords)
+    warning(cli_text(bullets = c(
+      "!" = paste0(n, " point", if (n == 1L) "" else "s", " in `", name, "` ",
+                   if (n == 1L) "has" else "have",
+                   " missing lon/lat coordinates and will not be routed."),
+      i = paste0("Affected id", if (n == 1L) "" else "s", ": ",
+                 cli_val(df$id[na_coords]), ".")
+    )), call. = FALSE)
   }
 
+  cm_assert(check_logical(unique_ids, len = 1, any.missing = FALSE), "unique_ids")
   if (unique_ids && anyDuplicated(df$id) > 0) {
     dup_ids <- unique(df$id[duplicated(df$id)])
-    stop(
-      "'", name, "' must not contain duplicated ids. Duplicated id(s): ",
-      paste0("\"", dup_ids, "\"", collapse = ", "), ".",
-      call. = FALSE
-    )
+    cli_abort_text(paste0("`", name, "` must not contain duplicated ids."), c(
+      x = paste0("Duplicated id", if (length(dup_ids) == 1L) "" else "s", ": ",
+                 cli_val(dup_ids), ".")
+    ))
   }
 
   df
@@ -88,20 +84,12 @@ assign_mode <- function(mode, mode_egress) {
   # as in r5r, unique() and toupper() come before the checks, so a factor or
   # a repeated mode is accepted
   mode <- toupper(unique(mode))
-  if (!is.character(mode) || length(mode) < 1L || anyNA(mode)) {
-    fail_assert("mode", "Must be of type 'character' with at least 1 element and no missing values")
-  }
-  if (!all(mode %in% all_modes)) {
-    fail_assert("mode", paste0(
-      "Must be a subset of {", paste0("'", all_modes, "'", collapse = ","), "}"
-    ))
-  }
+  cm_assert_and("mode", check_character(mode, min.len = 1, any.missing = FALSE),
+                check_names(mode, subset.of = all_modes))
 
   mode_egress <- toupper(unique(mode_egress))
-  assert_string(mode_egress, "mode_egress")
-  if (!mode_egress %in% c("WALK", "BICYCLE", "CAR")) {
-    fail_assert("mode_egress", "Must be a subset of {'WALK','BICYCLE','CAR'}")
-  }
+  cm_assert(check_string(mode_egress), "mode_egress")
+  cm_assert(check_names(mode_egress, subset.of = c("WALK", "BICYCLE", "CAR")), "mode_egress")
 
   direct_modes <- mode[mode %in% r5r_direct_modes]
   transit_modes <- mode[mode %in% r5r_transit_modes]
@@ -147,17 +135,14 @@ assign_departure <- function(datetime, mode_list, name = "departure_datetime") {
     if (!mode_list$transit) {
       datetime <- Sys.time()
     } else {
-      stop(
-        "You must pass a '", name, "' for public transport routing. ",
-        "Results depend on the departure time. Supply an explicit POSIXct ",
-        "value to make results reproducible.",
-        call. = FALSE
-      )
+      cli_abort_text(bullets = c(
+        "!" = "You must pass a `departure_datetime` for public transport routing.",
+        i = paste("Results depend on the departure time. Supply an explicit POSIXct",
+                  "value to make results reproducible.")
+      ))
     }
   }
-  if (!inherits(datetime, "POSIXct") || length(datetime) != 1L || is.na(datetime)) {
-    fail_assert(name, "Must be a single POSIXct date-time without missing values")
-  }
+  cm_assert(check_posixct(datetime, len = 1, any.missing = FALSE), name)
 
   tz <- attr(datetime, "tzone")
   if (is.null(tz)) tz <- ""
@@ -176,6 +161,8 @@ assign_departure <- function(datetime, mode_list, name = "departure_datetime") {
 
 # r5r assign_max_street_time()
 assign_max_street_time <- function(max_time, speed, max_trip_duration, mode) {
+  cm_assert_and("mode", check_string(mode),
+                check_names(mode, subset.of = c("bike", "walk", "car")))
   var <- paste0("max_", mode, "_time")
   assert_number(max_time, var, lower = 1)
   if (is.finite(max_time)) assert_count(max_time, var, positive = TRUE)
@@ -210,28 +197,19 @@ assign_max_trip_duration <- function(max_trip_duration, modes, max_walk_time,
 
 # r5r assign_opportunities(): numeric columns, NA counted as 0.
 assign_opportunities <- function(destinations, opportunities_colnames) {
-  if (!is.character(opportunities_colnames) || length(opportunities_colnames) < 1L ||
-      anyNA(opportunities_colnames) || anyDuplicated(opportunities_colnames) > 0) {
-    fail_assert("opportunities_colnames",
-                "Must be a character vector of unique names without missing values")
-  }
-  missing_cols <- setdiff(opportunities_colnames, names(destinations))
-  if (length(missing_cols) > 0) {
-    fail_assert("destinations", paste0(
-      "Names must include the elements {",
-      paste0("'", opportunities_colnames, "'", collapse = ","),
-      "}, but is missing elements {",
-      paste0("'", missing_cols, "'", collapse = ","), "}"
-    ))
-  }
+  cm_assert(check_character(opportunities_colnames, min.len = 1, unique = TRUE,
+                            any.missing = FALSE), "opportunities_colnames")
+  cm_assert(check_names(names(destinations), must.include = opportunities_colnames),
+            "destinations")
   lapply(opportunities_colnames, function(colname) {
     x <- destinations[[colname]]
-    if (!is.numeric(x)) fail_assert(colname, "Must be of type 'numeric'")
-    if (any(is.infinite(x))) fail_assert(colname, "Must be finite")
+    cm_assert(check_numeric(x, finite = TRUE), colname)
     x <- as.double(x)
     if (anyNA(x)) {
-      warning("'", colname, "' has ", sum(is.na(x)),
-              " missing value(s), treated as 0.", call. = FALSE)
+      n <- sum(is.na(x))
+      warning(cli_text(paste0("`", colname, "` has ", n, " missing value",
+                              if (n == 1L) "" else "s", ", treated as 0.")),
+              call. = FALSE)
       x[is.na(x)] <- 0
     }
     x
@@ -241,12 +219,8 @@ assign_opportunities <- function(destinations, opportunities_colnames) {
 # r5r assign_decay_function()
 assign_decay_function <- function(decay_function, decay_value) {
   all_functions <- c("step", "exponential", "fixed_exponential", "linear", "logistic")
-  assert_string(decay_function, "decay_function")
-  if (!decay_function %in% all_functions) {
-    fail_assert("decay_function", paste0(
-      "Must be a subset of {", paste0("'", all_functions, "'", collapse = ","), "}"
-    ))
-  }
+  cm_assert_and("decay_function", check_string(decay_function),
+                check_names(decay_function, subset.of = all_functions))
   assert_number(decay_value, "decay_value", finite = TRUE, null_ok = TRUE)
 
   if (!is.null(decay_value) && decay_function %in% c("step", "exponential")) {
@@ -343,16 +317,7 @@ check_fares <- function(fare_structure, max_fare) {
 # checkmate::assert_directory_exists()
 check_output_dir <- function(output_dir) {
   assert_string(output_dir, "output_dir", null_ok = TRUE)
-  if (!is.null(output_dir)) {
-    if (!file.exists(output_dir)) {
-      fail_assert("output_dir", paste0("Directory '", output_dir, "' does not exist"))
-    }
-    if (!dir.exists(output_dir)) {
-      fail_assert("output_dir", paste0(
-        "Directory expected, but file in place: '", output_dir, "'"
-      ))
-    }
-  }
+  if (!is.null(output_dir)) cm_assert(check_directory_exists(output_dir), "output_dir")
   invisible(TRUE)
 }
 

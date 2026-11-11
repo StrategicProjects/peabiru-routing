@@ -74,6 +74,11 @@ expanded_travel_time_matrix <- function(r5r_network,
   }
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
+  # r5r's Java side fails on a missing destination id (NullPointerException)
+  if (anyNA(destinations$id)) {
+    stop("'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing ",
+         "destination id in Java).", call. = FALSE)
+  }
   mode_list <- assign_mode(mode, mode_egress)
   check_expanded_mode(mode_list)
   departure <- assign_departure(departure_datetime, mode_list)
@@ -184,15 +189,22 @@ arrival_travel_time_matrix <- function(r5r_network,
     r5r_network <- r5r_core
   }
   if (missing(arrival_datetime) || is.null(arrival_datetime)) {
-    stop("'arrival_datetime' is required. Supply a POSIXct value specifying ",
-         "when trips must arrive. For trips that do not depend on time, use ",
-         "travel_time_matrix().", call. = FALSE)
+    cli_abort_text(paste(
+      "`arrival_datetime` is required. Supply a POSIXct value specifying when",
+      "trips must arrive. For trips that do not depend on time, use",
+      "`travel_time_matrix()`."
+    ))
   }
   assert_number(n_threads, "n_threads", lower = 1)
   assert_network(r5r_network)
 
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
+  # r5r's Java side fails on a missing destination id (NullPointerException)
+  if (anyNA(destinations$id)) {
+    stop("'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing ",
+         "destination id in Java).", call. = FALSE)
+  }
   mode_list <- assign_mode(mode, mode_egress)
   check_expanded_mode(mode_list)
 
@@ -207,13 +219,17 @@ arrival_travel_time_matrix <- function(r5r_network,
 
   # calculate departure datetime, exactly as r5r does: the subtraction turns
   # a POSIXlt into a POSIXct, then the date and clock time are taken in its
-  # time zone. Other classes fail here, as they do in r5r's arithmetic or in
-  # its check of the result.
-  if (!inherits(arrival_datetime, "POSIXt")) {
-    fail_assert("arrival_datetime", "Must be a single POSIXct date-time without missing values")
+  # time zone, and r5r checks the result (a number gives a difftime, which
+  # its message names, under 'departure_datetime'). A value the subtraction
+  # fails on, where r5r stops with an internal R error, is an error of
+  # peabiru's own.
+  if (!(is.numeric(arrival_datetime) || is.logical(arrival_datetime) ||
+        inherits(arrival_datetime, c("POSIXt", "Date")))) {
+    cm_assert(paste(cm_type_msg(arrival_datetime, "POSIXct"),
+                    "(r5r 2.5.0 fails on it with an internal R error)"), "arrival_datetime")
   }
   departure_datetime <- arrival_datetime - as.difftime(max_trip_duration, units = "mins")
-  departure <- assign_departure(departure_datetime, mode_list, "arrival_datetime")
+  departure <- assign_departure(departure_datetime, mode_list)
   check_transit_availability_on_date(r5r_network, departure)
 
   # the time window is max_trip_duration

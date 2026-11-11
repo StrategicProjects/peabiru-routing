@@ -131,14 +131,11 @@ isochrone <- function(r5r_network,
          "install.packages(\"sf\").", call. = FALSE)
   }
 
-  # checkmate::assert_numeric(cutoffs, lower = 0, finite = TRUE,
-  #                           any.missing = FALSE, min.len = 1)
-  if (!is.numeric(cutoffs) || length(cutoffs) < 1L) {
-    fail_assert("cutoffs", "Must be of type 'numeric' with at least 1 element")
-  }
-  if (anyNA(cutoffs)) fail_assert("cutoffs", "Contains missing values")
-  if (any(!is.finite(cutoffs))) fail_assert("cutoffs", "Must be finite")
-  if (any(cutoffs < 0)) fail_assert("cutoffs", "All elements must be >= 0")
+  cm_assert(check_numeric(cutoffs, lower = 0, finite = TRUE, any.missing = FALSE,
+                          min.len = 1), "cutoffs")
+  cm_assert(check_logical(polygon_output), "polygon_output")
+  # r5r takes anything but TRUE as FALSE and then fails on an undefined
+  # object; an error of peabiru's own here
   assert_flag(polygon_output, "polygon_output")
 
   # the largest cutoff is the trip limit; the user's max_trip_duration is
@@ -146,13 +143,13 @@ isochrone <- function(r5r_network,
   max_trip_duration <- as.integer(max(cutoffs))
   cutoffs <- sort(unique(c(0, cutoffs)))
   if (length(cutoffs) < 2) {
-    stop("`cutoffs` must contain at least one value greater than 0.",
-         call. = FALSE)
+    cli_abort_text("`cutoffs` must contain at least one value greater than 0.")
   }
 
   if (polygon_output) {
     if (is.null(percentiles)) percentiles <- 50L
-    assert_number(zoom, "zoom", lower = 9, upper = 12)
+    cm_assert(check_numeric(zoom, lower = 9, upper = 12, len = 1), "zoom")
+    # r5r lets a fractional or missing zoom through to R5
     assert_int(zoom, "zoom")
     isochrone_polygons(
       r5r_network, origins, mode, mode_egress, cutoffs, zoom,
@@ -186,8 +183,8 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
                                max_trip_duration, walk_speed, bike_speed,
                                max_rides, max_lts, draws_per_minute, seed,
                                percentiles, n_threads, verbose, progress) {
-  ids <- as.character(origins$id)
   origins <- assign_points_input(origins, "origins")
+  ids <- origins$id
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)
 
