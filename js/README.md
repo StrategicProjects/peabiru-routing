@@ -230,6 +230,12 @@ one copy of the input bytes (`.pbf` and GTFS), to rebuild a worker after an
 abort: in a `SharedArrayBuffer` that every worker reads where one is
 available (Node, and pages that are cross-origin isolated), otherwise as a
 copy that is sent to each worker, which drops it once its network is built.
+Polygon isochrones keep, with the network that routed them (each worker
+has its own), the links of the grid's cells to the streets for later calls
+at the same zoom and mode (40 bytes a cell, 6.2 MiB for Porto Alegre at
+zoom 12; at most 9 grids and modes and 64 MiB per network), and a call
+with one origin goes to the worker that last ran its zoom and mode when
+that worker is idle.
 Measured on the r5r sample of Porto Alegre (`.pbf` 0.9 MB, two GTFS feeds
 1.1 MB, 1227 points), in Node 24 on an Apple M2 Pro, peak resident memory
 of the whole process (build and one transit matrix):

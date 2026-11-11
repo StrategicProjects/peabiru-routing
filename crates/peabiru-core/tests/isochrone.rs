@@ -126,3 +126,86 @@ fn lines_are_the_edges_reached_banded() {
         assert_eq!(l.isochrone, band);
     }
 }
+
+/// A surface call: street mode (`None` for public transport), zoom,
+/// threads, and the origins.
+type Call = (Option<Mode>, i32, usize, &'static [(f64, f64)]);
+
+fn surface_of(
+    net: &peabiru_core::StreetNetwork,
+    layer: &peabiru_core::TransitLayer,
+    data: &TransitData,
+    (mode, zoom, threads, origins): Call,
+) -> peabiru_core::TravelTimeSurface {
+    match mode {
+        Some(m) => {
+            let mut p = RouteParams::default();
+            p.max_trip_duration_min = 30;
+            p.n_threads = threads;
+            if m == Mode::Bicycle {
+                p.max_lts = 3;
+            }
+            street_travel_time_surface(net, origins, m, &p, &[50], zoom).unwrap()
+        }
+        None => {
+            let mut p = TransitParams::default();
+            p.date = 20190513;
+            p.departure_time = 14 * 3600;
+            p.seed = Some(42);
+            p.max_trip_duration = 30;
+            p.percentiles = vec![50, 10];
+            p.n_threads = threads;
+            transit_travel_time_surface(net, layer, data, origins, &p, zoom).unwrap()
+        }
+    }
+}
+
+/// Surfaces called one after another on one network, in mixed order and
+/// over more grids and modes than the network keeps linkages for, are
+/// those of a network that never routed before.
+#[test]
+fn repeated_surfaces_are_those_of_a_fresh_network() {
+    const ONE: &[(f64, f64)] = &[ORIGIN];
+    const TWO: &[(f64, f64)] = &[(-23.5577, -46.6321), (-23.0, -46.0)];
+    let modes = [None, Some(Mode::Walk), Some(Mode::Car), Some(Mode::Bicycle)];
+    // every mode at every zoom, interleaved: 12 linkages by street mode
+    // (public transport walks), more than the 9 kept
+    let mut calls: Vec<Call> = Vec::new();
+    for round in 0..3 {
+        for (k, z) in [12, 9, 11, 10].into_iter().enumerate() {
+            for (j, &m) in modes.iter().enumerate() {
+                let threads = if (round + j + k) % 2 == 0 { 1 } else { 4 };
+                let origins = if (round + j) % 3 == 0 { TWO } else { ONE };
+                calls.push((m, z, threads, origins));
+            }
+        }
+        calls.rotate_left(5);
+    }
+    let fresh = || build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let (net, layer) = fresh();
+    let data = TransitData::new(&net, &layer);
+    let mut want = Vec::new();
+    for &(m, z, _, origins) in &calls {
+        let key = (m, z, origins.len());
+        if want.iter().any(|(k, _)| *k == key) {
+            continue;
+        }
+        let (net, layer) = fresh();
+        let data = TransitData::new(&net, &layer);
+        want.push((key, surface_of(&net, &layer, &data, (m, z, 2, origins))));
+    }
+    // and on a clone, which shares what the network kept
+    let copy = net.clone();
+    for (i, &call) in calls.iter().enumerate() {
+        let net = if i % 7 == 6 { &copy } else { &net };
+        let got = surface_of(net, &layer, &data, call);
+        let (m, z, threads, origins) = call;
+        let key = (m, z, origins.len());
+        let w = &want.iter().find(|(k, _)| *k == key).unwrap().1;
+        assert!(
+            &got == w,
+            "call {i}: {m:?} at zoom {z}, {threads} threads, {} origins",
+            origins.len()
+        );
+    }
+}

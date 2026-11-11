@@ -5,7 +5,7 @@
 
 use super::flags::*;
 use super::labels::cms_to_ms;
-use super::link::{find_split, Split};
+use super::link::{find_split, link_points, Split};
 use super::StreetNetwork;
 use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -990,11 +990,15 @@ fn matrix_minutes(
         return m;
     }
     let limit = m * 60;
-    let mut scratch = Vec::new();
-    let dest_splits: Vec<Option<Split>> = destinations
-        .iter()
-        .map(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch))
-        .collect();
+    let dest_splits = link_points(
+        net,
+        destinations.len(),
+        |j| destinations[j],
+        mode,
+        params.n_threads,
+        &params.cancel,
+    )
+    .ok_or(RouteError::Cancelled)?;
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
     if out.is_empty() {
@@ -1049,13 +1053,31 @@ pub(crate) fn travel_time_seconds<T: Send>(
     reduce: impl Fn(usize, Option<&[i32]>) -> T + Sync,
 ) -> Result<Vec<T>, RouteError> {
     params.validate()?;
+    let dest_splits = link_points(
+        net,
+        destinations.len(),
+        |j| destinations[j],
+        mode,
+        params.n_threads,
+        &params.cancel,
+    )
+    .ok_or(RouteError::Cancelled)?;
+    travel_time_seconds_linked(net, origins, &dest_splits, mode, params, reduce)
+}
+
+/// [`travel_time_seconds`] to destinations already linked by `mode`
+/// (`dest_splits`, `None` for one that cannot be linked).
+pub(crate) fn travel_time_seconds_linked<T: Send>(
+    net: &StreetNetwork,
+    origins: &[(f64, f64)],
+    dest_splits: &[Option<Split>],
+    mode: Mode,
+    params: &RouteParams,
+    reduce: impl Fn(usize, Option<&[i32]>) -> T + Sync,
+) -> Result<Vec<T>, RouteError> {
+    params.validate()?;
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let limit = params.max_trip_duration_min * 60;
-    let mut scratch = Vec::new();
-    let dest_splits: Vec<Option<Split>> = destinations
-        .iter()
-        .map(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch))
-        .collect();
     let n_threads = worker_threads(params.n_threads, origins.len());
     let cancel = &params.cancel;
     let next = AtomicUsize::new(0);
@@ -1074,7 +1096,7 @@ pub(crate) fn travel_time_seconds<T: Send>(
                 rows.push((i, reduce(i, None)));
                 continue;
             };
-            search_from(net, &g, &o, &dest_splits, limit, &mut search, &mut times);
+            search_from(net, &g, &o, dest_splits, limit, &mut search, &mut times);
             rows.push((i, reduce(i, Some(&times))));
         }
         rows

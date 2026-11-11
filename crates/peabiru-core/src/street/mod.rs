@@ -59,7 +59,10 @@ pub mod vertex_flags {
 /// A network is read-only once built: share it between threads by
 /// reference, as every routing function takes `&StreetNetwork`. Street
 /// matrices may build contraction hierarchies and keep them in the network
-/// for later calls (a few megabytes for a city; see [`StreetEngine`]);
+/// for later calls (a few megabytes for a city; see [`StreetEngine`]), and
+/// travel-time surfaces keep the links of their grid's cells to the
+/// streets (40 bytes a cell, at most 64 MiB in all but for the last one
+/// used; see [`street_travel_time_surface`](crate::street_travel_time_surface));
 /// a clone shares them.
 #[derive(Debug, Clone, Default)]
 pub struct StreetNetwork {
@@ -67,10 +70,11 @@ pub struct StreetNetwork {
     // handed out. They are written only while building, by
     // `build::network_from_extract` and, in `build_from_dir`, by
     // `TransitLayer::link_stops`, both before any street matrix can have
-    // run, so the hierarchies kept in `hierarchies` (built from these
-    // arrays) are never stale. `link_stops` drops kept hierarchies all the
-    // same. Any new code that changes the arrays of a network that may
-    // have been routed on must drop them too (`forget_hierarchies`).
+    // run, so the hierarchies kept in `hierarchies` and the grid linkages
+    // kept in `grid_links` (built from these arrays) are never stale.
+    // `link_stops` drops them all the same. Any new code that changes the
+    // arrays of a network that may have been routed on must drop them too
+    // (`forget_kept`).
     /// Vertex latitude, fixed-point 1e-7 degrees.
     pub(crate) v_lat: Vec<i32>,
     /// Vertex longitude, fixed-point 1e-7 degrees.
@@ -124,6 +128,9 @@ pub struct StreetNetwork {
     /// Contraction hierarchies built by street matrices, kept for later
     /// ones (see [`StreetEngine`]); a clone shares them.
     hierarchies: ch::Cache,
+    /// Links of the cells of travel-time surface grids, kept for later
+    /// surfaces; a clone shares them.
+    pub(crate) grid_links: crate::isochrone::linkage::Cache,
 }
 
 impl StreetNetwork {
@@ -144,11 +151,12 @@ impl StreetNetwork {
         self.restrictions.len()
     }
 
-    /// Drop the contraction hierarchies kept for street matrices: to be
-    /// called by anything that changes the network's arrays (see the
-    /// invariant on the fields).
-    pub(crate) fn forget_hierarchies(&mut self) {
+    /// Drop the contraction hierarchies kept for street matrices and the
+    /// grid linkages kept for surfaces: to be called by anything that
+    /// changes the network's arrays (see the invariant on the fields).
+    pub(crate) fn forget_kept(&mut self) {
         self.hierarchies = ch::Cache::default();
+        self.grid_links = Default::default();
     }
 
     /// Indices of the restrictions that start on edge `e`.

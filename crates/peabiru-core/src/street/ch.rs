@@ -34,7 +34,7 @@
 //! one function that changes a built network, `TransitLayer::link_stops`,
 //! drops the kept hierarchies all the same.
 
-use super::link::{find_split, Split};
+use super::link::{find_split, link_points, Split};
 use super::router::{
     car_turn_cost, start_states, time_to_point, worker_threads, Mode, ModeGraph, RouteParams,
     Search, StreetEngine,
@@ -799,11 +799,15 @@ fn matrix(
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
     let cancel = &params.cancel;
-    let mut scratch = Vec::new();
-    let dest_splits: Vec<Option<Split>> = destinations
-        .iter()
-        .map(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch))
-        .collect();
+    let dest_splits = link_points(
+        net,
+        destinations.len(),
+        |j| destinations[j],
+        mode,
+        params.n_threads,
+        cancel,
+    )
+    .ok_or(RouteError::Cancelled)?;
     let vertices = dest_splits
         .iter()
         .flatten()
@@ -1230,7 +1234,7 @@ mod tests {
 
     /// Kept hierarchies are not compared with the network (see the
     /// invariant on `StreetNetwork`'s fields): code that changes a
-    /// network's arrays drops them with `forget_hierarchies`. A network so
+    /// network's arrays drops them with `forget_kept`. A network so
     /// changed after hierarchies were kept gets the plain search's matrix
     /// of the changed network, the hierarchies built again when wanted; a
     /// clone made before the change keeps its own.
@@ -1253,7 +1257,7 @@ mod tests {
         for l in net.pair_length_mm.iter_mut().step_by(3) {
             *l += 5000;
         }
-        net.forget_hierarchies();
+        net.forget_kept();
         assert!(net.hierarchies.keys().is_empty());
         // a small call (Auto would search): no hierarchy is built
         let auto = with(&p, StreetEngine::Auto);

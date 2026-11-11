@@ -22,13 +22,14 @@
 mod edges;
 mod grid;
 mod isoband;
+pub(crate) mod linkage;
 mod separate;
 
 pub use edges::{isochrone_lines, street_edges, IsochroneLine, StreetEdges};
 pub use grid::WebMercatorGrid;
 pub use separate::Polygon;
 
-use crate::street::router::{travel_time_seconds, Mode, RouteParams};
+use crate::street::router::{travel_time_seconds_linked, Mode, RouteParams};
 use crate::street::StreetNetwork;
 use crate::transit::matrix::{check_percentiles, par_origins, percentile_index, Query};
 use crate::transit::raptor::UNREACHED;
@@ -89,6 +90,14 @@ impl TravelTimeSurface {
 /// [`RouteError::Invalid`] for invalid parameters, percentiles (see
 /// [`validate_percentiles`](crate::validate_percentiles)) or zoom,
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled.
+///
+/// Most of a first call from a few origins is linking the grid's cells to
+/// the streets. The network keeps those links for later surfaces on the
+/// same grid and mode (as R5 keeps its linkages; public transport
+/// surfaces walk, so they share the walking ones): up to 9 grids and
+/// modes, the least recently used dropped first beyond 64 MiB, at 40
+/// bytes a cell (6.2 MiB for r5r's Porto Alegre sample at zoom 12, 0.4 MiB
+/// at zoom 10). Clones of the network share them.
 pub fn street_travel_time_surface(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
@@ -103,15 +112,16 @@ pub fn street_travel_time_surface(
     let mut percentiles = percentiles.to_vec();
     percentiles.sort_unstable();
     let np = percentiles.len();
-    let cells = grid.cell_centers();
-    let rows = travel_time_seconds(net, origins, &cells, mode, params, |_, times| {
-        let mut row = vec![UNREACHED; np * cells.len()];
+    let n = grid.n_cells();
+    let links = linkage::grid_links(net, &grid, mode, params.n_threads, &params.cancel)?;
+    let rows = travel_time_seconds_linked(net, origins, &links, mode, params, |_, times| {
+        let mut row = vec![UNREACHED; np * n];
         if let Some(times) = times {
             // TravelTimeReducer.recordUnvaryingTravelTimeAtTarget
             for (j, &t) in times.iter().enumerate() {
                 let m = if t == UNREACHED { UNREACHED } else { t / 60 };
                 for k in 0..np {
-                    row[k * cells.len() + j] = m;
+                    row[k * n + j] = m;
                 }
             }
         }

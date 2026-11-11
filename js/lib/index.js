@@ -670,6 +670,8 @@ class Pool {
     // { pbf, feeds }: the bytes every worker builds its network from
     this.input = input;
     this.queue = [];
+    // key -> the slot that last ran a task with that key (see pump())
+    this.affinity = new Map();
     this.closed = false;
     this.nextId = 0;
     this.slots = Array.from({ length: size }, () => this.start(true));
@@ -766,12 +768,19 @@ class Pool {
     if (k >= 0 && !this.closed) this.slots[k] = this.start();
   }
 
-  /** Hand queued tasks to idle workers. */
+  /**
+   * Hand queued tasks to idle workers, in order. A task with a `key` goes
+   * to the worker that last ran a task with the same key when that one is
+   * idle: it may have kept what the task needs (a surface's grid linkage).
+   */
   pump() {
-    for (const slot of this.slots) {
-      if (!this.queue.length) break;
-      if (slot.state !== "idle") continue;
-      const task = this.queue.shift();
+    while (this.queue.length) {
+      const task = this.queue[0];
+      const last = task.key === undefined ? undefined : this.affinity.get(task.key);
+      const slot = last && last.state === "idle" ? last : this.slots.find((s) => s.state === "idle");
+      if (!slot) break;
+      this.queue.shift();
+      if (task.key !== undefined) this.affinity.set(task.key, slot);
       slot.state = "busy";
       slot.task = task;
       task.slot = slot;
@@ -802,9 +811,10 @@ class Pool {
 
   /**
    * Run `fn` once per entry of `calls` (`{args, transfer}`), each on a
-   * worker; resolves to the results in the order of `calls`.
+   * worker; resolves to the results in the order of `calls`. Tasks with a
+   * `key` prefer the worker that last ran that key (see pump()).
    */
-  run(fn, calls, signal) {
+  run(fn, calls, signal, key) {
     if (this.closed) return Promise.reject(new Error("this Network was freed"));
     return new Promise((resolve, reject) => {
       const tasks = [];
@@ -834,6 +844,7 @@ class Pool {
         const task = {
           id: this.nextId++,
           fn,
+          key,
           args: c.args,
           transfer: c.transfer || [],
           slot: null,
@@ -994,9 +1005,10 @@ export class Network {
    * @internal Run a routing function on the origins: inline, or on up to
    * `nThreads` workers, each with a contiguous share of the origins.
    * `args(olat, olon)` gives the arguments after the network. Resolves to
-   * `[{offset, result}]` in origin order.
+   * `[{offset, result}]` in origin order. Shares with the same `key` go to
+   * the same workers when they are idle (see Pool.pump()).
    */
-  async _route(fn, o, args, nThreads, signal) {
+  async _route(fn, o, args, nThreads, signal, key) {
     this.#alive();
     if (signal && signal.aborted) throw abortError(signal);
     if (this.#raw) return [{ offset: 0, result: RAW[fn](this.#raw, ...args(o.lat, o.lon)) }];
@@ -1015,7 +1027,7 @@ export class Network {
       offsets.push(start);
       start += len;
     }
-    const results = await pool.run(fn, calls, signal);
+    const results = await pool.run(fn, calls, signal, key);
     return results.map((result, c) => ({ offset: offsets[c], result }));
   }
 }
@@ -1531,6 +1543,9 @@ async function isochronePolygons(network, origins, opt, cuts, limit, warn) {
       opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides), Math.round(opt.drawsPerMinute), seed,
     ],
     opt.nThreads, opt.signal,
+    // each worker keeps the links of the grid's cells by the mode (public
+    // transport walks): a single origin goes back to a worker that has them
+    `grid ${Math.round(opt.zoom)} ${modeList.transit ? "WALK" : modeList.directModes}`,
   );
   const [origin, iso, pct, nPolygons, nRings, nPoints, x, y] = merge(parts);
   const coords = multipolygons(nPolygons, nRings, nPoints, x, y);
