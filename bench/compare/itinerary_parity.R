@@ -71,6 +71,25 @@ for (city in cities) {
                         drop_geometry = TRUE),
       rail = list(mode = c("WALK", "RAIL"), max_walk_time = 30)
     ))
+    # scenarios: r5r's Porto Alegre files
+    osm <- read.csv(file.path(src, "poa_osm_congestion.csv"))
+    kmh <- transform(osm, max_speed = 15, speed_type = "km/h")
+    poly <- readRDS(file.path(src, "poa_poly_congestion.rds"))
+    lts <- read.csv(file.path(src, "poa_osm_lts.csv"))
+    lines <- readRDS(file.path(src, "poa_ls_lts.rds"))
+    scenarios <- c(scenarios, list(
+      scen_car_osm = list(mode = "CAR", new_carspeeds = osm, carspeed_scale = 0.8),
+      scen_car_kmh = list(mode = "CAR", new_carspeeds = kmh),
+      scen_car_poly = list(mode = "CAR", new_carspeeds = poly, carspeed_scale = 1.1),
+      scen_bike_lts = list(mode = "BICYCLE", new_lts = lts),
+      scen_bike_lines = list(mode = "BICYCLE", new_lts = lines, max_lts = 3),
+      scen_transit_bike = list(mode = c("BICYCLE", "TRANSIT"), new_lts = lines,
+                               max_bike_time = 20),
+      scen_transit_car = list(mode = c("CAR", "TRANSIT"), new_carspeeds = poly,
+                              carspeed_scale = 0.6, max_car_time = 20, drop_geometry = TRUE),
+      scen_egress_bike = list(mode = c("WALK", "TRANSIT"), mode_egress = "BICYCLE",
+                              new_lts = lines, drop_geometry = TRUE)
+    ))
   }
   k <- 0
   for (name in names(scenarios)) {

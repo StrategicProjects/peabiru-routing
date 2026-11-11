@@ -1739,7 +1739,7 @@ export async function detailedItineraries(network, origins, destinations, option
   if (opt.shortestPath && opt.suboptimalMinutes > 0) {
     throw new RangeError("Assertion on 'suboptimalMinutes' failed: Must be 0 when 'shortestPath' is true.");
   }
-  checkScenarios(opt);
+  const scenario = scenarioSpec(opt);
   if (opt.osmLinkIds) unsupported("'osmLinkIds: true'");
   if (!opt.shortestPath && modeList.transit) unsupported("'shortestPath: false' with public transport (McRAPTOR)");
   let start = 0;
@@ -1752,7 +1752,7 @@ export async function detailedItineraries(network, origins, destinations, option
         olat, olon, d.lat.slice(s, s + olat.length), d.lon.slice(s, s + olat.length),
         modeList.directModes, modeList.transitMode, modeList.egressMode, departure.yyyymmdd, departure.seconds,
         Math.round(opt.timeWindow), lim.walk, lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed,
-        Math.round(opt.maxRides), Math.round(opt.maxLts), opt.shortestPath,
+        Math.round(opt.maxRides), Math.round(opt.maxLts), opt.shortestPath, scenario,
       ];
     },
     opt.nThreads, opt.signal,
