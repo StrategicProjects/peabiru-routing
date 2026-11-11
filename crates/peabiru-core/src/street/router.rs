@@ -1096,7 +1096,7 @@ pub(crate) fn travel_time_seconds_linked<T: Send>(
                 rows.push((i, reduce(i, None)));
                 continue;
             };
-            search_from(net, &g, &o, &dest_splits, limit, &mut search, &mut times);
+            search_from(net, &g, &o, dest_splits, limit, &mut search, &mut times);
             rows.push((i, reduce(i, Some(&times))));
         }
         rows

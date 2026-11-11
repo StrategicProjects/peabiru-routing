@@ -259,7 +259,9 @@ pub fn egress_tables(
     cancel: &crate::CancelToken,
 ) -> Option<Vec<Vec<(u32, i32)>>> {
     const BATCH: usize = 4096;
-    let stops: Vec<(usize, &[(u32, i32)], (f64, f64, f64, f64))> = trees
+    // per stop with a tree, its tree and envelope
+    type Near<'t> = (usize, &'t [(u32, i32)], Envelope);
+    let stops: Vec<Near> = trees
         .iter()
         .enumerate()
         .filter_map(|(s, tree)| Some((s, tree.as_deref()?, stop_envelope(layer, net, s))))
@@ -379,10 +381,12 @@ pub(crate) fn egress_tables_grid(
     (!cancel.is_cancelled()).then_some(out)
 }
 
+/// `(south, north, west, east)` in floating degrees.
+type Envelope = (f64, f64, f64, f64);
+
 /// A stop's envelope grown by the egress limit
-/// (`GeometryUtils.expandEnvelopeFixed`), as `(south, north, west, east)`
-/// floating degrees.
-fn stop_envelope(layer: &TransitLayer, net: &StreetNetwork, s: usize) -> (f64, f64, f64, f64) {
+/// (`GeometryUtils.expandEnvelopeFixed`).
+fn stop_envelope(layer: &TransitLayer, net: &StreetNetwork, s: usize) -> Envelope {
     let v = layer.stop_vertex[s] as usize;
     let (flat, flon) = (f64::from(net.v_lat[v]), f64::from(net.v_lon[v]));
     let lat_exp = ((EGRESS_LIMIT_M / EARTH_CIRCUMFERENCE_M * 360.0) * FIXED_FACTOR) as i32;
