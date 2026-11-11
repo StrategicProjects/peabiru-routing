@@ -309,6 +309,18 @@ impl Builder<'_> {
     }
 
     fn make_edge_pair(&mut self, w: &Way, begin: usize, end: usize) {
+        // R5 grows the street layer's envelope with every node of the
+        // segment, up to the first undefined one, before any check can
+        // drop the segment.
+        for &id in &w.nodes[begin..=end] {
+            let Some(i) = self.node(id) else { break };
+            let (lat, lon) = (self.node_lat[i], self.node_lon[i]);
+            let env = self.net.envelope.get_or_insert((lat, lat, lon, lon));
+            env.0 = env.0.min(lat);
+            env.1 = env.1.max(lat);
+            env.2 = env.2.min(lon);
+            env.3 = env.3.max(lon);
+        }
         // Vertices are created first, even if the segment is dropped below.
         let (n0, n1) = (self.node(w.nodes[begin]), self.node(w.nodes[end]));
         let (Some(i0), Some(i1)) = (n0, n1) else {
@@ -359,6 +371,14 @@ impl Builder<'_> {
         net.pair_to.push(v1);
         net.pair_length_mm.push(length_mm);
         net.pair_way.push(w.id);
+        // R5 StreetClass.forWay
+        net.pair_class.push(match tag(tags, "highway") {
+            Some("motorway") => 0,
+            Some("primary") => 1,
+            Some("secondary") => 2,
+            Some("tertiary") => 3,
+            _ => 4,
+        });
         let start = net.geom.len() as u32;
         for &i in &idx[1..idx.len() - 1] {
             net.geom.push((self.node_lat[i], self.node_lon[i]));

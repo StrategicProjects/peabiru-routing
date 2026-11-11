@@ -2,8 +2,8 @@
 //!
 //! The engine builds a routable network from an OpenStreetMap PBF extract
 //! (walk, bike, car) and, optionally, GTFS feeds (public transport), and
-//! computes travel-time matrices, accessibility, and expanded and
-//! arrival-time matrices over it.
+//! computes travel-time matrices, accessibility, expanded and
+//! arrival-time matrices, and isochrones over it.
 //!
 //! This crate is the shared core: the R package (extendr) and the Python
 //! package (PyO3) are thin bindings over the same functions, so all three
@@ -77,6 +77,15 @@
 //! `..Default::default()`. Invalid values are rejected with
 //! [`RouteError::Invalid`] before any routing.
 //!
+//! # Isochrones
+//!
+//! Polygon isochrones take two calls: a travel-time surface to the cells of
+//! a Web Mercator grid ([`street_travel_time_surface`],
+//! [`transit_travel_time_surface`]), then [`isochrone_polygons`] on it.
+//! Line isochrones route a matrix to the centroids of [`street_edges`] and
+//! band it with [`isochrone_lines`]. See the functions for what is r5r's
+//! exactly and what r5r adds afterwards.
+//!
 //! # Results
 //!
 //! A matrix is returned in a type of its own ([`StreetMatrix`],
@@ -96,6 +105,7 @@ mod cancel;
 mod error;
 mod fastmath;
 mod gtfs;
+mod isochrone;
 mod jcompat;
 mod osm;
 mod street;
@@ -107,6 +117,11 @@ mod review_tests;
 
 pub use cancel::{CancelToken, RouteError};
 pub use error::NetworkError;
+pub use isochrone::{
+    isochrone_cutoffs, isochrone_lines, isochrone_polygons, isochrone_trip_limit, street_edges,
+    street_travel_time_surface, transit_travel_time_surface, IsochroneLine, IsochronePolygon,
+    Polygon, StreetEdges, TravelTimeSurface, WebMercatorGrid,
+};
 pub use street::{
     build_network, street_travel_time_matrix, BuildOptions, Mode, RouteParams, StreetEngine,
     StreetMatrix, StreetNetwork,

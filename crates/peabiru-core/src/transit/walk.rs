@@ -252,45 +252,80 @@ pub fn egress_tables(
     let mut out = vec![Vec::new(); dest_points.len()];
     for (s, tree) in trees.iter().enumerate() {
         let Some(tree) = tree else { continue };
-        let v = layer.stop_vertex[s] as usize;
-        let (flat, flon) = (f64::from(net.v_lat[v]), f64::from(net.v_lon[v]));
-        let lat_exp = ((EGRESS_LIMIT_M / EARTH_CIRCUMFERENCE_M * 360.0) * FIXED_FACTOR) as i32;
-        let cos_lat = (flat.abs() / FIXED_FACTOR).to_radians().cos();
-        let lon_exp =
-            ((EGRESS_LIMIT_M / EARTH_CIRCUMFERENCE_M * 360.0 / cos_lat) * FIXED_FACTOR) as i32;
-        let north = (flat + f64::from(lat_exp)) / FIXED_FACTOR;
-        let south = (flat - f64::from(lat_exp)) / FIXED_FACTOR;
-        let east = (flon + f64::from(lon_exp)) / FIXED_FACTOR;
-        let west = (flon - f64::from(lon_exp)) / FIXED_FACTOR;
+        let (south, north, west, east) = stop_envelope(layer, net, s);
         for (p, &(lat, lon)) in dest_points.iter().enumerate() {
             if !(lat < north && lat > south && lon < east && lon > west) {
                 continue;
             }
-            let Some(sp) = dest_splits[p] else { continue };
-            let d0 = tree_get(tree, sp.vertex0);
-            let d1 = tree_get(tree, sp.vertex1);
-            if d0 == i32::MAX && d1 == i32::MAX {
-                continue;
-            }
-            let via = |d: i32, along: i32| {
-                if d == i32::MAX {
-                    i32::MAX
-                } else {
-                    let x = d.wrapping_add(along).wrapping_add(sp.distance_to_edge_mm);
-                    if x < 0 {
-                        i32::MAX
-                    } else {
-                        x
-                    }
-                }
-            };
-            let c = via(d0, sp.distance0_mm).min(via(d1, sp.distance1_mm));
-            if c != i32::MAX {
-                out[p].push((s as u32, c));
-            }
+            push_egress(&mut out[p], s, tree, dest_splits[p]);
         }
     }
     out
+}
+
+/// [`egress_tables`] for the cells of a Web Mercator grid
+/// (`WebMercatorGridPointSet`): per stop, every cell the stop's envelope
+/// overlaps, inclusive, rather than the points strictly inside it
+/// (`getPointsInEnvelope`).
+pub(crate) fn egress_tables_grid(
+    layer: &TransitLayer,
+    trees: &[Option<Vec<(u32, i32)>>],
+    net: &StreetNetwork,
+    grid: &crate::WebMercatorGrid,
+    dest_splits: &[Option<Split>],
+) -> Vec<Vec<(u32, i32)>> {
+    let mut out = vec![Vec::new(); grid.n_cells()];
+    for (s, tree) in trees.iter().enumerate() {
+        let Some(tree) = tree else { continue };
+        grid.for_cells_in_envelope(stop_envelope(layer, net, s), |p| {
+            push_egress(&mut out[p], s, tree, dest_splits[p])
+        });
+    }
+    out
+}
+
+/// A stop's envelope grown by the egress limit
+/// (`GeometryUtils.expandEnvelopeFixed`), as `(south, north, west, east)`
+/// floating degrees.
+fn stop_envelope(layer: &TransitLayer, net: &StreetNetwork, s: usize) -> (f64, f64, f64, f64) {
+    let v = layer.stop_vertex[s] as usize;
+    let (flat, flon) = (f64::from(net.v_lat[v]), f64::from(net.v_lon[v]));
+    let lat_exp = ((EGRESS_LIMIT_M / EARTH_CIRCUMFERENCE_M * 360.0) * FIXED_FACTOR) as i32;
+    let cos_lat = (flat.abs() / FIXED_FACTOR).to_radians().cos();
+    let lon_exp =
+        ((EGRESS_LIMIT_M / EARTH_CIRCUMFERENCE_M * 360.0 / cos_lat) * FIXED_FACTOR) as i32;
+    let north = (flat + f64::from(lat_exp)) / FIXED_FACTOR;
+    let south = (flat - f64::from(lat_exp)) / FIXED_FACTOR;
+    let east = (flon + f64::from(lon_exp)) / FIXED_FACTOR;
+    let west = (flon - f64::from(lon_exp)) / FIXED_FACTOR;
+    (south, north, west, east)
+}
+
+/// The egress cost from stop `s` (its walking tree `tree`) to a linked
+/// point, through the nearer end of the point's edge, pushed when finite.
+fn push_egress(out: &mut Vec<(u32, i32)>, s: usize, tree: &[(u32, i32)], split: Option<Split>) {
+    let Some(sp) = split else { return };
+    let d0 = tree_get(tree, sp.vertex0);
+    let d1 = tree_get(tree, sp.vertex1);
+    if d0 == i32::MAX && d1 == i32::MAX {
+        return;
+    }
+    let via = |d: i32, along: i32| {
+        if d == i32::MAX {
+            i32::MAX
+        } else {
+            let x = d.wrapping_add(along).wrapping_add(sp.distance_to_edge_mm);
+            if x < 0 {
+                i32::MAX
+            } else {
+                x
+            }
+        }
+    };
+    let c = via(d0, sp.distance0_mm).min(via(d1, sp.distance1_mm));
+    if c != i32::MAX {
+        out.push((s as u32, c));
+    }
 }
 
 #[cfg(test)]

@@ -359,6 +359,29 @@ impl<'a> Query<'a> {
         destinations: &[(f64, f64)],
         p: &'a TransitParams,
     ) -> Result<Self, String> {
+        Self::build(net, layer, data, destinations, None, p)
+    }
+
+    /// [`Query::new`] to the cells of a grid, whose egress tables R5 builds
+    /// from the cells each stop's envelope overlaps.
+    pub(crate) fn new_grid(
+        net: &'a StreetNetwork,
+        layer: &'a TransitLayer,
+        data: &'a TransitData,
+        grid: &crate::WebMercatorGrid,
+        p: &'a TransitParams,
+    ) -> Result<Self, String> {
+        Self::build(net, layer, data, &grid.cell_centers(), Some(grid), p)
+    }
+
+    fn build(
+        net: &'a StreetNetwork,
+        layer: &'a TransitLayer,
+        data: &'a TransitData,
+        destinations: &[(f64, f64)],
+        grid: Option<&crate::WebMercatorGrid>,
+        p: &'a TransitParams,
+    ) -> Result<Self, String> {
         p.check()?;
         // RAPTOR keeps iterations x stops durations per origin; their byte
         // count must be a valid allocation size
@@ -385,7 +408,11 @@ impl<'a> Query<'a> {
         let egress_limit = p.max_walk_time * 60;
         // PerTargetPropagater: egress seconds `mm / walkSpeedMillimetersPerSecond`,
         // stops at or beyond the egress limit skipped.
-        let egress = walk::egress_tables(layer, &data.trees, net, destinations, &dest_splits)
+        let tables = match grid {
+            None => walk::egress_tables(layer, &data.trees, net, destinations, &dest_splits),
+            Some(g) => walk::egress_tables_grid(layer, &data.trees, net, g, &dest_splits),
+        };
+        let egress = tables
             .into_iter()
             .map(|table| {
                 table

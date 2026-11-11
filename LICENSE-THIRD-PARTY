@@ -24,8 +24,9 @@ Contents
      2.1 Mersenne Twister (MT19937)         BSD 3-clause
   3. Colt / Trove prime table (CERN)        CERN permission notice
   4. r5r (Ipea)                             MIT
-  5. Behaviour reproduced from other libraries (no code included)
-  6. Sample data
+  5. isoband (Claus O. Wilke)               MIT
+  6. Behaviour reproduced from other libraries (no code included)
+  7. Sample data
 
 ==============================================================================
 1. R5: Rapid Realistic Routing on Real-world and Reimagined networks
@@ -401,7 +402,43 @@ file LICENSE"; peabiru uses it under the MIT licence:
     USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ==============================================================================
-5. Behaviour reproduced from other libraries
+5. isoband
+==============================================================================
+
+https://github.com/r-lib/isoband (version 0.3.0, the one r5r's isochrone()
+calls)
+
+isochrone/isoband.rs is a translation to Rust of the isoband algorithm of
+isoband's src/isoband.cpp (marching squares and the merging of elementary
+polygons into rings), reduced to the bands r5r asks for, and
+isochrone/separate.rs a translation of src/separate-polygons.cpp (rings to
+polygons with holes). isoband is distributed under the MIT licence:
+
+    MIT License
+
+    Copyright (c) 2025 isoband authors
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to permit
+    persons to whom the Software is furnished to do so, subject to the
+    following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+    NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+    USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+==============================================================================
+6. Behaviour reproduced from other libraries
 ==============================================================================
 
 R5's results depend on details of libraries it calls. To return the same
@@ -424,9 +461,18 @@ here for transparency.
       street/parkride.rs, street/geom.rs: the intersection of two polylines
       and the centroid of a polyline as R5 obtains them from JTS, and the
       fraction of a segment closest to a point.
+  libc++ std::unordered_map (LLVM)
+      isochrone/isoband.rs (HashTable): the bucket counts, growth and node
+      order of libc++'s hash table, which fix the order in which isoband
+      returns the rings of an isoband.
+  s2geometry and the R package s2
+      isochrone/edges.rs: the centroid of a line on the sphere as
+      sf::st_centroid() obtains it through s2 (the sum of the segments'
+      true centroids, normalised), and s2's conversion of longitudes and
+      latitudes to unit vectors and back.
 
 ==============================================================================
-6. Sample data
+7. Sample data
 ==============================================================================
 
 The R and Python packages include a small network of the area around Avenida
