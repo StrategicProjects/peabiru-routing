@@ -226,6 +226,8 @@ mod tests {
         let cache = Cache::default();
         let grid = |w| WebMercatorGrid::new(0, 0, w, 1000, 12).unwrap();
         let links = |n| Arc::new(vec![None; n]);
+        // as documented, on 64-bit and WebAssembly targets alike
+        assert_eq!(bytes_of(1), 40);
         let big = MAX_BYTES / bytes_of(1) / 2 + 1; // two do not fit
         cache.put(
             Key {

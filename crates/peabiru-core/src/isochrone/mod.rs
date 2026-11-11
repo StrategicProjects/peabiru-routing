@@ -90,6 +90,14 @@ impl TravelTimeSurface {
 /// [`RouteError::Invalid`] for invalid parameters, percentiles (see
 /// [`validate_percentiles`](crate::validate_percentiles)) or zoom,
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled.
+///
+/// Most of a first call from a few origins is linking the grid's cells to
+/// the streets. The network keeps those links for later surfaces on the
+/// same grid and mode (as R5 keeps its linkages; public transport
+/// surfaces walk, so they share the walking ones): up to 9 grids and
+/// modes, the least recently used dropped first beyond 64 MiB, at 40
+/// bytes a cell (6.2 MiB for r5r's Porto Alegre sample at zoom 12, 0.4 MiB
+/// at zoom 10). Clones of the network share them.
 pub fn street_travel_time_surface(
     net: &StreetNetwork,
     origins: &[(f64, f64)],

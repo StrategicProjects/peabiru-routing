@@ -84,6 +84,33 @@ for (const [name, opts] of CASES) {
   });
 }
 
+test("polygons called again and again, in mixed order and at once: those of a fresh network", async () => {
+  const one = take([5]);
+  const calls = [];
+  for (const zoom of [12, 9, 11, 10]) {
+    for (const mode of ["TRANSIT", "WALK", "CAR", "BICYCLE"]) calls.push({ mode, zoom, cutoffs: [0, 10, 20], departureDatetime: DEPARTURE, seed: 42 });
+  }
+  // a network that never routed, for each call
+  const want = [];
+  for (const opts of calls) {
+    const fresh = await peabiru.buildNetwork({ pbf: read("spo_osm.pbf"), gtfs: [{ name: "spo_gtfs.zip", data: read("spo_gtfs.zip") }] });
+    want.push(await peabiru.isochrone(fresh, one, opts));
+    fresh.free();
+  }
+  // more grids and modes than a network keeps, one origin on one worker,
+  // then two calls at once
+  for (let round = 0; round < 2; round++) {
+    for (let k = 0; k < calls.length; k++) {
+      const i = (k * 5 + round * 3) % calls.length;
+      assert.deepEqual(await peabiru.isochrone(net, one, calls[i]), want[i], `inline, call ${i}`);
+      assert.deepEqual(await peabiru.isochrone(pool, one, calls[i]), want[i], `pool, call ${i}`);
+      const j = (i + 7) % calls.length;
+      const both = await Promise.all([peabiru.isochrone(pool, one, calls[i]), peabiru.isochrone(pool, one, calls[j])]);
+      assert.deepEqual(both, [want[i], want[j]], `pool, calls ${i} and ${j} at once`);
+    }
+  }
+});
+
 test("an origin far from the streets: empty polygons, no lines", async () => {
   const far = { id: ["far"], lon: [-46.0], lat: [-23.0] };
   const x = await peabiru.isochrone(net, far, { mode: "WALK", cutoffs: [0, 10] });
