@@ -2,6 +2,9 @@
 
 pub mod csv;
 pub mod feed;
+pub mod jparse;
+mod population;
+pub mod validate;
 pub mod zip;
 
 pub use feed::GtfsError;

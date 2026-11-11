@@ -13,6 +13,7 @@ function returns a Promise; options are the fields of an options object.
 | Accessibility | [`accessibility`](#accessibility), [`AccessibilityOptions`](#AccessibilityOptions), [`AccessibilityTable`](#AccessibilityTable) |
 | Expanded and arrival matrices | [`expandedTravelTimeMatrix`](#expandedTravelTimeMatrix), [`arrivalTravelTimeMatrix`](#arrivalTravelTimeMatrix), [`ExpandedTravelTimeMatrixOptions`](#ExpandedTravelTimeMatrixOptions), [`ArrivalTravelTimeMatrixOptions`](#ArrivalTravelTimeMatrixOptions), [`ExpandedMatrix`](#ExpandedMatrix) |
 | Isochrones | [`isochrone`](#isochrone), [`IsochroneOptions`](#IsochroneOptions), [`IsochronePolygonProperties`](#IsochronePolygonProperties), [`IsochroneLineProperties`](#IsochroneLineProperties), [`FeatureCollection`](#FeatureCollection), [`Feature`](#Feature), [`MultiPolygon`](#MultiPolygon), [`LineString`](#LineString) |
+| Inspecting a network | [`findSnap`](#findSnap), [`FindSnapOptions`](#FindSnapOptions), [`SnapTable`](#SnapTable), [`streetNetworkBbox`](#streetNetworkBbox), [`Polygon`](#Polygon), [`Point`](#Point), [`streetNetworkToSf`](#streetNetworkToSf), [`StreetVertexProperties`](#StreetVertexProperties), [`StreetEdgeProperties`](#StreetEdgeProperties), [`InspectOptions`](#InspectOptions), [`transitNetworkToSf`](#transitNetworkToSf), [`TransitStopProperties`](#TransitStopProperties), [`TransitRouteProperties`](#TransitRouteProperties), [`checkTransitAvailability`](#checkTransitAvailability), [`TransitAvailabilityOptions`](#TransitAvailabilityOptions), [`TransitAvailabilityTable`](#TransitAvailabilityTable), [`getGtfsErrors`](#getGtfsErrors), [`GtfsErrorsTable`](#GtfsErrorsTable) |
 | Points, dates and shared options | [`Points`](#Points), [`Numbers`](#Numbers), [`DateTime`](#DateTime), [`RoutingOptions`](#RoutingOptions) |
 | Missing values and errors | [`NA_INT32`](#NA_INT32), [`UnsupportedError`](#UnsupportedError) |
 | Loading the module and versions | [`init`](#init), [`initSync`](#initSync), [`InitInput`](#InitInput), [`coreVersion`](#coreVersion), [`version`](#version) |
@@ -420,6 +421,262 @@ A GeoJSON LineString.
 
 - `type: "LineString"`
 - `coordinates: [number, number][]`
+
+## Inspecting a network
+
+### findSnap {#findSnap}
+
+*function*
+
+```typescript
+export declare function findSnap(network: Network, points: Points, options?: FindSnapOptions): Promise<SnapTable>;
+```
+
+Where points snap to the street network, as r5r's `find_snap()`: the nearest point of a street the mode may use, first within 300 metres and then within `radius`. A point that does not snap is not routed.
+
+### FindSnapOptions {#FindSnapOptions}
+
+*interface*
+
+```typescript
+export interface FindSnapOptions
+```
+
+Options of `findSnap()`, with r5r's defaults.
+
+- `radius?: number`: The largest distance in metres within which to snap. Default 1600.
+- `mode?: "WALK" | "BICYCLE" | "CAR"`: The mode whose streets the points snap to. Default `"WALK"`.
+- `onWarning?: WarningHandler`: Called with each warning (about the points); `console.warn` by default.
+- `signal?: AbortSignal`: Aborts the call.
+
+### SnapTable {#SnapTable}
+
+*interface*
+
+```typescript
+export interface SnapTable
+```
+
+Where points snap to the streets: one row per point.
+
+- `point_id: (string | null)[]`
+- `lat: Float64Array`
+- `lon: Float64Array`
+- `snap_lat: Float64Array`: Where the point snaps; NaN where it does not.
+- `snap_lon: Float64Array`
+- `distance: Float64Array`: Metres from the point to where it snaps (haversine on R5's sphere of radius 6,367,450 m); NaN where it does not snap.
+- `found: boolean[]`
+
+### streetNetworkBbox {#streetNetworkBbox}
+
+*function*
+
+```typescript
+export declare function streetNetworkBbox(network: Network, output: "vector"): Promise<{ xmin: number; ymin: number; xmax: number; ymax: number }>;
+export declare function streetNetworkBbox(network: Network, output: "bbox"): Promise<[number, number, number, number]>;
+export declare function streetNetworkBbox(network: Network, output?: "polygon"): Promise<Polygon>;
+```
+
+The bounding box of the street network, as r5r's `street_network_bbox()`: R5's envelope of the street layer, which covers every OpenStreetMap node of the ways streets were made from. `"polygon"` (the default) gives a Polygon with sf's ring, `"bbox"` the GeoJSON bbox `[xmin, ymin, xmax, ymax]`, `"vector"` an object.
+
+### Polygon {#Polygon}
+
+*interface*
+
+```typescript
+export interface Polygon
+```
+
+A GeoJSON Polygon: rings of `[lon, lat]`, shell first, every ring closed.
+
+- `type: "Polygon"`
+- `coordinates: [number, number][][]`
+
+### Point {#Point}
+
+*interface*
+
+```typescript
+export interface Point
+```
+
+A GeoJSON Point.
+
+- `type: "Point"`
+- `coordinates: [number, number]`
+
+### streetNetworkToSf {#streetNetworkToSf}
+
+*function*
+
+```typescript
+export declare function streetNetworkToSf(network: Network, options?: InspectOptions): Promise<{
+  vertices: FeatureCollection<Point, StreetVertexProperties>;
+  edges: FeatureCollection<LineString, StreetEdgeProperties>;
+}>;
+```
+
+The street network as GeoJSON, as r5r's `street_network_to_sf()`: the vertices at the ends of street edges and every directed street edge (the connectors of transit stops and park-and-rides left out), in r5r's order.
+
+### StreetVertexProperties {#StreetVertexProperties}
+
+*interface*
+
+```typescript
+export interface StreetVertexProperties
+```
+
+Properties of a street vertex.
+
+- `index: number`: The vertex index in the network.
+- `park_and_ride: boolean`
+- `bike_sharing: boolean`: Always false: bike sharing is not loaded.
+
+### StreetEdgeProperties {#StreetEdgeProperties}
+
+*interface*
+
+```typescript
+export interface StreetEdgeProperties
+```
+
+Properties of a directed street edge, as r5r's `street_network_to_sf()` lists it.
+
+- `edge_index: number`
+- `osm_id: number`
+- `from_vertex: number`
+- `to_vertex: number`
+- `street_class: "MOTORWAY" | "PRIMARY" | "SECONDARY" | "TERTIARY" | "OTHER"`
+- `length: number`: Metres.
+- `walk: boolean`
+- `car: boolean`
+- `car_speed: number`: km/h.
+- `bicycle: boolean`
+- `bicycle_lts: number`
+
+### InspectOptions {#InspectOptions}
+
+*interface*
+
+```typescript
+export interface InspectOptions
+```
+
+Options of the functions that only read the network.
+
+- `signal?: AbortSignal`: Aborts the call.
+
+### transitNetworkToSf {#transitNetworkToSf}
+
+*function*
+
+```typescript
+export declare function transitNetworkToSf(network: Network, options?: InspectOptions): Promise<{
+  stops: FeatureCollection<Point | null, TransitStopProperties>;
+  routes: FeatureCollection<LineString | Point, TransitRouteProperties>;
+}>;
+```
+
+The public transport network as GeoJSON, as r5r's `transit_network_to_sf()`. A stop not linked to the streets has a null geometry (r5r: `POINT EMPTY`). There is one route per trip pattern; its line is the GTFS shape of the trip that made the pattern or, without one, the positions of its linked stops. Patterns without a line are left out, and a line whose points are all the same is the Point `sf::st_make_valid()` makes of it in r5r.
+
+### TransitStopProperties {#TransitStopProperties}
+
+*interface*
+
+```typescript
+export interface TransitStopProperties
+```
+
+Properties of a transit stop.
+
+- `stop_index: number`
+- `stop_id: string`: Prefixed by the feed id (`feed:stop`).
+- `stop_name: string | null`: null when blank.
+- `linked_to_street: boolean`
+
+### TransitRouteProperties {#TransitRouteProperties}
+
+*interface*
+
+```typescript
+export interface TransitRouteProperties
+```
+
+Properties of a transit route (one per trip pattern); null where blank.
+
+- `agency_id: string | null`
+- `agency_name: string | null`
+- `route_id: string`
+- `long_name: string | null`
+- `short_name: string | null`
+- `mode: string`: R5's mode of the GTFS route_type, such as `"BUS"`.
+
+### checkTransitAvailability {#checkTransitAvailability}
+
+*function*
+
+```typescript
+export declare function checkTransitAvailability(network: Network, options?: TransitAvailabilityOptions): Promise<TransitAvailabilityTable>;
+```
+
+Services active on dates, as r5r's `check_transit_availability()`. With no date option, the dates with an active service used by some trip are discovered from the network (ascending); `total_services` counts every service, used by trips or not.
+
+### TransitAvailabilityOptions {#TransitAvailabilityOptions}
+
+*interface*
+
+```typescript
+export interface TransitAvailabilityOptions
+```
+
+Options of `checkTransitAvailability()`: none (discovery), `dates`, or `startDate` and `endDate`.
+
+- `dates?: string | Date | Array<string | Date>`: Dates to check: `"YYYY-MM-DD"` strings or Dates (their local date).
+- `startDate?: string | Date`: The first date of a range to check.
+- `endDate?: string | Date`: The last date of a range to check.
+- `signal?: AbortSignal`: Aborts the call.
+
+### TransitAvailabilityTable {#TransitAvailabilityTable}
+
+*interface*
+
+```typescript
+export interface TransitAvailabilityTable
+```
+
+Services active on each date.
+
+- `date: string[]`: `"YYYY-MM-DD"`.
+- `total_services: Int32Array`
+- `active_services: Int32Array`
+- `pct_active: Float64Array`: `active_services / total_services`, 0 without services.
+
+### getGtfsErrors {#getGtfsErrors}
+
+*function*
+
+```typescript
+export declare function getGtfsErrors(feeds: GtfsFeed[] | { gtfs: GtfsFeed[] }): Promise<GtfsErrorsTable>;
+```
+
+The errors gtfs-lib (R5's GTFS library) reports when it loads GTFS feeds, as r5r's `get_gtfs_errors()` returns them (from the `gtfs_errors.csv` its `build_network()` writes). A Network does not keep its feeds: pass them as `buildNetwork()` takes them. Rows come feed by feed in the order gtfs-lib finds them (r5r's order changes from run to run). Rejects with an Error naming the cause for a feed on which gtfs-lib fails instead (r5r's `build_network()` fails then too), and for a feed with GTFS-Flex zones (`locations.geojson`), which peabiru does not read.
+
+### GtfsErrorsTable {#GtfsErrorsTable}
+
+*interface*
+
+```typescript
+export interface GtfsErrorsTable
+```
+
+The errors gtfs-lib reports in GTFS feeds: one row per error.
+
+- `file: (string | null)[]`: The table, without `.txt`.
+- `line: Int32Array`: The record, the header being line 1; 0 for a whole table.
+- `type: string[]`: gtfs-lib's error class, such as `"DuplicateKeyError"`.
+- `field: (string | null)[]`
+- `id: (string | null)[]`: The key concerned, for duplicate keys and suspect stop locations.
+- `priority: string[]`: `"HIGH"` (r5r refuses the network), `"MEDIUM"`, `"LOW"` or `"UNKNOWN"`.
 
 ## Points, dates and shared options
 

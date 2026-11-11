@@ -86,6 +86,16 @@
 //! band it with [`isochrone_lines`]. See the functions for what is r5r's
 //! exactly and what r5r adds afterwards.
 //!
+//! # Inspecting a network
+//!
+//! What r5r's network functions report: where points snap to the streets
+//! ([`find_snap`]), the box of the street network
+//! ([`StreetNetwork::bbox`]), its vertices and edges ([`street_vertices`],
+//! [`street_edges`]), the transit stops and the routes of each trip
+//! pattern ([`transit_stops`], [`transit_routes`]), the dates with service
+//! ([`transit_service_dates`], [`TransitLayer::n_services_active_on`]) and
+//! the errors gtfs-lib reports loading a feed ([`gtfs_errors`]).
+//!
 //! # Results
 //!
 //! A matrix is returned in a type of its own ([`StreetMatrix`],
@@ -105,7 +115,9 @@
 mod cancel;
 mod error;
 mod fastmath;
+mod fastmath_trig;
 mod gtfs;
+mod inspect;
 mod isochrone;
 mod jcompat;
 mod osm;
@@ -119,6 +131,11 @@ mod review_tests;
 
 pub use cancel::{CancelToken, RouteError};
 pub use error::NetworkError;
+pub use gtfs::validate::{gtfs_errors, GtfsErrorPriority, GtfsFeedError};
+pub use inspect::{
+    find_snap, street_vertices, transit_routes, transit_service_dates, transit_stops, Snap,
+    StreetVertices, TransitRoutes, TransitStops,
+};
 pub use isochrone::{
     isochrone_cutoffs, isochrone_lines, isochrone_polygons, isochrone_trip_limit, street_edges,
     street_travel_time_surface, transit_travel_time_surface, IsochroneLine, IsochronePolygon,
@@ -138,7 +155,7 @@ pub use transit::expanded::{
     arrival_departure, arrival_travel_time_matrix, expanded_travel_time_matrix, Breakdown,
     ExpandedMatrix, ExpandedRow,
 };
-pub use transit::layer::{DroppedTrips, FeedReport, TransitLayer};
+pub use transit::layer::{gtfs_files_in_dir, DroppedTrips, FeedReport, TransitLayer};
 pub use transit::matrix::{
     transit_travel_time_matrix, validate_date, validate_percentiles, TransitData, TransitMatrix,
     TransitParams,
