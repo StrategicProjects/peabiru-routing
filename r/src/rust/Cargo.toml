@@ -19,10 +19,12 @@ path = 'document.rs'
 
 [dependencies]
 extendr-api = '0.9'
-# Development: the core comes from the workspace by path. Before a CRAN
-# release, switch to the published version pinned exactly (peabiru-core =
-# '=x.y.z'), then rextendr::vendor_crates() -- cargo vendor does not package
-# path dependencies, and CRAN builds offline from vendor.tar.xz.
+# In the repository the core comes by path, so development and the CI run
+# against the core of the same commit. The CRAN tarball is made by
+# tools/build_r_release.sh (at the repository's root), which replaces this
+# line with the published version pinned exactly (peabiru-core = '=x.y.z')
+# and vendors the crates into vendor.tar.xz for an offline build. Keep the
+# line in this form: the script and tools/config.R look for it.
 peabiru-core = { path = '../../../crates/peabiru-core' }
 
 [profile.release]

@@ -1,1 +1,4 @@
-rm -f src/Makevars
+#!/usr/bin/env sh
+# Build products of src/Makevars, removed by R CMD build and INSTALL --clean.
+rm -f src/Makevars src/Makevars.win
+rm -rf src/.cargo src/vendor src/rust/vendor src/rust/target

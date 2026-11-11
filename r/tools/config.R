@@ -4,6 +4,27 @@
 # check the packages MSRV first
 source("tools/msrv.R")
 
+# In the repository the core is a path dependency (crates/peabiru-core);
+# a tarball made by plain R CMD build cannot reach that path. The release
+# tarball comes from tools/build_r_release.sh at the repository's root.
+cargo_toml <- readLines("src/rust/Cargo.toml")
+core_path <- regmatches(
+  cargo_toml,
+  regexec("^peabiru-core = \\{ path = '([^']*)' \\}", cargo_toml)
+)
+core_path <- unlist(lapply(core_path, `[`, 2))
+core_path <- core_path[!is.na(core_path)]
+if (length(core_path) == 1 &&
+    !file.exists(file.path("src/rust", core_path, "Cargo.toml"))) {
+  stop(
+    "This copy of the package takes the 'peabiru-core' crate from the ",
+    "path '", core_path, "', which does not exist here. Install from the ",
+    "repository's r/ directory, or build the source tarball with ",
+    "tools/build_r_release.sh.",
+    call. = FALSE
+  )
+}
+
 # check DEBUG and NOT_CRAN environment variables
 env_debug <- Sys.getenv("DEBUG")
 env_not_cran <- Sys.getenv("NOT_CRAN")
