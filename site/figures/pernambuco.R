@@ -152,7 +152,7 @@ figures$pe_iso_caruaru <- function() {
   iso_figure("caruaru", "isochrones-caruaru", width = 8, height = 4.2,
              title = list(
                main = "Isochrones from the Feira de Caruaru",
-               sub = "Areas reached within 10, 20 and 30 minutes; urban area of Caruaru. Elevation is not modelled yet:\nwalking and cycling times are optimistic on its hills",
+               sub = "Areas reached within 10, 20 and 30 minutes; urban area of Caruaru. Built without an elevation raster:\nwalking and cycling times are optimistic on its hills",
                alt = "Isochrones by mode from the Feira de Caruaru"),
              desc = paste(
                "Three maps of the urban area of Caruaru, one per mode, each shading the areas reached",

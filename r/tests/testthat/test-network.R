@@ -36,14 +36,13 @@ test_that("bad data paths are rejected", {
   expect_error(build_network(fixture_path(), elevation = "FLAT"), "Invalid value")
 })
 
-test_that("elevation needs elevation = 'NONE' when there is a raster", {
+test_that("a raster is not read with elevation = 'NONE'", {
   dir <- tempfile("net")
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE))
   file.copy(file.path(fixture_path(), "spo_osm.pbf"), dir)
   writeBin(raw(10), file.path(dir, "elevation.tif"))
-  expect_error(build_network(dir),
-               "Elevation is not supported by peabiru yet, and .* has the raster 'elevation.tif'")
+  expect_error(build_network(dir), "elevation.tif: not a TIFF file")
   network <- build_network(dir, elevation = "NONE", n_threads = 2)
   expect_true(network$has_tif)
 })

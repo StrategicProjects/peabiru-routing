@@ -22,13 +22,13 @@
 
 use js_sys::{Array, Float64Array, Int32Array, Uint8Array};
 use peabiru_core::{
-    arrival_travel_time_matrix, build_from_bytes, expanded_travel_time_matrix,
-    isochrone_lines as isochrone_lines_core, isochrone_polygons as isochrone_polygons_core,
-    street_accessibility, street_edges as street_edges_core, street_travel_time_matrix,
-    street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
-    transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, DecayFunction,
-    Destinations, ExpandedRow, Mode, RouteError, RouteParams, StreetNetwork, TransitData,
-    TransitLayer, TransitMode, TransitParams,
+    arrival_travel_time_matrix, build_from_bytes, build_from_bytes_with_elevation,
+    expanded_travel_time_matrix, isochrone_lines as isochrone_lines_core,
+    isochrone_polygons as isochrone_polygons_core, street_accessibility,
+    street_edges as street_edges_core, street_travel_time_matrix, street_travel_time_surface,
+    transit_accessibility, transit_travel_time_matrix, transit_travel_time_surface, validate_date,
+    AccessibilityParams, BuildOptions, DecayFunction, Destinations, ExpandedRow, Mode, RouteError,
+    RouteParams, StreetNetwork, TransitData, TransitLayer, TransitMode, TransitParams,
 };
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
@@ -121,8 +121,18 @@ fn strings(v: &[String]) -> JsValue {
 impl Network {
     /// Build a network from the bytes of a `.pbf` file and of GTFS feeds:
     /// `feeds` is an array of `[name, Uint8Array]` pairs, loaded in that
-    /// order.
-    pub fn build(pbf: &[u8], feeds: Array) -> Result<Network, JsError> {
+    /// order; `tif` the bytes of an elevation raster, applied with the
+    /// slope cost function `elevation` (`"TOBLER"`, `"MINETTI"` or
+    /// `"NONE"`).
+    pub fn build(
+        pbf: &[u8],
+        feeds: Array,
+        tif: Option<Vec<u8>>,
+        elevation: &str,
+    ) -> Result<Network, JsError> {
+        let mut opts = BuildOptions::default();
+        opts.elevation = peabiru_core::Elevation::from_r5r_name(elevation)
+            .ok_or_else(|| err(format!("unknown elevation model {elevation:?}")))?;
         let mut owned: Vec<(String, Vec<u8>)> = Vec::with_capacity(feeds.length() as usize);
         for f in feeds.iter() {
             let pair = Array::from(&f);
@@ -141,8 +151,12 @@ impl Network {
             .iter()
             .map(|(n, b)| (n.as_str(), b.as_slice()))
             .collect();
-        let (net, layer) = build_from_bytes(pbf, &feeds, &BuildOptions::default())
-            .map_err(|e| err(build_error(&e, "getGtfsErrors() on the same feeds")))?;
+        let built = match &tif {
+            Some(t) => build_from_bytes_with_elevation(pbf, &feeds, t, &opts),
+            None => build_from_bytes(pbf, &feeds, &opts),
+        };
+        let (net, layer) =
+            built.map_err(|e| err(build_error(&e, "getGtfsErrors() on the same feeds")))?;
         let transit = if layer.feed_ids().is_empty() {
             None
         } else {
@@ -160,6 +174,11 @@ impl Network {
     /// Directed edges of the street network.
     pub fn n_edges(&self) -> usize {
         self.net.n_edges()
+    }
+
+    /// The slope cost function in use: `"TOBLER"`, `"MINETTI"` or `"NONE"`.
+    pub fn elevation(&self) -> String {
+        self.net.elevation().r5r_name().to_string()
     }
 
     /// The feed ids, in loading order.

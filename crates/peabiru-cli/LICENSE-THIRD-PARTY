@@ -503,6 +503,19 @@ named here for transparency.
       growth reaches for the tables isoband builds. These counts were
       recorded by calling the policy of the installed libstdc++; the
       library's table of primes itself is not included.
+  GeoTools 25 (gt-coverage, gt-geotiff, gt-referencing) and imageio-ext
+      elevation/tiff.rs: how R5's RasterDataSourceSampler reads a GeoTIFF
+      through GeoTools without interpolation: the pixel-centre grid-to-world
+      transform built from the tie point and pixel scale (shifted by half a
+      pixel for PixelIsArea), its inverse as java.awt.geom.AffineTransform
+      computes it, the envelope of the grid corners (inclusive on both
+      edges, as Envelope2D.contains tests it) and the nearest pixel by
+      Math.round, as GridCoverage2D.evaluate picks it; and which rasters
+      GeoTools and imageio-ext fail to read. The TIFF and GeoTIFF reader is
+      written from the TIFF 6.0 and GeoTIFF 1.1 specifications; this
+      behaviour was established by comparing the values R5 reads with the
+      reader's on crafted rasters. GeoTools is distributed under the LGPL;
+      none of its code is included.
   s2geometry and the R package s2
       isochrone/edges.rs: the centroid of a line on the sphere as
       sf::st_centroid() obtains it through s2 (the sum of the segments'
@@ -530,6 +543,14 @@ Paulista, in Sao Paulo, cut from the sample data of r5r 2.5.0
 r5r distributes these files as part of its package, under "GPL (>= 3) | MIT
 + file LICENSE" (the MIT notice is in section 4), and states no other
 licence or source for them; peabiru gives the same attribution.
+
+The tests of the packages (not the packages installed from the registries,
+except the R package's source, whose tests/ includes it) also hold
+spo_hills.tif, and the Rust crate's tests three small rasters
+(fuzz_lzw.tif, fuzz_p3.tif, fuzz_big.tif). They are synthetic: values
+computed from a formula (smooth hills over the Sao Paulo sample, and a
+ramp), written with GDAL by the peabiru authors, not measured elevations.
+They are covered by peabiru's MIT licence.
 
 ==============================================================================
 8. Population grid

@@ -223,7 +223,7 @@ def detailed_itineraries(
         raise ValueError(
             "Assertion on 'suboptimal_minutes' failed: Must be 0 when 'shortest_path' is True."
         )
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
     if not shortest_path and mode_list.transit:
         unsupported("'shortest_path=False' with public transport (McRAPTOR)")
     if out_dir is None and not drop_geometry:

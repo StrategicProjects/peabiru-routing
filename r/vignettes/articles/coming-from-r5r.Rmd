@@ -137,7 +137,8 @@ row, which goes the other way.
 |---|---|
 | Fares: `fare_structure`, `max_fare` | error |
 | Scenarios: `new_carspeeds`, `carspeed_scale`, `new_lts` | error |
-| Elevation (a `.tif` or `.tiff` raster in the data directory with `elevation` other than `"NONE"`) | error |
+| An elevation raster other than a one-band GeoTIFF in EPSG:4326, uncompressed or compressed with LZW, Deflate or PackBits (r5r reprojects other rasters with GeoTools) | error |
+| An elevation raster named `.tiff`, or more than one raster in the data directory (r5r fails on the first and reads the last one listed of the second) | error |
 | More than one `.pbf` in the data directory | error |
 | Expanded and arrival matrices with a street mode alone | error |
 | A network built by `r5r::build_network()` | error (build it with `peabiru::build_network()`) |

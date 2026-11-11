@@ -22,8 +22,10 @@ use std::path::{Path, PathBuf};
 
 /// Build the street network and the transit layer from a directory holding
 /// one OpenStreetMap `.pbf` file and any number of GTFS `.zip` feeds, as
-/// r5r's `build_network()` does (no elevation), and link the stops to the
-/// streets.
+/// r5r's `build_network()` does, and link the stops to the streets; with
+/// [`BuildOptions::elevation`], apply slope costs from the directory's
+/// `.tif` raster (see [`build_from_bytes_with_elevation`] for the rasters
+/// supported).
 ///
 /// Files are recognised by their extension in lower case only (`.pbf`,
 /// `.zip`), as r5r does; with several `.pbf` files the last one listed is
@@ -52,15 +54,26 @@ pub fn build_from_dir(
             format!("{}: {e}", dir.display()),
         ))
     };
-    // r5r's NetworkBuilder.loadDirectory keeps the last `.pbf` listed.
+    // r5r's NetworkBuilder.loadDirectory keeps the last `.pbf` listed, and
+    // the last file whose name ends in `.tif` or `.tiff` as the raster.
     let mut pbf = None;
+    let mut rasters = Vec::new();
     for e in std::fs::read_dir(dir).map_err(io)? {
         let e = e.map_err(io)?;
-        if layer::has_suffix(&e.file_name(), ".pbf") {
+        let name = e.file_name();
+        if layer::has_suffix(&name, ".pbf") {
             pbf = Some(e.path());
+        }
+        if layer::has_suffix(&name, ".tif") || layer::has_suffix(&name, ".tiff") {
+            rasters.push(e.path());
         }
     }
     let pbf = pbf.ok_or_else(|| NetworkError::no_pbf(dir))?;
+    let raster = if opts.elevation == crate::Elevation::None {
+        None
+    } else {
+        raster_in_dir(dir, rasters)?
+    };
     let bytes = std::fs::read(&pbf).map_err(|e| {
         use crate::osm::pbf::PbfError;
         NetworkError::osm(PbfError::InFile {
@@ -71,10 +84,65 @@ pub fn build_from_dir(
     // The street network is built before the feeds are listed, and each
     // feed is read only when its turn comes, so that no more than one
     // `.zip` is held in memory at a time.
-    build(&pbf, Cow::Owned(bytes), opts, || {
+    build(&pbf, Cow::Owned(bytes), raster, opts, || {
         let feeds = gtfs_files_in_dir(dir).map_err(io)?;
         Ok(feeds.into_iter().map(|p| layer::read_feed_file(&p)))
     })
+}
+
+/// A file's name and bytes.
+type Named = (PathBuf, Cow<'static, [u8]>);
+
+/// The elevation raster of a data directory, read, from the files whose
+/// names end in `.tif` or `.tiff` (in lower case, as r5r matches them):
+/// none, or exactly one `.tif` file. r5r reads the last one listed, which
+/// depends on the file system, so more than one is an error here; and
+/// for a `.tiff` file r5r looks for the same name ending in `.tif` and
+/// fails, which is an error here too, as is a `.prj` file of the same
+/// name (see below).
+fn raster_in_dir(dir: &Path, mut rasters: Vec<PathBuf>) -> Result<Option<Named>, NetworkError> {
+    rasters.sort();
+    match rasters.as_slice() {
+        [] => Ok(None),
+        [one] => {
+            if layer::has_suffix(one.as_os_str(), ".tiff") {
+                return Err(NetworkError::elevation(
+                    one,
+                    "r5r cannot read a raster whose name ends in .tiff (R5 looks for the same                      name ending in .tif and fails): rename it to .tif"
+                        .into(),
+                ));
+            }
+            // GeoTools takes the coordinate reference system of a `.prj`
+            // file next to the raster over the GeoTIFF's own
+            let prj = one.with_extension("prj");
+            if prj.exists() {
+                return Err(NetworkError::elevation(
+                    one,
+                    format!(
+                        "the raster has a {} file next to it, whose coordinate reference \
+                         system r5r (GeoTools) uses instead of the GeoTIFF's; remove it (the \
+                         raster must be in EPSG:4326)",
+                        prj.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+                    ),
+                ));
+            }
+            let bytes = std::fs::read(one).map_err(|e| {
+                NetworkError::io(std::io::Error::new(e.kind(), format!("{}: {e}", one.display())))
+            })?;
+            Ok(Some((one.clone(), Cow::Owned(bytes))))
+        }
+        many => Err(NetworkError::elevation(
+            dir,
+            format!(
+                "the directory has {} elevation rasters ({}); r5r uses only the last one the                  file system lists, so keep exactly one",
+                many.len(),
+                many.iter()
+                    .map(|p| p.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        )),
+    }
 }
 
 /// Build the street network and the transit layer from data held in
@@ -124,6 +192,37 @@ pub fn build_from_bytes(
     build(
         Path::new("OpenStreetMap data"),
         Cow::Borrowed(pbf),
+        None,
+        opts,
+        || {
+            Ok(feeds
+                .iter()
+                .map(|&(name, bytes)| Ok((PathBuf::from(name), Cow::Borrowed(bytes)))))
+        },
+    )
+}
+
+/// [`build_from_bytes`] with an elevation raster: the bytes of a GeoTIFF
+/// file, as [`build_from_dir`] reads the `.tif` file of a directory. The
+/// slope costs of [`BuildOptions::elevation`] are applied to walking and
+/// cycling (with [`Elevation::None`](crate::Elevation::None) the raster is
+/// not read). Errors about the raster name it `elevation raster`.
+///
+/// The raster must be a GeoTIFF of one band of 8, 16 or 32-bit integers
+/// or 32 or 64-bit floats, uncompressed or compressed with LZW,
+/// Deflate or PackBits, in WGS 84 longitude and latitude (EPSG:4326),
+/// north up, georeferenced by a tie point and a pixel scale (what GDAL
+/// writes). Other rasters are an error that says what to change.
+pub fn build_from_bytes_with_elevation(
+    pbf: &[u8],
+    feeds: &[(&str, &[u8])],
+    raster: &[u8],
+    opts: &BuildOptions,
+) -> Result<(StreetNetwork, TransitLayer), NetworkError> {
+    build(
+        Path::new("OpenStreetMap data"),
+        Cow::Borrowed(pbf),
+        Some((PathBuf::from("elevation raster"), Cow::Borrowed(raster))),
         opts,
         || {
             Ok(feeds
@@ -140,6 +239,7 @@ pub fn build_from_bytes(
 fn build<'a, F>(
     pbf_name: &Path,
     pbf: Cow<'_, [u8]>,
+    raster: Option<(PathBuf, Cow<'_, [u8]>)>,
     opts: &BuildOptions,
     feeds: impl FnOnce() -> Result<F, NetworkError>,
 ) -> Result<(StreetNetwork, TransitLayer), NetworkError>
@@ -160,6 +260,19 @@ where
     // The only change to a network after it is built, and before anyone
     // can route on it (see `StreetNetwork`).
     layer.link_stops(&mut net);
+    // R5 adds the slope costs last (r5r's NetworkBuilder.createNetwork),
+    // when every edge (stop connectors and park-and-rides included) exists.
+    if let Some((name, bytes)) = raster {
+        if opts.elevation != crate::Elevation::None {
+            let threads = if opts.n_threads == 0 {
+                crate::sys::cores()
+            } else {
+                opts.n_threads.min(crate::sys::cores())
+            };
+            crate::elevation::apply(&mut net, &bytes, opts.elevation, threads)
+                .map_err(|m| NetworkError::elevation(&name, m))?;
+        }
+    }
     Ok((net, layer))
 }
 
@@ -213,6 +326,7 @@ mod tests {
         let opts = BuildOptions {
             n_threads: threads,
             ignore_gtfs_errors: ignore,
+            ..BuildOptions::default()
         };
         build_from_bytes(&pbf, feeds, &opts).map(|(_, l)| l.feed_ids().len())
     }

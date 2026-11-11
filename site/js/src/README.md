@@ -44,8 +44,8 @@ bicycle, car), public transport matrices (any subset of the transit modes,
 reached and left on foot, by bicycle or by car) with percentiles and Monte
 Carlo draws, accessibility with five decay functions, expanded and
 arrival matrices, isochrones, and detailed itineraries (the fastest
-trip). Not yet: alternative itineraries, fares and Pareto frontiers,
-elevation.
+trip), with elevation. Not yet: alternative itineraries, fares and Pareto
+frontiers.
 What is not supported throws `UnsupportedError`; nothing is silently
 ignored. The API may still change.
 

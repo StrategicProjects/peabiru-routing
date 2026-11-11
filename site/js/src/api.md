@@ -29,7 +29,7 @@ function returns a Promise; options are the fields of an options object.
 export declare function buildNetwork(input: BuildNetworkInput): Promise<Network>;
 ```
 
-Build a transport network from an OpenStreetMap extract and zero or more GTFS feeds, as r5r's `build_network()` does from a directory (without elevation). Loads the WebAssembly module first if needed.
+Build a transport network from an OpenStreetMap extract, zero or more GTFS feeds and an optional elevation raster, as r5r's `build_network()` does from a directory. Loads the WebAssembly module first if needed.
 
 ### BuildNetworkInput {#BuildNetworkInput}
 
@@ -41,6 +41,8 @@ export interface BuildNetworkInput
 
 - `pbf: Bytes`: The OpenStreetMap extract (`.pbf` file).
 - `gtfs?: GtfsFeed[]`: The GTFS feeds, loaded in this order (r5r loads them in the order the operating system lists its data directory; see the README).
+- `tif?: Bytes`: An elevation raster (the bytes of a GeoTIFF `.tif` file): walking and cycling times get the slope costs of `elevation`, as r5r gives them when its data directory has a `.tif` file. One band, WGS 84 longitude and latitude (EPSG:4326), north up, uncompressed or compressed with LZW, Deflate or PackBits; other rasters are an error. A raster also stops `travelTimeMatrix()` from swapping origins and destinations for walking, as in r5r.
+- `elevation?: string`: The slope cost function when `tif` is given (r5r's `elevation`): `"TOBLER"` (default), `"MINETTI"` or `"NONE"`, in any case. Without `tif` it is `"NONE"`.
 - `onWarning?: WarningHandler`
 - `nThreads?: number | null`: Workers to route on. `1` (default): no workers, everything runs on the calling thread. A whole number above 1: a pool of that many workers (Web Workers in browsers, `worker_threads` in Node), each holding its own copy of the network, all built at once. `0`, `null` or `Infinity`: one worker per core (`navigator.hardwareConcurrency`, or Node's `os.availableParallelism()`). Each worker costs about the memory of a network built on the calling thread (see the README).
 - `useWorkers?: boolean`: Route in workers even with one thread, so that a call never blocks the calling thread and can be aborted (default: `true` when `nThreads` is given and is not 1, else `false`; must not be `false` with more than one thread).
@@ -106,6 +108,7 @@ Sizes of a network.
 
 - `vertices: number`
 - `edges: number`
+- `elevation: string`: The slope cost function in use: `"TOBLER"`, `"MINETTI"` or `"NONE"`.
 - `feeds: string[]`: The GTFS feed ids, in loading order.
 - `stops: number`
 - `patterns: number`

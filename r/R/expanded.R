@@ -99,7 +99,7 @@ expanded_travel_time_matrix <- function(r5r_network,
   check_messages(verbose, progress)
   check_output_dir(output_dir)
   assert_flag(breakdown, "breakdown")
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
 
   res <- raise_if_stopped(rs_expanded(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
@@ -227,7 +227,7 @@ arrival_travel_time_matrix <- function(r5r_network,
   check_messages(verbose, progress)
   check_output_dir(output_dir)
   assert_flag(breakdown, "breakdown")
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
 
   res <- raise_if_stopped(rs_expanded(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,

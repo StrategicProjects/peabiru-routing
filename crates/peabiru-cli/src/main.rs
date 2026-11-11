@@ -15,6 +15,8 @@ fn usage_text() -> String {
          peabiru transit <dir> <points.csv> <out.csv> --date YYYY-MM-DD --time HH:MM:SS [--tw 10] [--percentiles 50] [--max-walk 120] [--max-trip 120] [--max-rides 3] [--draws 5] [--seed N] [--threads 0] [--repeats 1]\n       \
          peabiru accessibility <dir|file.osm.pbf> <points.csv> <out.csv> --opportunities a,b [options]\n       \
          peabiru dump-edges <file.osm.pbf | dir>   (CSV like r5r::street_network_to_sf edges;\n                                             a directory links its GTFS stops)\n       \
+         peabiru dump-elevation <dir> <out prefix>   (elevation samples and slope factors)\n       \
+         (PEABIRU_ELEVATION=TOBLER|MINETTI|NONE: elevation of the networks built from a\n        directory; without it .tif rasters are ignored)\n       \
          {}\n       {}\n       {}",
         expanded::USAGE,
         isochrone::USAGE,
@@ -69,6 +71,20 @@ fn main() {
         Some("expanded") => expanded::run(&args[1..]),
         Some("isochrone") => isochrone::run(&args[1..]),
         Some("itineraries") => itineraries::run(&args[1..]),
+        Some("dump-elevation") => {
+            let cmd = "dump-elevation";
+            if args.len() != 3 {
+                usage_error(cmd, "expected <dir> <out prefix>");
+            }
+            dump_elevation(&args[1], &args[2]);
+        }
+        Some("sample-raster") => {
+            let cmd = "sample-raster";
+            if args.len() != 4 {
+                usage_error(cmd, "expected <file.tif> <points> <out>");
+            }
+            sample_raster(&args[1], &args[2], &args[3]);
+        }
         Some("dump-edges") => {
             let path = args
                 .get(1)
@@ -184,6 +200,100 @@ fn transit(args: &[String]) {
     );
 }
 
+/// The elevations sampled on the network of a data directory (decimetres,
+/// per vertex and per edge pair) and the slope factor of each directed
+/// edge (float bits), in the layout of R5's `ElevationCostField`, for
+/// comparing with R5 field by field. The model is `PEABIRU_ELEVATION`
+/// (default `TOBLER`).
+fn dump_elevation(dir: &str, out: &str) {
+    use peabiru_core::unstable::{edge_slope, elevation_samples};
+    use peabiru_core::BuildOptions;
+    use std::io::Write;
+    let cmd = "dump-elevation";
+    let mut opts = BuildOptions::default();
+    opts.elevation = cli::elevation(cmd).unwrap_or(peabiru_core::Elevation::Tobler);
+    let (net, _) = cli::build_from_dir(cmd, dir, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
+    let tif = std::fs::read_dir(dir)
+        .unwrap_or_else(|e| runtime_error(cmd, e))
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|x| x == "tif"))
+        .unwrap_or_else(|| runtime_error(cmd, format!("{dir}: no .tif raster")));
+    let bytes = std::fs::read(&tif).unwrap_or_else(|e| runtime_error(cmd, e));
+    let (vertices, profiles) =
+        elevation_samples(&net, &bytes).unwrap_or_else(|e| runtime_error(cmd, e));
+    let file = |suffix: &str| {
+        let p = format!("{out}_{suffix}.csv");
+        std::io::BufWriter::new(
+            std::fs::File::create(&p)
+                .unwrap_or_else(|e| runtime_error(cmd, format!("cannot write {p}: {e}"))),
+        )
+    };
+    let fail = |e: std::io::Error| -> ! { runtime_error(cmd, format!("cannot write output: {e}")) };
+    let mut w = file("vertices");
+    writeln!(w, "vertex,dm").unwrap_or_else(|e| fail(e));
+    for (v, d) in vertices.iter().enumerate() {
+        writeln!(w, "{v},{d}").unwrap_or_else(|e| fail(e));
+    }
+    w.flush().unwrap_or_else(|e| fail(e));
+    let mut w = file("profiles");
+    writeln!(w, "pair,dm").unwrap_or_else(|e| fail(e));
+    for (k, p) in profiles.iter().enumerate() {
+        let s: Vec<String> = p.iter().map(i16::to_string).collect();
+        writeln!(w, "{k},{}", s.join(" ")).unwrap_or_else(|e| fail(e));
+    }
+    w.flush().unwrap_or_else(|e| fail(e));
+    let mut w = file("factors");
+    writeln!(w, "edge,bits").unwrap_or_else(|e| fail(e));
+    for e in 0..net.n_edges() {
+        let k = edge_slope(&net, e).unwrap_or(0.0);
+        writeln!(w, "{e},{:x}", k.to_bits()).unwrap_or_else(|e| fail(e));
+    }
+    w.flush().unwrap_or_else(|e| fail(e));
+    eprintln!(
+        "{} vertices, {} edge pairs, {} edges, elevation {}",
+        net.n_vertices(),
+        profiles.len(),
+        net.n_edges(),
+        net.elevation().r5r_name()
+    );
+}
+
+/// R5's `readElevation` at points given as lines `lon,lat` of the hex bits
+/// of two doubles; one line out per point, the hex bits of the value or
+/// `ERR` (a debugging aid for comparing with R5 point by point).
+fn sample_raster(tif: &str, points: &str, out: &str) {
+    let cmd = "sample-raster";
+    let bytes = std::fs::read(tif).unwrap_or_else(|e| runtime_error(cmd, format!("{tif}: {e}")));
+    let text = std::fs::read_to_string(points)
+        .unwrap_or_else(|e| runtime_error(cmd, format!("{points}: {e}")));
+    let bits = |s: &str| {
+        u64::from_str_radix(s.trim(), 16)
+            .map(f64::from_bits)
+            .unwrap_or_else(|_| runtime_error(cmd, format!("{points}: bad value '{s}'")))
+    };
+    let pts: Vec<(f64, f64)> = text
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            let (a, b) = l
+                .split_once(',')
+                .unwrap_or_else(|| runtime_error(cmd, "bad line"));
+            (bits(a), bits(b))
+        })
+        .collect();
+    let values = peabiru_core::unstable::raster_samples(&bytes, &pts)
+        .unwrap_or_else(|e| runtime_error(cmd, format!("{tif}: {e}")));
+    let mut csv = String::new();
+    for v in values {
+        match v {
+            Ok(x) => csv.push_str(&format!("{:x}\n", x.to_bits())),
+            Err(_) => csv.push_str("ERR\n"),
+        }
+    }
+    cli::write_file(cmd, out, csv);
+}
+
 /// Every directed edge with the attributes r5r's `street_network_to_sf()`
 /// reports, for comparing networks edge by edge (bench/compare/edges.py).
 fn dump_edges(pbf: &str) {
@@ -205,13 +315,18 @@ fn dump_edges(pbf: &str) {
     let fail = |e: std::io::Error| -> ! { runtime_error(cmd, format!("cannot write output: {e}")) };
     writeln!(
         w,
-        "edge_index,osm_id,length,walk,car,car_speed,bicycle,bicycle_lts,lon0,lat0,lon1,lat1"
+        "edge_index,osm_id,length,walk,car,car_speed,bicycle,bicycle_lts,lon0,lat0,lon1,lat1{}",
+        if net.elevation() == peabiru_core::Elevation::None {
+            ""
+        } else {
+            ",slope"
+        }
     )
     .unwrap_or_else(|e| fail(e));
     for e in 0..net.n_edges() {
         let d = edge(&net, e);
         let f = d.flags;
-        writeln!(
+        write!(
             w,
             "{},{},{:.3},{},{},{},{},{},{:.7},{:.7},{:.7},{:.7}",
             e,
@@ -228,6 +343,11 @@ fn dump_edges(pbf: &str) {
             f64::from(d.to.0) / 1e7
         )
         .unwrap_or_else(|e| fail(e));
+        if let Some(k) = peabiru_core::unstable::edge_slope(&net, e) {
+            // the factor's bits, as R5's ElevationCostField.edgeFactors
+            write!(w, ",{:x}", k.to_bits()).unwrap_or_else(|e| fail(e));
+        }
+        writeln!(w).unwrap_or_else(|e| fail(e));
     }
     w.flush().unwrap_or_else(|e| fail(e));
 }
