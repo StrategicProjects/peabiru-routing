@@ -2,8 +2,9 @@
 
 Multimodal routing on [OpenStreetMap](https://www.openstreetmap.org) street
 networks and [GTFS](https://gtfs.org) public transport, in WebAssembly:
-travel-time matrices, accessibility, and minute-by-minute (expanded) and
-arrival-time matrices, by walking, cycling, driving and public transport.
+travel-time matrices, accessibility, minute-by-minute (expanded) and
+arrival-time matrices, and isochrones, by walking, cycling, driving and
+public transport.
 
 The routing engine is the Rust core of the peabiru packages for R and
 Python, compiled to WebAssembly. It runs in browsers, in bundlers and in
@@ -53,6 +54,7 @@ network with workers: `buildNetwork({ pbf, gtfs, nThreads: 4 })` (see
 | `accessibility(network, origins, destinations, options)` | cumulative or decay-weighted access to opportunities |
 | `expandedTravelTimeMatrix(network, origins, destinations, options)` | travel times minute by minute, with a breakdown of each trip |
 | `arrivalTravelTimeMatrix(network, origins, destinations, options)` | the latest trip that arrives by a given time |
+| `isochrone(network, origins, options)` | the areas (or street segments) reached within each cutoff, as GeoJSON |
 | `coreVersion()`, `version` | versions of the Rust core and of this package |
 
 `network.info()` gives the sizes of a network, `await network.transitAvailability(date)`
@@ -112,6 +114,23 @@ row objects (a matrix can have millions of rows):
   `breakdown: true` the times `access_time`, `wait_time`, `ride_time`,
   `transfer_time`, `egress_time` (`Float64Array`, minutes), then `routes`
   (strings), `n_rides` (with `breakdown`) and `total_time`.
+
+`isochrone()` returns a GeoJSON `FeatureCollection` (coordinates
+`[lon, lat]`, WGS 84), as r5r's `isochrone()` returns an `sf` table. With
+`polygonOutput: true` (the default): one feature per origin, percentile
+and cutoff, with properties `id`, `isochrone` (the cutoff) and
+`percentile` (`"p50"`) and a `MultiPolygon` (empty when nothing is
+reached). With `polygonOutput: false`: one feature per street segment
+reached, with r5r's columns as properties (`id`, `edge_index`, `osm_id`,
+`isochrone`, `travel_time_p50`, `from_vertex`, `to_vertex`,
+`street_class`, `length`, `walk`, `car`, `car_speed`, `bicycle`,
+`bicycle_lts`) and a `LineString`. The polygons are the rings r5r makes
+with isoband, before its `sf::st_make_valid()` (an s2 rebuild in R that
+snaps vertices to 1e-7 degrees), which is not reproduced: they cover the
+same areas, and the rings of one polygon may touch at a vertex. Their
+coordinates can differ from the native packages' in the last digits
+(about 1e-14 degrees), because WebAssembly has its own `sinh` and `atan`;
+the line isochrones are identical.
 
 Missing values are `peabiru.NA_INT32` (-2147483648) in the `Int32Array`
 columns, `NaN` in the `Float64Array` columns and `null` in the string

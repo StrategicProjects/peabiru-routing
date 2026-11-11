@@ -13,6 +13,8 @@ import {
   Network,
   accessibility,
   expanded,
+  isochrone_polygons,
+  street_edges,
   street_ttm,
   transit_ttm,
 } from "../pkg/peabiru.js";
@@ -22,6 +24,8 @@ const FUNCTIONS = {
   transit_ttm,
   accessibility,
   expanded,
+  isochrone_polygons,
+  street_edges,
   availability: (net, date) => net.transit_availability(date),
 };
 

@@ -359,3 +359,113 @@ export declare function arrivalTravelTimeMatrix(
   destinations: Points,
   options: ArrivalTravelTimeMatrixOptions,
 ): Promise<ExpandedMatrix>;
+
+/**
+ * Options of `isochrone()`, with r5r's defaults: those of the routing
+ * functions that r5r's `isochrone()` takes (no fares, scenarios or
+ * `outputDir`), plus its own.
+ */
+export interface IsochroneOptions
+  extends Omit<RoutingOptions, "newCarspeeds" | "carspeedScale" | "newLts" | "outputDir" | "maxTripDuration"> {
+  /** As in the other functions, but `"transit"` by default (case does not matter). */
+  mode?: string | string[];
+  /** `"walk"` by default; only walking is supported with transit. */
+  modeEgress?: string;
+  /**
+   * Minutes that delimit the isochrones (default `[0, 15, 30]`): finite and
+   * at least 0, sorted and made distinct, 0 added; one must be above 0.
+   */
+  cutoffs?: number | number[];
+  /** Web Mercator zoom level, 9 to 12, of the grid polygons are made from (default 10). */
+  zoom?: number;
+  /** `true` (default) for polygons, `false` for the street segments reached. */
+  polygonOutput?: boolean;
+  /** Required with transit; the current time otherwise (default null). */
+  departureDatetime?: DateTime | null;
+  /** Minutes of departure times, from `departureDatetime` (default 10). */
+  timeWindow?: number;
+  /**
+   * 1 to 5 distinct values from 1 to 99: one set of polygons per
+   * percentile; null (default) means 50. Must be null for lines.
+   */
+  percentiles?: number | number[] | null;
+  /** Ignored, as in r5r: the trip limit comes from the cutoffs. */
+  maxTripDuration?: number;
+  /** Deprecated in r5r and ignored: giving it only warns. */
+  sampleSize?: unknown;
+}
+
+/** Properties of a polygon isochrone. */
+export interface IsochronePolygonProperties {
+  id: string | null;
+  /** The cutoff, minutes. */
+  isochrone: number;
+  /** Such as `"p50"`. */
+  percentile: string;
+}
+
+/** Properties of a line isochrone: the segment as r5r's `street_network_to_sf()` lists it. */
+export interface IsochroneLineProperties {
+  id: string | null;
+  /** The directed edge index, as a string (as r5r gives it). */
+  edge_index: string;
+  osm_id: number;
+  /** The smallest cutoff at or above the travel time, minutes. */
+  isochrone: number;
+  travel_time_p50: number;
+  from_vertex: number;
+  to_vertex: number;
+  street_class: "MOTORWAY" | "PRIMARY" | "SECONDARY" | "TERTIARY" | "OTHER";
+  /** Metres. */
+  length: number;
+  walk: boolean;
+  car: boolean;
+  /** km/h. */
+  car_speed: number;
+  bicycle: boolean;
+  bicycle_lts: number;
+}
+
+/** A GeoJSON feature (coordinates `[lon, lat]`, WGS 84). */
+export interface Feature<G, P> {
+  type: "Feature";
+  properties: P;
+  geometry: G;
+}
+
+/** A GeoJSON MultiPolygon: polygons of rings (shell first, then holes), every ring closed. */
+export interface MultiPolygon {
+  type: "MultiPolygon";
+  coordinates: [number, number][][][];
+}
+
+/** A GeoJSON LineString. */
+export interface LineString {
+  type: "LineString";
+  coordinates: [number, number][];
+}
+
+/** A GeoJSON FeatureCollection. */
+export interface FeatureCollection<G, P> {
+  type: "FeatureCollection";
+  features: Feature<G, P>[];
+}
+
+/**
+ * Isochrones, as r5r's `isochrone()`: with `polygonOutput: true` (the
+ * default) one `MultiPolygon` per origin, percentile (ascending) and cutoff
+ * (descending), empty when nothing is reached; with `polygonOutput: false`
+ * one `LineString` per street segment reached, by origin, then band and
+ * travel time descending. The polygons are those r5r makes with isoband
+ * before `sf::st_make_valid()`, which is not reproduced.
+ */
+export declare function isochrone(
+  network: Network,
+  origins: Points,
+  options: IsochroneOptions & { polygonOutput: false },
+): Promise<FeatureCollection<LineString, IsochroneLineProperties>>;
+export declare function isochrone(
+  network: Network,
+  origins: Points,
+  options?: IsochroneOptions,
+): Promise<FeatureCollection<MultiPolygon, IsochronePolygonProperties>>;

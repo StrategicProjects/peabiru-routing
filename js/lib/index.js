@@ -15,6 +15,9 @@ import wasmInit, {
   accessibility as rawAccessibility,
   core_version as rawCoreVersion,
   expanded as rawExpanded,
+  isochrone_lines as rawIsochroneLines,
+  isochrone_polygons as rawIsochronePolygons,
+  street_edges as rawStreetEdges,
   street_ttm as rawStreetTtm,
   transit_ttm as rawTransitTtm,
 } from "../pkg/peabiru.js";
@@ -24,6 +27,8 @@ const RAW = {
   transit_ttm: rawTransitTtm,
   accessibility: rawAccessibility,
   expanded: rawExpanded,
+  isochrone_polygons: rawIsochronePolygons,
+  street_edges: rawStreetEdges,
   availability: (raw, date) => raw.transit_availability(date),
 };
 
@@ -976,6 +981,15 @@ export class Network {
     return r;
   }
 
+  /** @internal The street edges (the columns of the core's street_edges), from one instance. */
+  async _edges(signal) {
+    this.#alive();
+    if (signal && signal.aborted) throw abortError(signal);
+    if (this.#raw) return RAW.street_edges(this.#raw);
+    const [r] = await this.#pool.run("street_edges", [{ args: [] }], signal);
+    return r;
+  }
+
   /**
    * @internal Run a routing function on the origins: inline, or on up to
    * `nThreads` workers, each with a contiguous share of the origins.
@@ -1426,4 +1440,164 @@ export async function arrivalTravelTimeMatrix(network, origins, destinations, op
   );
   const res = mergeExpanded(parts);
   return expandedResult(res, o, d, opt.breakdown, lim.trip);
+}
+
+// ---------------------------------------------------------------------------
+// Isochrones
+
+const STREET_CLASSES = ["MOTORWAY", "PRIMARY", "SECONDARY", "TERTIARY", "OTHER"];
+
+const ISOCHRONE = [
+  "maxWalkTime", "maxBikeTime", "maxCarTime", "maxTripDuration", "walkSpeed", "bikeSpeed", "maxRides", "maxLts",
+  "drawsPerMinute", "seed", "nThreads", "verbose", "progress", "departureDatetime", "timeWindow",
+];
+
+/** r5r's checks of the cutoffs: the cutoffs with 0, sorted and distinct, and the trip limit. */
+function isochroneCutoffs(cutoffs) {
+  // checkmate::assert_numeric(cutoffs, lower = 0, finite = TRUE, any.missing = FALSE, min.len = 1)
+  const values = numberList(cutoffs, "cutoffs", "numeric");
+  if (!values.length) fail("cutoffs", "Must have length >= 1");
+  if (values.some(Number.isNaN)) fail("cutoffs", "Contains missing values");
+  if (values.some((v) => !Number.isFinite(v))) fail("cutoffs", "Must be finite");
+  if (values.some((v) => v < 0)) fail("cutoffs", "All elements must be >= 0");
+  // the largest cutoff is the trip limit (as.integer() truncates)
+  const limit = Math.trunc(Math.max(...values));
+  const cuts = [...new Set([0, ...values])].sort((a, b) => a - b);
+  if (cuts.length < 2) throw new RangeError("`cutoffs` must contain at least one value greater than 0.");
+  return { cuts, limit };
+}
+
+/** The MultiPolygon coordinates of each row, from the flat columns. */
+function multipolygons(nPolygons, nRings, nPoints, x, y) {
+  const out = new Array(nPolygons.length);
+  let ring = 0;
+  let poly = 0;
+  let point = 0;
+  for (let r = 0; r < nPolygons.length; r++) {
+    const polys = [];
+    for (let p = 0; p < nPolygons[r]; p++, poly++) {
+      const rings = [];
+      for (let k = 0; k < nRings[poly]; k++, ring++) {
+        const coords = new Array(nPoints[ring]);
+        for (let i = 0; i < nPoints[ring]; i++, point++) coords[i] = [x[point], y[point]];
+        rings.push(coords);
+      }
+      polys.push(rings);
+    }
+    out[r] = polys;
+  }
+  return out;
+}
+
+/**
+ * Isochrones, as r5r's isochrone(): the areas (`polygonOutput: true`) or
+ * the street segments (`polygonOutput: false`) reached from each origin
+ * within each cutoff, as a GeoJSON FeatureCollection.
+ */
+export async function isochrone(network, origins, options) {
+  const given = optionsObject(options);
+  const opt = withDefaults(
+    options,
+    { mode: "transit", modeEgress: "walk", cutoffs: [0, 15, 30], zoom: 10, polygonOutput: true, percentiles: null, sampleSize: undefined },
+    ISOCHRONE,
+  );
+  const warn = warner(opt);
+  // r5r's sample_size is deprecated: any value warns
+  if ("sampleSize" in given) warn("The `sample_size` argument is no longer used and has no effect.");
+  assertNetwork(network);
+  const { cuts, limit } = isochroneCutoffs(opt.cutoffs);
+  assertFlag(opt.polygonOutput, "polygonOutput");
+  return opt.polygonOutput ? isochronePolygons(network, origins, opt, cuts, limit, warn) : isochroneLines(network, origins, opt, cuts, limit, warn);
+}
+
+async function isochronePolygons(network, origins, opt, cuts, limit, warn) {
+  const percentiles = opt.percentiles === null || opt.percentiles === undefined ? 50 : opt.percentiles;
+  assertNumber(opt.zoom, "zoom", { lower: 9, upper: 12 });
+  assertInt(opt.zoom, "zoom");
+  // r5r's travel_time_surface(), routed past max(cutoffs) so the outer band
+  // is interpolated like the inner ones
+  const o = pointsInput(origins, "origins", warn);
+  const modeList = assignMode(opt.mode, opt.modeEgress);
+  const departure = assignDeparture(opt.departureDatetime, modeList);
+  const lim = streetLimits({ ...opt, maxTripDuration: limit + 10 }, modeList);
+  assertCount(opt.timeWindow, "timeWindow", true);
+  const pcts = assignPercentiles(percentiles);
+  const seed = commonChecks(opt);
+  const parts = await network._route(
+    "isochrone_polygons", o,
+    (olat, olon) => [
+      olat, olon, modeList.transit ? "TRANSIT" : modeList.directModes, Float64Array.from(cuts), Math.round(opt.zoom),
+      Int32Array.from(pcts), departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow), lim.walk, lim.trip,
+      opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides), Math.round(opt.drawsPerMinute), seed,
+    ],
+    opt.nThreads, opt.signal,
+  );
+  const [origin, iso, pct, nPolygons, nRings, nPoints, x, y] = merge(parts);
+  const coords = multipolygons(nPolygons, nRings, nPoints, x, y);
+  const features = new Array(origin.length);
+  for (let r = 0; r < origin.length; r++) {
+    features[r] = {
+      type: "Feature",
+      properties: { id: o.ids[origin[r]], isochrone: iso[r], percentile: `p${pct[r]}` },
+      geometry: { type: "MultiPolygon", coordinates: coords[r] },
+    };
+  }
+  return { type: "FeatureCollection", features };
+}
+
+async function isochroneLines(network, origins, opt, cuts, limit, warn) {
+  if (opt.percentiles !== null && opt.percentiles !== undefined) {
+    throw new RangeError("Percentiles not supported for line-based isochrones");
+  }
+  const [edgeIndex, osmId, fromVertex, toVertex, classes, length, walk, car, carSpeed, bicycle, lts, lat, lon, nPoints, x, y] =
+    await network._edges(opt.signal);
+  const dest = { id: Array.from(edgeIndex, String), lon, lat };
+  const ttm = await travelTimeMatrix(network, origins, dest, {
+    mode: opt.mode, modeEgress: opt.modeEgress, departureDatetime: opt.departureDatetime, timeWindow: opt.timeWindow,
+    maxWalkTime: opt.maxWalkTime, maxBikeTime: opt.maxBikeTime, maxCarTime: opt.maxCarTime, maxTripDuration: limit,
+    walkSpeed: opt.walkSpeed, bikeSpeed: opt.bikeSpeed, maxRides: opt.maxRides, maxLts: opt.maxLts,
+    drawsPerMinute: opt.drawsPerMinute, seed: opt.seed, nThreads: opt.nThreads, verbose: opt.verbose,
+    progress: opt.progress, onWarning: warn, signal: opt.signal,
+  });
+  // travelTimeMatrix() has already warned about these origins
+  const ids = pointsInput(origins, "origins", () => {}).ids;
+  const nO = ids.length;
+  const nE = edgeIndex.length;
+  const originRow = new Map(ids.map((id, i) => [id, i]));
+  const edgeRow = new Map(dest.id.map((id, i) => [id, i]));
+  const minutes = new Int32Array(nO * nE).fill(NA_INT32);
+  const tt = ttm.travel_time_p50;
+  for (let k = 0; k < tt.length; k++) {
+    minutes[originRow.get(ttm.from_id[k]) * nE + edgeRow.get(ttm.to_id[k])] = tt[k];
+  }
+  const [origin, edge, time, iso] = rawIsochroneLines(nO, nE, minutes, Float64Array.from(cuts));
+  const ends = new Float64Array(nE);
+  for (let i = 0, at = 0; i < nE; i++) ends[i] = at += nPoints[i];
+  const features = new Array(origin.length);
+  for (let r = 0; r < origin.length; r++) {
+    const e = edge[r];
+    const coords = new Array(nPoints[e]);
+    for (let i = 0, p = ends[e] - nPoints[e]; i < nPoints[e]; i++, p++) coords[i] = [x[p], y[p]];
+    features[r] = {
+      type: "Feature",
+      properties: {
+        id: ids[origin[r]],
+        edge_index: String(edgeIndex[e]),
+        osm_id: osmId[e],
+        isochrone: iso[r],
+        travel_time_p50: time[r],
+        from_vertex: fromVertex[e],
+        to_vertex: toVertex[e],
+        street_class: STREET_CLASSES[classes[e]],
+        length: length[e],
+        walk: walk[e] === 1,
+        car: car[e] === 1,
+        car_speed: carSpeed[e],
+        bicycle: bicycle[e] === 1,
+        bicycle_lts: lts[e],
+      },
+      geometry: { type: "LineString", coordinates: coords },
+    };
+  }
+  return { type: "FeatureCollection", features };
 }

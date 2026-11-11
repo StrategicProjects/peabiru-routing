@@ -23,8 +23,10 @@
 use js_sys::{Array, Float64Array, Int32Array, Uint8Array};
 use peabiru_core::{
     arrival_travel_time_matrix, build_from_bytes, expanded_travel_time_matrix,
-    street_accessibility, street_travel_time_matrix, transit_accessibility,
-    transit_travel_time_matrix, validate_date, AccessibilityParams, BuildOptions, DecayFunction,
+    isochrone_lines as isochrone_lines_core, isochrone_polygons as isochrone_polygons_core,
+    street_accessibility, street_edges as street_edges_core, street_travel_time_matrix,
+    street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
+    transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, DecayFunction,
     Destinations, ExpandedRow, Mode, RouteError, RouteParams, StreetNetwork, TransitData,
     TransitLayer, TransitParams,
 };
@@ -475,6 +477,179 @@ pub fn expanded(
     out.push(&i32_array(&c.route_codes));
     out.push(&strings(&c.route_levels));
     Ok(out)
+}
+
+/// Polygon isochrones as an array of columns the JavaScript side assembles
+/// into GeoJSON: per row (origin, percentile, cutoff; r5r's order)
+/// `origin` (0-based Int32Array), `isochrone` (Float64Array), `percentile`
+/// and `n_polygons` (Int32Array); per polygon `n_rings`; per ring
+/// `n_points` (Int32Array); per point `x` (longitude) and `y` (latitude),
+/// Float64Array. `mode` is `TRANSIT` (walk access and egress) or a street
+/// mode; `max_trip_duration` is the search limit (r5r: the largest cutoff
+/// plus 10).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn isochrone_polygons(
+    network: &Network,
+    olat: &[f64],
+    olon: &[f64],
+    mode: &str,
+    cutoffs: Vec<f64>,
+    zoom: i32,
+    percentiles: Vec<i32>,
+    date: u32,
+    departure_time: i32,
+    time_window: i32,
+    max_walk_time: i32,
+    max_trip_duration: i32,
+    walk_speed: f64,
+    bike_speed: f64,
+    max_lts: i32,
+    max_rides: usize,
+    draws_per_minute: i32,
+    seed: i32,
+) -> Result<Array, JsError> {
+    let o = points(olat, olon)?;
+    let surface = if mode == "TRANSIT" {
+        let t = transit(network)?;
+        let p = transit_params(
+            date,
+            departure_time,
+            time_window,
+            percentiles,
+            max_walk_time,
+            max_trip_duration,
+            walk_speed,
+            max_rides,
+            draws_per_minute,
+            seed,
+        );
+        transit_travel_time_surface(&network.net, &t.layer, &t.data, &o, &p, zoom)
+    } else {
+        let m = street_mode(mode)?;
+        let p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
+        street_travel_time_surface(&network.net, &o, m, &p, &percentiles, zoom)
+    }
+    .map_err(route_err)?;
+    let rows = isochrone_polygons_core(&surface, &cutoffs).map_err(route_err)?;
+    let (mut origin, mut iso, mut pct, mut n_polygons) =
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    let (mut n_rings, mut n_points, mut x, mut y) =
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    for r in &rows {
+        origin.push(r.origin as i32);
+        iso.push(r.isochrone);
+        pct.push(r.percentile);
+        n_polygons.push(r.polygons.len() as i32);
+        for poly in &r.polygons {
+            n_rings.push(poly.len() as i32);
+            for ring in poly {
+                n_points.push(ring.len() as i32);
+                for &[px, py] in ring {
+                    x.push(px);
+                    y.push(py);
+                }
+            }
+        }
+    }
+    Ok([
+        i32_array(&origin),
+        f64_array(&iso),
+        i32_array(&pct),
+        i32_array(&n_polygons),
+        i32_array(&n_rings),
+        i32_array(&n_points),
+        f64_array(&x),
+        f64_array(&y),
+    ]
+    .into_iter()
+    .collect())
+}
+
+/// The street edges of r5r's `street_network_to_sf()$edges` as an array of
+/// columns: `edge_index`, `from_vertex`, `to_vertex` (Int32Array),
+/// `osm_id` (Float64Array), `street_class` (Int32Array codes: 0 MOTORWAY,
+/// 1 PRIMARY, 2 SECONDARY, 3 TERTIARY, 4 OTHER), `length` (Float64Array),
+/// `walk`, `car` (Int32Array 0/1), `car_speed` (Float64Array), `bicycle`
+/// (0/1), `bicycle_lts` (Int32Array), the centroid r5r routes to as `lat`,
+/// `lon` (Float64Array, NaN without one), and the line of each edge as
+/// `n_points` (Int32Array) and flat `x`, `y` (Float64Array).
+#[wasm_bindgen]
+pub fn street_edges(network: &Network) -> Array {
+    let e = street_edges_core(&network.net);
+    let rows = 0..e.len();
+    let ints = |f: &dyn Fn(usize) -> i32| -> JsValue {
+        i32_array(&rows.clone().map(f).collect::<Vec<_>>())
+    };
+    let floats = |f: &dyn Fn(usize) -> f64| -> JsValue {
+        f64_array(&rows.clone().map(f).collect::<Vec<_>>())
+    };
+    let class_code = |s: &str| match s {
+        "MOTORWAY" => 0,
+        "PRIMARY" => 1,
+        "SECONDARY" => 2,
+        "TERTIARY" => 3,
+        _ => 4,
+    };
+    let cen = e.centroid_points();
+    let (mut n_points, mut x, mut y) = (Vec::with_capacity(e.len()), Vec::new(), Vec::new());
+    for i in rows.clone() {
+        let g = e.geometry(i);
+        n_points.push(g.len() as i32);
+        for &[px, py] in g {
+            x.push(px);
+            y.push(py);
+        }
+    }
+    let lat: Vec<f64> = cen.iter().map(|c| c.0).collect();
+    let lon: Vec<f64> = cen.iter().map(|c| c.1).collect();
+    [
+        ints(&|i| e.edge_index(i) as i32),
+        floats(&|i| e.osm_id(i) as f64),
+        ints(&|i| e.from_vertex(i) as i32),
+        ints(&|i| e.to_vertex(i) as i32),
+        ints(&|i| class_code(e.street_class(i))),
+        floats(&|i| e.length_m(i)),
+        ints(&|i| i32::from(e.walk(i))),
+        ints(&|i| i32::from(e.car(i))),
+        floats(&|i| e.car_speed_kph(i)),
+        ints(&|i| i32::from(e.bicycle(i))),
+        ints(&|i| e.bicycle_lts(i)),
+        f64_array(&lat),
+        f64_array(&lon),
+        i32_array(&n_points),
+        f64_array(&x),
+        f64_array(&y),
+    ]
+    .into_iter()
+    .collect()
+}
+
+/// Line isochrones from a matrix of median minutes (`NA_I32` where not
+/// reported), `n_origins` rows of `n_edges` values, origin-major: the rows
+/// in r5r's order as `[origin, edge, travel_time]` (0-based Int32Arrays)
+/// and `isochrone` (Float64Array).
+#[wasm_bindgen]
+pub fn isochrone_lines(
+    n_origins: usize,
+    n_edges: usize,
+    minutes: &[i32],
+    cutoffs: Vec<f64>,
+) -> Result<Array, JsError> {
+    let m: Vec<Option<u32>> = minutes.iter().map(|&v| u32::try_from(v).ok()).collect();
+    let lines = isochrone_lines_core(n_origins, n_edges, &m, &cutoffs).map_err(route_err)?;
+    let origin: Vec<i32> = lines.iter().map(|l| l.origin as i32).collect();
+    let edge: Vec<i32> = lines.iter().map(|l| l.edge as i32).collect();
+    let tt: Vec<i32> = lines.iter().map(|l| l.travel_time as i32).collect();
+    let iso: Vec<f64> = lines.iter().map(|l| l.isochrone).collect();
+    Ok([
+        i32_array(&origin),
+        i32_array(&edge),
+        i32_array(&tt),
+        f64_array(&iso),
+    ]
+    .into_iter()
+    .collect())
 }
 
 /// The rows of an expanded matrix as columns.
