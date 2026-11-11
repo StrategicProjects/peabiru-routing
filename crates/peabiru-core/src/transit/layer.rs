@@ -368,8 +368,9 @@ type Interpolated = Option<(Vec<i32>, Vec<i32>)>;
 /// Fill blank times as gtfs-lib `getInterpolatedStopTimesForTrip` does;
 /// `None` when the first or last stop has no time. GeoTools'
 /// `GeodeticCalculator` measures the hops around blank times and throws on
-/// a latitude outside ±90° or a longitude outside ±180° (NaN included):
-/// `Err` with the position of such a stop.
+/// a latitude outside ±90° and on a longitude that is not finite (NaN
+/// included; it measures any finite longitude): `Err` with the position of
+/// such a stop.
 fn interpolate(rows: &[&StopTime], coords: &[(f64, f64)]) -> Result<Interpolated, usize> {
     let n = rows.len();
     let mut arr: Vec<Option<i32>> = Vec::with_capacity(n);
@@ -386,8 +387,7 @@ fn interpolate(rows: &[&StopTime], coords: &[(f64, f64)]) -> Result<Interpolated
     if arr[0].is_none() || arr[n - 1].is_none() {
         return Ok(None);
     }
-    let valid =
-        |(lat, lon): (f64, f64)| (-90.0..=90.0).contains(&lat) && (-180.0..=180.0).contains(&lon);
+    let valid = |(lat, lon): (f64, f64)| (-90.0..=90.0).contains(&lat) && lon.is_finite();
     let mut i = 1;
     while i < n {
         if arr[i].is_some() {
@@ -1664,7 +1664,10 @@ r5r refuses to build a network from this feed."
         let refs: Vec<&StopTime> = rows.iter().collect();
         let nan = [(0.0, 0.0), (f64::NAN, 0.0), (0.003, 0.0)];
         assert_eq!(interpolate(&refs, &nan), Err(1));
-        let far = [(0.0, 0.0), (0.001, 0.0), (0.003, 181.0)];
+        let far = [(0.0, 0.0), (0.001, 0.0), (90.001, 0.0)];
         assert_eq!(interpolate(&refs, &far), Err(2));
+        // a longitude out of range is measured (as r5r does)
+        let east = [(0.0, 0.0), (0.001, 0.0), (0.003, 181.0)];
+        assert!(interpolate(&refs, &east).is_ok());
     }
 }
