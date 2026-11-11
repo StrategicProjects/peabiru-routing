@@ -9,9 +9,35 @@
 //!
 //! isoband collects the rings by walking a `std::unordered_map` keyed by
 //! grid points, so the order of the rings and the vertex each ring starts
-//! at are those of the hash table. [`HashTable`] reproduces the table of
-//! LLVM's libc++ (the C++ library R packages are built with on macOS):
-//! with it the rings come out exactly as isoband gives them there.
+//! at are those of the hash table, which depend on the C++ standard
+//! library isoband was compiled with. [`HashTable`] reproduces both that R
+//! packages are built with: LLVM's libc++ (macOS) and GCC's libstdc++
+//! (Linux, and Windows through Rtools), chosen by [`CxxLibrary`]. With the
+//! library of the platform the rings come out exactly as isoband gives
+//! them there.
+
+/// The C++ standard library whose `std::unordered_map` decides the order of
+/// isoband's rings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CxxLibrary {
+    /// LLVM's libc++, which R packages are compiled with on macOS.
+    Libcxx,
+    /// GCC's libstdc++ (GCC 11 to 15 lay the table out alike), which R
+    /// packages are compiled with on Linux and, through Rtools, on Windows.
+    Libstdcxx,
+}
+
+impl CxxLibrary {
+    /// The library of the platform this crate is compiled for: libc++ on
+    /// Apple targets, libstdc++ on every other native target, and libc++
+    /// on WebAssembly (no R there to follow: fixed, so that the npm package
+    /// gives the same polygons wherever it runs).
+    pub const NATIVE: CxxLibrary = if cfg!(any(target_vendor = "apple", target_family = "wasm")) {
+        CxxLibrary::Libcxx
+    } else {
+        CxxLibrary::Libstdcxx
+    };
+}
 
 /// Kind of a polygon vertex in grid space (isoband `point_type`).
 const GRID: u8 = 0;
@@ -36,8 +62,8 @@ impl GridPoint {
         kind: GRID,
     };
 
-    /// isoband's `grid_point_hasher` through libc++'s `std::hash<long
-    /// long>`, which is the identity.
+    /// isoband's `grid_point_hasher` through `std::hash<long long>`, which
+    /// is the identity in libc++ and in libstdc++.
     fn hash(self) -> u64 {
         ((i64::from(self.r) << 30) ^ (i64::from(self.c) << 3) ^ i64::from(self.kind)) as u64
     }
@@ -83,22 +109,38 @@ struct Node {
 }
 
 /// `std::unordered_map<grid_point, point_connect>` as libc++'s
-/// `__hash_table` lays it out: one singly linked list of nodes, buckets
-/// pointing at the node before their first one, prime bucket counts grown
-/// to `next_prime(2n + 1)` past a load factor of 1, new keys put first in
-/// their bucket, `clear()` keeping the bucket count. Iteration follows the
-/// list, so it visits the keys in libc++'s order.
-#[derive(Debug, Clone, Default)]
+/// `__hash_table` and libstdc++'s `_Hashtable` lay it out. Both keep one
+/// singly linked list of nodes, buckets pointing at the node before their
+/// first one, put a new key first in its bucket (or first in the list when
+/// its bucket is empty), take the bucket of a hash modulo the bucket count,
+/// unlink erased nodes without moving the others and keep the bucket count
+/// on `clear()`. Iteration follows the list. They differ in when and how
+/// they rehash:
+///
+/// - libc++ starts with no buckets and, past a load factor of 1, grows to
+///   `next_prime(2n + 1)` (powers of 2 aside), moving runs of nodes that
+///   share a bucket together (`__do_rehash`);
+/// - libstdc++ starts with 1 bucket and, past a load factor of 1, grows to
+///   the next prime of its table at or above `max(size + 1, 2n)` (13 for
+///   the first key), relinking the nodes one by one at the front of their
+///   new bucket or of the list (`_M_rehash` for unique keys, with
+///   `_Prime_rehash_policy`).
+#[derive(Debug, Clone)]
 struct HashTable {
+    lib: CxxLibrary,
     nodes: Vec<Node>,
     free: Vec<u32>,
     /// `anchor.next`.
     first: u32,
     buckets: Vec<u32>,
     size: usize,
+    /// libstdc++ `_Prime_rehash_policy::_M_next_resize`: the size past
+    /// which an insertion rehashes (0 before the first one).
+    next_resize: usize,
 }
 
-/// libc++ `__constrain_hash`.
+/// libc++ `__constrain_hash`; equal to `h % bc`, which is libstdc++'s
+/// `_Mod_range_hashing`.
 fn constrain(h: u64, bc: usize) -> usize {
     let bc = bc as u64;
     (if bc & (bc - 1) == 0 {
@@ -137,11 +179,48 @@ fn next_prime(n: usize) -> usize {
     n
 }
 
+/// libstdc++ `__prime_list` (`src/shared/hashtable-aux.cc`, the same from
+/// GCC 11 to 15) up to its last 32-bit entry; 64-bit targets go on with
+/// larger primes, which no table of grid points in memory reaches.
+const GNU_PRIMES: [u32; 256] = [
+    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97,
+    103, 109, 113, 127, 137, 139, 149, 157, 167, 179, 193, 199, 211, 227, 241, 257, 277, 293, 313,
+    337, 359, 383, 409, 439, 467, 503, 541, 577, 619, 661, 709, 761, 823, 887, 953, 1031, 1109,
+    1193, 1289, 1381, 1493, 1613, 1741, 1879, 2029, 2179, 2357, 2549, 2753, 2971, 3209, 3469, 3739,
+    4027, 4349, 4703, 5087, 5503, 5953, 6427, 6949, 7517, 8123, 8783, 9497, 10273, 11113, 12011,
+    12983, 14033, 15173, 16411, 17749, 19183, 20753, 22447, 24281, 26267, 28411, 30727, 33223,
+    35933, 38873, 42043, 45481, 49201, 53201, 57557, 62233, 67307, 72817, 78779, 85229, 92203,
+    99733, 107897, 116731, 126271, 136607, 147793, 159871, 172933, 187091, 202409, 218971, 236897,
+    256279, 277261, 299951, 324503, 351061, 379787, 410857, 444487, 480881, 520241, 562841, 608903,
+    658753, 712697, 771049, 834181, 902483, 976369, 1056323, 1142821, 1236397, 1337629, 1447153,
+    1565659, 1693859, 1832561, 1982627, 2144977, 2320627, 2510653, 2716249, 2938679, 3179303,
+    3439651, 3721303, 4026031, 4355707, 4712381, 5098259, 5515729, 5967347, 6456007, 6984629,
+    7556579, 8175383, 8844859, 9569143, 10352717, 11200489, 12117689, 13109983, 14183539, 15345007,
+    16601593, 17961079, 19431899, 21023161, 22744717, 24607243, 26622317, 28802401, 31160981,
+    33712729, 36473443, 39460231, 42691603, 46187573, 49969847, 54061849, 58488943, 63278561,
+    68460391, 74066549, 80131819, 86693767, 93793069, 101473717, 109783337, 118773397, 128499677,
+    139022417, 150406843, 162723577, 176048909, 190465427, 206062531, 222936881, 241193053,
+    260944219, 282312799, 305431229, 330442829, 357502601, 386778277, 418451333, 452718089,
+    489790921, 529899637, 573292817, 620239453, 671030513, 725980837, 785430967, 849749479,
+    919334987, 994618837, 1076067617, 1164186217, 1259520799, 1362662261, 1474249943, 1594975441,
+    1725587117, 1866894511, 2019773507, 2185171673, 2364114217, 2557710269, 2767159799, 2993761039,
+    3238918481, 3504151727, 3791104843, 4101556399, 4294967291,
+];
+
 impl HashTable {
-    fn new() -> Self {
+    fn new(lib: CxxLibrary) -> Self {
         HashTable {
+            lib,
+            nodes: Vec::new(),
+            free: Vec::new(),
             first: NIL,
-            ..Default::default()
+            // libstdc++ starts on its single bucket, libc++ on none
+            buckets: match lib {
+                CxxLibrary::Libcxx => Vec::new(),
+                CxxLibrary::Libstdcxx => vec![NIL],
+            },
+            size: 0,
+            next_resize: 0,
         }
     }
 
@@ -202,15 +281,12 @@ impl HashTable {
             self.nodes[i as usize].value = value;
             return;
         }
-        // __emplace_unique_key_args
         let h = key.hash();
-        let mut bc = self.buckets.len();
-        if (self.size + 1) as f32 > bc as f32 {
-            let grow = 2 * bc + usize::from(!is_hash_power2(bc));
-            let need = ((self.size + 1) as f32).ceil() as usize;
-            self.rehash(grow.max(need));
-            bc = self.buckets.len();
+        match self.lib {
+            CxxLibrary::Libcxx => self.grow_libcxx(),
+            CxxLibrary::Libstdcxx => self.grow_libstdcxx(),
         }
+        let bc = self.buckets.len();
         let ch = constrain(h, bc);
         let node = Node {
             key,
@@ -244,6 +320,89 @@ impl HashTable {
             self.set_next(pn, nd);
         }
         self.size += 1;
+    }
+
+    /// Before inserting a new key, libc++ (`__emplace_unique_key_args`).
+    fn grow_libcxx(&mut self) {
+        let bc = self.buckets.len();
+        if (self.size + 1) as f32 > bc as f32 {
+            let grow = 2 * bc + usize::from(!is_hash_power2(bc));
+            let need = ((self.size + 1) as f32).ceil() as usize;
+            self.rehash(grow.max(need));
+        }
+    }
+
+    /// Before inserting a new key, libstdc++ (`_M_insert_unique_node` with
+    /// `_Prime_rehash_policy::_M_need_rehash`, max load factor 1).
+    fn grow_libstdcxx(&mut self) {
+        let (bc, n) = (self.buckets.len(), self.size + 1);
+        if n <= self.next_resize {
+            return;
+        }
+        let min_bkts = n.max(if self.next_resize == 0 { 11 } else { 0 });
+        if min_bkts >= bc {
+            let nbc = self.gnu_next_bkt((min_bkts + 1).max(bc * 2));
+            self.rehash_libstdcxx(nbc);
+        } else {
+            self.next_resize = bc;
+        }
+    }
+
+    /// libstdc++ `_Prime_rehash_policy::_M_next_bkt`, which also sets the
+    /// next resize.
+    fn gnu_next_bkt(&mut self, n: usize) -> usize {
+        const FAST_BKT: [usize; 14] = [2, 2, 2, 3, 5, 5, 7, 7, 11, 11, 11, 11, 13, 13];
+        if n < FAST_BKT.len() {
+            if n == 0 {
+                return 1;
+            }
+            self.next_resize = FAST_BKT[n];
+            return FAST_BKT[n];
+        }
+        // lower_bound over the table from its 7th prime (past the 32-bit
+        // entries, out of reach, it saturates)
+        let tail = &GNU_PRIMES[6..];
+        let i = tail.partition_point(|&p| (p as usize) < n);
+        match tail.get(i) {
+            Some(&p) => {
+                self.next_resize = p as usize;
+                p as usize
+            }
+            None => {
+                self.next_resize = usize::MAX;
+                GNU_PRIMES[GNU_PRIMES.len() - 1] as usize
+            }
+        }
+    }
+
+    /// libstdc++ `_M_rehash` for unique keys: every node, in list order,
+    /// goes first in its new bucket, or first in the list when the bucket
+    /// is new.
+    fn rehash_libstdcxx(&mut self, nbc: usize) {
+        let mut buckets = vec![NIL; nbc];
+        let mut p = self.first;
+        self.first = NIL;
+        let mut bbegin = 0;
+        while p != NIL {
+            let next = self.nodes[p as usize].next;
+            let b = constrain(self.nodes[p as usize].hash, nbc);
+            if buckets[b] == NIL {
+                self.nodes[p as usize].next = self.first;
+                self.first = p;
+                buckets[b] = ANCHOR;
+                if self.nodes[p as usize].next != NIL {
+                    buckets[bbegin] = p;
+                }
+                bbegin = b;
+            } else {
+                let head = buckets[b];
+                let after = self.next_of(head);
+                self.nodes[p as usize].next = after;
+                self.set_next(head, p);
+            }
+            p = next;
+        }
+        self.buckets = buckets;
     }
 
     /// libc++ `__rehash`, growing only (as insertions call it).
@@ -384,12 +543,14 @@ pub(crate) struct Isobander<'a> {
 pub(crate) type Ring = Vec<[f64; 2]>;
 
 impl<'a> Isobander<'a> {
-    pub(crate) fn new(grid: Grid<'a>) -> Self {
+    /// An isobander whose rings come in the order isoband gives them when
+    /// compiled with `lib`.
+    pub(crate) fn new(grid: Grid<'a>, lib: CxxLibrary) -> Self {
         debug_assert_eq!(grid.z.len(), grid.nrow() * grid.ncol());
         Isobander {
             grid,
             vhi: 0.0,
-            map: HashTable::new(),
+            map: HashTable::new(lib),
             tmp: Vec::with_capacity(8),
         }
     }
@@ -698,9 +859,17 @@ fn interpolate(x0: f64, x1: f64, z0: f64, z1: f64, value: f64) -> f64 {
 mod tests {
     use super::*;
 
+    const LIBS: [CxxLibrary; 2] = [CxxLibrary::Libcxx, CxxLibrary::Libstdcxx];
+
     #[test]
     fn hash_table_matches_a_plain_map() {
-        let mut t = HashTable::new();
+        for lib in LIBS {
+            matches_a_plain_map(lib);
+        }
+    }
+
+    fn matches_a_plain_map(lib: CxxLibrary) {
+        let mut t = HashTable::new(lib);
         let mut reference = std::collections::HashMap::new();
         let mut x = 0x2545_f491_4f6c_dd1du64;
         for i in 0..20_000 {
@@ -743,37 +912,169 @@ mod tests {
         }
     }
 
-    #[test]
-    fn bucket_counts_grow_as_libcxx() {
-        let mut t = HashTable::new();
-        let mut counts = Vec::new();
-        for i in 0..200 {
-            t.set(
-                GridPoint {
-                    r: i,
-                    c: 0,
-                    kind: 0,
-                },
-                Connect::default(),
-            );
-            if counts.last() != Some(&t.buckets.len()) {
-                counts.push(t.buckets.len());
+    /// splitmix64, as `tests/data/isoband-hash/record.cpp`.
+    struct SplitMix(u64);
+
+    impl SplitMix {
+        fn next(&mut self) -> u64 {
+            self.0 = self.0.wrapping_add(0x9e37_79b9_7f4a_7c15);
+            let mut z = self.0;
+            z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+            z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+            z ^ (z >> 31)
+        }
+    }
+
+    /// FNV-1a 64 of the keys in iteration order, as `record.cpp`.
+    fn fnv(t: &HashTable) -> u64 {
+        let mut h = 0xcbf2_9ce4_8422_2325u64;
+        for k in t.keys() {
+            for v in [k.r, k.c, i32::from(k.kind)] {
+                for b in v.to_le_bytes() {
+                    h ^= u64::from(b);
+                    h = h.wrapping_mul(0x0100_0000_01b3);
+                }
             }
         }
-        assert_eq!(counts, vec![2, 5, 11, 23, 47, 97, 197, 397]);
+        h
+    }
+
+    fn key_list(t: &HashTable) -> String {
+        t.keys()
+            .iter()
+            .map(|k| format!(" {},{},{}", k.r, k.c, k.kind))
+            .collect()
+    }
+
+    /// Replays the operations of `record.cpp` on the emulated table and
+    /// checks every state the real `std::unordered_map` recorded.
+    fn replay(lib: CxxLibrary, fixture: &str) {
+        let mut lines = fixture.lines().filter(|l| !l.is_empty());
+        let mut sequences = 0;
+        while let Some(head) = lines.next() {
+            let f: Vec<&str> = head.split(' ').collect();
+            if f[0] == "grow" {
+                let want: Vec<usize> = f[1..].iter().map(|v| v.parse().unwrap()).collect();
+                let mut t = HashTable::new(lib);
+                let mut got = vec![t.buckets.len()];
+                for i in 0..400_000 {
+                    let k = GridPoint {
+                        r: i / 700,
+                        c: i % 700,
+                        kind: GRID,
+                    };
+                    t.set(k, Connect::default());
+                    if got.last() != Some(&t.buckets.len()) {
+                        got.push(t.buckets.len());
+                    }
+                }
+                assert_eq!(got, want, "{lib:?}: bucket counts");
+                continue;
+            }
+            assert_eq!(f[0], "seq", "{lib:?}: fixture line {head}");
+            let n: Vec<u64> = f[1..].iter().map(|v| v.parse().unwrap()).collect();
+            let (seed, phases, ops, rows, cols) = (n[0], n[1], n[2], n[3], n[4]);
+            let mut rng = SplitMix(seed);
+            let mut t = HashTable::new(lib);
+            for _ in 0..phases {
+                t.clear();
+                for i in 0..ops {
+                    let op = rng.next() % 100;
+                    let k = GridPoint {
+                        r: (rng.next() % rows) as i32,
+                        c: (rng.next() % cols) as i32,
+                        kind: (rng.next() % 5) as u8,
+                    };
+                    if op < 65 {
+                        let mut v = Connect::default();
+                        v.prev.r = i as i32;
+                        t.set(k, v);
+                    } else {
+                        t.erase(k);
+                    }
+                    if i % 256 == 255 {
+                        let want = lines.next().unwrap();
+                        let got = format!("cp {} {} {}", t.buckets.len(), t.size, fnv(&t));
+                        assert_eq!(got, want, "{lib:?}: seq {seed}, phase op {i}");
+                    }
+                }
+            }
+            let want = lines.next().unwrap();
+            let got = if t.size <= 1500 {
+                format!("end {} {}{}", t.buckets.len(), t.size, key_list(&t))
+            } else {
+                format!("end {} {} fnv {}", t.buckets.len(), t.size, fnv(&t))
+            };
+            assert_eq!(got, want, "{lib:?}: seq {seed}, end");
+            sequences += 1;
+        }
+        assert_eq!(sequences, 8);
+    }
+
+    #[test]
+    fn iteration_order_is_that_of_libcxx() {
+        // recorded with Apple clang 21 (libc++) on macOS 26
+        replay(
+            CxxLibrary::Libcxx,
+            include_str!("../../tests/data/isoband-hash/libcxx.txt"),
+        );
+    }
+
+    #[test]
+    fn iteration_order_is_that_of_libstdcxx() {
+        // recorded with g++ 11.5, 12.4, 13.3 and 14.2 (identical output)
+        replay(
+            CxxLibrary::Libstdcxx,
+            include_str!("../../tests/data/isoband-hash/libstdcxx.txt"),
+        );
+    }
+
+    #[test]
+    fn libstdcxx_prime_table() {
+        let mut t = HashTable::new(CxxLibrary::Libstdcxx);
+        assert_eq!(t.gnu_next_bkt(0), 1);
+        assert_eq!(t.gnu_next_bkt(12), 13);
+        assert_eq!(t.gnu_next_bkt(14), 17);
+        assert_eq!(t.gnu_next_bkt(26), 29);
+        assert_eq!(t.next_resize, 29);
+        assert_eq!(t.gnu_next_bkt(4_294_967_291), 4_294_967_291);
+        assert!(GNU_PRIMES.windows(2).all(|w| w[0] < w[1]));
+    }
+
+    #[test]
+    fn native_library() {
+        let want = if cfg!(any(
+            target_os = "macos",
+            target_os = "ios",
+            target_family = "wasm"
+        )) {
+            CxxLibrary::Libcxx
+        } else {
+            CxxLibrary::Libstdcxx
+        };
+        assert_eq!(CxxLibrary::NATIVE, want);
     }
 
     #[test]
     fn a_single_cell_peak() {
+        for lib in LIBS {
+            single_cell_peak(lib);
+        }
+    }
+
+    fn single_cell_peak(lib: CxxLibrary) {
         // 3 x 3 grid, low in the middle: one ring around the centre
         let x = [0.0, 1.0, 2.0];
         let y = [0.0, 1.0, 2.0];
         let z = [9.0, 9.0, 9.0, 9.0, 1.0, 9.0, 9.0, 9.0, 9.0];
-        let mut b = Isobander::new(Grid {
-            x: &x,
-            y: &y,
-            z: &z,
-        });
+        let mut b = Isobander::new(
+            Grid {
+                x: &x,
+                y: &y,
+                z: &z,
+            },
+            lib,
+        );
         let rings = b.band(5.0);
         assert_eq!(rings.len(), 1);
         assert_eq!(rings[0].len(), 4);

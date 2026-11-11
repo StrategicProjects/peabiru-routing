@@ -8,7 +8,9 @@
 //! over the surface by marching squares and grouped into polygons with
 //! holes, as the R package isoband does for r5r ([`isochrone_polygons`]).
 //! The surface is R5's, value for value; the rings are isoband's, vertex
-//! for vertex and in isoband's order on macOS. r5r then hands the
+//! for vertex and in the order isoband gives them on the platform (it
+//! depends on the C++ standard library isoband is built with; see
+//! [`isochrone_polygons`]). r5r then hands the
 //! polygons to `sf::st_make_valid()`, which on longitude/latitude data
 //! rebuilds them with s2 (snapping to 1e-7 degrees); that last step is not
 //! reproduced here: the R package applies it, other callers get isoband's
@@ -27,6 +29,7 @@ mod separate;
 
 pub use edges::{isochrone_lines, street_edges, IsochroneLine, StreetEdges};
 pub use grid::WebMercatorGrid;
+pub use isoband::CxxLibrary;
 pub use separate::Polygon;
 
 use crate::street::router::{travel_time_seconds_linked, Mode, RouteParams};
@@ -258,9 +261,27 @@ fn pixel_to_lat(px: f64, zoom: i32) -> f64 {
 /// (ascending) and cutoff (descending), as r5r orders its rows.
 /// [`RouteError::Invalid`] for bad cutoffs, and where isoband stops: two
 /// rings whose relation it cannot decide.
+///
+/// The order of the rings in each band and the vertex each ring starts at
+/// are those isoband gives where this crate runs: isoband walks a C++ hash
+/// table, whose order is that of the C++ standard library it was built
+/// with, libc++ on macOS and libstdc++ on Linux and Windows. This function
+/// follows the target it is compiled for (libc++ on Apple targets and on
+/// WebAssembly, libstdc++ elsewhere), so on each platform the polygons are
+/// those r5r makes there.
 pub fn isochrone_polygons(
     surface: &TravelTimeSurface,
     cutoffs: &[f64],
+) -> Result<Vec<IsochronePolygon>, RouteError> {
+    isochrone_polygons_in(surface, cutoffs, CxxLibrary::NATIVE)
+}
+
+/// [`isochrone_polygons`] with the rings in the order isoband gives them
+/// when built with `lib` (exposed through `crate::unstable`).
+pub(crate) fn isochrone_polygons_in(
+    surface: &TravelTimeSurface,
+    cutoffs: &[f64],
+    lib: CxxLibrary,
 ) -> Result<Vec<IsochronePolygon>, RouteError> {
     let cutoffs = isochrone_cutoffs(cutoffs)?;
     let g = surface.grid;
@@ -277,11 +298,14 @@ pub fn isochrone_polygons(
         for (k, &percentile) in surface.percentiles.iter().enumerate() {
             z.clear();
             z.extend(surface.minutes(origin, k).iter().map(|&m| f64::from(m)));
-            let mut bander = isoband::Isobander::new(isoband::Grid {
-                x: &x,
-                y: &y,
-                z: &z,
-            });
+            let mut bander = isoband::Isobander::new(
+                isoband::Grid {
+                    x: &x,
+                    y: &y,
+                    z: &z,
+                },
+                lib,
+            );
             // isoband computes the bands in the order given (ascending); the
             // rows go out descending
             let mut bands = Vec::with_capacity(cutoffs.len());

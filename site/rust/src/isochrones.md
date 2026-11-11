@@ -39,7 +39,11 @@ cutoff (`isochrone`, minutes) and its `polygons`: each one a shell followed
 by its holes, every ring closed, with `[lon, lat]` coordinates. They come by
 origin, percentile ascending and cutoff descending; a cutoff that reaches
 nothing has no polygons. The R and Python packages make an `sf` or
-`GeoDataFrame` of them; the JavaScript package, GeoJSON.
+`GeoDataFrame` of them; the JavaScript package, GeoJSON. The order of the
+rings and the vertex each ring starts at are those isoband gives on the
+platform the crate is compiled for (isoband walks a C++ hash table: libc++
+order on Apple targets and WebAssembly, libstdc++ order elsewhere); see
+[Parity](parity.md).
 
 r5r routes polygon isochrones up to the largest cutoff plus 10 minutes,
 whatever `max_trip_duration` says; `isochrone_trip_limit(cutoffs)` gives the

@@ -15,10 +15,12 @@
 #' `sf::st_make_valid()`. The travel times and the polygons before
 #' `sf::st_make_valid()` are r5r's exactly; that last step is the same call
 #' to 'sf', so the result is r5r's too, coordinate for coordinate, when the
-#' input to it is. That holds on macOS; elsewhere 'isoband' (built with
-#' another C++ library) starts some rings at another vertex, so r5r's
-#' polygons there cover the same area but may list the vertices from another
-#' point.
+#' input to it is. The order of the rings and the vertex each one starts at
+#' depend on the C++ library 'isoband' was built with (libc++ on macOS,
+#' libstdc++ on Linux and Windows): peabiru follows the platform it runs on,
+#' so its polygons are those of r5r on the same platform. Between platforms
+#' they differ in that order and, by the system's \code{sinh()} and
+#' \code{atan()}, in the last bits of some latitudes.
 #'
 #' Line isochrones are the travel times from each origin to the centroid of
 #' every street segment (`sf::st_centroid()` of r5r's
