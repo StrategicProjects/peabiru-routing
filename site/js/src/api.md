@@ -41,7 +41,7 @@ export interface BuildNetworkInput
 
 - `pbf: Bytes`: The OpenStreetMap extract (`.pbf` file).
 - `gtfs?: GtfsFeed[]`: The GTFS feeds, loaded in this order (r5r loads them in the order the operating system lists its data directory; see the README).
-- `tif?: Bytes`: An elevation raster (the bytes of a GeoTIFF `.tif` file): walking and cycling times get the slope costs of `elevation`, as r5r gives them when its data directory has a `.tif` file. One band, WGS 84 longitude and latitude (EPSG:4326), north up, uncompressed or compressed with LZW, Deflate or PackBits; other rasters are an error. A raster also stops `travelTimeMatrix()` from swapping origins and destinations for walking, as in r5r.
+- `tif?: Bytes`: An elevation raster (the bytes of a GeoTIFF `.tif` file): walking and cycling times get the slope costs of `elevation`, as r5r gives them when its data directory has a `.tif` file. One band, north up, uncompressed or compressed with LZW, Deflate or PackBits, in WGS 84 longitude and latitude (EPSG:4326), SIRGAS 2000 (4674), SAD69 (4618), Corrego Alegre (4225), their UTM zones used in Brazil, SIRGAS 2000 / Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) or Pseudo-Mercator (3857); other rasters are an error, and so is a street point within 5e-8 m of the boundary between two pixels of different values in a projected raster (r5r's own result there depends on the machine). Voids and values beyond +/-3276.7 m wrap around as in r5r, with a warning. A raster also stops `travelTimeMatrix()` from swapping origins and destinations for walking, as in r5r.
 - `elevation?: string`: The slope cost function when `tif` is given (r5r's `elevation`): `"TOBLER"` (default), `"MINETTI"` or `"NONE"`, in any case. Without `tif` it is `"NONE"`.
 - `onWarning?: WarningHandler`
 - `nThreads?: number | null`: Workers to route on. `1` (default): no workers, everything runs on the calling thread. A whole number above 1: a pool of that many workers (Web Workers in browsers, `worker_threads` in Node), each holding its own copy of the network, all built at once. `0`, `null` or `Infinity`: one worker per core (`navigator.hardwareConcurrency`, or Node's `os.availableParallelism()`). Each worker costs about the memory of a network built on the calling thread (see the README).
@@ -94,7 +94,7 @@ A transport network: the street network and, when GTFS feeds were given, the pub
 - `readonly workers: number`: Number of workers of the network; 0 when it routes on the calling thread.
 - `info(): NetworkInfo`
 - `transitAvailability(date: Date | string): Promise<{ services: number; active: number }>`: Services in the network and services running on `date` (a Date, read in local time, or a string `"YYYY-MM-DD"`).
-- `r5rWarnings(): string[]`: Warnings for the GTFS feeds that r5r refuses to build a network from: always empty, since buildNetwork() throws on such feeds as r5r does (kept for compatibility).
+- `r5rWarnings(): string[]`: Warnings about the build, which buildNetwork() also hands to `onWarning`: those about the elevation raster (samples r5r stores wrapped around, beyond +/-3276.7 m, such as SRTM's -32768 voids, or equal to the raster's no-data value). GTFS feeds that r5r refuses to build a network from are an error instead, as in r5r.
 
 ### NetworkInfo {#NetworkInfo}
 

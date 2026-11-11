@@ -28,6 +28,7 @@ Contents
   6. Behaviour reproduced from other libraries (no code included)
   7. Sample data
   8. Population grid (GPW v3, CIESIN)        CC BY
+  9. fdlibm 5.3 (Sun Microsystems)          Sun permission notice
 
 ==============================================================================
 1. R5: Rapid Realistic Routing on Real-world and Reimagined networks
@@ -516,6 +517,18 @@ named here for transparency.
       behaviour was established by comparing the values R5 reads with the
       reader's on crafted rasters. GeoTools is distributed under the LGPL;
       none of its code is included.
+      elevation/crs.rs: the coordinate transforms GeoTools 25.2 builds with
+      CRS.findMathTransform from WGS 84 to the raster's system, with the
+      ellipsoids and datum shifts of its EPSG database (gt-epsg-hsql):
+      geocentric conversion and its inverse by Toms' method, geocentric
+      translation, Transverse Mercator, American Polyconic and spherical
+      Pseudo-Mercator, and the projective step it appends to WGS 84 / UTM
+      south zones. They are written from published formulas (EPSG
+      Guidance Note 7-2; J. P. Snyder, Map Projections: A Working Manual,
+      USGS 1987, as PROJ.4 evaluates them; R. Toms 1996, as in NIMA's
+      public-domain geocent.c), and the order of operations was matched to
+      GeoTools' results on random points; none of GeoTools' code is
+      included.
   s2geometry and the R package s2
       isochrone/edges.rs: the centroid of a line on the sphere as
       sf::st_centroid() obtains it through s2 (the sum of the segments'
@@ -572,3 +585,20 @@ Population of the World, version 3 (GPWv3), at 1/4 degree resolution:
 
 which is distributed under a Creative Commons Attribution licence. peabiru
 keeps the grid's cells unchanged, only stored as bits.
+
+==============================================================================
+9. fdlibm 5.3
+==============================================================================
+
+fdlibm.rs is a translation to Rust of the sine, cosine, tangent, arc
+tangent and natural logarithm of fdlibm 5.3 (e_rem_pio2.c, k_sin.c,
+k_cos.c, k_tan.c, s_sin.c, s_cos.c, s_tan.c, s_atan.c, e_atan2.c, e_log.c),
+the library whose results java.lang.StrictMath specifies, which GeoTools'
+coordinate transforms call through java.lang.Math. Its notice:
+
+    Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+
+    Developed at SunSoft, a Sun Microsystems, Inc. business.
+    Permission to use, copy, modify, and distribute this
+    software is freely granted, provided that this notice
+    is preserved.

@@ -41,10 +41,11 @@ elevation_networks <- local({
                    })
     skip_without_r5r(is.null(r5), paste0("r5r could not build a network: ", why))
     # (spo_voids.tif warns about its wrapped values; r5r says nothing)
-    pb <- if (city == "spovoids") {
-      expect_warning(build_network(dir, elevation = model, n_threads = 2), "wrapped around")
+    if (city == "spovoids") {
+      expect_warning(pb <- build_network(dir, elevation = model, n_threads = 2),
+                     "wrapped around")
     } else {
-      build_network(dir, elevation = model, n_threads = 2)
+      pb <- build_network(dir, elevation = model, n_threads = 2)
     }
     nets[[key]] <<- list(r5 = r5, pb = pb, points = points)
     nets[[key]]

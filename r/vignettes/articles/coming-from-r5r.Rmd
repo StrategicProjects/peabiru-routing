@@ -148,7 +148,9 @@ row, which goes the other way.
 | Scenarios whose car speeds R5 keeps as 16-bit cm/s that wrap around or reach 0 or less (a negative factor or speed in `new_carspeeds`, a `scale` of `Inf` or 0 in its polygons, `carspeed_scale` far above 1); r5r then routes on the wrapped speeds, or fails dividing by zero | error |
 | `carspeed_scale` above the 32-bit float range (r5r hands R5 `Infinity`) | error |
 | `carspeed_scale` of `NA`, `NaN` or a length other than 1, which r5r's check lets through and then fails on with an internal R error | an error of peabiru's own that says so |
-| An elevation raster other than a one-band GeoTIFF in EPSG:4326, uncompressed or compressed with LZW, Deflate or PackBits (r5r reprojects other rasters with GeoTools) | error |
+| An elevation raster other than a one-band GeoTIFF, uncompressed or compressed with LZW, Deflate or PackBits, in EPSG:4326 or a system whose GeoTools transform peabiru reproduces (SIRGAS 2000, SAD69, Corrego Alegre and their UTM zones used in Brazil, SIRGAS 2000 / Brazil Polyconic, WGS 84 / UTM, Pseudo-Mercator); a `.prj` file next to it | error |
+| A street point of a raster in another system within 5e-8 m of the boundary between two pixels of different values, or of the raster's edge (r5r reads one or the other depending on the machine) | error |
+| Voids and values beyond +/-3276.7 m (r5r stores them wrapped around, silently) | the same values, with a warning |
 | An elevation raster named `.tiff`, or more than one raster in the data directory (r5r fails on the first and reads the last one listed of the second) | error |
 | More than one `.pbf` in the data directory | error |
 | Expanded and arrival matrices with a street mode alone | error |

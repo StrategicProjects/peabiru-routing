@@ -169,12 +169,23 @@ transport.
 
 As r5r does with a `.tif` file in its data directory, `buildNetwork({pbf,
 gtfs, tif})` gives walking and cycling times slope costs from an elevation
-raster: `elevation: "TOBLER"` (the default), `"MINETTI"` or `"NONE"`. The
-raster is a GeoTIFF of one band in WGS 84 longitude and latitude
-(EPSG:4326), north up, uncompressed or compressed with LZW, Deflate or
-PackBits; other rasters are an error. As in r5r, a raster also stops
-`travelTimeMatrix()` from swapping origins and destinations for walking,
-and a call with a scenario routes without the slope costs.
+raster: `elevation: "TOBLER"` (the default), `"MINETTI"` or `"NONE"`.
+The raster is a GeoTIFF of one band in WGS 84 longitude and latitude
+(EPSG:4326) or another coordinate reference system whose transform peabiru
+reproduces exactly: SIRGAS 2000 (4674), SAD69 (4618), Corrego Alegre 1970-72
+(4225), their UTM zones used in Brazil (31965-31985, 6210, 6211, 5396;
+29168-29172, 29187-29195; 22521-22525), SIRGAS 2000 / Brazil Polyconic
+(5880), WGS 84 / UTM (32601-32660, 32701-32760) and WGS 84 / Pseudo-Mercator
+(3857), north up, uncompressed or compressed with LZW, Deflate or PackBits;
+other rasters are an error. In a system other than EPSG:4326, a street point
+within 5e-8 m (2e-13 degrees) of the boundary between two pixels of
+different values, or of the raster's edge, is an error, since r5r's own
+result there depends on the machine it runs on (it is rare: about one point
+in a hundred million for 30 m pixels). Voids and values beyond +/-3276.7 m wrap around as in
+r5r (SRTM's -32768 becomes 0 m, -9999 becomes 3108.2 m), with a warning to
+`onWarning` that r5r does not give. As in r5r, a raster also stops
+`travelTimeMatrix()` from swapping origins and destinations for walking, and
+a call with a scenario routes without the slope costs.
 
 ## Feed order
 

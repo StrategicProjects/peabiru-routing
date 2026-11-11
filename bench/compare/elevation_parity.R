@@ -15,6 +15,11 @@
 #   SCENARIOS   comma-separated scenario name prefixes to run (default all)
 #   POA_CITY    directory with poa_city.osm.pbf and points_700m.csv (default
 #               bench/data/poa-city), for "poa-city"
+#   RASTERS     comma-separated .tif files to use instead of poa_elevation.tif,
+#               one network each (for instance the raster warped by GDAL to
+#               other coordinate reference systems: SIRGAS 2000 and its UTM
+#               zone, Polyconic, Pseudo-Mercator, SAD69...); peabiru's build
+#               warnings (voids, no-data) are printed, not compared
 #
 # Each network is built by both packages in a fresh directory under
 # tempdir() holding the OSM .pbf, r5r's two Porto Alegre GTFS zips and r5r's
@@ -101,13 +106,18 @@ compare <- function(label, call_pb, call_r5) {
   }
 }
 
-make_dir <- function(city, model) {
-  dir <- file.path(work, paste0(city, "-", tolower(model)))
+rasters <- Sys.getenv("RASTERS", "")
+rasters <- if (nzchar(rasters)) strsplit(rasters, ",")[[1]] else file.path(src, "poa_elevation.tif")
+stopifnot(all(file.exists(rasters)))
+
+make_dir <- function(city, model, raster) {
+  dir <- file.path(work, paste0(city, "-", tolower(model), "-",
+                                tools::file_path_sans_ext(basename(raster))))
   dir.create(dir)
   pbf <- if (city == "poa") file.path(src, "poa_osm.pbf") else file.path(city_dir, "poa_city.osm.pbf")
-  files <- c(pbf, list.files(src, pattern = "\\.zip$", full.names = TRUE),
-             file.path(src, "poa_elevation.tif"))
-  stopifnot(all(file.copy(files, dir)))
+  files <- c(pbf, list.files(src, pattern = "\\.zip$", full.names = TRUE))
+  stopifnot(all(file.copy(files, dir)),
+            file.copy(raster, file.path(dir, "elevation.tif")))
   dir
 }
 
@@ -127,11 +137,16 @@ for (city in cities) {
   points$jobs <- seq_len(nrow(points)) %% 17
   rnd <- random_points(points, 400, 11)
   few <- points[seq(1, nrow(points), length.out = 150), ]
-  for (model in models) {
-    message(sprintf("== %s, elevation %s ==", city, model))
-    dir <- make_dir(city, model)
+  for (raster in rasters) for (model in models) {
+    message(sprintf("== %s, elevation %s, %s ==", city, model, basename(raster)))
+    dir <- make_dir(city, model, raster)
     t0 <- proc.time()[["elapsed"]]
-    pb <- peabiru::build_network(dir, elevation = model, n_threads = n_threads)
+    pb <- withCallingHandlers(
+      peabiru::build_network(dir, elevation = model, n_threads = n_threads),
+      warning = function(w) {
+        message("    peabiru build warning: ", conditionMessage(w))
+        invokeRestart("muffleWarning")
+      })
     t_pb <- proc.time()[["elapsed"]] - t0
     t0 <- proc.time()[["elapsed"]]
     r5 <- suppressMessages(r5r::build_network(dir, elevation = model))
@@ -142,7 +157,8 @@ for (city in cities) {
     run <- function(name, fun, ...) {
       if (!wanted(name)) return(invisible())
       a <- list(...)
-      label <- sprintf("%s/%s/%s", city, tolower(model), name)
+      label <- sprintf("%s/%s/%s%s", city, tolower(model), name,
+                       if (length(rasters) > 1) paste0(" [", basename(raster), "]") else "")
       f5 <- getExportedValue("r5r", fun)
       extra_r5 <- if ("progress" %in% names(formals(f5))) list(progress = FALSE) else list()
       compare(label,

@@ -154,10 +154,16 @@ the same parameters; peabiru is validated against r5r, not r5py.
 Each of these raises `peabiru.UnsupportedError` instead of being ignored:
 
 - fares: `fare_structure`, and a finite `max_fare`;
-- an elevation raster that is not a one-band GeoTIFF in EPSG:4326,
-  uncompressed or compressed with LZW, Deflate or PackBits (r5r reprojects
-  others with GeoTools), a raster named `.tiff` (r5r fails on it) and more
-  than one raster in the data directory (r5r reads the last one listed);
+- an elevation raster that is not a one-band GeoTIFF, uncompressed or
+  compressed with LZW, Deflate or PackBits, in EPSG:4326 or one of the
+  systems whose GeoTools transform peabiru reproduces (SIRGAS 2000, SAD69,
+  Corrego Alegre and their UTM zones used in Brazil, SIRGAS 2000 / Brazil
+  Polyconic, WGS 84 / UTM, Pseudo-Mercator); a `.prj` file next to the
+  raster; a street point of a projected raster within 5e-8 m of the
+  boundary between two pixels of different values (r5r's result there
+  depends on the machine); a raster named `.tiff` (r5r fails on it) and
+  more than one raster in the data directory (r5r reads the last one
+  listed);
 - expanded and arrival matrices by a street mode alone (r5r takes the
   departure time from the clock there);
 - more than one `.pbf` file in the data directory.
