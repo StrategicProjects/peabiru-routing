@@ -49,6 +49,20 @@ cp -R "$here/assets/." "$out/assets/"
 rm -rf "$out/assets/concepts"
 [ -d "$here/data" ] && cp -R "$here/data/." "$out/data/"
 
+# the isochrone demo: its page, the npm package (built by js/build.sh) and the
+# São Paulo sample; the Porto Alegre files are fetched from r5r's repository
+# by the page itself, when chosen
+mkdir -p "$out/demo/peabiru/lib" "$out/demo/peabiru/pkg" "$out/demo/data/spo"
+cp "$here/demo/index.html" "$here/demo/demo.mjs" "$here/demo/demo.css" "$out/demo/"
+cp "$root/python/peabiru/data/spo/spo_osm.pbf" "$root/python/peabiru/data/spo/spo_gtfs.zip" \
+  "$out/demo/data/spo/"
+cp "$root/js/lib/index.js" "$root/js/lib/worker.js" "$out/demo/peabiru/lib/"
+if [ -f "$root/js/pkg/peabiru_bg.wasm" ]; then
+  cp "$root/js/pkg/peabiru.js" "$root/js/pkg/peabiru_bg.wasm" "$out/demo/peabiru/pkg/"
+else
+  echo "js/pkg not built (sh js/build.sh): the demo page will not run" >&2
+fi
+
 # ---------------------------------------------------------------- R
 if [ "$skip_r" = 0 ]; then
   step "R package site (pkgdown)"

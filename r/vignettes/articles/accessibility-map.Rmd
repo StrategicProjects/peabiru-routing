@@ -1,0 +1,146 @@
+---
+title: "Example: mapping access to jobs and schools"
+description: >
+  Travel times from one point to a grid, and the jobs and schools reachable
+  within 30 minutes from every cell of Porto Alegre, walking and by public
+  transport.
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+knitr::opts_chunk$set(fig.width = 8, fig.height = 4.9, dpi = 110, out.width = "100%")
+```
+
+How many jobs can people reach from where they live? This example answers
+that for Porto Alegre, on a grid of hexagonal cells, first walking and then
+walking with public transport, and draws the answer as a map. Everything
+below is one script; the output shown is the output it prints.
+
+## The data
+
+The Porto Alegre sample of r5r 2.5.0 (an OpenStreetMap extract, the bus and
+train GTFS feeds, and a grid of 1,227 hexagonal cells with their population,
+jobs and schools), downloaded once into a temporary directory:
+
+```{r download, message = FALSE}
+library(peabiru)
+library(sf)
+library(ggplot2)
+
+poa <- file.path(tempdir(), "poa")
+dir.create(poa, showWarnings = FALSE)
+url <- "https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/"
+for (f in c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip",
+            "poa_hexgrid.csv", "poa_points_of_interest.csv")) {
+  if (!file.exists(file.path(poa, f))) {
+    download.file(paste0(url, f), file.path(poa, f), mode = "wb", quiet = TRUE)
+  }
+}
+
+network <- build_network(poa)
+grid <- read.csv(file.path(poa, "poa_hexgrid.csv"))
+head(grid)
+colSums(grid[, c("population", "schools", "jobs")], na.rm = TRUE)
+```
+
+Each cell is a point at its centre. The bus feed of the sample only has trips
+between late morning and early evening on weekdays, so public transport is
+routed from 14:00 on a Monday, over a 30-minute window of departures.
+
+```{r departure}
+departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+```
+
+## Travel times from one point
+
+A first look: the travel time from one place, Farroupilha Park, to the centre
+of every cell. `travel_time_matrix()` leaves out the pairs that take longer
+than `max_trip_duration`.
+
+```{r ttm}
+poi <- read.csv(file.path(poa, "poa_points_of_interest.csv"))
+park <- poi[poi$id == "farroupilha_park", ]
+
+from_park <- rbind(
+  data.frame(mode = "Walking", travel_time_matrix(
+    network, park, grid, mode = "WALK", max_trip_duration = 60)),
+  data.frame(mode = "Walking + public transport", travel_time_matrix(
+    network, park, grid, mode = c("WALK", "TRANSIT"),
+    departure_datetime = departure, time_window = 30, max_trip_duration = 60))
+)
+sapply(split(from_park$travel_time_p50, from_park$mode),
+       function(t) c(cells = length(t), median_minutes = median(t)))
+```
+
+Within an hour, public transport reaches about four times as many cells as
+walking does. On a map, with each cell drawn as a dot at its centre:
+
+```{r ttm-map, fig.alt = "Two maps of Porto Alegre made of dots, one per grid cell reached within an hour of Farroupilha Park, coloured by travel time: walking reaches a compact patch around the park; with public transport, dots cover most of the city, the closest ones along the bus corridors."}
+cells <- st_as_sf(grid, coords = c("lon", "lat"), crs = 4326)
+map <- merge(cells, from_park, by.x = "id", by.y = "to_id")
+ggplot(map) +
+  geom_sf(aes(colour = travel_time_p50), size = 1.2) +
+  scale_colour_gradient(low = "#7a3318", high = "#f5d3b6", name = "Minutes") +
+  facet_wrap(~mode) +
+  theme_void() +
+  theme(strip.text = element_text(face = "bold", hjust = 0))
+```
+
+## Jobs and schools within 30 minutes
+
+`accessibility()` adds up, for each origin, the opportunities at every
+destination reached within the cutoff (the `"step"` decay function, the
+default). Five cells have no job count; they count as zero, with a warning.
+
+```{r access}
+access <- rbind(
+  data.frame(mode = "Walking", accessibility(
+    network, grid, grid, opportunities_colnames = c("jobs", "schools"),
+    mode = "WALK", cutoffs = 30)),
+  data.frame(mode = "Walking + public transport", accessibility(
+    network, grid, grid, opportunities_colnames = c("jobs", "schools"),
+    mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+    time_window = 30, cutoffs = 30))
+)
+head(access)
+```
+
+Weighting each cell by the people who live there gives what the average
+resident reaches:
+
+```{r average}
+access <- merge(access, grid[, c("id", "population")], by = "id")
+sapply(split(access, list(access$opportunity, access$mode)), function(a)
+  round(weighted.mean(a$accessibility, a$population)))
+```
+
+Public transport roughly triples both: about 21 thousand jobs and 12
+schools within half an hour on foot, against 68 thousand jobs and 31
+schools with the buses and the train.
+
+And the map of jobs reachable from each cell:
+
+```{r access-map, fig.alt = "Two maps of Porto Alegre made of dots, one per grid cell, coloured by the number of jobs reachable within 30 minutes: walking, only the city centre reaches more than 50 thousand; with public transport, the centre and the corridors leading to it reach more than 100 thousand."}
+jobs <- merge(cells, access[access$opportunity == "jobs", ], by = "id")
+ggplot(jobs) +
+  geom_sf(aes(colour = accessibility / 1000), size = 1.2) +
+  scale_colour_gradient(low = "#e3eadb", high = "#1f5139",
+                        name = "Thousand jobs") +
+  facet_wrap(~mode) +
+  theme_void() +
+  theme(strip.text = element_text(face = "bold", hjust = 0))
+```
+
+## Variations
+
+- **Gradual access.** `decay_function = "logistic"` (or `"exponential"`,
+  `"linear"`, `"fixed_exponential"`) weights every job by its travel time
+  instead of counting those under a hard limit; see the article
+  [Accessibility](accessibility.html).
+- **Several cutoffs at once.** `cutoffs = c(15, 30, 45)` returns one row per
+  cutoff, from a single routing pass.
+- **Percentiles.** With `percentiles = c(25, 50, 75)`, the accessibility of
+  a good, a typical and a bad departure in the window.
+
+The maps on the [home page](../../index.html#gallery) draw the same results
+as hexagons, with `site/figures/figures.R` in the repository.

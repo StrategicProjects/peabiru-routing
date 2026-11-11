@@ -41,6 +41,7 @@
     <a class="btn" href="rust/">Rust guide</a>
     <a class="btn" href="js/">JavaScript guide</a>
     <a class="btn" href="r/articles/how-it-works.html">How it works</a>
+    <a class="btn" href="demo/">Try it in the browser</a>
   </div>
   <p class="badges">
     <a href="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml"><img src="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml/badge.svg" alt="CI status" height="20"></a>
@@ -83,6 +84,61 @@
   <p>The interface follows r5r's, so code written for r5r needs few changes, and the
   results are checked against r5r's value by value
   (<a href="r/articles/coming-from-r5r.html">coming from r5r</a>).</p>
+</section>
+
+<section aria-labelledby="gallery">
+  <h2 id="gallery">Gallery</h2>
+  <p>Every figure here is computed by peabiru on the sample networks of Porto Alegre and São
+  Paulo, and each one links to complete examples, in the languages listed under it, whose output
+  on the page is the output they print.</p>
+  <div class="gallery">
+    <figure class="shot wide">
+      <a href="demo/"><img src="assets/figures/demo-poa.webp" width="1000" height="615" loading="lazy" alt="The isochrone demo page: a map of the streets of Porto Alegre with three nested isochrones by walking and public transport, stretching along the bus corridors from the clicked point."></a>
+      <figcaption><strong>Isochrones in the browser.</strong> Click a point, pick a mode: the
+      JavaScript package builds the network and routes in the page, with no server.
+      <span class="ex"><a href="demo/">Open the demo</a> · <a href="js/examples.html">how it works</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/isochrones.html"><img src="assets/figures/isochrones-by-mode.svg" width="576" height="662" loading="lazy" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes: a small area walking, a few kilometres cycling, most of the map driving, and long arms along the bus corridors with public transport."></a>
+      <figcaption><strong>Isochrones by mode.</strong> Walking, cycling, driving and public
+      transport from one park, 10 to 30 minutes.
+      <span class="ex"><a href="r/articles/isochrones.html">R</a> · <a href="python/example-isochrones/">Python</a> · <a href="js/examples.html">JavaScript</a> · <a href="rust/isochrones.html">Rust</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/accessibility-map.html"><img src="assets/figures/accessibility-jobs.svg" width="576" height="389" loading="lazy" alt="Two maps of Porto Alegre covered by hexagons coloured by the jobs reachable within 30 minutes, walking and by public transport: with public transport the centre and its corridors reach more than 100 thousand jobs."></a>
+      <figcaption><strong>Jobs within 30 minutes.</strong> Cumulative accessibility on a grid of
+      1,227 cells, walking and by public transport.
+      <span class="ex"><a href="r/articles/accessibility-map.html">R</a> · <a href="python/example-accessibility/">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/accessibility-map.html#travel-times-from-one-point"><img src="assets/figures/travel-time-map.svg" width="576" height="389" loading="lazy" alt="Two maps of Porto Alegre covered by hexagons coloured by the travel time from Farroupilha Park: walking reaches a compact patch within an hour; with public transport most of the grid is within an hour."></a>
+      <figcaption><strong>Travel time from one point.</strong> A matrix from one origin to every
+      cell, mapped.
+      <span class="ex"><a href="r/articles/accessibility-map.html#travel-times-from-one-point">R</a> · <a href="python/example-accessibility/#travel-times-from-one-point">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/isochrones.html#people-within-reach"><img src="assets/figures/reach-by-mode.svg" width="518" height="281" loading="lazy" alt="Step curves of the share of Porto Alegre's population reached from one park within 0 to 60 minutes, by mode: driving reaches nearly everyone in 20 minutes, public transport 98 percent in an hour, cycling 69 and walking 32."></a>
+      <figcaption><strong>People within reach, by mode.</strong> The share of the population
+      reached in each number of minutes.
+      <span class="ex"><a href="r/articles/isochrones.html#people-within-reach">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/trips.html"><img src="assets/figures/percentiles.svg" width="518" height="374" loading="lazy" alt="Range bars of the travel time from one point in São Paulo to 26 others: the nearest are walked with no spread; those reached by bus or metro spread by several minutes."></a>
+      <figcaption><strong>Percentiles on a frequency network.</strong> How much a trip varies
+      with the departure, from random schedules with a seed.
+      <span class="ex"><a href="r/articles/trips.html">R</a> · <a href="python/example-trips/">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/trips.html#trip-by-trip"><img src="assets/figures/trip-breakdown.svg" width="518" height="475" loading="lazy" alt="Thirty stacked bars, one per departure minute, split into walking, waiting, riding, transferring and walking again, with the routes taken; totals between about 30 and 40 minutes."></a>
+      <figcaption><strong>Trip by trip.</strong> Every departure minute of a half hour, split
+      into walking, waiting and riding, with the routes taken.
+      <span class="ex"><a href="r/articles/trips.html#trip-by-trip">R</a> · <a href="python/example-trips/#trip-by-trip">Python</a> · <a href="rust/expanded.html">Rust</a></span></figcaption>
+    </figure>
+  </div>
+  <p class="muted">The figures are drawn by <code>site/figures/figures.R</code> from the results of
+  the R package; the examples in the other languages print the same numbers. Map data ©
+  OpenStreetMap contributors (ODbL); GTFS: EPTC and Trensurb (Porto Alegre), SPTrans (São Paulo),
+  as cut for the sample data of r5r.</p>
 </section>
 
 <section aria-labelledby="arch">

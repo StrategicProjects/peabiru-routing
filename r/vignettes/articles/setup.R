@@ -1,5 +1,6 @@
 # Shared by the pkgdown articles: knitr options, the sample network, and
-# fig(), which shows a diagram or chart of the documentation site.
+# fig(), which shows a diagram, chart or figure of the documentation site
+# (figures: site/assets/figures, drawn by site/figures/figures.R).
 #
 # The SVG files live once, in site/assets/ at the root of the repository, and
 # are shared by every documentation site. pkgdown only publishes images that
@@ -10,9 +11,9 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 fig_path <- function(name) {
   site <- normalizePath(file.path("..", "..", "..", "site", "assets"), mustWork = FALSE)
-  src <- file.path(site, c("diagrams", "charts"), name)
+  src <- file.path(site, c("diagrams", "charts", "figures"), name)
   src <- src[file.exists(src)]
-  if (length(src) == 0) stop("no diagram or chart named ", name, " under ", site)
+  if (length(src) == 0) stop("no diagram, chart or figure named ", name, " under ", site)
   dir.create("figures", showWarnings = FALSE)
   file.copy(src[[1]], file.path("figures", name), overwrite = TRUE)
   file.path("figures", name)

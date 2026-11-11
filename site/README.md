@@ -66,10 +66,47 @@ so `_site/` can be served from any path; nothing is deployed.
   The R articles copy them next to themselves at render time
   (`r/vignettes/articles/setup.R`); the Rust guide links to `../assets/`.
 - `charts/*.svg`: generated, see below.
+- `figures/*`: the figures of the gallery and of the worked examples,
+  computed by the packages; see below.
 
 For the Python docs the agreed contract is: `site/build.sh` copies
 `logo-mark.svg` and `favicon.svg` to `python/docs/assets/` and `brand.css` to
 `python/docs/stylesheets/brand.css` before building them.
+
+## Figures, worked examples and the demo
+
+The gallery of the home page and the worked examples show real output.
+`bash site/figures/make.sh` regenerates `site/assets/figures/*.svg` with
+`site/figures/figures.R` (the peabiru R package with ggplot2, sf and
+svglite, on the Porto Alegre sample of r5r 2.5.0, downloaded once into a
+cache directory, and the São Paulo sample of the package); `--demo` also
+retakes `demo-poa.webp`, a screenshot of the demo page (needs the site
+built, playwright and cwebp). The SVGs carry their alt text (`<title>`,
+`<desc>`) and switch to the dark palette with `prefers-color-scheme`, like
+the diagrams. Run it after a release that changes results, then rebuild.
+
+The examples:
+
+- R: the pkgdown-only articles `r/vignettes/articles/isochrones.Rmd`,
+  `accessibility-map.Rmd` and `trips.Rmd` (excluded from the package by
+  `.Rbuildignore`; they use ggplot2 and sf when rendered, and nothing is
+  added to `DESCRIPTION`).
+- Python: `python/docs/example-*.md`, run by `python/tests/test_docs.py`
+  like every page (`PEABIRU_UPDATE_DOCS=1` rewrites their outputs); they
+  download the Porto Alegre sample and need geopandas and matplotlib, so
+  they are skipped where those are missing.
+- JavaScript: `site/js/src/examples.md`, with
+  `site/js/examples/isochrones.mjs` (checked by `run_examples.mjs`) and the
+  demo `site/demo/` (page, module, styles), which `site/build.sh` publishes
+  at `_site/demo/` with a copy of the npm package (`js/lib`, `js/pkg`) and
+  the São Paulo sample; the page fetches the Porto Alegre files from r5r's
+  repository when chosen.
+- Rust: `site/rust/src/isochrones.md`, with
+  `crates/peabiru-core/examples/isochrone.rs`.
+
+The pages refer to the figures at `../assets/figures/` (raw HTML `<img>` in
+the MkDocs pages, so that `mkdocs build --strict` does not look for them in
+`python/docs/`); `site/check_links.py` checks them in `_site/`.
 
 ## Benchmarks
 
