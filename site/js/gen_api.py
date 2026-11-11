@@ -30,6 +30,10 @@ SECTIONS = [
         "expandedTravelTimeMatrix", "arrivalTravelTimeMatrix", "ExpandedTravelTimeMatrixOptions",
         "ArrivalTravelTimeMatrixOptions", "ExpandedMatrix",
     ]),
+    ("Isochrones", [
+        "isochrone", "IsochroneOptions", "IsochronePolygonProperties", "IsochroneLineProperties",
+        "FeatureCollection", "Feature", "MultiPolygon", "LineString",
+    ]),
     ("Points, dates and shared options", ["Points", "Numbers", "DateTime", "RoutingOptions"]),
     ("Missing values and errors", ["NA_INT32", "UnsupportedError"]),
     ("Loading the module and versions", ["init", "initSync", "InitInput", "coreVersion", "version"]),
@@ -118,13 +122,22 @@ def parse(src):
         block = lines[i:j + 1]
         d = {"kind": kind, "name": name, "doc": doc_text(doc), "line": i + 1}
         if kind in ("interface", "class"):
-            d["head"] = block[0].rstrip(" {")
-            d["members"] = parse_members(block[1:-1])
-            ext = re.search(r"\bextends (\w+)", block[0])
+            # the head may run over several lines, up to the opening brace
+            h = next(k for k, x in enumerate(block) if x.rstrip().endswith("{"))
+            head = " ".join(x.strip() for x in block[:h + 1])
+            d["head"] = head.rstrip(" {")
+            d["members"] = parse_members(block[h + 1:-1])
+            ext = re.search(r"\bextends (\w+)", head)
             d["extends"] = ext.group(1) if ext else None
         else:
             d["code"] = "\n".join(block)
-        decls.append(d)
+        same = next((x for x in decls if x["name"] == name), None)
+        if same and kind == "function":
+            # overloads: one entry, every signature, the first one's text
+            same["code"] += "\n" + d["code"]
+            same["doc"] = same["doc"] or d["doc"]
+        else:
+            decls.append(d)
         doc = []
         i = j + 1
     return decls

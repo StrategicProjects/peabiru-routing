@@ -12,6 +12,7 @@ function returns a Promise; options are the fields of an options object.
 | Travel-time matrices | [`travelTimeMatrix`](#travelTimeMatrix), [`TravelTimeMatrixOptions`](#TravelTimeMatrixOptions), [`TravelTimeMatrix`](#TravelTimeMatrix) |
 | Accessibility | [`accessibility`](#accessibility), [`AccessibilityOptions`](#AccessibilityOptions), [`AccessibilityTable`](#AccessibilityTable) |
 | Expanded and arrival matrices | [`expandedTravelTimeMatrix`](#expandedTravelTimeMatrix), [`arrivalTravelTimeMatrix`](#arrivalTravelTimeMatrix), [`ExpandedTravelTimeMatrixOptions`](#ExpandedTravelTimeMatrixOptions), [`ArrivalTravelTimeMatrixOptions`](#ArrivalTravelTimeMatrixOptions), [`ExpandedMatrix`](#ExpandedMatrix) |
+| Isochrones | [`isochrone`](#isochrone), [`IsochroneOptions`](#IsochroneOptions), [`IsochronePolygonProperties`](#IsochronePolygonProperties), [`IsochroneLineProperties`](#IsochroneLineProperties), [`FeatureCollection`](#FeatureCollection), [`Feature`](#Feature), [`MultiPolygon`](#MultiPolygon), [`LineString`](#LineString) |
 | Points, dates and shared options | [`Points`](#Points), [`Numbers`](#Numbers), [`DateTime`](#DateTime), [`RoutingOptions`](#RoutingOptions) |
 | Missing values and errors | [`NA_INT32`](#NA_INT32), [`UnsupportedError`](#UnsupportedError) |
 | Loading the module and versions | [`init`](#init), [`initSync`](#initSync), [`InitInput`](#InitInput), [`coreVersion`](#coreVersion), [`version`](#version) |
@@ -285,6 +286,140 @@ Columns of an expanded or arrival matrix, as r5r's: times are minutes with one d
 - `routes: (string | null)[]`
 - `n_rides?: Int32Array`
 - `total_time: Float64Array`
+
+## Isochrones
+
+### isochrone {#isochrone}
+
+*function*
+
+```typescript
+export declare function isochrone(
+  network: Network,
+  origins: Points,
+  options: IsochroneOptions & { polygonOutput: false },
+): Promise<FeatureCollection<LineString, IsochroneLineProperties>>;
+export declare function isochrone(
+  network: Network,
+  origins: Points,
+  options?: IsochroneOptions,
+): Promise<FeatureCollection<MultiPolygon, IsochronePolygonProperties>>;
+```
+
+Isochrones, as r5r's `isochrone()`: with `polygonOutput: true` (the default) one [`MultiPolygon`](#MultiPolygon) per origin, percentile (ascending) and cutoff (descending), empty when nothing is reached; with `polygonOutput: false` one [`LineString`](#LineString) per street segment reached, by origin, then band and travel time descending. The polygons are those r5r makes with isoband before `sf::st_make_valid()`, which is not reproduced.
+
+### IsochroneOptions {#IsochroneOptions}
+
+*interface*
+
+```typescript
+export interface IsochroneOptions extends Omit<RoutingOptions, "newCarspeeds" | "carspeedScale" | "newLts" | "outputDir" | "maxTripDuration">
+```
+
+Options of `isochrone()`, with r5r's defaults: those of the routing functions that r5r's `isochrone()` takes (no fares, scenarios or `outputDir`), plus its own.
+
+- `mode?: string | string[]`: As in the other functions, but `"transit"` by default (case does not matter).
+- `modeEgress?: string`: `"walk"` by default; only walking is supported with transit.
+- `cutoffs?: number | number[]`: Minutes that delimit the isochrones (default `[0, 15, 30]`): finite and at least 0, sorted and made distinct, 0 added; one must be above 0.
+- `zoom?: number`: Web Mercator zoom level, 9 to 12, of the grid polygons are made from (default 10).
+- `polygonOutput?: boolean`: `true` (default) for polygons, `false` for the street segments reached.
+- `departureDatetime?: DateTime | null`: Required with transit; the current time otherwise (default null).
+- `timeWindow?: number`: Minutes of departure times, from `departureDatetime` (default 10).
+- `percentiles?: number | number[] | null`: 1 to 5 distinct values from 1 to 99: one set of polygons per percentile; null (default) means 50. Must be null for lines.
+- `maxTripDuration?: number`: Ignored, as in r5r: the trip limit comes from the cutoffs.
+- `sampleSize?: unknown`: Deprecated in r5r and ignored: giving it only warns.
+
+### IsochronePolygonProperties {#IsochronePolygonProperties}
+
+*interface*
+
+```typescript
+export interface IsochronePolygonProperties
+```
+
+Properties of a polygon isochrone.
+
+- `id: string | null`
+- `isochrone: number`: The cutoff, minutes.
+- `percentile: string`: Such as `"p50"`.
+
+### IsochroneLineProperties {#IsochroneLineProperties}
+
+*interface*
+
+```typescript
+export interface IsochroneLineProperties
+```
+
+Properties of a line isochrone: the segment as r5r's `street_network_to_sf()` lists it.
+
+- `id: string | null`
+- `edge_index: string`: The directed edge index, as a string (as r5r gives it).
+- `osm_id: number`
+- `isochrone: number`: The smallest cutoff at or above the travel time, minutes.
+- `travel_time_p50: number`
+- `from_vertex: number`
+- `to_vertex: number`
+- `street_class: "MOTORWAY" | "PRIMARY" | "SECONDARY" | "TERTIARY" | "OTHER"`
+- `length: number`: Metres.
+- `walk: boolean`
+- `car: boolean`
+- `car_speed: number`: km/h.
+- `bicycle: boolean`
+- `bicycle_lts: number`
+
+### FeatureCollection {#FeatureCollection}
+
+*interface*
+
+```typescript
+export interface FeatureCollection<G, P>
+```
+
+A GeoJSON FeatureCollection.
+
+- `type: "FeatureCollection"`
+- `features: Feature<G, P>[]`
+
+### Feature {#Feature}
+
+*interface*
+
+```typescript
+export interface Feature<G, P>
+```
+
+A GeoJSON feature (coordinates `[lon, lat]`, WGS 84).
+
+- `type: "Feature"`
+- `properties: P`
+- `geometry: G`
+
+### MultiPolygon {#MultiPolygon}
+
+*interface*
+
+```typescript
+export interface MultiPolygon
+```
+
+A GeoJSON MultiPolygon: polygons of rings (shell first, then holes), every ring closed.
+
+- `type: "MultiPolygon"`
+- `coordinates: [number, number][][][]`
+
+### LineString {#LineString}
+
+*interface*
+
+```typescript
+export interface LineString
+```
+
+A GeoJSON LineString.
+
+- `type: "LineString"`
+- `coordinates: [number, number][]`
 
 ## Points, dates and shared options
 
