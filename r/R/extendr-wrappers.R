@@ -87,4 +87,45 @@ rs_street_edges <- function(ptr) .Call(wrap__rs_street_edges, ptr)
 #' @noRd
 rs_isochrone_lines <- function(n_origins, n_edges, minutes, cutoffs) .Call(wrap__rs_isochrone_lines, n_origins, n_edges, minutes, cutoffs)
 
+#' Snapped points of r5r's `find_snap()`: `snap_lat`, `snap_lon`,
+#' `distance` (NA where not found) and `found`, one per point.
+#' @noRd
+rs_find_snap <- function(ptr, lat, lon, radius, mode) .Call(wrap__rs_find_snap, ptr, lat, lon, radius, mode)
+
+#' `c(xmin, ymin, xmax, ymax)` of the street network (R5's envelope).
+#' @noRd
+rs_street_bbox <- function(ptr) .Call(wrap__rs_street_bbox, ptr)
+
+#' The vertices of r5r's `street_network_to_sf()`, as columns.
+#' @noRd
+rs_street_vertices <- function(ptr) .Call(wrap__rs_street_vertices, ptr)
+
+#' The stops of r5r's `transit_network_to_sf()`, as columns (NA
+#' coordinates for stops not linked to the streets).
+#' @noRd
+rs_transit_stops <- function(ptr) .Call(wrap__rs_transit_stops, ptr)
+
+#' The routes of r5r's `transit_network_to_sf()`, as columns, with the line
+#' of each row as `n_points` and flat `x`, `y`.
+#' @noRd
+rs_transit_routes <- function(ptr) .Call(wrap__rs_transit_routes, ptr)
+
+#' The operating dates of the network's services (`yyyymmdd`, ascending),
+#' as r5r's `check_transit_availability()` discovers them.
+#' @noRd
+rs_transit_service_dates <- function(ptr) .Call(wrap__rs_transit_service_dates, ptr)
+
+#' The paths of the network's GTFS feeds, in loading order.
+#' @noRd
+rs_feed_paths <- function(ptr) .Call(wrap__rs_feed_paths, ptr)
+
+#' The GTFS feeds of a directory, in the order R5 loads them.
+#' @noRd
+rs_gtfs_files <- function(dir) .Call(wrap__rs_gtfs_files, dir)
+
+#' The errors gtfs-lib reports for the feeds at `paths`, read in this
+#' order, as the columns of r5r's `gtfs_errors.csv` (`line` NA never).
+#' @noRd
+rs_gtfs_errors <- function(paths) .Call(wrap__rs_gtfs_errors, paths)
+
 # nolint end

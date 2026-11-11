@@ -16,6 +16,12 @@
 /// `FastMath.exp(x)` (commons-math3 3.0 `FastMath.exp(double, double,
 /// double[])` with `extra = 0`, `hiPrec = null`; ported from the bytecode).
 pub fn exp(x: f64) -> f64 {
+    exp_extra(x, 0.0)
+}
+
+/// `FastMath.exp(x, extra, null)`: `exp(x + extra)` for a small `extra`
+/// (what `FastMath.pow` calls).
+pub(crate) fn exp_extra(x: f64, extra: f64) -> f64 {
     const MAX_INDEX: i32 = 750; // EXP_INT_TABLE_MAX_INDEX
     let int_part_a: f64;
     let int_part_b: f64;
@@ -29,10 +35,10 @@ pub fn exp(x: f64) -> f64 {
         }
         if int_val > 709 {
             // subnormal result
-            return exp(x + 40.191_406_25) / 285_040_095_144_011_776.0;
+            return exp_extra(x + 40.191_406_25, extra) / 285_040_095_144_011_776.0;
         }
         if int_val == 709 {
-            return exp(x + 1.494_140_625) / 4.455_505_956_692_757;
+            return exp_extra(x + 1.494_140_625, extra) / 4.455_505_956_692_757;
         }
         int_val += 1;
         int_part_a = f64::from_bits(EXP_INT_TABLE_A[(MAX_INDEX - int_val) as usize]);
@@ -61,7 +67,11 @@ pub fn exp(x: f64) -> f64 {
     let temp_a = int_part_a * frac_part_a;
     let temp_b = int_part_a * frac_part_b + int_part_b * frac_part_a + int_part_b * frac_part_b;
     let temp_c = temp_b + temp_a;
-    temp_c * z + temp_b + temp_a
+    if extra != 0.0 {
+        temp_c * extra * z + temp_c * extra + temp_c * z + temp_b + temp_a
+    } else {
+        temp_c * z + temp_b + temp_a
+    }
 }
 
 #[rustfmt::skip]

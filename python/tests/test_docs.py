@@ -7,6 +7,13 @@ lines between) is its output and must match what the code prints. Run with
 ``PEABIRU_UPDATE_DOCS=1`` to rewrite those output blocks with the real
 output instead of comparing.
 
+A page can declare what its examples need beyond Python packages with a
+comment ``<!-- docs-test: needs osmium, env PEABIRU_EXAMPLE_DATA -->``: the
+commands must be on the ``PATH`` and the environment variables set, or the
+page is skipped. The Recife and Caruaru example uses it: it downloads about
+640 MB into ``PEABIRU_EXAMPLE_DATA`` and cuts them with osmium, so it runs
+only where both are there on purpose.
+
 The docstring examples (numpydoc ``Examples`` sections, which feed the API
 reference) run as doctests.
 """
@@ -20,6 +27,7 @@ import importlib.util
 import io
 import os
 import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -27,10 +35,12 @@ import pytest
 import peabiru
 import peabiru._data
 import peabiru._network
+import peabiru._network_tools
 import peabiru._routing
 
 DOCS = Path(__file__).resolve().parents[1] / "docs"
 PAGES = sorted(p for p in DOCS.glob("*.md"))
+NEEDS = re.compile(r"<!--\s*docs-test:\s*needs\s+(.*?)\s*-->")
 FENCE = re.compile(r"^```(\w*)[^\n]*\n(.*?)^```[ \t]*$", re.S | re.M)
 
 
@@ -61,6 +71,13 @@ def test_page_examples(page: Path, tmp_path, monkeypatch):
     missing = sorted(m for m in needed if importlib.util.find_spec(m) is None)
     if missing:
         pytest.skip(f"the examples need {', '.join(missing)}, not installed")
+    for m in NEEDS.finditer(text):
+        for need in (n.strip() for n in m.group(1).split(",")):
+            if need.startswith("env "):
+                if not os.environ.get(need[4:].strip()):
+                    pytest.skip(f"the examples need {need[4:].strip()} set")
+            elif shutil.which(need) is None:
+                pytest.skip(f"the examples need the command {need}")
     ns: dict = {"__name__": "__main__"}
     replacements = []
     for k, (lang, body, _, _) in enumerate(bl):
@@ -97,7 +114,7 @@ def FENCE_START(text: str, block) -> int:
 
 @pytest.mark.parametrize(
     "module",
-    [peabiru, peabiru._data, peabiru._network, peabiru._routing],
+    [peabiru, peabiru._data, peabiru._network, peabiru._network_tools, peabiru._routing],
     ids=lambda m: m.__name__,
 )
 def test_docstring_examples(module):

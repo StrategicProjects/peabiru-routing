@@ -26,6 +26,20 @@ All functions are available at the top level of the package
 
 ::: peabiru.isochrone
 
+## Inspecting a network
+
+::: peabiru.find_snap
+
+::: peabiru.street_network_bbox
+
+::: peabiru.street_network_to_sf
+
+::: peabiru.transit_network_to_sf
+
+::: peabiru.check_transit_availability
+
+::: peabiru.get_gtfs_errors
+
 ## Sample data
 
 ::: peabiru.sample_data_path

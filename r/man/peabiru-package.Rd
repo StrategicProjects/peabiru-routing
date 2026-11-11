@@ -10,7 +10,10 @@ peabiru builds a network from an 'OpenStreetMap' extract and 'GTFS' feeds
 with \code{\link[=build_network]{build_network()}} and computes travel times by walking, cycling,
 driving and public transport with \code{\link[=travel_time_matrix]{travel_time_matrix()}},
 \code{\link[=accessibility]{accessibility()}}, \code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}} and
-\code{\link[=arrival_travel_time_matrix]{arrival_travel_time_matrix()}}. The routing engine is written in 'Rust' and
+\code{\link[=arrival_travel_time_matrix]{arrival_travel_time_matrix()}}, and inspects it with \code{\link[=find_snap]{find_snap()}},
+\code{\link[=street_network_to_sf]{street_network_to_sf()}}, \code{\link[=transit_network_to_sf]{transit_network_to_sf()}},
+\code{\link[=check_transit_availability]{check_transit_availability()}} and \code{\link[=get_gtfs_errors]{get_gtfs_errors()}}. The routing
+engine is written in 'Rust' and
 runs inside the R session; no 'Java' is needed. Options that peabiru does
 not support yet are errors, never silently ignored.
 }
@@ -61,7 +64,9 @@ Other contributors:
   \item Takuji Nishimura (Mersenne Twister generator, translated in the 'Rust' core) [copyright holder]
   \item CERN - European Organization for Nuclear Research (Table of prime numbers from the 'Colt' library, in the 'Rust' core) [copyright holder]
   \item isoband authors ('isoband' package, whose contouring algorithm is translated in the 'Rust' core) [copyright holder]
+  \item CIESIN - Center for International Earth Science Information Network, Columbia University (Population grid (GPWv3) by which the 'Rust' core checks GTFS stop locations) [copyright holder]
   \item OpenStreetMap contributors (Map data of the sample network, inst/extdata/spo/spo_osm.pbf) [copyright holder]
+  \item Authors of the dependency Rust crates (Rust crates vendored in src/rust/vendor.tar.xz; see inst/AUTHORS) [copyright holder]
 }
 
 }

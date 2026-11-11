@@ -378,6 +378,7 @@ pub(crate) fn apply_park_and_ride(
             java_int(cy * FIXED_FACTOR),
             java_int(cx * FIXED_FACTOR),
         );
+        net.v_flags[center as usize] |= super::vertex_flags::PARK_AND_RIDE;
         let fixed = |d: f64| i64::from(java_int(d * FIXED_FACTOR));
         let min_x = coords.iter().map(|c| c.0).fold(f64::INFINITY, f64::min);
         let max_x = coords.iter().map(|c| c.0).fold(f64::NEG_INFINITY, f64::max);
@@ -423,6 +424,7 @@ pub(crate) fn apply_park_and_ride(
             java_int(lat * FIXED_FACTOR),
             java_int(lon * FIXED_FACTOR),
         );
+        net.v_flags[center as usize] |= super::vertex_flags::PARK_AND_RIDE;
         let Some(walking) = get_or_create_vertex_near(net, lat, lon, Mode::Walk) else {
             continue;
         };

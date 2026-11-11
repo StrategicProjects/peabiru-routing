@@ -160,6 +160,17 @@ step, an s2 rebuild in R, is not reproduced, so the polygons cover the same
 areas as r5r's but are not snapped to 1e-7 degrees and are always
 `MultiPolygon`s.
 
+[`find_snap()`][peabiru.find_snap], [`street_network_bbox()`][peabiru.street_network_bbox],
+[`street_network_to_sf()`][peabiru.street_network_to_sf],
+[`transit_network_to_sf()`][peabiru.transit_network_to_sf],
+[`check_transit_availability()`][peabiru.check_transit_availability] and
+[`get_gtfs_errors()`][peabiru.get_gtfs_errors] follow r5r's functions of the
+same names, with GeoDataFrames for r5r's `sf` objects; `get_gtfs_errors()`
+reads the feeds again rather than a `gtfs_errors.csv`, and lists the rows in
+the order gtfs-lib finds them (r5r's order changes from run to run). r5r's
+Java housekeeping functions (`setup_r5()`, `stop_r5()`, `download_r5()`,
+`r5r_cache()`, `r5r_sitrep()`) have no Python counterpart: there is no Java.
+
 r5r's `detailed_itineraries()`, `pareto_frontier()`,
 `travel_time_matrix()` with fares and the other functions not listed in the
 [API reference](reference.md) are not available yet. `CAR_PARK` and

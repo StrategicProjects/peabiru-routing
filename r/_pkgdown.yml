@@ -82,6 +82,27 @@ reference:
     The areas or street segments reached from each origin within each cutoff.
   contents:
   - isochrone
+- title: Inspecting a network
+  desc: >
+    Where points snap, the street and transit networks as `sf`, the dates with
+    service, and the errors gtfs-lib finds in the feeds.
+  contents:
+  - find_snap
+  - street_network_bbox
+  - street_network_to_sf
+  - transit_network_to_sf
+  - check_transit_availability
+  - get_gtfs_errors
+- title: Compatibility with r5r
+  desc: >
+    r5r's functions for Java and the R5 jar, kept so that r5r scripts run;
+    peabiru needs neither.
+  contents:
+  - setup_r5
+  - stop_r5
+  - download_r5
+  - r5r_cache
+  - r5r_sitrep
 - title: The package
   contents:
   - peabiru-package
@@ -102,6 +123,7 @@ articles:
   - articles/isochrones
   - articles/accessibility-map
   - articles/trips
+  - articles/recife-caruaru
 - title: Under the hood
   navbar: Under the hood
   contents:

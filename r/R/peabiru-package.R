@@ -4,7 +4,10 @@
 #' with [build_network()] and computes travel times by walking, cycling,
 #' driving and public transport with [travel_time_matrix()],
 #' [accessibility()], [expanded_travel_time_matrix()] and
-#' [arrival_travel_time_matrix()]. The routing engine is written in 'Rust' and
+#' [arrival_travel_time_matrix()], and inspects it with [find_snap()],
+#' [street_network_to_sf()], [transit_network_to_sf()],
+#' [check_transit_availability()] and [get_gtfs_errors()]. The routing
+#' engine is written in 'Rust' and
 #' runs inside the R session; no 'Java' is needed. Options that peabiru does
 #' not support yet are errors, never silently ignored.
 #'
