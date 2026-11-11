@@ -4,8 +4,7 @@
 import assert from "node:assert/strict";
 
 // ANCHOR: landing
-// Not on npm yet. From a clone of the repository (needs Rust and wasm-pack):
-//   cd js && sh build.sh, then npm install /path/to/peabiru-routing/js
+// npm install peabiru
 import { readFile } from "node:fs/promises";
 import * as peabiru from "peabiru";
 

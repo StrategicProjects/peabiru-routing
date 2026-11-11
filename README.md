@@ -12,9 +12,9 @@
 <a href="https://docs.rs/peabiru-core"><img src="https://docs.rs/peabiru-core/badge.svg" alt="docs.rs"></a>
 <a href="https://doi.org/10.5281/zenodo.24125477"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.24125477.svg" alt="DOI"></a>
 <a href="https://pypi.org/project/peabiru/"><img src="https://img.shields.io/pypi/v/peabiru.svg" alt="PyPI"></a>
-<!-- After the first release on each remaining registry, uncomment the matching badge:
-<a href="https://CRAN.R-project.org/package=peabiru"><img src="https://www.r-pkg.org/badges/version/peabiru" alt="CRAN"></a>
 <a href="https://www.npmjs.com/package/peabiru"><img src="https://img.shields.io/npm/v/peabiru.svg" alt="npm"></a>
+<!-- After the first release on CRAN, uncomment:
+<a href="https://CRAN.R-project.org/package=peabiru"><img src="https://www.r-pkg.org/badges/version/peabiru" alt="CRAN"></a>
 -->
 </p>
 
@@ -29,7 +29,7 @@ and thread.
 |---|---|---|---|
 | `peabiru` | R | [`r/`](r) (extendr) | CRAN, not published yet |
 | `peabiru` | Python | [`python/`](python) (PyO3, maturin) | [PyPI](https://pypi.org/project/peabiru/) |
-| `peabiru` | JavaScript (browsers, Node) | [`js/`](js) (WebAssembly, wasm-bindgen) | npm, not published yet |
+| `peabiru` | JavaScript (browsers, Node) | [`js/`](js) (WebAssembly, wasm-bindgen) | [npm](https://www.npmjs.com/package/peabiru) |
 | `peabiru-core` | Rust | [`crates/peabiru-core`](crates/peabiru-core) | [crates.io](https://crates.io/crates/peabiru-core) |
 | `peabiru` | command line | [`crates/peabiru-cli`](crates/peabiru-cli) | |
 
@@ -142,8 +142,7 @@ In JavaScript (Node; in a browser, the bytes come from `fetch()`):
 
 <!-- example: site/js/examples/landing.mjs:landing (checked by site/js/run_examples.mjs) -->
 ```js
-// Not on npm yet. From a clone of the repository (needs Rust and wasm-pack):
-//   cd js && sh build.sh, then npm install /path/to/peabiru-routing/js
+// npm install peabiru
 import { readFile } from "node:fs/promises";
 import * as peabiru from "peabiru";
 

@@ -2,8 +2,14 @@
 
 ## Install
 
-The package is not on npm yet. Build it from a clone of the repository,
-with Rust, the `wasm32-unknown-unknown` target and
+The package is on [npm](https://www.npmjs.com/package/peabiru):
+
+```sh
+npm install peabiru
+```
+
+To build it from a clone of the repository instead, you need Rust, the
+`wasm32-unknown-unknown` target and
 [wasm-pack](https://github.com/rustwasm/wasm-pack):
 
 ```sh
@@ -13,7 +19,7 @@ sh build.sh                      # pkg/peabiru.js and pkg/peabiru_bg.wasm
 node --test tests/*.test.mjs     # optional: the package's tests
 ```
 
-Then add it to your project from that directory (npm links to it), or
+Then add that build to your project from the directory (npm links to it), or
 from a tarball made with `npm pack` in `js/` (a copy of the files that
 would be published):
 
