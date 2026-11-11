@@ -163,11 +163,13 @@ rs_pareto_frontier <- function(ptr, olat, olon, dlat, dlon, mode, transit_modes,
 
 #' Itineraries between `origins[i]` and `destinations[i]`, as
 #' `list(pair, option, departure_time, total_duration, total_distance,
-#' segment, mode, segment_duration, wait, distance, route, geometry)`
-#' (`pair` 1-based; `geometry` `NULL` with `drop_geometry`). With `output`
+#' segment, mode, segment_duration, wait, distance, route, osm_id_list,
+#' edge_id_list, board_stop_id, alight_stop_id, geometry)` (`pair` 1-based;
+#' the four id columns `NULL` without `osm_link_ids`, `geometry` `NULL`
+#' with `drop_geometry`). With `output`
 #' (`list(dir, from_ids, to_ids)`) the files are written instead and
 #' `NULL` returned.
 #' @noRd
-rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output) .Call(wrap__rs_detailed_itineraries, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output)
+rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output, suboptimal_minutes, fare_structure, max_fare) .Call(wrap__rs_detailed_itineraries, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output, suboptimal_minutes, fare_structure, max_fare)
 
 # nolint end

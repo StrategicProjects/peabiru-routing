@@ -148,6 +148,18 @@ for (city in cities) {
   both(paste(city, "itineraries, suboptimal 5, geometry"), "detailed_itineraries", oo, dd, mode = M, departure_datetime = t1430, shortest_path = FALSE, suboptimal_minutes = 5, time_window = 15)
   both(paste(city, "itineraries, bicycle, suboptimal 10"), "detailed_itineraries", oo, dd, mode = c("BICYCLE", "TRANSIT"), departure_datetime = t14, shortest_path = FALSE, suboptimal_minutes = 10, max_bike_time = 15, drop_geometry = TRUE)
   if (city != "spo") both(paste(city, "itineraries, bicycle, new_lts, alternatives"), "detailed_itineraries", oo, dd, mode = c("BICYCLE", "TRANSIT"), departure_datetime = t14, shortest_path = FALSE, max_bike_time = 15, new_lts = lts, max_lts = 3, fare_structure = fs, drop_geometry = TRUE)
+  both(paste(city, "itineraries, fares, alternatives, osm_link_ids"), "detailed_itineraries", oo, dd, mode = M, departure_datetime = t14, fare_structure = fs, shortest_path = FALSE, osm_link_ids = TRUE)
+  both(paste(city, "itineraries, alternatives, osm_link_ids"), "detailed_itineraries", oo, dd, mode = M, departure_datetime = t14, shortest_path = FALSE, suboptimal_minutes = 3, osm_link_ids = TRUE)
+  if (city != "spo") {
+    # output_dir: every file byte for byte (with the geometry's WKT and the fare columns)
+    op <- tempfile(); orr <- tempfile(); dir.create(op); dir.create(orr)
+    ids_o <- copy(oo); ids_d <- copy(dd); ids_o$id <- paste0("o", seq_len(nrow(oo))); ids_d$id <- paste0("d", seq_len(nrow(dd)))
+    a <- tryCatch(peabiru::detailed_itineraries(pn, ids_o, ids_d, mode = M, departure_datetime = t14, fare_structure = fs, shortest_path = FALSE, output_dir = op), error = identity)
+    b <- tryCatch(r5r::detailed_itineraries(rn, ids_o, ids_d, mode = M, departure_datetime = t14, fare_structure = fs, shortest_path = FALSE, output_dir = orr, progress = FALSE), error = identity)
+    read_dir <- function(dir) { f <- sort(list.files(dir)); setNames(lapply(f, function(x) readBin(file.path(dir, x), "raw", 1e8)), f) }
+    same(paste(city, "itineraries, fares, alternatives, output_dir files"),
+         if (inherits(a, "error")) a else read_dir(op), if (inherits(b, "error")) b else read_dir(orr))
+  }
   both(paste(city, "itineraries, fare cap, geometry"), "detailed_itineraries", oo, dd, mode = M, departure_datetime = t14, fare_structure = fs_cap, shortest_path = FALSE)
 }
 cat(sprintf("\n%d identical (or both errors), %d different; %d rows compared\n", ok, bad, rows))

@@ -121,7 +121,8 @@ pub fn itineraries(
     for c in &nums {
         out.push(&f64_array(c));
     }
-    for c in &texts[..if osm_link_ids { 7 } else { 3 }] {
+    // the four id columns are empty without osm_link_ids
+    for c in &texts {
         out.push(&strings(c));
     }
     // with a fare structure: total_fare, cumulative_fare
