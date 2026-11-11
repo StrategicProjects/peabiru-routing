@@ -306,7 +306,8 @@ pub(crate) fn isochrone_polygons_in(
                     z: &z,
                 },
                 lib,
-            );
+            )
+            .map_err(RouteError::Invalid)?;
             // isoband computes the bands in the order given (ascending); the
             // rows go out descending
             let mut bands = Vec::with_capacity(cutoffs.len());
