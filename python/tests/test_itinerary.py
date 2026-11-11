@@ -58,6 +58,34 @@ def test_pairs_all_to_all_and_output_dir(network, points, departure, tmp_path):
     assert out == tmp_path
     files = sorted(p.name for p in tmp_path.iterdir())
     assert files and all(f.startswith("from_") and "_to_" in f for f in files)
+    # with the geometry: the WKT text last, quoted
+    geo = tmp_path / "geo"
+    geo.mkdir()
+    peabiru.detailed_itineraries(
+        network, points.iloc[:3], points.iloc[3:6], mode="WALK", departure_datetime=departure,
+        output_dir=geo,
+    )
+    for f in geo.iterdir():
+        lines = f.read_text().splitlines()
+        assert lines[0].endswith(",route,geometry")
+        assert all(line.endswith(')"') and ',"LINESTRING (' in line for line in lines[1:])
+
+
+def test_osm_link_ids(network, points, departure):
+    pytest.importorskip("geopandas")
+    it = peabiru.detailed_itineraries(
+        network, points.iloc[:5], points.iloc[5:10], mode="CAR",
+        departure_datetime=departure, osm_link_ids=True,
+    )
+    ids = ["osm_id_list", "edge_id_list", "board_stop_id", "alight_stop_id"]
+    assert list(it.columns) == COLS + ids + ["geometry"]
+    for c in ids[:2]:
+        assert it[c].str.fullmatch(r"\[(\d+(, \d+)*)?\]").all()
+    assert (it["board_stop_id"] == "").all() and (it["alight_stop_id"] == "").all()
+    plain = peabiru.detailed_itineraries(
+        network, points.iloc[:5], points.iloc[5:10], mode="CAR", departure_datetime=departure,
+    )
+    assert it.drop(columns=ids).equals(plain)
 
 
 def test_unsupported_options(network, points, departure):
@@ -66,8 +94,6 @@ def test_unsupported_options(network, points, departure):
             network, points.iloc[:1], points.iloc[1:2], departure_datetime=departure, **kw
         )
 
-    with pytest.raises(peabiru.UnsupportedError):
-        di(mode="WALK", osm_link_ids=True)
     with pytest.raises(ValueError, match="drop_geometry"):
         di(mode="WALK", osm_link_ids=True, drop_geometry=True)
     with pytest.raises(ValueError, match="Must be 0"):

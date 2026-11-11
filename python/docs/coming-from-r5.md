@@ -174,8 +174,7 @@ Java housekeeping functions (`setup_r5()`, `stop_r5()`, `download_r5()`,
 `r5r_cache()`, `r5r_sitrep()`) have no Python counterpart: there is no Java.
 
 r5r's `detailed_itineraries()` is available for the fastest trip
-(`shortest_path=True`) without fares, `osm_link_ids` or `output_dir` with
-the geometry. r5r's `pareto_frontier()`,
+(`shortest_path=True`) without fares. r5r's `pareto_frontier()`,
 `travel_time_matrix()` with fares and the other functions not listed in the
 [API reference](reference.md) are not available yet. `CAR_PARK` and
 `BICYCLE_RENT` are rejected, as r5r rejects them.

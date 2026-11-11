@@ -69,7 +69,8 @@ def itineraries(
     transit_modes: str, egress_mode: str, date: int, departure_time: int, time_window: int,
     max_walk_time: int, max_bike_time: int, max_car_time: int, max_trip_duration: int,
     walk_speed: float, bike_speed: float, max_rides: int, max_lts: int, shortest_path: bool,
-    n_threads: int, scenario: Scenario, output: Optional[Tuple[str, List[str], List[str]]],
+    n_threads: int, scenario: Scenario, drop_geometry: bool, osm_link_ids: bool,
+    output: Optional[Tuple[str, List[str], List[str]]],
 ) -> Optional[Dict[str, Any]]: ...
 def find_snap(
     network: Network, lat: bytes, lon: bytes, radius: float, mode: str,
