@@ -406,6 +406,17 @@ impl Filtered {
         active: &[bool],
         modes: &[TransitMode],
     ) -> Result<Filtered, String> {
+        // FrequencyRandomOffsets.randomize draws an offset for every entry
+        // of every frequency trip of the network with nextInt(headway),
+        // which throws for a headway that is not positive: R5 then fails
+        // every search that reaches a stop. peabiru fails the request.
+        if let Some((trip, h)) = layer.non_positive_headway() {
+            return Err(format!(
+                "trip '{trip}' runs by frequency with a headway_secs of {h}; R5 fails the \
+                 public transport search of any network with such an entry (commons-math \
+                 NotStrictlyPositiveException), and so does r5r"
+            ));
+        }
         let mut f = Filtered {
             patterns: Vec::with_capacity(layer.patterns.len()),
             tables: Vec::with_capacity(layer.patterns.len()),
@@ -828,35 +839,47 @@ impl Worker<'_> {
                         i64::from(entry.end),
                         i64::from(entry.headway),
                     );
-                    let (last_board, first_board) = match mode {
-                        FreqMode::MonteCarlo => {
-                            let offset = i64::from(offsets.offsets[pi][ti as usize][e]);
-                            let n_trips = (end - (start + offset)) / h + 1;
-                            if n_trips <= 0 {
-                                continue; // no vehicle of this entry boards
+                    // The bounds below are in i64 and the boarding rules
+                    // in Java's wrapping int arithmetic: they agree while no
+                    // value is near the int range (an unreadable time is
+                    // INT_MISSING), and an entry with such a value is never
+                    // skipped.
+                    const TAME: i64 = 1 << 28;
+                    let tame = [start, end, h, i64::from(min_tt), i64::from(max_tt)]
+                        .iter()
+                        .all(|v| v.abs() < TAME);
+                    if tame {
+                        let (last_board, first_board) = match mode {
+                            FreqMode::MonteCarlo => {
+                                let offset = i64::from(offsets.offsets[pi][ti as usize][e]);
+                                let n_trips = (end - (start + offset)) / h + 1;
+                                if n_trips <= 0 {
+                                    continue; // no vehicle of this entry boards
+                                }
+                                // (+1: the rule below still boards a vehicle
+                                // that leaves one second before the earliest
+                                // boarding time)
+                                (
+                                    start + offset + i64::from(max_tt) + (n_trips - 1) * h + 1,
+                                    start + offset + i64::from(min_tt),
+                                )
                             }
-                            // (+1: the rule below still boards a vehicle
-                            // that leaves one second before the earliest
-                            // boarding time)
-                            (
-                                start + offset + i64::from(max_tt) + (n_trips - 1) * h + 1,
-                                start + offset + i64::from(min_tt),
-                            )
+                            FreqMode::UpperBound => {
+                                (end - h + i64::from(max_tt), start + h + i64::from(min_tt))
+                            }
+                        };
+                        if last_board < earliest_any || (monotone && first_board >= dep + dur) {
+                            continue;
                         }
-                        FreqMode::UpperBound => {
-                            (end - h + i64::from(max_tt), start + h + i64::from(min_tt))
-                        }
-                    };
-                    if last_board < earliest_any || (monotone && first_board >= dep + dur) {
-                        continue;
                     }
-                    let mut board_time = -1;
+                    let mut board_time: i32 = -1;
                     let mut board_pos = 0usize;
                     for (i, &stop) in pattern.stops.iter().enumerate() {
                         let stop = stop as usize;
                         if board_time > -1 && pattern.dropoffs[i] {
-                            let alight =
-                                board_time + (trip.arrivals[i] - trip.departures[board_pos]);
+                            let alight = board_time.wrapping_add(
+                                trip.arrivals[i].wrapping_sub(trip.departures[board_pos]),
+                            );
                             states[r].set_time_at_stop(
                                 stop,
                                 alight,
@@ -869,36 +892,47 @@ impl Worker<'_> {
                         if stop_was_updated(states, r - 1, stop, within_minute)
                             && pattern.pickups[i]
                         {
-                            let earliest = states[r - 1].best[stop] + MINIMUM_BOARD_WAIT_SEC;
+                            let earliest =
+                                states[r - 1].best[stop].wrapping_add(MINIMUM_BOARD_WAIT_SEC);
                             let h = entry.headway;
                             let tt = trip.departures[i];
+                            // getRandomFrequencyDepartureTime and
+                            // getWorstCaseFrequencyDepartureTime, in Java int
+                            // arithmetic (h > 0: see Filtered::new)
                             let cand = match mode {
                                 FreqMode::MonteCarlo => {
                                     let offset = offsets.offsets[pi][ti as usize][e];
-                                    let first = entry.start + tt + offset;
-                                    let n_trips = (entry.end - (entry.start + offset)) / h + 1;
-                                    let after = earliest - 1;
+                                    let first = entry.start.wrapping_add(tt).wrapping_add(offset);
+                                    let n_trips =
+                                        (entry.end.wrapping_sub(entry.start.wrapping_add(offset)))
+                                            / h
+                                            + 1;
+                                    let after = earliest.wrapping_sub(1);
                                     let k = if after <= first {
                                         0
                                     } else {
-                                        (after - first) / h + 1
+                                        after.wrapping_sub(first) / h + 1
                                     };
                                     if k < n_trips {
-                                        first + k * h
+                                        first.wrapping_add(k.wrapping_mul(h))
                                     } else {
                                         -1
                                     }
                                 }
                                 FreqMode::UpperBound => {
-                                    if entry.end - h + tt < earliest {
+                                    if entry.end.wrapping_sub(h).wrapping_add(tt) < earliest {
                                         -1
                                     } else {
-                                        (earliest + h).max(entry.start + h + tt)
+                                        earliest
+                                            .wrapping_add(h)
+                                            .max(entry.start.wrapping_add(h).wrapping_add(tt))
                                     }
                                 }
                             };
                             let stay = if board_time > -1 {
-                                board_time + trip.departures[i] - trip.departures[board_pos]
+                                board_time.wrapping_add(
+                                    trip.departures[i].wrapping_sub(trip.departures[board_pos]),
+                                )
                             } else {
                                 i32::MAX
                             };

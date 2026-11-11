@@ -473,7 +473,7 @@ impl<'a> Table<'a, '_> {
 /// Java's `LocalDate.parse(s, DateTimeFormatter.BASIC_ISO_DATE)`: eight
 /// digits making a date, optionally followed by an offset (`Z`, `+hh`,
 /// `+hhmm`, `+hhmmss`); the date as `yyyymmdd`.
-fn basic_iso_date(s: &str) -> Option<u32> {
+pub(crate) fn basic_iso_date(s: &str) -> Option<u32> {
     if s.len() < 8 || !s.is_char_boundary(8) || !s.as_bytes()[..8].iter().all(u8::is_ascii_digit) {
         return None;
     }

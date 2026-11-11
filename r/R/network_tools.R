@@ -412,7 +412,8 @@ check_transit_availability <- function(r5r_network,
     date = as.Date(dates_formatted),
     total_services = total,
     active_services = active,
-    pct_active = ifelse(total == 0L, 0, active / total)
+    # as.numeric: ifelse() of no dates is logical(0), r5r's column double
+    pct_active = as.numeric(ifelse(total == 0L, 0, active / total))
   ))
 }
 

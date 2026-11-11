@@ -73,20 +73,25 @@ pub struct Pattern {
 /// When a service runs (R5 / gtfs-lib `Service.activeOn`).
 #[derive(Debug, Clone, Default)]
 pub struct Service {
-    /// Monday-first weekdays, start and end `yyyymmdd`.
-    pub calendar: Option<([bool; 7], u32, u32)>,
-    /// `yyyymmdd` -> exception type (1 added, 2 removed).
-    pub exceptions: HashMap<u32, u8>,
+    /// Monday-first weekdays, start and end `yyyymmdd` (as numbers, not
+    /// checked to be dates).
+    pub calendar: Option<([bool; 7], i32, i32)>,
+    /// `yyyymmdd` -> whether the service runs (exception type 1); any
+    /// other type removes the day.
+    pub exceptions: HashMap<u32, bool>,
 }
 
 impl Service {
     /// `date` is `yyyymmdd`, `weekday` 0 = Monday.
     pub fn active_on(&self, date: u32, weekday: usize) -> bool {
-        if let Some(&e) = self.exceptions.get(&date) {
-            return e == 1;
+        if let Some(&runs) = self.exceptions.get(&date) {
+            return runs;
         }
         match self.calendar {
-            Some((days, start, end)) => start <= date && date <= end && days[weekday],
+            Some((days, start, end)) => {
+                let d = i64::from(date);
+                i64::from(start) <= d && d <= i64::from(end) && days[weekday]
+            }
             None => false,
         }
     }
@@ -357,9 +362,15 @@ pub fn ellipsoidal_distance_m(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64
     haversine_m(lat1, lon1, lat2, lon2)
 }
 
+/// The times of a trip's stops, or `None`.
+type Interpolated = Option<(Vec<i32>, Vec<i32>)>;
+
 /// Fill blank times as gtfs-lib `getInterpolatedStopTimesForTrip` does;
-/// `None` when the first or last stop has no time.
-fn interpolate(rows: &[&StopTime], coords: &[(f64, f64)]) -> Option<(Vec<i32>, Vec<i32>)> {
+/// `None` when the first or last stop has no time. GeoTools'
+/// `GeodeticCalculator` measures the hops around blank times and throws on
+/// a latitude outside ±90° or a longitude outside ±180° (NaN included):
+/// `Err` with the position of such a stop.
+fn interpolate(rows: &[&StopTime], coords: &[(f64, f64)]) -> Result<Interpolated, usize> {
     let n = rows.len();
     let mut arr: Vec<Option<i32>> = Vec::with_capacity(n);
     let mut dep: Vec<Option<i32>> = Vec::with_capacity(n);
@@ -373,8 +384,10 @@ fn interpolate(rows: &[&StopTime], coords: &[(f64, f64)]) -> Option<(Vec<i32>, V
         dep.push(d);
     }
     if arr[0].is_none() || arr[n - 1].is_none() {
-        return None;
+        return Ok(None);
     }
+    let valid =
+        |(lat, lon): (f64, f64)| (-90.0..=90.0).contains(&lat) && (-180.0..=180.0).contains(&lon);
     let mut i = 1;
     while i < n {
         if arr[i].is_some() {
@@ -390,13 +403,19 @@ fn interpolate(rows: &[&StopTime], coords: &[(f64, f64)]) -> Option<(Vec<i32>, V
         let mut cum = vec![0.0f64; b - a + 1];
         let mut total = 0.0;
         for k in a..=b {
+            for j in [k - 1, k] {
+                if !valid(coords[j]) {
+                    return Err(j);
+                }
+            }
             let (lat0, lon0) = coords[k - 1];
             let (lat1, lon1) = coords[k];
             total += ellipsoidal_distance_m(lat0, lon0, lat1, lon1);
             cum[k - a] = total;
         }
         let start = dep[a - 1].expect("timed");
-        let span = f64::from(arr[b].expect("timed") - start);
+        // Java int arithmetic
+        let span = f64::from(arr[b].expect("timed").wrapping_sub(start));
         for k in a..b {
             let t = java_int(f64::from(start) + span * (cum[k - a] / total));
             arr[k] = Some(t);
@@ -404,14 +423,65 @@ fn interpolate(rows: &[&StopTime], coords: &[(f64, f64)]) -> Option<(Vec<i32>, V
         }
         i = b;
     }
-    Some((
+    Ok(Some((
         arr.into_iter().map(|x| x.expect("filled")).collect(),
         dep.into_iter().map(|x| x.expect("filled")).collect(),
-    ))
+    )))
 }
 
 /// gtfs-lib's pattern key: route, stops, pickup types, drop-off types.
-type PatternKey = (String, Vec<u32>, Vec<u8>, Vec<u8>);
+type PatternKey = (String, Vec<u32>, Vec<i32>, Vec<i32>);
+
+/// The frequency entries of one trip in the order of gtfs-lib's set of
+/// `(trip_id, Frequency)` tuples, which compares entries by
+/// `start_time - o.start_time` in Java `int` arithmetic and keeps the first
+/// of entries that compare equal. That comparison is a consistent order
+/// when the start times differ by less than 2^31, and also with
+/// `INT_MISSING` (an unreadable time) among start times that are all
+/// positive (it sorts last) or all negative (first); otherwise which order
+/// the set ends up in depends on its B-tree and `None` is returned.
+fn java_frequency_order(entries: &[FrequencyEntry]) -> Option<Vec<FrequencyEntry>> {
+    let missing = crate::gtfs::jparse::INT_MISSING;
+    let read: Vec<i64> = entries
+        .iter()
+        .filter(|e| e.start != missing)
+        .map(|e| i64::from(e.start))
+        .collect();
+    let (lo, hi) = (read.iter().min().copied(), read.iter().max().copied());
+    let spread_ok = match (lo, hi) {
+        (Some(lo), Some(hi)) => hi - lo < 1 << 31,
+        _ => true,
+    };
+    let has_missing = read.len() < entries.len();
+    // INT_MISSING compares above every positive start and below every
+    // negative one; against 0 both ways
+    let all_negative = hi.is_some_and(|hi| hi < 0);
+    if !spread_ok || (has_missing && !all_negative && lo.is_some_and(|lo| lo <= 0)) {
+        return None;
+    }
+    let key = |e: &FrequencyEntry| match (e.start == missing, all_negative) {
+        (true, true) => i64::MIN,
+        (true, false) => i64::MAX,
+        _ => i64::from(e.start),
+    };
+    let mut out: Vec<FrequencyEntry> = Vec::with_capacity(entries.len());
+    for e in entries {
+        match out.binary_search_by_key(&key(e), key) {
+            Ok(_) => {} // equal: the set keeps the first
+            Err(i) => out.insert(i, *e),
+        }
+    }
+    Some(out)
+}
+
+/// An error for a feed that R5 fails building from: `why`, and the
+/// exception R5 throws.
+fn r5_fails(why: String, exception: &str) -> GtfsError {
+    GtfsError::R5Fails(format!(
+        "{why}, and R5 fails building its transit layer from the feed ({exception}), as \
+         does r5r's build_network()"
+    ))
+}
 
 /// Feed id: `feed_info.feed_id`, else the file name without `.zip`.
 fn feed_id(feed: &Feed, path: &std::path::Path) -> String {
@@ -492,6 +562,17 @@ impl TransitLayer {
     /// [`TransitParams::seed`](crate::TransitParams::seed)).
     pub fn has_frequencies(&self) -> bool {
         self.has_frequencies
+    }
+
+    /// The first frequency trip (and its headway) with an entry whose
+    /// headway is not positive, which R5 keeps and fails routing on.
+    pub(crate) fn non_positive_headway(&self) -> Option<(&str, i32)> {
+        self.patterns.iter().flat_map(|p| &p.trips).find_map(|t| {
+            t.frequencies
+                .iter()
+                .find(|e| e.headway <= 0)
+                .map(|e| (t.trip_id.as_str(), e.headway))
+        })
     }
 
     /// Trips of all feeds left out of the timetable, by reason.
@@ -614,7 +695,9 @@ impl TransitLayer {
                 }
             })?;
             let id = feed_id(&feed, &path);
-            let dropped_trips = layer.add_feed(&feed, &id);
+            let dropped_trips = layer
+                .add_feed(&feed, &id)
+                .map_err(|e| GtfsError::in_feed(&path, e))?;
             layer.dropped_trips.add(&dropped_trips);
             layer.feed_ids.push(id);
             layer.feed_reports.push(FeedReport {
@@ -651,8 +734,9 @@ impl TransitLayer {
             .collect()
     }
 
-    /// Add one feed; returns the trips it left out.
-    fn add_feed(&mut self, feed: &Feed, feed_id: &str) -> DroppedTrips {
+    /// Add one feed, as R5's `TransitLayer.loadFromGtfs` does; returns the
+    /// trips it left out. Fails where R5 throws while doing so.
+    fn add_feed(&mut self, feed: &Feed, feed_id: &str) -> Result<DroppedTrips, GtfsError> {
         // Stops: every row, in stop_id order (gtfs-lib keeps tables in maps).
         let stops: BTreeMap<&str, &crate::gtfs::feed::Stop> =
             feed.stops.iter().map(|s| (s.stop_id.as_str(), s)).collect();
@@ -677,12 +761,12 @@ impl TransitLayer {
             }
         }
         for d in &feed.calendar_dates {
-            services
-                .entry(d.service_id.as_str())
-                .or_default()
-                .exceptions
-                .entry(d.date)
-                .or_insert(d.exception_type);
+            let s = services.entry(d.service_id.as_str()).or_default();
+            // gtfs-lib keeps a blank date under a null key, which no day
+            // matches
+            if let Some(date) = d.date {
+                s.exceptions.entry(date).or_insert(d.exception_type == 1);
+            }
         }
         let service_offset = self.services.len();
         let service_code: HashMap<&str, u32> = services
@@ -727,14 +811,13 @@ impl TransitLayer {
                 .or_default()
                 .insert(st.stop_sequence, st);
         }
-        // frequencies per trip, by start time; an equal start keeps the first.
-        let mut freqs: HashMap<&str, BTreeMap<i32, FrequencyEntry>> = HashMap::new();
+        // frequency entries per trip, in file order
+        let mut freqs: HashMap<&str, Vec<FrequencyEntry>> = HashMap::new();
         for f in &feed.frequencies {
             freqs
                 .entry(f.trip_id.as_str())
                 .or_default()
-                .entry(f.start_time)
-                .or_insert(FrequencyEntry {
+                .push(FrequencyEntry {
                     start: f.start_time,
                     end: f.end_time,
                     headway: f.headway_secs,
@@ -748,6 +831,13 @@ impl TransitLayer {
         let first_pattern = self.patterns.len();
         let mut dropped = DroppedTrips::default();
         for (trip_id, trip) in trips {
+            // gtfs.routes.get(trip.route_id): MapDB refuses a null key
+            let Some(route_id) = trip.route_id.as_deref() else {
+                return Err(r5_fails(
+                    format!("trip '{trip_id}' has no route_id"),
+                    "NullPointerException",
+                ));
+            };
             let rows: Vec<&StopTime> = times
                 .get(trip_id)
                 .map_or_else(Vec::new, |r| r.values().copied().collect());
@@ -763,12 +853,12 @@ impl TransitLayer {
                 dropped.unknown_stop += 1; // referential integrity error
                 continue;
             };
-            let Some(&rtype) = route_type.get(trip.route_id.as_str()) else {
+            let Some(&rtype) = route_type.get(route_id) else {
                 dropped.unknown_route += 1;
                 continue;
             };
             let key = (
-                trip.route_id.clone(),
+                route_id.to_string(),
                 stop_seq.clone(),
                 rows.iter().map(|r| r.pickup_type).collect::<Vec<_>>(),
                 rows.iter().map(|r| r.drop_off_type).collect::<Vec<_>>(),
@@ -777,7 +867,17 @@ impl TransitLayer {
                 .iter()
                 .map(|&s| (self.stop_lat[s as usize], self.stop_lon[s as usize]))
                 .collect();
-            let Some((mut arrivals, mut departures)) = interpolate(&rows, &coords) else {
+            let interpolated = interpolate(&rows, &coords).map_err(|k| {
+                r5_fails(
+                    format!(
+                        "stop '{}' of trip '{trip_id}', next to a stop time without a time, \
+                         has no valid coordinates",
+                        rows[k].stop_id
+                    ),
+                    "IllegalArgumentException",
+                )
+            })?;
+            let Some((mut arrivals, mut departures)) = interpolated else {
                 dropped.missing_end_time += 1;
                 continue;
             };
@@ -796,65 +896,149 @@ impl TransitLayer {
             let pi = match pattern_of.get(&key) {
                 Some(&pi) => pi,
                 None => {
+                    // PickDropType.forGtfsCode: codes above 3 read as 0, a
+                    // negative one is outside its array
+                    if let Some(c) = key.2.iter().chain(&key.3).find(|&&c| c < 0) {
+                        return Err(r5_fails(
+                            format!(
+                                "trip '{trip_id}' has the pickup or drop-off type {c}, which is \
+                                 not a GTFS code"
+                            ),
+                            "ArrayIndexOutOfBoundsException",
+                        ));
+                    }
+                    let ri = match route_index.get(route_id) {
+                        Some(&ri) => ri,
+                        None => {
+                            let info = route_info(routes_by_id[route_id], &agencies);
+                            // gtfs.agency.get(route.agency_id), the agency
+                            // being null when the route names none and the
+                            // feed has several
+                            if info.agency_id.is_none() && agencies.len() > 1 {
+                                return Err(r5_fails(
+                                    format!(
+                                        "route '{route_id}' names none of the {} agencies of \
+                                         the feed",
+                                        agencies.len()
+                                    ),
+                                    "NullPointerException",
+                                ));
+                            }
+                            self.routes.push(info);
+                            let ri = (self.routes.len() - 1) as u32;
+                            route_index.insert(route_id, ri);
+                            ri
+                        }
+                    };
+                    let shape = match trip.shape_id.as_str() {
+                        "" => None,
+                        id => match shape_index.get(id) {
+                            Some(&s) => s,
+                            None => {
+                                // gtfs-lib's getShape: no shape without
+                                // points; JTS refuses a line of one point
+                                let points = feed.shapes.get(id).filter(|p| !p.is_empty());
+                                if points.is_some_and(|p| p.len() == 1) {
+                                    return Err(r5_fails(
+                                        format!(
+                                            "shape '{id}' of trip '{trip_id}' has a single point"
+                                        ),
+                                        "IllegalArgumentException",
+                                    ));
+                                }
+                                let s = points.map(|points| {
+                                    self.shapes.push(
+                                        points.values().map(|&(lon, lat)| [lon, lat]).collect(),
+                                    );
+                                    (self.shapes.len() - 1) as u32
+                                });
+                                shape_index.insert(id, s);
+                                s
+                            }
+                        },
+                    };
                     self.patterns.push(Pattern {
-                        route_id: trip.route_id.clone(),
+                        route_id: route_id.to_string(),
                         route_type: rtype,
                         stops: stop_seq.clone(),
                         pickups: rows.iter().map(|r| r.pickup_type != 1).collect(),
                         dropoffs: rows.iter().map(|r| r.drop_off_type != 1).collect(),
                         ..Pattern::default()
                     });
-                    let ri = *route_index
-                        .entry(trip.route_id.as_str())
-                        .or_insert_with(|| {
-                            self.routes
-                                .push(route_info(routes_by_id[trip.route_id.as_str()], &agencies));
-                            (self.routes.len() - 1) as u32
-                        });
                     self.pattern_route.push(ri);
-                    let shape = match trip.shape_id.as_str() {
-                        "" => None,
-                        id => *shape_index.entry(id).or_insert_with(|| {
-                            // gtfs-lib's getShape: no shape without points
-                            let points = feed.shapes.get(id).filter(|p| !p.is_empty())?;
-                            self.shapes
-                                .push(points.values().map(|&(lon, lat)| [lon, lat]).collect());
-                            Some((self.shapes.len() - 1) as u32)
-                        }),
-                    };
                     let by_dist = shape.is_some()
                         && rows.iter().all(|r| r.shape_dist)
                         && feed
                             .shape_dists
                             .get(trip.shape_id.as_str())
                             .is_some_and(|m| m.values().all(|&d| d));
+                    // Without distances R5 projects each stop on the shape
+                    // (JTS LocationIndexedLine, x scaled by the cosine of
+                    // the first point's latitude); a stop that is no
+                    // finite distance from any segment, as a stop without
+                    // coordinates, leaves JTS without a location (NPE)
+                    if let (Some(s), false) = (shape, by_dist) {
+                        let points = &self.shapes[s as usize];
+                        let nan = |p: &[f64; 2]| p[0].is_nan() || p[1].is_nan();
+                        let no_segment = points[0][1].is_nan()
+                            || points.windows(2).all(|w| nan(&w[0]) || nan(&w[1]));
+                        if no_segment || coords.iter().any(|c| c.0.is_nan() || c.1.is_nan()) {
+                            return Err(r5_fails(
+                                format!(
+                                    "trip '{trip_id}' has a stop or a shape without coordinates"
+                                ),
+                                "NullPointerException",
+                            ));
+                        }
+                    }
                     self.pattern_shape.push(shape);
                     self.pattern_shape_dist.push(by_dist);
                     pattern_of.insert(key, self.patterns.len() - 1);
                     self.patterns.len() - 1
                 }
             };
-            let Some(&service) = service_code.get(trip.service_id.as_str()) else {
-                dropped.unknown_service += 1;
-                continue;
+            // serviceCodeNumber.get(trip.service_id) is -1 for a blank
+            // service_id, which fails when the trip is added below
+            let service = match trip.service_id.as_deref() {
+                None => None,
+                Some(id) => match service_code.get(id) {
+                    Some(&s) => Some(s),
+                    None => {
+                        dropped.unknown_service += 1;
+                        continue;
+                    }
+                },
             };
             let mut frequencies = Vec::new();
             if let Some(f) = freqs.get(trip_id) {
-                // start > end is dropped as R5 does; a non-positive headway would
-                // make R5 fail the whole query, so it is dropped as invalid too.
-                frequencies = f
-                    .values()
-                    .copied()
-                    .filter(|e| e.start <= e.end && e.headway > 0)
-                    .collect();
+                let Some(ordered) = java_frequency_order(f) else {
+                    return Err(GtfsError::R5Fails(format!(
+                        "the frequency entries of trip '{trip_id}' have start times so far apart \
+                         that gtfs-lib's comparison of them overflows, and the order R5 keeps \
+                         them in cannot be reproduced"
+                    )));
+                };
+                // TripSchedule.create: the trip is left out when every entry
+                // ends before it starts; such entries are left out of the
+                // others. A headway that is not positive is kept (it fails
+                // routing, as in R5).
+                frequencies = ordered.into_iter().filter(|e| e.start <= e.end).collect();
                 if frequencies.is_empty() {
-                    dropped.invalid_frequencies += 1; // only invalid entries
+                    dropped.invalid_frequencies += 1;
                     continue;
                 }
                 let base = arrivals[0];
-                arrivals.iter_mut().for_each(|t| *t -= base);
-                departures.iter_mut().for_each(|t| *t -= base);
+                arrivals.iter_mut().for_each(|t| *t = t.wrapping_sub(base));
+                departures
+                    .iter_mut()
+                    .for_each(|t| *t = t.wrapping_sub(base));
             }
+            let Some(service) = service else {
+                return Err(r5_fails(
+                    format!("trip '{trip_id}' has no service_id"),
+                    "IndexOutOfBoundsException",
+                ));
+            };
             let p = &mut self.patterns[pi];
             if frequencies.is_empty() {
                 p.has_schedules = true;
@@ -875,9 +1059,23 @@ impl TransitLayer {
             });
         }
         for p in &mut self.patterns[first_pattern..] {
+            // TripSchedule.compareTo is departures[0] - other.departures[0]
+            // in int arithmetic: an order only while they differ by less
+            // than 2^31
+            let first = p.trips.iter().map(|t| i64::from(t.departures[0]));
+            if let (Some(lo), Some(hi)) = (first.clone().min(), first.max()) {
+                if hi - lo >= 1 << 31 {
+                    return Err(GtfsError::R5Fails(format!(
+                        "the trips of route '{}' leave at times so far apart that R5's \
+                         comparison of them overflows, and the order it sorts them in cannot \
+                         be reproduced",
+                        p.route_id
+                    )));
+                }
+            }
             p.trips.sort_by_key(|t| t.departures[0]); // stable
         }
-        dropped
+        Ok(dropped)
     }
 
     /// Link every stop to the street network (R5 `associateStops`): a stop
@@ -950,7 +1148,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn invalid_headways_are_dropped() {
+    fn frequency_entries_as_r5() {
         use crate::gtfs::zip::tests::make_zip;
         let z = make_zip(
             &[
@@ -962,7 +1160,7 @@ mod tests {
                     b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,B,2\nT2,08:00:00,08:00:00,A,1\nT2,08:10:00,08:10:00,B,2\n",
                 ),
                 ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n"),
-                ("frequencies.txt", b"trip_id,start_time,end_time,headway_secs\nT1,06:00:00,09:00:00,0\nT2,06:00:00,09:00:00,-60\nT2,10:00:00,11:00:00,600\n"),
+                ("frequencies.txt", b"trip_id,start_time,end_time,headway_secs\nT1,09:00:00,06:00:00,600\nT2,06:00:00,09:00:00,-60\nT2,10:00:00,11:00:00,600\nT2,10:00:00,10:30:00,60\nT2,14:00,15:00:00,300\n"),
             ],
             true,
         );
@@ -972,18 +1170,48 @@ mod tests {
         std::fs::write(&path, z).unwrap();
         let layer = TransitLayer::load(&[path]).unwrap();
         std::fs::remove_dir_all(&dir).unwrap();
-        // T1 has only a zero headway: dropped; T2 keeps its valid entry
+        // T1 only ends before it starts: dropped. T2 keeps its entries in
+        // gtfs-lib's order (by start, the first of equal starts, the
+        // unreadable start INT_MISSING last), the negative headway too
         let trips: Vec<&TripSchedule> = layer.patterns.iter().flat_map(|p| &p.trips).collect();
         assert_eq!(trips.len(), 1);
         assert_eq!(trips[0].trip_id, "T2");
+        let e = |start, end, headway| FrequencyEntry {
+            start,
+            end,
+            headway,
+        };
         assert_eq!(
             trips[0].frequencies,
-            [FrequencyEntry {
-                start: 36_000,
-                end: 39_600,
-                headway: 600
-            }]
+            [
+                e(21_600, 32_400, -60),
+                e(36_000, 39_600, 600),
+                e(crate::gtfs::jparse::INT_MISSING, 54_000, 300)
+            ]
         );
+        assert_eq!(layer.non_positive_headway(), Some(("T2", -60)));
+        assert_eq!(layer.dropped_trips().invalid_frequencies, 1);
+    }
+
+    #[test]
+    fn frequency_order_needs_a_consistent_comparison() {
+        let e = |start| FrequencyEntry {
+            start,
+            end: 0,
+            headway: 1,
+        };
+        let m = crate::gtfs::jparse::INT_MISSING;
+        let order = |v: &[i32]| {
+            java_frequency_order(&v.iter().map(|&s| e(s)).collect::<Vec<_>>())
+                .map(|o| o.iter().map(|f| f.start).collect::<Vec<_>>())
+        };
+        assert_eq!(order(&[5, m, 3, 5]), Some(vec![3, 5, m]));
+        assert_eq!(order(&[m, m]), Some(vec![m]));
+        // MIN - 0 and 0 - MIN are both negative in int arithmetic
+        assert_eq!(order(&[0, m]), None);
+        assert_eq!(order(&[-5, m, -9]), Some(vec![m, -9, -5]));
+        assert_eq!(order(&[-5, m, 9]), None);
+        assert_eq!(order(&[-5, i32::MAX - 1]), None);
     }
 
     /// Trips left out of the timetable are counted by reason, over all feeds.
@@ -1334,21 +1562,18 @@ r5r refuses to build a network from this feed."
             ),
         )
         .unwrap();
+        // a missing table has no records, as for gtfs-lib
         std::fs::write(
             &bad,
             make_zip(&[("routes.txt", b"route_id,route_type\nR,3\n")], false),
         )
         .unwrap();
-        let missing = TransitLayer::load(&[good.clone(), bad.clone()]).unwrap_err();
+        assert!(TransitLayer::load(&[good.clone(), bad.clone()]).is_ok());
         std::fs::write(&bad, b"not a zip").unwrap();
         let garbage = TransitLayer::load(&[good.clone(), bad.clone()]).unwrap_err();
         let absent = TransitLayer::load(&[good, dir.join("absent.zip")]).unwrap_err();
         std::fs::remove_dir_all(&dir).unwrap();
         let bad = bad.display().to_string();
-        assert_eq!(
-            missing.to_string(),
-            format!("{bad}: GTFS feed has no stops.txt")
-        );
         assert_eq!(
             garbage.to_string(),
             format!("{bad}: malformed zip file: no end of central directory record")
@@ -1424,10 +1649,17 @@ r5r refuses to build a network from this feed."
         let refs: Vec<&StopTime> = rows.iter().collect();
         // three stops on a meridian, 1/3 and 2/3 of the way
         let coords = [(0.0, 0.0), (0.001, 0.0), (0.003, 0.0)];
-        let (arr, _) = interpolate(&refs, &coords).unwrap();
+        let (arr, _) = interpolate(&refs, &coords).unwrap().unwrap();
         assert_eq!(arr, [100, 133, 200]); // 100 + 100/3 truncated
         let rows = [st(None), st(Some(1)), st(Some(2))];
         let refs: Vec<&StopTime> = rows.iter().collect();
-        assert!(interpolate(&refs, &coords).is_none());
+        assert!(interpolate(&refs, &coords).unwrap().is_none());
+        // GeoTools refuses coordinates out of range around a blank time
+        let rows = [st(Some(100)), st(None), st(Some(200))];
+        let refs: Vec<&StopTime> = rows.iter().collect();
+        let nan = [(0.0, 0.0), (f64::NAN, 0.0), (0.003, 0.0)];
+        assert_eq!(interpolate(&refs, &nan), Err(1));
+        let far = [(0.0, 0.0), (0.001, 0.0), (0.003, 181.0)];
+        assert_eq!(interpolate(&refs, &far), Err(2));
     }
 }
