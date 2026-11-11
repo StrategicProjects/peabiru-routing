@@ -193,6 +193,159 @@ for (city in cities) {
     time_window = 5L, percentiles = c(1L, 99L, 50L), max_trip_duration = 60L,
     max_rides = 2, draws_per_minute = 3L, walk_speed = 4.5, seed = 7L))
 
+  # subsets of the transit modes: POA has bus (EPTC) and rail (Trensurb),
+  # SPO bus, rail and subway; SUBWAY alone leaves POA without any route
+  run("modes_ttm_bus", "WALK+BUS, 5 percentiles", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("WALK", "BUS"), departure_datetime = departure, percentiles = pct5,
+    seed = 42L))
+  run("modes_ttm_rail", "RAIL, tw 5, rides 2, mwt 20", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = "RAIL", departure_datetime = departure, time_window = 5L,
+    max_rides = 2, max_walk_time = 20L, seed = 42L))
+  run("modes_ttm_subway", "SUBWAY, percentiles 10,90", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("WALK", "SUBWAY"), departure_datetime = departure,
+    percentiles = c(10L, 90L), seed = 42L))
+  run("modes_ttm_subway_rail", "SUBWAY+RAIL, 07:30:30, mtd 60, dpm 3", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("SUBWAY", "RAIL"), departure_datetime = as.POSIXct("2019-05-13 07:30:30", tz = tz),
+    max_trip_duration = 60L, draws_per_minute = 3L, seed = 7L))
+  run("modes_access_bus", "WALK+BUS step, cutoffs 30,60", both(
+    "transit", "accessibility", origins = points, destinations = points,
+    opportunities_colnames = "jobs", mode = c("WALK", "BUS"),
+    departure_datetime = departure, cutoffs = c(30L, 60L), seed = 42L))
+  run("modes_access_rail", "RAIL logistic, percentiles 25,75", both(
+    "transit", "accessibility", origins = points, destinations = points,
+    opportunities_colnames = c("jobs", "schools"), mode = "RAIL",
+    departure_datetime = departure, decay_function = "logistic", cutoffs = 40L,
+    decay_value = 8, percentiles = c(25L, 75L), seed = 42L))
+  run("modes_expanded_rail", "first 50, RAIL, breakdown", both(
+    "transit", "expanded_travel_time_matrix", origins = points[1:50, ], destinations = points,
+    mode = c("WALK", "RAIL"), departure_datetime = departure, breakdown = TRUE, seed = 42L))
+  run("modes_expanded_bus", "first 50, BUS, tw 5, no breakdown", both(
+    "transit", "expanded_travel_time_matrix", origins = points[1:50, ], destinations = points,
+    mode = "BUS", departure_datetime = departure, time_window = 5L, seed = 42L))
+  run("modes_arrival_bus", "first 100, BUS, 16:00, breakdown", both(
+    "transit", "arrival_travel_time_matrix", origins = points[1:100, ], destinations = points,
+    mode = c("WALK", "BUS"), arrival_datetime = as.POSIXct("2019-05-13 16:00:00", tz = tz),
+    breakdown = TRUE, seed = 42L))
+
+  # bicycle and car access to public transport (R5 carries the search on
+  # on foot from wherever the vehicle got, within the same limit)
+  run("via_ttm_bike", "BICYCLE+TRANSIT, 5 percentiles", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("BICYCLE", "TRANSIT"), departure_datetime = departure,
+    percentiles = pct5, seed = 42L))
+  run("via_ttm_bike_v2", "bike 15, lts 3, mbt 20, mwt 15, tw 5", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("BICYCLE", "TRANSIT"), departure_datetime = departure,
+    bike_speed = 15, max_lts = 3, max_bike_time = 20L, max_walk_time = 15L,
+    time_window = 5L, seed = 42L))
+  run("via_ttm_bike_lts1", "lts 1, mbt 10, rides 1", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("BICYCLE", "TRANSIT"), departure_datetime = departure,
+    max_lts = 1, max_bike_time = 10L, max_rides = 1, seed = 42L))
+  run("via_ttm_bike_rail", "BICYCLE+RAIL, lts 4, mtd 60", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("BICYCLE", "RAIL"), departure_datetime = departure, max_lts = 4,
+    max_trip_duration = 60L, seed = 42L))
+  run("via_ttm_car", "CAR+TRANSIT, 5 percentiles", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("CAR", "TRANSIT"), departure_datetime = departure,
+    percentiles = pct5, seed = 42L))
+  run("via_ttm_car_v2", "mct 10, mtd 60, 07:30:30, dpm 3", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("CAR", "TRANSIT"), departure_datetime = as.POSIXct("2019-05-13 07:30:30", tz = tz),
+    max_car_time = 10L, max_trip_duration = 60L, draws_per_minute = 3L,
+    walk_speed = 4.5, seed = 7L))
+  run("via_ttm_car_bus", "CAR+BUS, mct 15, mwt 10", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("CAR", "BUS"), departure_datetime = departure, max_car_time = 15L,
+    max_walk_time = 10L, seed = 42L))
+  run("via_acc_bike", "BICYCLE+TRANSIT step, cutoffs 20,40,60", both(
+    "transit", "accessibility", origins = points, destinations = points,
+    opportunities_colnames = c("jobs", "healthcare"), mode = c("BICYCLE", "TRANSIT"),
+    departure_datetime = departure, cutoffs = c(20L, 40L, 60L), max_bike_time = 15L,
+    seed = 42L))
+  run("via_acc_car", "CAR+TRANSIT linear, percentiles 25,50", both(
+    "transit", "accessibility", origins = points, destinations = points,
+    opportunities_colnames = "schools", mode = c("CAR", "TRANSIT"),
+    departure_datetime = departure, decay_function = "linear", cutoffs = 45L,
+    decay_value = 10, percentiles = c(25L, 50L), max_car_time = 20L, seed = 42L))
+  run("via_expanded_bike", "first 50, BICYCLE+TRANSIT, breakdown", both(
+    "transit", "expanded_travel_time_matrix", origins = points[1:50, ], destinations = points,
+    mode = c("BICYCLE", "TRANSIT"), departure_datetime = departure, breakdown = TRUE,
+    max_bike_time = 20L, seed = 42L))
+  run("via_expanded_car", "first 50, CAR+TRANSIT, breakdown, tw 5", both(
+    "transit", "expanded_travel_time_matrix", origins = points[1:50, ], destinations = points,
+    mode = c("CAR", "TRANSIT"), departure_datetime = departure, breakdown = TRUE,
+    time_window = 5L, max_car_time = 15L, seed = 42L))
+  run("via_arrival_bike", "first 100, BICYCLE+BUS, 16:00, breakdown", both(
+    "transit", "arrival_travel_time_matrix", origins = points[1:100, ], destinations = points,
+    mode = c("BICYCLE", "BUS"), arrival_datetime = as.POSIXct("2019-05-13 16:00:00", tz = tz),
+    breakdown = TRUE, max_bike_time = 15L, seed = 42L))
+  run("via_arrival_car", "first 100, CAR+TRANSIT, 08:00", both(
+    "transit", "arrival_travel_time_matrix", origins = points[1:100, ], destinations = points,
+    mode = c("CAR", "TRANSIT"), arrival_datetime = as.POSIXct("2019-05-13 08:00:00", tz = tz),
+    max_car_time = 20L, max_trip_duration = 60L, seed = 7L))
+
+  # bicycle and car egress (R5 searches from every stop with its default
+  # request: 5 km by bicycle at any traffic stress, 30 min by car)
+  run("egress_ttm_bike", "TRANSIT, egress BICYCLE, 5 percentiles", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = transit, mode_egress = "BICYCLE", departure_datetime = departure,
+    percentiles = pct5, seed = 42L))
+  run("egress_ttm_bike_v2", "egress BICYCLE, bike 15, mbt 10, lts 1, tw 5", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = transit, mode_egress = "BICYCLE", departure_datetime = departure,
+    bike_speed = 15, max_bike_time = 10L, max_lts = 1, time_window = 5L, seed = 42L))
+  run("egress_ttm_car", "TRANSIT, egress CAR, 5 percentiles", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = transit, mode_egress = "CAR", departure_datetime = departure,
+    percentiles = pct5, seed = 42L))
+  run("egress_ttm_car_v2", "egress CAR, mct 8, mtd 60, 07:30:30", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = "TRANSIT", mode_egress = "CAR",
+    departure_datetime = as.POSIXct("2019-05-13 07:30:30", tz = tz),
+    max_car_time = 8L, max_trip_duration = 60L, seed = 7L))
+  run("egress_ttm_bike_car", "BICYCLE+TRANSIT, egress CAR, mbt 15", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("BICYCLE", "TRANSIT"), mode_egress = "CAR", departure_datetime = departure,
+    max_bike_time = 15L, seed = 42L))
+  run("egress_ttm_car_bike", "CAR+BUS, egress BICYCLE, mct 15, mbt 12", both(
+    "transit", "travel_time_matrix", origins = points, destinations = points,
+    mode = c("CAR", "BUS"), mode_egress = "BICYCLE", departure_datetime = departure,
+    max_car_time = 15L, max_bike_time = 12L, seed = 42L))
+  run("egress_acc_bike", "egress BICYCLE step, cutoffs 30,60", both(
+    "transit", "accessibility", origins = points, destinations = points,
+    opportunities_colnames = c("jobs", "population"), mode = transit,
+    mode_egress = "BICYCLE", departure_datetime = departure, cutoffs = c(30L, 60L),
+    seed = 42L))
+  run("egress_acc_car", "egress CAR exponential, cutoff 40", both(
+    "transit", "accessibility", origins = points, destinations = points,
+    opportunities_colnames = "jobs", mode = transit, mode_egress = "CAR",
+    departure_datetime = departure, decay_function = "exponential", cutoffs = 40L,
+    max_car_time = 15L, seed = 42L))
+  run("egress_expanded_bike", "first 50, egress BICYCLE, breakdown", both(
+    "transit", "expanded_travel_time_matrix", origins = points[1:50, ], destinations = points,
+    mode = transit, mode_egress = "BICYCLE", departure_datetime = departure,
+    breakdown = TRUE, seed = 42L))
+  run("egress_expanded_car", "first 50, CAR+TRANSIT, egress CAR, breakdown", both(
+    "transit", "expanded_travel_time_matrix", origins = points[1:50, ], destinations = points,
+    mode = c("CAR", "TRANSIT"), mode_egress = "CAR", departure_datetime = departure,
+    breakdown = TRUE, time_window = 5L, max_car_time = 10L, seed = 42L))
+  run("egress_arrival_bike", "first 100, egress BICYCLE, 16:00, breakdown", both(
+    "transit", "arrival_travel_time_matrix", origins = points[1:100, ], destinations = points,
+    mode = transit, mode_egress = "BICYCLE",
+    arrival_datetime = as.POSIXct("2019-05-13 16:00:00", tz = tz), breakdown = TRUE,
+    max_bike_time = 15L, seed = 42L))
+  run("egress_arrival_car", "first 100, egress CAR, 08:00", both(
+    "transit", "arrival_travel_time_matrix", origins = points[1:100, ], destinations = points,
+    mode = transit, mode_egress = "CAR",
+    arrival_datetime = as.POSIXct("2019-05-13 08:00:00", tz = tz),
+    max_car_time = 20L, max_trip_duration = 60L, seed = 7L))
+
   # travel_time_matrix, street modes, on the street-only network and on the
   # transit network (whose streets carry the stop links)
   for (kind in c("street", "transit")) {

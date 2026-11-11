@@ -127,8 +127,6 @@ row, which goes the other way.
 
 | r5r feature | In peabiru |
 |---|---|
-| `mode` with `"BICYCLE"` or `"CAR"` plus `"TRANSIT"`; `mode_egress` other than `"WALK"` | error |
-| A subset of transit modes (`"BUS"`, `"RAIL"`, ...) instead of `"TRANSIT"` | error |
 | Fares: `fare_structure`, `max_fare` | error |
 | Scenarios: `new_carspeeds`, `carspeed_scale`, `new_lts` | error |
 | `output_dir` | error |

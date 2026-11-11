@@ -162,13 +162,12 @@ the latest departure that still arrives by a given time.
 ## What is not supported yet
 
 Options that peabiru does not implement yet stop with an error rather than
-being ignored: public transport with bicycle or car access, a subset of
-transit modes, fares, congestion and traffic-stress scenarios, elevation and
+being ignored: fares, congestion and traffic-stress scenarios, elevation and
 `output_dir`. For example:
 
 ```{r, error = TRUE}
-travel_time_matrix(network, points, points, mode = c("BICYCLE", "TRANSIT"),
-                   departure_datetime = departure)
+travel_time_matrix(network, points, points, mode = "WALK",
+                   output_dir = tempdir())
 ```
 
 The help pages of `travel_time_matrix()`, `accessibility()`,

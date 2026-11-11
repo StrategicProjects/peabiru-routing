@@ -319,7 +319,7 @@ export interface IsochroneOptions extends Omit<RoutingOptions, "newCarspeeds" | 
 Options of `isochrone()`, with r5r's defaults: those of the routing functions that r5r's `isochrone()` takes (no fares, scenarios or `outputDir`), plus its own.
 
 - `mode?: string | string[]`: As in the other functions, but `"transit"` by default (case does not matter).
-- `modeEgress?: string`: `"walk"` by default; only walking is supported with transit.
+- `modeEgress?: string`: `"walk"` by default (case does not matter).
 - `cutoffs?: number | number[]`: Minutes that delimit the isochrones (default `[0, 15, 30]`): finite and at least 0, sorted and made distinct, 0 added; one must be above 0.
 - `zoom?: number`: Web Mercator zoom level, 9 to 12, of the grid polygons are made from (default 10).
 - `polygonOutput?: boolean`: `true` (default) for polygons, `false` for the street segments reached.
@@ -465,11 +465,11 @@ export interface RoutingOptions
 
 Options shared by every routing function, with r5r's defaults.
 
-- `mode?: string | string[]`: `"WALK"` (default), `"BICYCLE"` or `"CAR"`, or `"TRANSIT"` (alone or with `"WALK"`). Transit modes other than `"TRANSIT"`, and bicycle or car access to transit, throw [`UnsupportedError`](#UnsupportedError).
-- `modeEgress?: string`: Only `"WALK"` (default) is supported with transit.
+- `mode?: string | string[]`: `"WALK"` (default), `"BICYCLE"` or `"CAR"` alone, or public transport: `"TRANSIT"` (every transit mode) or any of `"TRAM"`, `"SUBWAY"`, `"RAIL"`, `"BUS"`, `"FERRY"`, `"CABLE_CAR"`, `"GONDOLA"`, `"FUNICULAR"`, with at most one street mode to reach it (walking by default; by bicycle or car the trip goes on on foot from where the vehicle got, as in R5).
+- `modeEgress?: string`: `"WALK"` (default), `"BICYCLE"` or `"CAR"`: from public transport to the destinations.
 - `maxWalkTime?: number`: Minutes; `Infinity` (default) means the trip limit.
-- `maxBikeTime?: number`: Minutes; `Infinity` (default) means the trip limit.
-- `maxCarTime?: number`: Minutes; `Infinity` (default) means the trip limit.
+- `maxBikeTime?: number`: Minutes by bicycle to or from public transport, or alone; `Infinity` (default) means the trip limit.
+- `maxCarTime?: number`: Minutes by car to or from public transport, or alone; `Infinity` (default) means the trip limit.
 - `maxTripDuration?: number`: Minutes (default 120).
 - `walkSpeed?: number`: km/h (default 3.6).
 - `bikeSpeed?: number`: km/h (default 12).

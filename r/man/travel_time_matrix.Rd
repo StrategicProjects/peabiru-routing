@@ -43,10 +43,13 @@ travel_time_matrix(
 \code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84.}
 
 \item{mode}{A character vector, the transport modes: one of \code{"WALK"},
-\code{"BICYCLE"} or \code{"CAR"}, or \code{"TRANSIT"} (alone or with \code{"WALK"}).}
+\code{"BICYCLE"} or \code{"CAR"}, and for public transport \code{"TRANSIT"} (every
+transit mode) or any of \code{"TRAM"}, \code{"SUBWAY"}, \code{"RAIL"}, \code{"BUS"},
+\code{"FERRY"}, \code{"CABLE_CAR"}, \code{"GONDOLA"} and \code{"FUNICULAR"}; the street
+mode, \code{"WALK"} by default with transit, is the access mode.}
 
 \item{mode_egress}{A string, the mode from the last stop to the
-destination. Only \code{"WALK"} is supported with transit.}
+destination: \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}.}
 
 \item{departure_datetime}{A POSIXct, the departure date and time. Its
 clock time and date are taken in its own time zone. Required with
@@ -102,16 +105,24 @@ percentile beyond the limit is \code{NA}.
 }
 \description{
 Travel times between every origin and every destination, by one street
-mode (\code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}) or by public transport with walk
-access and egress (\code{c("WALK", "TRANSIT")}). Arguments, defaults and the
-result are those of \code{r5r::travel_time_matrix()} (r5r 2.5.0), and so are
-the values: peabiru reproduces R5's routing exactly.
+mode (\code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}) or by public transport (all of it
+or some of its modes), reached by walking, bicycle or car and left by
+any of them (\code{mode_egress}). Arguments, defaults and the result are those
+of \code{r5r::travel_time_matrix()} (r5r 2.5.0), and so are the values:
+peabiru reproduces R5's routing exactly.
 }
 \details{
-Not supported yet, and an error when requested: transit with \code{"BICYCLE"}
-or \code{"CAR"} access or a non-walk \code{mode_egress}; a subset of transit modes
-(such as \code{"BUS"}); fares (\code{fare_structure}, \code{max_fare}); scenarios
-(\code{new_carspeeds}, \code{carspeed_scale}, \code{new_lts}); \code{output_dir}.
+As in R5, a bicycle or car trip to public transport goes on on foot from
+wherever the vehicle got, within the same \code{max_bike_time} or
+\code{max_car_time} (so stops in pedestrian-only areas are reached), and the
+trip without public transport keeps those walking ends too. Egress by
+bicycle or car is searched from every stop with R5's defaults (up to
+5 km by bicycle at any level of traffic stress, up to 30 minutes by
+car) and must stay within \code{max_bike_time} or \code{max_car_time}.
+
+Not supported yet, and an error when requested: fares (\code{fare_structure},
+\code{max_fare}); scenarios (\code{new_carspeeds}, \code{carspeed_scale}, \code{new_lts});
+\code{output_dir}.
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")

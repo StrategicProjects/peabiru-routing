@@ -1,8 +1,9 @@
 # Expanded and arrival matrices
 
 These two functions report individual trips rather than percentiles. Both
-route by public transport with walking access and egress
-(`mode=["WALK", "TRANSIT"]`); a street mode alone is an error (use
+route by public transport (`mode=["WALK", "TRANSIT"]` by default here,
+or any subset of the transit modes reached and left on foot, by bicycle or
+by car); a street mode alone is an error (use
 [`travel_time_matrix()`](travel-time-matrices.md)).
 
 ```python

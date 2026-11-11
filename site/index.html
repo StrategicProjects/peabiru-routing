@@ -202,9 +202,9 @@ Measured 2026-11-10; <a href="benchmarks.html">methodology, all tasks and how th
       <h3>Implemented</h3>
       <ul class="check">
         <li>Network from one <code>.pbf</code> and any number of GTFS feeds (schedules and frequencies)</li>
-        <li><code>travel_time_matrix()</code>: walk, bicycle, car; walk + transit</li>
+        <li><code>travel_time_matrix()</code>: walk, bicycle, car; transit (any subset of its modes) reached and left on foot, by bicycle or by car</li>
         <li><code>accessibility()</code> with all five decay functions</li>
-        <li><code>expanded_travel_time_matrix()</code> and <code>arrival_travel_time_matrix()</code> (walk + transit)</li>
+        <li><code>expanded_travel_time_matrix()</code> and <code>arrival_travel_time_matrix()</code></li>
         <li><code>isochrone()</code>: polygons from a travel-time surface, or the street segments reached</li>
         <li>Monte Carlo draws for frequency-based feeds, reproducible with a <code>seed</code></li>
       </ul>
@@ -214,8 +214,6 @@ Measured 2026-11-10; <a href="benchmarks.html">methodology, all tasks and how th
       <ul class="todo">
         <li>Detailed itineraries</li>
         <li>Fares and Pareto frontiers</li>
-        <li>Bicycle or car access to public transport; non-walk egress</li>
-        <li>Choosing a subset of transit modes</li>
         <li>Elevation; congestion and traffic-stress scenarios</li>
       </ul>
     </div>

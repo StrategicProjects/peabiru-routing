@@ -53,10 +53,13 @@ numeric columns of \code{destinations} with the opportunity counts. Missing
 values count as 0, with a warning.}
 
 \item{mode}{A character vector, the transport modes: one of \code{"WALK"},
-\code{"BICYCLE"} or \code{"CAR"}, or \code{"TRANSIT"} (alone or with \code{"WALK"}).}
+\code{"BICYCLE"} or \code{"CAR"}, and for public transport \code{"TRANSIT"} (every
+transit mode) or any of \code{"TRAM"}, \code{"SUBWAY"}, \code{"RAIL"}, \code{"BUS"},
+\code{"FERRY"}, \code{"CABLE_CAR"}, \code{"GONDOLA"} and \code{"FUNICULAR"}; the street
+mode, \code{"WALK"} by default with transit, is the access mode.}
 
 \item{mode_egress}{A string, the mode from the last stop to the
-destination. Only \code{"WALK"} is supported with transit.}
+destination: \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}.}
 
 \item{departure_datetime}{A POSIXct, the departure date and time. Its
 clock time and date are taken in its own time zone. Required with
@@ -124,8 +127,8 @@ origin, opportunity, percentile and cutoff, in that order.
 \description{
 Cumulative or decay-weighted access to the opportunities at the
 destinations from each origin, by one street mode (\code{"WALK"}, \code{"BICYCLE"}
-or \code{"CAR"}) or by public transport with walk access and egress
-(\code{c("WALK", "TRANSIT")}). Arguments, defaults and the result are those of
+or \code{"CAR"}) or by public transport (see \code{\link[=travel_time_matrix]{travel_time_matrix()}} for the
+modes). Arguments, defaults and the result are those of
 \code{r5r::accessibility()} (r5r 2.5.0); the values are bit-identical.
 }
 \details{
@@ -134,9 +137,8 @@ cutoff are not considered (\code{max_trip_duration} becomes \code{max(cutoffs)})
 while the other functions still weight them; and \code{max_trip_duration} may
 not be shorter than the largest cutoff.
 
-Not supported yet, and an error when requested: transit with \code{"BICYCLE"}
-or \code{"CAR"} access or a non-walk \code{mode_egress}; a subset of transit modes;
-fares; scenarios; \code{output_dir}.
+Not supported yet, and an error when requested: fares; scenarios;
+\code{output_dir}.
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")

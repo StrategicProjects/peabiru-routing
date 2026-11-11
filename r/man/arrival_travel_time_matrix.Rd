@@ -40,10 +40,13 @@ arrival_travel_time_matrix(
 \code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84.}
 
 \item{mode}{A character vector, the transport modes: one of \code{"WALK"},
-\code{"BICYCLE"} or \code{"CAR"}, or \code{"TRANSIT"} (alone or with \code{"WALK"}).}
+\code{"BICYCLE"} or \code{"CAR"}, and for public transport \code{"TRANSIT"} (every
+transit mode) or any of \code{"TRAM"}, \code{"SUBWAY"}, \code{"RAIL"}, \code{"BUS"},
+\code{"FERRY"}, \code{"CABLE_CAR"}, \code{"GONDOLA"} and \code{"FUNICULAR"}; the street
+mode, \code{"WALK"} by default with transit, is the access mode.}
 
 \item{mode_egress}{A string, the mode from the last stop to the
-destination. Only \code{"WALK"} is supported with transit.}
+destination: \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}.}
 
 \item{arrival_datetime}{A POSIXct (or a POSIXlt, converted as r5r does),
 the time by which trips must arrive, taken in its own time zone.}
@@ -91,8 +94,8 @@ reached in time.
 }
 \description{
 For each origin and destination, the trip that leaves latest and still
-arrives by \code{arrival_datetime}, by public transport with walk access and
-egress (\code{c("WALK", "TRANSIT")}). Arguments, defaults and the result are
+arrives by \code{arrival_datetime}, by public transport (see
+\code{\link[=travel_time_matrix]{travel_time_matrix()}} for the modes). Arguments, defaults and the result are
 those of \code{r5r::arrival_travel_time_matrix()} (r5r 2.5.0), with the same
 values: as r5r does, departures are searched minute by minute from
 \code{arrival_datetime - max_trip_duration}, which may fall on the day before.

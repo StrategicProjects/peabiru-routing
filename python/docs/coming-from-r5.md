@@ -146,10 +146,6 @@ the same parameters; peabiru is validated against r5r, not r5py.
 
 Each of these raises `peabiru.UnsupportedError` instead of being ignored:
 
-- public transport with `BICYCLE` or `CAR` access (`mode=["BICYCLE", "TRANSIT"]`),
-  and a `mode_egress` other than `"WALK"`;
-- routing on a subset of transit modes (`"BUS"`, `"RAIL"`, ...) instead of
-  `"TRANSIT"`;
 - fares: `fare_structure`, and a finite `max_fare`;
 - scenarios: `new_carspeeds`, `carspeed_scale` other than 1, `new_lts`;
 - writing results to `output_dir`;

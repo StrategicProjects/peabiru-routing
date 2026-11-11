@@ -20,7 +20,7 @@ const ids = { id: ["a", "b"], lon: points.lon, lat: points.lat };
 // ANCHOR: errors
 for (const options of [
   { mode: "WALK", maxTripDurations: 30 }, // a typo
-  { mode: ["WALK", "BUS"], departureDatetime: "2019-05-13 14:00:00" }, // a transit mode
+  { mode: "WALK", outputDir: "results" }, // writing results to files
 ]) {
   try {
     await peabiru.travelTimeMatrix(network, ids, ids, options);

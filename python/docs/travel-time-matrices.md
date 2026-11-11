@@ -108,6 +108,32 @@ print(ttm[ttm["travel_time_p95"].isna()].head(3).to_string())
 A pair is reported when its lowest percentile is within `max_trip_duration`;
 a higher percentile beyond the limit is missing (`<NA>`).
 
+### Transit modes, bicycle and car
+
+Instead of `"TRANSIT"`, `mode` can name some of the transit modes
+(`"TRAM"`, `"SUBWAY"`, `"RAIL"`, `"BUS"`, `"FERRY"`, `"CABLE_CAR"`,
+`"GONDOLA"`, `"FUNICULAR"`), and its street mode, walking by default, can be
+`"BICYCLE"` or `"CAR"`; `mode_egress` is the mode from the last stop. As in
+R5, a bicycle or car trip to the stops goes on on foot from where the
+vehicle got, within the same `max_bike_time` or `max_car_time`; egress by
+bicycle or car is limited by `max_bike_time` or `max_car_time` (and searched
+up to 5 km by bicycle or 30 minutes by car, as R5 does):
+
+```python
+kw = dict(departure_datetime=dt.datetime(2019, 5, 13, 14, 0), seed=1, n_threads=2)
+every = peabiru.travel_time_matrix(network, points, points, mode="TRANSIT", **kw)
+bus = peabiru.travel_time_matrix(network, points, points, mode=["WALK", "BUS"], **kw)
+bike_car = peabiru.travel_time_matrix(
+    network, points, points, mode=["BICYCLE", "TRANSIT"], mode_egress="CAR",
+    max_bike_time=10, max_car_time=5, **kw,
+)
+print([round(float(m["travel_time_p50"].mean()), 2) for m in (every, bus, bike_car)])
+```
+
+```text
+[18.03, 19.35, 12.62]
+```
+
 ### Departure times
 
 The date and the clock time of `departure_datetime` are used as they read:

@@ -40,10 +40,13 @@ expanded_travel_time_matrix(
 \code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84.}
 
 \item{mode}{A character vector, the transport modes: one of \code{"WALK"},
-\code{"BICYCLE"} or \code{"CAR"}, or \code{"TRANSIT"} (alone or with \code{"WALK"}).}
+\code{"BICYCLE"} or \code{"CAR"}, and for public transport \code{"TRANSIT"} (every
+transit mode) or any of \code{"TRAM"}, \code{"SUBWAY"}, \code{"RAIL"}, \code{"BUS"},
+\code{"FERRY"}, \code{"CABLE_CAR"}, \code{"GONDOLA"} and \code{"FUNICULAR"}; the street
+mode, \code{"WALK"} by default with transit, is the access mode.}
 
 \item{mode_egress}{A string, the mode from the last stop to the
-destination. Only \code{"WALK"} is supported with transit.}
+destination: \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}.}
 
 \item{departure_datetime}{A POSIXct, the departure date and time. Its
 clock time and date are taken in its own time zone. Required with
@@ -99,8 +102,8 @@ Trips longer than \code{max_trip_duration} have \code{NA} times and routes.
 \description{
 The travel time of every trip between each origin and destination, for
 every departure minute in the time window (and every Monte Carlo draw
-with frequency-based 'GTFS'), by public transport with walk access and
-egress (\code{c("WALK", "TRANSIT")}). Arguments, defaults and the result are
+with frequency-based 'GTFS'), by public transport (see
+\code{\link[=travel_time_matrix]{travel_time_matrix()}} for the modes). Arguments, defaults and the result are
 those of \code{r5r::expanded_travel_time_matrix()} (r5r 2.5.0), with the same
 values.
 }
@@ -108,8 +111,9 @@ values.
 Only public transport is supported: with a street mode alone r5r reports
 the same trip for every minute of a departure time taken from the clock
 (\code{Sys.time()}), which peabiru does not reproduce; that is an error, as
-are transit with \code{"BICYCLE"} or \code{"CAR"} access or a non-walk
-\code{mode_egress}, a subset of transit modes, scenarios and \code{output_dir}.
+are scenarios and \code{output_dir}. A trip without public transport has the
+street mode as \code{routes} (\code{"[WALK]"}, \code{"[BICYCLE]"} or \code{"[CAR]"}), as in
+r5r.
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
