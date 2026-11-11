@@ -14,10 +14,10 @@ as the native packages, which give the numbers of
 
 **Status**: version 0.0.1, early development; the interfaces may still change.
 
-[<img src="https://strategicprojects.github.io/peabiru-routing/assets/figures/demo-poa.webp" width="560" alt="An isochrone map of Porto Alegre computed in the browser: three nested areas reached by walking and public transport from a clicked point.">](https://strategicprojects.github.io/peabiru-routing/demo/)
+[<img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/demo-poa.webp" width="560" alt="An isochrone map of Porto Alegre computed in the browser: three nested areas reached by walking and public transport from a clicked point.">](https://github.com/StrategicProjects/peabiru-routing/tree/main/site/demo)
 
-Try it: the [isochrone demo](https://strategicprojects.github.io/peabiru-routing/demo/) builds a network and routes in the
-page, with this package and no server ([how it works](https://strategicprojects.github.io/peabiru-routing/js/examples.html)).
+Try it: the [isochrone demo](https://github.com/StrategicProjects/peabiru-routing/tree/main/site/demo) builds a network and routes in the
+page, with this package and no server ([how it works](https://github.com/StrategicProjects/peabiru-routing/blob/main/site/js/src/examples.md)).
 
 ```sh
 npm install peabiru
