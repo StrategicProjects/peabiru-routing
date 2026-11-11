@@ -93,6 +93,13 @@ dtype: object
 - **`arrival_datetime`** has a default of `None` (Python cannot have a
   required argument after optional ones); leaving it out is the same error
   as in r5r.
+- **Scenario limits**: a scenario whose car speeds R5's 16-bit cm/s would
+  wrap or bring to 0 or less (a negative factor or speed, a polygon `scale`
+  of `inf` or 0, a `carspeed_scale` far above 1) and a `carspeed_scale`
+  beyond the 32-bit float range are errors, where r5r routes on the
+  wrapped speeds (or fails dividing by zero); a `carspeed_scale` of NaN,
+  which r5r lets through and then fails on with an internal R error, is a
+  `ValueError` that says so.
 - **GTFS errors are not written to the data folder**: as r5r,
   `build_network()` refuses feeds with errors of priority `"HIGH"`, but it
   does not write `gtfs_errors.csv`; `get_gtfs_errors()` checks the feeds

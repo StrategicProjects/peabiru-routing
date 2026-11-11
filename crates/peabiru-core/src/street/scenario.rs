@@ -173,6 +173,16 @@ impl Scenario {
     /// and closed, lines of at least 2 points, finite coordinates.
     pub(crate) fn check(&self) -> Result<(), String> {
         let s = self.car_speed_scale;
+        if s == f32::INFINITY {
+            // a finite double above the float range: r5r hands R5
+            // .jfloat(carspeed_scale), which is then Infinity
+            return Err(
+                "carspeed_scale is too large for the 32-bit float R5 reads it as \
+                        (it becomes Infinity there, and R5's car speeds overflow, which \
+                        peabiru does not reproduce)"
+                    .into(),
+            );
+        }
         if !s.is_finite() || s < 0.0 {
             return Err(format!(
                 "carspeed_scale must be a finite number of at least 0, got {s}"

@@ -51,7 +51,7 @@ test_that("decay arguments are checked as r5r checks them", {
   expect_error(call(decay_function = "logistic", decay_value = 0.5, cutoffs = 30),
                "greater than or equal to 1")
   expect_error(call(decay_function = "fixed_exponential", decay_value = 1), "between 0 and 1")
-  expect_error(call(decay_function = "gaussian", cutoffs = 30), "Must be a subset")
+  expect_error(call(decay_function = "gaussian", cutoffs = 30), "Names must be a subset")
   expect_error(call(cutoffs = 121), "<= 120")
   expect_error(call(cutoffs = 1:13), "length <= 12")
   expect_error(call(cutoffs = c(30, 30)), "duplicated")

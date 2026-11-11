@@ -32,9 +32,10 @@ pub struct Header {
 }
 
 impl Header {
-    /// Index of a column, if present.
+    /// Index of a column, if present; of the last one of a repeated name
+    /// (javacsv's map of header names keeps the last).
     pub fn col(&self, name: &str) -> Option<usize> {
-        self.names.iter().position(|h| h == name)
+        self.names.iter().rposition(|h| h == name)
     }
 
     #[cfg(test)]
@@ -49,10 +50,13 @@ pub struct Row<'a> {
 }
 
 impl Row<'_> {
-    /// Field at column `c`, trimmed; empty when the record is short or the
+    /// Field at column `c` as javacsv returns it (an unquoted field without
+    /// its leading and trailing spaces and tabs, a quoted one as quoted:
+    /// gtfs-lib trims nothing more); empty when the record is short or the
     /// column is absent.
     pub fn get(&self, c: Option<usize>) -> &str {
-        c.and_then(|c| self.fields.get(c)).map_or("", |s| s.trim())
+        c.and_then(|c| self.fields.get(c))
+            .map_or("", String::as_str)
     }
 }
 
@@ -215,7 +219,7 @@ pub fn for_each_row<E>(
         match &header {
             None => {
                 header = Some(Header {
-                    names: record.iter().map(|s| s.trim().to_string()).collect(),
+                    names: record.to_vec(),
                 });
             }
             Some(h) => f(h, record_line, &Row { fields: record }).map_err(ReadError::Callback)?,
@@ -359,6 +363,30 @@ mod tests {
         assert_eq!(
             parse(&cols).unwrap_err(),
             CsvError::TooManyColumns { line: 2 }
+        );
+    }
+
+    /// Checked against r5r with feeds of quoted spaces, form feeds and
+    /// no-break spaces in names, and a repeated column.
+    #[test]
+    fn values_and_headers_as_javacsv() {
+        let mut got = Vec::new();
+        for_each_row::<()>(b"a,b, a\n\"  x \",\x0cy\xc2\xa0,z\n", |h, _, r| {
+            got.push((
+                h.col("a"),
+                r.get(h.col("a")).to_string(),
+                r.get(Some(0)).to_string(),
+            ));
+            got.push((h.col("b"), r.get(h.col("b")).to_string(), String::new()));
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(
+            got,
+            [
+                (Some(2), "z".to_string(), "  x ".to_string()),
+                (Some(1), "\x0cy\u{a0}".to_string(), String::new())
+            ]
         );
     }
 

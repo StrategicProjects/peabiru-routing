@@ -106,7 +106,7 @@ test_that("street modes alone and other unsupported options are errors", {
   )
   expect_error(
     arrival_travel_time_matrix(network, pts, pts, mode = "TRANSIT"),
-    "'arrival_datetime' is required"
+    "`arrival_datetime` is required"
   )
   # by car, a record without public transport has r5r's routes "[CAR]"
   car <- expanded_travel_time_matrix(network, pts, pts, mode = c("CAR", "TRANSIT"),

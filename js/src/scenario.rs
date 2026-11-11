@@ -96,7 +96,16 @@ pub(crate) fn scenario_of(spec: &JsValue) -> Result<Scenario, JsError> {
             };
         }
         "polygon" => {
-            let (x, y) = (doubles(spec, "poly_x")?, doubles(spec, "poly_y")?);
+            // r5r hands the polygons to R5 through GeoJSON written by GDAL
+            let gdal = |v: Vec<f64>| -> Vec<f64> {
+                v.into_iter()
+                    .map(peabiru_core::unstable::gdal_geojson_coordinate)
+                    .collect()
+            };
+            let (x, y) = (
+                gdal(doubles(spec, "poly_x")?),
+                gdal(doubles(spec, "poly_y")?),
+            );
             let ring_len = sizes(spec, "ring_len")?;
             let ring_polygon = sizes(spec, "ring_polygon")?;
             let polygon_feature = sizes(spec, "polygon_feature")?;

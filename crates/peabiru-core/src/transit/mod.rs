@@ -389,9 +389,10 @@ mod tests {
             for f in [&no_agency, &unknown_stop] {
                 assert_eq!(build(&[("a.zip", f)], true, threads).unwrap(), 1);
             }
-            // without the check, peabiru's own reading of the numbers fails
-            let e = build(&[("c.zip", &bad_number)], true, threads).unwrap_err();
-            assert!(e.high_priority_gtfs_errors().is_none());
+            // without the check, numbers that do not parse are read as
+            // gtfs-lib reads them (NaN coordinates: the stops link to no
+            // street)
+            assert_eq!(build(&[("c.zip", &bad_number)], true, threads).unwrap(), 1);
         }
     }
 
@@ -411,31 +412,52 @@ mod tests {
             let e = build(&[("a.zip", &one_point)], false, threads).unwrap_err();
             assert!(e.high_priority_gtfs_errors().is_none());
             assert!(e.to_string().starts_with("a.zip: shape 'P'"), "{e}");
-            assert!(build(&[("a.zip", &one_point)], true, threads).is_ok());
+            // R5 fails on it too, when it draws the shape of the pattern
+            let e = build(&[("a.zip", &one_point)], true, threads).unwrap_err();
+            assert!(e.to_string().contains("IllegalArgumentException"), "{e}");
         }
     }
 
+    /// Feeds whose errors are only of priority MEDIUM or LOW, that r5r
+    /// builds: values gtfs-lib cannot read take its defaults.
     #[test]
-    fn a_feed_r5r_builds_and_peabiru_cannot_read_says_so() {
-        // a TimeParseError is MEDIUM: r5r builds the network
-        let short_time = feed(&[(
-            "stop_times.txt",
-            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
-             T1,14:00,14:00:00,A,1\nT1,14:05:00,14:05:00,B,2\n",
-        )]);
-        for threads in [1, 2] {
-            let e = build(&[("a.zip", &short_time)], false, threads).unwrap_err();
-            assert_eq!(
-                e.to_string(),
-                "a.zip: stop_times.txt line 2: invalid arrival_time '14:00' (r5r builds a \
-                 network from this feed, whose GTFS errors are not of priority HIGH, but \
-                 peabiru cannot read it)"
-            );
-            let e = build(&[("a.zip", &short_time)], true, threads).unwrap_err();
-            assert_eq!(
-                e.to_string(),
-                "a.zip: stop_times.txt line 2: invalid arrival_time '14:00'"
-            );
+    fn feeds_r5r_builds_are_read() {
+        // a TimeParseError (the time is missing, then interpolated), a
+        // missing route_type (0, tram), stop_sequence (0: one stop time per
+        // trip) and calendar start (0)
+        for changes in [
+            &[(
+                "stop_times.txt",
+                "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+                 T1,14:00,14:00:00,A,1\nT1,14:05:00,14:05:00,B,2\n",
+            )][..],
+            &[("routes.txt", "route_id\nR\n")],
+            &[(
+                "stop_times.txt",
+                "trip_id,arrival_time,departure_time,stop_id\n\
+                 T1,14:00:00,14:00:00,A\nT1,14:05:00,14:05:00,B\n",
+            )],
+            &[(
+                "calendar.txt",
+                "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,\
+                 start_date,end_date\nS,1,1,1,1,1,1,1,,20191231\n",
+            )],
+        ] {
+            for threads in [1, 2] {
+                assert_eq!(
+                    build(&[("a.zip", &feed(changes))], false, threads).unwrap(),
+                    1
+                );
+            }
         }
+        // a trip without route_id: gtfs-lib records an EmptyFieldError
+        // (MEDIUM), then R5 fails on it
+        let no_route = feed(&[("trips.txt", "route_id,service_id,trip_id\n,S,T1\n")]);
+        let e = build(&[("a.zip", &no_route)], false, 1).unwrap_err();
+        assert_eq!(
+            e.to_string(),
+            "a.zip: trip 'T1' has no route_id, and R5 fails building its transit layer from the \
+             feed (NullPointerException), as does r5r's build_network()"
+        );
     }
 }

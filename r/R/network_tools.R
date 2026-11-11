@@ -54,28 +54,21 @@ find_snap <- function(r5r_network,
     r5r_network <- r5r_core
   }
   assert_network(r5r_network)
-  # checkmate::assert_numeric(radius, lower = 0, finite = TRUE, max.len = 1)
-  if (!is.numeric(radius)) fail_assert("radius", "Must be of type 'numeric'")
-  if (length(radius) > 1L) {
-    fail_assert("radius", paste0("Must have length <= 1, but has length ", length(radius)))
-  }
-  if (any(is.infinite(radius))) fail_assert("radius", "Must be finite")
-  if (any(radius < 0, na.rm = TRUE)) fail_assert("radius", "Element 1 is not >= 0")
+  cm_assert(check_numeric(radius, lower = 0, finite = TRUE, max.len = 1), "radius")
   mode_options <- c("WALK", "BICYCLE", "CAR")
-  assert_string(mode, "mode")
-  if (!mode %in% mode_options) {
-    fail_assert("mode", paste0(
-      "Must be a subset of {", paste0("'", mode_options, "'", collapse = ","),
-      "}, but has additional elements {'", mode, "'}"
-    ))
-  }
+  cm_assert_and("mode", check_string(mode), check_names(mode, subset.of = mode_options))
 
   points <- assign_points_input(points, "points")
   if (length(radius) == 0L) {
     # r5r hands Java a zero-length radius; it fails there
     stop("'radius' must be a single number.", call. = FALSE)
   }
-  # checkmate lets NA through and R5 then snaps nothing (a radius of 0)
+  # checkmate lets NA through: a logical NA has no Java method in r5r (it
+  # fails), a numeric one snaps nothing in R5 (a radius of 0)
+  if (is.logical(radius)) {
+    stop("'radius' must be a number, not NA (r5r 2.5.0 fails on it in Java).",
+         call. = FALSE)
+  }
   if (is.na(radius)) radius <- 0
   res <- rs_find_snap(r5r_network$ptr, points$lat, points$lon,
                       as.double(radius), mode)
@@ -352,11 +345,12 @@ check_transit_availability <- function(r5r_network,
   is_valid_date_range <- is.null(dates) && !is.null(start_date) && !is.null(end_date)
   discover_dates <- is.null(dates) && is.null(start_date) && is.null(end_date)
   if (!discover_dates && !is_valid_dates_vector && !is_valid_date_range) {
-    stop("Incorrect date arguments provided. Omit all date arguments for ",
-         "discovery, or use one of these methods: use the `dates` argument ",
-         "to provide a vector of specific dates, or use both `start_date` ",
-         "and `end_date` to provide a continuous date range. You cannot mix ",
-         "these methods or provide an incomplete date range.", call. = FALSE)
+    cli_abort_text("Incorrect date arguments provided.", c(
+      i = "Omit all date arguments for discovery, or use one of these methods:",
+      "*" = "Use the `dates` argument to provide a vector of specific dates.",
+      "*" = "Use both `start_date` and `end_date` to provide a continuous date range.",
+      x = "You cannot mix these methods or provide an incomplete date range."
+    ))
   }
 
   # r5r's parse_date_input()
@@ -365,20 +359,24 @@ check_transit_availability <- function(r5r_network,
       return(date_input)
     }
     if (!is.character(date_input)) {
-      stop("`", arg_name, "` must be a vector of character strings or Date ",
-           "objects.", call. = FALSE)
+      cli_abort_text(paste0("`", arg_name,
+                            "` must be a vector of character strings or Date objects."))
     }
     if (any(!grepl("^\\d{4}-\\d{2}-\\d{2}$", date_input))) {
-      stop("Invalid date format found in `", arg_name, "`. Please use the ",
-           "strict \"'YYYY-MM-DD'\" format for all date strings.", call. = FALSE)
+      cli_abort_text(bullets = c(
+        x = paste0("Invalid date format found in `", arg_name, "`."),
+        i = "Please use the strict \"'YYYY-MM-DD'\" format for all date strings."
+      ))
     }
     parsed <- lapply(date_input, function(d) {
       tryCatch(as.Date(d), error = function(e) as.Date(NA))
     })
     parsed <- as.Date(do.call("c", parsed))
     if (anyNA(parsed)) {
-      stop("Could not parse all values in `", arg_name, "`. One or more ",
-           "dates are logically invalid (e.g., '2025-02-29').", call. = FALSE)
+      cli_abort_text(bullets = c(
+        x = paste0("Could not parse all values in `", arg_name, "`."),
+        i = "One or more dates are logically invalid (e.g., '2025-02-29')."
+      ))
     }
     parsed
   }
@@ -394,10 +392,10 @@ check_transit_availability <- function(r5r_network,
     start_d <- parse_date_input(start_date, "start_date")
     end_d <- parse_date_input(end_date, "end_date")
     if (length(start_d) > 1 || length(end_d) > 1) {
-      stop("`start_date` and `end_date` must each be a single date.", call. = FALSE)
+      cli_abort_text("`start_date` and `end_date` must each be a single date.")
     }
     if (start_d > end_d) {
-      stop("`start_date` must be before or the same as `end_date`.", call. = FALSE)
+      cli_abort_text("`start_date` must be before or the same as `end_date`.")
     }
     dates_formatted <- format(seq(from = start_d, to = end_d, by = "day"), "%Y-%m-%d")
   }
@@ -412,7 +410,8 @@ check_transit_availability <- function(r5r_network,
     date = as.Date(dates_formatted),
     total_services = total,
     active_services = active,
-    pct_active = ifelse(total == 0L, 0, active / total)
+    # as.numeric: ifelse() of no dates is logical(0), r5r's column double
+    pct_active = as.numeric(ifelse(total == 0L, 0, active / total))
   ))
 }
 
@@ -443,8 +442,10 @@ check_transit_availability <- function(r5r_network,
 #' instead of listing errors (a date that is not `YYYYMMDD`, a frequency
 #' of a trip that does not exist, a service or fare without an id), on
 #' which r5r's `build_network()` fails without writing the file, is an
-#' error naming the cause, and so is a feed with GTFS-Flex zones
-#' (`locations.geojson`), which peabiru does not read.
+#' error naming the cause (as is a `locations.geojson`, of GTFS-Flex zones,
+#' that is not in UTF-8). GTFS-Flex zones and location groups are read as
+#' gtfs-lib reads them, for its errors; on-demand trips are not routed, as
+#' in r5r.
 #'
 #' @param r5r_network A network built with [build_network()], or the path
 #'   of a directory with 'GTFS' feeds (`.zip`), for instance one a network

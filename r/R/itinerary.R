@@ -145,8 +145,8 @@ detailed_itineraries <- function(r5r_network,
   assert_flag(drop_geometry, "drop_geometry")
   assert_flag(osm_link_ids, "osm_link_ids")
   if (isTRUE(drop_geometry) && isTRUE(osm_link_ids)) {
-    stop("To set osm_link_ids to `TRUE`, the parameter 'drop_geometry' must also be `FALSE`",
-         call. = FALSE)
+    cli_abort_text(paste("To set osm_link_ids to `TRUE`, the parameter 'drop_geometry'",
+                         "must also be `FALSE`"))
   }
   assert_count(time_window, "time_window", positive = TRUE)
   check_speed(walk_speed, "walk")
