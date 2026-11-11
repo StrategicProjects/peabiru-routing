@@ -292,7 +292,7 @@ fn start_row(out: &mut String, from: &str, to: &str) {
 
 /// `RDataFrame.csvField`: quoted, with `"` doubled, when it holds `,`,
 /// `"`, `\n` or `\r`.
-fn csv_field(s: &str, out: &mut String) {
+pub(crate) fn csv_field(s: &str, out: &mut String) {
     if s.contains([',', '"', '\n', '\r']) {
         out.push('"');
         out.push_str(&s.replace('"', "\"\""));
@@ -307,7 +307,7 @@ fn csv_field(s: &str, out: &mut String) {
 /// least two significant digits are considered when one would do, the
 /// closest to `v`), in plain notation from 10^-3 up to 10^7 and as
 /// `d.dddE±n` otherwise, always with a digit after the point.
-fn java_double(v: f64, out: &mut String) {
+pub(crate) fn java_double(v: f64, out: &mut String) {
     if v.is_nan() {
         out.push_str("NaN");
         return;

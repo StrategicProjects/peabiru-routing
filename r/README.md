@@ -28,9 +28,11 @@ JavaScript packages and the command-line tool of the same name.
 | `expanded_travel_time_matrix()` | the trip of every departure minute, with its breakdown |
 | `arrival_travel_time_matrix()` | the latest trip that arrives by a given time |
 | `isochrone()` | the areas or street segments reached within each cutoff |
+| `detailed_itineraries()` | the legs of each trip, with their lines (fastest trip; no fares) |
 
-Not implemented yet: detailed itineraries, fares, scenarios and
-elevation. Asking for them stops with an error; nothing is silently ignored.
+Not implemented yet: fares, scenarios, elevation, and the alternative
+itineraries of `detailed_itineraries(shortest_path = FALSE)` with public
+transport. Asking for them stops with an error; nothing is silently ignored.
 
 ## Installation
 

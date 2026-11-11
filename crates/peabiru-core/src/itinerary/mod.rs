@@ -418,6 +418,10 @@ fn plan(
     d: (f64, f64),
     scratch: &mut Vec<u32>,
 ) -> Result<Vec<Trip>, RouteError> {
+    // r5r hands R5 NaN for a missing coordinate: no street is found
+    if ![o.0, o.1, d.0, d.1].iter().all(|v| v.is_finite()) {
+        return Ok(Vec::new());
+    }
     let mut trips = Vec::new();
     if let Some(t) = direct_trip(net, p, o, d, scratch) {
         trips.push(t);
@@ -464,4 +468,63 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
             }
         })
         .collect()
+}
+
+/// Write itineraries as r5r's `detailed_itineraries()` does with
+/// `output_dir` and `drop_geometry = TRUE`: one file per pair with
+/// itineraries, `<dir>/from_<origin id>_to_<destination id>.csv`, with
+/// r5r's columns and number formats (`RDataFrame.saveToCsv`). `ids` and
+/// `points` are those of the pairs given to [`detailed_itineraries`]
+/// (`(from_id, to_id)` and `((lat, lon), (lat, lon))`). r5r's files with
+/// the geometry hold JTS's WKT text, which is not reproduced: write
+/// without it.
+#[allow(clippy::type_complexity)]
+pub fn write_itineraries_csv(
+    dir: &str,
+    ids: &[(String, String)],
+    points: &[((f64, f64), (f64, f64))],
+    itineraries: &[Vec<Itinerary>],
+) -> std::io::Result<()> {
+    use crate::output::{csv_field, java_double};
+    for (k, its) in itineraries.iter().enumerate() {
+        if its.is_empty() {
+            continue;
+        }
+        let (from, to) = (&ids[k].0, &ids[k].1);
+        let ((olat, olon), (dlat, dlon)) = points[k];
+        let mut s = String::from(
+            "from_id,from_lat,from_lon,to_id,to_lat,to_lon,option,departure_time,\
+             total_duration,total_distance,segment,mode,segment_duration,wait,distance,route\n",
+        );
+        for it in its {
+            for (j, l) in it.legs.iter().enumerate() {
+                csv_field(from, &mut s);
+                for v in [olat, olon] {
+                    s.push(',');
+                    java_double(v, &mut s);
+                }
+                s.push(',');
+                csv_field(to, &mut s);
+                for v in [dlat, dlon] {
+                    s.push(',');
+                    java_double(v, &mut s);
+                }
+                s.push_str(&format!(",{},", it.option));
+                csv_field(&it.departure_time, &mut s);
+                s.push(',');
+                java_double(it.total_duration, &mut s);
+                s.push_str(&format!(",{},{},", it.total_distance, j + 1));
+                csv_field(&l.mode, &mut s);
+                for v in [l.segment_duration, l.wait] {
+                    s.push(',');
+                    java_double(v, &mut s);
+                }
+                s.push_str(&format!(",{},", l.distance));
+                csv_field(&l.route, &mut s);
+                s.push('\n');
+            }
+        }
+        std::fs::write(format!("{dir}/from_{from}_to_{to}.csv"), s)?;
+    }
+    Ok(())
 }

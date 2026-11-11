@@ -34,6 +34,7 @@ use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 mod inspect;
+mod itinerary;
 
 /// Missing value in the `i32` columns handed to JavaScript.
 const NA_I32: i32 = i32::MIN;

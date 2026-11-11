@@ -18,6 +18,7 @@ import wasmInit, {
   find_snap as rawFindSnap,
   gtfs_errors as rawGtfsErrors,
   isochrone_lines as rawIsochroneLines,
+  itineraries as rawItineraries,
   isochrone_polygons as rawIsochronePolygons,
   street_bbox as rawStreetBbox,
   street_edges as rawStreetEdges,
@@ -34,6 +35,7 @@ const RAW = {
   transit_ttm: rawTransitTtm,
   accessibility: rawAccessibility,
   expanded: rawExpanded,
+  itineraries: rawItineraries,
   isochrone_polygons: rawIsochronePolygons,
   street_edges: rawStreetEdges,
   availability: (raw, date) => raw.transit_availability(date),
@@ -280,7 +282,7 @@ function column(points, key) {
  * r5r assign_points_input(): columns `id`, `lon`, `lat` (an object of
  * arrays), or an array of `{id, lon, lat}` objects.
  */
-function pointsInput(points, name, warn) {
+function pointsInput(points, name, warn, uniqueIds = true) {
   if (points === null || typeof points !== "object") {
     fail(name, "Must be an object of columns {id, lon, lat} or an array of {id, lon, lat} objects", TypeError);
   }
@@ -327,7 +329,7 @@ function pointsInput(points, name, warn) {
     if (seen.has(id)) dups.push(id);
     else seen.add(id);
   }
-  if (dups.length) {
+  if (uniqueIds && dups.length) {
     throw new RangeError(`'${name}' must not contain duplicated ids. Duplicated id(s): ${uniq(dups).map((i) => `"${i}"`).join(", ")}.`);
   }
   return { ids, lat: coords.lat, lon: coords.lon, points, length: n };
@@ -1471,6 +1473,132 @@ export async function arrivalTravelTimeMatrix(network, origins, destinations, op
   );
   const res = mergeExpanded(parts);
   return expandedResult(res, o, d, opt.breakdown, lim.trip);
+}
+
+// ---------------------------------------------------------------------------
+// Detailed itineraries
+
+/** r5r expand_od_pairs(): the pairs routed, as indices into the origins and destinations. */
+function expandOdPairs(no, nd, allToAll, warn) {
+  assertFlag(allToAll, "allToAll");
+  const oi = [];
+  const di = [];
+  if (allToAll || no === 1 || nd === 1) {
+    for (let i = 0; i < no; i++) for (let j = 0; j < nd; j++) { oi.push(i); di.push(j); }
+    if (!allToAll && (no > 1 || nd > 1)) {
+      warn(no === 1
+        ? "'origins' was expanded to match the number of destinations."
+        : "'destinations' was expanded to match the number of origins.");
+    }
+  } else if (no !== nd) {
+    throw new RangeError(
+      "When 'allToAll' is false, 'origins' and 'destinations' must either have the same number of rows or one of them must have only one row.",
+    );
+  } else {
+    for (let i = 0; i < no; i++) { oi.push(i); di.push(i); }
+  }
+  return { oi, di };
+}
+
+function pick(p, idx) {
+  const lat = new Float64Array(idx.length);
+  const lon = new Float64Array(idx.length);
+  const id = new Array(idx.length);
+  idx.forEach((k, n) => { lat[n] = p.lat[k]; lon[n] = p.lon[k]; id[n] = p.ids[k]; });
+  return { ids: id, lat, lon, length: idx.length };
+}
+
+/**
+ * Detailed itineraries between origin-destination pairs, as r5r's
+ * detailed_itineraries() without fares. Rows (one per leg) as objects, or
+ * GeoJSON features with `dropGeometry: false` (the default).
+ */
+export async function detailedItineraries(network, origins, destinations, options) {
+  const opt = withDefaults(
+    options,
+    { suboptimalMinutes: 0, shortestPath: true, allToAll: false, fareStructure: null, maxFare: Infinity, dropGeometry: false, osmLinkIds: false },
+    [...COMMON, "departureDatetime", "timeWindow"],
+  );
+  const warn = warner(opt);
+  assertNetwork(network);
+  const all = opt.allToAll === true;
+  let o = pointsInput(origins, "origins", warn, all);
+  let d = pointsInput(destinations, "destinations", warn, all);
+  const { oi, di } = expandOdPairs(o.length, d.length, opt.allToAll, warn);
+  o = pick(o, oi);
+  d = pick(d, di);
+  const modeList = assignMode(opt.mode, opt.modeEgress);
+  const departure = assignDeparture(opt.departureDatetime, modeList);
+  if (modeList.transit) {
+    await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
+    if (network.info().frequencies) {
+      throw new RangeError(
+        "Assertion on 'r5r_network' failed: None of the GTFS feeds used to create the transit network can contain a 'frequencies' table. Try using gtfstools::frequencies_to_stop_times() to create a suitable feed.",
+      );
+    }
+  }
+  const lim = streetLimits(opt, modeList);
+  assertFlag(opt.shortestPath, "shortestPath");
+  assertFlag(opt.dropGeometry, "dropGeometry");
+  assertFlag(opt.osmLinkIds, "osmLinkIds");
+  if (opt.dropGeometry && opt.osmLinkIds) {
+    throw new RangeError("To set osmLinkIds to `true`, the parameter 'dropGeometry' must also be `false`");
+  }
+  assertCount(opt.timeWindow, "timeWindow", true);
+  checkSpeed(opt.walkSpeed, "walk");
+  checkSpeed(opt.bikeSpeed, "bike");
+  assertCount(opt.maxRides, "maxRides", true);
+  checkMaxLts(opt.maxLts);
+  checkThreads(opt.nThreads);
+  checkFares(opt.fareStructure, opt.maxFare);
+  checkOutputDir(opt.outputDir);
+  assertCount(opt.suboptimalMinutes, "suboptimalMinutes");
+  if (opt.shortestPath && opt.suboptimalMinutes > 0) {
+    throw new RangeError("Assertion on 'suboptimalMinutes' failed: Must be 0 when 'shortestPath' is true.");
+  }
+  checkScenarios(opt);
+  if (opt.osmLinkIds) unsupported("'osmLinkIds: true'");
+  if (!opt.shortestPath && modeList.transit) unsupported("'shortestPath: false' with public transport (McRAPTOR)");
+  let start = 0;
+  const parts = await network._route(
+    "itineraries", o,
+    (olat, olon) => {
+      const s = start;
+      start += olat.length;
+      return [
+        olat, olon, d.lat.slice(s, s + olat.length), d.lon.slice(s, s + olat.length),
+        modeList.directModes, modeList.transitMode, modeList.egressMode, departure.yyyymmdd, departure.seconds,
+        Math.round(opt.timeWindow), lim.walk, lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed,
+        Math.round(opt.maxRides), Math.round(opt.maxLts), opt.shortestPath,
+      ];
+    },
+    opt.nThreads, opt.signal,
+  );
+  const rows = [];
+  for (const { offset, result } of parts) {
+    const [pair, option, totalDistance, segment, distance, nPoints, totalDuration, segmentDuration, wait, x, y, dep, mode, route] = result;
+    let at = 0;
+    for (let k = 0; k < pair.length; k++) {
+      const i = pair[k] + offset;
+      const row = {
+        from_id: o.ids[i], from_lat: o.lat[i], from_lon: o.lon[i],
+        to_id: d.ids[i], to_lat: d.lat[i], to_lon: d.lon[i],
+        option: option[k], departure_time: dep[k], total_duration: totalDuration[k],
+        total_distance: totalDistance[k], segment: segment[k], mode: mode[k],
+        segment_duration: segmentDuration[k], wait: wait[k], distance: distance[k], route: route[k],
+      };
+      const n = nPoints[k];
+      if (opt.dropGeometry) {
+        rows.push(row);
+      } else {
+        const coordinates = [];
+        for (let p = at; p < at + n; p++) coordinates.push([x[p], y[p]]);
+        rows.push({ type: "Feature", properties: row, geometry: { type: "LineString", coordinates } });
+      }
+      at += n;
+    }
+  }
+  return opt.dropGeometry ? rows : { type: "FeatureCollection", features: rows };
 }
 
 // ---------------------------------------------------------------------------

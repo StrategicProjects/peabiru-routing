@@ -7,9 +7,10 @@
 //! JTS's `ExtractLineByLocation`; a pattern without a shape gets straight
 //! lines between its stops' street vertices.
 //!
-//! The cutting follows JTS 1.18.1 (EPL 2.0 / EDL 1.0) `LinearLocation`,
-//! `LocationIndexOfPoint` and `ExtractLineByLocation`, ported by the peabiru
-//! authors.
+//! The functions below are written for this project to behave as JTS
+//! 1.18.1's `LinearLocation`, `LocationIndexOfPoint` and
+//! `ExtractLineByLocation` do in the cases R5 exercises (see
+//! `LICENSE-THIRD-PARTY`).
 
 use super::geom::Line;
 use crate::street::StreetNetwork;
@@ -231,6 +232,15 @@ pub(crate) fn ride_line(
     let pat = &layer.patterns[pattern];
     let mut out: Line = Vec::new();
     match layer.pattern_shape.get(pattern).copied().flatten() {
+        Some(_)
+            if layer
+                .pattern_shape_dist
+                .get(pattern)
+                .copied()
+                .unwrap_or(false) =>
+        {
+            return Err("a ride along a GTFS shape cut by shape_dist_traveled");
+        }
         Some(s) => {
             let shape = &layer.shapes[s as usize];
             let locs = stop_locations(layer, pattern, shape)

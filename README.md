@@ -59,8 +59,11 @@ crossed South America from the Atlantic to the Andes.
 Public transport can be any subset of the transit modes (`"BUS"`,
 `"RAIL"`, ...), reached by walking, bicycle or car and left the same ways.
 
-Not implemented yet: detailed itineraries, fares, scenarios and
-elevation. Asking for any of them is an error; nothing is silently ignored.
+Detailed itineraries give the legs of the fastest trip, with their lines.
+
+Not implemented yet: fares, scenarios, elevation, and the alternative
+itineraries of `detailed_itineraries(shortest_path = FALSE)` with public
+transport. Asking for any of them is an error; nothing is silently ignored.
 
 **Status:** version 0.0.1, early development. The interfaces may still
 change.

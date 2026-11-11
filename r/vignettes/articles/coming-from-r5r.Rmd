@@ -157,8 +157,12 @@ its polygons equal r5r's on the same platform (from one platform to another,
 r5r's own polygons differ in that order and in the last bits of some
 latitudes).
 
+`detailed_itineraries()` returns r5r's itineraries for the fastest trip
+(`shortest_path = TRUE`); `shortest_path = FALSE` with public transport,
+`osm_link_ids = TRUE` and `output_dir` with the geometry are errors.
+
 These r5r functions have no peabiru counterpart yet:
-`detailed_itineraries()`, `pareto_frontier()` and the fare structure helpers
+`pareto_frontier()` and the fare structure helpers
 (`setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()`).
 
 ## Expanded matrices with a street mode

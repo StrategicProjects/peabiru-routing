@@ -1,0 +1,217 @@
+#' Detailed itineraries between origin-destination pairs
+#'
+#' The itinerary of each trip between pairs of origins and destinations:
+#' its legs (walking, cycling, driving and each ride), with their duration,
+#' waiting time, distance, route and line. Arguments, defaults and the
+#' result are those of `r5r::detailed_itineraries()` (r5r 2.5.0), with the
+#' same values: the direct trip by the street mode and, with public
+#' transport, the fastest trip over the departure window
+#' (`shortest_path = TRUE`).
+#'
+#' Not supported yet, and an error: `shortest_path = FALSE` with public
+#' transport (r5r routes it with R5's McRAPTOR), `osm_link_ids = TRUE`,
+#' `output_dir` with the geometry (r5r writes JTS's WKT text; use
+#' `drop_geometry = TRUE`), fares and scenarios. As in r5r, networks
+#' whose GTFS has frequency-based trips cannot be used with public
+#' transport. A car trip whose egress search crosses a turn restriction
+#' with two or more via ways is an error too (R5 changes the restriction
+#' in place on that search, so its results depend on earlier calls).
+#'
+#' @inheritParams travel_time_matrix
+#' @param suboptimal_minutes An integer, 0 (the default): with
+#'   `shortest_path = TRUE`, r5r requires 0.
+#' @param shortest_path A logical. Whether to return only the fastest
+#'   itinerary (`TRUE`, the default).
+#' @param all_to_all A logical. Whether to route from every origin to
+#'   every destination (`TRUE`) or pair them row by row (`FALSE`, the
+#'   default; a single origin or destination is repeated to match the
+#'   other).
+#' @param drop_geometry A logical. Whether to leave the geometry out and
+#'   return a `data.frame`.
+#' @param osm_link_ids A logical, `FALSE`: `TRUE` is not supported yet.
+#'
+#' @return With `drop_geometry = FALSE`, an `sf` of `LINESTRING`s in
+#'   EPSG:4326; otherwise a `data.frame`. One row per leg (`segment`) of
+#'   each itinerary (`option`), with `from_id`, `from_lat`, `from_lon`,
+#'   `to_id`, `to_lat`, `to_lon`, `option`, `departure_time`,
+#'   `total_duration` (minutes), `total_distance` (metres), `segment`,
+#'   `mode`, `segment_duration`, `wait` (minutes), `distance` (metres) and
+#'   `route`. Pairs without an itinerary have no rows. With `output_dir`,
+#'   `output_dir`.
+#' @export
+#' @examplesIf requireNamespace("sf", quietly = TRUE)
+#' data_path <- system.file("extdata/spo", package = "peabiru")
+#' network <- build_network(data_path, n_threads = 2)
+#' points <- read.csv(file.path(data_path, "spo_points.csv"))
+#'
+#' trips <- detailed_itineraries(
+#'   network, points[1:3, ], points[4:6, ],
+#'   mode = "WALK",
+#'   departure_datetime = as.POSIXct("2019-05-13 14:00:00",
+#'                                   tz = "America/Sao_Paulo"),
+#'   n_threads = 2
+#' )
+#' head(trips)
+detailed_itineraries <- function(r5r_network,
+                                 origins,
+                                 destinations,
+                                 mode = "WALK",
+                                 mode_egress = "WALK",
+                                 departure_datetime = NULL,
+                                 time_window = 10L,
+                                 suboptimal_minutes = 0L,
+                                 max_walk_time = Inf,
+                                 max_bike_time = Inf,
+                                 max_car_time = Inf,
+                                 max_trip_duration = 120L,
+                                 walk_speed = 3.6,
+                                 bike_speed = 12,
+                                 max_rides = 3,
+                                 max_lts = 2,
+                                 shortest_path = TRUE,
+                                 all_to_all = FALSE,
+                                 fare_structure = NULL,
+                                 max_fare = Inf,
+                                 new_carspeeds = NULL,
+                                 carspeed_scale = 1,
+                                 new_lts = NULL,
+                                 n_threads = Inf,
+                                 verbose = FALSE,
+                                 progress = TRUE,
+                                 drop_geometry = FALSE,
+                                 osm_link_ids = FALSE,
+                                 output_dir = NULL,
+                                 r5r_core) {
+  # mirrors r5r R/detailed_itineraries.R
+  if (!missing(r5r_core)) {
+    warn_r5r_core()
+    r5r_network <- r5r_core
+  }
+  assert_network(r5r_network)
+  origins <- assign_points_input(origins, "origins", unique_ids = all_to_all)
+  destinations <- assign_points_input(destinations, "destinations", unique_ids = all_to_all)
+  od <- expand_od_pairs(origins, destinations, all_to_all)
+  origins <- od$origins
+  destinations <- od$destinations
+
+  if (!is.null(output_dir)) {
+    if (anyDuplicated(data.frame(origins$id, destinations$id)) > 0) {
+      stop("With 'output_dir', origin-destination pairs must be unique, because ",
+           "each pair is written to a file named 'from_<id>_to_<id>.csv'.",
+           call. = FALSE)
+    }
+    bad_ids <- unique(grep("[/\\\\:*?\"<>|]", c(origins$id, destinations$id), value = TRUE))
+    if (length(bad_ids) > 0) {
+      stop("With 'output_dir', ids cannot contain characters that are not ",
+           "allowed in file names (/ \\ : * ? \" < > |). Invalid id(s): ",
+           paste0("\"", bad_ids, "\"", collapse = ", "), ".", call. = FALSE)
+    }
+  }
+
+  mode_list <- assign_mode(mode, mode_egress)
+  departure <- assign_departure(departure_datetime, mode_list)
+  if (mode_list$transit) {
+    check_transit_availability_on_date(r5r_network, departure)
+    if (isTRUE(rs_network_info(r5r_network$ptr)$frequencies)) {
+      stop("Assertion on 'r5r_network' failed: None of the GTFS feeds used to create ",
+           "the transit network can contain a 'frequencies' table. Try using ",
+           "gtfstools::frequencies_to_stop_times() to create a suitable feed.",
+           call. = FALSE)
+    }
+  }
+
+  max_walk_time <- assign_max_street_time(max_walk_time, walk_speed, max_trip_duration, "walk")
+  max_bike_time <- assign_max_street_time(max_bike_time, bike_speed, max_trip_duration, "bike")
+  max_car_time <- assign_max_street_time(max_car_time, NULL, max_trip_duration, "car")
+  max_trip_duration <- assign_max_trip_duration(
+    max_trip_duration, mode_list, max_walk_time, max_bike_time, max_car_time
+  )
+  assert_flag(shortest_path, "shortest_path")
+  assert_flag(drop_geometry, "drop_geometry")
+  assert_flag(osm_link_ids, "osm_link_ids")
+  if (isTRUE(drop_geometry) && isTRUE(osm_link_ids)) {
+    stop("To set osm_link_ids to `TRUE`, the parameter 'drop_geometry' must also be `FALSE`",
+         call. = FALSE)
+  }
+  assert_count(time_window, "time_window", positive = TRUE)
+  check_speed(walk_speed, "walk")
+  check_speed(bike_speed, "bike")
+  assert_count(max_rides, "max_rides", positive = TRUE)
+  check_max_lts(max_lts)
+  threads <- assign_n_threads(n_threads)
+  check_messages(verbose, progress)
+  check_fares(fare_structure, max_fare)
+  check_output_dir(output_dir)
+  assert_count(suboptimal_minutes, "suboptimal_minutes")
+  if (shortest_path && suboptimal_minutes > 0) {
+    stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when ",
+         "'shortest_path' is TRUE.", call. = FALSE)
+  }
+  check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+  if (osm_link_ids) unsupported("'osm_link_ids = TRUE'")
+  if (!shortest_path && mode_list$transit) {
+    unsupported("'shortest_path = FALSE' with public transport (McRAPTOR)")
+  }
+  if (!is.null(output_dir) && !drop_geometry) {
+    unsupported("'output_dir' with the geometry (JTS's WKT text)",
+                "; use 'drop_geometry = TRUE'")
+  }
+  if (!drop_geometry && !requireNamespace("sf", quietly = TRUE)) {
+    stop("Package 'sf' is needed for the geometry of detailed itineraries; ",
+         "install it or use 'drop_geometry = TRUE'.", call. = FALSE)
+  }
+
+  output <- if (is.null(output_dir)) NULL else {
+    list(dir = path.expand(output_dir), from_ids = origins$id, to_ids = destinations$id)
+  }
+  res <- raise_if_stopped(rs_detailed_itineraries(
+    r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    mode_list$direct_modes, mode_list$transit_mode, mode_list$egress_mode,
+    departure$yyyymmdd, departure$seconds, as.integer(time_window),
+    max_walk_time, max_bike_time, max_car_time, max_trip_duration,
+    as.double(walk_speed), as.double(bike_speed), as.integer(max_rides),
+    as.integer(max_lts), shortest_path, threads, drop_geometry, output
+  ))
+  if (!is.null(output_dir)) return(output_dir)
+
+  i <- res$pair
+  out <- new_df(list(
+    from_id = origins$id[i], from_lat = origins$lat[i], from_lon = origins$lon[i],
+    to_id = destinations$id[i], to_lat = destinations$lat[i], to_lon = destinations$lon[i],
+    option = res$option, departure_time = res$departure_time,
+    total_duration = res$total_duration, total_distance = res$total_distance,
+    segment = res$segment, mode = res$mode, segment_duration = res$segment_duration,
+    wait = res$wait, distance = res$distance, route = res$route
+  ))
+  if (drop_geometry) return(out)
+  # as r5r builds it: WKT read by sf, then an sf in EPSG:4326
+  out$geometry <- if (nrow(out) > 0) {
+    sf::st_as_sfc(res$geometry)
+  } else {
+    sf::st_sfc(sf::st_linestring(), crs = 4326)[0]
+  }
+  sf::st_sf(out, crs = 4326)
+}
+
+# r5r expand_od_pairs()
+expand_od_pairs <- function(origins, destinations, all_to_all) {
+  assert_flag(all_to_all, "all_to_all")
+  n_origs <- nrow(origins)
+  n_dests <- nrow(destinations)
+  if (all_to_all || n_origs == 1 || n_dests == 1) {
+    origins <- origins[rep(seq_len(n_origs), each = n_dests), ]
+    destinations <- destinations[rep(seq_len(n_dests), times = n_origs), ]
+    if (!all_to_all && (n_origs > 1 || n_dests > 1)) {
+      if (n_origs == 1) {
+        message("'origins' was expanded to match the number of destinations.")
+      } else {
+        message("'destinations' was expanded to match the number of origins.")
+      }
+    }
+  } else if (n_origs != n_dests) {
+    stop("When 'all_to_all' is FALSE, 'origins' and 'destinations' must either ",
+         "have the same number of rows or one of them must have only one row.",
+         call. = FALSE)
+  }
+  list(origins = origins, destinations = destinations)
+}

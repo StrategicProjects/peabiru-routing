@@ -27,6 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 mod inspect;
+mod itinerary;
 
 /// A network built once and shared by every routing call.
 struct Network {
@@ -1146,4 +1147,5 @@ extendr_module! {
     fn rs_street_edges;
     fn rs_isochrone_lines;
     use inspect;
+    use itinerary;
 }
