@@ -4,7 +4,9 @@
 # pre-release is built and tested but not uploaded.
 #
 # Run by hand (Actions > npm-release > Run workflow) it builds, tests and
-# makes a dry run of the upload: nothing is published.
+# makes a dry run of the upload: nothing is published, unless the "publish"
+# box is ticked, which uploads the version in js/package.json after the same
+# approval in the npm environment (for a version whose release already exists).
 #
 # The upload uses npm's trusted publishing (OIDC), with no token. npm only
 # lets a trusted publisher be set on a package that already exists, so the
@@ -23,6 +25,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Upload js/package.json's version to npm (needs approval)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -70,7 +77,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: ${{ github.event_name == 'release' && 'npm' || '' }}
+    environment: ${{ (github.event_name == 'release' || inputs.publish) && 'npm' || '' }}
     permissions:
       contents: read
       id-token: write # OIDC for npm trusted publishing (also signs provenance)
@@ -81,8 +88,8 @@ jobs:
       - name: npm 11.5.1 or later (needed for trusted publishing)
         run: npm install -g npm@11.21.2 && npm --version
       - name: Dry run
-        if: github.event_name != 'release' || github.event.release.prerelease
+        if: (github.event_name != 'release' && !inputs.publish) || github.event.release.prerelease
         run: npm publish peabiru-*.tgz --access public --dry-run
       - name: Publish
-        if: github.event_name == 'release' && !github.event.release.prerelease
+        if: (github.event_name == 'release' && !github.event.release.prerelease) || inputs.publish
         run: npm publish peabiru-*.tgz --access public
