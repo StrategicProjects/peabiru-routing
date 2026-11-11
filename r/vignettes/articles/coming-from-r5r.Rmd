@@ -104,8 +104,16 @@ reference outputs are only valid for the machine that produced them.
 
 ## Different on purpose
 
-- **No Java.** There is no JVM to start, no `java.parameters` to set, no R5 jar
-  to download and no `stop_r5()`.
+- **No Java.** There is no JVM to start, no `java.parameters` to set and no R5
+  jar to download. r5r's housekeeping functions are there so that scripts run:
+  `setup_r5()` warns and calls `build_network()`, `stop_r5()` removes the
+  networks and frees their memory, `download_r5()` and `r5r_cache()` say there
+  is nothing to download or cache, and `r5r_sitrep()` reports peabiru's
+  versions.
+- **`get_gtfs_errors()` reads the feeds again** (r5r reads the
+  `gtfs_errors.csv` its `build_network()` wrote) and lists the rows feed by
+  feed in the order gtfs-lib finds them; r5r's order is that of a Java
+  `HashSet` and changes from run to run.
 - **Results are `data.frame`s**, not `data.table`s, so the package imports
   nothing. `data.table::setDT()` converts them if you prefer.
 - **The network lives in memory only.** Nothing is written to the data
@@ -148,12 +156,8 @@ with the same C++ library whose hash table decides where each ring starts.
 Elsewhere r5r's rings may start at another vertex (same area, same shape).
 
 These r5r functions have no peabiru counterpart yet:
-`detailed_itineraries()`, `pareto_frontier()`,
-`street_network_to_sf()`, `transit_network_to_sf()`, `street_network_bbox()`,
-`find_snap()`, `get_gtfs_errors()`, `check_transit_availability()` and the fare
-structure helpers (`setup_fare_structure()`, `read_fare_structure()`,
-`write_fare_structure()`). The r5r housekeeping functions (`download_r5()`,
-`setup_r5()`, `stop_r5()`, `r5r_cache()`, `r5r_sitrep()`) are not needed.
+`detailed_itineraries()`, `pareto_frontier()` and the fare structure helpers
+(`setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()`).
 
 ## Expanded matrices with a street mode
 

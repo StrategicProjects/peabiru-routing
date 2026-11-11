@@ -131,7 +131,7 @@ mod review_tests;
 
 pub use cancel::{CancelToken, RouteError};
 pub use error::NetworkError;
-pub use gtfs::validate::{gtfs_errors, GtfsFeedError, Priority as GtfsErrorPriority};
+pub use gtfs::validate::{gtfs_errors, GtfsErrorPriority, GtfsFeedError};
 pub use inspect::{
     find_snap, street_vertices, transit_routes, transit_service_dates, transit_stops, Snap,
     StreetVertices, TransitRoutes, TransitStops,

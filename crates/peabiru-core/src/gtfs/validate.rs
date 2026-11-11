@@ -23,7 +23,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 /// gtfs-lib's `Priority` of an error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Priority {
+pub enum GtfsErrorPriority {
     /// Makes r5r refuse to build the network.
     High,
     /// `MEDIUM`.
@@ -34,14 +34,14 @@ pub enum Priority {
     Unknown,
 }
 
-impl Priority {
+impl GtfsErrorPriority {
     /// The name r5r writes: `"HIGH"`, `"MEDIUM"`, `"LOW"` or `"UNKNOWN"`.
     pub fn as_str(self) -> &'static str {
         match self {
-            Priority::High => "HIGH",
-            Priority::Medium => "MEDIUM",
-            Priority::Low => "LOW",
-            Priority::Unknown => "UNKNOWN",
+            GtfsErrorPriority::High => "HIGH",
+            GtfsErrorPriority::Medium => "MEDIUM",
+            GtfsErrorPriority::Low => "LOW",
+            GtfsErrorPriority::Unknown => "UNKNOWN",
         }
     }
 }
@@ -55,7 +55,7 @@ pub struct GtfsFeedError {
     error_type: &'static str,
     field: Option<String>,
     id: Option<String>,
-    priority: Priority,
+    priority: GtfsErrorPriority,
 }
 
 impl GtfsFeedError {
@@ -88,7 +88,7 @@ impl GtfsFeedError {
     }
 
     /// `priority`.
-    pub fn priority(&self) -> Priority {
+    pub fn priority(&self) -> GtfsErrorPriority {
         self.priority
     }
 }
@@ -197,7 +197,7 @@ impl Feed {
         error_type: &'static str,
         field: Option<&str>,
         id: Option<&str>,
-        priority: Priority,
+        priority: GtfsErrorPriority,
     ) {
         self.errors.push(GtfsFeedError {
             file: Some(file.to_string()),
@@ -232,7 +232,7 @@ impl Table<'_, '_> {
                     "EmptyFieldError",
                     Some(col),
                     None,
-                    Priority::Medium,
+                    GtfsErrorPriority::Medium,
                 );
             }
             None
@@ -243,7 +243,14 @@ impl Table<'_, '_> {
 
     fn range(&self, f: &mut Feed, min: f64, max: f64, actual: f64) {
         if actual < min || actual > max {
-            f.push(self.name, self.row, "RangeError", None, None, Priority::Low);
+            f.push(
+                self.name,
+                self.row,
+                "RangeError",
+                None,
+                None,
+                GtfsErrorPriority::Low,
+            );
         }
     }
 
@@ -271,7 +278,7 @@ impl Table<'_, '_> {
                     "NumberParseError",
                     Some(col),
                     None,
-                    Priority::High,
+                    GtfsErrorPriority::High,
                 );
                 INT_MISSING
             }
@@ -294,7 +301,7 @@ impl Table<'_, '_> {
                     "NumberParseError",
                     Some(col),
                     None,
-                    Priority::High,
+                    GtfsErrorPriority::High,
                 );
                 f64::NAN
             }
@@ -326,7 +333,7 @@ impl Table<'_, '_> {
                 "TimeParseError",
                 Some(col),
                 None,
-                Priority::Medium,
+                GtfsErrorPriority::Medium,
             ),
         }
     }
@@ -364,7 +371,7 @@ impl Table<'_, '_> {
                     "URLParseError",
                     Some(col),
                     None,
-                    Priority::Low,
+                    GtfsErrorPriority::Low,
                 );
             }
         }
@@ -390,7 +397,7 @@ impl Table<'_, '_> {
                     "ReferentialIntegrityError",
                     Some(col),
                     None,
-                    Priority::High,
+                    GtfsErrorPriority::High,
                 );
             }
         }
@@ -518,12 +525,19 @@ fn load_table(
                     "TableInSubdirectoryError",
                     None,
                     None,
-                    Priority::High,
+                    GtfsErrorPriority::High,
                 );
             }
         }
         if required {
-            f.push(name, 0, "MissingTableError", None, None, Priority::Medium);
+            f.push(
+                name,
+                0,
+                "MissingTableError",
+                None,
+                None,
+                GtfsErrorPriority::Medium,
+            );
         }
     }
     let Some(entry) = entry else {
@@ -538,13 +552,27 @@ fn load_table(
         Ok(())
     });
     match header {
-        Ok(None) => f.push(name, 0, "EmptyTableError", None, None, Priority::Medium),
+        Ok(None) => f.push(
+            name,
+            0,
+            "EmptyTableError",
+            None,
+            None,
+            GtfsErrorPriority::Medium,
+        ),
         Ok(Some(_)) => {}
         Err(ReadError::Csv(e)) => return Err(format!("{file} {e}")),
         Err(ReadError::Callback(())) => {}
     }
     if row < 2 {
-        f.push(name, 0, "EmptyTableError", None, None, Priority::Medium);
+        f.push(
+            name,
+            0,
+            "EmptyTableError",
+            None,
+            None,
+            GtfsErrorPriority::Medium,
+        );
     }
     Ok(())
 }
@@ -588,7 +616,14 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
         if !f.feed_info_seen {
             f.feed_info_seen = true;
         } else {
-            f.push(t.name, t.row, "GeneralError", None, None, Priority::Unknown);
+            f.push(
+                t.name,
+                t.row,
+                "GeneralError",
+                None,
+                None,
+                GtfsErrorPriority::Unknown,
+            );
         }
     })?;
 
@@ -610,7 +645,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "DuplicateKeyError",
                 Some("agency_id"),
                 Some(&id),
-                Priority::Medium,
+                GtfsErrorPriority::Medium,
             );
         }
     })?;
@@ -625,7 +660,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "DuplicateKeyError",
                 Some("service_id"),
                 id.as_deref(),
-                Priority::Medium,
+                GtfsErrorPriority::Medium,
             );
             return;
         }
@@ -675,7 +710,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "DuplicateKeyError",
                 Some("(service_id, date)"),
                 Some(&key),
-                Priority::Medium,
+                GtfsErrorPriority::Medium,
             );
         } else {
             f.services.get_mut(&id).expect("just added").insert(date);
@@ -700,7 +735,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "DuplicateKeyError",
                 Some("fare_id"),
                 id.as_deref(),
-                Priority::Medium,
+                GtfsErrorPriority::Medium,
             );
             return;
         }
@@ -721,7 +756,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "ReferentialIntegrityError",
                 Some("fare_id"),
                 None,
-                Priority::High,
+                GtfsErrorPriority::High,
             );
         }
         f.fares.entry(id).or_insert(false);
@@ -749,7 +784,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "NoAgencyInFeedError",
                 Some("agency_id"),
                 None,
-                Priority::High,
+                GtfsErrorPriority::High,
             );
         }
         for c in ["route_short_name", "route_long_name", "route_desc"] {
@@ -767,7 +802,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "MissingKeyError",
                 Some("route_id"),
                 None,
-                Priority::Medium,
+                GtfsErrorPriority::Medium,
             ),
             Some(id) => {
                 if !f.routes.insert(id.clone()) {
@@ -777,7 +812,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                         "DuplicateKeyError",
                         Some("route_id"),
                         Some(&id),
-                        Priority::Medium,
+                        GtfsErrorPriority::Medium,
                     );
                 }
             }
@@ -816,7 +851,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "MissingKeyError",
                 Some("stop_id"),
                 None,
-                Priority::Medium,
+                GtfsErrorPriority::Medium,
             ),
             Some(id) => {
                 let rec = StopRec {
@@ -834,7 +869,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                         "DuplicateKeyError",
                         Some("stop_id"),
                         Some(&id),
-                        Priority::Medium,
+                        GtfsErrorPriority::Medium,
                     );
                 }
             }
@@ -874,7 +909,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "MissingKeyError",
                 Some("trip_id"),
                 None,
-                Priority::Medium,
+                GtfsErrorPriority::Medium,
             ),
             Some(id) => {
                 let rec = TripRec {
@@ -889,7 +924,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                         "DuplicateKeyError",
                         Some("trip_id"),
                         Some(&id),
-                        Priority::Medium,
+                        GtfsErrorPriority::Medium,
                     );
                 }
             }
@@ -947,7 +982,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                 "ReferentialIntegrityError",
                 Some("stop_id"),
                 None,
-                Priority::High,
+                GtfsErrorPriority::High,
             );
         }
     })?;
@@ -977,7 +1012,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                     "UnsupportedFlexError",
                     None,
                     None,
-                    Priority::Medium,
+                    GtfsErrorPriority::Medium,
                 );
             }
             let window = |c: &str| {
@@ -995,7 +1030,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                     "UnsupportedFlexError",
                     None,
                     None,
-                    Priority::Medium,
+                    GtfsErrorPriority::Medium,
                 );
             }
             if pickup_rule.is_some() || drop_off_rule.is_some() {
@@ -1005,7 +1040,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                     "RestrictedBookingError",
                     Some("*_booking_rule_id"),
                     None,
-                    Priority::Medium,
+                    GtfsErrorPriority::Medium,
                 );
             }
         }
@@ -1054,7 +1089,7 @@ fn post_load(f: &mut Feed) {
             "GeneralError",
             Some("service_id"),
             None,
-            Priority::Unknown,
+            GtfsErrorPriority::Unknown,
         );
     }
     // validateParentStations: (location type, parent requirement, parent's
@@ -1069,18 +1104,20 @@ fn post_load(f: &mut Feed) {
         match &s.parent_station {
             None => {
                 if requirement == 1 {
-                    found.push((s.line, "EmptyFieldError", Priority::Medium));
+                    found.push((s.line, "EmptyFieldError", GtfsErrorPriority::Medium));
                 }
             }
             Some(p) => {
                 if requirement == 2 {
-                    found.push((s.line, "ForbiddenFieldError", Priority::Medium));
+                    found.push((s.line, "ForbiddenFieldError", GtfsErrorPriority::Medium));
                 }
                 match f.stops.get(p) {
-                    None => found.push((s.line, "ReferentialIntegrityError", Priority::High)),
+                    None => {
+                        found.push((s.line, "ReferentialIntegrityError", GtfsErrorPriority::High))
+                    }
                     Some(parent) => {
                         if parent.location_type != parent_type {
-                            found.push((s.line, "RangeError", Priority::Low));
+                            found.push((s.line, "RangeError", GtfsErrorPriority::Low));
                         }
                     }
                 }
@@ -1105,7 +1142,7 @@ fn post_load(f: &mut Feed) {
             "SuspectStopLocationError",
             Some("stop_id"),
             Some(&id),
-            Priority::Medium,
+            GtfsErrorPriority::Medium,
         );
     }
     // validateFlex
@@ -1126,7 +1163,7 @@ fn post_load(f: &mut Feed) {
                 "UnsupportedFlexError",
                 Some("trip_id"),
                 None,
-                Priority::Medium,
+                GtfsErrorPriority::Medium,
             );
         }
         for st in times {
@@ -1137,7 +1174,7 @@ fn post_load(f: &mut Feed) {
                     "UnsupportedFlexError",
                     Some("stop_id"),
                     None,
-                    Priority::Medium,
+                    GtfsErrorPriority::Medium,
                 );
             }
         }
@@ -1177,7 +1214,10 @@ fn java_hash_set_first<'a>(ids: &[&'a str]) -> Option<&'a str> {
 /// null key), or a pattern whose first or last stop has no `stop_name`
 /// (`namePatterns` compares the names).
 fn find_patterns_failure(f: &Feed) -> Option<String> {
-    if f.errors.iter().any(|e| e.priority == Priority::High) {
+    if f.errors
+        .iter()
+        .any(|e| e.priority == GtfsErrorPriority::High)
+    {
         return None;
     }
     type Key<'a> = (Option<&'a str>, Vec<Option<u32>>, Vec<i32>, Vec<i32>);
