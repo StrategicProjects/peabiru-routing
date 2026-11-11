@@ -13,7 +13,7 @@ fn usage_text() -> String {
          peabiru ttm <file.osm.pbf> <points.csv> <WALK|BICYCLE|CAR> <out.csv> [n_threads] [repeats]\n       \
          peabiru transit <dir> <points.csv> <out.csv> --date YYYY-MM-DD --time HH:MM:SS [--tw 10] [--percentiles 50] [--max-walk 120] [--max-trip 120] [--max-rides 3] [--draws 5] [--seed N] [--threads 0] [--repeats 1]\n       \
          peabiru accessibility <dir|file.osm.pbf> <points.csv> <out.csv> --opportunities a,b [options]\n       \
-         peabiru dump-edges <file.osm.pbf>   (CSV like r5r::street_network_to_sf edges)\n       \
+         peabiru dump-edges <file.osm.pbf | dir>   (CSV like r5r::street_network_to_sf edges;\n                                             a directory links its GTFS stops)\n       \
          {}\n       {}",
         expanded::USAGE,
         isochrone::USAGE
@@ -69,7 +69,7 @@ fn main() {
         Some("dump-edges") => {
             let path = args
                 .get(1)
-                .unwrap_or_else(|| usage_error("dump-edges", "expected <file.osm.pbf>"));
+                .unwrap_or_else(|| usage_error("dump-edges", "expected <file.osm.pbf or dir>"));
             dump_edges(path)
         }
         Some(other) => usage_error(other, "unknown command (peabiru --help lists them)"),
@@ -188,8 +188,14 @@ fn dump_edges(pbf: &str) {
     use peabiru_core::{build_network, BuildOptions};
     use std::io::Write;
     let cmd = "dump-edges";
-    let net =
-        build_network(pbf, &BuildOptions::default()).unwrap_or_else(|e| runtime_error(cmd, e));
+    // a directory: the network with its GTFS stops linked, as r5r builds it
+    let net = if std::path::Path::new(pbf).is_dir() {
+        peabiru_core::build_from_dir(pbf, &BuildOptions::default())
+            .map(|(net, _)| net)
+            .unwrap_or_else(|e| runtime_error(cmd, e))
+    } else {
+        build_network(pbf, &BuildOptions::default()).unwrap_or_else(|e| runtime_error(cmd, e))
+    };
     let out = std::io::stdout();
     let mut w = std::io::BufWriter::new(out.lock());
     let fail = |e: std::io::Error| -> ! { runtime_error(cmd, format!("cannot write output: {e}")) };

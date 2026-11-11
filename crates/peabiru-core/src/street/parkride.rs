@@ -15,7 +15,6 @@ use super::{Mode, StreetNetwork};
 
 /// Splits closer than this to an edge end reuse the end vertex (R5 `SNAP_RADIUS_MM`).
 pub const SNAP_RADIUS_MM: i32 = 5_000;
-const METERS_PER_DEGREE_LAT: f64 = 111_111.111;
 /// R5 stores `EdgeStore.DEFAULT_SPEED_KPH` (50) raw as the speed of new
 /// edges, which reads back as 0.5 m/s.
 const NEW_EDGE_SPEED_CMS: i16 = 50;
@@ -152,16 +151,20 @@ pub(crate) fn get_or_create_vertex_near(
 }
 
 /// R5 `Split.findOnEdge`, slips included: the "best" segment is the
-/// shortest one (it compares segment lengths, not distances to the point)
-/// and the distance along the edge is computed in fixed-point degrees times
-/// metres per degree, so it is almost always clamped to the edge length.
+/// shortest one (it compares segment lengths, not distances to the point),
+/// and its distance along the edge is never kept. `best.setFrom(curr)`
+/// copies the edge, segment, fraction and point but not `distance0_mm`, so
+/// the best split always has `distance0_mm = 0` (the default) and
+/// `distance1_mm` = the edge's length: [`split_edge`] then never cuts the
+/// edge but returns its from vertex (its to vertex for an edge of length
+/// 0). A park-and-ride area is thus linked to the from vertex of each pair
+/// its outline crosses.
 fn find_on_edge(net: &StreetNetwork, lat: f64, lon: f64, k: usize) -> Split {
     let fixed_lat = java_int(lat * FIXED_FACTOR);
     let fixed_lon = java_int(lon * FIXED_FACTOR);
     let cos_lat = lat.to_radians().cos();
     let pts: Vec<(i32, i32)> = net.pair_points(k).collect();
-    let mut best = (i64::MAX, 0usize, 0i32, 0i32, 0i32); // (d2, seg, lat, lon, distance0)
-    let mut before = 0.0f64;
+    let mut best = (i64::MAX, 0usize, 0i32, 0i32); // (d2, seg, lat, lon)
     for (seg, w) in pts.windows(2).enumerate() {
         let ((lat0, lon0), (lat1, lon1)) = (w[0], w[1]);
         let frac = segment_fraction(lon0, lat0, lon1, lat1, fixed_lon, fixed_lat, cos_lat);
@@ -169,26 +172,20 @@ fn find_on_edge(net: &StreetNetwork, lat: f64, lon: f64, k: usize) -> Split {
         let p_lat = java_int(f64::from(lat0) + frac * f64::from(lat1 - lat0));
         let dx = f64::from(lon1.wrapping_sub(lon0)) * cos_lat;
         let dy = f64::from(lat1.wrapping_sub(lat0));
-        let length = (dx * dx + dy * dy).sqrt();
-        let d0 = java_int((before + length * frac) * METERS_PER_DEGREE_LAT * 1000.0);
-        before += length;
         let d2 = (dx * dx + dy * dy) as i64;
         if d2 < best.0 {
-            best = (d2, seg, p_lat, p_lon, d0);
+            best = (d2, seg, p_lat, p_lon);
         }
     }
+    // `best.distance0_mm` keeps its default 0, which is never above the
+    // length, so `distance1_mm` is the whole length
     let len = net.pair_length_mm[k];
-    let (d0, d1) = if best.4 > len {
-        (len, 0)
-    } else {
-        (best.4, len - best.4)
-    };
     Split {
         edge: (2 * k) as u32,
         vertex0: net.pair_from[k],
         vertex1: net.pair_to[k],
-        distance0_mm: d0,
-        distance1_mm: d1,
+        distance0_mm: 0,
+        distance1_mm: len,
         distance_to_edge_mm: 0,
         seg: best.1 as u32,
         fixed_lat: best.2,
@@ -475,6 +472,7 @@ mod tests {
 
 #[cfg(test)]
 mod network_tests {
+    use super::{find_on_edge, split_edge, FIXED_FACTOR};
     use crate::osm::pbf::{Extract, Tags, Way};
     use crate::street::build::network_from_extract;
     use crate::street::flags::LINK;
@@ -554,5 +552,31 @@ mod network_tests {
         let a = street_seconds(&plain, from, to, Mode::Car).unwrap();
         let b = street_seconds(&net, from, to, Mode::Car).unwrap();
         assert!((0..=1).contains(&(b - a)), "{a} vs {b}");
+    }
+
+    /// R5's `findOnEdge` never keeps the distance along the edge
+    /// (`Split.setFrom` does not copy `distance0_mm`), so a park-and-ride
+    /// area that crosses a street links to the street's from vertex,
+    /// wherever it crosses, and no street is cut. A regression test: the
+    /// distance was computed before, which linked to the to vertex
+    /// instead and, on Porto Alegre with its stops linked, changed car
+    /// times through R5's queue order.
+    #[test]
+    fn park_and_ride_areas_link_to_the_from_vertex() {
+        let mut net = network_from_extract(grid(false));
+        let (pairs, vertices) = (net.pair_from.len(), net.n_vertices());
+        for k in [0usize, 3, pairs / 2, pairs - 1] {
+            let (a, b) = (net.pair_from[k] as usize, net.pair_to[k] as usize);
+            for f in [0.1, 0.5, 0.97] {
+                let lat = (f64::from(net.v_lat[a]) * (1.0 - f) + f64::from(net.v_lat[b]) * f)
+                    / FIXED_FACTOR;
+                let lon = (f64::from(net.v_lon[a]) * (1.0 - f) + f64::from(net.v_lon[b]) * f)
+                    / FIXED_FACTOR;
+                let s = find_on_edge(&net, lat, lon, k);
+                assert_eq!((s.distance0_mm, s.distance1_mm), (0, net.pair_length_mm[k]));
+                assert_eq!(split_edge(&mut net, &s), a as u32);
+            }
+        }
+        assert_eq!((net.pair_from.len(), net.n_vertices()), (pairs, vertices));
     }
 }

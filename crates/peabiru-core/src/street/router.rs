@@ -1656,4 +1656,49 @@ pub(crate) mod tests {
         // walking reaches footways and goes against one-way streets
         assert!(improved > checked / 5, "{improved} of {checked}");
     }
+
+    /// Diagnostic, not a test: the car search's time at every vertex from
+    /// one origin, as `vertex,seconds`, for comparison with R5's
+    /// `StreetRouter.getReachedVertices` on the same network.
+    /// `PEABIRU_DUMP=dir,lat,lon,limit_s,out.csv cargo test --release dump_car -- --ignored`
+    #[test]
+    #[ignore]
+    fn dump_car_vertex_times() {
+        let spec = std::env::var("PEABIRU_DUMP").expect("PEABIRU_DUMP");
+        let a: Vec<&str> = spec.split(',').collect();
+        let (net, _) = crate::build_from_dir(a[0], &crate::BuildOptions::default()).unwrap();
+        let (lat, lon): (f64, f64) = (a[1].parse().unwrap(), a[2].parse().unwrap());
+        let g = ModeGraph::with_speeds(&net, Mode::Car, 3.6, 12.0, 2);
+        let o = find_split(&net, lat, lon, Mode::Car, &mut Vec::new()).unwrap();
+        let mut s = Search::new(&net);
+        route(&net, &g, &o, a[3].parse().unwrap(), &mut s);
+        let mut out = String::from("vertex,seconds\n");
+        for (v, &t) in s.vertex_time.iter().enumerate() {
+            if t < i32::MAX {
+                out.push_str(&format!("{v},{t}\n"));
+            }
+        }
+        std::fs::write(a[4], out).unwrap();
+        // the incoming edges of the vertices listed after the file name
+        for v in a[5..].iter().map(|v| v.parse::<usize>().unwrap()) {
+            for e in 0..net.n_edges() {
+                if net.edge_to(e) == v {
+                    let u = net.edge_from(e);
+                    eprintln!(
+                        "v {v} t {} <- e {e} from {u} ({},{}) t {} flags {:#x} len {} speed {} in {} out {} restr_from {:?}",
+                        s.vertex_time[v],
+                        net.v_lat[u],
+                        net.v_lon[u],
+                        s.vertex_time[u],
+                        net.edge_flags[e],
+                        net.pair_length_mm[e / 2],
+                        net.edge_speed_cms[e],
+                        net.in_angle(e),
+                        net.out_angle(e),
+                        net.restrictions_starting_at(e as u32).collect::<Vec<_>>()
+                    );
+                }
+            }
+        }
+    }
 }
