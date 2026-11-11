@@ -208,6 +208,32 @@ for (city in cities) {
         max_lts = 3, departure_datetime = departure)
     run("itin_transit", "detailed_itineraries", origins = o[1:20, ], destinations = d[1:20, ],
         mode = c("WALK", "TRANSIT"), departure_datetime = departure, drop_geometry = TRUE)
+    run("itin_bike_links", "detailed_itineraries", origins = o, destinations = d,
+        mode = bike, osm_link_ids = TRUE, departure_datetime = departure)
+    run("itin_walk_links_transit", "detailed_itineraries", origins = o[1:15, ],
+        destinations = d[1:15, ], mode = c("WALK", "TRANSIT"), osm_link_ids = TRUE,
+        departure_datetime = departure, drop_geometry = TRUE)
+    if (wanted("itin_output_dir")) {
+      # the CSV files written with geometry, compared byte for byte
+      d_pb <- tempfile("pb")
+      d_r5 <- tempfile("r5")
+      dir.create(d_pb)
+      dir.create(d_r5)
+      a <- list(origins = o[1:20, ], destinations = d[1:20, ], mode = bike,
+                departure_datetime = departure, n_threads = n_threads)
+      do.call(peabiru::detailed_itineraries, c(list(pb), a, output_dir = d_pb))
+      suppressMessages(do.call(r5r::detailed_itineraries,
+                               c(list(r5), a, output_dir = d_r5, progress = FALSE)))
+      f_pb <- sort(list.files(d_pb))
+      f_r5 <- sort(list.files(d_r5))
+      same <- identical(f_pb, f_r5) &&
+        all(unname(tools::md5sum(file.path(d_pb, f_pb))) ==
+              unname(tools::md5sum(file.path(d_r5, f_r5))))
+      n_compared <- n_compared + 1L
+      message(sprintf("%-46s files %6d  identical %s",
+                      sprintf("%s/%s/itin_output_dir", city, tolower(model)), length(f_r5), same))
+      if (!same) failures <- c(failures, sprintf("%s/%s/itin_output_dir", city, model))
+    }
     # a scenario: r5r routes on a copy of the network without the slope costs
     lts <- read.csv(file.path(src, "poa_osm_lts.csv"))
     run("scen_walk", "travel_time_matrix", origins = points, destinations = rnd,

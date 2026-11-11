@@ -132,7 +132,7 @@ impl Network {
     ) -> Result<Network, JsError> {
         let mut opts = BuildOptions::default();
         opts.elevation = peabiru_core::Elevation::from_r5r_name(elevation)
-            .ok_or_else(|| err(&format!("unknown elevation model {elevation:?}")))?;
+            .ok_or_else(|| err(format!("unknown elevation model {elevation:?}")))?;
         let mut owned: Vec<(String, Vec<u8>)> = Vec::with_capacity(feeds.length() as usize);
         for f in feeds.iter() {
             let pair = Array::from(&f);

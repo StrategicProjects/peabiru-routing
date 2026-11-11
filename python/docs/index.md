@@ -66,7 +66,7 @@ print(network.info())
 ```
 
 ```text
-{'vertices': 2609, 'edges': 5518, 'feeds': ['spo_gtfs'], 'stops': 654, 'patterns': 36, 'services': 6, 'frequencies': True}
+{'vertices': 2609, 'edges': 5518, 'elevation': 'NONE', 'feeds': ['spo_gtfs'], 'stops': 654, 'patterns': 36, 'services': 6, 'frequencies': True}
 ```
 
 `print(network)` shows the same summary, with the data path.

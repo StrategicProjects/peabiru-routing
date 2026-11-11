@@ -591,13 +591,23 @@ function geometryTypes(features, choices, name) {
   if (extra.length) fail(name, `Must be a subset of ${want}, but has additional elements ${quoted(extra.map(upper))}`);
 }
 
-function scenarioSpec(o) {
+// r5r's warning when a scenario is used: R5's scenario copy of the network
+// has no slope costs (r5r issue #555). r5r gives it for every scenario; here
+// only on a network with elevation, where it is true.
+function elevationWarning(network, warn) {
+  if (network && network.info().elevation !== "NONE") {
+    warn("A scenario was used for this calculation. This may affect results for WALK or BICYCLE due to missing elevation. See issue #555.");
+  }
+}
+
+function scenarioSpec(o, network, warn) {
   assertNumber(o.carspeedScale, "carspeedScale", { lower: 0, finite: true });
   const spec = { car: "none", carspeed_scale: o.carspeedScale, lts: "none" };
   let changed = false;
   const given = (x) => x !== null && x !== undefined;
   if (given(o.newCarspeeds) || o.carspeedScale !== 1) {
     changed = true;
+    elevationWarning(network, warn);
     const t = o.newCarspeeds;
     if (isFeatureCollection(t)) {
       const features = geojsonFeatures(t, "newCarspeeds");
@@ -648,6 +658,7 @@ function scenarioSpec(o) {
   }
   if (given(o.newLts)) {
     changed = true;
+    elevationWarning(network, warn);
     const t = o.newLts;
     if (isFeatureCollection(t)) {
       const features = geojsonFeatures(t, "newLts");
@@ -1388,7 +1399,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
   const seed = commonChecks(opt);
   checkFares(opt.fareStructure, opt.maxFare);
   checkOutputDir(opt.outputDir);
-  const scenario = scenarioSpec(opt);
+  const scenario = scenarioSpec(opt, network, warn);
 
   let cols;
   if (modeList.transit) {
@@ -1525,7 +1536,7 @@ export async function accessibility(network, origins, destinations, options) {
   const seed = commonChecks(opt);
   checkFares(opt.fareStructure, opt.maxFare);
   checkOutputDir(opt.outputDir);
-  const scenario = scenarioSpec(opt);
+  const scenario = scenarioSpec(opt, network, warn);
 
   const parts = await network._route(
     "accessibility", o,
@@ -1623,7 +1634,7 @@ export async function expandedTravelTimeMatrix(network, origins, destinations, o
   const seed = commonChecks(opt);
   checkOutputDir(opt.outputDir);
   assertFlag(opt.breakdown, "breakdown");
-  const scenario = scenarioSpec(opt);
+  const scenario = scenarioSpec(opt, network, warn);
   const parts = await network._route(
     "expanded", o,
     (olat, olon) => [
@@ -1660,7 +1671,7 @@ export async function arrivalTravelTimeMatrix(network, origins, destinations, op
   const seed = commonChecks(opt);
   checkOutputDir(opt.outputDir);
   assertFlag(opt.breakdown, "breakdown");
-  const scenario = scenarioSpec(opt);
+  const scenario = scenarioSpec(opt, network, warn);
   // the engine's time window is max_trip_duration here
   const parts = await network._route(
     "expanded", o,
@@ -1756,7 +1767,7 @@ export async function detailedItineraries(network, origins, destinations, option
   if (opt.shortestPath && opt.suboptimalMinutes > 0) {
     throw new RangeError("Assertion on 'suboptimalMinutes' failed: Must be 0 when 'shortestPath' is true.");
   }
-  const scenario = scenarioSpec(opt);
+  const scenario = scenarioSpec(opt, network, warn);
   if (!opt.shortestPath && modeList.transit) unsupported("'shortestPath: false' with public transport (McRAPTOR)");
   let start = 0;
   const parts = await network._route(

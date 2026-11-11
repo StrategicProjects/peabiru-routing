@@ -14,8 +14,29 @@
 //!
 //! The blocks (strips or tiles) are decoded only when a sample falls in
 //! them, once each, and may be read from several threads.
+//!
+//! The file is untrusted input (in the JavaScript package it may be a
+//! user's upload): every offset, count and size read from it is checked
+//! against the bytes present before use, products of header values use
+//! checked arithmetic, nothing is allocated from a header value alone, and
+//! the memory spent on decoded pixels has two budgets,
+//! [`MAX_BLOCK_PIXELS`] per strip or tile and [`MAX_DECODED_PIXELS`] for
+//! the whole raster. A malformed file is an error, never a panic.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
+
+/// Most pixels in one strip or tile: 32 Mi (256 MiB once decoded as
+/// doubles). GDAL writes tiles of 256 x 256 or 512 x 512 pixels and strips
+/// of a few rows; the largest common layout, a whole uncompressed 1-degree
+/// SRTM or Copernicus tile in a single strip, is 3601 x 3601 = 13 Mi.
+pub(crate) const MAX_BLOCK_PIXELS: usize = 32 << 20;
+/// Most pixels decoded from one raster: 128 Mi (1 GiB as doubles), such as
+/// a 1-arc-second area of 3 by 3 degrees, far more than a metropolitan
+/// area's network touches. Only the blocks under the network are decoded,
+/// so a larger raster is fine as long as the network covers less of it;
+/// past the budget the build fails with a message asking to crop it.
+pub(crate) const MAX_DECODED_PIXELS: usize = 128 << 20;
 
 /// An error reading the raster: what is wrong, without the file name
 /// (the caller adds it).
@@ -99,11 +120,11 @@ impl<'a> Reader<'a> {
     /// Integer values of an entry (BYTE, SHORT, LONG, LONG8 and their
     /// signed forms, negative values refused).
     fn ints(&self, e: Entry, tag: u16) -> TiffResult<Vec<u64>> {
-        let n = usize::try_from(e.count).map_err(|_| format!("tag {tag} is too long"))?;
-        let size = Self::type_size(e.typ).unwrap_or(0);
-        if n.checked_mul(size).map_or(true, |t| t > self.b.len()) {
-            return Err(format!("tag {tag} is truncated"));
-        }
+        let size = match e.typ {
+            1 | 3 | 4 | 6 | 7 | 8 | 9 | 13 | 16 | 17 | 18 => Self::type_size(e.typ).unwrap_or(8),
+            t => return Err(format!("tag {tag} has type {t}, not an integer type")),
+        };
+        let n = self.checked_count(e, size, tag)?;
         let mut out = Vec::with_capacity(n);
         for i in 0..n {
             let v = match e.typ {
@@ -128,15 +149,25 @@ impl<'a> Reader<'a> {
         Ok(out)
     }
 
+    /// The number of values of an entry whose values (of `size` bytes) all
+    /// lie in the file.
+    fn checked_count(&self, e: Entry, size: usize, tag: u16) -> TiffResult<usize> {
+        let n = usize::try_from(e.count).map_err(|_| format!("tag {tag} is too long"))?;
+        n.checked_mul(size)
+            .and_then(|len| e.at.checked_add(len))
+            .filter(|&end| end <= self.b.len())
+            .ok_or_else(|| {
+                format!("tag {tag} is truncated (its values run past the end of the file)")
+            })?;
+        Ok(n)
+    }
+
     /// DOUBLE values of an entry (the GeoTIFF tags).
     fn doubles(&self, e: Entry, tag: u16) -> TiffResult<Vec<f64>> {
         if e.typ != 12 {
             return Err(format!("tag {tag} has type {}, not DOUBLE", e.typ));
         }
-        let n = usize::try_from(e.count).map_err(|_| format!("tag {tag} is too long"))?;
-        if n.checked_mul(8).map_or(true, |t| t > self.b.len()) {
-            return Err(format!("tag {tag} is truncated"));
-        }
+        let n = self.checked_count(e, 8, tag)?;
         (0..n)
             .map(|i| self.u64(e.at + 8 * i).map(f64::from_bits))
             .collect()
@@ -168,6 +199,7 @@ impl Georef {
     /// tie point is a pixel's centre (`PixelIsPoint`) or corner
     /// (`PixelIsArea`), for an image `w` by `h` pixels.
     pub(crate) fn new(sx: f64, sy: f64, tx: f64, ty: f64, point: bool, w: u32, h: u32) -> Self {
+        // (the caller checks that the result is finite)
         let m00 = sx;
         let m11 = -sy;
         // Pixel centres: the corner transform followed by half a pixel,
@@ -192,6 +224,14 @@ impl Georef {
             env_w: x_max - x_min,
             env_h: y_max - y_min,
         }
+    }
+
+    fn is_finite(&self) -> bool {
+        [
+            self.i00, self.i02, self.i11, self.i12, self.env_x, self.env_y, self.env_w, self.env_h,
+        ]
+        .iter()
+        .all(|v| v.is_finite())
     }
 
     /// The pixel R5 reads at `(lon, lat)`: `None` outside the envelope
@@ -245,6 +285,8 @@ pub(crate) struct Raster<'a> {
     counts: Vec<u64>,
     pub(crate) georef: Georef,
     decoded: Vec<OnceLock<TiffResult<Vec<f64>>>>,
+    /// Pixels decoded so far, against [`MAX_DECODED_PIXELS`].
+    spent: AtomicUsize,
 }
 
 const TAG_WIDTH: u16 = 256;
@@ -299,11 +341,21 @@ impl<'a> Raster<'a> {
         };
         let ifd =
             usize::try_from(first).map_err(|_| "the first image directory is out of reach")?;
+        if ifd < if r.big { 16 } else { 8 } {
+            return Err("the first image directory overlaps the file header".into());
+        }
         let (n, mut at, step) = if r.big {
             (r.u64(ifd)?, ifd + 8, 20)
         } else {
             (u64::from(r.u16(ifd)?), ifd + 2, 12)
         };
+        // every entry must be in the file before any is read
+        usize::try_from(n)
+            .ok()
+            .and_then(|n| n.checked_mul(step))
+            .and_then(|len| at.checked_add(len))
+            .filter(|&end| end <= b.len())
+            .ok_or("the image directory runs past the end of the file")?;
         let mut entries: Vec<(u16, Entry)> = Vec::new();
         for _ in 0..n {
             let tag = r.u16(at)?;
@@ -467,13 +519,30 @@ impl<'a> Raster<'a> {
             )?;
             (u64::from(width), rows, offsets, counts)
         };
-        if block_w == 0 || block_h == 0 || block_w > 1 << 20 || block_h > 1 << 24 {
+        if block_w == 0
+            || block_h == 0
+            || block_w > u64::from(u32::MAX)
+            || block_h > u64::from(u32::MAX)
+        {
             return Err(format!("blocks of {block_w} by {block_h} pixels"));
         }
         let (block_w, block_h) = (block_w as u32, block_h as u32);
+        let block_px = (block_w as usize)
+            .checked_mul(block_h as usize)
+            .filter(|&p| p <= MAX_BLOCK_PIXELS)
+            .ok_or_else(|| {
+                format!(
+                    "blocks (strips or tiles) of {block_w} by {block_h} pixels, more than the \
+                     {MAX_BLOCK_PIXELS} pixels peabiru decodes at once; write the raster in \
+                     tiles (gdal_translate -co TILED=YES)"
+                )
+            })?;
+        let _ = block_px;
         let blocks_across = width.div_ceil(block_w);
         let blocks_down = height.div_ceil(block_h);
-        let n_blocks = blocks_across as usize * blocks_down as usize;
+        let n_blocks = (blocks_across as usize)
+            .checked_mul(blocks_down as usize)
+            .ok_or("too many blocks for the image")?;
         if offsets.len() < n_blocks || counts.len() < n_blocks {
             return Err(format!(
                 "{} block offsets and {} byte counts for {n_blocks} blocks",
@@ -541,9 +610,9 @@ impl<'a> Raster<'a> {
             if keys.len() < 4 {
                 return None;
             }
-            let n = keys[3] as usize;
-            (0..n).find_map(|i| {
-                let k = keys.get(4 + 4 * i..8 + 4 * i)?;
+            // no more keys than the directory holds, whatever its count says
+            let n = usize::try_from(keys[3]).unwrap_or(usize::MAX);
+            keys[4..].chunks_exact(4).take(n).find_map(|k| {
                 // only keys held in the directory itself (location 0)
                 (k[0] == u64::from(id) && k[1] == 0).then_some(k[3])
             })
@@ -573,6 +642,12 @@ impl<'a> Raster<'a> {
             Some(t) => return Err(format!("raster type {t} is not supported")),
         };
         let georef = Georef::new(sx, sy, tie[3], tie[4], point, width, height);
+        if !georef.is_finite() {
+            return Err(format!(
+                "a pixel scale of ({sx}, {sy}) and a tie point at ({}, {}) give no usable grid",
+                tie[3], tie[4]
+            ));
+        }
         Ok(Raster {
             b,
             le,
@@ -590,22 +665,30 @@ impl<'a> Raster<'a> {
             counts,
             georef,
             decoded: (0..n_blocks).map(|_| OnceLock::new()).collect(),
+            spent: AtomicUsize::new(0),
         })
     }
 
     /// The value of pixel `(x, y)` as GeoTools' `getPixel` gives it (a
     /// double: integers exactly, floats widened).
     pub(crate) fn value(&self, x: u32, y: u32) -> TiffResult<f64> {
+        if x >= self.width || y >= self.height {
+            return Err(format!("pixel ({x}, {y}) is outside the image"));
+        }
         let bx = x / self.block_w;
         let by = y / self.block_h;
         let k = by as usize * self.blocks_across as usize + bx as usize;
-        let block = self.decoded[k]
+        let slot = self.decoded.get(k).ok_or("a block is missing")?;
+        let block = slot
             .get_or_init(|| self.decode(k, by))
             .as_ref()
             .map_err(Clone::clone)?;
         let i = (y - by * self.block_h) as usize * self.block_w as usize
             + (x - bx * self.block_w) as usize;
-        Ok(block[i])
+        block
+            .get(i)
+            .copied()
+            .ok_or_else(|| "a block is too short".into())
     }
 
     /// Rows held by block row `by` (the last strip may be short; tiles are
@@ -619,8 +702,20 @@ impl<'a> Raster<'a> {
     }
 
     fn decode(&self, k: usize, by: u32) -> TiffResult<Vec<f64>> {
-        let off = usize::try_from(self.offsets[k]).map_err(|_| "a block is out of reach")?;
-        let len = usize::try_from(self.counts[k]).map_err(|_| "a block is out of reach")?;
+        let block_px = self.block_w as usize * self.block_h as usize; // <= MAX_BLOCK_PIXELS
+        let before = self.spent.fetch_add(block_px, Ordering::Relaxed);
+        if before.saturating_add(block_px) > MAX_DECODED_PIXELS {
+            return Err(format!(
+                "the network covers more of the raster than the {MAX_DECODED_PIXELS} pixels \
+                 peabiru decodes from one raster; crop the raster to the network's area \
+                 (gdal_translate -projwin)"
+            ));
+        }
+        let off = self.offsets.get(k).and_then(|&o| usize::try_from(o).ok());
+        let len = self.counts.get(k).and_then(|&c| usize::try_from(c).ok());
+        let (Some(off), Some(len)) = (off, len) else {
+            return Err("a block is out of reach".into());
+        };
         if len == 0 {
             return Err(
                 "a block is missing (a sparse file); write the raster without SPARSE_OK".into(),
@@ -632,6 +727,7 @@ impl<'a> Raster<'a> {
             .ok_or("the file is truncated (a block points past its end)")?;
         let bps = (self.bits / 8) as usize;
         let rows = self.rows_in(by) as usize;
+        // <= MAX_BLOCK_PIXELS * 8: no overflow
         let row_bytes = self.block_w as usize * bps;
         let need = row_bytes * rows;
         let data: std::borrow::Cow<[u8]> = match self.compression {
@@ -659,10 +755,10 @@ impl<'a> Raster<'a> {
                 data.len()
             ));
         }
-        let mut out = Vec::with_capacity(self.block_w as usize * rows);
+        let mut out = Vec::with_capacity(block_px);
         let mut row = vec![0u8; row_bytes];
-        for r in 0..rows {
-            row.copy_from_slice(&data[r * row_bytes..(r + 1) * row_bytes]);
+        for chunk in data[..need].chunks_exact(row_bytes) {
+            row.copy_from_slice(chunk);
             self.row_values(&mut row, &mut out);
         }
         // tiles as wide as the image but strips by count: pad to full blocks
@@ -746,7 +842,8 @@ fn lzw_decode(input: &[u8], limit: usize) -> TiffResult<Vec<u8>> {
         first[c] = c as u8;
         length[c] = 1;
     }
-    let mut out: Vec<u8> = Vec::with_capacity(limit);
+    // grows as codes come, up to about `limit` (one code adds at most 4096 bytes)
+    let mut out: Vec<u8> = Vec::with_capacity(limit.min(input.len().saturating_mul(4)));
     let mut width = 9u32;
     let mut next = 258u16;
     let mut prev: Option<u16> = None;
@@ -821,7 +918,8 @@ fn lzw_decode(input: &[u8], limit: usize) -> TiffResult<Vec<u8>> {
 
 /// PackBits (Apple), up to `limit` bytes.
 fn packbits_decode(input: &[u8], limit: usize) -> TiffResult<Vec<u8>> {
-    let mut out = Vec::with_capacity(limit);
+    // a run byte gives at most 128 bytes; grow from the input's size
+    let mut out = Vec::with_capacity(limit.min(input.len().saturating_mul(2)));
     let mut i = 0;
     while i < input.len() && out.len() < limit {
         let n = input[i] as i8;
@@ -877,5 +975,319 @@ mod tests {
             .map(|b| b.iter().fold(0u8, |a, &x| (a << 1) | x as u8))
             .collect();
         assert_eq!(lzw_decode(&bytes, 100).unwrap(), b"abab");
+    }
+
+    /// A little-endian classic GeoTIFF of `w` by `h` 16-bit signed pixels
+    /// (value `y * w + x`) in one uncompressed strip, georeferenced in
+    /// EPSG:4326, with extra entries `extra` as `(tag, type, count, value
+    /// or offset)` replacing any of the same tag.
+    pub(super) fn tiny(w: u16, h: u16, extra: &[(u16, u16, u32, u32)]) -> Vec<u8> {
+        let mut pixels = Vec::new();
+        for y in 0..h {
+            for x in 0..w {
+                pixels.extend_from_slice(&((y * w + x) as i16).to_le_bytes());
+            }
+        }
+        // layout: header (8), doubles (scale 24 + tie 48), geokeys (32 shorts), pixels, IFD
+        let mut b = b"II*\0\0\0\0\0".to_vec();
+        let scale_at = b.len() as u32;
+        for v in [0.001f64, 0.001, 0.0] {
+            b.extend_from_slice(&v.to_le_bytes());
+        }
+        let tie_at = b.len() as u32;
+        for v in [0.0f64, 0.0, 0.0, -46.65, -23.52, 0.0] {
+            b.extend_from_slice(&v.to_le_bytes());
+        }
+        let keys_at = b.len() as u32;
+        for v in [
+            1u16, 1, 0, 3, 1024, 0, 1, 2, 1025, 0, 1, 1, 2048, 0, 1, 4326,
+        ] {
+            b.extend_from_slice(&v.to_le_bytes());
+        }
+        let pix_at = b.len() as u32;
+        b.extend_from_slice(&pixels);
+        let mut entries: Vec<(u16, u16, u32, u32)> = vec![
+            (256, 3, 1, u32::from(w)),
+            (257, 3, 1, u32::from(h)),
+            (258, 3, 1, 16),
+            (259, 3, 1, 1),
+            (262, 3, 1, 1),
+            (273, 4, 1, pix_at),
+            (277, 3, 1, 1),
+            (278, 3, 1, u32::from(h)),
+            (279, 4, 1, pixels.len() as u32),
+            (339, 3, 1, 2),
+            (33550, 12, 3, scale_at),
+            (33922, 12, 6, tie_at),
+            (34735, 3, 16, keys_at),
+        ];
+        for &(t, ty, c, v) in extra {
+            entries.retain(|e| e.0 != t);
+            entries.push((t, ty, c, v));
+        }
+        entries.sort_by_key(|e| e.0);
+        let ifd = b.len() as u32;
+        b[4..8].copy_from_slice(&ifd.to_le_bytes());
+        b.extend_from_slice(&(entries.len() as u16).to_le_bytes());
+        for (t, ty, c, v) in entries {
+            b.extend_from_slice(&t.to_le_bytes());
+            b.extend_from_slice(&ty.to_le_bytes());
+            b.extend_from_slice(&c.to_le_bytes());
+            b.extend_from_slice(&v.to_le_bytes());
+        }
+        b.extend_from_slice(&0u32.to_le_bytes());
+        b
+    }
+
+    /// Parse and read every pixel: the first error, if any.
+    fn read_all(b: &[u8]) -> TiffResult<f64> {
+        let r = Raster::parse(b)?;
+        let mut sum = 0.0;
+        // a bounded sample of pixels (the image may claim to be huge)
+        let (w, h) = (r.width.min(64), r.height.min(64));
+        for y in 0..h {
+            for x in 0..w {
+                sum += r.value(x, y)?;
+            }
+        }
+        Ok(sum)
+    }
+
+    #[test]
+    fn the_tiny_file_reads() {
+        let b = tiny(5, 4, &[]);
+        let r = Raster::parse(&b).unwrap();
+        assert_eq!((r.width, r.height), (5, 4));
+        assert_eq!(r.value(3, 2).unwrap(), 13.0);
+        assert!(r.value(5, 0).is_err());
+        assert_eq!(r.georef.pixel(-46.6495, -23.5205, 5, 4), Ok(Some((0, 0))));
+        assert_eq!(r.georef.pixel(-46.0, -23.0, 5, 4), Ok(None));
+    }
+
+    fn fails(b: &[u8], what: &str) {
+        match read_all(b) {
+            Ok(_) => panic!("expected an error about {what}"),
+            Err(e) => assert!(e.contains(what), "error {e:?} does not mention {what:?}"),
+        }
+    }
+
+    #[test]
+    fn malformed_headers_and_directories_are_errors() {
+        fails(b"", "not a TIFF");
+        fails(b"II", "truncated");
+        fails(b"II*\0", "truncated");
+        fails(b"XX*\0\x08\0\0\0", "not a TIFF");
+        fails(b"II\x2b\0\x04\0\0\0", "offset size");
+        let mut b = tiny(3, 3, &[]);
+        b[4..8].copy_from_slice(&4u32.to_le_bytes());
+        fails(&b, "overlaps the file header");
+        let mut b = tiny(3, 3, &[]);
+        b[4..8].copy_from_slice(&u32::MAX.to_le_bytes());
+        fails(&b, "truncated");
+        // an entry count far beyond the file
+        let mut b = tiny(3, 3, &[]);
+        let ifd = u32::from_le_bytes(b[4..8].try_into().unwrap()) as usize;
+        b[ifd..ifd + 2].copy_from_slice(&u16::MAX.to_le_bytes());
+        fails(&b, "runs past the end");
+    }
+
+    #[test]
+    fn malformed_entries_are_errors() {
+        // the width with an unknown field type and a huge count
+        fails(
+            &tiny(3, 3, &[(256, 99, u32::MAX, 3)]),
+            "not an integer type",
+        );
+        // strip offsets: a count whose values run past the end
+        fails(&tiny(3, 3, &[(273, 4, 1 << 30, 8)]), "truncated");
+        fails(&tiny(3, 3, &[(256, 3, 0, 0)]), "empty");
+        fails(&tiny(3, 3, &[(256, 3, 1, 0)]), "an image of 0 by 3");
+        // a strip and its byte count past the end of the file
+        fails(&tiny(3, 3, &[(273, 4, 1, u32::MAX - 4)]), "past its end");
+        fails(&tiny(3, 3, &[(279, 4, 1, u32::MAX)]), "past its end");
+        fails(&tiny(3, 3, &[(279, 4, 1, 0)]), "missing");
+        // fewer strips than the image needs
+        fails(&tiny(3, 3, &[(278, 3, 1, 1)]), "block offsets");
+        // samples, formats, predictors
+        fails(&tiny(3, 3, &[(258, 3, 1, 12)]), "not supported");
+        fails(
+            &tiny(3, 3, &[(258, 3, 1, 64), (339, 3, 1, 2)]),
+            "64-bit integer",
+        );
+        fails(&tiny(3, 3, &[(317, 3, 1, 3)]), "predictor 3");
+        fails(&tiny(3, 3, &[(317, 3, 1, 9)]), "predictor 9");
+        fails(&tiny(3, 3, &[(277, 3, 1, 2)]), "2 bands");
+        fails(&tiny(3, 3, &[(259, 3, 1, 50000)]), "ZSTD");
+        fails(&tiny(3, 3, &[(259, 3, 1, 7)]), "JPEG");
+    }
+
+    #[test]
+    fn malformed_blocks_are_errors() {
+        // tiles of 0 pixels, and of more than a block may hold
+        let tiled = |tw: u32, th: u32| {
+            tiny(
+                3,
+                3,
+                &[
+                    (322, 4, 1, tw),
+                    (323, 4, 1, th),
+                    (324, 4, 1, 8),
+                    (325, 4, 1, 18),
+                ],
+            )
+        };
+        fails(&tiled(0, 16), "blocks of 0 by 16");
+        fails(&tiled(1 << 16, 1 << 16), "more than the");
+        fails(&tiled(u32::MAX, u32::MAX), "more than the");
+        // a block that decodes short
+        fails(&tiny(3, 3, &[(279, 4, 1, 4)]), "decodes to");
+        // compressed garbage
+        fails(&tiny(3, 3, &[(259, 3, 1, 8)]), "Deflate");
+        let lzw = tiny(3, 3, &[(259, 3, 1, 5)]);
+        assert!(read_all(&lzw).is_err());
+        let pack = tiny(3, 3, &[(259, 3, 1, 32773)]);
+        assert!(read_all(&pack).is_err());
+    }
+
+    /// `tiny` with its strip replaced by `strip`, appended after the IFD.
+    fn with_strip(compression: u32, strip: &[u8]) -> Vec<u8> {
+        let n = strip.len() as u32;
+        let at = tiny(
+            3,
+            3,
+            &[(259, 3, 1, compression), (273, 4, 1, 0), (279, 4, 1, n)],
+        )
+        .len();
+        let mut b = tiny(
+            3,
+            3,
+            &[
+                (259, 3, 1, compression),
+                (273, 4, 1, at as u32),
+                (279, 4, 1, n),
+            ],
+        );
+        b.extend_from_slice(strip);
+        b
+    }
+
+    #[test]
+    fn a_deflate_bomb_stops_at_the_block_size() {
+        // 64 MiB of zeros deflated to about 64 KiB, as a 3 x 3 strip
+        let packed = miniz_oxide::deflate::compress_to_vec_zlib(&vec![0u8; 64 << 20], 9);
+        let file = with_strip(8, &packed);
+        let r = Raster::parse(&file).unwrap();
+        assert_eq!(r.value(2, 2).unwrap(), 0.0);
+        // PackBits runs and LZW codes past the strip's size stop there too
+        let runs: Vec<u8> = std::iter::repeat([0x81u8, 7])
+            .take(10_000)
+            .flatten()
+            .collect();
+        let file = with_strip(32773, &runs);
+        let r = Raster::parse(&file).unwrap();
+        assert_eq!(
+            r.value(0, 0).unwrap(),
+            f64::from(i16::from_le_bytes([7, 7]))
+        );
+    }
+
+    #[test]
+    fn geokeys_and_georeferencing() {
+        // a key count far beyond the keys present
+        let b = tiny(3, 3, &[]);
+        let keys_at = 8 + 24 + 48;
+        let mut c = b.clone();
+        c[keys_at + 6..keys_at + 8].copy_from_slice(&u16::MAX.to_le_bytes());
+        assert!(read_all(&c).is_ok());
+        // no CRS keys
+        fails(&tiny(3, 3, &[(34735, 3, 4, 8 + 24 + 48)]), "not WGS 84");
+        // a zero pixel scale, and no georeferencing
+        let mut z = b.clone();
+        z[8..16].copy_from_slice(&0f64.to_le_bytes());
+        fails(&z, "positive scales");
+        let mut s = b.clone();
+        s[8..16].copy_from_slice(&f64::MIN_POSITIVE.to_le_bytes());
+        fails(&s, "no usable grid");
+        let mut n = b;
+        n[16..24].copy_from_slice(&f64::NAN.to_le_bytes());
+        fails(&n, "positive scales");
+    }
+
+    /// splitmix64
+    fn next(state: &mut u64) -> u64 {
+        *state = state.wrapping_add(0x9e37_79b9_7f4a_7c15);
+        let mut z = *state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        z ^ (z >> 31)
+    }
+
+    #[test]
+    fn the_fuzz_seeds_read() {
+        for b in [
+            &include_bytes!("../../tests/data/fuzz_lzw.tif")[..],
+            &include_bytes!("../../tests/data/fuzz_p3.tif")[..],
+            &include_bytes!("../../tests/data/fuzz_big.tif")[..],
+        ] {
+            let r = Raster::parse(b).unwrap();
+            assert_eq!((r.width, r.height), (40, 30));
+            assert!(read_all(b).unwrap() > 0.0);
+        }
+    }
+
+    #[test]
+    fn mutated_files_never_panic() {
+        let hills = include_bytes!("../../tests/data/spo_hills.tif").to_vec();
+        // GDAL's output in the layouts the reader takes (40 x 30 crops of a
+        // synthetic raster): LZW + horizontal predictor in 16 x 16 tiles,
+        // big-endian Deflate + floating-point predictor, BigTIFF PackBits
+        let seeds: Vec<Vec<u8>> = vec![
+            hills,
+            include_bytes!("../../tests/data/fuzz_lzw.tif").to_vec(),
+            include_bytes!("../../tests/data/fuzz_p3.tif").to_vec(),
+            include_bytes!("../../tests/data/fuzz_big.tif").to_vec(),
+            tiny(7, 5, &[]),
+            tiny(
+                7,
+                5,
+                &[
+                    (322, 4, 1, 16),
+                    (323, 4, 1, 16),
+                    (324, 4, 1, 200),
+                    (325, 4, 1, 512),
+                ],
+            ),
+        ];
+        let mut state = 42u64;
+        let t0 = std::time::Instant::now();
+        let mut read = 0;
+        // PEABIRU_TIFF_FUZZ=<n> runs n mutations (default 20000) and seeds them by n
+        let n: usize = std::env::var("PEABIRU_TIFF_FUZZ")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(20_000);
+        state ^= n as u64;
+        for i in 0..n {
+            let mut b = seeds[i % seeds.len()].clone();
+            let edits = 1 + next(&mut state) % 8;
+            for _ in 0..edits {
+                let at = (next(&mut state) % b.len() as u64) as usize;
+                match next(&mut state) % 4 {
+                    0 => b[at] = next(&mut state) as u8,
+                    1 => b[at] ^= 1 << (next(&mut state) % 8),
+                    2 => b[at] = [0u8, 0xff, 0x7f, 0x80][(next(&mut state) % 4) as usize],
+                    _ => b.truncate(at.max(1)),
+                }
+            }
+            if read_all(&b).is_ok() {
+                read += 1;
+            }
+        }
+        assert!(read > 0);
+        assert!(
+            n > 20_000 || t0.elapsed().as_secs() < 60,
+            "fuzzing took {:?}",
+            t0.elapsed()
+        );
     }
 }
