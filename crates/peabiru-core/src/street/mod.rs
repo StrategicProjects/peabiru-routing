@@ -50,6 +50,8 @@ pub mod flags {
 pub mod vertex_flags {
     pub const TRAFFIC_SIGNAL: u8 = 1 << 0;
     pub const IMPASSABLE: u8 = 1 << 1;
+    /// The centre of a park-and-ride (R5 `VertexFlag.PARK_AND_RIDE`).
+    pub const PARK_AND_RIDE: u8 = 1 << 2;
 }
 
 /// A routable street network for walking, cycling and driving, built by

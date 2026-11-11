@@ -4,6 +4,7 @@
 
 use super::csv::{for_each_row, CsvError, Header, ReadError, Row};
 use super::zip::{Archive, Limits, ZipError};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 #[derive(Debug)]
@@ -27,6 +28,8 @@ pub enum GtfsError {
         column: &'static str,
         value: String,
     },
+    /// Why gtfs-lib fails loading the feed (see `validate`).
+    GtfsLibFails(String),
     /// An error in the feed read from `path`.
     InFeed {
         path: std::path::PathBuf,
@@ -51,6 +54,7 @@ impl fmt::Display for GtfsError {
             } => {
                 write!(f, "{file} line {line}: invalid {column} '{value}'")
             }
+            GtfsError::GtfsLibFails(why) => f.write_str(why),
             GtfsError::InFeed { path, error } => write!(f, "{}: {error}", path.display()),
         }
     }
@@ -77,6 +81,8 @@ impl From<ZipError> for GtfsError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stop {
     pub stop_id: String,
+    /// Empty when blank.
+    pub stop_name: String,
     pub lat: f64,
     pub lon: f64,
     /// 0 stop/platform, 1 station, 2 entrance, 3 generic node, 4 boarding area.
@@ -88,6 +94,11 @@ pub struct Stop {
 pub struct Route {
     pub route_id: String,
     pub route_type: i32,
+    /// `agency_id`, `route_short_name` and `route_long_name`, empty when
+    /// blank.
+    pub agency_id: String,
+    pub short_name: String,
+    pub long_name: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,6 +107,8 @@ pub struct Trip {
     pub route_id: String,
     pub service_id: String,
     pub direction_id: Option<u8>,
+    /// Empty when blank.
+    pub shape_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -150,6 +163,13 @@ pub struct Feed {
     pub calendars: Vec<Calendar>,
     pub calendar_dates: Vec<CalendarDate>,
     pub frequencies: Vec<Frequency>,
+    /// `agency.txt` rows as `(agency_id, agency_name)`, both empty when
+    /// blank.
+    pub agencies: Vec<(String, String)>,
+    /// `shapes.txt`: the points of each shape as `(lon, lat)`, by
+    /// `shape_pt_sequence` (a repeated sequence keeps the last row, as in
+    /// gtfs-lib's map).
+    pub shapes: HashMap<String, BTreeMap<i32, (f64, f64)>>,
 }
 
 /// GTFS time `H:MM:SS` (hours may exceed 23) to seconds; `None` when blank.
@@ -199,6 +219,14 @@ impl Feed {
                 value: value.into(),
             };
 
+        table(a, "agency.txt", false, &[], |h, _, r| {
+            feed.agencies.push((
+                r.get(h.col("agency_id")).to_string(),
+                r.get(h.col("agency_name")).to_string(),
+            ));
+            Ok(())
+        })?;
+
         table(a, "feed_info.txt", false, &[], |h, _, r| {
             let id = r.get(h.col("feed_id"));
             if feed.feed_id.is_none() && !id.is_empty() {
@@ -217,6 +245,7 @@ impl Feed {
             };
             feed.stops.push(Stop {
                 stop_id: r.get(h.col("stop_id")).to_string(),
+                stop_name: r.get(h.col("stop_name")).to_string(),
                 lat: num("stop_lat", "stop_lat")?,
                 lon: num("stop_lon", "stop_lon")?,
                 location_type: r.get(h.col("location_type")).parse().unwrap_or(0),
@@ -232,6 +261,9 @@ impl Feed {
                 route_type: v
                     .parse()
                     .map_err(|_| bad("routes.txt", n, "route_type", v))?,
+                agency_id: r.get(h.col("agency_id")).to_string(),
+                short_name: r.get(h.col("route_short_name")).to_string(),
+                long_name: r.get(h.col("route_long_name")).to_string(),
             });
             Ok(())
         })?;
@@ -242,6 +274,7 @@ impl Feed {
                 route_id: r.get(h.col("route_id")).to_string(),
                 service_id: r.get(h.col("service_id")).to_string(),
                 direction_id: r.get(h.col("direction_id")).parse().ok(),
+                shape_id: r.get(h.col("shape_id")).to_string(),
             });
             Ok(())
         })?;
@@ -338,13 +371,37 @@ impl Feed {
                 Ok(())
             },
         )?;
+
+        // Shapes are only drawn (r5r's transit_network_to_sf()), never
+        // routed on, so values gtfs-lib cannot parse are read as it reads
+        // them (NaN, a missing sequence) rather than refused.
+        table(a, "shapes.txt", false, &[], |h, _, r| {
+            let id = r.get(h.col("shape_id"));
+            if id.is_empty() {
+                return Ok(());
+            }
+            let num = |c| super::jparse::parse_double(r.get(h.col(c))).unwrap_or(f64::NAN);
+            let seq = super::jparse::parse_int(r.get(h.col("shape_pt_sequence")))
+                .unwrap_or(super::jparse::INT_MISSING);
+            let point = (num("shape_pt_lon"), num("shape_pt_lat"));
+            match feed.shapes.get_mut(id) {
+                Some(s) => {
+                    s.insert(seq, point);
+                }
+                None => {
+                    feed.shapes
+                        .insert(id.to_string(), BTreeMap::from([(seq, point)]));
+                }
+            }
+            Ok(())
+        })?;
         Ok(feed)
     }
 }
 
 /// The tables looked up in a feed: `agency.txt` and those read into a
 /// [`Feed`].
-const TABLES: [&str; 9] = [
+const TABLES: [&str; 10] = [
     "agency.txt",
     "feed_info.txt",
     "stops.txt",
@@ -354,6 +411,7 @@ const TABLES: [&str; 9] = [
     "calendar.txt",
     "calendar_dates.txt",
     "frequencies.txt",
+    "shapes.txt",
 ];
 
 /// How a feed's archive is laid out, in the two ways that make gtfs-lib

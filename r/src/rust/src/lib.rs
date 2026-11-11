@@ -26,6 +26,8 @@ use peabiru_core::{
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+mod inspect;
+
 /// A network built once and shared by every routing call.
 struct Network {
     net: StreetNetwork,
@@ -1064,4 +1066,5 @@ extendr_module! {
     fn rs_isochrone_polygons;
     fn rs_street_edges;
     fn rs_isochrone_lines;
+    use inspect;
 }

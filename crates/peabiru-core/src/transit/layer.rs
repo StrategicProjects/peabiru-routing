@@ -116,6 +116,30 @@ pub struct TransitLayer {
     /// What was found in each feed, in loading order (see
     /// [`TransitLayer::r5r_warnings`]).
     pub(crate) feed_reports: Vec<FeedReport>,
+    /// Drawn, not routed on (r5r's `transit_network_to_sf()`; see
+    /// `crate::inspect`): the `stop_name` of each stop (`None` when blank),
+    /// R5's `RouteInfo` list, and per pattern its index in it and the
+    /// shape of the trip that made the pattern (into `shapes`).
+    pub(crate) stop_names: Vec<Option<String>>,
+    /// `service_id` of each service.
+    pub(crate) service_ids: Vec<String>,
+    pub(crate) routes: Vec<RouteInfo>,
+    pub(crate) pattern_route: Vec<u32>,
+    pub(crate) pattern_shape: Vec<Option<u32>>,
+    /// Shapes of `shapes.txt` as `[lon, lat]` points, in sequence order.
+    pub(crate) shapes: Vec<Vec<[f64; 2]>>,
+}
+
+/// R5's `RouteInfo`: a GTFS route as r5r reports it, `None` for a blank
+/// value.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct RouteInfo {
+    pub agency_id: Option<String>,
+    pub agency_name: Option<String>,
+    pub route_id: String,
+    pub short_name: Option<String>,
+    pub long_name: Option<String>,
+    pub route_type: i32,
 }
 
 /// Trips left out of the timetable while loading, by reason. R5 leaves out
@@ -384,6 +408,25 @@ fn feed_id(feed: &Feed, path: &std::path::Path) -> String {
     })
 }
 
+/// R5's `new RouteInfo(route, gtfs.agency.get(route.agency_id))`, with the
+/// route's agency as gtfs-lib's `Route.Loader` sets it: the `agency_id`
+/// given, when `agency.txt` has it, else the only agency of the feed.
+fn route_info(route: &crate::gtfs::feed::Route, agencies: &BTreeMap<&str, &str>) -> RouteInfo {
+    let given =
+        Some(route.agency_id.as_str()).filter(|id| !id.is_empty() && agencies.contains_key(id));
+    let agency_id = given
+        .or_else(|| (agencies.len() == 1).then(|| *agencies.keys().next().expect("one agency")));
+    let some = |s: &str| (!s.is_empty()).then(|| s.to_string());
+    RouteInfo {
+        agency_id: agency_id.map(str::to_string),
+        agency_name: agency_id.and_then(|id| some(agencies[id])),
+        route_id: route.route_id.clone(),
+        short_name: some(&route.short_name),
+        long_name: some(&route.long_name),
+        route_type: route.route_type,
+    }
+}
+
 impl TransitLayer {
     /// The id of each feed, in loading order: the `feed_id` of its
     /// `feed_info.txt`, or else the file name without `.zip` (as R5 names
@@ -520,6 +563,8 @@ impl TransitLayer {
             self.stop_lat.push(s.lat);
             self.stop_lon.push(s.lon);
             self.stop_vertex.push(-1);
+            self.stop_names
+                .push((!s.stop_name.is_empty()).then(|| s.stop_name.clone()));
         }
 
         // Services: calendar and calendar_dates ids, in service_id order.
@@ -544,6 +589,8 @@ impl TransitLayer {
             .enumerate()
             .map(|(i, k)| (*k, (service_offset + i) as u32))
             .collect();
+        self.service_ids
+            .extend(services.keys().map(|k| k.to_string()));
         self.services.extend(services.into_values());
 
         let route_type: HashMap<&str, i32> = feed
@@ -551,6 +598,25 @@ impl TransitLayer {
             .iter()
             .map(|r| (r.route_id.as_str(), r.route_type))
             .collect();
+        // For RouteInfo: routes and agencies by id, a repeated id keeping
+        // the last row (gtfs-lib's maps); an agency without an id is "NONE".
+        let routes_by_id: HashMap<&str, &crate::gtfs::feed::Route> = feed
+            .routes
+            .iter()
+            .map(|r| (r.route_id.as_str(), r))
+            .collect();
+        let agencies: BTreeMap<&str, &str> = feed
+            .agencies
+            .iter()
+            .map(|(id, name)| {
+                (
+                    if id.is_empty() { "NONE" } else { id.as_str() },
+                    name.as_str(),
+                )
+            })
+            .collect();
+        let mut route_index: HashMap<&str, u32> = HashMap::new();
+        let mut shape_index: HashMap<&str, Option<u32>> = HashMap::new();
 
         // stop_times per trip, by stop_sequence; a repeated sequence keeps the last row.
         let mut times: HashMap<&str, BTreeMap<i32, &StopTime>> = HashMap::new();
@@ -606,21 +672,6 @@ impl TransitLayer {
                 rows.iter().map(|r| r.pickup_type).collect::<Vec<_>>(),
                 rows.iter().map(|r| r.drop_off_type).collect::<Vec<_>>(),
             );
-            let pi = *pattern_of.entry(key).or_insert_with(|| {
-                self.patterns.push(Pattern {
-                    route_id: trip.route_id.clone(),
-                    route_type: rtype,
-                    stops: stop_seq.clone(),
-                    pickups: rows.iter().map(|r| r.pickup_type != 1).collect(),
-                    dropoffs: rows.iter().map(|r| r.drop_off_type != 1).collect(),
-                    ..Pattern::default()
-                });
-                self.patterns.len() - 1
-            });
-            let Some(&service) = service_code.get(trip.service_id.as_str()) else {
-                dropped.unknown_service += 1;
-                continue;
-            };
             let coords: Vec<(f64, f64)> = stop_seq
                 .iter()
                 .map(|&s| (self.stop_lat[s as usize], self.stop_lon[s as usize]))
@@ -639,6 +690,46 @@ impl TransitLayer {
                 dropped.negative_time += 1;
                 continue;
             }
+            // R5 makes the pattern only now, for a trip with valid times,
+            // whatever happens to the trip next.
+            let pi = match pattern_of.get(&key) {
+                Some(&pi) => pi,
+                None => {
+                    self.patterns.push(Pattern {
+                        route_id: trip.route_id.clone(),
+                        route_type: rtype,
+                        stops: stop_seq.clone(),
+                        pickups: rows.iter().map(|r| r.pickup_type != 1).collect(),
+                        dropoffs: rows.iter().map(|r| r.drop_off_type != 1).collect(),
+                        ..Pattern::default()
+                    });
+                    let ri = *route_index
+                        .entry(trip.route_id.as_str())
+                        .or_insert_with(|| {
+                            self.routes
+                                .push(route_info(routes_by_id[trip.route_id.as_str()], &agencies));
+                            (self.routes.len() - 1) as u32
+                        });
+                    self.pattern_route.push(ri);
+                    let shape = match trip.shape_id.as_str() {
+                        "" => None,
+                        id => *shape_index.entry(id).or_insert_with(|| {
+                            // gtfs-lib's getShape: no shape without points
+                            let points = feed.shapes.get(id).filter(|p| !p.is_empty())?;
+                            self.shapes
+                                .push(points.values().map(|&(lon, lat)| [lon, lat]).collect());
+                            Some((self.shapes.len() - 1) as u32)
+                        }),
+                    };
+                    self.pattern_shape.push(shape);
+                    pattern_of.insert(key, self.patterns.len() - 1);
+                    self.patterns.len() - 1
+                }
+            };
+            let Some(&service) = service_code.get(trip.service_id.as_str()) else {
+                dropped.unknown_service += 1;
+                continue;
+            };
             let mut frequencies = Vec::new();
             if let Some(f) = freqs.get(trip_id) {
                 // start > end is dropped as R5 does; a non-positive headway would
