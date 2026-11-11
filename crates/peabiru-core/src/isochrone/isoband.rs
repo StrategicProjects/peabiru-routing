@@ -122,7 +122,7 @@ struct Node {
 ///   share a bucket together (`__do_rehash`);
 /// - libstdc++ starts with 1 bucket and, past a load factor of 1, grows to
 ///   the next prime of its table at or above `max(size + 1, 2n)` (13 for
-///   the first key), relinking the nodes one by one at the front of their
+///   the first key; [`GNU_BUCKET_COUNTS`] holds the ones reached), relinking the nodes one by one at the front of their
 ///   new bucket or of the list (`_M_rehash` for unique keys, with
 ///   `_Prime_rehash_policy`).
 #[derive(Debug, Clone)]
@@ -152,6 +152,36 @@ fn constrain(h: u64, bc: usize) -> usize {
     }) as usize
 }
 
+/// libstdc++ `_Prime_rehash_policy::_M_need_rehash` (max load factor 1)
+/// before the `n`-th key goes into a table of `bc` buckets: the new bucket
+/// count, if it rehashes. `next_resize` is the policy's state, the size
+/// past which it rehashes (0 before the first insertion).
+///
+/// The tables [`Isobander::new`] accepts never grow past
+/// [`GNU_MAX_SIZE`] keys, so the next bucket count is always listed.
+fn gnu_need_rehash(next_resize: &mut usize, bc: usize, n: usize) -> Option<usize> {
+    if n <= *next_resize {
+        return None;
+    }
+    let min_bkts = n.max(if *next_resize == 0 { 11 } else { 0 });
+    if min_bkts < bc {
+        *next_resize = bc;
+        return None;
+    }
+    let nbc = gnu_next_bkt((min_bkts + 1).max(bc * 2))
+        .expect("isoband: no more keys than Isobander::new checks for");
+    *next_resize = nbc;
+    Some(nbc)
+}
+
+/// libstdc++ `_Prime_rehash_policy::_M_next_bkt` for the arguments
+/// insertions pass it (see [`GNU_BUCKET_COUNTS`]): the first listed count
+/// at or above `n`, or `None` past the list.
+fn gnu_next_bkt(n: usize) -> Option<usize> {
+    let i = GNU_BUCKET_COUNTS.partition_point(|&p| p < n);
+    GNU_BUCKET_COUNTS.get(i).copied()
+}
+
 /// libc++ `__is_hash_power2`.
 fn is_hash_power2(bc: usize) -> bool {
     bc > 2 && bc & (bc - 1) == 0
@@ -179,33 +209,52 @@ fn next_prime(n: usize) -> usize {
     n
 }
 
-/// libstdc++ `__prime_list` (`src/shared/hashtable-aux.cc`, the same from
-/// GCC 11 to 15) up to its last 32-bit entry; 64-bit targets go on with
-/// larger primes, which no table of grid points in memory reaches.
-const GNU_PRIMES: [u32; 256] = [
-    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97,
-    103, 109, 113, 127, 137, 139, 149, 157, 167, 179, 193, 199, 211, 227, 241, 257, 277, 293, 313,
-    337, 359, 383, 409, 439, 467, 503, 541, 577, 619, 661, 709, 761, 823, 887, 953, 1031, 1109,
-    1193, 1289, 1381, 1493, 1613, 1741, 1879, 2029, 2179, 2357, 2549, 2753, 2971, 3209, 3469, 3739,
-    4027, 4349, 4703, 5087, 5503, 5953, 6427, 6949, 7517, 8123, 8783, 9497, 10273, 11113, 12011,
-    12983, 14033, 15173, 16411, 17749, 19183, 20753, 22447, 24281, 26267, 28411, 30727, 33223,
-    35933, 38873, 42043, 45481, 49201, 53201, 57557, 62233, 67307, 72817, 78779, 85229, 92203,
-    99733, 107897, 116731, 126271, 136607, 147793, 159871, 172933, 187091, 202409, 218971, 236897,
-    256279, 277261, 299951, 324503, 351061, 379787, 410857, 444487, 480881, 520241, 562841, 608903,
-    658753, 712697, 771049, 834181, 902483, 976369, 1056323, 1142821, 1236397, 1337629, 1447153,
-    1565659, 1693859, 1832561, 1982627, 2144977, 2320627, 2510653, 2716249, 2938679, 3179303,
-    3439651, 3721303, 4026031, 4355707, 4712381, 5098259, 5515729, 5967347, 6456007, 6984629,
-    7556579, 8175383, 8844859, 9569143, 10352717, 11200489, 12117689, 13109983, 14183539, 15345007,
-    16601593, 17961079, 19431899, 21023161, 22744717, 24607243, 26622317, 28802401, 31160981,
-    33712729, 36473443, 39460231, 42691603, 46187573, 49969847, 54061849, 58488943, 63278561,
-    68460391, 74066549, 80131819, 86693767, 93793069, 101473717, 109783337, 118773397, 128499677,
-    139022417, 150406843, 162723577, 176048909, 190465427, 206062531, 222936881, 241193053,
-    260944219, 282312799, 305431229, 330442829, 357502601, 386778277, 418451333, 452718089,
-    489790921, 529899637, 573292817, 620239453, 671030513, 725980837, 785430967, 849749479,
-    919334987, 994618837, 1076067617, 1164186217, 1259520799, 1362662261, 1474249943, 1594975441,
-    1725587117, 1866894511, 2019773507, 2185171673, 2364114217, 2557710269, 2767159799, 2993761039,
-    3238918481, 3504151727, 3791104843, 4101556399, 4294967291,
+/// The bucket counts a libstdc++ `std::unordered_map` that only grows by
+/// insertion goes through, after its initial single bucket: 13 on the first
+/// key, then, each time the size passes the bucket count, the policy's
+/// next bucket count for twice the current one.
+///
+/// These are the values `_Prime_rehash_policy::_M_next_bkt` returns for
+/// the only arguments isoband's map passes it (12 on the first insertion,
+/// twice the bucket count afterwards; `clear()` and `erase()` keep the
+/// bucket count, and isoband never calls `reserve()` or `rehash()`), so
+/// they are the reachable entries of libstdc++'s list of primes, not the
+/// list. Recorded from the real policy by `tests/data/isoband-hash/record.cpp`
+/// (the `policy` line of `libstdcxx.txt`, GCC 16.2; the real containers of
+/// that file, recorded with GCC 11 to 14 and 16, reach the counts up to
+/// 712,697), which the tests check this list against. The list stops two
+/// steps past what the largest grid needs (see [`gnu_max_keys`]).
+const GNU_BUCKET_COUNTS: [usize; 23] = [
+    13, 29, 59, 127, 257, 541, 1109, 2357, 5087, 10273, 20753, 42043, 85229, 172933, 351061,
+    712697, 1447153, 2938679, 5967347, 12117689, 24607243, 49969847, 101473717,
 ];
+
+/// The most keys the emulated libstdc++ table can take: past the last
+/// listed bucket count, an insertion would rehash to a count the list does
+/// not have.
+const GNU_MAX_SIZE: usize = GNU_BUCKET_COUNTS[GNU_BUCKET_COUNTS.len() - 1];
+
+/// An upper bound on the keys isoband's map holds for a grid of `cells`
+/// points: each grid point and the crossings of the band's top on the edge
+/// to its right and on the edge below it, so fewer than 3 per point. For
+/// R5's largest grid (5,000,000 cells) that is 15,000,000 keys, which
+/// needs the bucket count 24,607,243.
+fn gnu_max_keys(cells: usize) -> usize {
+    cells.saturating_mul(3)
+}
+
+/// Whether the hash table of `lib` can order the rings of a grid of
+/// `cells` points as the real one does.
+fn check_grid_size(cells: usize, lib: CxxLibrary) -> Result<(), String> {
+    if lib == CxxLibrary::Libstdcxx && gnu_max_keys(cells) > GNU_MAX_SIZE {
+        return Err(format!(
+            "isochrone grid of {cells} cells is too large to order its polygons as \
+             libstdc++ does (at most {} cells)",
+            GNU_MAX_SIZE / 3
+        ));
+    }
+    Ok(())
+}
 
 impl HashTable {
     fn new(lib: CxxLibrary) -> Self {
@@ -335,43 +384,9 @@ impl HashTable {
     /// Before inserting a new key, libstdc++ (`_M_insert_unique_node` with
     /// `_Prime_rehash_policy::_M_need_rehash`, max load factor 1).
     fn grow_libstdcxx(&mut self) {
-        let (bc, n) = (self.buckets.len(), self.size + 1);
-        if n <= self.next_resize {
-            return;
-        }
-        let min_bkts = n.max(if self.next_resize == 0 { 11 } else { 0 });
-        if min_bkts >= bc {
-            let nbc = self.gnu_next_bkt((min_bkts + 1).max(bc * 2));
+        let bc = self.buckets.len();
+        if let Some(nbc) = gnu_need_rehash(&mut self.next_resize, bc, self.size + 1) {
             self.rehash_libstdcxx(nbc);
-        } else {
-            self.next_resize = bc;
-        }
-    }
-
-    /// libstdc++ `_Prime_rehash_policy::_M_next_bkt`, which also sets the
-    /// next resize.
-    fn gnu_next_bkt(&mut self, n: usize) -> usize {
-        const FAST_BKT: [usize; 14] = [2, 2, 2, 3, 5, 5, 7, 7, 11, 11, 11, 11, 13, 13];
-        if n < FAST_BKT.len() {
-            if n == 0 {
-                return 1;
-            }
-            self.next_resize = FAST_BKT[n];
-            return FAST_BKT[n];
-        }
-        // lower_bound over the table from its 7th prime (past the 32-bit
-        // entries, out of reach, it saturates)
-        let tail = &GNU_PRIMES[6..];
-        let i = tail.partition_point(|&p| (p as usize) < n);
-        match tail.get(i) {
-            Some(&p) => {
-                self.next_resize = p as usize;
-                p as usize
-            }
-            None => {
-                self.next_resize = usize::MAX;
-                GNU_PRIMES[GNU_PRIMES.len() - 1] as usize
-            }
         }
     }
 
@@ -544,15 +559,18 @@ pub(crate) type Ring = Vec<[f64; 2]>;
 
 impl<'a> Isobander<'a> {
     /// An isobander whose rings come in the order isoband gives them when
-    /// compiled with `lib`.
-    pub(crate) fn new(grid: Grid<'a>, lib: CxxLibrary) -> Self {
+    /// compiled with `lib`. Fails for a grid too large for the bucket
+    /// counts of libstdc++ that are reproduced (more than 33 million
+    /// points, far above R5's 5 million), rather than give another order.
+    pub(crate) fn new(grid: Grid<'a>, lib: CxxLibrary) -> Result<Self, String> {
         debug_assert_eq!(grid.z.len(), grid.nrow() * grid.ncol());
-        Isobander {
+        check_grid_size(grid.nrow().saturating_mul(grid.ncol()), lib)?;
+        Ok(Isobander {
             grid,
             vhi: 0.0,
             map: HashTable::new(lib),
             tmp: Vec::with_capacity(8),
-        }
+        })
     }
 
     /// The rings of the band `[0, high)`, in isoband's order. Every value
@@ -951,6 +969,7 @@ mod tests {
     fn replay(lib: CxxLibrary, fixture: &str) {
         let mut lines = fixture.lines().filter(|l| !l.is_empty());
         let mut sequences = 0;
+        let mut policies = 0;
         while let Some(head) = lines.next() {
             let f: Vec<&str> = head.split(' ').collect();
             if f[0] == "grow" {
@@ -969,6 +988,13 @@ mod tests {
                     }
                 }
                 assert_eq!(got, want, "{lib:?}: bucket counts");
+                continue;
+            }
+            if f[0] == "policy" {
+                // libstdc++'s own policy, past the keys any grid holds
+                let want: Vec<usize> = f[1..].iter().map(|v| v.parse().unwrap()).collect();
+                assert_eq!(gnu_policy_counts(60_000_000), want, "{lib:?}: policy");
+                policies += 1;
                 continue;
             }
             assert_eq!(f[0], "seq", "{lib:?}: fixture line {head}");
@@ -1009,6 +1035,7 @@ mod tests {
             sequences += 1;
         }
         assert_eq!(sequences, 8);
+        assert_eq!(policies, usize::from(lib == CxxLibrary::Libstdcxx));
     }
 
     #[test]
@@ -1022,23 +1049,56 @@ mod tests {
 
     #[test]
     fn iteration_order_is_that_of_libstdcxx() {
-        // recorded with g++ 11.5, 12.4, 13.3 and 14.2 (identical output)
+        // recorded with g++ 11.5, 12.4, 13.3 and 14.2 (identical output),
+        // and again, with the `policy` line, with g++ 16.2 (identical)
         replay(
             CxxLibrary::Libstdcxx,
             include_str!("../../tests/data/isoband-hash/libstdcxx.txt"),
         );
     }
 
+    /// The bucket counts of the emulated policy, one key at a time from
+    /// an empty table up to `keys` keys, as `record.cpp` asks the real one.
+    fn gnu_policy_counts(keys: usize) -> Vec<usize> {
+        let (mut bc, mut next_resize) = (1, 0);
+        let mut got = vec![bc];
+        for n in 0..keys {
+            if n < next_resize {
+                continue; // `n + 1 <= next_resize`: no rehash, no state change
+            }
+            if let Some(nbc) = gnu_need_rehash(&mut next_resize, bc, n + 1) {
+                bc = nbc;
+                got.push(bc);
+            }
+        }
+        got
+    }
+
     #[test]
-    fn libstdcxx_prime_table() {
-        let mut t = HashTable::new(CxxLibrary::Libstdcxx);
-        assert_eq!(t.gnu_next_bkt(0), 1);
-        assert_eq!(t.gnu_next_bkt(12), 13);
-        assert_eq!(t.gnu_next_bkt(14), 17);
-        assert_eq!(t.gnu_next_bkt(26), 29);
-        assert_eq!(t.next_resize, 29);
-        assert_eq!(t.gnu_next_bkt(4_294_967_291), 4_294_967_291);
-        assert!(GNU_PRIMES.windows(2).all(|w| w[0] < w[1]));
+    fn libstdcxx_bucket_counts() {
+        // the list is the counts the policy reaches, in order, each one
+        let mut want = vec![1];
+        want.extend(GNU_BUCKET_COUNTS);
+        assert_eq!(gnu_policy_counts(GNU_MAX_SIZE), want);
+        assert!(GNU_BUCKET_COUNTS.windows(2).all(|w| w[1] >= 2 * w[0]));
+        // the keys of R5's largest grid (5,000,000 cells) fit two counts
+        // before the end of the list
+        let largest = gnu_max_keys(5_000_000);
+        let needed = GNU_BUCKET_COUNTS.partition_point(|&p| p < largest);
+        assert_eq!(GNU_BUCKET_COUNTS[needed], 24_607_243);
+        assert_eq!(needed, GNU_BUCKET_COUNTS.len() - 3);
+        // past the list there is no count, rather than a wrong one
+        assert_eq!(gnu_next_bkt(GNU_MAX_SIZE + 1), None);
+    }
+
+    #[test]
+    fn libstdcxx_refuses_a_grid_past_the_list() {
+        let most = GNU_MAX_SIZE / 3;
+        assert!(check_grid_size(5_000_000, CxxLibrary::Libstdcxx).is_ok());
+        assert!(check_grid_size(most, CxxLibrary::Libstdcxx).is_ok());
+        let err = check_grid_size(most + 1, CxxLibrary::Libstdcxx).unwrap_err();
+        assert!(err.contains("too large"), "{err}");
+        assert!(check_grid_size(most + 1, CxxLibrary::Libcxx).is_ok());
     }
 
     #[test]
@@ -1074,7 +1134,8 @@ mod tests {
                 z: &z,
             },
             lib,
-        );
+        )
+        .unwrap();
         let rings = b.band(5.0);
         assert_eq!(rings.len(), 1);
         assert_eq!(rings[0].len(), 4);

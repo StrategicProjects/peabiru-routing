@@ -455,8 +455,8 @@ polygons with holes). isoband is distributed under the MIT licence:
 R5's results depend on details of libraries it calls. To return the same
 results, peabiru has its own Rust code, written for this project, that
 behaves as those libraries do in the cases R5 exercises. None of their
-source code is included (other than the table in section 3 and the list of
-primes of libstdc++ noted below); they are named here for transparency.
+source code is included (other than the table in section 3); they are
+named here for transparency.
 
   java.util.PriorityQueue (OpenJDK)
       street/router.rs (JavaHeap): a binary heap whose sift-up and sift-down
@@ -472,18 +472,26 @@ primes of libstdc++ noted below); they are named here for transparency.
       street/parkride.rs, street/geom.rs: the intersection of two polylines
       and the centroid of a polyline as R5 obtains them from JTS, and the
       fraction of a segment closest to a point.
+  JTS Topology Suite 1.18.1 (the version in the R5 jar)
+      itinerary/hops.rs: where a stop falls along a GTFS shape and the part
+      of the shape between two such places (LocationIndexOfPoint,
+      ExtractLineByLocation, as R5's TripPattern.getHopGeometries uses
+      them); itinerary/geom.rs: the double sf reads back from the WKT JTS
+      writes (at most 16 digits after the point).
   libc++ std::unordered_map (LLVM)
       isochrone/isoband.rs (HashTable): the bucket counts, growth and node
       order of libc++'s hash table, which fix the order in which isoband
       returns the rings of an isoband when built on macOS.
   libstdc++ std::unordered_map (GCC)
       isochrone/isoband.rs (HashTable): the same for libstdc++'s hash
-      table (GCC 11 to 15), which isoband uses when built on Linux and on
-      Windows. The bucket counts it grows to are the entries of
-      libstdc++'s list of primes (__prime_list, src/shared/hashtable-aux.cc,
-      Copyright (C) Free Software Foundation, Inc., GPL-3.0 or later with
-      the GCC Runtime Library Exception); its 32-bit part is reproduced, as
-      a list of numbers, in GNU_PRIMES.
+      table (GCC 11 to 16), which isoband uses when built on Linux and on
+      Windows: the rehash policy's behaviour (_Prime_rehash_policy: 1
+      bucket, 13 on the first key, then, when the size passes the bucket
+      count, the policy's next count for twice the current one) and, in
+      GNU_BUCKET_COUNTS, the 23 bucket counts (13 to 101,473,717) that this
+      growth reaches for the tables isoband builds. These counts were
+      recorded by calling the policy of the installed libstdc++; the
+      library's table of primes itself is not included.
   s2geometry and the R package s2
       isochrone/edges.rs: the centroid of a line on the sphere as
       sf::st_centroid() obtains it through s2 (the sum of the segments'

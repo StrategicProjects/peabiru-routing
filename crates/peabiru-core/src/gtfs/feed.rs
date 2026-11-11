@@ -149,6 +149,9 @@ pub struct StopTime {
     /// 0 regular, 1 none, 2 phone, 3 coordinate with driver.
     pub pickup_type: u8,
     pub drop_off_type: u8,
+    /// Whether `shape_dist_traveled` holds a number (gtfs-lib reads a
+    /// missing one as NaN); R5 then cuts the shape by distance.
+    pub shape_dist: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -197,6 +200,9 @@ pub struct Feed {
     /// `shape_pt_sequence` (a repeated sequence keeps the last row, as in
     /// gtfs-lib's map).
     pub shapes: HashMap<String, BTreeMap<i32, (f64, f64)>>,
+    /// Per shape and sequence, whether the point's `shape_dist_traveled`
+    /// holds a number.
+    pub shape_dists: HashMap<String, BTreeMap<i32, bool>>,
 }
 
 /// GTFS time `H:MM:SS` (hours may exceed 23) to seconds; `None` when blank.
@@ -322,6 +328,8 @@ impl Feed {
                     .map_err(|_| bad("stop_times.txt", n, "stop_sequence", seq))?,
                 pickup_type: r.get(h.col("pickup_type")).parse().unwrap_or(0),
                 drop_off_type: r.get(h.col("drop_off_type")).parse().unwrap_or(0),
+                shape_dist: super::jparse::parse_double(r.get(h.col("shape_dist_traveled")))
+                    .is_some_and(|d| !d.is_nan()),
             });
             Ok(())
         })?;
@@ -411,6 +419,11 @@ impl Feed {
             let seq = super::jparse::parse_int(r.get(h.col("shape_pt_sequence")))
                 .unwrap_or(super::jparse::INT_MISSING);
             let point = (num("shape_pt_lon"), num("shape_pt_lat"));
+            let dist = !num("shape_dist_traveled").is_nan();
+            feed.shape_dists
+                .entry(id.to_string())
+                .or_default()
+                .insert(seq, dist);
             match feed.shapes.get_mut(id) {
                 Some(s) => {
                     s.insert(seq, point);

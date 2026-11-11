@@ -2,6 +2,7 @@ mod accessibility;
 mod cli;
 mod expanded;
 mod isochrone;
+mod itineraries;
 
 use cli::{runtime_error, usage_error};
 use peabiru_core::unstable::{read_pbf_file, tag, ReadOptions};
@@ -14,9 +15,10 @@ fn usage_text() -> String {
          peabiru transit <dir> <points.csv> <out.csv> --date YYYY-MM-DD --time HH:MM:SS [--tw 10] [--percentiles 50] [--max-walk 120] [--max-trip 120] [--max-rides 3] [--draws 5] [--seed N] [--threads 0] [--repeats 1]\n       \
          peabiru accessibility <dir|file.osm.pbf> <points.csv> <out.csv> --opportunities a,b [options]\n       \
          peabiru dump-edges <file.osm.pbf | dir>   (CSV like r5r::street_network_to_sf edges;\n                                             a directory links its GTFS stops)\n       \
-         {}\n       {}",
+         {}\n       {}\n       {}",
         expanded::USAGE,
-        isochrone::USAGE
+        isochrone::USAGE,
+        itineraries::USAGE
     )
 }
 
@@ -66,6 +68,7 @@ fn main() {
         Some("accessibility") => accessibility::run(&args[1..]),
         Some("expanded") => expanded::run(&args[1..]),
         Some("isochrone") => isochrone::run(&args[1..]),
+        Some("itineraries") => itineraries::run(&args[1..]),
         Some("dump-edges") => {
             let path = args
                 .get(1)

@@ -7,20 +7,12 @@ r5r_network <- local({
   net <- NULL
   function() {
     if (!is.null(net)) return(net)
-    skip_on_cran()
-    skip_if_not_installed("r5r")
-    src <- system.file("extdata/spo", package = "r5r")
-    skip_if(!file.exists(file.path(src, "spo_osm.pbf")), "r5r sample data not found")
+    src <- r5r_sample("spo", packages = "sf") # helper-r5r.R
     dir <- file.path(tempdir(), "peabiru-parity-spo")
     unlink(dir, recursive = TRUE)
     dir.create(dir)
     file.copy(file.path(src, c("spo_osm.pbf", "spo.zip")), dir)
-    if (is.null(getOption("java.parameters"))) options(java.parameters = "-Xmx2G")
-    r5 <- tryCatch(
-      suppressMessages(r5r::build_network(dir)),
-      error = function(e) NULL
-    )
-    skip_if(is.null(r5), "r5r could not build a network (Java 21 or the R5 jar missing?)")
+    r5 <- r5r_network_or_skip(dir)
     pb <- build_network(dir, n_threads = 2)
     points <- read.csv(file.path(src, "spo_hexgrid.csv"), colClasses = c(id = "character"))
     net <<- list(r5 = r5, pb = pb, points = points)
@@ -143,4 +135,32 @@ test_that("scenarios equal r5r's", {
                              c(list("travel_time_matrix", origins = pts, destinations = pts,
                                     departure_datetime = departure), s)))
   }
+})
+
+# r5r's detailed_itineraries() returns an sf data.table; the rest is
+# identical, geometry included. bench/compare/itinerary_parity.R covers
+# public transport (Porto Alegre).
+test_that("detailed itineraries equal r5r's", {
+  skip_if_not_installed("sf")
+  n <- r5r_network()
+  pts <- n$points
+  set.seed(7)
+  o <- pts[sample(nrow(pts), 60), ]
+  d <- pts[sample(nrow(pts), 60), ]
+  d[1:3, ] <- o[1:3, ]
+  for (a in list(list(mode = "WALK"), list(mode = "BICYCLE", max_lts = 4),
+                 list(mode = "CAR", drop_geometry = TRUE),
+                 list(mode = "WALK", walk_speed = 5, max_walk_time = 20))) {
+    args <- c(list(origins = o, destinations = d, departure_datetime = departure), a)
+    pb <- do.call(detailed_itineraries, c(list(n$pb), args, n_threads = 2))
+    r5 <- do.call(r5r::detailed_itineraries, c(list(n$r5), args, n_threads = 2, progress = FALSE))
+    class(r5) <- setdiff(class(r5), "data.table")
+    attr(r5, ".internal.selfref") <- NULL
+    expect_identical(pb, r5)
+  }
+  # both refuse public transport on a frequency-based GTFS
+  tr <- list(origins = o[1, ], destinations = d[1, ], mode = c("WALK", "TRANSIT"),
+             departure_datetime = departure)
+  expect_error(suppressMessages(do.call(detailed_itineraries, c(list(n$pb), tr))), "frequencies")
+  expect_error(suppressMessages(do.call(r5r::detailed_itineraries, c(list(n$r5), tr))), "frequencies")
 })

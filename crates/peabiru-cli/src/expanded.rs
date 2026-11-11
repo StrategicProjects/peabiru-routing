@@ -130,7 +130,7 @@ pub fn run(args: &[String]) {
 }
 
 /// A CSV field, quoted when needed (fwrite's `quote = "auto"`).
-fn field(s: &str) -> std::borrow::Cow<'_, str> {
+pub(crate) fn field(s: &str) -> std::borrow::Cow<'_, str> {
     if s.contains([',', '"', '\n', '\r']) {
         format!("\"{}\"", s.replace('"', "\"\"")).into()
     } else {

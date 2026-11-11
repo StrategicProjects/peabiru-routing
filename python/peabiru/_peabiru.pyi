@@ -64,6 +64,13 @@ def street_edges(network: Network) -> Dict[str, Any]: ...
 def isochrone_lines(
     n_origins: int, n_edges: int, minutes: bytes, cutoffs: List[float],
 ) -> Tuple[bytes, bytes, bytes, bytes]: ...
+def itineraries(
+    network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes, mode: str,
+    transit_modes: str, egress_mode: str, date: int, departure_time: int, time_window: int,
+    max_walk_time: int, max_bike_time: int, max_car_time: int, max_trip_duration: int,
+    walk_speed: float, bike_speed: float, max_rides: int, max_lts: int, shortest_path: bool,
+    n_threads: int, output: Optional[Tuple[str, List[str], List[str]]],
+) -> Optional[Dict[str, Any]]: ...
 def find_snap(
     network: Network, lat: bytes, lon: bytes, radius: float, mode: str,
 ) -> Dict[str, bytes]: ...

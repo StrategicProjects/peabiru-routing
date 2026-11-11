@@ -6,6 +6,7 @@ OpenStreetMap extract and GTFS feeds; [`travel_time_matrix()`][peabiru.travel_ti
 [`arrival_travel_time_matrix()`][peabiru.arrival_travel_time_matrix] and
 [`isochrone()`][peabiru.isochrone] compute travel times
 by walking, cycling, driving and public transport;
+[`detailed_itineraries()`][peabiru.detailed_itineraries] gives the legs of each trip;
 [`find_snap()`][peabiru.find_snap], [`street_network_to_sf()`][peabiru.street_network_to_sf],
 [`transit_network_to_sf()`][peabiru.transit_network_to_sf],
 [`check_transit_availability()`][peabiru.check_transit_availability] and
@@ -21,6 +22,7 @@ results are the same.
 from ._checks import UnsupportedError
 from ._data import sample_data_path, sample_points
 from ._isochrone import isochrone
+from ._itinerary import detailed_itineraries
 from ._network import Network, build_network
 from ._network_tools import (
     check_transit_availability,
@@ -67,6 +69,7 @@ __all__ = [
     "build_network",
     "check_transit_availability",
     "core_version",
+    "detailed_itineraries",
     "expanded_travel_time_matrix",
     "find_snap",
     "get_gtfs_errors",

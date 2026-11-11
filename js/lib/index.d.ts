@@ -392,6 +392,71 @@ export declare function arrivalTravelTimeMatrix(
   options: ArrivalTravelTimeMatrixOptions,
 ): Promise<ExpandedMatrix>;
 
+export interface DetailedItinerariesOptions extends RoutingOptions {
+  /** Required with public transport. */
+  departureDatetime?: DateTime | null;
+  /** Minutes of departure times, from `departureDatetime` (default 10). */
+  timeWindow?: number;
+  /** Must be 0 (the default) with `shortestPath: true`. */
+  suboptimalMinutes?: number;
+  /** Only the fastest itinerary (default true); `false` with public transport throws `UnsupportedError`. */
+  shortestPath?: boolean;
+  /** Route from every origin to every destination (default false: pair them row by row). */
+  allToAll?: boolean;
+  /** Not supported yet (the defaults only). */
+  fareStructure?: null;
+  maxFare?: number;
+  /** Plain rows instead of GeoJSON features (default false). */
+  dropGeometry?: boolean;
+  /** `true` throws `UnsupportedError` (not supported yet). */
+  osmLinkIds?: boolean;
+}
+
+/**
+ * One leg of an itinerary, as r5r's row: durations and waits are minutes
+ * with one decimal, distances metres; `route` is the GTFS `route_id` of a
+ * ride, empty for a street leg.
+ */
+export interface ItineraryRow {
+  from_id: string | null;
+  from_lat: number;
+  from_lon: number;
+  to_id: string | null;
+  to_lat: number;
+  to_lon: number;
+  option: number;
+  departure_time: string;
+  total_duration: number;
+  total_distance: number;
+  segment: number;
+  mode: string;
+  segment_duration: number;
+  wait: number;
+  distance: number;
+  route: string;
+}
+
+/** A leg with its line (longitude, latitude), as a GeoJSON feature. */
+export interface ItineraryFeature {
+  type: "Feature";
+  properties: ItineraryRow;
+  geometry: { type: "LineString"; coordinates: [number, number][] };
+}
+
+/**
+ * Detailed itineraries between origin-destination pairs, as r5r's
+ * `detailed_itineraries()` without fares: the direct trip by the street
+ * mode and, with public transport, the fastest trip over the window. One
+ * row per leg, as a GeoJSON `FeatureCollection` or, with `dropGeometry`,
+ * plain rows; pairs without an itinerary have none.
+ */
+export declare function detailedItineraries(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: DetailedItinerariesOptions,
+): Promise<{ type: "FeatureCollection"; features: ItineraryFeature[] } | ItineraryRow[]>;
+
 /**
  * Options of `isochrone()`, with r5r's defaults: those of the routing
  * functions that r5r's `isochrone()` takes (no fares, scenarios or

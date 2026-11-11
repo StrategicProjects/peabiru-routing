@@ -82,6 +82,7 @@ reference:
     The areas or street segments reached from each origin within each cutoff.
   contents:
   - isochrone
+  - detailed_itineraries
 - title: Inspecting a network
   desc: >
     Where points snap, the street and transit networks as `sf`, the dates with

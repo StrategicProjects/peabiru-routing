@@ -127,15 +127,20 @@ test_that("WALK is routed from the origins, ids are quoted, files replaced", {
   expect_gt(length(list.files(d)), 3)
 
   p <- pts[1:3, ]
-  p$id <- c("a,b", "q\"x", "plain")
+  # a double quote cannot be in a file name on Windows
+  windows <- .Platform$OS.type == "windows"
+  quoted <- if (windows) "q x" else "q\"x"
+  p$id <- c("a,b", quoted, "plain")
   d <- new_dir()
   writeLines(c("old", "old"), file.path(d, "from_plain.csv"))
   writeLines("kept", file.path(d, "other.txt"))
   travel_time_matrix(network, p, p, n_threads = 2, output_dir = d)
-  expect_setequal(list.files(d), c("from_a,b.csv", "from_q\"x.csv",
+  expect_setequal(list.files(d), c("from_a,b.csv", paste0("from_", quoted, ".csv"),
                                    "from_plain.csv", "other.txt"))
   expect_true("\"a,b\",\"a,b\",0" %in% readLines(file.path(d, "from_a,b.csv")))
-  expect_true(any(grepl("\"q\"\"x\"", readLines(file.path(d, "from_q\"x.csv")))))
+  if (!windows) {
+    expect_true(any(grepl("\"q\"\"x\"", readLines(file.path(d, "from_q\"x.csv")))))
+  }
   expect_false("old" %in% readLines(file.path(d, "from_plain.csv")))
   expect_identical(readLines(file.path(d, "other.txt")), "kept")
 })
@@ -175,17 +180,12 @@ test_that("output_dir is checked as r5r checks it", {
 # r5r on its own sample data writing the same files; skipped on CRAN and
 # wherever r5r cannot start (see test-parity.R)
 test_that("the files are byte-identical to r5r's", {
-  skip_on_cran()
-  skip_if_not_installed("r5r")
-  src <- system.file("extdata/spo", package = "r5r")
-  skip_if(!file.exists(file.path(src, "spo_osm.pbf")), "r5r sample data not found")
+  src <- r5r_sample("spo") # helper-r5r.R
   dir <- file.path(tempdir(), "peabiru-output-parity-spo")
   unlink(dir, recursive = TRUE)
   dir.create(dir)
   file.copy(file.path(src, c("spo_osm.pbf", "spo.zip")), dir)
-  if (is.null(getOption("java.parameters"))) options(java.parameters = "-Xmx2G")
-  r5 <- tryCatch(suppressMessages(r5r::build_network(dir)), error = function(e) NULL)
-  skip_if(is.null(r5), "r5r could not build a network (Java 21 or the R5 jar missing?)")
+  r5 <- r5r_network_or_skip(dir)
   pb <- build_network(dir, n_threads = 2)
   pts <- read.csv(file.path(src, "spo_hexgrid.csv"), colClasses = c(id = "character"))
   pts$jobs <- pts$population

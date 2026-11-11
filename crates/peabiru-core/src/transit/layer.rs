@@ -138,6 +138,10 @@ pub struct TransitLayer {
     pub(crate) routes: Vec<RouteInfo>,
     pub(crate) pattern_route: Vec<u32>,
     pub(crate) pattern_shape: Vec<Option<u32>>,
+    /// Per pattern with a shape: whether its first trip's stop times and
+    /// the shape's points all have `shape_dist_traveled` (R5 then cuts the
+    /// shape by those distances, which detailed itineraries do not follow).
+    pub(crate) pattern_shape_dist: Vec<bool>,
     /// Shapes of `shapes.txt` as `[lon, lat]` points, in sequence order.
     pub(crate) shapes: Vec<Vec<[f64; 2]>>,
 }
@@ -818,7 +822,14 @@ impl TransitLayer {
                             Some((self.shapes.len() - 1) as u32)
                         }),
                     };
+                    let by_dist = shape.is_some()
+                        && rows.iter().all(|r| r.shape_dist)
+                        && feed
+                            .shape_dists
+                            .get(trip.shape_id.as_str())
+                            .is_some_and(|m| m.values().all(|&d| d));
                     self.pattern_shape.push(shape);
+                    self.pattern_shape_dist.push(by_dist);
                     pattern_of.insert(key, self.patterns.len() - 1);
                     self.patterns.len() - 1
                 }
@@ -1407,6 +1418,7 @@ r5r refuses to build a network from this feed."
             stop_sequence: 0,
             pickup_type: 0,
             drop_off_type: 0,
+            shape_dist: false,
         };
         let rows = [st(Some(100)), st(None), st(Some(200))];
         let refs: Vec<&StopTime> = rows.iter().collect();

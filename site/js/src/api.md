@@ -17,7 +17,7 @@ function returns a Promise; options are the fields of an options object.
 | Points, dates and shared options | [`Points`](#Points), [`Numbers`](#Numbers), [`DateTime`](#DateTime), [`RoutingOptions`](#RoutingOptions) |
 | Missing values and errors | [`NA_INT32`](#NA_INT32), [`UnsupportedError`](#UnsupportedError) |
 | Loading the module and versions | [`init`](#init), [`initSync`](#initSync), [`InitInput`](#InitInput), [`coreVersion`](#coreVersion), [`version`](#version) |
-| Other declarations | [`ScenarioTable`](#ScenarioTable), [`GeoJsonFeatureCollection`](#GeoJsonFeatureCollection) |
+| Other declarations | [`ScenarioTable`](#ScenarioTable), [`GeoJsonFeatureCollection`](#GeoJsonFeatureCollection), [`DetailedItinerariesOptions`](#DetailedItinerariesOptions), [`ItineraryRow`](#ItineraryRow), [`ItineraryFeature`](#ItineraryFeature), [`detailedItineraries`](#detailedItineraries) |
 
 ## Networks
 
@@ -852,3 +852,79 @@ A GeoJSON FeatureCollection (WGS 84).
 
 - `type: "FeatureCollection"`
 - `features: Array<{ type: "Feature"; properties: Record<string, unknown>; geometry: { type: string; coordinates: unknown } }>`
+
+### DetailedItinerariesOptions {#DetailedItinerariesOptions}
+
+*interface*
+
+```typescript
+export interface DetailedItinerariesOptions extends RoutingOptions
+```
+
+Also takes every option of [`RoutingOptions`](#RoutingOptions).
+
+- `departureDatetime?: DateTime | null`: Required with public transport.
+- `timeWindow?: number`: Minutes of departure times, from `departureDatetime` (default 10).
+- `suboptimalMinutes?: number`: Must be 0 (the default) with `shortestPath: true`.
+- `shortestPath?: boolean`: Only the fastest itinerary (default true); `false` with public transport throws [`UnsupportedError`](#UnsupportedError).
+- `allToAll?: boolean`: Route from every origin to every destination (default false: pair them row by row).
+- `fareStructure?: null`: Not supported yet (the defaults only).
+- `maxFare?: number`
+- `dropGeometry?: boolean`: Plain rows instead of GeoJSON features (default false).
+- `osmLinkIds?: boolean`: `true` throws [`UnsupportedError`](#UnsupportedError) (not supported yet).
+
+### ItineraryRow {#ItineraryRow}
+
+*interface*
+
+```typescript
+export interface ItineraryRow
+```
+
+One leg of an itinerary, as r5r's row: durations and waits are minutes with one decimal, distances metres; `route` is the GTFS `route_id` of a ride, empty for a street leg.
+
+- `from_id: string | null`
+- `from_lat: number`
+- `from_lon: number`
+- `to_id: string | null`
+- `to_lat: number`
+- `to_lon: number`
+- `option: number`
+- `departure_time: string`
+- `total_duration: number`
+- `total_distance: number`
+- `segment: number`
+- `mode: string`
+- `segment_duration: number`
+- `wait: number`
+- `distance: number`
+- `route: string`
+
+### ItineraryFeature {#ItineraryFeature}
+
+*interface*
+
+```typescript
+export interface ItineraryFeature
+```
+
+A leg with its line (longitude, latitude), as a GeoJSON feature.
+
+- `type: "Feature"`
+- `properties: ItineraryRow`
+- `geometry: { type: "LineString"; coordinates: [number, number][] }`
+
+### detailedItineraries {#detailedItineraries}
+
+*function*
+
+```typescript
+export declare function detailedItineraries(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: DetailedItinerariesOptions,
+): Promise<{ type: "FeatureCollection"; features: ItineraryFeature[] } | ItineraryRow[]>;
+```
+
+Detailed itineraries between origin-destination pairs, as r5r's `detailed_itineraries()` without fares: the direct trip by the street mode and, with public transport, the fastest trip over the window. One row per leg, as a GeoJSON [`FeatureCollection`](#FeatureCollection) or, with `dropGeometry`, plain rows; pairs without an itinerary have none.
