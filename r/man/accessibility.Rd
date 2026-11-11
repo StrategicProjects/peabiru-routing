@@ -110,7 +110,21 @@ only with a seed.}
 \item{verbose, progress}{Logicals, checked as in r5r; peabiru prints no
 progress counter.}
 
-\item{output_dir}{Not supported yet; must be \code{NULL}.}
+\item{output_dir}{\code{NULL}, or the path of an existing directory: instead of
+returning the result, write it there as r5r does, one CSV file per
+origin, \verb{from_<origin id>.csv} (the id is not sanitized; an existing
+file of that name is replaced, other files are left alone), and return
+\code{output_dir}. The origins are routed a slice at a time and each slice is
+written before the next one is routed, so the whole result is never held
+in memory. The files are r5r's byte for byte: the columns of the result
+(with \code{cutoff} also under \code{"fixed_exponential"}, as the placeholder
+\code{0}), fields with \verb{,} or \verb{"} quoted, \code{NA} as an empty field, doubles
+as Java writes them (\code{2.0}, \code{1.0E-4}); an origin with no row has no
+file, except in \code{\link[=accessibility]{accessibility()}}. As in r5r, \code{"WALK"} is then routed
+from the origins even when there are fewer destinations, ids must not
+be missing, and the rule that blanks out trips over
+\code{max_trip_duration} in the returned result is not applied to the
+files.}
 
 \item{r5r_core}{Deprecated: the network under the name r5r used before
 version 2.3.0. As in r5r, it is accepted with a warning and used as
@@ -119,7 +133,8 @@ version 2.3.0. As in r5r, it is accepted with a warning and used as
 \value{
 A \code{data.frame} with \code{id}, \code{opportunity}, \code{percentile}, \code{cutoff}
 (absent with \code{"fixed_exponential"}) and \code{accessibility}, one row per
-origin, opportunity, percentile and cutoff, in that order.
+origin, opportunity, percentile and cutoff, in that order. With
+\code{output_dir}, \code{output_dir}.
 }
 \description{
 Cumulative or decay-weighted access to the opportunities at the
@@ -136,7 +151,7 @@ not be shorter than the largest cutoff.
 
 Not supported yet, and an error when requested: transit with \code{"BICYCLE"}
 or \code{"CAR"} access or a non-walk \code{mode_egress}; a subset of transit modes;
-fares; scenarios; \code{output_dir}.
+fares; scenarios.
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")

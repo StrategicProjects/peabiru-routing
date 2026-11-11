@@ -373,10 +373,36 @@ check_scenarios <- function(new_carspeeds, carspeed_scale, new_lts) {
   invisible(TRUE)
 }
 
+# r5r set_output_dir(): checkmate::assert_string() and
+# checkmate::assert_directory_exists()
 check_output_dir <- function(output_dir) {
   assert_string(output_dir, "output_dir", null_ok = TRUE)
-  if (!is.null(output_dir)) unsupported("Writing results to 'output_dir'")
+  if (!is.null(output_dir)) {
+    if (!file.exists(output_dir)) {
+      fail_assert("output_dir", paste0("Directory '", output_dir, "' does not exist"))
+    }
+    if (!dir.exists(output_dir)) {
+      fail_assert("output_dir", paste0(
+        "Directory expected, but file in place: '", output_dir, "'"
+      ))
+    }
+  }
   invisible(TRUE)
+}
+
+# The 'output' argument of the rs_* routing functions: NULL to return the
+# result, or where to write r5r's CSV files (one per origin, named after its
+# id) and with which ids. r5r's Java side fails on a missing id; so does this.
+# The directory is expanded as R's file functions (and r5r's check of it)
+# expand it.
+csv_output <- function(output_dir, origins, destinations, ...) {
+  if (is.null(output_dir)) return(NULL)
+  if (anyNA(origins$id) || anyNA(destinations$id)) {
+    stop("With 'output_dir', the ids of 'origins' and 'destinations' ",
+         "cannot be missing.", call. = FALSE)
+  }
+  list(dir = path.expand(output_dir), from_ids = origins$id,
+       to_ids = destinations$id, ...)
 }
 
 # r5r set_monte_carlo_draws() without a fare structure

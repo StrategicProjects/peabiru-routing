@@ -141,7 +141,6 @@ test_that("what the core does not support is an error, never ignored", {
   expect_error(ttm(new_carspeeds = data.frame(osm_id = 1, max_speed = 1)),
                "car speeds.*not supported")
   expect_error(ttm(new_lts = data.frame(osm_id = 1, lts = 1L)), "LTS.*not supported")
-  expect_error(ttm(output_dir = tempdir()), "output_dir.*not supported")
   # TRANSIT with other transit modes is all transit modes, as in r5r
   expect_identical(
     ttm(mode = c("WALK", "TRANSIT", "BUS"), seed = 1),

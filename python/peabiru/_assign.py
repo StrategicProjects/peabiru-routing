@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import math
+import os
 import sys
 import warnings
 from dataclasses import dataclass
@@ -464,14 +465,24 @@ def check_scenarios(new_carspeeds: Any, carspeed_scale: Any, new_lts: Any) -> No
         unsupported("Changing LTS levels ('new_lts')")
 
 
-def check_output_dir(output_dir: Any) -> None:
-    if output_dir is not None and not isinstance(output_dir, str):
-        import os
-
-        if not isinstance(output_dir, os.PathLike):
-            fail_assert("output_dir", "Must be a single string", TypeError)
-    if output_dir is not None:
-        unsupported("Writing results to 'output_dir'")
+def check_output_dir(output_dir: Any) -> Optional[str]:
+    """r5r set_output_dir(): checkmate::assert_string() and
+    checkmate::assert_directory_exists(). A string or a path-like object;
+    returns the directory to write to as a string (``~`` expanded), or
+    ``None``."""
+    if output_dir is None:
+        return None
+    if not isinstance(output_dir, (str, os.PathLike)):
+        fail_assert("output_dir", "Must be a single string", TypeError)
+    path = os.fsdecode(os.fspath(output_dir))
+    full = os.path.expanduser(path)
+    if not os.path.exists(full):
+        fail_assert("output_dir", f"Directory '{path}' does not exist", FileNotFoundError)
+    if not os.path.isdir(full):
+        fail_assert(
+            "output_dir", f"Directory expected, but file in place: '{path}'", NotADirectoryError
+        )
+    return full
 
 
 def check_draws(draws_per_minute: Any) -> None:

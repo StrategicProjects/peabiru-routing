@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import datetime as _dt
 import math
-from typing import Any, Dict, Optional, Sequence, Union
+import os
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -51,6 +52,8 @@ Mode = Union[str, Sequence[str]]
 # such as 60.0 is accepted (and math.inf for n_threads and the street time
 # limits); the checks reject a fractional value at run time.
 Number = Union[int, float]
+# output_dir: a directory, as a string or a path-like object
+PathArg = Union[str, "os.PathLike[str]"]
 
 _NA = _peabiru.NA_I32
 
@@ -71,6 +74,23 @@ def _strings(values: np.ndarray) -> pd.Series:
 
 def _nullable_int(values: np.ndarray, mask: np.ndarray) -> pd.arrays.IntegerArray:
     return pd.arrays.IntegerArray(values.astype(np.int32), mask)
+
+
+def _csv_output(
+    out_dir: Optional[str], o: Points, d: Points, third: Optional[List[str]] = None
+) -> Any:
+    """The ``output`` argument of the extension's routing functions:
+    ``None`` to return the result, or where to write r5r's CSV files (one
+    per origin, named after its id) and with which ids (``third`` replaces
+    the destination ids: the opportunity names of accessibility). r5r's
+    Java side fails on a missing id; so does this."""
+    if out_dir is None:
+        return None
+    if any(i is None for i in o.ids) or any(i is None for i in d.ids):
+        raise ValueError(
+            "With 'output_dir', the ids of 'origins' and 'destinations' cannot be missing."
+        )
+    return (out_dir, list(o.ids), list(d.ids) if third is None else third)
 
 
 def _street_limits(
@@ -138,8 +158,8 @@ def travel_time_matrix(
     n_threads: Optional[Number] = None,
     verbose: bool = False,
     progress: bool = True,
-    output_dir: Optional[str] = None,
-) -> pd.DataFrame:
+    output_dir: Optional[PathArg] = None,
+) -> Union[pd.DataFrame, PathArg]:
     """Travel-time matrix between origins and destinations.
 
     Travel times between every origin and every destination, by one street
@@ -153,7 +173,7 @@ def travel_time_matrix(
     when requested: transit with ``"BICYCLE"`` or ``"CAR"`` access or a
     non-walk ``mode_egress``; a subset of transit modes (such as ``"BUS"``);
     fares (``fare_structure``, ``max_fare``); scenarios (``new_carspeeds``,
-    ``carspeed_scale``, ``new_lts``); ``output_dir``.
+    ``carspeed_scale``, ``new_lts``).
 
     Parameters
     ----------
@@ -224,12 +244,18 @@ def travel_time_matrix(
         Checked as in r5r; has no effect.
     progress : bool, default True
         Checked as in r5r; peabiru prints no progress counter.
-    output_dir : None
-        Not supported yet; must be ``None``.
+    output_dir : str or os.PathLike, optional
+        An existing directory: instead of returning the result, write it
+        there as r5r does, one CSV file per origin named
+        ``from_<origin id>.csv`` (see [Writing results to
+        files](travel-time-matrices.md#writing-results-to-files)), and return
+        ``output_dir``. Origins are routed a slice at a time, so the whole
+        result is never held in memory.
 
     Returns
     -------
-    pandas.DataFrame
+    pandas.DataFrame or str or os.PathLike
+        With ``output_dir``, ``output_dir`` itself. Otherwise:
         ``from_id``, ``to_id`` (strings, object dtype) and one ``Int32``
         column ``travel_time_pXX`` per percentile, ascending (minutes). Rows
         are origin-major, in input order. Pairs that cannot be completed
@@ -263,7 +289,9 @@ def travel_time_matrix(
     if mode_list.transit:
         check_transit_availability_on_date(r5r_network, departure)
 
-    swapped = swap_od(o, d, mode_list, r5r_network)
+    # as in r5r, not with output_dir: the files are named after the origins
+    # routed from
+    swapped = output_dir is None and swap_od(o, d, mode_list, r5r_network)
     if swapped:
         o, d = d, o
 
@@ -280,18 +308,19 @@ def travel_time_matrix(
         n_threads, verbose, progress,
     )
     check_fares(fare_structure, max_fare)
-    check_output_dir(output_dir)
+    out_dir = check_output_dir(output_dir)
     check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
     names = [f"travel_time_p{p:02d}" for p in pcts]
     core = r5r_network._core
+    output = _csv_output(out_dir, o, d)
     if mode_list.transit:
         with core_errors("travel_time_matrix"):
             fb, tb, cols = _peabiru.transit_ttm(
                 core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
                 departure.yyyymmdd, departure.seconds, int(time_window), pcts,
                 lim["walk"], mtd, float(walk_speed), int(max_rides),
-                int(draws_per_minute), c["seed"], c["threads"],
+                int(draws_per_minute), c["seed"], c["threads"], output,
             )
         times = [_i32(b) for b in cols]
     else:
@@ -299,10 +328,12 @@ def travel_time_matrix(
             fb, tb, tt = _peabiru.street_ttm(
                 core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
                 mode_list.direct_modes, float(walk_speed), float(bike_speed),
-                int(max_lts), mtd, c["threads"],
+                int(max_lts), mtd, c["threads"], pcts, output,
             )
         # a street mode has one travel time, reported for every percentile
         times = [_i32(tt)] * len(pcts)
+    if output_dir is not None:
+        return output_dir
     frm, to = _i32(fb), _i32(tb)
 
     if swapped:
@@ -349,8 +380,8 @@ def accessibility(
     n_threads: Optional[Number] = None,
     verbose: bool = False,
     progress: bool = True,
-    output_dir: Optional[str] = None,
-) -> pd.DataFrame:
+    output_dir: Optional[PathArg] = None,
+) -> Union[pd.DataFrame, PathArg]:
     """Access to opportunities.
 
     Cumulative or decay-weighted access to the opportunities at the
@@ -367,8 +398,7 @@ def accessibility(
 
     Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError] when requested:
     transit with ``"BICYCLE"`` or ``"CAR"`` access or a non-walk
-    ``mode_egress``; a subset of transit modes; fares; scenarios;
-    ``output_dir``.
+    ``mode_egress``; a subset of transit modes; fares; scenarios.
 
     Parameters
     ----------
@@ -454,11 +484,17 @@ def accessibility(
         Checked as in r5r; has no effect.
     progress : bool, default True
         Checked as in r5r; peabiru prints no progress counter.
-    output_dir : None
-        Not supported yet; must be ``None``.
+    output_dir : str or os.PathLike, optional
+        An existing directory: instead of returning the result, write it
+        there as r5r does, one CSV file per origin named
+        ``from_<origin id>.csv`` (see [Writing results to
+        files](travel-time-matrices.md#writing-results-to-files)), and return
+        ``output_dir``. Origins are routed a slice at a time, so the whole
+        result is never held in memory.
     Returns
     -------
-    pandas.DataFrame
+    pandas.DataFrame or str or os.PathLike
+        With ``output_dir``, ``output_dir`` itself. Otherwise:
         ``id`` and ``opportunity`` (strings), ``percentile`` and ``cutoff``
         (``int32``; ``cutoff`` is absent with ``"fixed_exponential"``) and
         ``accessibility`` (``float64``): one row per origin, opportunity,
@@ -520,9 +556,12 @@ def accessibility(
         n_threads, verbose, progress,
     )
     check_fares(fare_structure, max_fare)
-    check_output_dir(output_dir)
+    out_dir = check_output_dir(output_dir)
     check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
+    # the third element of an accessibility output holds the opportunity
+    # names
+    output = _csv_output(out_dir, o, d, list(opp_names))
     with core_errors("accessibility"):
         values = _f64(
             _peabiru.accessibility(
@@ -532,8 +571,11 @@ def accessibility(
                 departure.yyyymmdd, departure.seconds, int(time_window),
                 lim["walk"], lim["trip"], float(walk_speed), float(bike_speed),
                 int(max_lts), int(max_rides), int(draws_per_minute), c["seed"], c["threads"],
+                output,
             )
         )
+    if output_dir is not None:
+        return output_dir
 
     # one row per origin, opportunity, percentile and cutoff, in that order
     n_o, n_k, n_p, n_c = len(o), len(opp_names), len(pcts), len(cutoffs_r5)
@@ -576,8 +618,8 @@ def expanded_travel_time_matrix(
     n_threads: Optional[Number] = None,
     verbose: bool = False,
     progress: bool = True,
-    output_dir: Optional[str] = None,
-) -> pd.DataFrame:
+    output_dir: Optional[PathArg] = None,
+) -> Union[pd.DataFrame, PathArg]:
     """Minute-by-minute travel times between origins and destinations.
 
     The travel time of every trip between each origin and destination, for
@@ -592,7 +634,7 @@ def expanded_travel_time_matrix(
     the clock, which peabiru does not reproduce; that is an
     [`UnsupportedError`][peabiru.UnsupportedError], as are transit with ``"BICYCLE"`` or
     ``"CAR"`` access or a non-walk ``mode_egress``, a subset of transit
-    modes, scenarios and ``output_dir``.
+    modes and scenarios.
 
     Parameters
     ----------
@@ -659,11 +701,17 @@ def expanded_travel_time_matrix(
         Checked as in r5r; has no effect.
     progress : bool, default True
         Checked as in r5r; peabiru prints no progress counter.
-    output_dir : None
-        Not supported yet; must be ``None``.
+    output_dir : str or os.PathLike, optional
+        An existing directory: instead of returning the result, write it
+        there as r5r does, one CSV file per origin named
+        ``from_<origin id>.csv`` (see [Writing results to
+        files](travel-time-matrices.md#writing-results-to-files)), and return
+        ``output_dir``. Origins are routed a slice at a time, so the whole
+        result is never held in memory.
     Returns
     -------
-    pandas.DataFrame
+    pandas.DataFrame or str or os.PathLike
+        With ``output_dir``, ``output_dir`` itself. Otherwise:
         ``from_id``, ``to_id``, ``departure_time`` (``"HH:MM:SS"``),
         ``draw_number`` (``int32``); with ``breakdown=True``
         ``access_time``, ``wait_time``, ``ride_time``, ``transfer_time``,
@@ -712,7 +760,7 @@ def expanded_travel_time_matrix(
         draws_per_minute, seed, walk_speed, bike_speed, max_rides, max_lts,
         n_threads, verbose, progress,
     )
-    check_output_dir(output_dir)
+    out_dir = check_output_dir(output_dir)
     assert_flag(breakdown, "breakdown")
     check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
@@ -721,8 +769,11 @@ def expanded_travel_time_matrix(
             r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
             False, departure.yyyymmdd, departure.seconds, int(time_window),
             lim["walk"], lim["trip"], float(walk_speed), int(max_rides),
-            int(draws_per_minute), c["seed"], c["threads"],
+            int(draws_per_minute), c["seed"], c["threads"], bool(breakdown),
+            _csv_output(out_dir, o, d),
         )
+    if output_dir is not None:
+        return output_dir
     return _expanded_result(res, o, d, bool(breakdown), lim["trip"])
 
 
@@ -750,8 +801,8 @@ def arrival_travel_time_matrix(
     n_threads: Optional[Number] = None,
     verbose: bool = False,
     progress: bool = True,
-    output_dir: Optional[str] = None,
-) -> pd.DataFrame:
+    output_dir: Optional[PathArg] = None,
+) -> Union[pd.DataFrame, PathArg]:
     """Travel-time matrix for a time of arrival.
 
     For each origin and destination, the trip that leaves latest and still
@@ -831,11 +882,17 @@ def arrival_travel_time_matrix(
         Checked as in r5r; has no effect.
     progress : bool, default True
         Checked as in r5r; peabiru prints no progress counter.
-    output_dir : None
-        Not supported yet; must be ``None``.
+    output_dir : str or os.PathLike, optional
+        An existing directory: instead of returning the result, write it
+        there as r5r does, one CSV file per origin named
+        ``from_<origin id>.csv`` (see [Writing results to
+        files](travel-time-matrices.md#writing-results-to-files)), and return
+        ``output_dir``. Origins are routed a slice at a time, so the whole
+        result is never held in memory.
     Returns
     -------
-    pandas.DataFrame
+    pandas.DataFrame or str or os.PathLike
+        With ``output_dir``, ``output_dir`` itself. Otherwise:
         The columns of [`expanded_travel_time_matrix()`][peabiru.expanded_travel_time_matrix]: one row per
         origin and destination reached in time.
 
@@ -897,7 +954,7 @@ def arrival_travel_time_matrix(
         draws_per_minute, seed, walk_speed, bike_speed, max_rides, max_lts,
         n_threads, verbose, progress,
     )
-    check_output_dir(output_dir)
+    out_dir = check_output_dir(output_dir)
     assert_flag(breakdown, "breakdown")
     check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
@@ -911,8 +968,11 @@ def arrival_travel_time_matrix(
             r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
             True, departure.yyyymmdd, departure.seconds, mtd,
             lim["walk"], mtd, float(walk_speed), int(max_rides),
-            int(draws_per_minute), c["seed"], c["threads"],
+            int(draws_per_minute), c["seed"], c["threads"], bool(breakdown),
+            _csv_output(out_dir, o, d),
         )
+    if output_dir is not None:
+        return output_dir
     return _expanded_result(res, o, d, bool(breakdown), mtd)
 
 

@@ -11,7 +11,7 @@
 #' the same trip for every minute of a departure time taken from the clock
 #' (`Sys.time()`), which peabiru does not reproduce; that is an error, as
 #' are transit with `"BICYCLE"` or `"CAR"` access or a non-walk
-#' `mode_egress`, a subset of transit modes, scenarios and `output_dir`.
+#' `mode_egress`, a subset of transit modes and scenarios.
 #'
 #' @inheritParams travel_time_matrix
 #' @param breakdown A logical. Whether to break each trip down into access,
@@ -22,7 +22,8 @@
 #'   `wait_time`, `ride_time`, `transfer_time`, `egress_time`, then `routes`
 #'   (route ids joined by `"|"`, or `"[WALK]"`), with `breakdown = TRUE`
 #'   `n_rides`, and `total_time`. Times are in minutes, with one decimal.
-#'   Trips longer than `max_trip_duration` have `NA` times and routes.
+#'   Trips longer than `max_trip_duration` have `NA` times and routes. With
+#'   `output_dir`, `output_dir`.
 #' @export
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -105,8 +106,9 @@ expanded_travel_time_matrix <- function(r5r_network,
     FALSE, departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_trip_duration, as.double(walk_speed),
     as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
-    threads
+    threads, csv_output(output_dir, origins, destinations, breakdown = breakdown)
   ))
+  if (!is.null(output_dir)) return(output_dir)
   expanded_result(res, origins, destinations, breakdown, max_trip_duration)
 }
 
@@ -130,7 +132,7 @@ expanded_travel_time_matrix <- function(r5r_network,
 #'
 #' @return A `data.frame` with the columns of
 #'   [expanded_travel_time_matrix()]: one row per origin and destination
-#'   reached in time.
+#'   reached in time. With `output_dir`, `output_dir`.
 #' @export
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -228,8 +230,9 @@ arrival_travel_time_matrix <- function(r5r_network,
     TRUE, departure$yyyymmdd, departure$seconds, max_trip_duration,
     max_walk_time, max_trip_duration, as.double(walk_speed),
     as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
-    threads
+    threads, csv_output(output_dir, origins, destinations, breakdown = breakdown)
   ))
+  if (!is.null(output_dir)) return(output_dir)
   expanded_result(res, origins, destinations, breakdown, max_trip_duration)
 }
 

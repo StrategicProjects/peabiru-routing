@@ -20,8 +20,8 @@ use peabiru_core::{
     isochrone_polygons, street_accessibility, street_edges, street_travel_time_matrix,
     street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
     transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, CancelToken,
-    DecayFunction, Destinations, Mode, RouteError, RouteParams, StreetNetwork, TransitData,
-    TransitLayer, TransitParams,
+    CsvOutput, DecayFunction, Destinations, Mode, RouteError, RouteParams, StreetNetwork,
+    TransitData, TransitLayer, TransitParams,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -244,6 +244,62 @@ fn points(lat: &[f64], lon: &[f64]) -> Vec<(f64, f64)> {
     lat.iter().zip(lon).map(|(&a, &b)| (a, b)).collect()
 }
 
+/// Where and for which ids to write CSV files instead of returning the
+/// result (r5r's `output_dir`), from the `output` argument of a routing
+/// function: `NULL`, or a list with `dir`, `from_ids`, `to_ids` and the
+/// extra element the function needs (`percentiles`, `breakdown` or
+/// `opportunities`).
+struct Output {
+    dir: String,
+    from_ids: Vec<String>,
+    to_ids: Vec<String>,
+    spec: Robj,
+}
+
+impl Output {
+    fn of(x: &Robj) -> Result<Option<Output>> {
+        if x.is_null() {
+            return Ok(None);
+        }
+        if !x.is_list() {
+            return Err(err("output must be NULL or a list"));
+        }
+        let spec = x.clone();
+        let strings = |name: &str| -> Result<Vec<String>> {
+            let v: Strings = spec
+                .dollar(name)
+                .map_err(err)?
+                .try_into()
+                .map_err(|_| err(format!("output${name} must be a character vector")))?;
+            Ok(v.iter().map(|s| <str>::to_owned(s)).collect())
+        };
+        Ok(Some(Output {
+            dir: spec
+                .dollar("dir")
+                .map_err(err)?
+                .as_str()
+                .ok_or_else(|| err("output$dir must be a string"))?
+                .to_owned(),
+            from_ids: strings("from_ids")?,
+            to_ids: strings("to_ids")?,
+            spec,
+        }))
+    }
+
+    fn writer(&self, n_threads: i32) -> CsvOutput<'_> {
+        CsvOutput::new(&self.dir, &self.from_ids, &self.to_ids, threads(n_threads))
+    }
+
+    fn get(&self, name: &str) -> Result<Robj> {
+        self.spec.dollar(name).map_err(err)
+    }
+}
+
+/// A file that could not be written, as a routing error.
+fn io_err(e: std::io::Error) -> RouteError {
+    RouteError::from(e.to_string())
+}
+
 /// Version of the Rust core this package was built against.
 /// @noRd
 #[extendr]
@@ -338,7 +394,8 @@ fn street_mode(mode: &str) -> Result<Mode> {
 }
 
 /// Street-only travel-time matrix: the reported pairs as
-/// `list(from, to, minutes)`, origin-major.
+/// `list(from, to, minutes)`, origin-major. With `output` (see [`Output`],
+/// with `percentiles`), the files are written instead and `NULL` returned.
 /// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]
@@ -354,6 +411,7 @@ fn rs_street_ttm(
     max_lts: i32,
     max_trip_duration: i32,
     n_threads: i32,
+    output: Robj,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
@@ -365,6 +423,22 @@ fn rs_street_ttm(
         n_threads,
     );
     let mode = street_mode(mode)?;
+    if let Some(out) = Output::of(&output)? {
+        let percentiles: Vec<i32> = out
+            .get("percentiles")?
+            .as_integer_vector()
+            .ok_or_else(|| err("output$percentiles must be an integer vector"))?;
+        let w = out.writer(n_threads);
+        done!(interruptible(&params.cancel, || {
+            for r in w.origin_chunks(d.len()) {
+                let m = street_travel_time_matrix(&n.net, &o[r.clone()], &d, mode, &params)?;
+                w.write_street_matrix(r.start, &m, &percentiles)
+                    .map_err(io_err)?;
+            }
+            Ok(())
+        })?);
+        return Ok(().into());
+    }
     let m = done!(interruptible(&params.cancel, || {
         street_travel_time_matrix(&n.net, &o, &d, mode, &params)
     })?);
@@ -434,7 +508,8 @@ fn seed_of(has_seed: bool, seed: i32) -> Option<i32> {
 
 /// Walk + transit travel-time matrix: the reported pairs as
 /// `list(from, to, p1, ..., pk)` (percentiles ascending, NA where r5r
-/// gives NA), origin-major.
+/// gives NA), origin-major. With `output` (see [`Output`]), the files are
+/// written instead and `NULL` returned.
 /// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]
@@ -456,6 +531,7 @@ fn rs_transit_ttm(
     has_seed: bool,
     seed: i32,
     n_threads: i32,
+    output: Robj,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let t = transit(n)?;
@@ -473,6 +549,18 @@ fn rs_transit_ttm(
         seed_of(has_seed, seed),
         n_threads,
     );
+    if let Some(out) = Output::of(&output)? {
+        let w = out.writer(n_threads);
+        done!(interruptible(&p.cancel, || {
+            for r in w.origin_chunks(d.len() * percentiles.len()) {
+                let m =
+                    transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o[r.clone()], &d, &p)?;
+                w.write_transit_matrix(r.start, &m).map_err(io_err)?;
+            }
+            Ok(())
+        })?);
+        return Ok(().into());
+    }
     let m = done!(interruptible(&p.cancel, || {
         transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
     })?);
@@ -515,7 +603,9 @@ fn decay(name: &str, value: f64) -> Result<DecayFunction> {
 
 /// Accessibility values `[origin][opportunity][percentile][cutoff]`,
 /// flattened. `mode` is `TRANSIT` (walk access and egress) or a street
-/// mode; `opportunities` is a list of double vectors, one per column.
+/// mode; `opportunities` is a list of double vectors, one per column. With
+/// `output` (see [`Output`], with the `opportunities` names), the files are
+/// written instead and `NULL` returned.
 /// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]
@@ -544,9 +634,29 @@ fn rs_accessibility(
     has_seed: bool,
     seed: i32,
     n_threads: i32,
+    output: Robj,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
+    let out = Output::of(&output)?;
+    let names: Vec<String> = match &out {
+        Some(out) => out
+            .get("opportunities")?
+            .as_str_vector()
+            .ok_or_else(|| err("output$opportunities must be a character vector"))?
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        None => Vec::new(),
+    };
+    let w = out.as_ref().map(|out| out.writer(n_threads));
+    // every origin's values are few: route the origins in slices only to
+    // bound them
+    let per_origin = opportunities.len() * percentiles.len() * cutoffs.len();
+    let chunks: Vec<std::ops::Range<usize>> = match &w {
+        Some(w) => w.origin_chunks(per_origin).collect(),
+        None => std::iter::once(0..o.len()).collect(),
+    };
     let opp: Vec<Vec<f64>> = opportunities
         .values()
         .map(|v| {
@@ -575,7 +685,18 @@ fn rs_accessibility(
             n_threads,
         );
         done!(interruptible(&p.cancel, || {
-            transit_accessibility(&n.net, &t.layer, &t.data, &o, &dest, &p, &a)
+            let mut all = None;
+            for r in &chunks {
+                let acc =
+                    transit_accessibility(&n.net, &t.layer, &t.data, &o[r.clone()], &dest, &p, &a)?;
+                match &w {
+                    Some(w) => w
+                        .write_accessibility(r.start, &acc, &names)
+                        .map_err(io_err)?,
+                    None => all = Some(acc),
+                }
+            }
+            Ok(all)
         })?)
     } else {
         let params = route_params(
@@ -587,10 +708,31 @@ fn rs_accessibility(
         );
         let mode = street_mode(mode)?;
         done!(interruptible(&params.cancel, || {
-            street_accessibility(&n.net, &o, &dest, mode, &params, percentiles, &a)
+            let mut all = None;
+            for r in &chunks {
+                let acc = street_accessibility(
+                    &n.net,
+                    &o[r.clone()],
+                    &dest,
+                    mode,
+                    &params,
+                    percentiles,
+                    &a,
+                )?;
+                match &w {
+                    Some(w) => w
+                        .write_accessibility(r.start, &acc, &names)
+                        .map_err(io_err)?,
+                    None => all = Some(acc),
+                }
+            }
+            Ok(all)
         })?)
     };
-    Ok(acc.into_values().into())
+    Ok(match acc {
+        Some(acc) => acc.into_values().into(),
+        None => ().into(),
+    })
 }
 
 /// Expanded (or, with `arrival`, arrival) travel-time matrix as columns:
@@ -598,7 +740,9 @@ fn rs_accessibility(
 /// the breakdown times (NA where r5r gives NA), `routes`, `n_rides` and
 /// `total_time`. For an arrival search the parameters must already be the
 /// departure side (date and time of `arrival - max_trip_duration`,
-/// `time_window = max_trip_duration`), as r5r's R wrapper sets them.
+/// `time_window = max_trip_duration`), as r5r's R wrapper sets them. With
+/// `output` (see [`Output`], with `breakdown`), the files are written
+/// instead and `NULL` returned.
 /// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]
@@ -620,6 +764,7 @@ fn rs_expanded(
     has_seed: bool,
     seed: i32,
     n_threads: i32,
+    output: Robj,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let t = transit(n)?;
@@ -637,13 +782,36 @@ fn rs_expanded(
         seed_of(has_seed, seed),
         n_threads,
     );
-    let rows = done!(interruptible(&p.cancel, || {
+    let route = |o: &[(f64, f64)]| {
         if arrival {
-            arrival_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+            arrival_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)
         } else {
-            expanded_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+            expanded_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)
         }
-    })?);
+    };
+    if let Some(out) = Output::of(&output)? {
+        let breakdown = out
+            .get("breakdown")?
+            .as_bool()
+            .ok_or_else(|| err("output$breakdown must be TRUE or FALSE"))?;
+        let w = out.writer(n_threads);
+        // at most one row per destination, departure minute and draw
+        let draws = if t.layer.has_frequencies() {
+            draws_per_minute.max(1) as usize
+        } else {
+            1
+        };
+        let per_origin = d.len() * time_window.max(1) as usize * draws;
+        done!(interruptible(&p.cancel, || {
+            for r in w.origin_chunks(per_origin) {
+                let m = route(&o[r.clone()])?;
+                w.write_expanded(r.start, &m, breakdown).map_err(io_err)?;
+            }
+            Ok(())
+        })?);
+        return Ok(().into());
+    }
+    let rows = done!(interruptible(&p.cancel, || route(&o))?);
     let len = rows.n_rows();
     let mut from = Vec::with_capacity(len);
     let mut to = Vec::with_capacity(len);
