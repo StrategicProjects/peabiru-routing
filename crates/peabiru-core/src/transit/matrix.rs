@@ -110,6 +110,11 @@ pub struct TransitParams {
     /// clone of it (see [`CancelToken`]); the default is a fresh token,
     /// which nothing cancels unless a clone of it is kept.
     pub cancel: CancelToken,
+    /// Car speeds and levels of traffic stress changed for this call
+    /// (r5r's `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
+    /// changes nothing. As in R5, it changes the street search from the
+    /// origins (access and direct trips) but not the egress from the stops.
+    pub scenario: crate::Scenario,
 }
 
 impl TransitParams {
@@ -225,7 +230,7 @@ impl TransitParams {
         if self.transit_modes.is_empty() {
             return Err("transit_modes must hold at least one public transport mode".into());
         }
-        Ok(())
+        self.scenario.check()
     }
 }
 
@@ -251,6 +256,7 @@ impl Default for TransitParams {
             seed: None,
             n_threads: 0,
             cancel: CancelToken::default(),
+            scenario: crate::Scenario::default(),
         }
     }
 }
@@ -410,6 +416,9 @@ pub(crate) fn percentile_index(p: i32, n: usize) -> usize {
 /// accessibility (R5 `TravelTimeComputer` up to the reducer).
 pub(crate) struct Query<'a> {
     net: &'a StreetNetwork,
+    /// The scenario's network, which the access and direct searches run on
+    /// (`None`: they run on `net`).
+    scen: Option<StreetNetwork>,
     layer: &'a TransitLayer,
     data: &'a TransitData,
     p: &'a TransitParams,
@@ -661,13 +670,20 @@ impl<'a> Query<'a> {
                 .collect()
             }
         };
+        let scen = crate::street::scenario::scenario_network(
+            net,
+            &p.scenario,
+            p.access_mode == Mode::Car,
+        )?;
+        let access = Access::new(scen.as_ref().unwrap_or(net), p);
         Ok(Query {
             net,
+            scen,
             layer,
             data,
             p,
             filtered,
-            access: Access::new(net, p),
+            access,
             dest_splits,
             egress,
             max_t: p.max_trip_duration * 60,
@@ -688,7 +704,7 @@ impl<'a> Query<'a> {
         scratch: &mut Scratch,
         mut per_destination: impl FnMut(usize, &mut [i32]),
     ) -> bool {
-        let (net, layer, p) = (self.net, self.layer, self.p);
+        let (net, layer, p) = (self.scen.as_ref().unwrap_or(self.net), self.layer, self.p);
         let Scratch {
             split,
             times: tt,

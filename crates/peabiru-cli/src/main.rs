@@ -97,6 +97,7 @@ fn transit(args: &[String]) {
     let cmd = "transit";
     let (dir, points, out) = positional3(cmd, args);
     let mut p = TransitParams::default();
+    p.scenario = cli::scenario(cmd);
     let mut repeats = 1usize;
     let (mut have_date, mut have_time) = (false, false);
     let mut i = 3;
@@ -193,7 +194,7 @@ fn dump_edges(pbf: &str) {
     let cmd = "dump-edges";
     // a directory: the network with its GTFS stops linked, as r5r builds it
     let net = if std::path::Path::new(pbf).is_dir() {
-        peabiru_core::build_from_dir(pbf, &BuildOptions::default())
+        cli::build_from_dir(cmd, pbf, &BuildOptions::default())
             .map(|(net, _)| net)
             .unwrap_or_else(|e| runtime_error(cmd, e))
     } else {
@@ -325,6 +326,7 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     let mut params = RouteParams::default();
     params.n_threads = n_threads;
     params.engine = engine;
+    params.scenario = cli::scenario(cmd);
     let mut times = Vec::new();
     let mut m = None;
     for _ in 0..repeats {

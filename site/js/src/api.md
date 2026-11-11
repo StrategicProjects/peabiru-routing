@@ -17,7 +17,7 @@ function returns a Promise; options are the fields of an options object.
 | Points, dates and shared options | [`Points`](#Points), [`Numbers`](#Numbers), [`DateTime`](#DateTime), [`RoutingOptions`](#RoutingOptions) |
 | Missing values and errors | [`NA_INT32`](#NA_INT32), [`UnsupportedError`](#UnsupportedError) |
 | Loading the module and versions | [`init`](#init), [`initSync`](#initSync), [`InitInput`](#InitInput), [`coreVersion`](#coreVersion), [`version`](#version) |
-| Other declarations | [`DetailedItinerariesOptions`](#DetailedItinerariesOptions), [`ItineraryRow`](#ItineraryRow), [`ItineraryFeature`](#ItineraryFeature), [`detailedItineraries`](#detailedItineraries) |
+| Other declarations | [`ScenarioTable`](#ScenarioTable), [`GeoJsonFeatureCollection`](#GeoJsonFeatureCollection), [`DetailedItinerariesOptions`](#DetailedItinerariesOptions), [`ItineraryRow`](#ItineraryRow), [`ItineraryFeature`](#ItineraryFeature), [`detailedItineraries`](#detailedItineraries) |
 
 ## Networks
 
@@ -92,7 +92,7 @@ A transport network: the street network and, when GTFS feeds were given, the pub
 - `readonly workers: number`: Number of workers of the network; 0 when it routes on the calling thread.
 - `info(): NetworkInfo`
 - `transitAvailability(date: Date | string): Promise<{ services: number; active: number }>`: Services in the network and services running on `date` (a Date, read in local time, or a string `"YYYY-MM-DD"`).
-- `r5rWarnings(): string[]`: Warnings for the GTFS feeds that r5r refuses to build a network from.
+- `r5rWarnings(): string[]`: Warnings for the GTFS feeds that r5r refuses to build a network from: always empty, since buildNetwork() throws on such feeds as r5r does (kept for compatibility).
 
 ### NetworkInfo {#NetworkInfo}
 
@@ -721,8 +721,6 @@ A date and clock time: a `Date` (its local date and clock time in the JavaScript
 export interface RoutingOptions
 ```
 
-Options shared by every routing function, with r5r's defaults.
-
 - `mode?: string | string[]`: `"WALK"` (default), `"BICYCLE"` or `"CAR"` alone, or public transport: `"TRANSIT"` (every transit mode) or any of `"TRAM"`, `"SUBWAY"`, `"RAIL"`, `"BUS"`, `"FERRY"`, `"CABLE_CAR"`, `"GONDOLA"`, `"FUNICULAR"`, with at most one street mode to reach it (walking by default; by bicycle or car the trip goes on on foot from where the vehicle got, as in R5).
 - `modeEgress?: string`: `"WALK"` (default), `"BICYCLE"` or `"CAR"`: from public transport to the destinations.
 - `maxWalkTime?: number`: Minutes; `Infinity` (default) means the trip limit.
@@ -733,9 +731,9 @@ Options shared by every routing function, with r5r's defaults.
 - `bikeSpeed?: number`: km/h (default 12).
 - `maxRides?: number`: Most transit vehicles boarded (default 3).
 - `maxLts?: number`: Highest level of traffic stress a cyclist rides on, 1 to 4 (default 2).
-- `newCarspeeds?: null`: Not supported: must be null (default).
-- `carspeedScale?: number`: Not supported: must be 1 (default).
-- `newLts?: null`: Not supported: must be null (default).
+- `newCarspeeds?: ScenarioTable | GeoJsonFeatureCollection | null`: A scenario of car speeds, as r5r's `new_carspeeds`: a table (an object of columns or an array of rows) with `osm_id`, `max_speed` and `speed_type` (`"scale"`, a factor for the car speed of the way's edges, or `"km/h"`, a speed; 0 closes the way to cars), or a GeoJSON FeatureCollection of Polygons or MultiPolygons with properties `poly_id` (string), `scale` and `priority` (integer): each edge takes the factor of the polygon it meets with the highest priority. Default null.
+- `carspeedScale?: number`: The factor for the car speeds of the edges `newCarspeeds` leaves out (default 1).
+- `newLts?: ScenarioTable | GeoJsonFeatureCollection | null`: A scenario of levels of traffic stress, as r5r's `new_lts`: a table with `osm_id` and `lts` (integer), or a GeoJSON FeatureCollection of LineStrings with properties `line_id`, `lts` (1 to 4) and `priority`: each edge takes the level of the closest line. As in r5r, a scenario changes the street search from the origins but not the egress from the stops. Default null.
 - `drawsPerMinute?: number`: Monte Carlo draws per minute for frequency-based GTFS (default 5).
 - `seed?: number | null`: Seed of the Monte Carlo draws. With frequency-based GTFS the results are reproducible (and equal to r5r's) only with a seed; without one (null, the default) a random seed is drawn for each call.
 - `nThreads?: number | null`: Workers of the network this call uses: a whole number >= 1, or null or Infinity (default) for all of them. More than the network has means all it has; a network without workers routes on the calling thread whatever this is. The origins are shared out in contiguous blocks, one per worker; the results do not depend on how.
@@ -831,6 +829,29 @@ export declare const version: string;
 Version of this package.
 
 ## Other declarations
+
+### ScenarioTable {#ScenarioTable}
+
+*type*
+
+```typescript
+export type ScenarioTable = Record<string, ArrayLike<unknown>> | Array<Record<string, unknown>>;
+```
+
+A table of a scenario: an object of columns, or an array of row objects.
+
+### GeoJsonFeatureCollection {#GeoJsonFeatureCollection}
+
+*interface*
+
+```typescript
+export interface GeoJsonFeatureCollection
+```
+
+A GeoJSON FeatureCollection (WGS 84).
+
+- `type: "FeatureCollection"`
+- `features: Array<{ type: "Feature"; properties: Record<string, unknown>; geometry: { type: string; coordinates: unknown } }>`
 
 ### DetailedItinerariesOptions {#DetailedItinerariesOptions}
 

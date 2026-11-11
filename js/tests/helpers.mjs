@@ -38,3 +38,26 @@ export function sum(a) {
   for (const v of a) s += v;
   return s;
 }
+
+/** A stored (uncompressed) zip of `files`, {name: text}; the reader does not check CRCs. */
+export function storedZip(files) {
+  const enc = new TextEncoder();
+  const parts = [];
+  const central = [];
+  let offset = 0;
+  const u16 = (v) => [v & 255, v >> 8];
+  const u32 = (v) => [v & 255, (v >> 8) & 255, (v >> 16) & 255, v >>> 24];
+  for (const [name, text] of Object.entries(files)) {
+    const n = enc.encode(name);
+    const data = enc.encode(text);
+    const sizes = [...u32(data.length), ...u32(data.length)];
+    const local = [...u32(0x04034b50), 20, 0, 0, 0, 0, 0, ...new Array(8).fill(0), ...sizes, ...u16(n.length), 0, 0];
+    parts.push(Uint8Array.from(local), n, data);
+    central.push(Uint8Array.from([...u32(0x02014b50), 20, 0, 20, 0, 0, 0, 0, 0, ...new Array(8).fill(0), ...sizes, ...u16(n.length), ...new Array(12).fill(0), ...u32(offset)]), n);
+    offset += local.length + n.length + data.length;
+  }
+  const cdSize = central.reduce((s, a) => s + a.length, 0);
+  const count = Object.keys(files).length;
+  const end = Uint8Array.from([...u32(0x06054b50), 0, 0, 0, 0, ...u16(count), ...u16(count), ...u32(cdSize), ...u32(offset), 0, 0]);
+  return Buffer.concat([...parts, ...central, end]);
+}

@@ -61,7 +61,7 @@ Public transport can be any subset of the transit modes (`"BUS"`,
 
 Detailed itineraries give the legs of the fastest trip, with their lines.
 
-Not implemented yet: fares, scenarios, elevation, and the alternative
+Not implemented yet: fares, elevation, and the alternative
 itineraries of `detailed_itineraries(shortest_path = FALSE)` with public
 transport. Asking for any of them is an error; nothing is silently ignored.
 

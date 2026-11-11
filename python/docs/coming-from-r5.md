@@ -93,10 +93,10 @@ dtype: object
 - **`arrival_datetime`** has a default of `None` (Python cannot have a
   required argument after optional ones); leaving it out is the same error
   as in r5r.
-- **Some GTFS feeds that r5r refuses to build are accepted**: the tables
-  may be in a subfolder of the `.zip`, a trip that refers to a stop or
-  route that does not exist is left out, and `agency.txt` is not required.
-  `build_network()` gives a `UserWarning` for each such feed, naming it.
+- **GTFS errors are not written to the data folder**: as r5r,
+  `build_network()` refuses feeds with errors of priority `"HIGH"`, but it
+  does not write `gtfs_errors.csv`; `get_gtfs_errors()` checks the feeds
+  again instead.
 
 ### Kept for equal results
 
@@ -147,7 +147,6 @@ the same parameters; peabiru is validated against r5r, not r5py.
 Each of these raises `peabiru.UnsupportedError` instead of being ignored:
 
 - fares: `fare_structure`, and a finite `max_fare`;
-- scenarios: `new_carspeeds`, `carspeed_scale` other than 1, `new_lts`;
 - elevation: a `.tif` raster in the data directory requires
   `elevation="NONE"`;
 - expanded and arrival matrices by a street mode alone (r5r takes the

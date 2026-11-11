@@ -478,6 +478,10 @@ named here for transparency.
       ExtractLineByLocation, as R5's TripPattern.getHopGeometries uses
       them); itinerary/geom.rs: the double sf reads back from the WKT JTS
       writes (at most 16 digits after the point).
+      street/scenario/jts.rs: the STRtree spatial index (its query order),
+      DiscreteHausdorffDistance between two lines and the predicate
+      Polygon.intersects(LineString), which R5's RoadCongestion and
+      ShapefileMatcher use for r5r's scenarios.
   libc++ std::unordered_map (LLVM)
       isochrone/isoband.rs (HashTable): the bucket counts, growth and node
       order of libc++'s hash table, which fix the order in which isoband

@@ -66,8 +66,30 @@ minutes for each street mode (\code{Inf}, the default, means the trip limit).}
 \item{max_lts}{An integer from 1 to 4, the highest level of traffic stress
 a cyclist will ride on.}
 
-\item{new_carspeeds, carspeed_scale, new_lts}{Scenarios; not supported yet
-(must be \code{NULL}, \code{1} and \code{NULL}).}
+\item{new_carspeeds}{A scenario of car speeds, as in r5r: \code{NULL}, a data
+frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type} (\code{"scale"}, a
+factor for the car speed of the way's edges, or \code{"km/h"}, a speed; 0
+closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s or
+\code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+(numeric) and \code{priority} (integer): each street edge takes the factor
+of the polygon it meets with the highest priority (ties: the one it
+overlaps most).}
+
+\item{carspeed_scale}{A number of at least 0, the factor for the car
+speeds of the edges \code{new_carspeeds} leaves out (all of them when it is
+\code{NULL}).}
+
+\item{new_lts}{A scenario of levels of traffic stress, as in r5r: \code{NULL},
+a data frame with columns \code{osm_id} and \code{lts} (integer), or an \code{sf} data
+frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts} (1 to 4)
+and \code{priority}: each street edge takes the level of the line closest to
+it among those whose bounding box meets its own. As in r5r, the
+scenario changes the street search from the origins (the trip without
+public transport, and access by bicycle or car) but not the egress
+from the stops, and \code{priority} is not used. A car speed that R5's
+16-bit cm/s would turn into 0 or less (a factor too small or too
+large) is an error, as are polygons that are not valid and ties
+between polygons that peabiru cannot settle exactly as R5 does.}
 
 \item{draws_per_minute}{An integer, the Monte Carlo draws per departure
 minute for frequency-based 'GTFS'.}

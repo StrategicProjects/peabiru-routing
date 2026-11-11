@@ -498,12 +498,191 @@ function checkFares(fareStructure, maxFare) {
   }
 }
 
-function checkScenarios(o) {
-  assertNumber(o.carspeedScale, "carspeedScale", { lower: 0, finite: true });
-  if ((o.newCarspeeds !== null && o.newCarspeeds !== undefined) || o.carspeedScale !== 1) {
-    unsupported("Changing car speeds ('newCarspeeds', 'carspeedScale')");
+// r5r set_new_congestion() and set_new_lts(), with the checks of
+// congestion_poly2geojson(), dt_to_speed_map(), lts_lines2shp() and
+// dt_to_lts_map(). A table is an object of columns or an array of row
+// objects (as the points); r5r's sf frames are GeoJSON FeatureCollections
+// in WGS 84 with the attributes as properties. The object returned is what
+// the engine reads (src/scenario.rs): the columns as text, as r5r hands
+// them to R5 with as.character() (Java parses them), the geometries
+// flattened; null when the scenario changes nothing.
+function quoted(v) {
+  return `{${v.map((x) => `'${x}'`).join(",")}}`;
+}
+
+function scenarioNames(table, must, name) {
+  const missing = Array.isArray(table) ? [] : must.filter((c) => table[c] === undefined);
+  if (missing.length) fail(name, `Names must include the elements ${quoted(must)}, but is missing elements ${quoted(missing)}`);
+}
+
+// checkmate's assert_numeric / assert_integer / assert_character with
+// any.missing = FALSE
+function scenarioColumn(values, kind, name, { allMissing = true, lower = -Infinity, upper = Infinity } = {}) {
+  const v = Array.from(values ?? []);
+  const isNa = (x) => x === null || x === undefined || (typeof x === "number" && Number.isNaN(x));
+  const ok = v.every((x) => {
+    if (isNa(x)) return true;
+    if (kind === "character") return typeof x === "string";
+    if (kind === "integer") return typeof x === "number" && Number.isInteger(x);
+    return typeof x === "number";
+  });
+  if (!ok) {
+    const t = v.find((x) => !isNa(x) && !(kind === "integer" && typeof x === "number" && Number.isInteger(x)));
+    const got = typeof t === "string" ? "character" : typeof t === "boolean" ? "logical" : typeof t === "number" ? "double" : typeof t;
+    fail(name, `Must be of type '${kind}', not '${got}'`, TypeError);
   }
-  if (o.newLts !== null && o.newLts !== undefined) unsupported("Changing LTS levels ('newLts')");
+  if (!allMissing && v.every(isNa)) fail(name, "Contains only missing values");
+  const na = v.findIndex(isNa);
+  if (na >= 0) fail(name, `Contains missing values (element ${na + 1})`);
+  const low = v.findIndex((x) => x < lower);
+  if (low >= 0) fail(name, `Element ${low + 1} is not >= ${lower}`);
+  const high = v.findIndex((x) => x > upper);
+  if (high >= 0) fail(name, `Element ${high + 1} is not <= ${upper}`);
+  return v;
+}
+
+// R's as.character() of a number, as far as Java's parsers can tell: an
+// integer as written, else 15 significant digits in fixed or scientific
+// notation as R chooses (100000 as a double is "1e+05").
+function rText(x, integer) {
+  if (integer) return String(x);
+  if (x === Infinity) return "Inf";
+  if (x === -Infinity) return "-Inf";
+  const [m, e] = x.toExponential(14).split("e");
+  const mantissa = m.replace(/0+$/, "").replace(/\.$/, "");
+  const exp = Number(e);
+  const sci = `${mantissa}e${exp < 0 ? "-" : "+"}${String(Math.abs(exp)).padStart(2, "0")}`;
+  const digits = mantissa.replace(/[-.]/g, "").length;
+  const fixed = x.toFixed(Math.min(100, Math.max(0, digits - 1 - exp)));
+  return fixed.length <= sci.length ? fixed : sci;
+}
+
+function geojsonFeatures(fc, name) {
+  if (fc === null || typeof fc !== "object" || fc.type !== "FeatureCollection" || !Array.isArray(fc.features)) {
+    fail(name, "Must be a GeoJSON FeatureCollection", TypeError);
+  }
+  // GeoJSON is WGS 84; a crs member (old GeoJSON) must say so
+  const crs = fc.crs?.properties?.name;
+  if (crs !== undefined && !/(EPSG::?4326|CRS84)$/.test(crs)) {
+    throw new RangeError(`The CRS of parameter \`${name}\` must be WGS 84 (EPSG 4326).`);
+  }
+  return fc.features;
+}
+
+function isFeatureCollection(x) {
+  return x !== null && typeof x === "object" && x.type === "FeatureCollection";
+}
+
+function featureProperties(features, must, name) {
+  const props = features.length ? Object.keys(features[0]?.properties ?? {}) : [];
+  const missing = must.filter((k) => !props.includes(k));
+  if (missing.length) {
+    fail(name, `Names must include the elements ${quoted([...must, "geometry"])}, but is missing elements ${quoted(missing)}`);
+  }
+  return (k) => features.map((f) => f?.properties?.[k]);
+}
+
+function geometryTypes(features, choices, name) {
+  const types = [...new Set(features.map((f) => f?.geometry?.type))];
+  const upper = (t) => String(t).replace(/([a-z])([A-Z])/g, "$1$2").toUpperCase();
+  const want = quoted(choices.map(upper));
+  if (!types.length) fail(name, `Must be a subset of ${want}, not empty`);
+  const extra = types.filter((x) => !choices.includes(x));
+  if (extra.length) fail(name, `Must be a subset of ${want}, but has additional elements ${quoted(extra.map(upper))}`);
+}
+
+function scenarioSpec(o) {
+  assertNumber(o.carspeedScale, "carspeedScale", { lower: 0, finite: true });
+  const spec = { car: "none", carspeed_scale: o.carspeedScale, lts: "none" };
+  let changed = false;
+  const given = (x) => x !== null && x !== undefined;
+  if (given(o.newCarspeeds) || o.carspeedScale !== 1) {
+    changed = true;
+    const t = o.newCarspeeds;
+    if (isFeatureCollection(t)) {
+      const features = geojsonFeatures(t, "newCarspeeds");
+      const prop = featureProperties(features, ["poly_id", "scale", "priority"], "names(new_speeds_poly)");
+      scenarioColumn(prop("poly_id"), "character", "new_speeds_poly$poly_id");
+      const scale = scenarioColumn(prop("scale"), "numeric", "new_speeds_poly$scale");
+      const priority = scenarioColumn(prop("priority"), "integer", "new_speeds_poly$priority");
+      geometryTypes(features, ["Polygon", "MultiPolygon"], "unique(as.character(sf::st_geometry_type(new_speeds_poly)))");
+      const x = [], y = [], ringLen = [], ringPolygon = [], polygonFeature = [];
+      features.forEach((f, k) => {
+        const parts = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates];
+        for (const poly of parts) {
+          for (const ring of poly) {
+            // r5r's GeoJSON for R5 keeps 15 decimals
+            for (const c of ring) {
+              x.push(Number(c[0].toFixed(15)));
+              y.push(Number(c[1].toFixed(15)));
+            }
+            ringLen.push(ring.length);
+            ringPolygon.push(polygonFeature.length);
+          }
+          polygonFeature.push(k);
+        }
+      });
+      Object.assign(spec, {
+        car: "polygon", poly_x: Float64Array.from(x), poly_y: Float64Array.from(y),
+        ring_len: Int32Array.from(ringLen), ring_polygon: Int32Array.from(ringPolygon),
+        polygon_feature: Int32Array.from(polygonFeature),
+        scale: Float64Array.from(scale), priority: Float64Array.from(priority),
+      });
+    } else if (given(t)) {
+      if (typeof t !== "object") {
+        fail("newCarspeeds", "Must be a table (an object of columns or an array of rows) or a GeoJSON FeatureCollection", TypeError);
+      }
+      scenarioNames(t, ["osm_id", "max_speed", "speed_type"], "names(dt)");
+      const ids = scenarioColumn(column(t, "osm_id"), "numeric", "dt$osm_id", { allMissing: false });
+      const speeds = scenarioColumn(column(t, "max_speed"), "numeric", "dt$max_speed", { allMissing: false });
+      const types = [...new Set(Array.from(column(t, "speed_type") ?? []))];
+      if (!(types.length === 1 && ["km/h", "scale"].includes(types[0]))) {
+        fail('length(unique(dt$speed_type)) == 1 && dt$speed_type[1] %in% c("km/h", "scale")', "Must be TRUE");
+      }
+      Object.assign(spec, {
+        car: types[0],
+        car_ids: ids.map((v) => rText(v, Number.isSafeInteger(v))),
+        car_values: speeds.map((v) => rText(v, false)),
+      });
+    }
+  }
+  if (given(o.newLts)) {
+    changed = true;
+    const t = o.newLts;
+    if (isFeatureCollection(t)) {
+      const features = geojsonFeatures(t, "newLts");
+      const prop = featureProperties(features, ["line_id", "lts", "priority"], "names(new_lts_lines)");
+      scenarioColumn(prop("line_id"), "character", "new_lts_lines$line_id");
+      const lts = scenarioColumn(prop("lts"), "integer", "new_lts_lines$lts", { lower: 1, upper: 4 });
+      scenarioColumn(prop("priority"), "integer", "new_lts_lines$priority");
+      geometryTypes(features, ["LineString"], "unique(as.character(sf::st_geometry_type(new_lts_lines)))");
+      const x = [], y = [], len = [];
+      for (const f of features) {
+        for (const c of f.geometry.coordinates) {
+          x.push(c[0]);
+          y.push(c[1]);
+        }
+        len.push(f.geometry.coordinates.length);
+      }
+      Object.assign(spec, {
+        lts: "line", line_x: Float64Array.from(x), line_y: Float64Array.from(y),
+        line_len: Int32Array.from(len), line_lts: Int32Array.from(lts),
+      });
+    } else {
+      if (typeof t !== "object") {
+        fail("newLts", "Must be a table (an object of columns or an array of rows) or a GeoJSON FeatureCollection", TypeError);
+      }
+      scenarioNames(t, ["osm_id", "lts"], "names(dt)");
+      const ids = scenarioColumn(column(t, "osm_id"), "numeric", "dt$osm_id", { allMissing: false });
+      const lts = scenarioColumn(column(t, "lts"), "integer", "dt$lts", { allMissing: false });
+      Object.assign(spec, {
+        lts: "way",
+        lts_ids: ids.map((v) => rText(v, Number.isSafeInteger(v))),
+        lts_values: lts.map((v) => String(v)),
+      });
+    }
+  }
+  return changed ? spec : null;
 }
 
 function checkOutputDir(outputDir) {
@@ -987,7 +1166,11 @@ export class Network {
     return { services, active };
   }
 
-  /** Warnings for the GTFS feeds that r5r refuses to build a network from. */
+  /**
+   * Warnings for the GTFS feeds that r5r refuses to build a network from:
+   * always empty, since buildNetwork() throws on such feeds as r5r does
+   * (kept for compatibility).
+   */
   r5rWarnings() {
     this.#alive();
     return [...this.#warnings];
@@ -1188,7 +1371,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
   const seed = commonChecks(opt);
   checkFares(opt.fareStructure, opt.maxFare);
   checkOutputDir(opt.outputDir);
-  checkScenarios(opt);
+  const scenario = scenarioSpec(opt);
 
   let cols;
   if (modeList.transit) {
@@ -1198,7 +1381,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
         olat, olon, d.lat, d.lon, modeList.transitMode, modeList.accessMode, modeList.egressMode,
         opt.bikeSpeed, Math.round(opt.maxLts), lim.bike, lim.car, departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow),
         Int32Array.from(pcts), lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides),
-        Math.round(opt.drawsPerMinute), seed,
+        Math.round(opt.drawsPerMinute), seed, scenario,
       ],
       opt.nThreads, opt.signal,
     );
@@ -1206,7 +1389,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
   } else {
     const parts = await network._route(
       "street_ttm", o,
-      (olat, olon) => [olat, olon, d.lat, d.lon, modeList.directModes, opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), lim.trip],
+      (olat, olon) => [olat, olon, d.lat, d.lon, modeList.directModes, opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), lim.trip, scenario],
       opt.nThreads, opt.signal,
     );
     const [from, to, tt] = merge(parts);
@@ -1325,7 +1508,7 @@ export async function accessibility(network, origins, destinations, options) {
   const seed = commonChecks(opt);
   checkFares(opt.fareStructure, opt.maxFare);
   checkOutputDir(opt.outputDir);
-  checkScenarios(opt);
+  const scenario = scenarioSpec(opt);
 
   const parts = await network._route(
     "accessibility", o,
@@ -1334,7 +1517,7 @@ export async function accessibility(network, origins, destinations, options) {
       modeList.directModes, modeList.transitMode, modeList.egressMode, fun, value, Int32Array.from(cutoffs),
       Int32Array.from(pcts), departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow), lim.walk,
       lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides),
-      Math.round(opt.drawsPerMinute), seed,
+      Math.round(opt.drawsPerMinute), seed, scenario,
     ],
     opt.nThreads, opt.signal,
   );
@@ -1423,14 +1606,14 @@ export async function expandedTravelTimeMatrix(network, origins, destinations, o
   const seed = commonChecks(opt);
   checkOutputDir(opt.outputDir);
   assertFlag(opt.breakdown, "breakdown");
-  checkScenarios(opt);
+  const scenario = scenarioSpec(opt);
   const parts = await network._route(
     "expanded", o,
     (olat, olon) => [
       olat, olon, d.lat, d.lon, modeList.transitMode, modeList.accessMode, modeList.egressMode,
       opt.bikeSpeed, Math.round(opt.maxLts), lim.bike, lim.car, false, departure.yyyymmdd, departure.seconds,
       Math.round(opt.timeWindow), lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides),
-      Math.round(opt.drawsPerMinute), seed,
+      Math.round(opt.drawsPerMinute), seed, scenario,
     ],
     opt.nThreads, opt.signal,
   );
@@ -1460,14 +1643,14 @@ export async function arrivalTravelTimeMatrix(network, origins, destinations, op
   const seed = commonChecks(opt);
   checkOutputDir(opt.outputDir);
   assertFlag(opt.breakdown, "breakdown");
-  checkScenarios(opt);
+  const scenario = scenarioSpec(opt);
   // the engine's time window is max_trip_duration here
   const parts = await network._route(
     "expanded", o,
     (olat, olon) => [
       olat, olon, d.lat, d.lon, modeList.transitMode, modeList.accessMode, modeList.egressMode,
       opt.bikeSpeed, Math.round(opt.maxLts), lim.bike, lim.car, true, departure.yyyymmdd, departure.seconds, lim.trip,
-      lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides), Math.round(opt.drawsPerMinute), seed,
+      lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides), Math.round(opt.drawsPerMinute), seed, scenario,
     ],
     opt.nThreads, opt.signal,
   );
@@ -1556,7 +1739,7 @@ export async function detailedItineraries(network, origins, destinations, option
   if (opt.shortestPath && opt.suboptimalMinutes > 0) {
     throw new RangeError("Assertion on 'suboptimalMinutes' failed: Must be 0 when 'shortestPath' is true.");
   }
-  checkScenarios(opt);
+  const scenario = scenarioSpec(opt);
   if (opt.osmLinkIds) unsupported("'osmLinkIds: true'");
   if (!opt.shortestPath && modeList.transit) unsupported("'shortestPath: false' with public transport (McRAPTOR)");
   let start = 0;
@@ -1569,7 +1752,7 @@ export async function detailedItineraries(network, origins, destinations, option
         olat, olon, d.lat.slice(s, s + olat.length), d.lon.slice(s, s + olat.length),
         modeList.directModes, modeList.transitMode, modeList.egressMode, departure.yyyymmdd, departure.seconds,
         Math.round(opt.timeWindow), lim.walk, lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed,
-        Math.round(opt.maxRides), Math.round(opt.maxLts), opt.shortestPath,
+        Math.round(opt.maxRides), Math.round(opt.maxLts), opt.shortestPath, scenario,
       ];
     },
     opt.nThreads, opt.signal,

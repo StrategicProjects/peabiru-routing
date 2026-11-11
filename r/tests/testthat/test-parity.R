@@ -106,6 +106,37 @@ test_that("isochrones equal r5r's", {
                         seed = 42)
 })
 
+test_that("scenarios equal r5r's", {
+  skip_if_not_installed("sf")
+  n <- r5r_network()
+  pts <- n$points[1:80, ]
+  edges <- street_network_to_sf(n$pb)$edges
+  ways <- unique(edges$osm_id)
+  set.seed(3)
+  osm <- data.frame(osm_id = sample(ways, 300), max_speed = sample(c(0, 0.4, 1.7), 300, TRUE),
+                    speed_type = "scale")
+  kmh <- data.frame(osm_id = sample(ways, 300), max_speed = runif(300, 5, 80),
+                    speed_type = "km/h")
+  lts <- data.frame(osm_id = sample(ways, 300), lts = sample(1:4, 300, TRUE))
+  box <- sf::st_bbox(sf::st_as_sf(pts[1:40, ], coords = c("lon", "lat"), crs = 4326))
+  poly <- sf::st_sf(poly_id = "a", scale = 0.6, priority = 1L, geometry = sf::st_as_sfc(box))
+  lines <- sf::st_sf(line_id = as.character(1:200), lts = sample(1:4, 200, TRUE),
+                     priority = 1L, geometry = sf::st_geometry(edges)[1:200])
+  for (s in list(list(mode = "CAR", new_carspeeds = osm, carspeed_scale = 0.8),
+                 list(mode = "CAR", new_carspeeds = kmh),
+                 list(mode = "CAR", new_carspeeds = poly, carspeed_scale = 1.2),
+                 list(mode = "BICYCLE", new_lts = lts),
+                 list(mode = "BICYCLE", new_lts = lines, max_lts = 3),
+                 list(mode = c("BICYCLE", "TRANSIT"), new_lts = lts, seed = 42,
+                      max_bike_time = 20),
+                 list(mode = c("CAR", "TRANSIT"), carspeed_scale = 0.5, seed = 42,
+                      max_car_time = 15))) {
+    suppressWarnings(do.call(expect_same_as_r5r,
+                             c(list("travel_time_matrix", origins = pts, destinations = pts,
+                                    departure_datetime = departure), s)))
+  }
+})
+
 # r5r's detailed_itineraries() returns an sf data.table; the rest is
 # identical, geometry included. bench/compare/itinerary_parity.R covers
 # public transport (Porto Alegre).

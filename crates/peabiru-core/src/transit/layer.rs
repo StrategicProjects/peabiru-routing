@@ -92,6 +92,18 @@ impl Service {
     }
 }
 
+/// Whether [`TransitLayer::from_feeds`] checks the feeds for the errors
+/// that make r5r refuse them, and how.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FeedCheck {
+    /// No check: load what can be read.
+    None,
+    /// Check each feed, then load it.
+    Sequential,
+    /// Check and load each feed at the same time, on two threads.
+    Parallel,
+}
+
 /// The public transport of a network: the stops, trip patterns and
 /// timetables of its GTFS feeds, loaded as R5 7.6 loads them, with each stop
 /// linked to the street network it was built with. Made by
@@ -506,21 +518,101 @@ impl TransitLayer {
         paths: &[std::path::PathBuf],
         limits: Limits,
     ) -> Result<TransitLayer, GtfsError> {
-        Self::from_feeds(paths.iter().map(|p| read_feed_file(p)), limits)
+        Self::from_feeds(
+            paths.iter().map(|p| read_feed_file(p)),
+            limits,
+            FeedCheck::None,
+        )
     }
 
     /// Load feeds given as the path (or file name) and the bytes of each
     /// `.zip`, in the order given; reading stops at the first error. The
     /// path names the feed in errors and reports and, without a
     /// `feed_info.feed_id`, gives the feed id.
+    ///
+    /// With `check`, each feed is first validated as gtfs-lib loads it
+    /// (`crate::gtfs::validate`): a feed gtfs-lib fails on is an error at
+    /// once; feeds with errors of priority `HIGH` are not loaded, the
+    /// following feeds are still validated, and the error names them all
+    /// ([`GtfsError::HighPriority`]), as r5r refuses the network when any
+    /// feed has one.
     pub(crate) fn from_feeds<'a>(
         feeds: impl IntoIterator<Item = Result<(std::path::PathBuf, Cow<'a, [u8]>), GtfsError>>,
         limits: Limits,
+        check: FeedCheck,
     ) -> Result<TransitLayer, GtfsError> {
+        use crate::gtfs::validate::{validate, GtfsErrorPriority, Outcome};
+        let high = |path: &std::path::Path, o: Outcome| match o {
+            Outcome::Errors(e) => Ok(e
+                .iter()
+                .filter(|e| e.priority() == GtfsErrorPriority::High)
+                .count()),
+            Outcome::Fails(why) => Err(GtfsError::in_feed(path, GtfsError::GtfsLibFails(why))),
+        };
         let mut layer = TransitLayer::default();
+        let mut refused: Vec<(std::path::PathBuf, usize)> = Vec::new();
         for f in feeds {
             let (path, bytes) = f?;
-            let (feed, archive) = Feed::read_zip_checked(&path, bytes, limits)?;
+            let loaded = match check {
+                FeedCheck::None => Feed::read_zip_checked(&path, bytes, limits),
+                _ if !refused.is_empty() => {
+                    // already refused: only the errors of the rest count
+                    let n = high(&path, validate(&bytes))?;
+                    if n > 0 {
+                        refused.push((path, n));
+                    }
+                    continue;
+                }
+                FeedCheck::Sequential => {
+                    let n = high(&path, validate(&bytes))?;
+                    if n > 0 {
+                        refused.push((path, n));
+                        continue;
+                    }
+                    Feed::read_zip_checked(&path, bytes, limits)
+                }
+                FeedCheck::Parallel => {
+                    // the check and the load read the same bytes on two
+                    // threads; the check decides, the load is kept only if
+                    // the feed passes
+                    enum Job<L> {
+                        Check(Outcome),
+                        Load(Box<L>),
+                    }
+                    let (bytes, path_ref) = (&*bytes, path.as_path());
+                    let mut both = crate::sys::scoped([false, true], |load| {
+                        if load {
+                            Job::Load(Box::new(Feed::read_zip_checked(
+                                path_ref,
+                                Cow::Borrowed(bytes),
+                                limits,
+                            )))
+                        } else {
+                            Job::Check(validate(bytes))
+                        }
+                    });
+                    let (Some(Job::Load(loaded)), Some(Job::Check(outcome))) =
+                        (both.pop(), both.pop())
+                    else {
+                        unreachable!("one load and one check")
+                    };
+                    let loaded = *loaded;
+                    let n = high(&path, outcome)?;
+                    if n > 0 {
+                        refused.push((path, n));
+                        continue;
+                    }
+                    loaded
+                }
+            };
+            let (feed, archive) = loaded.map_err(|e| {
+                if check == FeedCheck::None {
+                    e
+                } else {
+                    // gtfs-lib loads it with errors of lower priority only
+                    GtfsError::BuiltByR5r(Box::new(e))
+                }
+            })?;
             let id = feed_id(&feed, &path);
             let dropped_trips = layer.add_feed(&feed, &id);
             layer.dropped_trips.add(&dropped_trips);
@@ -531,6 +623,9 @@ impl TransitLayer {
                 no_agency: archive.no_agency,
                 dropped_trips,
             });
+        }
+        if !refused.is_empty() {
+            return Err(GtfsError::HighPriority(refused));
         }
         layer.patterns_for_stop = vec![Vec::new(); layer.stop_ids.len()];
         for (pi, p) in layer.patterns.iter().enumerate() {
@@ -546,7 +641,9 @@ impl TransitLayer {
 
     /// Warnings for the feeds that r5r refuses to build a network from and
     /// peabiru builds, one per feed, in loading order (empty when there are
-    /// none). The core never prints them; the bindings and the CLI do.
+    /// none). Such feeds are built only with
+    /// [`BuildOptions::ignore_gtfs_errors`](crate::BuildOptions::ignore_gtfs_errors);
+    /// otherwise the build fails. The core never prints them; the CLI does.
     pub fn r5r_warnings(&self) -> Vec<String> {
         self.feed_reports
             .iter()

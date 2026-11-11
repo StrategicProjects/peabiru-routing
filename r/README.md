@@ -30,7 +30,7 @@ JavaScript packages and the command-line tool of the same name.
 | `isochrone()` | the areas or street segments reached within each cutoff |
 | `detailed_itineraries()` | the legs of each trip, with their lines (fastest trip; no fares) |
 
-Not implemented yet: fares, scenarios, elevation, and the alternative
+Not implemented yet: fares, elevation, and the alternative
 itineraries of `detailed_itineraries(shortest_path = FALSE)` with public
 transport. Asking for them stops with an error; nothing is silently ignored.
 

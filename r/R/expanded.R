@@ -9,8 +9,8 @@
 #'
 #' Only public transport is supported: with a street mode alone r5r reports
 #' the same trip for every minute of a departure time taken from the clock
-#' (`Sys.time()`), which peabiru does not reproduce; that is an error, as
-#' are scenarios. A trip without public transport has the street mode as
+#' (`Sys.time()`), which peabiru does not reproduce; that is an error. A
+#' trip without public transport has the street mode as
 #' `routes` (`"[WALK]"`, `"[BICYCLE]"` or `"[CAR]"`), as in r5r.
 #'
 #' @inheritParams travel_time_matrix
@@ -99,7 +99,7 @@ expanded_travel_time_matrix <- function(r5r_network,
   check_messages(verbose, progress)
   check_output_dir(output_dir)
   assert_flag(breakdown, "breakdown")
-  check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
 
   res <- raise_if_stopped(rs_expanded(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
@@ -109,7 +109,8 @@ expanded_travel_time_matrix <- function(r5r_network,
     FALSE, departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_trip_duration, as.double(walk_speed),
     as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
-    threads, csv_output(output_dir, origins, destinations, breakdown = breakdown)
+    threads, scenario,
+    csv_output(output_dir, origins, destinations, breakdown = breakdown)
   ))
   if (!is.null(output_dir)) return(output_dir)
   expanded_result(res, origins, destinations, breakdown, max_trip_duration)
@@ -226,7 +227,7 @@ arrival_travel_time_matrix <- function(r5r_network,
   check_messages(verbose, progress)
   check_output_dir(output_dir)
   assert_flag(breakdown, "breakdown")
-  check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
 
   res <- raise_if_stopped(rs_expanded(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
@@ -236,7 +237,8 @@ arrival_travel_time_matrix <- function(r5r_network,
     TRUE, departure$yyyymmdd, departure$seconds, max_trip_duration,
     max_walk_time, max_trip_duration, as.double(walk_speed),
     as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
-    threads, csv_output(output_dir, origins, destinations, breakdown = breakdown)
+    threads, scenario,
+    csv_output(output_dir, origins, destinations, breakdown = breakdown)
   ))
   if (!is.null(output_dir)) return(output_dir)
   expanded_result(res, origins, destinations, breakdown, max_trip_duration)

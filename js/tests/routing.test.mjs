@@ -161,8 +161,6 @@ test("arrival matrix: every trip arrives in time", async () => {
 test("what peabiru does not support is an UnsupportedError", async () => {
   for (const opts of [
     { fareStructure: {} },
-    { newLts: {} },
-    { carspeedScale: 1.5 },
     { outputDir: "out" },
   ]) {
     await assert.rejects(() => peabiru.travelTimeMatrix(net, pts, pts, opts), UnsupportedError, JSON.stringify(opts));
