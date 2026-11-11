@@ -433,7 +433,16 @@ impl<'a> Query<'a> {
             Dests::Points(points) => {
                 walk::egress_tables(layer, &data.trees, net, points, &dest_splits)
             }
-            Dests::Grid(g) => walk::egress_tables_grid(layer, &data.trees, net, g, &dest_splits),
+            Dests::Grid(g) => walk::egress_tables_grid(
+                layer,
+                &data.trees,
+                net,
+                g,
+                &dest_splits,
+                p.n_threads,
+                &p.cancel,
+            )
+            .ok_or(RouteError::Cancelled)?,
         };
         let egress = tables
             .into_iter()

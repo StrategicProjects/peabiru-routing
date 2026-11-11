@@ -263,25 +263,76 @@ pub fn egress_tables(
     out
 }
 
+/// Grid rows per batch of [`egress_tables_grid`].
+const EGRESS_BAND_ROWS: usize = 8;
+
 /// [`egress_tables`] for the cells of a Web Mercator grid
 /// (`WebMercatorGridPointSet`): per stop, every cell the stop's envelope
 /// overlaps, inclusive, rather than the points strictly inside it
-/// (`getPointsInEnvelope`).
+/// (`getPointsInEnvelope`). The grid is shared out by bands of rows among
+/// up to `n_threads` threads (0 = all cores); each cell's pairs are in
+/// increasing stop order, whatever the number of threads. `None` when
+/// `cancel` is cancelled, which the workers check between bands.
 pub(crate) fn egress_tables_grid(
     layer: &TransitLayer,
     trees: &[Option<Vec<(u32, i32)>>],
     net: &StreetNetwork,
     grid: &crate::WebMercatorGrid,
     dest_splits: &[Option<Split>],
-) -> Vec<Vec<(u32, i32)>> {
+    n_threads: usize,
+    cancel: &crate::CancelToken,
+) -> Option<Vec<Vec<(u32, i32)>>> {
+    let width = grid.width() as usize;
+    // per stop with a tree, its tree and the rows and columns it covers
+    type Covered<'t> = (u32, &'t [(u32, i32)], (usize, usize), (usize, usize));
+    let stops: Vec<Covered> = trees
+        .iter()
+        .enumerate()
+        .filter_map(|(s, tree)| {
+            let tree = tree.as_deref()?;
+            let (rows, cols) = grid.cells_in_envelope(stop_envelope(layer, net, s))?;
+            Some((s as u32, tree, rows, cols))
+        })
+        .collect();
     let mut out = vec![Vec::new(); grid.n_cells()];
-    for (s, tree) in trees.iter().enumerate() {
-        let Some(tree) = tree else { continue };
-        grid.for_cells_in_envelope(stop_envelope(layer, net, s), |p| {
-            push_egress(&mut out[p], s, tree, dest_splits[p])
-        });
-    }
-    out
+    let band_cells = EGRESS_BAND_ROWS * width;
+    let n_bands = out.len().div_ceil(band_cells);
+    let n_threads = crate::street::router::worker_threads(n_threads, n_bands);
+    let bands = std::sync::Mutex::new(out.chunks_mut(band_cells).enumerate());
+    crate::sys::scoped(0..n_threads, |_| {
+        while !cancel.is_cancelled() {
+            // nothing panics while the lock is held
+            let next = bands.lock().unwrap_or_else(|e| e.into_inner()).next();
+            let Some((b, cells)) = next else { break };
+            let (top, bottom) = (
+                b * EGRESS_BAND_ROWS,
+                b * EGRESS_BAND_ROWS + cells.len() / width,
+            );
+            for &(s, tree, (y0, y1), (x0, x1)) in &stops {
+                for y in y0.max(top)..=y1.min(bottom - 1) {
+                    let row = y * width;
+                    // neighbouring cells often link to the same edge: its
+                    // ends' distances, looked up once for the run
+                    let mut last = (u32::MAX, i32::MAX, i32::MAX);
+                    for x in x0..=x1 {
+                        let p = row + x;
+                        let Some(sp) = &dest_splits[p] else { continue };
+                        if sp.edge != last.0 {
+                            last = (
+                                sp.edge,
+                                tree_get(tree, sp.vertex0),
+                                tree_get(tree, sp.vertex1),
+                            );
+                        }
+                        if let Some(c) = egress_cost(last.1, last.2, sp) {
+                            cells[p - top * width].push((s, c));
+                        }
+                    }
+                }
+            }
+        }
+    });
+    (!cancel.is_cancelled()).then_some(out)
 }
 
 /// A stop's envelope grown by the egress limit
@@ -307,8 +358,18 @@ fn push_egress(out: &mut Vec<(u32, i32)>, s: usize, tree: &[(u32, i32)], split: 
     let Some(sp) = split else { return };
     let d0 = tree_get(tree, sp.vertex0);
     let d1 = tree_get(tree, sp.vertex1);
+    if let Some(c) = egress_cost(d0, d1, &sp) {
+        out.push((s as u32, c));
+    }
+}
+
+/// The egress cost to a linked point whose edge's ends are `d0` and `d1`
+/// mm from the stop (`i32::MAX` where not reached), through the nearer
+/// end; `None` when not finite.
+#[inline]
+fn egress_cost(d0: i32, d1: i32, sp: &Split) -> Option<i32> {
     if d0 == i32::MAX && d1 == i32::MAX {
-        return;
+        return None;
     }
     let via = |d: i32, along: i32| {
         if d == i32::MAX {
@@ -323,9 +384,7 @@ fn push_egress(out: &mut Vec<(u32, i32)>, s: usize, tree: &[(u32, i32)], split: 
         }
     };
     let c = via(d0, sp.distance0_mm).min(via(d1, sp.distance1_mm));
-    if c != i32::MAX {
-        out.push((s as u32, c));
-    }
+    (c != i32::MAX).then_some(c)
 }
 
 #[cfg(test)]

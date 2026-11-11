@@ -169,22 +169,18 @@ impl WebMercatorGrid {
     /// The cells R5 considers for points inside an envelope given in
     /// floating degrees (`WebMercatorGridPointSet.getPointsInEnvelope`):
     /// every pixel the envelope's edges fall in, inclusive, clipped to the
-    /// grid. Calls `f(cell)` row by row.
-    pub(crate) fn for_cells_in_envelope(
+    /// grid. Returns the rows and the columns of those cells, `(rows,
+    /// columns)` inclusive, or `None` when the envelope misses the grid.
+    pub(crate) fn cells_in_envelope(
         &self,
         (south, north, west, east): (f64, f64, f64, f64),
-        mut f: impl FnMut(usize),
-    ) {
+    ) -> Option<((usize, usize), (usize, usize))> {
         let z = self.zoom;
-        let x0 = lon_to_pixel(west, z) - self.west;
-        let x1 = lon_to_pixel(east, z) - self.west;
-        let y0 = lat_to_pixel(north, z) - self.north;
-        let y1 = lat_to_pixel(south, z) - self.north;
-        for y in y0.max(0)..=y1.min(self.height - 1) {
-            for x in x0.max(0)..=x1.min(self.width - 1) {
-                f(y as usize * self.width as usize + x as usize);
-            }
-        }
+        let x0 = (lon_to_pixel(west, z) - self.west).max(0);
+        let x1 = (lon_to_pixel(east, z) - self.west).min(self.width - 1);
+        let y0 = (lat_to_pixel(north, z) - self.north).max(0);
+        let y1 = (lat_to_pixel(south, z) - self.north).min(self.height - 1);
+        (x0 <= x1 && y0 <= y1).then_some(((y0 as usize, y1 as usize), (x0 as usize, x1 as usize)))
     }
 }
 
@@ -217,16 +213,18 @@ mod tests {
         assert!(WebMercatorGrid::new(0, 0, 0, 10, 10).is_err());
         let g = WebMercatorGrid::new(5, 7, 3, 2, 9).unwrap();
         assert_eq!(g.n_cells(), 6);
-        let mut cells = Vec::new();
-        g.for_cells_in_envelope(
+        let env = |s, n, w, e| {
             (
-                pixel_center_lat(8, 9),
-                pixel_center_lat(7, 9),
-                pixel_center_lon(6, 9),
-                pixel_center_lon(9, 9),
-            ),
-            |c| cells.push(c),
-        );
-        assert_eq!(cells, vec![1, 2, 4, 5]);
+                pixel_center_lat(s, 9),
+                pixel_center_lat(n, 9),
+                pixel_center_lon(w, 9),
+                pixel_center_lon(e, 9),
+            )
+        };
+        // rows 0 and 1, columns 1 and 2: cells 1, 2, 4, 5
+        assert_eq!(g.cells_in_envelope(env(8, 7, 6, 9)), Some(((0, 1), (1, 2))));
+        assert_eq!(g.cells_in_envelope(env(7, 7, 5, 5)), Some(((0, 0), (0, 0))));
+        assert_eq!(g.cells_in_envelope(env(8, 7, 9, 12)), None);
+        assert_eq!(g.cells_in_envelope(env(12, 9, 5, 7)), None);
     }
 }
