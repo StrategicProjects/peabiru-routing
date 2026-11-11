@@ -287,10 +287,11 @@ fn stored_zip(files: &[(&str, &str)]) -> Vec<u8> {
     out
 }
 
-/// A feed that r5r refuses to build (here: no agency.txt) is built, with
-/// one warning line naming the file; the sample feed gives none.
+/// A feed that r5r refuses to build (here: no agency.txt) is refused; with
+/// `PEABIRU_IGNORE_GTFS_ERRORS=1` it is built, with one warning line naming
+/// the file; the sample feed gives none.
 #[test]
-fn feeds_r5r_refuses_are_warned_about() {
+fn feeds_r5r_refuses_are_refused_or_warned_about() {
     let dir = tmp("no-agency-net");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::copy(format!("{SPO}/spo_osm.pbf"), dir.join("spo_osm.pbf")).unwrap();
@@ -318,6 +319,21 @@ start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n",
     let mut args = vec!["transit", dir.to_str().unwrap(), &p, o.to_str().unwrap()];
     args.extend_from_slice(&WHEN);
     let out = run(&args);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(1), "stderr: {err}");
+    assert_eq!(
+        err.trim_end(),
+        format!(
+            "peabiru transit: high priority GTFS errors found in {} (1 error); network build \
+             failed (as in r5r)",
+            dir.join("bus.zip").display()
+        )
+    );
+    let out = Command::new(env!("CARGO_BIN_EXE_peabiru"))
+        .args(&args)
+        .env("PEABIRU_IGNORE_GTFS_ERRORS", "1")
+        .output()
+        .expect("run peabiru");
     let err = String::from_utf8_lossy(&out.stderr);
     assert_eq!(out.status.code(), Some(0), "stderr: {err}");
     let warnings: Vec<&str> = err.lines().filter(|l| l.contains("warning")).collect();

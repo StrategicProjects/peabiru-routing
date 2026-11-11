@@ -30,6 +30,11 @@ pub enum GtfsError {
     },
     /// Why gtfs-lib fails loading the feed (see `validate`).
     GtfsLibFails(String),
+    /// Feeds with errors of priority `HIGH`, and how many each has.
+    HighPriority(Vec<(std::path::PathBuf, usize)>),
+    /// A feed peabiru cannot read that gtfs-lib loads with errors of lower
+    /// priority only, so that r5r builds a network from it.
+    BuiltByR5r(Box<GtfsError>),
     /// An error in the feed read from `path`.
     InFeed {
         path: std::path::PathBuf,
@@ -55,6 +60,28 @@ impl fmt::Display for GtfsError {
                 write!(f, "{file} line {line}: invalid {column} '{value}'")
             }
             GtfsError::GtfsLibFails(why) => f.write_str(why),
+            GtfsError::BuiltByR5r(e) => write!(
+                f,
+                "{e} (r5r builds a network from this feed, whose GTFS errors are not of \
+                 priority HIGH, but peabiru cannot read it)"
+            ),
+            GtfsError::HighPriority(feeds) => {
+                let list: Vec<String> = feeds
+                    .iter()
+                    .map(|(p, n)| {
+                        format!(
+                            "{} ({n} error{})",
+                            p.display(),
+                            if *n == 1 { "" } else { "s" }
+                        )
+                    })
+                    .collect();
+                write!(
+                    f,
+                    "high priority GTFS errors found in {}; network build failed (as in r5r)",
+                    list.join(", ")
+                )
+            }
             GtfsError::InFeed { path, error } => write!(f, "{}: {error}", path.display()),
         }
     }

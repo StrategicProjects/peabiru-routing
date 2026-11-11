@@ -21,15 +21,20 @@ pub fn runtime_error(cmd: &str, msg: impl Display) -> ! {
 }
 
 /// Build the network of a data directory, as
-/// [`peabiru_core::build_from_dir`], and print to stderr one
-/// `peabiru <cmd>: warning: ...` line per GTFS feed and case that r5r
+/// [`peabiru_core::build_from_dir`]. As r5r, the build fails when a GTFS
+/// feed has errors of priority `HIGH`; with the environment variable
+/// `PEABIRU_IGNORE_GTFS_ERRORS=1` such feeds are built anyway
+/// ([`peabiru_core::BuildOptions::ignore_gtfs_errors`]), with one
+/// `peabiru <cmd>: warning: ...` line on stderr per feed and case that r5r
 /// refuses to build a network from.
 pub fn build_from_dir(
     cmd: &str,
     dir: impl AsRef<std::path::Path>,
     opts: &peabiru_core::BuildOptions,
 ) -> Result<(peabiru_core::StreetNetwork, peabiru_core::TransitLayer), peabiru_core::NetworkError> {
-    let built = peabiru_core::build_from_dir(dir, opts)?;
+    let mut opts = opts.clone();
+    opts.ignore_gtfs_errors = std::env::var("PEABIRU_IGNORE_GTFS_ERRORS").as_deref() == Ok("1");
+    let built = peabiru_core::build_from_dir(dir, &opts)?;
     for report in built.1.feed_reports() {
         for w in report.r5r_warnings_per_case() {
             eprintln!("peabiru {cmd}: warning: {w}");

@@ -127,7 +127,11 @@ export declare class Network {
    * in local time, or a string `"YYYY-MM-DD"`).
    */
   transitAvailability(date: Date | string): Promise<{ services: number; active: number }>;
-  /** Warnings for the GTFS feeds that r5r refuses to build a network from. */
+  /**
+   * Warnings for the GTFS feeds that r5r refuses to build a network from:
+   * always empty, since buildNetwork() throws on such feeds as r5r does
+   * (kept for compatibility).
+   */
   r5rWarnings(): string[];
 }
 

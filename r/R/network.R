@@ -23,10 +23,13 @@
 #' route for a few trips); r5r behaves in the same way, and on one machine
 #' the results are always the same.
 #'
-#' Some 'GTFS' feeds that r5r refuses to build a network from are built, with
-#' a warning naming the feed: its tables are in a subfolder of the `.zip`, it
-#' has no `agency.txt`, or a trip refers to a stop or route that does not
-#' exist (such trips are left out).
+#' As in r5r, the network is not built when a 'GTFS' feed has errors of
+#' priority `"HIGH"` (a reference to a stop, route, trip, service or agency
+#' that does not exist, a number that cannot be read, tables in a subfolder of
+#' the `.zip`, routes without any agency): the error names the feeds and
+#' points to [get_gtfs_errors()], which lists the errors. Unlike r5r,
+#' nothing is written to `data_path` (r5r writes them to `gtfs_errors.csv`).
+#' A feed that r5r's 'GTFS' library fails to load at all is an error too.
 #'
 #' @param data_path A string, the directory with the `.pbf` file and the
 #'   'GTFS' feeds.

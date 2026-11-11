@@ -985,7 +985,11 @@ export class Network {
     return { services, active };
   }
 
-  /** Warnings for the GTFS feeds that r5r refuses to build a network from. */
+  /**
+   * Warnings for the GTFS feeds that r5r refuses to build a network from:
+   * always empty, since buildNetwork() throws on such feeds as r5r does
+   * (kept for compatibility).
+   */
   r5rWarnings() {
     this.#alive();
     return [...this.#warnings];

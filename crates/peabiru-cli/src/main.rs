@@ -190,7 +190,7 @@ fn dump_edges(pbf: &str) {
     let cmd = "dump-edges";
     // a directory: the network with its GTFS stops linked, as r5r builds it
     let net = if std::path::Path::new(pbf).is_dir() {
-        peabiru_core::build_from_dir(pbf, &BuildOptions::default())
+        cli::build_from_dir(cmd, pbf, &BuildOptions::default())
             .map(|(net, _)| net)
             .unwrap_or_else(|e| runtime_error(cmd, e))
     } else {

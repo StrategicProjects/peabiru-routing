@@ -91,7 +91,7 @@ A transport network: the street network and, when GTFS feeds were given, the pub
 - `readonly workers: number`: Number of workers of the network; 0 when it routes on the calling thread.
 - `info(): NetworkInfo`
 - `transitAvailability(date: Date | string): Promise<{ services: number; active: number }>`: Services in the network and services running on `date` (a Date, read in local time, or a string `"YYYY-MM-DD"`).
-- `r5rWarnings(): string[]`: Warnings for the GTFS feeds that r5r refuses to build a network from.
+- `r5rWarnings(): string[]`: Warnings for the GTFS feeds that r5r refuses to build a network from: always empty, since buildNetwork() throws on such feeds as r5r does (kept for compatibility).
 
 ### NetworkInfo {#NetworkInfo}
 

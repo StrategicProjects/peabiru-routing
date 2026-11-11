@@ -121,9 +121,8 @@ as the order of the files in a directory does in r5r (see
 ```
 
 `transitAvailability()` counts the services running on a date, as r5r does
-before routing; `r5rWarnings()` lists the feeds that r5r would refuse to
-build a network from (peabiru builds them, and passes the same warnings to
-`onWarning`). `coreVersion()` gives the version of the Rust core, once the
+before routing. As r5r, `buildNetwork()` throws when a GTFS feed has errors
+of priority `"HIGH"`; `getGtfsErrors()` lists them. `coreVersion()` gives the version of the Rust core, once the
 module is loaded:
 
 ```js

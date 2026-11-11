@@ -58,6 +58,30 @@ fn runtime_err(msg: impl std::fmt::Display) -> PyErr {
     PyRuntimeError::new_err(msg.to_string())
 }
 
+/// The error of a failed build; for feeds with errors of priority `HIGH`,
+/// r5r's message, pointing to `lister` to see them.
+fn build_error(e: &peabiru_core::NetworkError, lister: &str) -> String {
+    match e.high_priority_gtfs_errors() {
+        None => e.to_string(),
+        Some(feeds) => {
+            let list: Vec<String> = feeds
+                .iter()
+                .map(|(p, n)| {
+                    let name = p.file_name().map_or_else(
+                        || p.display().to_string(),
+                        |f| f.to_string_lossy().into_owned(),
+                    );
+                    format!("{name}: {n} error{}", if *n == 1 { "" } else { "s" })
+                })
+                .collect();
+            format!(
+                "High priority GTFS errors found; network build failed ({}). Use {lister} to see them.",
+                list.join(", ")
+            )
+        }
+    }
+}
+
 fn value_err(msg: impl std::fmt::Display) -> PyErr {
     PyValueError::new_err(msg.to_string())
 }
@@ -241,7 +265,9 @@ fn build_network(py: Python<'_>, data_path: String, n_threads: usize) -> PyResul
     py.detach(move || {
         let mut opts = BuildOptions::default();
         opts.n_threads = n_threads;
-        let (net, layer) = build_from_dir(&data_path, &opts).map_err(runtime_err)?;
+        let lister = format!("peabiru.get_gtfs_errors({data_path:?})");
+        let (net, layer) =
+            build_from_dir(&data_path, &opts).map_err(|e| runtime_err(build_error(&e, &lister)))?;
         let transit = if layer.feed_ids().is_empty() {
             None
         } else {

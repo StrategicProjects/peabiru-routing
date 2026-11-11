@@ -60,10 +60,13 @@ different expanded and arrival matrices on two machines (another stop or
 route for a few trips); r5r behaves in the same way, and on one machine
 the results are always the same.
 
-Some 'GTFS' feeds that r5r refuses to build a network from are built, with
-a warning naming the feed: its tables are in a subfolder of the \code{.zip}, it
-has no \code{agency.txt}, or a trip refers to a stop or route that does not
-exist (such trips are left out).
+As in r5r, the network is not built when a 'GTFS' feed has errors of
+priority \code{"HIGH"} (a reference to a stop, route, trip, service or agency
+that does not exist, a number that cannot be read, tables in a subfolder of
+the \code{.zip}, routes without any agency): the error names the feeds and
+points to \code{\link[=get_gtfs_errors]{get_gtfs_errors()}}, which lists the errors. Unlike r5r,
+nothing is written to \code{data_path} (r5r writes them to \code{gtfs_errors.csv}).
+A feed that r5r's 'GTFS' library fails to load at all is an error too.
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
