@@ -102,6 +102,7 @@ articles:
   - articles/isochrones
   - articles/accessibility-map
   - articles/trips
+  - articles/recife-caruaru
 - title: Under the hood
   navbar: Under the hood
   contents:

@@ -85,22 +85,46 @@ built, playwright and cwebp). The SVGs carry their alt text (`<title>`,
 `<desc>`) and switch to the dark palette with `prefers-color-scheme`, like
 the diagrams. Run it after a release that changes results, then rebuild.
 
+`bash site/figures/make.sh --pernambuco` does the same for Recife and
+Caruaru, from open data rather than a sample: `site/figures/pernambuco-data.R`
+downloads (once, into `PEABIRU_PE_CACHE`, by default
+`tools::R_user_dir("peabiru", "cache")/pernambuco`, about 640 MB) Geofabrik's
+dated extract of the Nordeste, IBGE's municipal boundaries and Censo 2022
+census tracts of Pernambuco, INEP's schools (via geobr) and CNES's
+establishments, cuts the streets with osmium (municipality plus 10 km for
+Recife, 5 km for Caruaru), and builds a hexagonal grid with the population;
+`site/figures/pernambuco.R` draws `isochrones-recife.svg`,
+`isochrones-caruaru.svg`, `nearest-recife.svg`, `nearest-caruaru.svg` and
+`access-recife-caruaru.svg`, and writes the extracts of the demo,
+`site/demo/data/pe/{recife,caruaru}.osm.pbf` (Recife's municipality and
+Caruaru's urban area, without buildings and metadata, 2.8 and 0.55 MB,
+committed); then the R article
+`recife-caruaru.Rmd` is knitted from its `.Rmd.orig`. The raw downloads stay
+in the cache, outside the repository.
+
 The examples:
 
 - R: the pkgdown-only articles `r/vignettes/articles/isochrones.Rmd`,
   `accessibility-map.Rmd` and `trips.Rmd` (excluded from the package by
   `.Rbuildignore`; they use ggplot2 and sf when rendered, and nothing is
-  added to `DESCRIPTION`).
+  added to `DESCRIPTION`), and `recife-caruaru.Rmd`, which is precomputed:
+  its code runs when `recife-caruaru.Rmd.orig` is knitted by `make.sh
+  --pernambuco`, and pkgdown renders the result (code and output as
+  Markdown, figures from `site/assets/figures`) without running it.
 - Python: `python/docs/example-*.md`, run by `python/tests/test_docs.py`
   like every page (`PEABIRU_UPDATE_DOCS=1` rewrites their outputs); they
   download the Porto Alegre sample and need geopandas and matplotlib, so
-  they are skipped where those are missing.
+  they are skipped where those are missing. `example-recife-caruaru.md`
+  also needs osmium and `PEABIRU_EXAMPLE_DATA` (a directory for its 640 MB
+  of downloads; the cache of `pernambuco-data.R` can be reused), declared
+  in the page by `<!-- docs-test: needs osmium, env PEABIRU_EXAMPLE_DATA -->`.
 - JavaScript: `site/js/src/examples.md`, with
   `site/js/examples/isochrones.mjs` (checked by `run_examples.mjs`) and the
   demo `site/demo/` (page, module, styles), which `site/build.sh` publishes
   at `_site/demo/` with a copy of the npm package (`js/lib`, `js/pkg`) and
-  the São Paulo sample; the page fetches the Porto Alegre files from r5r's
-  repository when chosen.
+  the São Paulo sample, and the Recife and Caruaru extracts of
+  `site/demo/data/pe/` (streets only); the page fetches the Porto Alegre
+  files from r5r's repository when chosen.
 - Rust: `site/rust/src/isochrones.md`, with
   `crates/peabiru-core/examples/isochrone.rs`.
 

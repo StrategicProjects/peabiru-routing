@@ -44,3 +44,4 @@
 .status.error { color: var(--pb-route); }
 .notes { padding-top: 24px; max-width: 75ch; }
 .notes h2 { font-size: 22px; }
+.controls [hidden] { display: none !important; }

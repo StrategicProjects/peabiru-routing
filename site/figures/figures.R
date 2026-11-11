@@ -95,17 +95,6 @@ figures$iso_modes <- function() {
              "the bus corridors and the train line, between walking and driving."))
 }
 
-# Hexagons coloured by classes of a value, smallest class drawn first (one
-# SVG path per class).
-hex_layer <- function(data, breaks, labels, values) {
-  data$class <- cut(data$value, breaks, labels = labels, right = FALSE,
-                    include.lowest = TRUE)
-  data <- data[!is.na(data$class), ]
-  data <- data[order(data$panel, data$class), ]
-  list(geom_sf(data = data, aes(fill = class), colour = NA, alpha = 0.9),
-       scale_fill_manual(values = setNames(values, labels), drop = FALSE, name = NULL))
-}
-
 # ------------------------------------------------------------------ travel-time map
 figures$travel_time_map <- function() {
   ttm <- function(mode) {

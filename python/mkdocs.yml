@@ -46,6 +46,7 @@ nav:
       - Isochrones by mode: example-isochrones.md
       - Access to jobs and schools: example-accessibility.md
       - How much a trip varies: example-trips.md
+      - Schools and health care in Recife and Caruaru: example-recife-caruaru.md
   - API reference: reference.md
   # the other sites built by site/build.sh, next to this one in _site/
   - Other languages:
