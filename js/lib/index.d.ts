@@ -414,7 +414,10 @@ export interface DetailedItinerariesOptions extends RoutingOptions {
   maxFare?: number;
   /** Plain rows instead of GeoJSON features (default false). */
   dropGeometry?: boolean;
-  /** `true` throws `UnsupportedError` (not supported yet). */
+  /**
+   * Add r5r's `osm_link_ids` properties to each row (default false; needs
+   * `dropGeometry: false`): see `ItineraryRow`.
+   */
   osmLinkIds?: boolean;
 }
 
@@ -444,6 +447,18 @@ export interface ItineraryRow {
   wait: number;
   distance: number;
   route: string;
+  /**
+   * With `osmLinkIds`: the OpenStreetMap way ids of a street leg's edges and
+   * the indices of those edges in the street network, as
+   * `"[id1, id2, ...]"` (`"[]"` for a ride; consecutive edges on a
+   * roundabout give only their first ids, connectors none), and a ride's
+   * boarding and alighting stops, `"<feed>:<stop_id>"` (empty for street
+   * legs).
+   */
+  osm_id_list?: string;
+  edge_id_list?: string;
+  board_stop_id?: string;
+  alight_stop_id?: string;
 }
 
 /** A leg with its line (longitude, latitude), as a GeoJSON feature. */

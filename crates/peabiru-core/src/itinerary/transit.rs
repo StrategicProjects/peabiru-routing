@@ -8,8 +8,9 @@
 
 use super::geom::{edge_line, line_length_m, Line};
 use super::hops::ride_line;
+use super::links::{self, Links};
 use super::mc::McFares;
-use super::{street_path_line, ItineraryParams, Leg, Trip};
+use super::{street_path_line, via::ViaOrders, ItineraryParams, Leg, Trip};
 use crate::street::link::{find_split, Split};
 use crate::street::p2p::{Router, NONE};
 use crate::street::{Mode, StreetNetwork};
@@ -92,6 +93,7 @@ impl<'a> Planner<'a> {
         o: (f64, f64),
         d: (f64, f64),
         scratch: &mut Vec<u32>,
+        via: &mut ViaOrders,
     ) -> Result<Option<Trip>, RouteError> {
         let (net, p, layer) = (self.net, self.p, self.layer);
         let max_t = p.max_trip_duration * 60;
@@ -99,6 +101,7 @@ impl<'a> Planner<'a> {
         let mut egress = Router::new(net, p.egress_mode, p.req(), true);
         egress.stop_search(&self.vertex_stop);
         egress.time_limit = p.max_time_s(p.egress_mode);
+        via.prepare(&mut egress);
         let Some(ds) = find_split(net, d.0, d.1, p.egress_mode, scratch) else {
             return Ok(None);
         };
@@ -106,6 +109,7 @@ impl<'a> Planner<'a> {
             return Ok(None);
         }
         egress.route();
+        via.collect(&mut egress);
         if let Some(why) = egress.unsupported {
             return Err(RouteError::Invalid(format!("not supported: {why}")));
         }
@@ -123,11 +127,13 @@ impl<'a> Planner<'a> {
         let mut access = Router::new(net, p.mode, p.req(), false);
         access.stop_search(&self.vertex_stop);
         access.time_limit = p.max_time_s(p.mode);
+        via.prepare(&mut access);
         let Some(os) = find_split(net, o.0, o.1, p.mode, scratch) else {
             return Ok(None);
         };
         access.set_origin_split(os);
         access.route();
+        via.collect(&mut access);
         let mut access_times: Vec<(u32, i32)> = access
             .reached_stops()
             .iter()
@@ -259,6 +265,11 @@ impl<'a> Planner<'a> {
             let line = ride_line(net, layer, pattern, from_pos, to_pos)
                 .map_err(|why| RouteError::Invalid(format!("not supported: {why}")))?;
             let distance = line_length_m(&line);
+            let mut links = Links::default();
+            if p.osm_link_ids {
+                links.board_stop = layer.stop_ids[l.board_stop as usize].clone();
+                links.alight_stop = layer.stop_ids[l.alight_stop as usize].clone();
+            }
             out.push(Leg {
                 mode,
                 duration: l.ride_time,
@@ -266,6 +277,7 @@ impl<'a> Planner<'a> {
                 route: pat.route_id.clone(),
                 line,
                 distance,
+                links,
             });
             ready = l.board_time + l.ride_time;
         }
@@ -283,6 +295,11 @@ impl<'a> Planner<'a> {
         if let Some(st) = (v >= 0).then(|| access.state_at_vertex(v as u32)).flatten() {
             let line = street_path_line(&access, st);
             let distance = line_length_m(&line);
+            let links = if p.osm_link_ids {
+                links::compacted(net, &links::path_edges(&access, st))
+            } else {
+                Links::default()
+            };
             out.insert(
                 0,
                 Leg {
@@ -292,6 +309,7 @@ impl<'a> Planner<'a> {
                     route: String::new(),
                     line,
                     distance,
+                    links,
                 },
             );
         }
@@ -299,8 +317,13 @@ impl<'a> Planner<'a> {
         let v = layer.stop_vertex[last_alight as usize];
         if let Some(st) = (v >= 0).then(|| egress.state_at_vertex(v as u32)).flatten() {
             match egress_line(&egress, st, &ds, d) {
-                Some(line) => {
+                Some((line, edges)) => {
                     let distance = line_length_m(&line);
+                    let links = if p.osm_link_ids {
+                        links::lists(net, edges)
+                    } else {
+                        Links::default()
+                    };
                     out.push(Leg {
                         mode: p.egress_mode.r5_name().to_string(),
                         duration: egress.states[st as usize].dur,
@@ -308,6 +331,7 @@ impl<'a> Planner<'a> {
                         route: String::new(),
                         line,
                         distance,
+                        links,
                     });
                 }
                 // EgressPath.InvalidOriginException: r5r skips the trip
@@ -355,6 +379,7 @@ impl<'a> Planner<'a> {
             route: String::new(),
             line,
             distance: planar as i32,
+            links: Links::default(),
         }
     }
 
@@ -389,6 +414,9 @@ impl<'a> Planner<'a> {
         };
         leg.line = street_path_line(&r, last);
         leg.distance = line_length_m(&leg.line);
+        if p.osm_link_ids {
+            leg.links = links::compacted(net, &links::path_edges(&r, last));
+        }
     }
 }
 
@@ -442,10 +470,17 @@ fn stop_positions(
 /// r5r's `EgressPath.build`: the edges from the stop's state back to the
 /// seed at the destination's split, the part of the split edge up to the
 /// split point, and the destination itself; consecutive equal points
-/// once. `None` when the path does not end at a seed (R5's
-/// `InvalidOriginException`).
-pub(super) fn egress_line(r: &Router, st: u32, split: &Split, d: (f64, f64)) -> Option<Line> {
+/// once. With the line, the edges of its `streetEdges` (the partial edge
+/// when it has a length). `None` when the path does not end at a seed
+/// (R5's `InvalidOriginException`).
+pub(super) fn egress_line(
+    r: &Router,
+    st: u32,
+    split: &Split,
+    d: (f64, f64),
+) -> Option<(Line, Vec<u32>)> {
     let mut line: Line = Vec::new();
+    let mut edges = Vec::new();
     let append = |line: &mut Line, pts: &[[f64; 2]]| {
         for &p in pts {
             if line.last() != Some(&p) {
@@ -457,6 +492,7 @@ pub(super) fn egress_line(r: &Router, st: u32, split: &Split, d: (f64, f64)) -> 
     while r.states[root as usize].back != NONE {
         let e = r.states[root as usize].back_edge as usize;
         append(&mut line, &edge_line(r.net, e));
+        edges.push(e as u32);
         root = r.states[root as usize].back;
     }
     let rs = &r.states[root as usize];
@@ -480,9 +516,17 @@ pub(super) fn egress_line(r: &Router, st: u32, split: &Split, d: (f64, f64)) -> 
         partial.push(partial[0]);
     }
     append(&mut line, &partial);
+    let partial_mm = if from0 {
+        split.distance0_mm
+    } else {
+        split.distance1_mm
+    };
+    if partial_mm > 0 {
+        edges.push(rs.back_edge as u32);
+    }
     append(&mut line, &[[d.1, d.0]]);
     if line.len() == 1 {
         line.push(line[0]);
     }
-    Some(line)
+    Some((line, edges))
 }

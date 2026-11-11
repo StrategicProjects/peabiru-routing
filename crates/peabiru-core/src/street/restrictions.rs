@@ -37,6 +37,13 @@ pub(crate) fn apply_turn_restrictions(
     relations.sort_by_key(|r| r.id);
     for rel in relations {
         if let Some(r) = restriction_from_relation(net, ex, &ways, vertex_of, rel) {
+            // StreetLayer.addReverseTurnRestriction
+            if r.only {
+                let remapped = remap(net, &r);
+                net.reverse_restrictions.extend(remapped);
+            } else {
+                net.reverse_restrictions.push(r.clone());
+            }
             net.restrictions.push(r);
         }
     }
@@ -50,6 +57,44 @@ pub(crate) fn apply_turn_restrictions(
     for &(e, _) in &net.restriction_starts {
         net.edge_flags[e as usize] |= super::flags::RESTRICTION_START;
     }
+}
+
+/// `TurnRestriction.remap`: an `only_` restriction as the `no_` ones that
+/// R5's reverse searches use instead. From the end of the from edge and of
+/// each via edge, every edge out of it that cars or bicycles may use and
+/// that is not the next one of the restriction gets a `no_` restriction
+/// from the from edge, through the via edges so far, onto that edge. The
+/// edges out of a vertex are the lists as they are when restrictions are
+/// built (R5's `outgoingEdges` before they are rebuilt).
+fn remap(net: &StreetNetwork, r: &TurnRestriction) -> Vec<TurnRestriction> {
+    use super::flags::{ALLOWS_BIKE, ALLOWS_CAR};
+    let mut out = Vec::new();
+    let n = r.via_edges.len();
+    for pos in 0..=n {
+        // pos 0 is R5's -1: the from edge
+        let current = if pos == 0 {
+            r.from_edge
+        } else {
+            r.via_edges[pos - 1]
+        };
+        let next = if pos < n { r.via_edges[pos] } else { r.to_edge };
+        let v = net.edge_to(current as usize);
+        for &e in net.out_edges(v) {
+            if e == next {
+                continue;
+            }
+            if net.edge_flags[e as usize] & (ALLOWS_CAR | ALLOWS_BIKE) != 0 {
+                out.push(TurnRestriction {
+                    relation: r.relation,
+                    only: false,
+                    from_edge: r.from_edge,
+                    via_edges: r.via_edges[..pos].to_vec(),
+                    to_edge: e,
+                });
+            }
+        }
+    }
+    out
 }
 
 /// The unique edge among `edges` whose OSM way is `way`; `Err` if there are
@@ -343,6 +388,32 @@ mod tests {
         let on_row = (C as f64 * 1e-3 + 2e-5, 1.0 * 1e-3 + 3e-4);
         let on_col = (1.0 * 1e-3 + 3e-4, C as f64 * 1e-3 + 2e-5);
         street_seconds(&net, on_row, on_col, Mode::Car).expect("reachable")
+    }
+
+    #[test]
+    fn only_restrictions_become_no_restrictions_backwards() {
+        let net = network_from_extract(grid(vec![
+            restriction("only_straight_on", 1003, node(C, C), 1103),
+            restriction("no_left_turn", 1003, node(C, C), 2103),
+        ]));
+        assert_eq!(net.restrictions.len(), 2);
+        let only = &net.restrictions[0];
+        assert!(only.only);
+        // from 1003 into the centre: every other way out (back along 1003,
+        // 2003, 2103), as no_ restrictions with no via edge; then the no_
+        // restriction itself
+        let rev = &net.reverse_restrictions;
+        assert_eq!(rev.len(), 4);
+        let mut ways: Vec<i64> = rev[..3]
+            .iter()
+            .map(|r| {
+                assert!(!r.only && r.via_edges.is_empty() && r.from_edge == only.from_edge);
+                net.pair_way[r.to_edge as usize / 2]
+            })
+            .collect();
+        ways.sort_unstable();
+        assert_eq!(ways, vec![1003, 2003, 2103]);
+        assert_eq!(rev[3], net.restrictions[1]);
     }
 
     #[test]

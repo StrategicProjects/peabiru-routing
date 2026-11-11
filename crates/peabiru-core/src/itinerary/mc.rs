@@ -9,7 +9,9 @@
 
 use super::geom::line_length_m;
 use super::hops::ride_line;
+use super::links::{self, Links};
 use super::transit::{egress_line, Planner};
+use super::via::ViaOrders;
 use super::{street_path_line, Leg, Trip};
 use crate::fares::FareCalculator;
 use crate::jcompat::{string_hash, JavaHashMap, TroveIntKeys};
@@ -136,6 +138,7 @@ impl Planner<'_> {
         direct: Option<Trip>,
         fares: Option<&McFares>,
         scratch: &mut Vec<u32>,
+        via: &mut ViaOrders,
     ) -> Result<Vec<Trip>, RouteError> {
         let (net, p, layer) = (self.net, self.p, self.layer);
         let max_t = p.max_trip_duration * 60;
@@ -169,19 +172,23 @@ impl Planner<'_> {
         let mut access = Router::new(net, p.mode, p.req(), false);
         access.stop_search(&self.vertex_stop);
         access.time_limit = p.max_time_s(p.mode);
+        via.prepare(&mut access);
         let access_split = find_split(net, o.0, o.1, p.mode, scratch);
         if let Some(os) = access_split {
             access.set_origin_split(os);
             access.route();
         }
+        via.collect(&mut access);
         let mut egress = Router::new(net, p.egress_mode, p.req(), true);
         egress.stop_search(&self.vertex_stop);
         egress.time_limit = p.max_time_s(p.egress_mode);
+        via.prepare(&mut egress);
         let egress_split: Option<Split> = find_split(net, d.0, d.1, p.egress_mode, scratch);
         let mut egress_ok = false;
         if let Some(ds) = egress_split {
             if egress.set_egress_origin(ds) {
                 egress.route();
+                via.collect(&mut egress);
                 egress_ok = true;
                 if let Some(why) = egress.unsupported {
                     return Err(RouteError::Invalid(format!("not supported: {why}")));
@@ -377,6 +384,11 @@ impl Planner<'_> {
                     let line = ride_line(net, layer, pattern, board_pos, alight_pos)
                         .map_err(|why| RouteError::Invalid(format!("not supported: {why}")))?;
                     let distance = line_length_m(&line);
+                    let mut links = Links::default();
+                    if p.osm_link_ids {
+                        links.board_stop = layer.stop_ids[pat.stops[board_pos] as usize].clone();
+                        links.alight_stop = layer.stop_ids[pat.stops[alight_pos] as usize].clone();
+                    }
                     out.push(Leg {
                         mode,
                         duration,
@@ -384,6 +396,7 @@ impl Planner<'_> {
                         route: pat.route_id.clone(),
                         line,
                         distance,
+                        links,
                     });
                     fares.push(fare);
                     if first_board.is_none() {
@@ -399,6 +412,11 @@ impl Planner<'_> {
             if let Some(st) = (v >= 0).then(|| access.state_at_vertex(v as u32)).flatten() {
                 let line = street_path_line(access, st);
                 let distance = line_length_m(&line);
+                let links = if p.osm_link_ids {
+                    links::compacted(net, &links::path_edges(access, st))
+                } else {
+                    Links::default()
+                };
                 out.insert(
                     0,
                     Leg {
@@ -408,6 +426,7 @@ impl Planner<'_> {
                         route: String::new(),
                         line,
                         distance,
+                        links,
                     },
                 );
                 fares.insert(0, 0);
@@ -417,8 +436,13 @@ impl Planner<'_> {
             let v = layer.stop_vertex[last as usize];
             if let Some(st) = (v >= 0).then(|| egress.state_at_vertex(v as u32)).flatten() {
                 match egress_line(egress, st, ds, d) {
-                    Some(line) => {
+                    Some((line, edges)) => {
                         let distance = line_length_m(&line);
+                        let links = if p.osm_link_ids {
+                            links::lists(net, edges)
+                        } else {
+                            Links::default()
+                        };
                         out.push(Leg {
                             mode: p.egress_mode.r5_name().to_string(),
                             duration: egress.states[st as usize].dur,
@@ -426,6 +450,7 @@ impl Planner<'_> {
                             route: String::new(),
                             line,
                             distance,
+                            links,
                         });
                         fares.push(last_fare);
                     }

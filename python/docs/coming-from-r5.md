@@ -174,8 +174,7 @@ Java housekeeping functions (`setup_r5()`, `stop_r5()`, `download_r5()`,
 `r5r_cache()`, `r5r_sitrep()`) have no Python counterpart: there is no Java.
 
 r5r's `detailed_itineraries()` is available with and without fares and
-alternatives (`shortest_path=False`), without `osm_link_ids` or
-`output_dir` with the geometry. Fares (`fare_structure`, `max_fare`),
+alternatives (`shortest_path=False`). Fares (`fare_structure`, `max_fare`),
 r5r's fare structure functions and `pareto_frontier()` are those of r5r
 (see [Fares](fares.md)). The functions not listed in the
 [API reference](reference.md) are not available yet. `CAR_PARK` and

@@ -13,14 +13,18 @@ use pyo3::types::PyDict;
 /// columns (`pair`, `option`, `total_distance`, `segment`, `distance`,
 /// `n_points` as int32 bytes, `total_duration`, `segment_duration`,
 /// `wait`, `x`, `y` as float64 bytes, `departure_time`, `mode`, `route` as
-/// lists). With `output` (`(dir, from ids, to ids)`) the files are written
-/// instead and `None` returned.
+/// lists; `x`, `y` and `n_points` empty with `drop_geometry`; with
+/// `osm_link_ids` also `osm_id_list`, `edge_id_list`, `board_stop_id`,
+/// `alight_stop_id` as lists). With
+/// `output` (`(dir, from ids, to ids)`) the files are written instead (the
+/// geometry as JTS's WKT unless `drop_geometry`) and `None` returned.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 #[pyo3(signature = (network, olat, olon, dlat, dlon, mode, transit_modes, egress_mode, date,
     departure_time, time_window, max_walk_time, max_bike_time, max_car_time,
     max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path,
-    n_threads, scenario, output, suboptimal_minutes=0, fare=None, max_fare=f64::INFINITY))]
+    n_threads, scenario, drop_geometry, osm_link_ids, output, suboptimal_minutes=0, fare=None,
+    max_fare=f64::INFINITY))]
 pub(crate) fn itineraries<'py>(
     py: Python<'py>,
     network: &Bound<'py, Network>,
@@ -45,6 +49,8 @@ pub(crate) fn itineraries<'py>(
     shortest_path: bool,
     n_threads: usize,
     scenario: Option<Bound<'py, PyDict>>,
+    drop_geometry: bool,
+    osm_link_ids: bool,
     output: Option<(String, Vec<String>, Vec<String>)>,
     suboptimal_minutes: i32,
     fare: Option<Bound<'py, PyDict>>,
@@ -75,6 +81,7 @@ pub(crate) fn itineraries<'py>(
     p.fare_structure = super::fares::fare_arg(fare.as_ref())?;
     p.max_fare = max_fare;
     p.n_threads = n_threads;
+    p.osm_link_ids = osm_link_ids;
     let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
     let res = interruptible(py, &p.cancel, || {
         detailed_itineraries(&n.net, transit, &o, &d, &p)
@@ -82,7 +89,7 @@ pub(crate) fn itineraries<'py>(
     if let Some((dir, from, to)) = output {
         let ids: Vec<(String, String)> = from.into_iter().zip(to).collect();
         let pts: Vec<_> = o.iter().copied().zip(d.iter().copied()).collect();
-        write_itineraries_csv(&dir, &ids, &pts, &res)
+        write_itineraries_csv(&dir, &ids, &pts, &res, drop_geometry, osm_link_ids)
             .map_err(|e| value_err(format!("cannot write {dir}: {e}")))?;
         return Ok(None);
     }
@@ -98,6 +105,7 @@ pub(crate) fn itineraries<'py>(
         (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
     let (mut departure, mut modes, mut route) = (Vec::new(), Vec::new(), Vec::new());
     let (mut total_fare, mut cumulative_fare) = (Vec::new(), Vec::new());
+    let mut links: [Vec<String>; 4] = Default::default();
     for (k, its) in res.iter().enumerate() {
         for it in its {
             for (j, l) in it.legs.iter().enumerate() {
@@ -119,6 +127,12 @@ pub(crate) fn itineraries<'py>(
                 route.push(l.route.clone());
                 total_fare.push(it.total_fare.unwrap_or(0.0));
                 cumulative_fare.push(l.cumulative_fare.unwrap_or(0.0));
+                if osm_link_ids {
+                    links[0].push(l.osm_id_list());
+                    links[1].push(l.edge_id_list());
+                    links[2].push(l.board_stop_id.clone());
+                    links[3].push(l.alight_stop_id.clone());
+                }
             }
         }
     }
@@ -139,5 +153,12 @@ pub(crate) fn itineraries<'py>(
     out.set_item("route", route)?;
     out.set_item("total_fare", f64_bytes(py, &total_fare)?)?;
     out.set_item("cumulative_fare", f64_bytes(py, &cumulative_fare)?)?;
+    if osm_link_ids {
+        let [a, b, c, e] = links;
+        out.set_item("osm_id_list", a)?;
+        out.set_item("edge_id_list", b)?;
+        out.set_item("board_stop_id", c)?;
+        out.set_item("alight_stop_id", e)?;
+    }
     Ok(Some(out))
 }

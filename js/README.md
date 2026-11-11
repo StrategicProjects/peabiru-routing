@@ -161,8 +161,8 @@ for (let i = 0; i < ttm.from_id.length; i++) {
 
 What peabiru does not support yet throws `peabiru.UnsupportedError`; it is
 never silently ignored: `outputDir`, expanded and arrival matrices by a
-street mode alone, R5's own fare calculators (a `fareStructure` with a
-`type`), and in `detailedItineraries()` `osmLinkIds: true`. Elevation is not supported either: `buildNetwork()` takes no
+street mode alone, and R5's own fare calculators (a `fareStructure` with a
+`type`). Elevation is not supported either: `buildNetwork()` takes no
 elevation raster.
 
 ## Feed order

@@ -135,6 +135,34 @@ test_that("scenarios equal r5r's", {
                              c(list("travel_time_matrix", origins = pts, destinations = pts,
                                     departure_datetime = departure), s)))
   }
+  # detailed itineraries on the scenario's network: osm_link_ids and
+  # output_dir with the geometry
+  set.seed(4)
+  o <- pts[sample(nrow(pts), 30), ]
+  d <- pts[sample(nrow(pts), 30), ]
+  for (s in list(list(mode = "CAR", new_carspeeds = osm, carspeed_scale = 0.8, osm_link_ids = TRUE),
+                 list(mode = "BICYCLE", new_lts = lines, osm_link_ids = TRUE))) {
+    args <- c(list(origins = o, destinations = d, departure_datetime = departure), s)
+    pb <- suppressWarnings(do.call(detailed_itineraries, c(list(n$pb), args, n_threads = 2)))
+    r5 <- suppressWarnings(do.call(r5r::detailed_itineraries,
+                                   c(list(n$r5), args, n_threads = 2, progress = FALSE)))
+    class(r5) <- setdiff(class(r5), "data.table")
+    attr(r5, ".internal.selfref") <- NULL
+    expect_identical(pb, r5)
+  }
+  dirs <- c(tempfile(), tempfile())
+  for (x in dirs) dir.create(x)
+  args <- list(origins = o, destinations = d, mode = "CAR", new_carspeeds = kmh,
+               departure_datetime = departure)
+  suppressWarnings(do.call(detailed_itineraries, c(list(n$pb), args, output_dir = dirs[1])))
+  suppressWarnings(do.call(r5r::detailed_itineraries,
+                           c(list(n$r5), args, output_dir = dirs[2], progress = FALSE)))
+  files <- list.files(dirs[2])
+  expect_identical(list.files(dirs[1]), files)
+  for (f in files) {
+    expect_identical(readBin(file.path(dirs[1], f), "raw", 1e7),
+                     readBin(file.path(dirs[2], f), "raw", 1e7))
+  }
 })
 
 # r5r's detailed_itineraries() returns an sf data.table; the rest is
@@ -150,13 +178,28 @@ test_that("detailed itineraries equal r5r's", {
   d[1:3, ] <- o[1:3, ]
   for (a in list(list(mode = "WALK"), list(mode = "BICYCLE", max_lts = 4),
                  list(mode = "CAR", drop_geometry = TRUE),
-                 list(mode = "WALK", walk_speed = 5, max_walk_time = 20))) {
+                 list(mode = "WALK", walk_speed = 5, max_walk_time = 20),
+                 list(mode = "CAR", osm_link_ids = TRUE),
+                 list(mode = "BICYCLE", osm_link_ids = TRUE))) {
     args <- c(list(origins = o, destinations = d, departure_datetime = departure), a)
     pb <- do.call(detailed_itineraries, c(list(n$pb), args, n_threads = 2))
     r5 <- do.call(r5r::detailed_itineraries, c(list(n$r5), args, n_threads = 2, progress = FALSE))
     class(r5) <- setdiff(class(r5), "data.table")
     attr(r5, ".internal.selfref") <- NULL
     expect_identical(pb, r5)
+  }
+  # output_dir: the same files, byte for byte, with the geometry
+  dirs <- c(tempfile(), tempfile())
+  for (x in dirs) dir.create(x)
+  args <- list(origins = o[1:20, ], destinations = d[1:20, ], mode = "BICYCLE",
+               departure_datetime = departure)
+  do.call(detailed_itineraries, c(list(n$pb), args, output_dir = dirs[1]))
+  do.call(r5r::detailed_itineraries, c(list(n$r5), args, output_dir = dirs[2], progress = FALSE))
+  files <- list.files(dirs[2])
+  expect_identical(list.files(dirs[1]), files)
+  for (f in files) {
+    expect_identical(readBin(file.path(dirs[1], f), "raw", 1e7),
+                     readBin(file.path(dirs[2], f), "raw", 1e7))
   }
   # both refuse public transport on a frequency-based GTFS
   tr <- list(origins = o[1, ], destinations = d[1, ], mode = c("WALK", "TRANSIT"),

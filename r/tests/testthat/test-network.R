@@ -122,9 +122,11 @@ feed_dir <- function(feed) {
 }
 
 # r5r's build_network() fails on feeds with errors of priority HIGH
+# the path is written as an R string (backslashes doubled on Windows)
 refused <- function(dir, feeds) {
   paste0("High priority GTFS errors found; network build failed (", feeds,
-         "). Use get_gtfs_errors(\"", normalizePath(dir), "\") to see them.")
+         "). Use get_gtfs_errors(", encodeString(normalizePath(dir), quote = "\""),
+         ") to see them.")
 }
 
 test_that("a feed with its tables in a subfolder is refused", {

@@ -15,15 +15,18 @@
 
 pub(crate) mod geom;
 mod hops;
+mod links;
 mod mc;
 mod transit;
+mod via;
+mod wkt;
 
 use crate::street::link::find_split;
 use crate::street::p2p::{Req, Router};
 use crate::street::{Mode, StreetNetwork};
 use crate::transit::raptor::TransitMode;
 use crate::{CancelToken, FareStructure, RouteError, TransitData, TransitLayer};
-use geom::{clock, edge_line, line_length_m, minutes_1dp, without_repeats, wkt_roundtrip, Line};
+use geom::{clock, edge_line, line_length_m, minutes_1dp, without_repeats, Line};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -88,6 +91,10 @@ pub struct ItineraryParams {
     pub n_threads: usize,
     /// Stops the computation when cancelled.
     pub cancel: CancelToken,
+    /// r5r's `osm_link_ids` (default false): fill in each leg's
+    /// [`osm_ids`](ItineraryLeg::osm_ids), [`edge_ids`](ItineraryLeg::edge_ids)
+    /// and stop ids.
+    pub osm_link_ids: bool,
     /// Car speeds and levels of traffic stress changed for this call
     /// (r5r's `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
     /// changes nothing. r5r's trip planner routes every street leg (direct
@@ -119,6 +126,7 @@ impl Default for ItineraryParams {
             max_fare: f64::INFINITY,
             n_threads: 0,
             cancel: CancelToken::default(),
+            osm_link_ids: false,
             scenario: crate::Scenario::default(),
         }
     }
@@ -219,8 +227,46 @@ pub struct ItineraryLeg {
     /// the end of the leg (0 before the first ride); `None` without one.
     pub cumulative_fare: Option<f64>,
     /// The leg's line as `(lon, lat)` degrees, as r5r's `geometry`
-    /// column holds it.
+    /// column holds it (the values read back from the WKT text JTS writes,
+    /// see [`wkt`](Self::wkt)).
     pub geometry: Vec<[f64; 2]>,
+    /// The line before JTS's formatting.
+    raw: Vec<[f64; 2]>,
+    /// With [`ItineraryParams::osm_link_ids`]: the OpenStreetMap way ids
+    /// and the street edge indices of a street leg, in order and once
+    /// each, as r5r lists them (`osm_id_list`, `edge_id_list`; see
+    /// [`osm_id_list`](Self::osm_id_list)); empty for a ride and otherwise.
+    pub osm_ids: Vec<i64>,
+    #[allow(missing_docs)]
+    pub edge_ids: Vec<u32>,
+    /// With [`ItineraryParams::osm_link_ids`]: the stops a ride is boarded
+    /// and left at, `feed_id:stop_id` (r5r's `board_stop_id`,
+    /// `alight_stop_id`); empty for street legs and otherwise.
+    pub board_stop_id: String,
+    #[allow(missing_docs)]
+    pub alight_stop_id: String,
+}
+
+impl ItineraryLeg {
+    /// The leg's line as the WKT text r5r writes for it (JTS 1.18.1's
+    /// `LineString.toString()` on JDK 21): `LINESTRING (x y, ...)` with at
+    /// most 16 fraction digits per ordinate, or `LINESTRING EMPTY`.
+    pub fn wkt(&self) -> String {
+        let mut s = String::new();
+        wkt::line_wkt(&self.raw, &mut s);
+        s
+    }
+
+    /// r5r's `osm_id_list`: [`osm_ids`](Self::osm_ids) as Java prints a
+    /// set, `[id1, id2, ...]`, or `[]`.
+    pub fn osm_id_list(&self) -> String {
+        links::list_text(&self.osm_ids)
+    }
+
+    /// r5r's `edge_id_list`, as [`osm_id_list`](Self::osm_id_list).
+    pub fn edge_id_list(&self) -> String {
+        links::list_text(&self.edge_ids)
+    }
 }
 
 /// One itinerary between an origin-destination pair: r5r's rows of one
@@ -261,13 +307,16 @@ struct Leg {
     line: Line,
     /// Metres, as the leg reports it.
     distance: i32,
+    /// `osm_link_ids`.
+    links: links::Links,
 }
 
 impl Leg {
     fn finish(self, fare: Option<i32>) -> ItineraryLeg {
-        let geometry = without_repeats(&self.line)
-            .into_iter()
-            .map(|[x, y]| [wkt_roundtrip(x), wkt_roundtrip(y)])
+        let raw = without_repeats(&self.line);
+        let geometry = raw
+            .iter()
+            .map(|&[x, y]| [wkt::ordinate_value(x), wkt::ordinate_value(y)])
             .collect();
         ItineraryLeg {
             mode: self.mode,
@@ -279,6 +328,11 @@ impl Leg {
             route: self.route,
             cumulative_fare: fare.map(|f| f64::from(f) / 100.0),
             geometry,
+            raw,
+            osm_ids: self.links.osm,
+            edge_ids: self.links.edges,
+            board_stop_id: self.links.board_stop,
+            alight_stop_id: self.links.alight_stop,
         }
     }
 }
@@ -328,6 +382,7 @@ fn direct_trip(
     o: (f64, f64),
     d: (f64, f64),
     scratch: &mut Vec<u32>,
+    via: &mut via::ViaOrders,
 ) -> Option<Trip> {
     let mode = p.mode;
     let mut limit = p.trip_limit_min() * 60;
@@ -336,15 +391,23 @@ fn direct_trip(
     }
     let mut router = Router::new(net, mode, p.req(), false);
     router.time_limit = limit;
+    via.prepare(&mut router);
     let os = find_split(net, o.0, o.1, mode, scratch)?;
     router.set_origin_split(os);
     let ds = find_split(net, d.0, d.1, mode, scratch)?;
     router.set_destination(ds);
     router.route();
-    let last = router.final_state(&ds)?;
+    let last = router.final_state(&ds);
+    via.collect(&mut router);
+    let last = last?;
     let line = street_path_line(&router, last);
     let duration = router.states[last as usize].dur;
     let distance = line_length_m(&line);
+    let links = if p.osm_link_ids {
+        links::compacted(net, &links::path_edges(&router, last))
+    } else {
+        links::Links::default()
+    };
     Some(Trip {
         direct: true,
         departure: p.departure_time,
@@ -358,6 +421,7 @@ fn direct_trip(
             route: String::new(),
             line,
             distance,
+            links,
         }],
         fares: None,
     })
@@ -421,6 +485,9 @@ pub fn detailed_itineraries(
     let next = AtomicUsize::new(0);
     let threads = crate::street::router::worker_threads(p.n_threads, n);
     let cancel = &p.cancel;
+    // a car egress search runs backwards, which in R5 reverses the via
+    // edges of turn restrictions in place (see `via`)
+    let free = !p.transit_modes.is_empty() && p.egress_mode == Mode::Car;
     type Chunk = Result<Vec<(usize, Vec<Itinerary>)>, RouteError>;
     let chunks: Vec<Chunk> = crate::sys::scoped(0..threads, |_| {
         let mut out = Vec::new();
@@ -430,15 +497,19 @@ pub fn detailed_itineraries(
             if i >= n {
                 break;
             }
-            let trips = plan(
-                net,
-                planner.as_ref(),
-                p,
-                origins[i],
-                destinations[i],
-                &mut scratch,
-            )?;
-            out.push((i, finish(i, trips)));
+            let its = via::settle(free, i, |via| {
+                let trips = plan(
+                    net,
+                    planner.as_ref(),
+                    p,
+                    origins[i],
+                    destinations[i],
+                    &mut scratch,
+                    via,
+                )?;
+                Ok(finish(i, trips))
+            })?;
+            out.push((i, its));
         }
         Ok(out)
     });
@@ -463,25 +534,26 @@ fn plan(
     o: (f64, f64),
     d: (f64, f64),
     scratch: &mut Vec<u32>,
+    via: &mut via::ViaOrders,
 ) -> Result<Vec<Trip>, RouteError> {
     // r5r hands R5 NaN for a missing coordinate: no street is found
     if ![o.0, o.1, d.0, d.1].iter().all(|v| v.is_finite()) {
         return Ok(Vec::new());
     }
     let mut trips = Vec::new();
-    let direct = direct_trip(net, p, o, d, scratch);
+    let direct = direct_trip(net, p, o, d, scratch, via);
     if let Some(planner) = planner {
         if !p.shortest_path || planner.fares.is_some() {
-            return planner.mc_plan(o, d, direct, planner.fares.as_ref(), scratch);
+            return planner.mc_plan(o, d, direct, planner.fares.as_ref(), scratch, via);
         }
-        match planner.fastest_trip(o, d, scratch) {
+        match planner.fastest_trip(o, d, scratch, via) {
             Ok(t) => {
                 trips.extend(direct);
                 trips.extend(t);
             }
             // r5r routes the pair again with McRAPTOR
             Err(e) if transit::is_fallback(&e) => {
-                return planner.mc_plan(o, d, direct, None, scratch);
+                return planner.mc_plan(o, d, direct, None, scratch, via);
             }
             Err(e) => return Err(e),
         }
@@ -545,21 +617,25 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
 }
 
 /// Write itineraries as r5r's `detailed_itineraries()` does with
-/// `output_dir` and `drop_geometry = TRUE`: one file per pair with
-/// itineraries, `<dir>/from_<origin id>_to_<destination id>.csv`, with
-/// r5r's columns and number formats (`RDataFrame.saveToCsv`). `ids` and
-/// `points` are those of the pairs given to [`detailed_itineraries`]
-/// (`(from_id, to_id)` and `((lat, lon), (lat, lon))`). r5r's files with
-/// the geometry hold JTS's WKT text, which is not reproduced: write
-/// without it.
+/// `output_dir`: one file per pair with itineraries,
+/// `<dir>/from_<origin id>_to_<destination id>.csv`, with r5r's columns
+/// and number formats (`RDataFrame.saveToCsv`): with `osm_link_ids` (the
+/// itineraries routed with it) `osm_id_list`, `edge_id_list`,
+/// `board_stop_id` and `alight_stop_id` after `route`, and the `geometry`
+/// column (the WKT text of [`ItineraryLeg::wkt`]) last unless
+/// `drop_geometry`. `ids`
+/// and `points` are those of the pairs given to [`detailed_itineraries`]
+/// (`(from_id, to_id)` and `((lat, lon), (lat, lon))`).
 #[allow(clippy::type_complexity)]
 pub fn write_itineraries_csv(
     dir: &str,
     ids: &[(String, String)],
     points: &[((f64, f64), (f64, f64))],
     itineraries: &[Vec<Itinerary>],
+    drop_geometry: bool,
+    osm_link_ids: bool,
 ) -> std::io::Result<()> {
-    use crate::output::{csv_field, java_double};
+    use crate::output::{csv_field, java_double, LINE_END};
     for (k, its) in itineraries.iter().enumerate() {
         if its.is_empty() {
             continue;
@@ -570,11 +646,18 @@ pub fn write_itineraries_csv(
         let mut s = String::from(if fares {
             "from_id,from_lat,from_lon,to_id,to_lat,to_lon,option,departure_time,\
              total_duration,total_distance,total_fare,segment,mode,cumulative_fare,\
-             segment_duration,wait,distance,route\n"
+             segment_duration,wait,distance,route"
         } else {
             "from_id,from_lat,from_lon,to_id,to_lat,to_lon,option,departure_time,\
-             total_duration,total_distance,segment,mode,segment_duration,wait,distance,route\n"
+             total_duration,total_distance,segment,mode,segment_duration,wait,distance,route"
         });
+        if osm_link_ids {
+            s.push_str(",osm_id_list,edge_id_list,board_stop_id,alight_stop_id");
+        }
+        if !drop_geometry {
+            s.push_str(",geometry");
+        }
+        s.push_str(LINE_END);
         for it in its {
             for (j, l) in it.legs.iter().enumerate() {
                 csv_field(from, &mut s);
@@ -609,7 +692,22 @@ pub fn write_itineraries_csv(
                 }
                 s.push_str(&format!(",{},", l.distance));
                 csv_field(&l.route, &mut s);
-                s.push('\n');
+                if osm_link_ids {
+                    for v in [
+                        l.osm_id_list(),
+                        l.edge_id_list(),
+                        l.board_stop_id.clone(),
+                        l.alight_stop_id.clone(),
+                    ] {
+                        s.push(',');
+                        csv_field(&v, &mut s);
+                    }
+                }
+                if !drop_geometry {
+                    s.push(',');
+                    csv_field(&l.wkt(), &mut s);
+                }
+                s.push_str(LINE_END);
             }
         }
         std::fs::write(format!("{dir}/from_{from}_to_{to}.csv"), s)?;

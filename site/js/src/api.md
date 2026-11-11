@@ -871,7 +871,7 @@ Also takes every option of [`RoutingOptions`](#RoutingOptions).
 - `fareStructure?: FareStructure | null`: A fare structure (default null): trips routed with fares, and fare columns in the result.
 - `maxFare?: number`: The highest fare of a trip (default Infinity).
 - `dropGeometry?: boolean`: Plain rows instead of GeoJSON features (default false).
-- `osmLinkIds?: boolean`: `true` throws [`UnsupportedError`](#UnsupportedError) (not supported yet).
+- `osmLinkIds?: boolean`: Add r5r's `osm_link_ids` properties to each row (default false; needs `dropGeometry: false`): see [`ItineraryRow`](#ItineraryRow).
 
 ### ItineraryRow {#ItineraryRow}
 
@@ -901,6 +901,10 @@ One leg of an itinerary, as r5r's row: durations and waits are minutes with one 
 - `wait: number`
 - `distance: number`
 - `route: string`
+- `osm_id_list?: string`: With `osmLinkIds`: the OpenStreetMap way ids of a street leg's edges and the indices of those edges in the street network, as `"[id1, id2, ...]"` (`"[]"` for a ride; consecutive edges on a roundabout give only their first ids, connectors none), and a ride's boarding and alighting stops, `"<feed>:<stop_id>"` (empty for street legs).
+- `edge_id_list?: string`
+- `board_stop_id?: string`
+- `alight_stop_id?: string`
 
 ### ItineraryFeature {#ItineraryFeature}
 
