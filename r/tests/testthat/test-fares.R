@@ -64,6 +64,9 @@ test_that("fare structures are checked as r5r checks them", {
   unknown_type$fares_per_route$fare_type[1] <- "NOPE"
   expect_error(ttm(unknown_type), "not a type")
   expect_error(ttm(fs[-1]), "names")
+  extra <- fs
+  extra$fares_per_route$note <- "x"
+  expect_error(ttm(extra), "cannot read")
   expect_error(ttm(list(type = "boston")), "not supported")
   expect_error(ttm(fs, time_window = 40), "200 Monte Carlo draws")
   expect_error(ttm(fs, max_fare = -1), ">= 0")

@@ -239,10 +239,24 @@ assert_fare_structure <- function(fare_structure) {
   for (n in c("max_discounted_transfers", "transfer_time_allowance", "fare_cap")) {
     assert_number(fare_structure[[n]], paste0("fare_structure$", n), lower = 0)
   }
-  for (n in c("fares_per_type", "fares_per_transfer", "fares_per_route")) {
+  columns <- list(
+    fares_per_type = c("type", "unlimited_transfers", "allow_same_route_transfer",
+                       "use_route_fare", "fare"),
+    fares_per_transfer = c("first_leg", "second_leg", "fare"),
+    fares_per_route = c("agency_id", "agency_name", "route_id", "route_short_name",
+                        "route_long_name", "mode", "route_fare", "fare_type")
+  )
+  for (n in names(columns)) {
     if (!is.data.frame(fare_structure[[n]])) {
       stop("Check on 'fare_structure$", n, "' failed: Must be a data.frame",
            call. = FALSE)
+    }
+    # r5r hands the columns to Java, which fails on a column it does not know
+    extra <- setdiff(names(fare_structure[[n]]), columns[[n]])
+    if (length(extra) > 0) {
+      stop("fare_structure$", n, " has column(s) r5r cannot read: ",
+           paste0("'", extra, "'", collapse = ", "),
+           " (r5r fails reading the structure in Java).", call. = FALSE)
     }
   }
   if (!is.list(fare_structure$debug_settings) ||

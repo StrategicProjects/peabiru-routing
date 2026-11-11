@@ -64,6 +64,10 @@ def test_structures_are_checked(network, points, departure):
         ttm(missing)
     with pytest.raises(peabiru.UnsupportedError):
         ttm({"type": "boston"})
+    extra = dict(fs)
+    extra["fares_per_route"] = fs["fares_per_route"].assign(note="x")
+    with pytest.raises(ValueError, match="cannot read"):
+        ttm(extra)
     with pytest.raises(ValueError, match="200 Monte Carlo draws"):
         ttm(fs, time_window=40)
 

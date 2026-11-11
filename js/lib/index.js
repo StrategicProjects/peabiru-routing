@@ -1294,8 +1294,12 @@ function assertFareStructure(fs) {
   for (const n of ["max_discounted_transfers", "transfer_time_allowance", "fare_cap"]) {
     assertNumber(fs[n], `fareStructure$${n}`, { lower: 0 });
   }
-  for (const n of ["fares_per_type", "fares_per_transfer", "fares_per_route"]) {
+  const known = { fares_per_type: FARE_TYPE_COLS, fares_per_transfer: FARE_TRANSFER_COLS, fares_per_route: FARE_ROUTE_COLS };
+  for (const [n, cols] of Object.entries(known)) {
     if (fs[n] === null || typeof fs[n] !== "object") fail(`fareStructure$${n}`, "Must be an object of columns", TypeError);
+    // r5r hands the columns to Java, which fails on a column it does not know
+    const extra = Object.keys(fs[n]).filter((k) => !cols.includes(k));
+    if (extra.length) throw new RangeError(`fareStructure$${n} has column(s) r5r cannot read: ${extra.join(", ")} (r5r fails reading the structure in Java).`);
   }
   const ds = fs.debug_settings;
   if (ds === null || typeof ds !== "object" || Object.keys(ds).sort().join() !== "output_file,trip_info") {

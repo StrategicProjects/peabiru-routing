@@ -47,6 +47,9 @@ test("fare structures are checked as r5r checks them", async () => {
   for (const k of Object.keys(missing.fares_per_route)) missing.fares_per_route[k] = missing.fares_per_route[k].slice(1);
   await assert.rejects(() => ttm(missing), /no row for agency_id/);
   await assert.rejects(() => ttm({ type: "boston" }), UnsupportedError);
+  const extra = structuredClone(fs);
+  extra.fares_per_route.note = extra.fares_per_route.route_id.map(() => "x");
+  await assert.rejects(() => ttm(extra), /cannot read/);
   await assert.rejects(() => ttm(fs, { timeWindow: 40 }), /200 Monte Carlo draws/);
 });
 

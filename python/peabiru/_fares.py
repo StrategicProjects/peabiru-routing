@@ -318,9 +318,18 @@ def assert_fare_structure(fare_structure: Any) -> None:
         fail_assert("names(fare_structure)", "Must have exactly the names {'" + "','".join(_ELEMENTS) + "'}")
     for n in ("max_discounted_transfers", "transfer_time_allowance", "fare_cap"):
         assert_number(fare_structure[n], f"fare_structure${n}", lower=0)
-    for n in ("fares_per_type", "fares_per_transfer", "fares_per_route"):
+    known = {"fares_per_type": _TYPE_COLS, "fares_per_transfer": _TRANSFER_COLS,
+             "fares_per_route": _ROUTE_COLS}
+    for n, cols in known.items():
         if not isinstance(fare_structure[n], pd.DataFrame):
             raise TypeError(f"Check on 'fare_structure${n}' failed: Must be a data.frame")
+        # r5r hands the columns to Java, which fails on a column it does not know
+        extra = [c for c in fare_structure[n].columns if c not in cols]
+        if extra:
+            raise ValueError(
+                f"fare_structure${n} has column(s) r5r cannot read: {extra} (r5r fails "
+                "reading the structure in Java)."
+            )
     ds = fare_structure["debug_settings"]
     if not isinstance(ds, dict) or sorted(ds) != ["output_file", "trip_info"]:
         fail_assert("fare_structure$debug_settings", "Must have exactly the names {'output_file','trip_info'}")

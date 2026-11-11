@@ -10,6 +10,12 @@
 //! in integer cents (`Math.round(fare * 100.0f)`); [`FareStructure`] goes
 //! through the same conversions before routing, so that the same object
 //! gives the same fares as in r5r.
+//!
+//! The calculator, the structure and its builder are translations to Rust,
+//! by the peabiru authors, of r5r's Java classes `FareStructure`,
+//! `FareStructureBuilder` and `RuleBasedInRoutingFareCalculator`
+//! (Copyright (c) 2020 r5r contributors, MIT licence); see
+//! `LICENSE-THIRD-PARTY`.
 
 pub(crate) mod zipio;
 

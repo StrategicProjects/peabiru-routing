@@ -66,7 +66,7 @@ ext <- system.file("extdata", package = "r5r")
 t14 <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
 t1430 <- as.POSIXct("2019-05-13 14:30:00", tz = "America/Sao_Paulo")
 fp <- r5r::read_fare_structure(file.path(ext, "poa/fares/fares_poa.zip"))
-edit <- function(s, f) { s <- copy(s); f(s); s }
+edit <- function(s, expr) { s <- copy(s); eval(substitute(expr)); s }
 
 for (city in cities) {
   w <- tempfile(paste0("fares-", city)); dir.create(w)
@@ -93,16 +93,16 @@ for (city in cities) {
   }
   if (city %in% c("poa", "city")) {
     fs <- fp
-    fs_cap <- edit(fp, function(s) s$fare_cap <- 6)
-    fs_allow <- edit(fp, function(s) { s$transfer_time_allowance <- 15; s$max_discounted_transfers <- 2 })
-    fs_unl <- edit(fp, function(s) { s$fares_per_type[type == "BUS", unlimited_transfers := TRUE]; s$fares_per_type[type == "RAIL", unlimited_transfers := FALSE] })
-    fs_route <- edit(fp, function(s) { s$fares_per_type[type == "BUS", `:=`(use_route_fare = TRUE, allow_same_route_transfer = TRUE)]; s$fares_per_route[mode == "BUS", route_fare := 3 + (seq_len(.N) %% 4) * 0.55] })
+    fs_cap <- edit(fp, s$fare_cap <- 6)
+    fs_allow <- edit(fp, { s$transfer_time_allowance <- 15; s$max_discounted_transfers <- 2 })
+    fs_unl <- edit(fp, { s$fares_per_type[type == "BUS", unlimited_transfers := TRUE]; s$fares_per_type[type == "RAIL", unlimited_transfers := FALSE] })
+    fs_route <- edit(fp, { s$fares_per_type[type == "BUS", `:=`(use_route_fare = TRUE, allow_same_route_transfer = TRUE)]; s$fares_per_route[mode == "BUS", route_fare := 3 + (seq_len(.N) %% 4) * 0.55] })
   } else {
     fs <- r5r::setup_fare_structure(rn, 4.4, by = "MODE")
-    fs_cap <- edit(fs, function(s) { s$fare_cap <- 7; s$fares_per_transfer$fare <- 6.6 })
-    fs_allow <- edit(fs, function(s) { s$transfer_time_allowance <- 20; s$fares_per_transfer$fare <- 5.5 })
-    fs_unl <- edit(fs, function(s) s$fares_per_type$unlimited_transfers <- TRUE)
-    fs_route <- edit(fs, function(s) { s$fares_per_type$use_route_fare <- TRUE; s$fares_per_route$route_fare <- 2 + (seq_len(nrow(s$fares_per_route)) %% 5) })
+    fs_cap <- edit(fs, { s$fare_cap <- 7; s$fares_per_transfer$fare <- 6.6 })
+    fs_allow <- edit(fs, { s$transfer_time_allowance <- 20; s$fares_per_transfer$fare <- 5.5 })
+    fs_unl <- edit(fs, s$fares_per_type$unlimited_transfers <- TRUE)
+    fs_route <- edit(fs, { s$fares_per_type$use_route_fare <- TRUE; s$fares_per_route$route_fare <- 2 + (seq_len(nrow(s$fares_per_route)) %% 5) })
   }
   zr <- tempfile(fileext = ".zip"); zp <- tempfile(fileext = ".zip")
   r5r::write_fare_structure(fs_route, zr); write_fare_structure(fs_route, zp)
@@ -127,7 +127,7 @@ for (city in cities) {
   both(paste(city, "ttm route fares"), "travel_time_matrix", o, d, mode = M, departure_datetime = t14, fare_structure = fs_route, max_fare = 5.2, draws_per_minute = 1, seed = sd)
   both(paste(city, "ttm WALK with fares"), "travel_time_matrix", o, d, mode = "WALK", departure_datetime = t14, fare_structure = fs, max_fare = 5)
   both(paste(city, "ttm 200 draws"), "travel_time_matrix", o, d, mode = M, departure_datetime = t14, fare_structure = fs, time_window = 40, draws_per_minute = 5)
-  missing <- edit(fs, function(s) s$fares_per_route <- s$fares_per_route[-1])
+  missing <- edit(fs, s$fares_per_route <- s$fares_per_route[-1])
   both(paste(city, "ttm route missing from the structure"), "travel_time_matrix", o, d, mode = M, departure_datetime = t14, fare_structure = missing)
   d2 <- copy(d); d2$jobs <- round(runif(nrow(d2), 0, 50)); d2$schools <- rpois(nrow(d2), 2)
   both(paste(city, "accessibility, step"), "accessibility", o, d2, opportunities_colnames = c("jobs", "schools"), mode = M, departure_datetime = t14, fare_structure = fs, max_fare = 4.8, cutoffs = c(20, 45, 60), draws_per_minute = 1, seed = sd)
