@@ -24,6 +24,49 @@ fn mode(cmd: &str, v: &str) -> Mode {
     }
 }
 
+/// The fields of one leg's row before its geometry.
+struct LegRow<'a> {
+    from: &'a str,
+    to: &'a str,
+    option: u32,
+    departure_time: &'a str,
+    total_duration: f64,
+    total_distance: i32,
+    segment: usize,
+    mode: &'a str,
+    segment_duration: f64,
+    wait: f64,
+    distance: i32,
+    route: &'a str,
+}
+
+impl LegRow<'_> {
+    /// Ids come from the user's points and routes from GTFS, so text
+    /// fields are quoted as RFC 4180 wants when they hold a comma, quote or
+    /// line break ([`crate::expanded::field`]). A leading `=`, `+`, `-` or
+    /// `@` is left as it is: this is a benchmark driver's file, not a
+    /// spreadsheet export.
+    fn write(&self, s: &mut String) {
+        use crate::expanded::field;
+        let _ = write!(
+            s,
+            "{},{},{},{},{},{},{},{},{},{},{},{}",
+            field(self.from),
+            field(self.to),
+            self.option,
+            field(self.departure_time),
+            self.total_duration,
+            self.total_distance,
+            self.segment,
+            field(self.mode),
+            self.segment_duration,
+            self.wait,
+            self.distance,
+            field(self.route)
+        );
+    }
+}
+
 pub fn run(args: &[String]) {
     let cmd = "itineraries";
     if args.len() < 4 {
@@ -87,22 +130,22 @@ pub fn run(args: &[String]) {
     for (k, its) in res.iter().enumerate() {
         for it in its {
             for (j, l) in it.legs.iter().enumerate() {
-                let _ = write!(
-                    s,
-                    "{},{},{},{},{},{},{},{},{},{},{},{},\"LINESTRING (",
-                    oid[k],
-                    did[k],
-                    it.option,
-                    it.departure_time,
-                    it.total_duration,
-                    it.total_distance,
-                    j + 1,
-                    l.mode,
-                    l.segment_duration,
-                    l.wait,
-                    l.distance,
-                    l.route
-                );
+                LegRow {
+                    from: &oid[k],
+                    to: &did[k],
+                    option: it.option,
+                    departure_time: &it.departure_time,
+                    total_duration: it.total_duration,
+                    total_distance: it.total_distance,
+                    segment: j + 1,
+                    mode: &l.mode,
+                    segment_duration: l.segment_duration,
+                    wait: l.wait,
+                    distance: l.distance,
+                    route: &l.route,
+                }
+                .write(&mut s);
+                s.push_str(",\"LINESTRING (");
                 for (n, c) in l.geometry.iter().enumerate() {
                     if n > 0 {
                         s.push_str(", ");
@@ -119,4 +162,33 @@ pub fn run(args: &[String]) {
         (t1 - t0).as_secs_f64(),
         (t2 - t1).as_secs_f64()
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn text_fields_are_quoted() {
+        let mut s = String::new();
+        LegRow {
+            from: "o,1",
+            to: "d1",
+            option: 1,
+            departure_time: "14:00:00",
+            total_duration: 1.5,
+            total_distance: 100,
+            segment: 1,
+            mode: "BUS",
+            segment_duration: 1.5,
+            wait: 0.0,
+            distance: 100,
+            route: "Linha 1, \"Centro\"",
+        }
+        .write(&mut s);
+        assert_eq!(
+            s,
+            "\"o,1\",d1,1,14:00:00,1.5,100,1,BUS,1.5,0,100,\"Linha 1, \"\"Centro\"\"\""
+        );
+    }
 }
