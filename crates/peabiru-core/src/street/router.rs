@@ -27,6 +27,17 @@ pub enum Mode {
     Car,
 }
 
+impl Mode {
+    /// The name R5 and r5r give the mode (`WALK`, `BICYCLE`, `CAR`).
+    pub(crate) fn r5_name(self) -> &'static str {
+        match self {
+            Mode::Walk => "WALK",
+            Mode::Bicycle => "BICYCLE",
+            Mode::Car => "CAR",
+        }
+    }
+}
+
 /// Car turn costs in seconds (R5 `BasicTraversalTimeCalculator`, driving on
 /// the right).
 const STRAIGHT_ON: i32 = 0;
@@ -453,6 +464,11 @@ pub(crate) struct Search {
     /// keeps them apart: they neither dominate nor are dominated by plain
     /// states, and the first state with a given progress on an edge wins.
     restricted: Vec<(u32, RMap)>,
+    /// Parallel to `restricted`: the state's time, and whether it was
+    /// made on foot by [`continue_on_foot`] (R5's `State.streetMode` is
+    /// then `WALK`, and its restriction progress is never carried on).
+    restricted_time: Vec<i32>,
+    restricted_walk: Vec<bool>,
     restricted_at: std::collections::HashMap<u32, Vec<u32>>,
     /// Queue of `(time, edge, restricted state id or CLEAN)` for searches
     /// that need R5's exact order of equal times.
@@ -469,6 +485,8 @@ impl Search {
             touched_edges: Vec::new(),
             touched_vertices: Vec::new(),
             restricted: Vec::new(),
+            restricted_time: Vec::new(),
+            restricted_walk: Vec::new(),
             restricted_at: std::collections::HashMap::new(),
             heap: JavaHeap::default(),
             radix: RadixHeap::default(),
@@ -491,6 +509,8 @@ impl Search {
         self.touched_edges.clear();
         self.touched_vertices.clear();
         self.restricted.clear();
+        self.restricted_time.clear();
+        self.restricted_walk.clear();
         self.restricted_at.clear();
         self.heap.clear();
         self.radix.clear();
@@ -545,7 +565,7 @@ impl Search {
     /// returns its heap tag, or `None` when an existing state dominates it
     /// (R5 `isDominated`).
     #[inline]
-    fn add_state(&mut self, e: usize, to: usize, t: i32, map: RMap) -> Option<u32> {
+    fn add_state(&mut self, e: usize, to: usize, t: i32, map: RMap, walk: bool) -> Option<u32> {
         if map.is_empty() {
             return self.add_plain(e, to, t).then_some(CLEAN);
         }
@@ -556,6 +576,8 @@ impl Search {
         let id = self.restricted.len() as u32;
         ids.push(id);
         self.restricted.push((e as u32, map));
+        self.restricted_time.push(t);
+        self.restricted_walk.push(walk);
         self.touch_vertex(to, t);
         Some(id)
     }
@@ -632,7 +654,7 @@ fn traversal_seconds(length_mm: i32, speed: f32) -> i32 {
 }
 
 /// Run the street search from an origin split; fills `s.vertex_time`.
-pub(super) fn route(
+pub(crate) fn route(
     net: &StreetNetwork,
     g: &ModeGraph,
     origin: &Split,
@@ -687,7 +709,7 @@ fn route_impl<const JAVA: bool>(
         if JAVA {
             start_restrictions(net, &mut map, e as u32);
         }
-        if let Some(tag) = s.add_state(e, net.edge_to(e), t, map) {
+        if let Some(tag) = s.add_state(e, net.edge_to(e), t, map, false) {
             s.push::<JAVA>(t, e as u32, tag);
         }
     }
@@ -741,10 +763,146 @@ fn route_impl<const JAVA: bool>(
                     if s.add_plain(a.edge as usize, a.to as usize, t1) {
                         s.push::<JAVA>(t1, a.edge, CLEAN);
                     }
-                } else if let Some(tag) = s.add_state(a.edge as usize, a.to as usize, t1, next_map)
+                } else if let Some(tag) =
+                    s.add_state(a.edge as usize, a.to as usize, t1, next_map, false)
                 {
                     s.push::<JAVA>(t1, a.edge, tag);
                 }
+            }
+        }
+    }
+}
+
+/// Heap tag of a plain state made on foot by [`continue_on_foot`] (plain
+/// states of the first search are [`CLEAN`]).
+const CLEAN_WALK: u32 = u32::MAX - 1;
+
+/// Carry a finished bicycle or car search on on foot, as R5's
+/// `StreetRouter.keepRoutingOnFoot` does before reading the stops reached
+/// for public transport access: every state the search kept goes back into
+/// the queue, and the search goes on by `foot` (the walking graph) within
+/// the same `limit`, adding states to the same tables. The vertex times
+/// after it are the least over states by the first mode and on foot.
+///
+/// R5 keeps the mode of each state: a step on foot out of a car state still
+/// checks that car state's turn restrictions and starts those of the edge
+/// it walks onto (`canTurnFrom` and `startTurnRestriction` look at the
+/// mode of the state they leave), so such a walking state can carry
+/// restriction progress, which makes it incomparable to plain states and
+/// beaten by an earlier state with the same progress on its edge. A step
+/// out of a walking state carries none. Equal times may leave the queue in
+/// any order here: the states on one edge with the same progress are made
+/// by steps of the same length out of states that leave the queue in order
+/// of time, so the first one made is also the earliest.
+pub(crate) fn continue_on_foot(
+    net: &StreetNetwork,
+    first: &ModeGraph,
+    foot: &ModeGraph,
+    limit: i32,
+    s: &mut Search,
+) {
+    debug_assert_eq!(foot.mode, Mode::Walk);
+    if !first.java_order {
+        // no state of the first search is a car state on a network with
+        // turn restrictions
+        continue_on_foot_plain(net, foot, limit, s);
+        return;
+    }
+    s.heap.clear();
+    for i in 0..s.touched_edges.len() {
+        let e = s.touched_edges[i];
+        let t = s.edge_time[e as usize];
+        if t < i32::MAX {
+            s.heap.offer((t, e, CLEAN));
+        }
+    }
+    for id in 0..s.restricted.len() {
+        s.heap
+            .offer((s.restricted_time[id], s.restricted[id].0, id as u32));
+    }
+    let mut map = RMap::new();
+    while let Some((t, e, tag)) = s.heap.poll() {
+        let e = e as usize;
+        map.clear();
+        // whether the state left is a car state, whose restrictions apply
+        let by_car = match tag {
+            CLEAN | CLEAN_WALK => {
+                if t > s.edge_time[e] {
+                    continue; // dominated since it was queued
+                }
+                tag == CLEAN
+            }
+            id => {
+                let id = id as usize;
+                if s.restricted_walk[id] {
+                    false
+                } else {
+                    map.extend_from_slice(&s.restricted[id].1);
+                    true
+                }
+            }
+        };
+        let e_link = net.edge_flags[e] & LINK != 0;
+        for a in foot.arcs(net, net.edge_to(e)) {
+            if a.step < 0 || (a.link && e_link) {
+                continue;
+            }
+            let next_map = if by_car {
+                let mut m = if map.is_empty() {
+                    RMap::new()
+                } else {
+                    match advance_restrictions(net, &map, a.edge) {
+                        Some(m) => m,
+                        None => continue,
+                    }
+                };
+                start_restrictions(net, &mut m, a.edge);
+                m
+            } else {
+                RMap::new()
+            };
+            let mut t1 = t.saturating_add(a.step);
+            if t1 == t {
+                t1 += 1;
+            }
+            if t1 < limit {
+                if let Some(tag) = s.add_state(a.edge as usize, a.to as usize, t1, next_map, true) {
+                    let tag = if tag == CLEAN { CLEAN_WALK } else { tag };
+                    s.heap.offer((t1, a.edge, tag));
+                }
+            }
+        }
+    }
+}
+
+/// [`continue_on_foot`] when no step can carry restriction progress (after
+/// a bicycle search, or a car search on a network without restrictions):
+/// every state is plain and the mode of the state left changes nothing.
+fn continue_on_foot_plain(net: &StreetNetwork, foot: &ModeGraph, limit: i32, s: &mut Search) {
+    s.radix.clear();
+    for i in 0..s.touched_edges.len() {
+        let e = s.touched_edges[i];
+        let t = s.edge_time[e as usize];
+        if t < i32::MAX {
+            s.radix.push(t, e);
+        }
+    }
+    while let Some((t, e)) = s.radix.pop() {
+        let e = e as usize;
+        if t > s.edge_time[e] {
+            continue;
+        }
+        let e_link = net.edge_flags[e] & LINK != 0;
+        for a in foot.arcs(net, net.edge_to(e)) {
+            if a.step < 0 || (a.link && e_link) {
+                continue;
+            }
+            let mut t1 = t.saturating_add(a.step);
+            if t1 == t {
+                t1 += 1;
+            }
+            if t1 < limit && s.add_plain(a.edge as usize, a.to as usize, t1) {
+                s.radix.push(t1, a.edge);
             }
         }
     }
@@ -842,6 +1000,7 @@ pub(crate) fn street_vertex_times(
     Ok((search.vertex_time, direct))
 }
 
+#[cfg(test)]
 impl ModeGraph {
     /// The graph [`street_vertex_times`] searches: r5r's defaults but for
     /// the walking speed.
@@ -852,6 +1011,78 @@ impl ModeGraph {
         };
         ModeGraph::new(net, mode, Speeds::new(&params, mode), params.max_lts)
     }
+}
+
+impl ModeGraph {
+    /// The graph of `mode` at these speeds (km/h) and highest level of
+    /// traffic stress, as a street search of r5r with them reads it.
+    pub(crate) fn with_speeds(
+        net: &StreetNetwork,
+        mode: Mode,
+        walk_speed_kmh: f64,
+        bike_speed_kmh: f64,
+        max_lts: i32,
+    ) -> Self {
+        let params = RouteParams {
+            walk_speed_kmh,
+            bike_speed_kmh,
+            max_lts,
+            ..RouteParams::default()
+        };
+        ModeGraph::new(net, mode, Speeds::new(&params, mode), max_lts)
+    }
+
+    /// The graph of `mode` for a street search with the defaults of R5's
+    /// `ProfileRequest` (walking 1.3 m/s, cycling 4 m/s, any level of
+    /// traffic stress), as the searches R5 runs without a request, from
+    /// the stops of an `EgressCostTable`, read it.
+    pub(crate) fn r5_defaults(net: &StreetNetwork, mode: Mode) -> Self {
+        let (walk, bike) = (1.3f32, 4.0f32);
+        let on = match mode {
+            Mode::Walk => walk,
+            Mode::Bicycle => bike,
+            Mode::Car => 2.22f32,
+        };
+        let sp = Speeds {
+            walk,
+            bike,
+            walk_mms: (walk * 1000.0f32) as i32,
+            on_street_mms: (on * 1000.0f32) as i32,
+        };
+        ModeGraph::new(net, mode, sp, 4)
+    }
+
+    /// The street mode this graph is searched by.
+    pub(crate) fn mode(&self) -> Mode {
+        self.mode
+    }
+}
+
+/// The access search of R5's `TravelTimeComputer` for public transport:
+/// [`search_from`] by `g`, carried on on foot by `foot` when given (a
+/// bicycle or car access, see [`continue_on_foot`]) before the direct
+/// times to `destinations` are read, as R5 reads them after
+/// `keepRoutingOnFoot`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn access_search_from(
+    net: &StreetNetwork,
+    g: &ModeGraph,
+    foot: Option<&ModeGraph>,
+    origin: &Split,
+    destinations: &[Option<Split>],
+    limit: i32,
+    search: &mut Search,
+    direct: &mut Vec<i32>,
+) {
+    route(net, g, origin, limit, search);
+    if let Some(foot) = foot {
+        continue_on_foot(net, g, foot, limit, search);
+    }
+    direct.clear();
+    direct.extend(destinations.iter().map(|d| {
+        d.and_then(|d| time_to_point(net, g, origin, &d, search))
+            .map_or(i32::MAX, |t| t.min(i64::from(i32::MAX - 1)) as i32)
+    }));
 }
 
 /// [`street_vertex_times`] reusing a search: afterwards
@@ -1359,5 +1590,70 @@ pub(crate) mod tests {
             assert_eq!(empty.rows().len(), pts.len());
             assert!(empty.rows().all(<[_]>::is_empty));
         }
+    }
+
+    /// The walk continuation of a bicycle or car search (R5
+    /// `keepRoutingOnFoot`) against plain Bellman-Ford relaxation on foot
+    /// from every edge state the first search kept: same vertex times, and
+    /// never later than the first search alone.
+    #[test]
+    fn continuing_on_foot_matches_relaxation() {
+        let net = jittered_grid();
+        let foot = ModeGraph::with_speeds(&net, Mode::Walk, 3.6, 12.0, 2);
+        let mut scratch = Vec::new();
+        let (mut checked, mut improved) = (0, 0);
+        for mode in [Mode::Bicycle, Mode::Car] {
+            let g = ModeGraph::with_speeds(&net, mode, 3.6, 12.0, 1);
+            assert!(!g.java_order);
+            for k in 0..40 {
+                let (lat, lon) = (f64::from(k % 11) * 0.001 + 0.0003, f64::from(k / 4) * 0.001);
+                let Some(o) = find_split(&net, lat, lon, mode, &mut scratch) else {
+                    continue;
+                };
+                for limit in [120, 400, 3600] {
+                    let mut s = Search::new(&net);
+                    route(&net, &g, &o, limit, &mut s);
+                    let first = s.vertex_time.clone();
+                    let mut best = s.edge_time.clone();
+                    continue_on_foot(&net, &g, &foot, limit, &mut s);
+                    let mut changed = true;
+                    while changed {
+                        changed = false;
+                        for e in 0..net.n_edges() {
+                            let t = best[e];
+                            if t == i32::MAX {
+                                continue;
+                            }
+                            let e_link = net.edge_flags[e] & LINK != 0;
+                            for a in foot.arcs(&net, net.edge_to(e)) {
+                                if a.step < 0 || (a.link && e_link) {
+                                    continue;
+                                }
+                                let mut t1 = t + a.step;
+                                if t1 == t {
+                                    t1 += 1;
+                                }
+                                if t1 < limit && t1 < best[a.edge as usize] {
+                                    best[a.edge as usize] = t1;
+                                    changed = true;
+                                }
+                            }
+                        }
+                    }
+                    let mut want = vec![i32::MAX; net.n_vertices()];
+                    for (e, &t) in best.iter().enumerate() {
+                        let v = net.edge_to(e);
+                        want[v] = want[v].min(t);
+                    }
+                    assert_eq!(s.vertex_time, want, "{mode:?} origin {k} limit {limit}");
+                    assert!(first.iter().zip(&want).all(|(a, b)| b <= a));
+                    checked += 1;
+                    improved += usize::from(first != want);
+                }
+            }
+        }
+        assert!(checked > 100, "{checked}");
+        // walking reaches footways and goes against one-way streets
+        assert!(improved > checked / 5, "{improved} of {checked}");
     }
 }

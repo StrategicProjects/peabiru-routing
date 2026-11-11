@@ -119,6 +119,87 @@ pub(crate) fn walk_distance_tree_with(
     out
 }
 
+/// Shortest distance (mm) from an origin split to every vertex within
+/// `limit_mm`, as the distance-minimising bicycle `StreetRouter` of R5's
+/// bicycle `EgressCostTable` (a request with R5's defaults, so at the
+/// highest level of traffic stress): edges that allow cycling or walking
+/// (the bicycle is walked where it may not be ridden), zero-length edges
+/// count 1 mm, two LINK edges in a row are not allowed. The two start
+/// states sit at the ends of the split edge (the distance along it plus
+/// the distance to it) and are kept whatever their distance. Returns
+/// `(vertex, mm)` sorted by vertex.
+pub(crate) fn bike_distance_tree(
+    net: &StreetNetwork,
+    origin: &Split,
+    limit_mm: i32,
+    sc: &mut TreeScratch,
+) -> Vec<(u32, i32)> {
+    use crate::street::flags::ALLOWS_BIKE;
+    let TreeScratch {
+        best_edge,
+        touched_edges,
+        best_vertex,
+        heap,
+    } = sc;
+    heap.clear();
+    let fwd = origin.edge as usize;
+    for (e, d) in [
+        (fwd + 1, origin.distance0_mm + origin.distance_to_edge_mm),
+        (fwd, origin.distance1_mm + origin.distance_to_edge_mm),
+    ] {
+        if d < best_edge[e] {
+            if best_edge[e] == i32::MAX {
+                touched_edges.push(e as u32);
+            }
+            best_edge[e] = d;
+            heap.push(d, e as u32);
+        }
+    }
+    while let Some((d, e)) = heap.pop() {
+        let e = e as usize;
+        if d > best_edge[e] {
+            continue;
+        }
+        let e_link = net.edge_flags[e] & LINK != 0;
+        for &f in net.out_edges(net.edge_to(e)) {
+            let flags = net.edge_flags[f as usize];
+            if flags & (ALLOWS_BIKE | ALLOWS_PEDESTRIAN) == 0 || (e_link && flags & LINK != 0) {
+                continue;
+            }
+            let mut d1 = d.saturating_add(net.pair_length_mm[f as usize / 2]);
+            if d1 == d {
+                d1 += 1;
+            }
+            if d1 > limit_mm {
+                continue;
+            }
+            let cur = &mut best_edge[f as usize];
+            if d1 < *cur {
+                if *cur == i32::MAX {
+                    touched_edges.push(f);
+                }
+                *cur = d1;
+                heap.push(d1, f);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for &e in touched_edges.iter() {
+        let v = net.edge_to(e as usize);
+        let d = std::mem::replace(&mut best_edge[e as usize], i32::MAX);
+        if best_vertex[v] == i32::MAX {
+            out.push((v as u32, 0));
+        }
+        best_vertex[v] = best_vertex[v].min(d);
+    }
+    touched_edges.clear();
+    for (v, d) in out.iter_mut() {
+        *d = std::mem::replace(&mut best_vertex[*v as usize], i32::MAX);
+    }
+    out.sort_unstable();
+    out
+}
+
 /// Distance trees (2 km) for every linked stop; `None` for unlinked stops.
 pub fn stop_trees(net: &StreetNetwork, layer: &TransitLayer) -> Vec<Option<Vec<(u32, i32)>>> {
     let mut sc = TreeScratch::new(net);
@@ -382,17 +463,27 @@ pub(crate) fn egress_tables_grid(
 }
 
 /// `(south, north, west, east)` in floating degrees.
-type Envelope = (f64, f64, f64, f64);
+pub(crate) type Envelope = (f64, f64, f64, f64);
 
-/// A stop's envelope grown by the egress limit
+/// A stop's envelope grown by the walking egress limit
 /// (`GeometryUtils.expandEnvelopeFixed`).
 fn stop_envelope(layer: &TransitLayer, net: &StreetNetwork, s: usize) -> Envelope {
+    stop_envelope_m(layer, net, s, EGRESS_LIMIT_M)
+}
+
+/// A stop's envelope grown by `radius_m` metres
+/// (`GeometryUtils.expandEnvelopeFixed`).
+pub(crate) fn stop_envelope_m(
+    layer: &TransitLayer,
+    net: &StreetNetwork,
+    s: usize,
+    radius_m: f64,
+) -> Envelope {
     let v = layer.stop_vertex[s] as usize;
     let (flat, flon) = (f64::from(net.v_lat[v]), f64::from(net.v_lon[v]));
-    let lat_exp = ((EGRESS_LIMIT_M / EARTH_CIRCUMFERENCE_M * 360.0) * FIXED_FACTOR) as i32;
+    let lat_exp = ((radius_m / EARTH_CIRCUMFERENCE_M * 360.0) * FIXED_FACTOR) as i32;
     let cos_lat = (flat.abs() / FIXED_FACTOR).to_radians().cos();
-    let lon_exp =
-        ((EGRESS_LIMIT_M / EARTH_CIRCUMFERENCE_M * 360.0 / cos_lat) * FIXED_FACTOR) as i32;
+    let lon_exp = ((radius_m / EARTH_CIRCUMFERENCE_M * 360.0 / cos_lat) * FIXED_FACTOR) as i32;
     let north = (flat + f64::from(lat_exp)) / FIXED_FACTOR;
     let south = (flat - f64::from(lat_exp)) / FIXED_FACTOR;
     let east = (flon + f64::from(lon_exp)) / FIXED_FACTOR;
@@ -415,7 +506,7 @@ fn push_egress(out: &mut Vec<(u32, i32)>, s: usize, tree: &[(u32, i32)], split: 
 /// mm from the stop (`i32::MAX` where not reached), through the nearer
 /// end; `None` when not finite.
 #[inline]
-fn egress_cost(d0: i32, d1: i32, sp: &Split) -> Option<i32> {
+pub(crate) fn egress_cost(d0: i32, d1: i32, sp: &Split) -> Option<i32> {
     if d0 == i32::MAX && d1 == i32::MAX {
         return None;
     }
@@ -507,6 +598,74 @@ mod tests {
             walk_distance_tree(&net, 3, 900_000),
             reference_tree(&net, 3, 900_000)
         );
+    }
+
+    /// The bicycle egress search (R5's distance-minimising bicycle router
+    /// with its default request) against Bellman-Ford relaxation from the
+    /// two start states of the split, over edges that allow cycling or
+    /// walking; the start states are kept whatever the limit.
+    #[test]
+    fn bike_distance_trees_match_the_reference() {
+        use crate::street::flags::ALLOWS_BIKE;
+        let net = jittered_grid();
+        let mut sc = TreeScratch::new(&net);
+        let mut split = Vec::new();
+        let mut checked = 0;
+        for k in 0..60 {
+            let (lat, lon) = (f64::from(k % 12) * 0.001 + 0.0004, f64::from(k / 5) * 0.001);
+            let Some(o) =
+                crate::street::link::find_split(&net, lat, lon, crate::Mode::Bicycle, &mut split)
+            else {
+                continue;
+            };
+            for limit in [1, 300_000, 5_000_000] {
+                let mut best = vec![i32::MAX; net.n_edges()];
+                let fwd = o.edge as usize;
+                best[fwd + 1] = o.distance0_mm + o.distance_to_edge_mm;
+                best[fwd] = o.distance1_mm + o.distance_to_edge_mm;
+                let mut changed = true;
+                while changed {
+                    changed = false;
+                    for e in 0..net.n_edges() {
+                        if best[e] == i32::MAX {
+                            continue;
+                        }
+                        for &f in net.out_edges(net.edge_to(e)) {
+                            let f = f as usize;
+                            let flags = net.edge_flags[f];
+                            if flags & (ALLOWS_BIKE | ALLOWS_PEDESTRIAN) == 0
+                                || (flags & LINK != 0 && net.edge_flags[e] & LINK != 0)
+                            {
+                                continue;
+                            }
+                            let mut d1 = best[e] + net.pair_length_mm[f / 2];
+                            if d1 == best[e] {
+                                d1 += 1;
+                            }
+                            if d1 <= limit && d1 < best[f] {
+                                best[f] = d1;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+                let mut by_vertex = std::collections::BTreeMap::new();
+                for (e, &d) in best.iter().enumerate() {
+                    if d != i32::MAX {
+                        let slot = by_vertex.entry(net.edge_to(e) as u32).or_insert(i32::MAX);
+                        *slot = (*slot).min(d);
+                    }
+                }
+                let want: Vec<(u32, i32)> = by_vertex.into_iter().collect();
+                assert_eq!(
+                    bike_distance_tree(&net, &o, limit, &mut sc),
+                    want,
+                    "origin {k} limit {limit}"
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked > 100, "{checked}");
     }
 
     fn reference_find_transfers(

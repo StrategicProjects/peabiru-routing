@@ -140,6 +140,7 @@ pub use transit::matrix::{
     transit_travel_time_matrix, validate_date, validate_percentiles, TransitData, TransitMatrix,
     TransitParams,
 };
+pub use transit::raptor::TransitMode;
 pub use transit::{build_from_bytes, build_from_dir};
 
 /// Version of this crate, as published.

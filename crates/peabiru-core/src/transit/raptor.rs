@@ -12,25 +12,90 @@ pub const UNREACHED: i32 = i32::MAX;
 const DEPARTURE_STEP_SEC: i32 = 60;
 const MINIMUM_BOARD_WAIT_SEC: i32 = 60;
 
-/// Transit modes by GTFS route type (R5 `TransitLayer.getTransitModes`);
-/// `None` for types R5 rejects. AIR (1100-1199) is `Some(false)`: known
-/// but excluded by r5r's `TRANSIT`.
-pub fn route_type_allowed(route_type: i32) -> Option<bool> {
-    match route_type {
-        0..=7 | 11 | 12 => Some(true),
-        100..=199
-        | 200..=299
-        | 300..=499
-        | 500..=699
-        | 700..=899
-        | 900..=999
-        | 1000..=1099
-        | 1200..=1299
-        | 1300..=1399
-        | 1400..=1499 => Some(true),
-        1100..=1199 => Some(false),
-        _ => None,
+/// A public transport mode, as r5r's `mode` names them: R5's
+/// `TransitModes` without `AIR`, which r5r does not offer (and leaves out
+/// of `"TRANSIT"`). A route's mode follows from its GTFS `route_type`, as
+/// R5's `TransitLayer.getTransitModes` maps it (basic and extended types).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum TransitMode {
+    /// `TRAM`: route types 0, 12 and 900-999.
+    Tram,
+    /// `SUBWAY`: route types 1 and 500-699.
+    Subway,
+    /// `RAIL`: route types 2, 100-199 and 300-499.
+    Rail,
+    /// `BUS`: route types 3, 11, 200-299 and 700-899.
+    Bus,
+    /// `FERRY`: route types 4, 1000-1099 and 1200-1299.
+    Ferry,
+    /// `CABLE_CAR`: route type 5.
+    CableCar,
+    /// `GONDOLA`: route types 6 and 1300-1399.
+    Gondola,
+    /// `FUNICULAR`: route types 7 and 1400-1499.
+    Funicular,
+}
+
+impl TransitMode {
+    /// Every mode, in R5's order: r5r's `"TRANSIT"`, the default of
+    /// [`TransitParams::transit_modes`](crate::TransitParams::transit_modes).
+    pub const ALL: [TransitMode; 8] = [
+        TransitMode::Tram,
+        TransitMode::Subway,
+        TransitMode::Rail,
+        TransitMode::Bus,
+        TransitMode::Ferry,
+        TransitMode::CableCar,
+        TransitMode::Gondola,
+        TransitMode::Funicular,
+    ];
+
+    /// The name r5r gives the mode (`"BUS"`, `"CABLE_CAR"`, ...).
+    pub fn name(self) -> &'static str {
+        match self {
+            TransitMode::Tram => "TRAM",
+            TransitMode::Subway => "SUBWAY",
+            TransitMode::Rail => "RAIL",
+            TransitMode::Bus => "BUS",
+            TransitMode::Ferry => "FERRY",
+            TransitMode::CableCar => "CABLE_CAR",
+            TransitMode::Gondola => "GONDOLA",
+            TransitMode::Funicular => "FUNICULAR",
+        }
     }
+
+    /// The mode r5r names `name` (upper case, as [`TransitMode::name`]
+    /// gives it), or `None`.
+    pub fn from_name(name: &str) -> Option<TransitMode> {
+        TransitMode::ALL.into_iter().find(|m| m.name() == name)
+    }
+}
+
+/// What R5 makes of a GTFS route type (`TransitLayer.getTransitModes`):
+/// `Some(Some(mode))`, `Some(None)` for AIR (1100-1199, which no r5r mode
+/// selects), `None` for a type R5 rejects.
+pub(crate) fn route_type_mode(route_type: i32) -> Option<Option<TransitMode>> {
+    use TransitMode::*;
+    Some(Some(match route_type {
+        100..=199 | 300..=499 => Rail,
+        200..=299 | 700..=899 => Bus,
+        500..=699 => Subway,
+        900..=999 => Tram,
+        1000..=1099 | 1200..=1299 => Ferry,
+        1100..=1199 => return Some(None),
+        1300..=1399 => Gondola,
+        1400..=1499 => Funicular,
+        0 | 12 => Tram,
+        1 => Subway,
+        2 => Rail,
+        3 | 11 => Bus,
+        4 => Ferry,
+        5 => CableCar,
+        6 => Gondola,
+        7 => Funicular,
+        _ => return None,
+    }))
 }
 
 /// A small fixed-size bit set.
@@ -333,9 +398,14 @@ pub struct Filtered {
 }
 
 impl Filtered {
-    /// Patterns with an active service whose mode is allowed. Errors on a
-    /// route type R5 does not know (R5 fails the whole request then).
-    pub fn new(layer: &TransitLayer, active: &[bool]) -> Result<Filtered, String> {
+    /// Patterns with an active service whose mode is one of `modes`. Errors
+    /// on a route type R5 does not know (R5 fails the whole request then,
+    /// whatever the modes).
+    pub fn new(
+        layer: &TransitLayer,
+        active: &[bool],
+        modes: &[TransitMode],
+    ) -> Result<Filtered, String> {
         let mut f = Filtered {
             patterns: Vec::with_capacity(layer.patterns.len()),
             tables: Vec::with_capacity(layer.patterns.len()),
@@ -344,8 +414,9 @@ impl Filtered {
             running_frequency: vec![false; layer.patterns.len()],
         };
         for (pi, p) in layer.patterns.iter().enumerate() {
-            let allowed = route_type_allowed(p.route_type)
-                .ok_or_else(|| format!("unsupported GTFS route_type {}", p.route_type))?;
+            let allowed = route_type_mode(p.route_type)
+                .ok_or_else(|| format!("unsupported GTFS route_type {}", p.route_type))?
+                .is_some_and(|m| modes.contains(&m));
             if !(allowed && p.services.iter().any(|&s| active[s as usize])) {
                 f.patterns.push(None);
                 f.tables.push(ScheduleTable::default());
@@ -1415,6 +1486,85 @@ mod tests {
         }
     }
 
+    /// R5's `TransitLayer.getTransitModes`, basic and extended route types.
+    #[test]
+    fn route_types_map_to_r5s_modes() {
+        use TransitMode::*;
+        for (t, m) in [
+            (0, Tram),
+            (1, Subway),
+            (2, Rail),
+            (3, Bus),
+            (4, Ferry),
+            (5, CableCar),
+            (6, Gondola),
+            (7, Funicular),
+            (11, Bus),
+            (12, Tram),
+            (100, Rail),
+            (199, Rail),
+            (200, Bus),
+            (300, Rail),
+            (499, Rail),
+            (500, Subway),
+            (699, Subway),
+            (700, Bus),
+            (899, Bus),
+            (900, Tram),
+            (1000, Ferry),
+            (1200, Ferry),
+            (1300, Gondola),
+            (1400, Funicular),
+        ] {
+            assert_eq!(route_type_mode(t), Some(Some(m)), "{t}");
+        }
+        assert_eq!(route_type_mode(1100), Some(None)); // AIR
+        for bad in [8, 9, 10, 13, 99, 1500, 1600, -1] {
+            assert_eq!(route_type_mode(bad), None, "{bad}");
+        }
+        for m in TransitMode::ALL {
+            assert_eq!(TransitMode::from_name(m.name()), Some(m));
+        }
+        assert_eq!(TransitMode::from_name("TRANSIT"), None);
+        assert_eq!(TransitMode::from_name("bus"), None);
+    }
+
+    /// Patterns of modes left out are not ridden; an unknown route type
+    /// fails whatever the modes, as in R5.
+    #[test]
+    fn filtered_patterns_keep_the_chosen_modes() {
+        let mut layer = layer();
+        layer.patterns[1].route_type = 2; // B by rail
+        layer.patterns[2].route_type = 1100; // C by air: never ridden
+        let req = RaptorRequest {
+            from_time: 0,
+            time_window: 1,
+            max_rides: 3,
+            max_duration: 7200,
+            walk_mms: 1000,
+            max_walk_min: 120,
+            monte_carlo_draws: 0,
+            seed: Some(1),
+            origin: (0.0, 0.0),
+        };
+        let transfers = vec![vec![], vec![(2, 50_000)], vec![], vec![]];
+        let reached = |layer: &TransitLayer, modes: &[TransitMode]| {
+            let f = Filtered::new(layer, &[true], modes).unwrap();
+            let t = route(layer, &transfers, &f, &[(0, 10)], &req).unwrap();
+            t[0].iter().map(|&x| x != UNREACHED).collect::<Vec<_>>()
+        };
+        // stops reached by a ride: 1 by bus (A), 3 by rail (B) after a
+        // transfer to stop 2; the air route C is never ridden
+        assert_eq!(reached(&layer, &TransitMode::ALL), [false, true, false, true]);
+        assert_eq!(reached(&layer, &[TransitMode::Bus]), [false, true, false, false]);
+        // without the bus, stop 2 (where B starts) is never reached
+        assert_eq!(reached(&layer, &[TransitMode::Rail]), [false; 4]);
+        layer.patterns[2].route_type = 3; // C by bus
+        assert_eq!(reached(&layer, &[TransitMode::Bus]), [false, true, false, true]);
+        layer.patterns[0].route_type = 1500;
+        assert!(Filtered::new(&layer, &[true], &[TransitMode::Rail]).is_err());
+    }
+
     /// A frequency vehicle that leaves a stop one second before the earliest
     /// boarding time there is still boarded (`after <= first` in the Monte
     /// Carlo rule), also when it is the only vehicle of its entry.
@@ -1451,7 +1601,7 @@ mod tests {
             has_frequencies: true,
             ..TransitLayer::default()
         };
-        let filtered = Filtered::new(&layer, &[true]).unwrap();
+        let filtered = Filtered::new(&layer, &[true], &TransitMode::ALL).unwrap();
         let req = RaptorRequest {
             from_time: 0,
             time_window: 1,
@@ -1472,7 +1622,7 @@ mod tests {
     fn paths_follow_rides_and_transfers() {
         let layer = layer();
         let transfers = vec![vec![], vec![(2, 50_000)], vec![], vec![]];
-        let filtered = Filtered::new(&layer, &[true]).unwrap();
+        let filtered = Filtered::new(&layer, &[true], &TransitMode::ALL).unwrap();
         let req = RaptorRequest {
             from_time: 0,
             time_window: 2,
@@ -1514,7 +1664,7 @@ mod tests {
     fn retained_stops_only() {
         let layer = layer();
         let transfers = vec![vec![], vec![(2, 50_000)], vec![], vec![]];
-        let filtered = Filtered::new(&layer, &[true]).unwrap();
+        let filtered = Filtered::new(&layer, &[true], &TransitMode::ALL).unwrap();
         let req = RaptorRequest {
             from_time: 0,
             time_window: 1,
@@ -1562,7 +1712,7 @@ mod tests {
             has_schedules: true,
             ..TransitLayer::default()
         };
-        let filtered = Filtered::new(&layer, &[true]).unwrap();
+        let filtered = Filtered::new(&layer, &[true], &TransitMode::ALL).unwrap();
         let req = RaptorRequest {
             from_time: 0,
             time_window: 1,

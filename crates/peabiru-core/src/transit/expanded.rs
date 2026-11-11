@@ -1,6 +1,9 @@
 //! Per-departure travel times with the routes ridden, as r5r 2.5.0's
 //! `expanded_travel_time_matrix()` and `arrival_travel_time_matrix()` with
-//! `mode = c("WALK", "TRANSIT")`.
+//! public transport in `mode` (the modes, access and egress of
+//! [`TransitParams`]). A record without public transport has the access
+//! mode as its routes (`[WALK]`, `[BICYCLE]`, `[CAR]`: r5r's
+//! `directModes.toString()`).
 //!
 //! Both are one R5 regional task per origin with `includePathResults`:
 //! the RAPTOR search keeps a path to every stop at every iteration
@@ -16,15 +19,17 @@
 //! wrappers finally blank out rows whose `total_time` exceeds
 //! `max_trip_duration`.
 
+use super::egress::{mode_egress_tables, Targets};
 use super::matrix::{
-    civil_from_days, days_from_civil, validate_date, weekday, TransitData, TransitParams,
+    civil_from_days, days_from_civil, egress_seconds, validate_date, weekday, Access, TransitData,
+    TransitParams,
 };
 use super::raptor::{self, Filtered, Leg, PathArena, RaptorRequest, NO_PATH, UNREACHED};
 use super::walk;
 use super::TransitLayer;
 use crate::jcompat::TroveIntKeys;
-use crate::street::link::{find_split, link_points, Split};
-use crate::street::router::{search_from, worker_threads, Mode, ModeGraph, Search};
+use crate::street::link::{link_points, Split};
+use crate::street::router::{worker_threads, Mode, Search};
 use crate::street::StreetNetwork;
 use crate::{CancelToken, RouteError};
 use std::cmp::Ordering;
@@ -312,17 +317,19 @@ struct Context<'a> {
     filtered: Filtered,
     p: &'a TransitParams,
     dest_splits: Vec<Option<Split>>,
-    /// Per destination, `(stop, mm)` in the iteration order of R5's
-    /// per-point `TIntIntHashMap` (`EgressCostTable
+    /// Per destination, `(stop, egress seconds)` in the iteration order of
+    /// R5's per-point `TIntIntHashMap` (`EgressCostTable
     /// .destructivelyTransposeForPropagationAsNeeded`): ties between stops
-    /// are won by the first one met.
+    /// are won by the first one met. Stops at or beyond the egress limit
+    /// are left out.
     egress: Vec<Vec<(u32, i32)>>,
     /// Stops within egress reach of some destination.
     retain: Vec<bool>,
     walk_mms: i32,
-    /// The walking graph of the access and direct search.
-    walk: ModeGraph,
-    /// `[WALK]`, the routes of a walk-only record.
+    /// The access and direct street search.
+    access: Access,
+    /// `[WALK]` (`[BICYCLE]`, `[CAR]`), the routes of a record without
+    /// public transport: r5r's `directModes.toString()`.
     walk_routes: Arc<str>,
     /// r5r's draws per minute (`populateExpandedResults` offs 13-46):
     /// `numberOfMonteCarloDraws / timeWindowSize` with frequencies, else 1.
@@ -339,45 +346,71 @@ impl<'a> Context<'a> {
     ) -> Result<Self, RouteError> {
         validate(layer, destinations.len(), p)?;
         let active = layer.active_services(p.date, weekday(p.date));
-        let filtered = Filtered::new(layer, &active)?;
+        let filtered = Filtered::new(layer, &active, &p.transit_modes)?;
         let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
         let walk_mms = (walk_speed * 1000.0f32) as i32;
-        let dest_splits = link_points(
-            net,
-            destinations.len(),
-            |j| destinations[j],
-            Mode::Walk,
-            p.n_threads,
-            &p.cancel,
-        )
+        let link = |mode| {
+            link_points(
+                net,
+                destinations.len(),
+                |j| destinations[j],
+                mode,
+                p.n_threads,
+                &p.cancel,
+            )
+            .ok_or(RouteError::Cancelled)
+        };
+        // the destinations by the egress mode (walking) and, for the
+        // direct times, by the access mode
+        let egress_splits = link(p.egress_mode)?;
+        let egress = if p.egress_mode == Mode::Walk {
+            walk::egress_tables(
+                layer,
+                &data.trees,
+                net,
+                destinations,
+                &egress_splits,
+                p.n_threads,
+                &p.cancel,
+            )
+        } else {
+            mode_egress_tables(
+                net,
+                layer,
+                p.egress_mode,
+                Targets::Points(destinations),
+                &egress_splits,
+                p.n_threads,
+                &p.cancel,
+            )
+        }
         .ok_or(RouteError::Cancelled)?;
-        let egress = walk::egress_tables(
-            layer,
-            &data.trees,
-            net,
-            destinations,
-            &dest_splits,
-            p.n_threads,
-            &p.cancel,
-        )
-        .ok_or(RouteError::Cancelled)?;
+        let dest_splits = if p.access_mode == p.egress_mode {
+            egress_splits
+        } else {
+            link(p.access_mode)?
+        };
+        let access = Access::new(net, p);
+        let seconds = egress_seconds(p);
         let mut retain = vec![false; layer.stop_ids.len()];
         let egress = egress
             .into_iter()
             .map(|table| {
                 // `table` is in increasing stop order, the order R5 puts the
-                // stops into the map.
+                // stops into the map; the stops beyond the egress limit are
+                // skipped afterwards, in propagation.
                 let mut keys = TroveIntKeys::new();
                 for &(s, _) in &table {
                     keys.insert(s as i32);
                     retain[s as usize] = true;
                 }
                 keys.iteration_order()
-                    .map(|s| {
+                    .filter_map(|s| {
                         let i = table
                             .binary_search_by_key(&(s as u32), |&(t, _)| t)
                             .expect("stop in egress table");
-                        table[i]
+                        let (stop, cost) = table[i];
+                        Some((stop, seconds(cost)?))
                     })
                     .collect()
             })
@@ -397,8 +430,8 @@ impl<'a> Context<'a> {
             egress,
             retain,
             walk_mms,
-            walk: ModeGraph::with_walk_speed(net, Mode::Walk, p.walk_speed_kmh),
-            walk_routes: "[WALK]".into(),
+            walk_routes: format!("[{}]", access.mode().r5_name()).into(),
+            access,
             draws_per_minute,
         })
     }
@@ -417,30 +450,19 @@ impl<'a> Context<'a> {
         let m = p.max_trip_duration;
         let max_t = m * 60;
         let tw = p.time_window as usize;
-        let Some(origin) = find_split(self.net, lat, lon, Mode::Walk, &mut sc.split) else {
-            return Ok(false);
-        };
-        let street_limit = m.min(p.max_walk_time) * 60;
-        let egress_limit = p.max_walk_time * 60;
-        let search = sc.search.get_or_insert_with(|| Search::new(self.net));
-        search_from(
+        let mut access = Vec::new();
+        if !self.access.search(
             self.net,
-            &self.walk,
-            &origin,
+            self.layer,
+            (lat, lon),
             &self.dest_splits,
-            street_limit,
-            search,
+            &mut sc.split,
+            &mut sc.search,
             &mut sc.direct,
-        );
-        let vertex_time = search.vertex_time();
-        let access: Vec<(u32, i32)> = self
-            .layer
-            .stop_vertex
-            .iter()
-            .enumerate()
-            .filter(|(_, &v)| v >= 0 && vertex_time[v as usize] < street_limit)
-            .map(|(s, &v)| (s as u32, vertex_time[v as usize]))
-            .collect();
+            &mut access,
+        ) {
+            return Ok(false);
+        }
         let direct = &sc.direct;
         let dp = &mut sc.records;
         dp.by_minute.resize_with(tw, Vec::new);
@@ -534,8 +556,6 @@ impl<'a> Context<'a> {
                 stop_min,
                 n_stops,
                 paths,
-                self.walk_mms,
-                egress_limit,
                 max_t,
                 &mut best,
                 &mut best_path,
@@ -598,8 +618,6 @@ fn propagate(
     stop_min: &[i32],
     n_stops: usize,
     paths: &PathArena,
-    walk_mms: i32,
-    egress_limit: i32,
     max_t: i32,
     best: &mut [i32],
     best_path: &mut [u32],
@@ -608,11 +626,7 @@ fn propagate(
     // No candidate at or above `bound` replaces anything: the smaller of
     // max_t and the worst time so far (only strict improvements count).
     let mut bound = best.iter().copied().max().map_or(max_t, |w| max_t.min(w));
-    for &(stop, mm) in egress {
-        let e = mm / walk_mms;
-        if e >= egress_limit {
-            continue;
-        }
+    for &(stop, e) in egress {
         // every iteration's candidate through this stop is at least its
         // least duration plus the egress walk
         if stop_min[stop as usize].saturating_add(e) >= bound {
@@ -1017,16 +1031,17 @@ mod tests {
                     *m = (*m).min(t);
                 }
             }
+            // egress seconds, those at or beyond the limit (1200 s) left out
             let egress: Vec<(u32, i32)> = (0..12)
-                .map(|_| (next(n_stops as u64) as u32, next(2_000_000) as i32))
+                .map(|_| (next(n_stops as u64) as u32, next(2_000_000) as i32 / 1000))
+                .filter(|&(_, e)| e < 1200)
                 .collect();
             let direct = [UNREACHED, 900, 4000][next(3) as usize];
             let run = |stop_min: &[i32]| {
                 let mut best = vec![direct; n_iter];
                 let (mut bp, mut be) = (vec![NO_PATH; n_iter], vec![0; n_iter]);
                 propagate(
-                    &egress, &times, stop_min, n_stops, &paths, 1000, 1200, max_t, &mut best,
-                    &mut bp, &mut be,
+                    &egress, &times, stop_min, n_stops, &paths, max_t, &mut best, &mut bp, &mut be,
                 );
                 best
             };
