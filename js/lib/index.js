@@ -143,8 +143,8 @@ export class UnsupportedError extends Error {
   }
 }
 
-function unsupported(what) {
-  throw new UnsupportedError(`${what} is not supported by peabiru yet.`);
+function unsupported(what, instead = "") {
+  throw new UnsupportedError(`${what} is not supported by peabiru yet${instead}.`);
 }
 
 function fail(name, msg, Kind = RangeError) {
@@ -353,7 +353,7 @@ function assignMode(mode, modeEgress) {
   };
   if (ml.transit) {
     if (transitModes.length !== TRANSIT_MODES.length) {
-      unsupported(`Routing on specific transit modes (${modes.filter((m) => !DIRECT_MODES.includes(m)).join(", ")}); use 'TRANSIT'`);
+      unsupported(`Routing on specific transit modes (${modes.filter((m) => !DIRECT_MODES.includes(m)).join(", ")})`, "; use 'TRANSIT'");
     }
     if (ml.accessMode !== "WALK") unsupported(`Transit with ${ml.accessMode} access`);
     if (ml.egressMode !== "WALK") unsupported(`Transit with ${ml.egressMode} egress`);
