@@ -16,6 +16,7 @@
 pub(crate) mod geom;
 mod hops;
 mod transit;
+mod via;
 mod wkt;
 
 use crate::street::link::find_split;
@@ -308,6 +309,7 @@ fn direct_trip(
     o: (f64, f64),
     d: (f64, f64),
     scratch: &mut Vec<u32>,
+    via: &mut via::ViaOrders,
 ) -> Option<Trip> {
     let mode = p.mode;
     let mut limit = p.trip_limit_min() * 60;
@@ -316,12 +318,15 @@ fn direct_trip(
     }
     let mut router = Router::new(net, mode, p.req(), false);
     router.time_limit = limit;
+    via.prepare(&mut router);
     let os = find_split(net, o.0, o.1, mode, scratch)?;
     router.set_origin_split(os);
     let ds = find_split(net, d.0, d.1, mode, scratch)?;
     router.set_destination(ds);
     router.route();
-    let last = router.final_state(&ds)?;
+    let last = router.final_state(&ds);
+    via.collect(&mut router);
+    let last = last?;
     let line = street_path_line(&router, last);
     let duration = router.states[last as usize].dur;
     let distance = line_length_m(&line);
@@ -392,6 +397,9 @@ pub fn detailed_itineraries(
     let next = AtomicUsize::new(0);
     let threads = crate::street::router::worker_threads(p.n_threads, n);
     let cancel = &p.cancel;
+    // a car egress search runs backwards, which in R5 reverses the via
+    // edges of turn restrictions in place (see `via`)
+    let free = !p.transit_modes.is_empty() && p.egress_mode == Mode::Car;
     type Chunk = Result<Vec<(usize, Vec<Itinerary>)>, RouteError>;
     let chunks: Vec<Chunk> = crate::sys::scoped(0..threads, |_| {
         let mut out = Vec::new();
@@ -401,15 +409,19 @@ pub fn detailed_itineraries(
             if i >= n {
                 break;
             }
-            let trips = plan(
-                net,
-                planner.as_ref(),
-                p,
-                origins[i],
-                destinations[i],
-                &mut scratch,
-            )?;
-            out.push((i, finish(i, trips)));
+            let its = via::settle(free, i, |via| {
+                let trips = plan(
+                    net,
+                    planner.as_ref(),
+                    p,
+                    origins[i],
+                    destinations[i],
+                    &mut scratch,
+                    via,
+                )?;
+                Ok(finish(i, trips))
+            })?;
+            out.push((i, its));
         }
         Ok(out)
     });
@@ -434,17 +446,18 @@ fn plan(
     o: (f64, f64),
     d: (f64, f64),
     scratch: &mut Vec<u32>,
+    via: &mut via::ViaOrders,
 ) -> Result<Vec<Trip>, RouteError> {
     // r5r hands R5 NaN for a missing coordinate: no street is found
     if ![o.0, o.1, d.0, d.1].iter().all(|v| v.is_finite()) {
         return Ok(Vec::new());
     }
     let mut trips = Vec::new();
-    if let Some(t) = direct_trip(net, p, o, d, scratch) {
+    if let Some(t) = direct_trip(net, p, o, d, scratch, via) {
         trips.push(t);
     }
     if let Some(planner) = planner {
-        if let Some(t) = planner.fastest_trip(o, d, scratch)? {
+        if let Some(t) = planner.fastest_trip(o, d, scratch, via)? {
             trips.push(t);
         }
     }

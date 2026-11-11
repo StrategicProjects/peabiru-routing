@@ -8,7 +8,7 @@
 
 use super::geom::{edge_line, line_length_m, Line};
 use super::hops::ride_line;
-use super::{street_path_line, ItineraryParams, Leg, Trip};
+use super::{street_path_line, via::ViaOrders, ItineraryParams, Leg, Trip};
 use crate::street::link::{find_split, Split};
 use crate::street::p2p::{Router, NONE};
 use crate::street::{Mode, StreetNetwork};
@@ -74,6 +74,7 @@ impl<'a> Planner<'a> {
         o: (f64, f64),
         d: (f64, f64),
         scratch: &mut Vec<u32>,
+        via: &mut ViaOrders,
     ) -> Result<Option<Trip>, RouteError> {
         let (net, p, layer) = (self.net, self.p, self.layer);
         let max_t = p.max_trip_duration * 60;
@@ -81,6 +82,7 @@ impl<'a> Planner<'a> {
         let mut egress = Router::new(net, p.egress_mode, p.req(), true);
         egress.stop_search(&self.vertex_stop);
         egress.time_limit = p.max_time_s(p.egress_mode);
+        via.prepare(&mut egress);
         let Some(ds) = find_split(net, d.0, d.1, p.egress_mode, scratch) else {
             return Ok(None);
         };
@@ -88,6 +90,7 @@ impl<'a> Planner<'a> {
             return Ok(None);
         }
         egress.route();
+        via.collect(&mut egress);
         if let Some(why) = egress.unsupported {
             return Err(RouteError::Invalid(format!("not supported: {why}")));
         }
@@ -105,11 +108,13 @@ impl<'a> Planner<'a> {
         let mut access = Router::new(net, p.mode, p.req(), false);
         access.stop_search(&self.vertex_stop);
         access.time_limit = p.max_time_s(p.mode);
+        via.prepare(&mut access);
         let Some(os) = find_split(net, o.0, o.1, p.mode, scratch) else {
             return Ok(None);
         };
         access.set_origin_split(os);
         access.route();
+        via.collect(&mut access);
         let mut access_times: Vec<(u32, i32)> = access
             .reached_stops()
             .iter()

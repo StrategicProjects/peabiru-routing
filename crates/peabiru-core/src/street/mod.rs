@@ -124,6 +124,9 @@ pub struct StreetNetwork {
 
     /// Car turn restrictions.
     pub(crate) restrictions: Vec<TurnRestriction>,
+    /// The restrictions of reverse car searches: R5 turns each `only_`
+    /// restriction into `no_` ones for them (`addReverseTurnRestriction`).
+    pub(crate) reverse_restrictions: Vec<TurnRestriction>,
     /// `(from_edge, restriction index)`, sorted: restrictions that start when
     /// a car enters an edge.
     pub(crate) restriction_starts: Vec<(u32, u32)>,

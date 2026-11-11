@@ -144,9 +144,17 @@ Not supported yet, and an error: \code{shortest_path = FALSE} with public
 transport (r5r routes it with R5's McRAPTOR), \code{osm_link_ids = TRUE},
 fares and scenarios. As in r5r, networks
 whose GTFS has frequency-based trips cannot be used with public
-transport. A car trip whose egress search crosses a turn restriction
-with two or more via ways is an error too (R5 changes the restriction
-in place on that search, so its results depend on earlier calls).
+transport.
+
+With \code{mode_egress = "CAR"}, R5 reverses the via edges of turn
+restrictions with two or more via ways in place each time its backward
+egress search checks one, so what r5r returns for a pair whose car
+searches cross such a restriction can depend on the searches that ran
+before (in the same call, on other threads, or in earlier calls).
+peabiru plans such a pair for every order those via edges can be in:
+when the itineraries are the same in all of them, they are returned (they
+are r5r's whatever ran before); otherwise the call stops with an error
+naming the pair.
 }
 \examples{
 \dontshow{if (requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}

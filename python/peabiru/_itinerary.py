@@ -104,7 +104,9 @@ def detailed_itineraries(
     ``shortest_path=False`` with public transport (r5r routes it with R5's
     McRAPTOR), ``osm_link_ids=True``, fares and scenarios. As in r5r, networks
     whose GTFS has frequency-based trips cannot be used with public
-    transport.
+    transport. With ``mode_egress="CAR"``, a pair whose itineraries in r5r
+    depend on the searches that ran before (R5 reverses the via edges of
+    some turn restrictions in place) is an error; see the guide.
 
     Parameters
     ----------
