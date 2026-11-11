@@ -2,6 +2,10 @@
 
 from typing import Any, Dict, List, Optional, Tuple
 
+# (directory, origin ids, destination ids or, for accessibility, the
+# opportunity names): write r5r's CSV files there instead of returning
+Output = Optional[Tuple[str, List[str], List[str]]]
+
 __version__: str
 NA_I32: int
 
@@ -15,33 +19,42 @@ def build_network(data_path: str, n_threads: int) -> Network: ...
 def street_ttm(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
     mode: str, walk_speed: float, bike_speed: float, max_lts: int,
-    max_trip_duration: int, n_threads: int,
+    max_trip_duration: int, n_threads: int, percentiles: List[int],
+    output: Output,
 ) -> Tuple[bytes, bytes, bytes]: ...
 def transit_ttm(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
+    transit_modes: str, access_mode: str, egress_mode: str, bike_speed: float,
+    max_lts: int, max_bike_time: int, max_car_time: int,
     date: int, departure_time: int, time_window: int, percentiles: List[int],
     max_walk_time: int, max_trip_duration: int, walk_speed: float,
     max_rides: int, draws_per_minute: int, seed: Optional[int], n_threads: int,
+    output: Output,
 ) -> Tuple[bytes, bytes, List[bytes]]: ...
 def accessibility(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
-    opportunities: List[bytes], mode: str, decay_function: str,
-    decay_value: float, cutoffs: List[int], percentiles: List[int], date: int,
-    departure_time: int, time_window: int, max_walk_time: int,
+    opportunities: List[bytes], mode: str, transit_modes: str, egress_mode: str,
+    decay_function: str, decay_value: float, cutoffs: List[int],
+    percentiles: List[int], date: int, departure_time: int, time_window: int,
+    max_walk_time: int, max_bike_time: int, max_car_time: int,
     max_trip_duration: int, walk_speed: float, bike_speed: float,
     max_lts: int, max_rides: int, draws_per_minute: int, seed: Optional[int],
-    n_threads: int,
+    n_threads: int, output: Output,
 ) -> bytes: ...
 def expanded(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
+    transit_modes: str, access_mode: str, egress_mode: str, bike_speed: float,
+    max_lts: int, max_bike_time: int, max_car_time: int,
     arrival: bool, date: int, departure_time: int, time_window: int,
     max_walk_time: int, max_trip_duration: int, walk_speed: float,
     max_rides: int, draws_per_minute: int, seed: Optional[int], n_threads: int,
+    breakdown: bool, output: Output,
 ) -> Dict[str, Any]: ...
 def isochrone_polygons(
-    network: Network, olat: bytes, olon: bytes, mode: str, cutoffs: List[float],
-    zoom: int, percentiles: List[int], date: int, departure_time: int,
-    time_window: int, max_walk_time: int, max_trip_duration: int,
+    network: Network, olat: bytes, olon: bytes, mode: str, transit_modes: str,
+    egress_mode: str, cutoffs: List[float], zoom: int, percentiles: List[int],
+    date: int, departure_time: int, time_window: int, max_walk_time: int,
+    max_bike_time: int, max_car_time: int, max_trip_duration: int,
     walk_speed: float, bike_speed: float, max_lts: int, max_rides: int,
     draws_per_minute: int, seed: Optional[int], n_threads: int,
 ) -> Dict[str, bytes]: ...

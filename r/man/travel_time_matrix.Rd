@@ -91,7 +91,21 @@ only with a seed.}
 \item{verbose, progress}{Logicals, checked as in r5r; peabiru prints no
 progress counter.}
 
-\item{output_dir}{Not supported yet; must be \code{NULL}.}
+\item{output_dir}{\code{NULL}, or the path of an existing directory: instead of
+returning the result, write it there as r5r does, one CSV file per
+origin, \verb{from_<origin id>.csv} (the id is not sanitized; an existing
+file of that name is replaced, other files are left alone), and return
+\code{output_dir}. The origins are routed a slice at a time and each slice is
+written before the next one is routed, so the whole result is never held
+in memory. The files are r5r's byte for byte: the columns of the result
+(with \code{cutoff} also under \code{"fixed_exponential"}, as the placeholder
+\code{0}), fields with \verb{,} or \verb{"} quoted, \code{NA} as an empty field, doubles
+as Java writes them (\code{2.0}, \code{1.0E-4}); an origin with no row has no
+file, except in \code{\link[=accessibility]{accessibility()}}. As in r5r, \code{"WALK"} is then routed
+from the origins even when there are fewer destinations, ids must not
+be missing, and the rule that blanks out trips over
+\code{max_trip_duration} in the returned result is not applied to the
+files.}
 
 \item{r5r_core}{Deprecated: the network under the name r5r used before
 version 2.3.0. As in r5r, it is accepted with a warning and used as
@@ -101,7 +115,7 @@ version 2.3.0. As in r5r, it is accepted with a warning and used as
 A \code{data.frame} with \code{from_id}, \code{to_id} and one integer column
 \code{travel_time_pXX} per percentile (minutes). Pairs that cannot be
 completed within \code{max_trip_duration} are not returned; a higher
-percentile beyond the limit is \code{NA}.
+percentile beyond the limit is \code{NA}. With \code{output_dir}, \code{output_dir}.
 }
 \description{
 Travel times between every origin and every destination, by one street
@@ -121,8 +135,7 @@ bicycle or car is searched from every stop with R5's defaults (up to
 car) and must stay within \code{max_bike_time} or \code{max_car_time}.
 
 Not supported yet, and an error when requested: fares (\code{fare_structure},
-\code{max_fare}); scenarios (\code{new_carspeeds}, \code{carspeed_scale}, \code{new_lts});
-\code{output_dir}.
+\code{max_fare}); scenarios (\code{new_carspeeds}, \code{carspeed_scale}, \code{new_lts}).
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")

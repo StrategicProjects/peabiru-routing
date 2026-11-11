@@ -18,6 +18,8 @@ the R session: no Java is needed, and the network is built once, in memory,
 and reused by every call. The same engine is behind the Python and
 JavaScript packages and the command-line tool of the same name.
 
+<a href="https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/isochrones.Rmd"><img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/isochrones-by-mode.svg" width="480" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes walking, cycling, driving and by public transport."></a>
+
 | Function | What it computes |
 |---|---|
 | `build_network()` | a network from one `.pbf` and any number of GTFS feeds |

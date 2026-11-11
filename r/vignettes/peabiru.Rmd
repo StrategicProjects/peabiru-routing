@@ -159,15 +159,32 @@ subset(trips, to_id == "89a8100c02fffff")
 `arrival_travel_time_matrix()` answers the reverse question: for each pair,
 the latest departure that still arrives by a given time.
 
+## Writing results to files
+
+For matrices too large to hold in memory, `output_dir` (an existing
+directory) makes each of these functions write its result there, as r5r
+does, instead of returning it: one CSV file per origin, `from_<id>.csv`,
+byte for byte the file r5r writes for the same call. The origins are routed
+a slice at a time, and the function returns `output_dir`.
+
+```{r}
+out <- tempfile("peabiru-")
+dir.create(out)
+travel_time_matrix(network, points, points, mode = "CAR", n_threads = 2,
+                   output_dir = out) == out
+length(list.files(out))
+head(read.csv(file.path(out, list.files(out)[1])), 3)
+```
+
 ## What is not supported yet
 
 Options that peabiru does not implement yet stop with an error rather than
-being ignored: fares, congestion and traffic-stress scenarios, elevation and
-`output_dir`. For example:
+being ignored: fares, congestion and traffic-stress scenarios and elevation.
+For example:
 
 ```{r, error = TRUE}
-travel_time_matrix(network, points, points, mode = "WALK",
-                   output_dir = tempdir())
+travel_time_matrix(network, points, points, mode = "CAR",
+                   carspeed_scale = 0.5)
 ```
 
 The help pages of `travel_time_matrix()`, `accessibility()`,

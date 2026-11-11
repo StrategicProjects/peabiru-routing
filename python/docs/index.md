@@ -163,9 +163,8 @@ print(access.head())
 
 Anything peabiru does not implement yet is an error
 ([`UnsupportedError`](reference.md#peabiru.UnsupportedError)), never
-silently ignored: fares, scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`), writing to
-`output_dir`, elevation, and expanded or arrival matrices by a street mode
-alone. The full list is under
+silently ignored: fares, scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`),
+elevation, and expanded or arrival matrices by a street mode alone. The full list is under
 [Not supported yet](coming-from-r5.md#not-supported-yet).
 
 ## Sample data

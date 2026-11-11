@@ -295,7 +295,8 @@ def _polygons(
             network._core, o.lat_bytes(), o.lon_bytes(),
             mode_list.direct_modes, mode_list.transit_mode, mode_list.egress_mode,
             cutoffs, zoom, pcts, departure.yyyymmdd, departure.seconds,
-            int(time_window), lim["walk"], lim["bike"], lim["car"], lim["trip"], float(walk_speed),
+            int(time_window), lim["walk"], lim["bike"], lim["car"], lim["trip"],
+            float(walk_speed),
             float(bike_speed), int(max_lts), int(max_rides), int(draws_per_minute),
             c["seed"], c["threads"],
         )

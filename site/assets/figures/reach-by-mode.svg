@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg role="img" aria-labelledby="title desc" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='518.40pt' height='280.80pt' viewBox='0 0 518.4 280.8'>
+<title id="title">Share of the population within reach of one origin, by mode and travel time</title>
+<desc id="desc">Four step curves of the share of the population of the Porto Alegre grid reached from Farroupilha Park within each number of minutes, from 0 to 60. Driving rises fastest and reaches nearly everyone within about 20 minutes; walking plus public transport and cycling rise more slowly, and walking reaches the smallest share in an hour.</desc>
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+@media (prefers-color-scheme: dark) {
+[style*="fill: #FFFDF9;"] { fill: #1D2427 !important; }
+[style*="fill: #1F2A2E;"] { fill: #ECE6DA !important; }
+[style*="fill: #4A5A5F;"] { fill: #A9B4B6 !important; }
+[style*="fill: #B4532A;"] { fill: #E98A5C !important; }
+[style*="fill: #C98A1D;"] { fill: #F0B54A !important; }
+[style*="fill: #2F6B4F;"] { fill: #6FBF95 !important; }
+[style*="fill: #3D4F56;"] { fill: #C6D0D2 !important; }
+[style*="stroke: #ECE4D6;"] { stroke: #2C3538 !important; }
+[style*="stroke: #B4532A;"] { stroke: #E98A5C !important; }
+[style*="stroke: #C98A1D;"] { stroke: #F0B54A !important; }
+[style*="stroke: #2F6B4F;"] { stroke: #6FBF95 !important; }
+[style*="stroke: #3D4F56;"] { stroke: #C6D0D2 !important; }
+}
+</style>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.0;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect x='0.5' y='0.5' width='517.4' height='279.8' rx='9' style='fill: #FFFDF9; stroke: #E1D8C8; stroke-width: 1;'/>
+<defs>
+  <clipPath id='cpMC4wMHw1MTguNDB8MC4wMHwyODAuODA='>
+    <rect x='0.0' y='0.0' width='518.4' height='280.8' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw1MTguNDB8MC4wMHwyODAuODA=)'>
+<rect x='0.0' y='-0.000000000000057' width='518.4' height='280.8' style='stroke-width: 1.0; stroke: none; fill: #FFFDF9;' />
+</g>
+<defs>
+  <clipPath id='cpNDQuMzR8NTAyLjQ2fDQ3LjA1fDI0Mi45MQ=='>
+    <rect x='44.3' y='47.0' width='458.1' height='195.8' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDQuMzR8NTAyLjQ2fDQ3LjA1fDI0Mi45MQ==)'>
+<rect x='44.3' y='47.0' width='458.1' height='195.8' style='stroke-width: 1.0; stroke: none;' />
+<path d='M44.3 242.9l458.1 0M44.3 194.9l458.1 0M44.3 146.9l458.1 0M44.3 98.9l458.1 0M44.3 50.8l458.1 0' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<path d='M44.3 242.9l4.8 0 4.8 0 0-.1 4.9 0 4.8 0 4.8 0 4.8 0 4.9 0 0-.4 4.8 0 0-.4 4.8 0 0-.2 4.8 0 4.8 0 4.9 0 0-1.5 4.8 0 0-1.3 4.8 0 0-.2 4.8 0 0-.3 4.9 0 0-.8 4.8 0 0-1.8 4.8 0 0-2.9 4.8 0 0-.5 4.8 0 0-1.5 4.9 0 0-.5 4.8 0 0-1 4.8 0 0-1.2 4.8 0 0-2.8 4.9 0 0-.5 4.8 0 0-.5 4.8 0 0-1.5 4.8 0 0-.5 4.8 0 0-1.2 4.9 0 0-1.3 4.8 0 0-.5 4.8 0 0-1.9 4.8 0 0-.5 4.9 0 0-1.2 4.8 0 0-1.5 4.8 0 0-1.4 4.8 0 0-1.5 4.8 0 0-.8 4.9 0 0-1.4 4.8 0 0-1.3 4.8 0 0-1.8 4.8 0 0-.7 4.9 0 0-1.5 4.8 0 0-2.2 4.8 0 0-.7 4.8 0 0-1.6 4.8 0 0-1.1 4.9 0 0-1.6 4.8 0 0-1.2 4.8 0 0-.8 4.8 0 0-1.5 4.9 0 0-1.8 4.8 0 0-.6 4.8 0 0-2.6 4.8 0 0-1 4.8 0 0-.6 4.9 0 0-2 4.8 0 0-1.2 4.8 0 0-1.8 4.8 0 0-.9' style='stroke-width: 2.3; stroke: #2F6B4F; stroke-linecap: butt; fill: none;' />
+<path d='M44.3 242.9l4.8 0 4.8 0 4.9 0 4.8 0 4.8 0 0-.1 4.8 0 4.9 0 4.8 0 4.8 0 4.8 0 0-.1 4.8 0 0-.1 4.9 0 0-.3 4.8 0 0-1.3 4.8 0 0-2.1 4.8 0 0-2.9 4.9 0 0-.7 4.8 0 0-1 4.8 0 0-1.2 4.8 0 0-3.4 4.8 0 0-1.2 4.9 0 0-3 4.8 0 0-3.7 4.8 0 0-1.8 4.8 0 0-.8 4.9 0 0-1.5 4.8 0 0-1.3 4.8 0 0-1.2 4.8 0 0-2.3 4.8 0 0-1.3 4.9 0 0-2.2 4.8 0 0-2.9 4.8 0 0-1.5 4.8 0 0-2.7 4.9 0 0-2.4 4.8 0 0-3.7 4.8 0 0-3.2 4.8 0 0-4.5 4.8 0 0-5 4.9 0 0-3.9 4.8 0 0-5.1 4.8 0 0-4.5 4.8 0 0-2.9 4.9 0 0-3.3 4.8 0 0-3.2 4.8 0 0-1.8 4.8 0 0-2.3 4.8 0 0-3.3 4.9 0 0-2.7 4.8 0 0-2.6 4.8 0 0-2.9 4.8 0 0-2.6 4.9 0 0-2.9 4.8 0 0-4.2 4.8 0 0-3.8 4.8 0 0-3.1 4.8 0 0-3.4 4.9 0 0-2.9 4.8 0 0-4.8 4.8 0 0-3.4 4.8 0 0-2.8' style='stroke-width: 2.3; stroke: #C98A1D; stroke-linecap: butt; fill: none;' />
+<path d='M44.3 242.9l4.8 0 4.8 0 4.9 0 0-.1 4.8 0 4.8 0 0-.3 4.8 0 0-1.9 4.9 0 0-7.4 4.8 0 0-11.8 4.8 0 0-15.4 4.8 0 0-19.7 4.8 0 0-19.4 4.9 0 0-15.9 4.8 0 0-15.2 4.8 0 0-21.4 4.8 0 0-11.8 4.9 0 0-15.1 4.8 0 0-11.1 4.8 0 0-12.3 4.8 0 0-6.2 4.8 0 0-2.4 4.9 0 0-1.4 4.8 0 0-.6 4.8 0 0-.6 4.8 0 0-.6 4.9 0 0-.5 4.8 0 0-.3 4.8 0 0-.1 4.8 0 0-.2 4.8 0 4.9 0 4.8 0 4.8 0 4.8 0 4.9 0 4.8 0 0-.1 4.8 0 4.8 0 4.8 0 4.9 0 4.8 0 4.8 0 4.8 0 4.9 0 4.8 0 4.8 0 4.8 0 4.8 0 4.9 0 4.8 0 4.8 0 4.8 0 4.9 0 4.8 0 4.8 0 4.8 0 4.8 0 4.9 0 4.8 0 4.8 0 4.8 0' style='stroke-width: 2.3; stroke: #3D4F56; stroke-linecap: butt; fill: none;' />
+<path d='M44.3 242.9l4.8 0 4.8 0 0-.1 4.9 0 4.8 0 4.8 0 4.8 0 4.9 0 0-.4 4.8 0 0-.4 4.8 0 0-.2 4.8 0 4.8 0 4.9 0 0-1.5 4.8 0 0-1.5 4.8 0 0-.7 4.8 0 4.9 0 0-1.6 4.8 0 0-2.4 4.8 0 0-3.7 4.8 0 0-2.7 4.8 0 0-3.8 4.9 0 0-1.9 4.8 0 0-3.8 4.8 0 0-3 4.8 0 0-2.5 4.9 0 0-3.2 4.8 0 0-3.9 4.8 0 0-6 4.8 0 0-4.8 4.8 0 0-4.5 4.9 0 0-5.9 4.8 0 0-6.3 4.8 0 0-2.7 4.8 0 0-4.9 4.9 0 0-4.4 4.8 0 0-5.4 4.8 0 0-7 4.8 0 0-5.8 4.8 0 0-6.5 4.9 0 0-6.5 4.8 0 0-6 4.8 0 0-8.6 4.8 0 0-6.4 4.9 0 0-6.4 4.8 0 0-7.6 4.8 0 0-7.8 4.8 0 0-4.6 4.8 0 0-8.3 4.9 0 0-3.6 4.8 0 0-3.4 4.8 0 0-3 4.8 0 0-3.5 4.9 0 0-3.1 4.8 0 0-2 4.8 0 0-1.8 4.8 0 0-.5 4.8 0 0-1.2 4.9 0 0-1.3 4.8 0 0-.9 4.8 0 0-.9 4.8 0' style='stroke-width: 2.3; stroke: #B4532A; stroke-linecap: butt; fill: none;' />
+<text x='339.4' y='54.7' style='font-size: 9.96px;fill: #3D4F56; font-family: "Helvetica Neue";'>Driving  100%</text>
+<text x='339.4' y='69.1' style='font-size: 9.96px;fill: #B4532A; font-family: "Helvetica Neue";'>Walking + public transport  98%</text>
+<text x='339.4' y='114.7' style='font-size: 9.96px;fill: #C98A1D; font-family: "Helvetica Neue";'>Cycling  69%</text>
+<text x='339.4' y='184.4' style='font-size: 9.96px;fill: #2F6B4F; font-family: "Helvetica Neue";'>Walking  32%</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1MTguNDB8MC4wMHwyODAuODA=)'>
+<text x='39.4' y='246.0' text-anchor='end' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0%</text>
+<text x='39.4' y='198.0' text-anchor='end' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>25%</text>
+<text x='39.4' y='150.0' text-anchor='end' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>50%</text>
+<text x='39.4' y='102.0' text-anchor='end' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>75%</text>
+<text x='39.4' y='54.0' text-anchor='end' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>100%</text>
+<text x='44.3' y='254.1' text-anchor='middle' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0</text>
+<text x='92.5' y='254.1' text-anchor='middle' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10</text>
+<text x='140.7' y='254.1' text-anchor='middle' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>20</text>
+<text x='189.0' y='254.1' text-anchor='middle' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>30</text>
+<text x='237.2' y='254.1' text-anchor='middle' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>40</text>
+<text x='285.4' y='254.1' text-anchor='middle' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>50</text>
+<text x='333.6' y='254.1' text-anchor='middle' style='font-size: 8.80px;fill: #4A5A5F; font-family: "Helvetica Neue";'>60</text>
+<text x='44.3' y='266.5' style='font-size: 11.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Travel time (minutes)</text>
+<text x='15.9' y='39.2' style='font-size: 11.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>From Farroupilha Park; the grid's population counted at each cell</text>
+<text x='15.9' y='23.2' style='font-size: 13.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Share of Porto Alegre's population within reach, by mode</text>
+</g>
+</g>
+</svg>

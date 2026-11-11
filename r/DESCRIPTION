@@ -30,7 +30,9 @@ Authors@R: c(
     person("isoband authors", role = "cph",
            comment = "'isoband' package, whose contouring algorithm is translated in the 'Rust' core"),
     person("OpenStreetMap contributors", role = "cph",
-           comment = "Map data of the sample network, inst/extdata/spo/spo_osm.pbf")
+           comment = "Map data of the sample network, inst/extdata/spo/spo_osm.pbf"),
+    person("Authors of the dependency Rust crates", role = "cph",
+           comment = "Rust crates vendored in src/rust/vendor.tar.xz; see inst/AUTHORS")
   )
 Description: Computes travel-time matrices, accessibility and trip-by-trip
     (expanded and arrival) matrices on multimodal transport networks (walk,
@@ -56,6 +58,7 @@ Config/rextendr/version: 0.5.0
 Depends: 
     R (>= 4.2)
 Suggests:
+    data.table,
     knitr,
     r5r,
     rmarkdown,

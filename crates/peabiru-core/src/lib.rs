@@ -91,7 +91,8 @@
 //! A matrix is returned in a type of its own ([`StreetMatrix`],
 //! [`TransitMatrix`], [`ExpandedMatrix`], [`Accessibility`]), which gives
 //! its dimensions, single values, rows, and its whole buffer without
-//! copying (`into_vec`, `into_values`).
+//! copying (`into_vec`, `into_values`). [`CsvOutput`] writes them to one
+//! CSV file per origin, byte for byte as r5r does with `output_dir`.
 //!
 //! # Cancellation
 //!
@@ -108,6 +109,7 @@ mod gtfs;
 mod isochrone;
 mod jcompat;
 mod osm;
+mod output;
 mod street;
 mod sys;
 mod transit;
@@ -122,6 +124,7 @@ pub use isochrone::{
     street_travel_time_surface, transit_travel_time_surface, IsochroneLine, IsochronePolygon,
     Polygon, StreetEdges, TravelTimeSurface, WebMercatorGrid,
 };
+pub use output::CsvOutput;
 pub use street::{
     build_network, street_travel_time_matrix, BuildOptions, Mode, RouteParams, StreetEngine,
     StreetMatrix, StreetNetwork,

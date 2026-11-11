@@ -248,6 +248,47 @@ from_id
 89a8100c023ffff                3                3                0
 ```
 
+## Writing results to files
+
+With `output_dir`, an existing directory, the result is written there
+instead of being returned, as r5r writes it: one CSV file per origin, named
+`from_<origin id>.csv`, and the function returns `output_dir` (a string or
+a `pathlib.Path`, as given). The origins are routed a slice at a time and
+each slice is written before the next one is routed, so a matrix too large
+to hold in memory can still be computed. `accessibility()`,
+`expanded_travel_time_matrix()` and `arrival_travel_time_matrix()` take
+`output_dir` too.
+
+```python
+import tempfile
+from pathlib import Path
+
+out = Path(tempfile.mkdtemp())
+print(peabiru.travel_time_matrix(network, points, points, mode="CAR",
+                                 n_threads=2, output_dir=out) == out)
+files = sorted(p.name for p in out.iterdir())
+print(len(files), files[0])
+print((out / files[0]).read_text().splitlines()[:3])
+```
+
+```text
+True
+27 from_89a8100c007ffff.csv
+['from_id,to_id,travel_time_p50', '89a8100c007ffff,89a8100c00fffff,4', '89a8100c007ffff,89a8100c007ffff,1']
+```
+
+The files are byte for byte those r5r writes for the same call: the columns
+of the result (accessibility files also keep `cutoff` under
+`"fixed_exponential"`, as r5r's placeholder `0`), fields holding `,` or `"`
+quoted, a missing value as an empty field, decimals as Java writes them
+(`2.0`, `1.0E-4`), lines ended by `\n` (`\r\n` on Windows). An origin with
+no row gets no file (accessibility writes one for every origin). The id is
+not sanitized: an id with `/` names a file in a subdirectory, an error when
+that does not exist. An existing file of the same name is replaced, other
+files are left alone. As in r5r, `"WALK"` is then routed from the origins
+even when there are fewer destinations, and the rule that blanks out trips
+over `max_trip_duration` in a returned result is not applied to the files.
+
 ## Threads
 
 `n_threads=None` (the default) uses all cores (`math.inf` is accepted

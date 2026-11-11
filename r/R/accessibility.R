@@ -11,8 +11,7 @@
 #' while the other functions still weight them; and `max_trip_duration` may
 #' not be shorter than the largest cutoff.
 #'
-#' Not supported yet, and an error when requested: fares; scenarios;
-#' `output_dir`.
+#' Not supported yet, and an error when requested: fares; scenarios.
 #'
 #' @inheritParams travel_time_matrix
 #' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
@@ -34,7 +33,8 @@
 #'
 #' @return A `data.frame` with `id`, `opportunity`, `percentile`, `cutoff`
 #'   (absent with `"fixed_exponential"`) and `accessibility`, one row per
-#'   origin, opportunity, percentile and cutoff, in that order.
+#'   origin, opportunity, percentile and cutoff, in that order. With
+#'   `output_dir`, `output_dir`.
 #' @export
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -142,10 +142,14 @@ accessibility <- function(r5r_network,
     mode_list$direct_modes, mode_list$transit_mode, mode_list$egress_mode,
     decay_list$fun, decay_list$value, cutoffs_r5, percentiles,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
-    max_walk_time, max_bike_time, max_car_time, max_trip_duration, as.double(walk_speed), as.double(bike_speed),
+    max_walk_time, max_bike_time, max_car_time, max_trip_duration,
+    as.double(walk_speed), as.double(bike_speed),
     as.integer(max_lts), as.integer(max_rides), as.integer(draws_per_minute),
-    seed$has, seed$value, threads
+    seed$has, seed$value, threads,
+    csv_output(output_dir, origins, destinations,
+               opportunities = opportunities_colnames)
   ))
+  if (!is.null(output_dir)) return(output_dir)
 
   # one row per origin, opportunity, percentile and cutoff, in that order
   n_o <- nrow(origins)

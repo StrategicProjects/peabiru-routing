@@ -1,0 +1,7 @@
+walk     5 min 0.09 · 10 min 0.60 · 15 min 1.28 km²
+bicycle  5 min 0.36 · 10 min 1.40 · 15 min 3.25 km²
+car      5 min 0.79 · 10 min 5.20 · 15 min 8.52 km²
+transit  5 min 0.09 · 10 min 0.60 · 15 min 1.28 km²
+within 5 min on foot: 9.1 km of street
+within 10 min on foot: 35.3 km of street
+within 15 min on foot: 58.3 km of street

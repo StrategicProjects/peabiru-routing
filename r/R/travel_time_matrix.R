@@ -17,8 +17,7 @@
 #' car) and must stay within `max_bike_time` or `max_car_time`.
 #'
 #' Not supported yet, and an error when requested: fares (`fare_structure`,
-#' `max_fare`); scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`);
-#' `output_dir`.
+#' `max_fare`); scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`).
 #'
 #' @param r5r_network A network built with [build_network()].
 #' @param origins,destinations A `data.frame` with columns `id`, `lon` and
@@ -56,7 +55,21 @@
 #' @param n_threads The number of threads; `Inf` (the default) uses all cores.
 #' @param verbose,progress Logicals, checked as in r5r; peabiru prints no
 #'   progress counter.
-#' @param output_dir Not supported yet; must be `NULL`.
+#' @param output_dir `NULL`, or the path of an existing directory: instead of
+#'   returning the result, write it there as r5r does, one CSV file per
+#'   origin, `from_<origin id>.csv` (the id is not sanitized; an existing
+#'   file of that name is replaced, other files are left alone), and return
+#'   `output_dir`. The origins are routed a slice at a time and each slice is
+#'   written before the next one is routed, so the whole result is never held
+#'   in memory. The files are r5r's byte for byte: the columns of the result
+#'   (with `cutoff` also under `"fixed_exponential"`, as the placeholder
+#'   `0`), fields with `,` or `"` quoted, `NA` as an empty field, doubles
+#'   as Java writes them (`2.0`, `1.0E-4`); an origin with no row has no
+#'   file, except in [accessibility()]. As in r5r, `"WALK"` is then routed
+#'   from the origins even when there are fewer destinations, ids must not
+#'   be missing, and the rule that blanks out trips over
+#'   `max_trip_duration` in the returned result is not applied to the
+#'   files.
 #' @param r5r_core Deprecated: the network under the name r5r used before
 #'   version 2.3.0. As in r5r, it is accepted with a warning and used as
 #'   `r5r_network`.
@@ -64,7 +77,7 @@
 #' @return A `data.frame` with `from_id`, `to_id` and one integer column
 #'   `travel_time_pXX` per percentile (minutes). Pairs that cannot be
 #'   completed within `max_trip_duration` are not returned; a higher
-#'   percentile beyond the limit is `NA`.
+#'   percentile beyond the limit is `NA`. With `output_dir`, `output_dir`.
 #' @export
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -130,7 +143,9 @@ travel_time_matrix <- function(r5r_network,
     check_transit_availability_on_date(r5r_network, departure)
   }
 
-  swapped <- swap_od(origins, destinations, mode_list, r5r_network)
+  # as in r5r, not with output_dir: the files are named after the origins
+  # routed from
+  swapped <- is.null(output_dir) && swap_od(origins, destinations, mode_list, r5r_network)
   if (swapped) {
     temp <- origins
     origins <- destinations
@@ -159,6 +174,8 @@ travel_time_matrix <- function(r5r_network,
   check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
   pct_names <- sprintf("travel_time_p%02d", percentiles)
+  output <- csv_output(output_dir, origins, destinations,
+                       percentiles = as.integer(percentiles))
   if (mode_list$transit) {
     res <- raise_if_stopped(rs_transit_ttm(
       r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
@@ -168,15 +185,17 @@ travel_time_matrix <- function(r5r_network,
       departure$yyyymmdd, departure$seconds, as.integer(time_window),
       percentiles, max_walk_time, max_trip_duration, as.double(walk_speed),
       as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
-      threads
+      threads, output
     ))
+    if (!is.null(output_dir)) return(output_dir)
     times <- res[-(1:2)]
   } else {
     res <- raise_if_stopped(rs_street_ttm(
       r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
       mode_list$direct_modes, as.double(walk_speed), as.double(bike_speed),
-      as.integer(max_lts), max_trip_duration, threads
+      as.integer(max_lts), max_trip_duration, threads, output
     ))
+    if (!is.null(output_dir)) return(output_dir)
     # a street mode has one travel time, reported for every percentile
     times <- rep(list(res[[3]]), length(percentiles))
   }

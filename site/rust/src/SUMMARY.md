@@ -8,6 +8,7 @@
 - [Public transport matrices](transit-matrix.md)
 - [Accessibility](accessibility.md)
 - [Expanded and arrival matrices](expanded.md)
+- [Isochrones](isochrones.md)
 - [The command line](cli.md)
 - [Parity with r5r](parity.md)
 

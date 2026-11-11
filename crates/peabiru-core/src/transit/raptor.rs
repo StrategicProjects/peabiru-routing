@@ -1555,12 +1555,21 @@ mod tests {
         };
         // stops reached by a ride: 1 by bus (A), 3 by rail (B) after a
         // transfer to stop 2; the air route C is never ridden
-        assert_eq!(reached(&layer, &TransitMode::ALL), [false, true, false, true]);
-        assert_eq!(reached(&layer, &[TransitMode::Bus]), [false, true, false, false]);
+        assert_eq!(
+            reached(&layer, &TransitMode::ALL),
+            [false, true, false, true]
+        );
+        assert_eq!(
+            reached(&layer, &[TransitMode::Bus]),
+            [false, true, false, false]
+        );
         // without the bus, stop 2 (where B starts) is never reached
         assert_eq!(reached(&layer, &[TransitMode::Rail]), [false; 4]);
         layer.patterns[2].route_type = 3; // C by bus
-        assert_eq!(reached(&layer, &[TransitMode::Bus]), [false, true, false, true]);
+        assert_eq!(
+            reached(&layer, &[TransitMode::Bus]),
+            [false, true, false, true]
+        );
         layer.patterns[0].route_type = 1500;
         assert!(Filtered::new(&layer, &[true], &[TransitMode::Rail]).is_err());
     }

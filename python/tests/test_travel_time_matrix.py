@@ -224,8 +224,6 @@ def test_unsupported_options_are_errors(network, points, departure):
         call(new_carspeeds=pd.DataFrame({"osm_id": [1], "max_speed": [1]}))
     with pytest.raises(U, match="LTS.*not supported"):
         call(new_lts=pd.DataFrame({"osm_id": [1], "lts": [1]}))
-    with pytest.raises(U, match="output_dir.*not supported"):
-        call(output_dir="/tmp")
     # TRANSIT with other transit modes is all transit modes, as in r5r
     pd.testing.assert_frame_equal(
         call(mode=["walk", "TRANSIT", "BUS"], seed=1), call(mode="TRANSIT", seed=1)
