@@ -64,7 +64,7 @@ minutes for each street mode (\code{Inf}, the default, means the trip limit).}
 
 \item{max_trip_duration}{An integer, the maximum trip duration in minutes.}
 
-\item{fare_structure}{A fare structure (see \code{\link[r5r:setup_fare_structure]{setup_fare_structure()}});
+\item{fare_structure}{A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}});
 required.}
 
 \item{fare_cutoffs}{A numeric vector, required: the fare cutoffs, at

@@ -327,9 +327,6 @@ check_max_lts <- function(max_lts) {
   invisible(TRUE)
 }
 
-  invisible(TRUE)
-}
-
 # r5r set_output_dir(): checkmate::assert_string() and
 # checkmate::assert_directory_exists()
 check_output_dir <- function(output_dir) {

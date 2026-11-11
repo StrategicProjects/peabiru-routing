@@ -7,7 +7,7 @@
 write_fare_structure(fare_structure, file_path)
 }
 \arguments{
-\item{fare_structure}{A fare structure (see \code{\link[r5r:setup_fare_structure]{setup_fare_structure()}}).}
+\item{fare_structure}{A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}).}
 
 \item{file_path}{A path to a \code{.zip} file.}
 }

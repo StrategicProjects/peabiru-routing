@@ -36,7 +36,7 @@ A fare structure (a list, see Details).
 \description{
 Creates a basic fare structure that describes how transit fares should be
 calculated in \code{\link[=travel_time_matrix]{travel_time_matrix()}}, \code{\link[=accessibility]{accessibility()}},
-\code{\link[=detailed_itineraries]{detailed_itineraries()}} and \code{\link[r5r:pareto_frontier]{pareto_frontier()}}, as r5r's
+\code{\link[=detailed_itineraries]{detailed_itineraries()}} and \code{\link[=pareto_frontier]{pareto_frontier()}}, as r5r's
 \code{setup_fare_structure()}: every route, fare type and transfer costs
 \code{base_fare}, read as a Java \code{float} as in r5r. The structure can then be
 edited to follow the fare rules of the study area.

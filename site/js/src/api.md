@@ -17,7 +17,7 @@ function returns a Promise; options are the fields of an options object.
 | Points, dates and shared options | [`Points`](#Points), [`Numbers`](#Numbers), [`DateTime`](#DateTime), [`RoutingOptions`](#RoutingOptions) |
 | Missing values and errors | [`NA_INT32`](#NA_INT32), [`UnsupportedError`](#UnsupportedError) |
 | Loading the module and versions | [`init`](#init), [`initSync`](#initSync), [`InitInput`](#InitInput), [`coreVersion`](#coreVersion), [`version`](#version) |
-| Other declarations | [`ScenarioTable`](#ScenarioTable), [`GeoJsonFeatureCollection`](#GeoJsonFeatureCollection), [`DetailedItinerariesOptions`](#DetailedItinerariesOptions), [`ItineraryRow`](#ItineraryRow), [`ItineraryFeature`](#ItineraryFeature), [`detailedItineraries`](#detailedItineraries) |
+| Other declarations | [`ScenarioTable`](#ScenarioTable), [`GeoJsonFeatureCollection`](#GeoJsonFeatureCollection), [`DetailedItinerariesOptions`](#DetailedItinerariesOptions), [`ItineraryRow`](#ItineraryRow), [`ItineraryFeature`](#ItineraryFeature), [`detailedItineraries`](#detailedItineraries), [`FareStructure`](#FareStructure), [`SetupFareStructureOptions`](#SetupFareStructureOptions), [`setupFareStructure`](#setupFareStructure), [`readFareStructure`](#readFareStructure), [`writeFareStructure`](#writeFareStructure), [`ParetoFrontierOptions`](#ParetoFrontierOptions), [`ParetoFrontierTable`](#ParetoFrontierTable), [`paretoFrontier`](#paretoFrontier) |
 
 ## Networks
 

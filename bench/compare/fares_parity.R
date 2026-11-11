@@ -127,6 +127,10 @@ for (city in cities) {
   both(paste(city, "ttm route fares"), "travel_time_matrix", o, d, mode = M, departure_datetime = t14, fare_structure = fs_route, max_fare = 5.2, draws_per_minute = 1, seed = sd)
   both(paste(city, "ttm WALK with fares"), "travel_time_matrix", o, d, mode = "WALK", departure_datetime = t14, fare_structure = fs, max_fare = 5)
   both(paste(city, "ttm 200 draws"), "travel_time_matrix", o, d, mode = M, departure_datetime = t14, fare_structure = fs, time_window = 40, draws_per_minute = 5)
+  # with the speed and LTS scenarios of the street search
+  lts <- data.frame(osm_id = sample(r5r::street_network_to_sf(rn)$edges$osm_id, 300), lts = sample(1:4, 300, TRUE))
+  both(paste(city, "ttm car access, carspeed_scale 0.7"), "travel_time_matrix", o, d, mode = c("CAR", "TRANSIT"), departure_datetime = t14, fare_structure = fs, max_fare = 7.2, draws_per_minute = 1, seed = sd, carspeed_scale = 0.7, max_car_time = 20)
+  both(paste(city, "ttm bicycle access, new_lts"), "travel_time_matrix", o, d, mode = c("BICYCLE", "TRANSIT"), departure_datetime = t14, fare_structure = fs, max_fare = 4.8, draws_per_minute = 1, seed = sd, new_lts = lts, max_lts = 3)
   missing <- edit(fs, s$fares_per_route <- s$fares_per_route[-1])
   both(paste(city, "ttm route missing from the structure"), "travel_time_matrix", o, d, mode = M, departure_datetime = t14, fare_structure = missing)
   d2 <- copy(d); d2$jobs <- round(runif(nrow(d2), 0, 50)); d2$schools <- rpois(nrow(d2), 2)
@@ -141,6 +145,7 @@ for (city in cities) {
   both(paste(city, "itineraries, alternatives"), "detailed_itineraries", oo, dd, mode = M, departure_datetime = t14, shortest_path = FALSE, drop_geometry = TRUE)
   both(paste(city, "itineraries, suboptimal 5, geometry"), "detailed_itineraries", oo, dd, mode = M, departure_datetime = t1430, shortest_path = FALSE, suboptimal_minutes = 5, time_window = 15)
   both(paste(city, "itineraries, bicycle, suboptimal 10"), "detailed_itineraries", oo, dd, mode = c("BICYCLE", "TRANSIT"), departure_datetime = t14, shortest_path = FALSE, suboptimal_minutes = 10, max_bike_time = 15, drop_geometry = TRUE)
+  if (city != "spo") both(paste(city, "itineraries, bicycle, new_lts, alternatives"), "detailed_itineraries", oo, dd, mode = c("BICYCLE", "TRANSIT"), departure_datetime = t14, shortest_path = FALSE, max_bike_time = 15, new_lts = lts, max_lts = 3, fare_structure = fs, drop_geometry = TRUE)
   both(paste(city, "itineraries, fare cap, geometry"), "detailed_itineraries", oo, dd, mode = M, departure_datetime = t14, fare_structure = fs_cap, shortest_path = FALSE)
 }
 cat(sprintf("\n%d identical (or both errors), %d different; %d rows compared\n", ok, bad, rows))

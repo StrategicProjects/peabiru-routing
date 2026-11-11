@@ -13,10 +13,10 @@ read_fare_structure(file_path, encoding = "UTF-8")
 \code{"Latin-1"}: how the text of the files is read.}
 }
 \value{
-A fare structure (see \code{\link[r5r:setup_fare_structure]{setup_fare_structure()}}).
+A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}).
 }
 \description{
-Reads a fare structure written by \code{\link[r5r:write_fare_structure]{write_fare_structure()}} or by r5r's,
+Reads a fare structure written by \code{\link[=write_fare_structure]{write_fare_structure()}} or by r5r's,
 as r5r's \code{read_fare_structure()} does (\code{data.table::fread()} with the
 columns and types r5r selects).
 }

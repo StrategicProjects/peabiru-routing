@@ -84,7 +84,7 @@ every destination (\code{TRUE}) or pair them row by row (\code{FALSE}, the
 default; a single origin or destination is repeated to match the
 other).}
 
-\item{fare_structure}{A fare structure (see \code{\link[r5r:setup_fare_structure]{setup_fare_structure()}}) or
+\item{fare_structure}{A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}) or
 \code{NULL} (the default): no fares. It must have a row for every route of
 the network, as in r5r; R5's own fare calculators (a structure with a
 \code{type}) are not supported.}
@@ -176,10 +176,8 @@ fastest of each), up to \code{suboptimal_minutes} slower than the best. With a
 columns.
 }
 \details{
-Not supported yet, and an error: \code{shortest_path = FALSE} with public
-transport (r5r routes it with R5's McRAPTOR), \code{osm_link_ids = TRUE},
-\code{output_dir} with the geometry (r5r writes JTS's WKT text; use
-\code{drop_geometry = TRUE}) and fares. As in r5r, networks
+Not supported yet, and an error: \code{osm_link_ids = TRUE} and \code{output_dir}
+with the geometry (r5r writes JTS's WKT text; use \code{drop_geometry = TRUE}). As in r5r, networks
 whose GTFS has frequency-based trips cannot be used with public
 transport. A car trip whose egress search crosses a turn restriction
 with two or more via ways is an error too (R5 changes the restriction

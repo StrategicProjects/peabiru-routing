@@ -427,8 +427,6 @@ def check_max_lts(max_lts: Any) -> None:
         )
 
 
-
-
 def check_output_dir(output_dir: Any) -> Optional[str]:
     """r5r set_output_dir(): checkmate::assert_string() and
     checkmate::assert_directory_exists(). A string or a path-like object;
