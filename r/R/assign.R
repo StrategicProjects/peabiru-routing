@@ -332,11 +332,19 @@ check_draws <- function(draws_per_minute, time_window = 1L, mcraptor = FALSE) {
   if (mcraptor) {
     draws <- as.integer(time_window * draws_per_minute)
     if (draws == 200L) {
-      stop("A 'time_window' of ", time_window, " minutes with ", draws_per_minute,
-           " draw(s) per minute gives exactly 200 Monte Carlo draws, which R5's ",
-           "McRaptor algorithm does not accept. Use a slightly different ",
-           "'time_window', e.g. ", time_window + 1, ". See ",
-           "https://github.com/ipea/r5r/issues/602.", call. = FALSE)
+      # r5r's cli_abort(class = "r5r_200_draws")
+      stop(structure(class = c("r5r_200_draws", "error", "condition"), list(
+        message = cli_text(paste0(
+          "A `time_window` of ", time_window, " minutes with ", draws_per_minute,
+          if (draws_per_minute == 1) " draw" else " draws",
+          " per minute gives exactly 200 Monte Carlo draws, which R5's McRaptor ",
+          "algorithm does not accept."
+        ), c(i = paste0(
+          "Use a slightly different `time_window`, e.g. ", time_window + 1,
+          ". See <https://github.com/ipea/r5r/issues/602>."
+        ))),
+        call = NULL
+      )))
     }
     m <- 60 %/% draws_per_minute
     mu <- (m - 1) / 2 + m %/% 2
@@ -345,11 +353,15 @@ check_draws <- function(draws_per_minute, time_window = 1L, mcraptor = FALSE) {
     z <- ((span - (m - 1) / 2) / mu + 1 - draws) / sd
     p <- if (m < 2) 0 else exp(-z^2 / 2) / sqrt(2 * pi) / sd
     if (p < 5e-5) {
-      stop("'draws_per_minute' = ", draws_per_minute, " with a 'time_window' of ",
-           time_window, " minutes is not supported with a 'fare_structure'. R5's ",
-           "McRaptor algorithm cannot sample this many departure times and could ",
-           "run indefinitely. Use a lower 'draws_per_minute' or a shorter ",
-           "'time_window'. See https://github.com/ipea/r5r/issues/602.", call. = FALSE)
+      cli_abort_text(paste0(
+        "`draws_per_minute` = ", draws_per_minute, " with a `time_window` of ",
+        time_window, " minutes is not supported with a `fare_structure`."
+      ), c(
+        i = paste0("R5's McRaptor algorithm cannot sample this many departure times ",
+                   "and could run indefinitely."),
+        i = paste0("Use a lower `draws_per_minute` or a shorter `time_window`. See ",
+                   "<https://github.com/ipea/r5r/issues/602>.")
+      ))
     }
   }
   invisible(TRUE)

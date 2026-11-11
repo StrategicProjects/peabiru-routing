@@ -80,23 +80,13 @@ setup_fare_structure <- function(r5r_network,
     warn_r5r_core()
     r5r_network <- r5r_core
   }
+  # r5r's checks, in its order (R/fare_structure.R)
   assert_network(r5r_network)
-  if (!is.numeric(base_fare) || length(base_fare) != 1L) {
-    fail_assert("base_fare", "Must have length 1")
-  }
-  if (is.na(base_fare)) fail_assert("base_fare", "Contains missing values (element 1)")
-  if (base_fare < 0) fail_assert("base_fare", "Element 1 is not >= 0")
+  cm_assert(check_numeric(base_fare, lower = 0, len = 1, any.missing = FALSE), "base_fare")
   by_options <- c("MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC")
-  assert_string(by, "by")
   by <- toupper(by)
-  if (!by %in% by_options) {
-    fail_assert("by", paste0("Must be a subset of {'", paste(by_options, collapse = "','"),
-                             "'}, but has additional elements {'", by, "'}"))
-  }
-  assert_string(debug_path, "debug_path", null_ok = TRUE)
-  if (!is.null(debug_path) && !grepl("\\.csv$", debug_path)) {
-    fail_assert("debug_path", "Must comply to pattern '\\.csv$'")
-  }
+  cm_assert_and("by", check_string(by), check_names(by, subset.of = by_options))
+  cm_assert(check_string_pattern(debug_path, "\\.csv$", null.ok = TRUE), "debug_path")
   if (is.null(debug_path) && !is.null(debug_info)) {
     stop("Please specify a file to write debug info to with 'debug_path'.", call. = FALSE)
   } else if (!is.null(debug_path) && is.null(debug_info)) {
@@ -105,14 +95,23 @@ setup_fare_structure <- function(r5r_network,
   assert_string(debug_info, "debug_info", null_ok = TRUE)
   if (!is.null(debug_info)) {
     debug_info <- toupper(debug_info)
-    if (!debug_info %in% c("MODE", "ROUTE", "MODE_ROUTE")) {
-      fail_assert("debug_info", paste0(
-        "Must be a subset of {'MODE','ROUTE','MODE_ROUTE'}, but has additional elements {'",
-        debug_info, "'}"
-      ))
-    }
+    cm_assert(check_names(debug_info, subset.of = c("MODE", "ROUTE", "MODE_ROUTE")),
+              "debug_info")
   }
-  fs <- fare_object(rs_setup_fare_structure(r5r_network$ptr, as.double(base_fare), by))
+  # R5 reads base_fare as a Java float: past the float range it is
+  # Infinity, which r5r's JSON round trip hands back as the text "Infinity"
+  infinite <- base_fare >= 3.4028235677973366e38
+  fs <- fare_object(rs_setup_fare_structure(r5r_network$ptr,
+                                            if (infinite) 0 else as.double(base_fare), by))
+  if (infinite) {
+    text <- function(df, col) {
+      if (nrow(df) > 0) df[[col]] <- rep("Infinity", nrow(df))
+      df
+    }
+    fs$fares_per_type <- text(fs$fares_per_type, "fare")
+    fs$fares_per_transfer <- text(fs$fares_per_transfer, "fare")
+    fs$fares_per_route <- text(fs$fares_per_route, "route_fare")
+  }
   fs$debug_settings <- if (!is.null(debug_path)) {
     list(output_file = debug_path, trip_info = debug_info)
   } else {
@@ -142,10 +141,7 @@ setup_fare_structure <- function(r5r_network,
 #' write_fare_structure(fare_structure, tmpfile)
 #' @export
 write_fare_structure <- function(fare_structure, file_path) {
-  assert_string(file_path, "file_path", null_ok = TRUE)
-  if (!is.null(file_path) && !grepl("\\.zip$", file_path)) {
-    fail_assert("file_path", "Must comply to pattern '\\.zip$'")
-  }
+  cm_assert(check_string_pattern(file_path, "\\.zip$", null.ok = TRUE), "file_path")
   global <- list(
     setting = c("max_discounted_transfers", "transfer_time_allowance", "fare_cap"),
     value = c(fare_structure$max_discounted_transfers,
@@ -185,21 +181,11 @@ write_fare_structure <- function(fare_structure, file_path) {
 #' fare_structure$transfer_time_allowance
 #' @export
 read_fare_structure <- function(file_path, encoding = "UTF-8") {
-  if (!is.character(file_path) || length(file_path) != 1L || is.na(file_path)) {
-    fail_assert("file_path", "Must be of type 'character'")
-  }
-  if (!file.exists(file_path) || dir.exists(file_path)) {
-    fail_assert("file_path", paste0("File does not exist: '", file_path, "'"))
-  }
-  if (!grepl("\\.zip$", file_path, ignore.case = TRUE)) {
-    fail_assert("file_path", "File extension must be in {'zip'}")
-  }
-  assert_string(encoding, "encoding")
-  if (!encoding %in% c("unknown", "UTF-8", "Latin-1")) {
-    fail_assert("encoding", paste0(
-      "Must be a subset of {'unknown','UTF-8','Latin-1'}, but has additional elements {'",
-      encoding, "'}"
-    ))
+  cm_assert(check_file_exists(file_path, extension = "zip"), "file_path")
+  cm_assert_and("encoding", check_string(encoding),
+                check_names(encoding, subset.of = c("unknown", "UTF-8", "Latin-1")))
+  if (length(file_path) > 1L) {
+    stop("'file_path' names more than one file (r5r fails unzipping them).", call. = FALSE)
   }
   bytes <- readBin(file_path, "raw", file.info(file_path)$size)
   fs <- fare_object(rs_read_fare_structure(bytes, encoding))
@@ -217,28 +203,68 @@ read_fare_structure <- function(file_path, encoding = "UTF-8") {
   fs
 }
 
-# r5r's assert_fare_structure() (R/fare_structure.R): the element names in
-# R; the values and tables in the core, which reports the same problems.
+# r5r's assert_fare_structure() (R/fare_structure.R), check by check and in
+# its order. r5r checks the tables with checkmate's expect_*(), which raise
+# testthat's "expectation_failure" condition outside a test.
 assert_fare_structure <- function(fare_structure) {
-  if (!is.list(fare_structure) || anyNA(fare_structure)) {
-    fail_assert("fare_structure", "Must be of type 'list'")
-  }
-  if ("type" %in% names(fare_structure)) {
+  fs <- fare_structure
+  cm_assert(check_list_cm(fs, any.missing = FALSE), "fare_structure")
+  if ("type" %in% names(fs)) {
     unsupported("A fare calculator of R5 (a fare structure with a 'type')")
   }
   element_names <- c("max_discounted_transfers", "transfer_time_allowance", "fare_cap",
                      "fares_per_type", "fares_per_transfer", "fares_per_route",
                      "debug_settings")
-  nm <- names(fare_structure)
-  if (is.null(nm) || anyDuplicated(nm) || !all(element_names %in% nm) ||
-      !all(nm %in% element_names)) {
-    fail_assert("names(fare_structure)", paste0(
-      "Must have exactly the names {'", paste(element_names, collapse = "','"), "'}"
-    ))
-  }
+  cm_assert(check_names(names(fs), type = "unique", must.include = element_names,
+                        subset.of = element_names), "names(fare_structure)")
   for (n in c("max_discounted_transfers", "transfer_time_allowance", "fare_cap")) {
-    assert_number(fare_structure[[n]], paste0("fare_structure$", n), lower = 0)
+    cm_assert(check_number(fs[[n]], lower = 0), paste0("fare_structure$", n))
   }
+  at <- function(tbl, col) paste0("fare_structure$", tbl, "$", col)
+  types <- fs$fares_per_type
+  cm_expect(check_data_frame_cm(types), "fare_structure$fares_per_type")
+  cm_expect(check_character(types$type, any.missing = FALSE, unique = TRUE),
+            at("fares_per_type", "type"))
+  for (col in c("unlimited_transfers", "allow_same_route_transfer", "use_route_fare")) {
+    cm_expect(check_logical(types[[col]], any.missing = FALSE), at("fares_per_type", col))
+  }
+  cm_expect(check_numeric(types$fare, any.missing = FALSE, lower = 0, finite = TRUE),
+            at("fares_per_type", "fare"))
+  tr <- fs$fares_per_transfer
+  cm_expect(check_data_frame_cm(tr), "fare_structure$fares_per_transfer")
+  if (length(names(tr)) > 0) {
+    for (col in c("first_leg", "second_leg")) {
+      cm_expect(check_character(tr[[col]], any.missing = FALSE), at("fares_per_transfer", col))
+      cm_assert(check_names(tr[[col]], subset.of = unique(types$type)),
+                at("fares_per_transfer", col))
+    }
+    cm_expect(check_numeric(tr$fare, any.missing = FALSE, lower = 0, finite = TRUE),
+              at("fares_per_transfer", "fare"))
+  }
+  rt <- fs$fares_per_route
+  cm_expect(check_data_frame_cm(rt), "fare_structure$fares_per_route")
+  for (col in c("agency_id", "agency_name", "route_id", "route_short_name",
+                "route_long_name", "mode")) {
+    cm_expect(check_character(rt[[col]], any.missing = FALSE), at("fares_per_route", col))
+  }
+  cm_expect(check_numeric(rt$route_fare, any.missing = FALSE, lower = 0, finite = TRUE),
+            at("fares_per_route", "route_fare"))
+  cm_expect(check_character(rt$fare_type, any.missing = FALSE),
+            at("fares_per_route", "fare_type"))
+  cm_assert(check_names(rt$fare_type, subset.of = unique(types$type)),
+            at("fares_per_route", "fare_type"))
+  debug_elements <- c("output_file", "trip_info")
+  cm_assert(check_list_cm(fs$debug_settings), "fare_structure$debug_settings")
+  cm_assert(check_names(names(fs$debug_settings), type = "unique",
+                        must.include = debug_elements, subset.of = debug_elements),
+            "names(fare_structure$debug_settings)")
+  cm_assert(check_string(fs$debug_settings$output_file),
+            "fare_structure$debug_settings$output_file")
+  cm_assert(check_string(fs$debug_settings$trip_info),
+            "fare_structure$debug_settings$trip_info")
+
+  # past r5r's checks, R5 reads the structure in Java (Jackson), which fails
+  # on a column it does not know
   columns <- list(
     fares_per_type = c("type", "unlimited_transfers", "allow_same_route_transfer",
                        "use_route_fare", "fare"),
@@ -247,29 +273,68 @@ assert_fare_structure <- function(fare_structure) {
                         "route_long_name", "mode", "route_fare", "fare_type")
   )
   for (n in names(columns)) {
-    if (!is.data.frame(fare_structure[[n]])) {
-      stop("Check on 'fare_structure$", n, "' failed: Must be a data.frame",
-           call. = FALSE)
-    }
-    # r5r hands the columns to Java, which fails on a column it does not know
-    extra <- setdiff(names(fare_structure[[n]]), columns[[n]])
+    extra <- setdiff(names(fs[[n]]), columns[[n]])
     if (length(extra) > 0) {
       stop("fare_structure$", n, " has column(s) r5r cannot read: ",
            paste0("'", extra, "'", collapse = ", "),
            " (r5r fails reading the structure in Java).", call. = FALSE)
     }
   }
-  if (!is.list(fare_structure$debug_settings) ||
-      !setequal(names(fare_structure$debug_settings), c("output_file", "trip_info")) ||
-      length(names(fare_structure$debug_settings)) != 2L) {
-    fail_assert("fare_structure$debug_settings",
-                "Must have exactly the names {'output_file','trip_info'}")
-  }
-  assert_string(fare_structure$debug_settings$output_file,
-                "fare_structure$debug_settings$output_file")
-  assert_string(fare_structure$debug_settings$trip_info,
-                "fare_structure$debug_settings$trip_info")
   invisible(TRUE)
+}
+
+# checkmate's expect_*(): outside a test, testthat signals the failure as an
+# error of class "expectation_failure" with this message
+cm_expect <- function(res, name) {
+  if (!isTRUE(res)) {
+    stop(structure(
+      class = c("expectation_failure", "expectation", "error", "condition"),
+      list(message = sprintf("Check on '%s' failed: %s", name, res), call = NULL)
+    ))
+  }
+  invisible(TRUE)
+}
+
+# checkmate::check_list(): a list that is not a data.frame
+check_list_cm <- function(x, any.missing = TRUE) {
+  if (!is.list(x) || is.data.frame(x)) return(cm_type_msg(x, "list"))
+  cm_check_missings(x, any.missing = any.missing)
+}
+
+# checkmate::check_data_frame()
+check_data_frame_cm <- function(x) {
+  if (!is.data.frame(x)) return(cm_type_msg(x, "data.frame"))
+  TRUE
+}
+
+# checkmate::check_string(pattern = ): the string checks, then the pattern
+check_string_pattern <- function(x, pattern, null.ok = FALSE) {
+  r <- check_string(x, null.ok = null.ok)
+  if (!isTRUE(r)) return(r)
+  if (!is.null(x) && !all(grepl(pattern, x[!is.na(x)]))) {
+    return(sprintf("Must comply to pattern '%s'", pattern))
+  }
+  TRUE
+}
+
+# checkmate::check_file_exists(extension = ): S+, directory, existence, then
+# the extension (case insensitive)
+check_file_exists <- function(x, extension = NULL) {
+  if (!(is.character(x) && length(x) >= 1L && !anyNA(x))) return("No file provided")
+  w <- which(dir.exists(x))
+  if (length(w)) return(sprintf("File expected, but directory in place: '%s'", x[w[1L]]))
+  w <- which(!file.exists(x))
+  if (length(w)) return(sprintf("File does not exist: '%s'", x[w[1L]]))
+  if (!is.null(extension)) {
+    ii <- Reduce(`|`, lapply(tolower(extension), endsWith, x = tolower(x)))
+    if (!all(ii)) {
+      return(sprintf(
+        "File extension must be in {'%s'} (case insensitive), but file name is '%s'",
+        paste0(extension, collapse = "','"), x[which(!ii)[1L]]
+      ))
+    }
+  }
+  TRUE
 }
 
 # r5r's set_fare_structure() and set_max_fare(): the structure is checked
@@ -282,10 +347,12 @@ check_fares <- function(fare_structure, max_fare, r5r_network) {
   }
   assert_number(max_fare, "max_fare", lower = 0)
   if (is.finite(max_fare) && is.null(fare_structure)) {
-    stop("'max_fare' requires a 'fare_structure': 'max_fare' is ", max_fare,
-         " but 'fare_structure' is NULL, so no fares are calculated and the ",
-         "limit would be ignored. Pass a fare structure (see ",
-         "setup_fare_structure()) or leave 'max_fare' as Inf.", call. = FALSE)
+    cli_abort_text("`max_fare` requires a `fare_structure`.", c(
+      x = paste0("`max_fare` is ", cli_val(max_fare), " but `fare_structure` is `NULL`, ",
+                 "so no fares are calculated and the limit would be ignored."),
+      i = paste0("Pass a fare structure (see `setup_fare_structure()`) or leave ",
+                 "`max_fare` as ", cli_val(Inf), ".")
+    ))
   }
   invisible(TRUE)
 }
@@ -362,15 +429,21 @@ pareto_frontier <- function(r5r_network,
     r5r_network <- r5r_core
   }
   if (missing(fare_structure) || is.null(fare_structure)) {
-    stop("'fare_structure' is required. Create one with setup_fare_structure() ",
-         "or read_fare_structure().", call. = FALSE)
+    cli_abort_text("`fare_structure` is required.", c(
+      i = "Create one with `setup_fare_structure()` or `read_fare_structure()`."
+    ))
   }
   if (missing(fare_cutoffs)) {
-    stop("'fare_cutoffs' is required. Pass the monetary cutoffs of the ",
-         "frontier, e.g. the fares of your 'fare_structure'.", call. = FALSE)
+    cli_abort_text("`fare_cutoffs` is required.", c(
+      i = "Pass the monetary cutoffs of the frontier, e.g. the fares of your `fare_structure`."
+    ))
   }
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
+  if (anyNA(destinations$id)) {
+    stop("'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing ",
+         "destination id in Java).", call. = FALSE)
+  }
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)
 
@@ -387,7 +460,10 @@ pareto_frontier <- function(r5r_network,
   )
 
   assert_count(time_window, "time_window", positive = TRUE)
-  percentiles <- assign_percentiles(percentiles)
+  # r5r's set_percentiles(): no shortest length (an empty frontier then)
+  assert_integerish(percentiles, "percentiles", lower = 1, upper = 99, max_len = 5,
+                    unique = TRUE)
+  percentiles <- sort(as.integer(percentiles))
   check_draws(1L, time_window, mcraptor = mode_list$transit)
   seed <- seed_args(seed)
   check_speed(walk_speed, "walk")
@@ -400,6 +476,10 @@ pareto_frontier <- function(r5r_network,
   check_output_dir(output_dir)
   if (!is.null(output_dir)) unsupported("'output_dir' in pareto_frontier()")
   check_fare_cutoffs(fare_cutoffs)
+  if (length(percentiles) == 0L) {
+    return(new_df(list(from_id = character(), to_id = character(), percentile = integer(),
+                       travel_time = integer(), monetary_cost = numeric())))
+  }
 
   res <- raise_if_stopped(rs_pareto_frontier(
     r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
@@ -424,10 +504,7 @@ pareto_frontier <- function(r5r_network,
 # r5r set_fare_cutoffs(): checkmate::assert_numeric(lower = 0, any.missing =
 # FALSE, min.len = 1, unique = TRUE)
 check_fare_cutoffs <- function(fare_cutoffs) {
-  if (!is.numeric(fare_cutoffs)) fail_assert("fare_cutoffs", "Must be of type 'numeric'")
-  if (length(fare_cutoffs) < 1L) fail_assert("fare_cutoffs", "Must have length >= 1, but has length 0")
-  if (anyNA(fare_cutoffs)) fail_assert("fare_cutoffs", "Contains missing values")
-  if (any(fare_cutoffs < 0)) fail_assert("fare_cutoffs", "Element is not >= 0")
-  if (anyDuplicated(fare_cutoffs)) fail_assert("fare_cutoffs", "Contains duplicated values")
+  cm_assert(check_numeric(fare_cutoffs, lower = 0, any.missing = FALSE, min.len = 1,
+                          unique = TRUE), "fare_cutoffs")
   invisible(TRUE)
 }

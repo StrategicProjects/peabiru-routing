@@ -316,14 +316,20 @@ cm_subset_internal <- function(x, choices, what = NULL) {
   TRUE
 }
 
-# checkmate::check_names(x, type = "named", subset.of =, must.include =)
-check_names <- function(x, subset.of = NULL, must.include = NULL, what = "names") {
+# checkmate::check_names(x, type = "named" or "unique", subset.of =,
+# must.include =)
+check_names <- function(x, subset.of = NULL, must.include = NULL, what = "names",
+                        type = "named") {
   if (!(is.character(x) || is.null(x))) return("Must be a character vector")
   if (is.null(x)) return(sprintf("Must have %s", what))
   pos <- which(is.na(x))
   if (length(pos)) return(sprintf("Must have %s, but is NA at position %i", what, pos[1L]))
   pos <- which(nchar(x) < 1L)
   if (length(pos)) return(sprintf("Must have %s, but element %i is empty", what, pos[1L]))
+  if (type == "unique") {
+    pos <- anyDuplicated(x)
+    if (pos > 0L) return(sprintf("Must have unique %s, but element %i is duplicated", what, pos))
+  }
   if (!is.null(subset.of)) {
     r <- cm_subset_internal(x, subset.of, what)
     if (!isTRUE(r)) return(r)

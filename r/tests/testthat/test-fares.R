@@ -22,6 +22,8 @@ test_that("setup_fare_structure() builds r5r's object", {
   expect_error(setup_fare_structure(net, -1), ">= 0")
   expect_error(setup_fare_structure(net, 1, by = "ROUTE"), "subset")
   expect_error(setup_fare_structure(net, 1, debug_info = "MODE"), "debug_path")
+  # past the float range R5 reads Infinity, and r5r hands back its text
+  expect_identical(unique(setup_fare_structure(net, Inf)$fares_per_type$fare), "Infinity")
 })
 
 test_that("write_fare_structure() and read_fare_structure() round-trip", {
@@ -59,16 +61,16 @@ test_that("fare structures are checked as r5r checks them", {
   expect_error(ttm(missing_route), "no row for agency_id")
   na_fare <- fs
   na_fare$fares_per_type$fare <- NA_real_
-  expect_error(ttm(na_fare), "fares must be finite")
+  expect_error(ttm(na_fare), "Contains missing values", class = "expectation_failure")
   unknown_type <- fs
   unknown_type$fares_per_route$fare_type[1] <- "NOPE"
-  expect_error(ttm(unknown_type), "not a type")
+  expect_error(ttm(unknown_type), "must be a subset of")
   expect_error(ttm(fs[-1]), "names")
   extra <- fs
   extra$fares_per_route$note <- "x"
   expect_error(ttm(extra), "cannot read")
   expect_error(ttm(list(type = "boston")), "not supported")
-  expect_error(ttm(fs, time_window = 40), "200 Monte Carlo draws")
+  expect_error(ttm(fs, time_window = 40), class = "r5r_200_draws")
   expect_error(ttm(fs, max_fare = -1), ">= 0")
   # the structure is read in even for a street-only trip, as in r5r
   expect_error(travel_time_matrix(net, pts, pts, mode = "WALK", fare_structure = missing_route),
