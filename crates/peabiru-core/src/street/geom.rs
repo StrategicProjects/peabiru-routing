@@ -1,7 +1,5 @@
 //! Geometry helpers reproducing R5's arithmetic (Java `double`, `(int)` casts).
 
-/// Radius used for edge lengths (R5 `GeometryUtils.RADIUS_OF_EARTH_M`).
-pub const RADIUS_OF_EARTH_M: f64 = 6_367_450.0;
 /// Radius and correction used by R5's equirectangular `fastDistance`.
 const FAST_RADIUS_M: f64 = 6371.01 * 1000.0;
 const MAX_ERR_INV: f64 = 0.999462;
@@ -30,16 +28,13 @@ pub fn vertex_fixed(node_fixed: i32) -> i32 {
     java_int((f64::from(node_fixed) / FIXED_FACTOR) * FIXED_FACTOR)
 }
 
-/// Haversine distance in metres (R5 `GeometryUtils.distance`).
+/// Haversine distance in metres (R5 `GeometryUtils.distance`), with
+/// commons-math's `FastMath` as R5 computes it (the same bits on every
+/// platform; the system's `sin`, `cos` and `asin` differ in the last bit
+/// from one to another, which could move a length truncated to the
+/// millimetre).
 pub fn haversine_m(lat0: f64, lon0: f64, lat1: f64, lon1: f64) -> f64 {
-    let t0 = lat0.to_radians();
-    let t1 = lat1.to_radians();
-    let l0 = lon0.to_radians();
-    let l1 = lon1.to_radians();
-    let st = ((t1 - t0) / 2.0).sin();
-    let sl = ((l1 - l0) / 2.0).sin();
-    let under = st * st + t0.cos() * t1.cos() * (sl * sl);
-    2.0 * RADIUS_OF_EARTH_M * under.sqrt().asin()
+    crate::fastmath_trig::haversine_m(lat0, lon0, lat1, lon1)
 }
 
 /// Equirectangular distance in metres (R5 `SphericalDistanceLibrary.fastDistance`),
@@ -176,7 +171,7 @@ mod tests {
     #[test]
     fn haversine_one_degree_of_latitude() {
         let d = haversine_m(0.0, 0.0, 1.0, 0.0);
-        assert!((d - RADIUS_OF_EARTH_M * std::f64::consts::PI / 180.0).abs() < 1e-6);
+        assert!((d - 6_367_450.0 * std::f64::consts::PI / 180.0).abs() < 1e-6);
     }
 
     #[test]
