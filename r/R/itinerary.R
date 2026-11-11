@@ -10,8 +10,7 @@
 #'
 #' Not supported yet, and an error: `shortest_path = FALSE` with public
 #' transport (r5r routes it with R5's McRAPTOR), `osm_link_ids = TRUE`,
-#' `output_dir` with the geometry (r5r writes JTS's WKT text; use
-#' `drop_geometry = TRUE`), fares and scenarios. As in r5r, networks
+#' fares and scenarios. As in r5r, networks
 #' whose GTFS has frequency-based trips cannot be used with public
 #' transport. A car trip whose egress search crosses a turn restriction
 #' with two or more via ways is an error too (R5 changes the restriction
@@ -37,7 +36,9 @@
 #'   `total_duration` (minutes), `total_distance` (metres), `segment`,
 #'   `mode`, `segment_duration`, `wait` (minutes), `distance` (metres) and
 #'   `route`. Pairs without an itinerary have no rows. With `output_dir`,
-#'   `output_dir`.
+#'   one CSV file per pair with itineraries is written,
+#'   `from_<origin id>_to_<destination id>.csv`, byte for byte as r5r writes
+#'   it (the geometry as r5r's WKT text), and `output_dir` is returned.
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -152,11 +153,7 @@ detailed_itineraries <- function(r5r_network,
   if (!shortest_path && mode_list$transit) {
     unsupported("'shortest_path = FALSE' with public transport (McRAPTOR)")
   }
-  if (!is.null(output_dir) && !drop_geometry) {
-    unsupported("'output_dir' with the geometry (JTS's WKT text)",
-                "; use 'drop_geometry = TRUE'")
-  }
-  if (!drop_geometry && !requireNamespace("sf", quietly = TRUE)) {
+  if (is.null(output_dir) && !drop_geometry && !requireNamespace("sf", quietly = TRUE)) {
     stop("Package 'sf' is needed for the geometry of detailed itineraries; ",
          "install it or use 'drop_geometry = TRUE'.", call. = FALSE)
   }

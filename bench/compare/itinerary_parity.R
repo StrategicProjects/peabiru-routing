@@ -86,6 +86,44 @@ for (city in cities) {
                     if (ok) "identical" else "DIFFERENT"))
     if (!ok) print(all.equal(q, r))
   }
+  # output_dir: every file byte for byte, with and without the geometry
+  # (ids with commas and spaces, which r5r allows in file names)
+  files <- list(
+    walk = list(mode = "WALK"),
+    bike = list(mode = "BICYCLE", max_lts = 3),
+    car = list(mode = "CAR"),
+    car_nogeom = list(mode = "CAR", drop_geometry = TRUE)
+  )
+  if (city == "poa") {
+    files <- c(files, list(
+      transit = list(mode = c("WALK", "TRANSIT")),
+      bus_bike = list(mode = c("BICYCLE", "BUS"), max_bike_time = 15)
+    ))
+  }
+  for (name in names(files)) {
+    k <- k + 1
+    p <- pairs_for(pts, min(n_pairs, 200L), 100 * k + nchar(city))
+    p$o$id <- paste0("o,", seq_len(nrow(p$o)), " x")
+    p$d$id <- paste0("d ", seq_len(nrow(p$d)), ",y")
+    dirs <- file.path(tempdir(), paste0("itin-files-", city, "-", name, c("-r5r", "-peabiru")))
+    for (d in dirs) {
+      unlink(d, recursive = TRUE)
+      dir.create(d)
+    }
+    a <- c(list(origins = p$o, destinations = p$d, departure_datetime = dep), files[[name]])
+    suppressWarnings(do.call(r5r::detailed_itineraries,
+                             c(list(r5), a, progress = FALSE, output_dir = dirs[1])))
+    suppressWarnings(do.call(peabiru::detailed_itineraries, c(list(pb), a, output_dir = dirs[2])))
+    fr <- sort(list.files(dirs[1]))
+    fp <- sort(list.files(dirs[2]))
+    same <- vapply(intersect(fr, fp), function(f) {
+      identical(readBin(file.path(dirs[1], f), "raw", 1e8), readBin(file.path(dirs[2], f), "raw", 1e8))
+    }, logical(1))
+    ok <- identical(fr, fp) && all(same)
+    if (!ok) failed <- failed + 1
+    message(sprintf("%s files %-8s %4d files, %4d identical  %s", city, name, length(fr),
+                    sum(same), if (ok) "identical" else "DIFFERENT"))
+  }
   r5r::stop_r5(r5)
 }
 if (failed > 0) quit(status = 1)

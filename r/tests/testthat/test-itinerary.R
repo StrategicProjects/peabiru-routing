@@ -55,6 +55,16 @@ test_that("all_to_all, single points and output_dir", {
   files <- list.files(dir)
   expect_true(length(files) > 0)
   expect_true(all(grepl("^from_.*_to_.*\\.csv$", files)))
+  # with the geometry: the WKT text last, quoted
+  geo <- tempfile()
+  dir.create(geo)
+  detailed_itineraries(fixture_network(), pts[1:3, ], pts[4:6, ], mode = "WALK",
+                       departure_datetime = departure, output_dir = geo)
+  for (f in list.files(geo, full.names = TRUE)) {
+    lines <- readLines(f)
+    expect_match(lines[1], ",route,geometry$")
+    expect_true(all(grepl(",\"LINESTRING \\(.*\\)\"$", lines[-1])))
+  }
 })
 
 test_that("unsupported options are errors", {
@@ -63,7 +73,6 @@ test_that("unsupported options are errors", {
   di <- function(...) detailed_itineraries(net, pts[1, ], pts[2, ], departure_datetime = departure, ...)
   expect_error(di(mode = "WALK", osm_link_ids = TRUE), "not supported")
   expect_error(di(mode = "WALK", osm_link_ids = TRUE, drop_geometry = TRUE), "drop_geometry")
-  expect_error(di(mode = "WALK", output_dir = tempdir()), "not supported")
   expect_error(di(mode = "WALK", suboptimal_minutes = 5), "Must be 0")
   expect_error(di(mode = "WALK", fare_structure = list()), "not supported")
   expect_error(di(mode = "WALK", new_lts = data.frame()), "not supported")

@@ -58,6 +58,17 @@ def test_pairs_all_to_all_and_output_dir(network, points, departure, tmp_path):
     assert out == tmp_path
     files = sorted(p.name for p in tmp_path.iterdir())
     assert files and all(f.startswith("from_") and "_to_" in f for f in files)
+    # with the geometry: the WKT text last, quoted
+    geo = tmp_path / "geo"
+    geo.mkdir()
+    peabiru.detailed_itineraries(
+        network, points.iloc[:3], points.iloc[3:6], mode="WALK", departure_datetime=departure,
+        output_dir=geo,
+    )
+    for f in geo.iterdir():
+        lines = f.read_text().splitlines()
+        assert lines[0].endswith(",route,geometry")
+        assert all(line.endswith(')"') and ',"LINESTRING (' in line for line in lines[1:])
 
 
 def test_unsupported_options(network, points, departure):

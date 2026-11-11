@@ -135,6 +135,19 @@ test_that("detailed itineraries equal r5r's", {
     attr(r5, ".internal.selfref") <- NULL
     expect_identical(pb, r5)
   }
+  # output_dir: the same files, byte for byte, with the geometry
+  dirs <- c(tempfile(), tempfile())
+  for (x in dirs) dir.create(x)
+  args <- list(origins = o[1:20, ], destinations = d[1:20, ], mode = "BICYCLE",
+               departure_datetime = departure)
+  do.call(detailed_itineraries, c(list(n$pb), args, output_dir = dirs[1]))
+  do.call(r5r::detailed_itineraries, c(list(n$r5), args, output_dir = dirs[2], progress = FALSE))
+  files <- list.files(dirs[2])
+  expect_identical(list.files(dirs[1]), files)
+  for (f in files) {
+    expect_identical(readBin(file.path(dirs[1], f), "raw", 1e7),
+                     readBin(file.path(dirs[2], f), "raw", 1e7))
+  }
   # both refuse public transport on a frequency-based GTFS
   tr <- list(origins = o[1, ], destinations = d[1, ], mode = c("WALK", "TRANSIT"),
              departure_datetime = departure)

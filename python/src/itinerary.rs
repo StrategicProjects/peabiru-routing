@@ -13,14 +13,15 @@ use pyo3::types::PyDict;
 /// columns (`pair`, `option`, `total_distance`, `segment`, `distance`,
 /// `n_points` as int32 bytes, `total_duration`, `segment_duration`,
 /// `wait`, `x`, `y` as float64 bytes, `departure_time`, `mode`, `route` as
-/// lists). With `output` (`(dir, from ids, to ids)`) the files are written
-/// instead and `None` returned.
+/// lists; `x`, `y` and `n_points` empty with `drop_geometry`). With
+/// `output` (`(dir, from ids, to ids)`) the files are written instead (the
+/// geometry as JTS's WKT unless `drop_geometry`) and `None` returned.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 #[pyo3(signature = (network, olat, olon, dlat, dlon, mode, transit_modes, egress_mode, date,
     departure_time, time_window, max_walk_time, max_bike_time, max_car_time,
     max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path,
-    n_threads, output))]
+    n_threads, drop_geometry, output))]
 pub(crate) fn itineraries<'py>(
     py: Python<'py>,
     network: &Bound<'py, Network>,
@@ -44,6 +45,7 @@ pub(crate) fn itineraries<'py>(
     max_lts: i32,
     shortest_path: bool,
     n_threads: usize,
+    drop_geometry: bool,
     output: Option<(String, Vec<String>, Vec<String>)>,
 ) -> PyResult<Option<Bound<'py, PyDict>>> {
     let n = network.get();
@@ -74,7 +76,7 @@ pub(crate) fn itineraries<'py>(
     if let Some((dir, from, to)) = output {
         let ids: Vec<(String, String)> = from.into_iter().zip(to).collect();
         let pts: Vec<_> = o.iter().copied().zip(d.iter().copied()).collect();
-        write_itineraries_csv(&dir, &ids, &pts, &res)
+        write_itineraries_csv(&dir, &ids, &pts, &res, drop_geometry)
             .map_err(|e| value_err(format!("cannot write {dir}: {e}")))?;
         return Ok(None);
     }

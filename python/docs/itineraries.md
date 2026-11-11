@@ -71,6 +71,5 @@ As in r5r:
 
 Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]:
 `shortest_path=False` with public transport (r5r then uses R5's McRAPTOR
-to list alternatives), `osm_link_ids=True`, `output_dir` with the geometry,
-fares and scenarios. As in r5r, a network whose GTFS has frequency-based
+to list alternatives), `osm_link_ids=True`, fares and scenarios. As in r5r, a network whose GTFS has frequency-based
 trips cannot be used with public transport here.

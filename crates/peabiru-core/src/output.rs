@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 /// `System.lineSeparator()`, which Java's `PrintWriter.println` writes.
-const LINE_END: &str = if cfg!(windows) { "\r\n" } else { "\n" };
+pub(crate) const LINE_END: &str = if cfg!(windows) { "\r\n" } else { "\n" };
 
 /// Values (matrix cells, or rows of an expanded matrix) routed at a time
 /// by [`CsvOutput::origin_chunks`].

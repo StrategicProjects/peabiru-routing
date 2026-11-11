@@ -102,8 +102,7 @@ def detailed_itineraries(
 
     Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]:
     ``shortest_path=False`` with public transport (r5r routes it with R5's
-    McRAPTOR), ``osm_link_ids=True``, ``output_dir`` with the geometry (use
-    ``drop_geometry=True``), fares and scenarios. As in r5r, networks
+    McRAPTOR), ``osm_link_ids=True``, fares and scenarios. As in r5r, networks
     whose GTFS has frequency-based trips cannot be used with public
     transport.
 
@@ -131,9 +130,10 @@ def detailed_itineraries(
     osm_link_ids : bool, default False
         ``True`` is not supported yet.
     output_dir : str or os.PathLike, optional
-        With ``drop_geometry=True``: write one CSV file per pair with
-        itineraries, ``from_<origin id>_to_<destination id>.csv``, as r5r
-        does, and return ``output_dir``.
+        Write one CSV file per pair with itineraries,
+        ``from_<origin id>_to_<destination id>.csv``, byte for byte as r5r
+        does (the ``geometry`` column, unless ``drop_geometry``, as the WKT
+        text r5r writes), and return ``output_dir``.
 
     Returns
     -------
@@ -219,9 +219,7 @@ def detailed_itineraries(
         unsupported("'osm_link_ids=True'")
     if not shortest_path and mode_list.transit:
         unsupported("'shortest_path=False' with public transport (McRAPTOR)")
-    if out_dir is not None and not drop_geometry:
-        unsupported("'output_dir' with the geometry (JTS's WKT text)", "; use 'drop_geometry=True'")
-    if not drop_geometry:
+    if out_dir is None and not drop_geometry:
         try:
             import geopandas as gpd
             import shapely
@@ -240,7 +238,7 @@ def detailed_itineraries(
             departure.yyyymmdd, departure.seconds, int(time_window),
             lim["walk"], lim["bike"], lim["car"], lim["trip"],
             float(walk_speed), float(bike_speed), int(max_rides), int(max_lts),
-            bool(shortest_path), threads,
+            bool(shortest_path), threads, bool(drop_geometry),
             None if out_dir is None else (out_dir, [str(i) for i in o.ids], [str(i) for i in d.ids]),
         )
     if r is None:

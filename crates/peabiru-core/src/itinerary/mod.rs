@@ -16,13 +16,14 @@
 pub(crate) mod geom;
 mod hops;
 mod transit;
+mod wkt;
 
 use crate::street::link::find_split;
 use crate::street::p2p::{Req, Router};
 use crate::street::{Mode, StreetNetwork};
 use crate::transit::raptor::TransitMode;
 use crate::{CancelToken, RouteError, TransitData, TransitLayer};
-use geom::{clock, edge_line, line_length_m, minutes_1dp, without_repeats, wkt_roundtrip, Line};
+use geom::{clock, edge_line, line_length_m, minutes_1dp, without_repeats, Line};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Parameters of [`detailed_itineraries`], with r5r's defaults but for the
@@ -188,8 +189,22 @@ pub struct ItineraryLeg {
     /// GTFS `route_id` of a ride, empty for a street leg.
     pub route: String,
     /// The leg's line as `(lon, lat)` degrees, as r5r's `geometry`
-    /// column holds it.
+    /// column holds it (the values read back from the WKT text JTS writes,
+    /// see [`wkt`](Self::wkt)).
     pub geometry: Vec<[f64; 2]>,
+    /// The line before JTS's formatting.
+    raw: Vec<[f64; 2]>,
+}
+
+impl ItineraryLeg {
+    /// The leg's line as the WKT text r5r writes for it (JTS 1.18.1's
+    /// `LineString.toString()` on JDK 21): `LINESTRING (x y, ...)` with at
+    /// most 16 fraction digits per ordinate, or `LINESTRING EMPTY`.
+    pub fn wkt(&self) -> String {
+        let mut s = String::new();
+        wkt::line_wkt(&self.raw, &mut s);
+        s
+    }
 }
 
 /// One itinerary between an origin-destination pair: r5r's rows of one
@@ -232,9 +247,10 @@ struct Leg {
 
 impl Leg {
     fn finish(self) -> ItineraryLeg {
-        let geometry = without_repeats(&self.line)
-            .into_iter()
-            .map(|[x, y]| [wkt_roundtrip(x), wkt_roundtrip(y)])
+        let raw = without_repeats(&self.line);
+        let geometry = raw
+            .iter()
+            .map(|&[x, y]| [wkt::ordinate_value(x), wkt::ordinate_value(y)])
             .collect();
         ItineraryLeg {
             mode: self.mode,
@@ -245,6 +261,7 @@ impl Leg {
             distance: self.distance,
             route: self.route,
             geometry,
+            raw,
         }
     }
 }
@@ -471,21 +488,21 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
 }
 
 /// Write itineraries as r5r's `detailed_itineraries()` does with
-/// `output_dir` and `drop_geometry = TRUE`: one file per pair with
-/// itineraries, `<dir>/from_<origin id>_to_<destination id>.csv`, with
-/// r5r's columns and number formats (`RDataFrame.saveToCsv`). `ids` and
-/// `points` are those of the pairs given to [`detailed_itineraries`]
-/// (`(from_id, to_id)` and `((lat, lon), (lat, lon))`). r5r's files with
-/// the geometry hold JTS's WKT text, which is not reproduced: write
-/// without it.
+/// `output_dir`: one file per pair with itineraries,
+/// `<dir>/from_<origin id>_to_<destination id>.csv`, with r5r's columns
+/// and number formats (`RDataFrame.saveToCsv`), the `geometry` column (the
+/// WKT text of [`ItineraryLeg::wkt`]) last unless `drop_geometry`. `ids`
+/// and `points` are those of the pairs given to [`detailed_itineraries`]
+/// (`(from_id, to_id)` and `((lat, lon), (lat, lon))`).
 #[allow(clippy::type_complexity)]
 pub fn write_itineraries_csv(
     dir: &str,
     ids: &[(String, String)],
     points: &[((f64, f64), (f64, f64))],
     itineraries: &[Vec<Itinerary>],
+    drop_geometry: bool,
 ) -> std::io::Result<()> {
-    use crate::output::{csv_field, java_double};
+    use crate::output::{csv_field, java_double, LINE_END};
     for (k, its) in itineraries.iter().enumerate() {
         if its.is_empty() {
             continue;
@@ -494,8 +511,12 @@ pub fn write_itineraries_csv(
         let ((olat, olon), (dlat, dlon)) = points[k];
         let mut s = String::from(
             "from_id,from_lat,from_lon,to_id,to_lat,to_lon,option,departure_time,\
-             total_duration,total_distance,segment,mode,segment_duration,wait,distance,route\n",
+             total_duration,total_distance,segment,mode,segment_duration,wait,distance,route",
         );
+        if !drop_geometry {
+            s.push_str(",geometry");
+        }
+        s.push_str(LINE_END);
         for it in its {
             for (j, l) in it.legs.iter().enumerate() {
                 csv_field(from, &mut s);
@@ -521,7 +542,11 @@ pub fn write_itineraries_csv(
                 }
                 s.push_str(&format!(",{},", l.distance));
                 csv_field(&l.route, &mut s);
-                s.push('\n');
+                if !drop_geometry {
+                    s.push(',');
+                    csv_field(&l.wkt(), &mut s);
+                }
+                s.push_str(LINE_END);
             }
         }
         std::fs::write(format!("{dir}/from_{from}_to_{to}.csv"), s)?;

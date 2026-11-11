@@ -1,29 +1,11 @@
 //! `detailed_itineraries()`: the core's itineraries as plain vectors, one
-//! element per leg, with the geometry as WKT text for `sf::st_as_sfc()`.
+//! element per leg, with the geometry as the WKT text r5r gives
+//! `sf::st_as_sfc()`.
 
 use super::{err, interruptible, network, points, street_mode, transit_modes, Outcome};
 use extendr_api::prelude::*;
 use extendr_api::Result;
 use peabiru_core::{detailed_itineraries, write_itineraries_csv, ItineraryParams, RouteError};
-use std::fmt::Write as _;
-
-/// One leg's line as `LINESTRING (x y, ...)` with every coordinate in its
-/// shortest round-trip decimal form (what sf reads back is the same
-/// double).
-fn wkt(line: &[[f64; 2]]) -> String {
-    if line.is_empty() {
-        return "LINESTRING EMPTY".into();
-    }
-    let mut s = String::from("LINESTRING (");
-    for (i, p) in line.iter().enumerate() {
-        if i > 0 {
-            s.push_str(", ");
-        }
-        let _ = write!(s, "{} {}", p[0], p[1]);
-    }
-    s.push(')');
-    s
-}
 
 /// Itineraries between `origins[i]` and `destinations[i]`, as
 /// `list(pair, option, departure_time, total_duration, total_distance,
@@ -98,7 +80,7 @@ fn rs_detailed_itineraries(
         let dir = get("dir")?.pop().unwrap_or_default();
         let ids: Vec<(String, String)> = get("from_ids")?.into_iter().zip(get("to_ids")?).collect();
         let pts: Vec<_> = o.iter().copied().zip(d.iter().copied()).collect();
-        write_itineraries_csv(&dir, &ids, &pts, &res)
+        write_itineraries_csv(&dir, &ids, &pts, &res, drop_geometry)
             .map_err(|e| err(RouteError::Invalid(format!("cannot write {dir}: {e}"))))?;
         return Ok(().into());
     }
@@ -129,7 +111,7 @@ fn rs_detailed_itineraries(
                 distance.push(l.distance);
                 route.push(l.route.clone());
                 if !drop_geometry {
-                    geometry.push(wkt(&l.geometry));
+                    geometry.push(l.wkt());
                 }
             }
         }

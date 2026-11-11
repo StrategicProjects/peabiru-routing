@@ -126,7 +126,9 @@ each itinerary (\code{option}), with \code{from_id}, \code{from_lat}, \code{from
 \code{total_duration} (minutes), \code{total_distance} (metres), \code{segment},
 \code{mode}, \code{segment_duration}, \code{wait} (minutes), \code{distance} (metres) and
 \code{route}. Pairs without an itinerary have no rows. With \code{output_dir},
-\code{output_dir}.
+one CSV file per pair with itineraries is written,
+\verb{from_<origin id>_to_<destination id>.csv}, byte for byte as r5r writes
+it (the geometry as r5r's WKT text), and \code{output_dir} is returned.
 }
 \description{
 The itinerary of each trip between pairs of origins and destinations:
@@ -140,8 +142,7 @@ transport, the fastest trip over the departure window
 \details{
 Not supported yet, and an error: \code{shortest_path = FALSE} with public
 transport (r5r routes it with R5's McRAPTOR), \code{osm_link_ids = TRUE},
-\code{output_dir} with the geometry (r5r writes JTS's WKT text; use
-\code{drop_geometry = TRUE}), fares and scenarios. As in r5r, networks
+fares and scenarios. As in r5r, networks
 whose GTFS has frequency-based trips cannot be used with public
 transport. A car trip whose egress search crosses a turn restriction
 with two or more via ways is an error too (R5 changes the restriction
