@@ -254,6 +254,12 @@ impl Scenario {
         }
         let mut net = base.clone();
         net.forget_kept();
+        // R5's scenario copy of the edges (`EdgeStore.extendOnlyCopy`, made
+        // by r5r's `getTransportNetworkForScenario`) leaves out the cost
+        // fields: walking and cycling lose their slope costs (r5r warns of
+        // this, issue #555).
+        net.edge_slope = Vec::new();
+        net.elevation = crate::Elevation::None;
         if self.changes_car_speeds() {
             match &self.car_speeds {
                 CarSpeeds::ByPolygon(polys) => {

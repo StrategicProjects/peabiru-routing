@@ -214,7 +214,7 @@ def detailed_itineraries(
         raise ValueError(
             "Assertion on 'suboptimal_minutes' failed: Must be 0 when 'shortest_path' is True."
         )
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
     if osm_link_ids:
         unsupported("'osm_link_ids=True'")
     if not shortest_path and mode_list.transit:

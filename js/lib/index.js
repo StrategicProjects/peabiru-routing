@@ -855,7 +855,7 @@ async function spawnWorker() {
 class Pool {
   constructor(size, module, input) {
     this.module = module;
-    // { pbf, feeds }: the bytes every worker builds its network from
+    // { pbf, feeds, tif, elevation }: what every worker builds its network from
     this.input = input;
     this.queue = [];
     // key -> the slot that last ran a task with that key (see pump())
@@ -892,8 +892,8 @@ class Pool {
           (e) => this.crash(slot, e),
         );
         this.refs();
-        const { pbf, feeds } = this.input;
-        worker.post({ type: "build", module: this.module, pbf, feeds }, []);
+        const { pbf, feeds, tif, elevation } = this.input;
+        worker.post({ type: "build", module: this.module, pbf, feeds, tif, elevation }, []);
       },
       (e) => this.failed(slot, e),
     );
@@ -1115,12 +1115,13 @@ export class Network {
   #freed = false;
 
   /** @internal use buildNetwork() */
-  constructor(token, raw, pool) {
+  constructor(token, raw, pool, hasTif = false) {
     if (token !== PRIVATE) throw new TypeError("use buildNetwork() to build a Network");
+    this._hasTif = hasTif;
     if (raw) {
       this.#raw = raw;
       const [stops, patterns, services, frequencies] = raw.transit_sizes();
-      this.#info = { vertices: raw.n_vertices(), edges: raw.n_edges(), feeds: Array.from(raw.feed_ids()), stops, patterns, services, frequencies: frequencies === 1 };
+      this.#info = { vertices: raw.n_vertices(), edges: raw.n_edges(), elevation: raw.elevation(), feeds: Array.from(raw.feed_ids()), stops, patterns, services, frequencies: frequencies === 1 };
       this.#warnings = Array.from(raw.r5r_warnings());
     } else {
       this.#pool = pool;
@@ -1243,14 +1244,15 @@ async function buildThreads(o) {
 }
 
 /**
- * Build a transport network from an OpenStreetMap extract (`pbf`) and zero
- * or more GTFS feeds, as r5r's build_network() does from a directory.
+ * Build a transport network from an OpenStreetMap extract (`pbf`), zero
+ * or more GTFS feeds and an optional elevation raster (`tif`), as r5r's
+ * build_network() does from a directory.
  */
 export async function buildNetwork(input) {
   if (input === null || typeof input !== "object") fail("input", "Must be an object {pbf, gtfs}", TypeError);
   const o = optionsObject(input, "input");
   for (const k of Object.keys(o)) {
-    if (!["pbf", "gtfs", "onWarning", "nThreads", "useWorkers"].includes(k)) throw new TypeError(`unknown option '${k}'`);
+    if (!["pbf", "gtfs", "tif", "elevation", "onWarning", "nThreads", "useWorkers"].includes(k)) throw new TypeError(`unknown option '${k}'`);
   }
   const warn = warner(o);
   const pbf = bytesOf(o.pbf, "pbf");
@@ -1263,6 +1265,16 @@ export async function buildNetwork(input) {
   });
   const names = feeds.map((f) => f[0]);
   if (new Set(names).size < names.length) fail("gtfs", "Feed names must be distinct");
+  const tif = o.tif === undefined || o.tif === null ? undefined : bytesOf(o.tif, "tif");
+  // r5r set_elevation(); without a raster, "NONE" as r5r uses
+  let elevation = o.elevation === undefined ? "TOBLER" : o.elevation;
+  assertString(elevation, "elevation");
+  elevation = elevation.toUpperCase();
+  const validElevation = ["TOBLER", "MINETTI", "NONE"];
+  if (!validElevation.includes(elevation)) {
+    throw new Error(`Invalid value for 'elevation': "${elevation}". Must be one of: ${validElevation.map((v) => `"${v}"`).join(", ")}.`);
+  }
+  if (tif === undefined) elevation = "NONE";
   const threads = await buildThreads(o);
   const useWorkers = o.useWorkers === undefined ? o.nThreads !== undefined && o.nThreads !== 1 : o.useWorkers;
   assertFlag(useWorkers, "useWorkers");
@@ -1270,16 +1282,21 @@ export async function buildNetwork(input) {
   await init();
   let network;
   if (!useWorkers) {
-    network = new Network(PRIVATE, RawNetwork.build(pbf, feeds));
+    network = new Network(PRIVATE, RawNetwork.build(pbf, feeds, tif, elevation), null, tif !== undefined);
   } else {
-    const pool = new Pool(threads, wasmModule, { pbf: shareBytes(pbf), feeds: feeds.map(([n, b]) => [n, shareBytes(b)]) });
+    const pool = new Pool(threads, wasmModule, {
+      pbf: shareBytes(pbf),
+      feeds: feeds.map(([n, b]) => [n, shareBytes(b)]),
+      tif: tif === undefined ? undefined : shareBytes(tif),
+      elevation,
+    });
     try {
       await pool.ready;
     } catch (e) {
       pool.close();
       throw e;
     }
-    network = new Network(PRIVATE, null, pool);
+    network = new Network(PRIVATE, null, pool, tif !== undefined);
   }
   for (const w of network.r5rWarnings()) warn(w);
   return network;
@@ -1361,9 +1378,9 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
   assertNetwork(network);
   if (modeList.transit) await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
   // r5r reverse_if_direct_mode(): walking alone with more origins than
-  // destinations routes from the destinations (there is no elevation
-  // raster here, which would turn it off)
-  const swapped = !modeList.transit && modeList.directModes === "WALK" && o.length > d.length;
+  // destinations routes from the destinations, unless the network was
+  // built with an elevation raster (given, whatever the elevation model)
+  const swapped = !modeList.transit && modeList.directModes === "WALK" && o.length > d.length && !network._hasTif;
   if (swapped) [o, d] = [d, o];
   const lim = streetLimits(opt, modeList);
   assertCount(opt.timeWindow, "timeWindow", true);

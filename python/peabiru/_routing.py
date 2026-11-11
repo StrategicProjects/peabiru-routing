@@ -334,7 +334,7 @@ def travel_time_matrix(
     )
     check_fares(fare_structure, max_fare)
     out_dir = check_output_dir(output_dir)
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
 
     names = [f"travel_time_p{p:02d}" for p in pcts]
     core = r5r_network._core
@@ -602,7 +602,7 @@ def accessibility(
     )
     check_fares(fare_structure, max_fare)
     out_dir = check_output_dir(output_dir)
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
 
     # the third element of an accessibility output holds the opportunity
     # names
@@ -825,7 +825,7 @@ def expanded_travel_time_matrix(
     )
     out_dir = check_output_dir(output_dir)
     assert_flag(breakdown, "breakdown")
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
 
     with core_errors("expanded_travel_time_matrix", n_destinations=len(d)):
         res = _peabiru.expanded(
@@ -1038,7 +1038,7 @@ def arrival_travel_time_matrix(
     )
     out_dir = check_output_dir(output_dir)
     assert_flag(breakdown, "breakdown")
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
 
     # the engine's time window is max_trip_duration here
     with core_errors(

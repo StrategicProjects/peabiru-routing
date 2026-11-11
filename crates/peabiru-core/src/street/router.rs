@@ -390,6 +390,13 @@ pub(crate) struct ModeGraph {
 
 impl ModeGraph {
     pub(super) fn new(net: &StreetNetwork, mode: Mode, sp: Speeds, max_lts: i32) -> Self {
+        // slope costs on walking and cycling edges (R5 applies none to cars)
+        let sloped = |f: usize, t: i32| -> i32 {
+            match net.edge_slope.get(f) {
+                Some(&k) => crate::elevation::sloped_seconds(t, k),
+                None => t,
+            }
+        };
         let step_of = |f: usize| -> i32 {
             let flags = net.edge_flags[f];
             let len = net.pair_length_mm[f / 2];
@@ -398,7 +405,7 @@ impl ModeGraph {
                     if flags & ALLOWS_PEDESTRIAN == 0 {
                         return -1;
                     }
-                    traversal_seconds(len, sp.walk)
+                    sloped(f, traversal_seconds(len, sp.walk))
                 }
                 Mode::Bicycle => {
                     let mut walk_bike = flags & ALLOWS_BIKE == 0;
@@ -414,9 +421,9 @@ impl ModeGraph {
                         if flags & ALLOWS_PEDESTRIAN == 0 {
                             return -1;
                         }
-                        traversal_seconds(len, sp.walk)
+                        sloped(f, traversal_seconds(len, sp.walk))
                     } else {
-                        traversal_seconds(len, sp.bike)
+                        sloped(f, traversal_seconds(len, sp.bike))
                     }
                 }
                 Mode::Car => {

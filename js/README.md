@@ -163,8 +163,18 @@ What peabiru does not support yet throws `peabiru.UnsupportedError`; it is
 never silently ignored: fares
 (`fareStructure`, `maxFare`), `outputDir`, expanded and arrival matrices by a street mode
 alone, and in `detailedItineraries()` `osmLinkIds: true` and `shortestPath:
-false` with public transport. Elevation is not supported either: `buildNetwork()` takes no
-elevation raster.
+false` with public transport.
+
+## Elevation
+
+As r5r does with a `.tif` file in its data directory, `buildNetwork({pbf,
+gtfs, tif})` gives walking and cycling times slope costs from an elevation
+raster: `elevation: "TOBLER"` (the default), `"MINETTI"` or `"NONE"`. The
+raster is a GeoTIFF of one band in WGS 84 longitude and latitude
+(EPSG:4326), north up, uncompressed or compressed with LZW, Deflate or
+PackBits; other rasters are an error. As in r5r, a raster also stops
+`travelTimeMatrix()` from swapping origins and destinations for walking,
+and a call with a scenario routes without the slope costs.
 
 ## Feed order
 

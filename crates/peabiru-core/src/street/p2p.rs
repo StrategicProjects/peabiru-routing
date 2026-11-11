@@ -533,7 +533,13 @@ impl<'a> Router<'a> {
             Mode::Car => cms_to_ms(net.edge_speed_cms[e]),
             m => req.speed(m),
         };
-        let trav = (f64::from(len) / 1000.0 / f64::from(speed)).ceil() as i32;
+        let mut trav = (f64::from(len) / 1000.0 / f64::from(speed)).ceil() as i32;
+        if mode != Mode::Car {
+            if let Some(&k) = net.edge_slope.get(e) {
+                // `MultistageTraversalTimeCalculator` with the slope costs
+                trav = crate::elevation::sloped_seconds(trav, k);
+            }
+        }
         let turn = if s0.back_edge >= 0 && mode == Mode::Car {
             let (from, to) = if self.reverse {
                 (e, s0.back_edge as usize)

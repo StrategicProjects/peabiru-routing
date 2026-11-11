@@ -20,13 +20,30 @@ pub fn runtime_error(cmd: &str, msg: impl Display) -> ! {
     std::process::exit(1)
 }
 
+/// The elevation model of the environment variable `PEABIRU_ELEVATION`
+/// (`TOBLER`, `MINETTI` or `NONE`, in any case), `None` without it. The
+/// command-line tool builds networks without elevation by default, even
+/// from a directory with a `.tif` raster (r5r's default is `TOBLER`).
+pub fn elevation(cmd: &str) -> Option<peabiru_core::Elevation> {
+    let v = std::env::var("PEABIRU_ELEVATION").ok()?;
+    Some(
+        peabiru_core::Elevation::from_r5r_name(&v).unwrap_or_else(|| {
+            usage_error(
+                cmd,
+                format!("PEABIRU_ELEVATION is '{v}', expected TOBLER, MINETTI or NONE"),
+            )
+        }),
+    )
+}
+
 /// Build the network of a data directory, as
 /// [`peabiru_core::build_from_dir`]. As r5r, the build fails when a GTFS
 /// feed has errors of priority `HIGH`; with the environment variable
 /// `PEABIRU_IGNORE_GTFS_ERRORS=1` such feeds are built anyway
 /// ([`peabiru_core::BuildOptions::ignore_gtfs_errors`]), with one
 /// `peabiru <cmd>: warning: ...` line on stderr per feed and case that r5r
-/// refuses to build a network from.
+/// refuses to build a network from. `PEABIRU_ELEVATION` sets the elevation
+/// model ([`elevation`]).
 pub fn build_from_dir(
     cmd: &str,
     dir: impl AsRef<std::path::Path>,
@@ -34,6 +51,9 @@ pub fn build_from_dir(
 ) -> Result<(peabiru_core::StreetNetwork, peabiru_core::TransitLayer), peabiru_core::NetworkError> {
     let mut opts = opts.clone();
     opts.ignore_gtfs_errors = std::env::var("PEABIRU_IGNORE_GTFS_ERRORS").as_deref() == Ok("1");
+    if let Some(e) = elevation(cmd) {
+        opts.elevation = e;
+    }
     let built = peabiru_core::build_from_dir(dir, &opts)?;
     for report in built.1.feed_reports() {
         for w in report.r5r_warnings_per_case() {

@@ -18,6 +18,8 @@ enum Repr {
     Gtfs(GtfsError),
     /// The data directory holds no `.pbf` file.
     NoPbf(std::path::PathBuf),
+    /// The elevation raster cannot be read or applied.
+    Elevation(std::path::PathBuf, String),
 }
 
 impl NetworkError {
@@ -27,6 +29,10 @@ impl NetworkError {
 
     pub(crate) fn no_pbf(dir: &std::path::Path) -> Self {
         NetworkError(Repr::NoPbf(dir.to_path_buf()))
+    }
+
+    pub(crate) fn elevation(file: &std::path::Path, msg: String) -> Self {
+        NetworkError(Repr::Elevation(file.to_path_buf(), msg))
     }
 
     // Constructors rather than `From` impls, which would show the internal
@@ -60,6 +66,7 @@ impl fmt::Display for NetworkError {
             Repr::Io(e) => write!(f, "{e}"),
             Repr::Osm(e) => write!(f, "{e}"),
             Repr::Gtfs(e) => write!(f, "{e}"),
+            Repr::Elevation(file, msg) => write!(f, "{}: {msg}", file.display()),
             Repr::NoPbf(dir) => {
                 write!(f, "{}: the directory has no .pbf file", dir.display())
             }

@@ -61,7 +61,7 @@ function handle(data, post) {
   if (data.type === "build") {
     try {
       initSync({ module: data.module });
-      network = Network.build(data.pbf, data.feeds);
+      network = Network.build(data.pbf, data.feeds, data.tif, data.elevation);
       // the sizes and warnings, which the calling side keeps
       const [stops, patterns, services, frequencies] = network.transit_sizes();
       post({
@@ -69,6 +69,7 @@ function handle(data, post) {
         info: {
           vertices: network.n_vertices(),
           edges: network.n_edges(),
+          elevation: network.elevation(),
           feeds: Array.from(network.feed_ids()),
           stops,
           patterns,

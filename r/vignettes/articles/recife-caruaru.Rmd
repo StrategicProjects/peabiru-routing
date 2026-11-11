@@ -267,9 +267,10 @@ A few things to know about these registers, seen while preparing them:
 
 One travel-time matrix per city, mode and kind of unit, from every cell to
 every unit; the smallest time of each cell is its time to the nearest one.
-Driving is free flow (no congestion), and nothing here models elevation yet:
-Recife is flat, but Caruaru is hilly, so its walking and cycling times are
-optimistic.
+Driving is free flow (no congestion), and these networks are built without
+an elevation raster: Recife is flat, but Caruaru is hilly, so its walking and
+cycling times are optimistic (a `.tif` raster in the data directory would add
+slope costs, see `build_network()`).
 
 
 ``` r
