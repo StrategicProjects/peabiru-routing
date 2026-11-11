@@ -11,8 +11,8 @@
 <a href="https://crates.io/crates/peabiru-core"><img src="https://img.shields.io/crates/v/peabiru-core.svg" alt="crates.io"></a>
 <a href="https://docs.rs/peabiru-core"><img src="https://docs.rs/peabiru-core/badge.svg" alt="docs.rs"></a>
 <a href="https://doi.org/10.5281/zenodo.24125477"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.24125477.svg" alt="DOI"></a>
-<!-- After the first release on each remaining registry, uncomment the matching badge:
 <a href="https://pypi.org/project/peabiru/"><img src="https://img.shields.io/pypi/v/peabiru.svg" alt="PyPI"></a>
+<!-- After the first release on each remaining registry, uncomment the matching badge:
 <a href="https://CRAN.R-project.org/package=peabiru"><img src="https://www.r-pkg.org/badges/version/peabiru" alt="CRAN"></a>
 <a href="https://www.npmjs.com/package/peabiru"><img src="https://img.shields.io/npm/v/peabiru.svg" alt="npm"></a>
 -->
@@ -28,7 +28,7 @@ and thread.
 | Package | For | Directory | Registry |
 |---|---|---|---|
 | `peabiru` | R | [`r/`](r) (extendr) | CRAN, not published yet |
-| `peabiru` | Python | [`python/`](python) (PyO3, maturin) | PyPI, not published yet |
+| `peabiru` | Python | [`python/`](python) (PyO3, maturin) | [PyPI](https://pypi.org/project/peabiru/) |
 | `peabiru` | JavaScript (browsers, Node) | [`js/`](js) (WebAssembly, wasm-bindgen) | npm, not published yet |
 | `peabiru-core` | Rust | [`crates/peabiru-core`](crates/peabiru-core) | [crates.io](https://crates.io/crates/peabiru-core) |
 | `peabiru` | command line | [`crates/peabiru-cli`](crates/peabiru-cli) | |

@@ -4,9 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-MIT)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://github.com/StrategicProjects/peabiru-routing/tree/main/python)
-<!-- After the first release on PyPI, uncomment:
 [![PyPI](https://img.shields.io/pypi/v/peabiru.svg)](https://pypi.org/project/peabiru/)
--->
 
 Multimodal routing on [OpenStreetMap](https://www.openstreetmap.org) street
 networks and [GTFS](https://gtfs.org) public transport: travel-time

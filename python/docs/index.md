@@ -4,9 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-MIT)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](#install)
-<!-- After the first release on PyPI, uncomment:
 [![PyPI](https://img.shields.io/pypi/v/peabiru.svg)](https://pypi.org/project/peabiru/)
--->
 
 peabiru computes travel-time matrices and accessibility on multimodal
 transport networks (walking, cycling, driving and public transport) built
@@ -36,7 +34,7 @@ peabiru needs Python 3.9 or later; its only required dependency is
 `GeoDataFrame`.
 
 ```sh
-pip install peabiru            # once published on PyPI
+pip install peabiru
 pip install "peabiru[geo]"     # with geopandas
 ```
 
