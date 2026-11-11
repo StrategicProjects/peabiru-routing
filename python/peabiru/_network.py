@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Union
 
 from . import _peabiru
 from ._assign import assign_n_threads
-from ._checks import UnsupportedError, assert_flag, assert_string, fail_assert
+from ._checks import assert_flag, assert_string, fail_assert
 
 PathLike = Union[str, "os.PathLike[str]"]
 
@@ -29,7 +29,8 @@ class Network:
     data_path : str
         The directory the network was built from.
     elevation : str
-        ``"NONE"``: elevation is not supported yet.
+        The slope cost function in use: ``"TOBLER"``, ``"MINETTI"`` or
+        ``"NONE"`` (also when the directory has no ``.tif`` raster).
     has_tif : bool
         Whether the directory has a ``.tif`` raster (which, as in r5r,
         disables the swap of origins and destinations for walking).
@@ -47,7 +48,8 @@ class Network:
         Returns
         -------
         dict
-            ``vertices`` and ``edges`` of the street network; ``feeds`` (the
+            ``vertices`` and ``edges`` of the street network and its
+            ``elevation`` model (``"TOBLER"``, ``"MINETTI"`` or ``"NONE"``); ``feeds`` (the
             GTFS feed ids), ``stops``, ``patterns``, ``services`` and
             ``frequencies`` (whether any trip is frequency-based) of the
             public transport layer.
@@ -106,12 +108,22 @@ def build_network(
     As in r5r, the files are recognised by their extension in lower case
     only: a ``map.PBF`` or a ``feed.ZIP`` is ignored.
 
-    Elevation is not supported yet. As in r5r, when the directory has no
-    ``.tif`` raster the network is built with ``elevation="NONE"``; when it
-    has one (a file ending in ``.tif`` or ``.tiff``), ``elevation="NONE"``
-    must be given explicitly (and, as in r5r,
-    the raster still disables the swap of origins and destinations that r5r
-    does for walking).
+    As in r5r, a ``.tif`` raster in ``data_path`` gives walking and cycling
+    times slope costs (``elevation="TOBLER"``, the default, or
+    ``"MINETTI"``; never for cars), identical to r5r's: the raster is
+    sampled every 10 m along each street at the nearest pixel, and each
+    street's time is multiplied by the average cost of its slopes. Points
+    outside the raster count as 0 m high, as in r5r. Without a ``.tif``
+    raster the network is built with ``elevation="NONE"``. The raster must
+    be a GeoTIFF with one band in WGS 84 longitude and latitude
+    (EPSG:4326), north up, uncompressed or compressed with LZW, Deflate or
+    PackBits (what GDAL writes by default); other rasters are an error that
+    says what to change, and so are a raster whose name ends in ``.tiff``
+    (r5r fails to read it) and more than one raster (r5r reads the last one
+    the file system lists). As in r5r, a raster also disables the swap of
+    origins and destinations that r5r does for walking, and a routing call
+    with a scenario (``new_carspeeds``, ``carspeed_scale``, ``new_lts``) runs
+    without the slope costs, with r5r's warning.
 
     The GTFS feeds are loaded in the order in which the operating system
     lists the directory, as R5 does. With more than one feed that order
@@ -140,8 +152,9 @@ def build_network(
         Accepted for compatibility with r5r, which uses it to choose where
         to keep the R5 jar; it has no effect.
     elevation : {"TOBLER", "MINETTI", "NONE"}, default "TOBLER"
-        Only ``"NONE"`` can be routed; the default is fine when the
-        directory has no ``.tif`` raster.
+        The slope cost function for walking and cycling when ``data_path``
+        has a ``.tif`` elevation raster: Tobler's hiking function,
+        Minetti's energy cost of walking, or no slope costs.
     overwrite : bool, default False
         Accepted for compatibility with r5r, which uses it to rebuild a
         cached ``network.dat``; the network is always built anew.
@@ -156,9 +169,9 @@ def build_network(
 
     Raises
     ------
-    UnsupportedError
-        When the directory has a ``.tif`` raster and ``elevation`` is not
-        ``"NONE"``.
+    RuntimeError
+        When a file cannot be read, a GTFS feed has errors of priority
+        ``"HIGH"``, or the elevation raster is not one peabiru reads.
 
     Examples
     --------
@@ -197,8 +210,6 @@ def build_network(
     # it to turn off the swap of origins and destinations.
     any_pbf = any(re.search(".pbf", f) for f in files)
     any_tif = any(re.search(".tif", f) for f in files)
-    # an elevation raster that R5 would read
-    rasters = [f for f in files if re.search(r"\.tiff?$", f, re.IGNORECASE)]
     # lower case only, as r5r and the engine match the extension
     pbf = [f for f in files if re.search(r"\.pbf$", f)]
     if not any_pbf or not pbf:
@@ -215,19 +226,11 @@ def build_network(
                 f"No raster .tif files found in '{data_path}'. Using elevation = \"NONE\".",
                 file=sys.stderr,
             )
-    elif not rasters:
-        # r5r keeps the elevation model, and R5 finds no raster to apply it to
-        elevation = "NONE"
-    elif elevation != "NONE":
-        raise UnsupportedError(
-            f"Elevation is not supported by peabiru yet, and '{data_path}' has the raster "
-            + ", ".join(f"'{f}'" for f in rasters)
-            + '. Use elevation = "NONE" to build the network without it.'
-        )
 
     t0 = time.perf_counter()
-    core = _peabiru.build_network(data_path, threads)
-    network = Network(core, data_path, elevation, any_tif)
+    core = _peabiru.build_network(data_path, threads, elevation)
+    # the model in use: "NONE" when no file ends in .tif (R5 finds no raster)
+    network = Network(core, data_path, core.info()["elevation"], any_tif)
     for message in core.r5r_warnings():
         warnings.warn(message, stacklevel=2)
     if verbose:

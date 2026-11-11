@@ -10,6 +10,7 @@ geometries of the GeoDataFrames flattened.
 from __future__ import annotations
 
 import math
+import warnings
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -159,9 +160,23 @@ def _is_geodataframe(x: Any) -> bool:
     return type(x).__name__ == "GeoDataFrame" and hasattr(x, "geometry")
 
 
-def scenario_spec(new_carspeeds: Any, carspeed_scale: Any, new_lts: Any) -> Optional[Dict[str, Any]]:
+def _elevation_warning(network: Any) -> None:
+    """r5r's warning when a scenario is used: R5's scenario copy of the
+    network has no slope costs (r5r issue #555). r5r gives it for every
+    scenario; here only on a network with elevation, where it is true."""
+    if network is not None and getattr(network, "elevation", "NONE") != "NONE":
+        warnings.warn(
+            "A scenario was used for this calculation. This may affect results for WALK "
+            "or BICYCLE due to missing elevation. See issue #555.",
+            stacklevel=4,
+        )
+
+
+def scenario_spec(
+    new_carspeeds: Any, carspeed_scale: Any, new_lts: Any, network: Any = None
+) -> Optional[Dict[str, Any]]:
     """The scenario of a routing call (see the module), ``None`` when it
-    changes nothing."""
+    changes nothing; warns as r5r does when ``network`` has elevation."""
     for value, name in ((new_carspeeds, "new_carspeeds"), (new_lts, "new_lts")):
         if value is not None and not isinstance(value, pd.DataFrame):
             fail_assert(
@@ -174,6 +189,7 @@ def scenario_spec(new_carspeeds: Any, carspeed_scale: Any, new_lts: Any) -> Opti
     changed = False
     if new_carspeeds is not None or carspeed_scale != 1:
         changed = True
+        _elevation_warning(network)
         if _is_geodataframe(new_carspeeds):
             x = new_carspeeds
             _names(x, ["poly_id", "scale", "priority", "geometry"], "names(new_speeds_poly)")
@@ -230,6 +246,7 @@ def scenario_spec(new_carspeeds: Any, carspeed_scale: Any, new_lts: Any) -> Opti
             )
     if new_lts is not None:
         changed = True
+        _elevation_warning(network)
         if _is_geodataframe(new_lts):
             x = new_lts
             _names(x, ["line_id", "lts", "priority", "geometry"], "names(new_lts_lines)")

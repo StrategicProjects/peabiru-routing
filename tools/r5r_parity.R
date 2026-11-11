@@ -25,7 +25,8 @@ r <- as.data.frame(testthat::test_dir(
 
 # the files with the tests that compare with r5r running here (every test in
 # them must run, none be skipped)
-files <- c("test-parity.R", "test-parity-network.R", "test-output_dir.R")
+files <- c("test-parity.R", "test-parity-network.R", "test-output_dir.R",
+           "test-parity-elevation.R")
 parity <- r$file %in% files
 cat("\nall tests: passed", sum(r$passed), "failed", sum(r$failed), "errors", sum(r$error),
     "skipped", sum(r$skipped), "\n")

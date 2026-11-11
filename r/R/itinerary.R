@@ -162,7 +162,7 @@ detailed_itineraries <- function(r5r_network,
     stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when ",
          "'shortest_path' is TRUE.", call. = FALSE)
   }
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
   if (!shortest_path && mode_list$transit) {
     unsupported("'shortest_path = FALSE' with public transport (McRAPTOR)")
   }

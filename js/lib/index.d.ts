@@ -71,6 +71,22 @@ export interface BuildNetworkInput {
    * operating system lists its data directory; see the README).
    */
   gtfs?: GtfsFeed[];
+  /**
+   * An elevation raster (the bytes of a GeoTIFF `.tif` file): walking and
+   * cycling times get the slope costs of `elevation`, as r5r gives them
+   * when its data directory has a `.tif` file. One band, WGS 84 longitude
+   * and latitude (EPSG:4326), north up, uncompressed or compressed with
+   * LZW, Deflate or PackBits; other rasters are an error. A raster also
+   * stops `travelTimeMatrix()` from swapping origins and destinations for
+   * walking, as in r5r.
+   */
+  tif?: Bytes;
+  /**
+   * The slope cost function when `tif` is given (r5r's `elevation`):
+   * `"TOBLER"` (default), `"MINETTI"` or `"NONE"`, in any case. Without
+   * `tif` it is `"NONE"`.
+   */
+  elevation?: string;
   onWarning?: WarningHandler;
   /**
    * Workers to route on. `1` (default): no workers, everything runs on the
@@ -95,6 +111,8 @@ export interface BuildNetworkInput {
 export interface NetworkInfo {
   vertices: number;
   edges: number;
+  /** The slope cost function in use: `"TOBLER"`, `"MINETTI"` or `"NONE"`. */
+  elevation: string;
   /** The GTFS feed ids, in loading order. */
   feeds: string[];
   stops: number;
@@ -136,9 +154,9 @@ export declare class Network {
 }
 
 /**
- * Build a transport network from an OpenStreetMap extract and zero or more
- * GTFS feeds, as r5r's `build_network()` does from a directory (without
- * elevation). Loads the WebAssembly module first if needed.
+ * Build a transport network from an OpenStreetMap extract, zero or more
+ * GTFS feeds and an optional elevation raster, as r5r's `build_network()`
+ * does from a directory. Loads the WebAssembly module first if needed.
  */
 export declare function buildNetwork(input: BuildNetworkInput): Promise<Network>;
 

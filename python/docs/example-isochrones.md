@@ -43,7 +43,7 @@ print(network.info())
 ```
 
 ```text
-{'vertices': 26880, 'edges': 66652, 'feeds': ['poa_trensurb', 'poa_eptc'], 'stops': 4010, 'patterns': 226, 'services': 118, 'frequencies': False}
+{'vertices': 26880, 'edges': 66652, 'elevation': 'NONE', 'feeds': ['poa_trensurb', 'poa_eptc'], 'stops': 4010, 'patterns': 226, 'services': 118, 'frequencies': False}
 ```
 
 The bus feed of the sample only has trips between late morning and early

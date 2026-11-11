@@ -57,7 +57,7 @@ test("bad input data is an error that names it", async () => {
     /^Error: feed\.zip: /,
   );
   await assert.rejects(peabiru.buildNetwork({ pbf: "spo_osm.pbf" }), TypeError);
-  await assert.rejects(peabiru.buildNetwork({ pbf: read("spo_osm.pbf"), elevation: "NONE" }), /unknown option 'elevation'/);
+  await assert.rejects(peabiru.buildNetwork({ pbf: read("spo_osm.pbf"), overwrite: true }), /unknown option 'overwrite'/);
   const z = read("spo_gtfs.zip");
   await assert.rejects(
     peabiru.buildNetwork({ pbf: read("spo_osm.pbf"), gtfs: [{ name: "x.zip", data: z }, { name: "x.zip", data: z }] }),

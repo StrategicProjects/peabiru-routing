@@ -120,6 +120,7 @@
 #![warn(missing_docs)]
 
 mod cancel;
+mod elevation;
 mod error;
 mod fastmath;
 mod fastmath_trig;
@@ -139,6 +140,7 @@ mod transit;
 mod review_tests;
 
 pub use cancel::{CancelToken, RouteError};
+pub use elevation::Elevation;
 pub use error::NetworkError;
 pub use gtfs::validate::{gtfs_errors, GtfsErrorPriority, GtfsFeedError};
 pub use inspect::{
@@ -173,7 +175,7 @@ pub use transit::matrix::{
     TransitParams,
 };
 pub use transit::raptor::TransitMode;
-pub use transit::{build_from_bytes, build_from_dir};
+pub use transit::{build_from_bytes, build_from_bytes_with_elevation, build_from_dir};
 
 /// Version of this crate, as published.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -225,6 +227,32 @@ pub mod unstable {
         /// Start and end vertex as `(lat, lon)`, fixed-point 1e-7 degrees.
         pub from: (i32, i32),
         pub to: (i32, i32),
+    }
+
+    /// The elevations R5 would sample on `net` from a GeoTIFF raster, in
+    /// decimetres: one per vertex, and per edge pair the points every
+    /// 10 m inside it (for comparing with R5's `ElevationCostField`).
+    pub fn elevation_samples(
+        net: &StreetNetwork,
+        raster: &[u8],
+    ) -> Result<(Vec<i16>, Vec<Vec<i16>>), String> {
+        crate::elevation::samples_of(net, raster).map(|s| (s.vertex_dm, s.profile_dm))
+    }
+
+    /// R5's `RasterDataSourceSampler.readElevation` on a GeoTIFF raster, for
+    /// each `(lon, lat)`: the value of the nearest pixel, 0 outside the
+    /// raster, or why R5 (or this reader) fails there. An error for a
+    /// raster that cannot be read.
+    pub fn raster_samples(
+        raster: &[u8],
+        points: &[(f64, f64)],
+    ) -> Result<Vec<Result<f64, String>>, String> {
+        crate::elevation::read_points(raster, points)
+    }
+
+    /// The slope factor of directed edge `e` (`None` without elevation).
+    pub fn edge_slope(net: &StreetNetwork, e: usize) -> Option<f32> {
+        net.edge_slope.get(e).copied()
     }
 
     /// Directed edge `e` of `net` (`0..net.n_edges()`).
