@@ -79,7 +79,7 @@ jobs:
         with:
           name: npm-package
       - name: npm 11.5.1 or later (needed for trusted publishing)
-        run: npm install -g npm@latest && npm --version
+        run: npm install -g npm@11.21.2 && npm --version
       - name: Dry run
         if: github.event_name != 'release' || github.event.release.prerelease
         run: npm publish peabiru-*.tgz --access public --dry-run
