@@ -140,6 +140,6 @@ rs_gtfs_errors <- function(paths) .Call(wrap__rs_gtfs_errors, paths)
 #' (`list(dir, from_ids, to_ids)`) the files are written instead and
 #' `NULL` returned.
 #' @noRd
-rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, output) .Call(wrap__rs_detailed_itineraries, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, output)
+rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output) .Call(wrap__rs_detailed_itineraries, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output)
 
 # nolint end

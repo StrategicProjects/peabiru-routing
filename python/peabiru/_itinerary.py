@@ -102,10 +102,11 @@ def detailed_itineraries(
 
     Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]:
     ``shortest_path=False`` with public transport (r5r routes it with R5's
-    McRAPTOR), ``osm_link_ids=True``, ``output_dir`` with the geometry (use
-    ``drop_geometry=True``) and fares. As in r5r, networks
+    McRAPTOR) and fares. As in r5r, networks
     whose GTFS has frequency-based trips cannot be used with public
-    transport.
+    transport. With ``mode_egress="CAR"``, a pair whose itineraries in r5r
+    depend on the searches that ran before (R5 reverses the via edges of
+    some turn restrictions in place) is an error; see the guide.
 
     Parameters
     ----------
@@ -129,11 +130,19 @@ def detailed_itineraries(
     drop_geometry : bool, default False
         Whether to return a ``pandas.DataFrame`` without the lines.
     osm_link_ids : bool, default False
-        ``True`` is not supported yet.
+        Whether to add r5r's columns ``osm_id_list`` (the OpenStreetMap way
+        ids of a street leg's edges), ``edge_id_list`` (the indices of the
+        street network's edges, as ``street_network_to_gdf()`` numbers
+        them), both as ``"[id1, id2, ...]"`` and ``"[]"`` for rides, and
+        ``board_stop_id``, ``alight_stop_id`` (a ride's stops,
+        ``"<feed>:<stop_id>"``; empty for street legs). As in r5r,
+        consecutive edges on a roundabout give only their first ids, and
+        connectors none. Needs ``drop_geometry=False``.
     output_dir : str or os.PathLike, optional
-        With ``drop_geometry=True``: write one CSV file per pair with
-        itineraries, ``from_<origin id>_to_<destination id>.csv``, as r5r
-        does, and return ``output_dir``.
+        Write one CSV file per pair with itineraries,
+        ``from_<origin id>_to_<destination id>.csv``, byte for byte as r5r
+        does (the ``geometry`` column, unless ``drop_geometry``, as the WKT
+        text r5r writes), and return ``output_dir``.
 
     Returns
     -------
@@ -215,13 +224,9 @@ def detailed_itineraries(
             "Assertion on 'suboptimal_minutes' failed: Must be 0 when 'shortest_path' is True."
         )
     scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
-    if osm_link_ids:
-        unsupported("'osm_link_ids=True'")
     if not shortest_path and mode_list.transit:
         unsupported("'shortest_path=False' with public transport (McRAPTOR)")
-    if out_dir is not None and not drop_geometry:
-        unsupported("'output_dir' with the geometry (JTS's WKT text)", "; use 'drop_geometry=True'")
-    if not drop_geometry:
+    if out_dir is None and not drop_geometry:
         try:
             import geopandas as gpd
             import shapely
@@ -240,7 +245,7 @@ def detailed_itineraries(
             departure.yyyymmdd, departure.seconds, int(time_window),
             lim["walk"], lim["bike"], lim["car"], lim["trip"],
             float(walk_speed), float(bike_speed), int(max_rides), int(max_lts),
-            bool(shortest_path), threads, scenario,
+            bool(shortest_path), threads, scenario, bool(drop_geometry), bool(osm_link_ids),
             None if out_dir is None else (out_dir, [str(i) for i in o.ids], [str(i) for i in d.ids]),
         )
     if r is None:
@@ -264,6 +269,9 @@ def detailed_itineraries(
         "distance": _i32(r["distance"]).copy(),
         "route": _strings(np.array(r["route"], dtype=object)),
     })
+    if osm_link_ids:
+        for c in ["osm_id_list", "edge_id_list", "board_stop_id", "alight_stop_id"]:
+            df[c] = _strings(np.array(r[c], dtype=object))
     if drop_geometry:
         return df
     n_points = _i32(r["n_points"])

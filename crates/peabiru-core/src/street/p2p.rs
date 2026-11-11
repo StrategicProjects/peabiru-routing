@@ -170,11 +170,26 @@ pub(crate) struct Router<'a> {
     max_abs_origin_lat: i32,
     mm_per_lon_fixed: f64,
     max_speed_s_per_mm: f64,
-    /// Restrictions by their last edge, for reverse searches.
+    /// Restrictions by their last edge, for reverse searches (indices into
+    /// `reverse_restrictions`).
     reverse_starts: Vec<(u32, u32)>,
     /// Set when the search met something R5 does not reproduce (see
     /// [`Router::unsupported`]).
     pub(crate) unsupported: Option<&'static str>,
+    /// With `Some`, the via edges of a turn restriction with two or more
+    /// of them may be in either order: R5 reverses that array in place,
+    /// in the network every search shares, on each check of a reverse car
+    /// search (`TurnRestriction.reverse` in `canTurnFrom`), so the order a
+    /// check sees depends on every earlier check, in this call or an
+    /// earlier one, on any thread. A check whose outcome depends on the
+    /// order is "ambiguous"; the `i`-th one met takes the order
+    /// `choices[i]` (`true`: reversed), or, past the end, reversed in a
+    /// reverse search and as built in a forward one. The orders taken are
+    /// recorded in `via_used`. With `None`, the order is the one built (a
+    /// fresh network), and a reverse search that checks such a
+    /// restriction sets `unsupported`.
+    pub(crate) via_choices: Option<Vec<bool>>,
+    pub(crate) via_used: Vec<bool>,
 }
 
 impl<'a> Router<'a> {
@@ -182,7 +197,7 @@ impl<'a> Router<'a> {
         let mut reverse_starts = Vec::new();
         if reverse && mode == Mode::Car {
             reverse_starts = net
-                .restrictions
+                .reverse_restrictions
                 .iter()
                 .enumerate()
                 .map(|(i, r)| (r.to_edge, i as u32))
@@ -210,6 +225,8 @@ impl<'a> Router<'a> {
             max_speed_s_per_mm: 0.0,
             reverse_starts,
             unsupported: None,
+            via_choices: None,
+            via_used: Vec::new(),
         }
     }
 
@@ -423,11 +440,17 @@ impl<'a> Router<'a> {
         }
         let mut out = RMap::new();
         for &(r, pos) in &self.maps[s0.tr as usize] {
-            let rest = &self.net.restrictions[r as usize];
-            if self.reverse && rest.via_edges.len() > 1 {
+            let rest = if self.reverse {
+                &self.net.reverse_restrictions[r as usize]
+            } else {
+                &self.net.restrictions[r as usize]
+            };
+            let via = &rest.via_edges;
+            let k = via.len();
+            if self.reverse && k > 1 && self.via_choices.is_none() {
                 // R5 reverses the restriction's via edges in place on every
                 // such check (TurnRestriction.reverse), changing the
-                // network for every later search: not reproducible
+                // network for every later search: see `via_choices`
                 self.unsupported = Some(
                     "a car search backwards through a turn restriction with two or more via ways",
                 );
@@ -438,8 +461,22 @@ impl<'a> Router<'a> {
                 rest.to_edge
             };
             let p = (pos - 1) as usize;
-            if p < rest.via_edges.len() {
-                if edge != rest.via_edges[p] {
+            if p < k {
+                // the via edge R5 compares with: in the order built, or in
+                // the reversed order the array may be left in
+                let (built, reversed) = (via[p], via[k - 1 - p]);
+                let mut expected = built;
+                if let Some(choices) = &self.via_choices {
+                    if built != reversed && ((edge == built) != (edge == reversed)) {
+                        let i = self.via_used.len();
+                        let rev = choices.get(i).copied().unwrap_or(self.reverse);
+                        self.via_used.push(rev);
+                        if rev {
+                            expected = reversed;
+                        }
+                    }
+                }
+                if edge != expected {
                     if rest.only {
                         return None;
                     }

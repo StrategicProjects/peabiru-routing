@@ -61,7 +61,10 @@ for (city in cities) {
     car = list(mode = "CAR"),
     walk_slow = list(mode = "WALK", walk_speed = 2.5, max_walk_time = 50),
     car_short = list(mode = "CAR", max_trip_duration = 20, drop_geometry = TRUE),
-    bike_all = list(mode = "BICYCLE", shortest_path = FALSE)
+    bike_all = list(mode = "BICYCLE", shortest_path = FALSE),
+    walk_osm = list(mode = "WALK", osm_link_ids = TRUE),
+    bike_osm = list(mode = "BICYCLE", max_lts = 1, osm_link_ids = TRUE),
+    car_osm = list(mode = "CAR", osm_link_ids = TRUE)
   )
   if (city == "poa") {
     scenarios <- c(scenarios, list(
@@ -69,7 +72,11 @@ for (city in cities) {
       bus_bike = list(mode = c("BICYCLE", "BUS"), max_bike_time = 15, max_rides = 2),
       car_egress = list(mode = c("WALK", "TRANSIT"), mode_egress = "CAR", time_window = 25,
                         drop_geometry = TRUE),
-      rail = list(mode = c("WALK", "RAIL"), max_walk_time = 30)
+      rail = list(mode = c("WALK", "RAIL"), max_walk_time = 30),
+      transit_osm = list(mode = c("WALK", "TRANSIT"), osm_link_ids = TRUE),
+      car_access_osm = list(mode = c("CAR", "TRANSIT"), max_car_time = 20, osm_link_ids = TRUE),
+      bike_egress_osm = list(mode = c("WALK", "BUS"), mode_egress = "BICYCLE",
+                             osm_link_ids = TRUE)
     ))
     # scenarios: r5r's Porto Alegre files
     osm <- read.csv(file.path(src, "poa_osm_congestion.csv"))
@@ -88,8 +95,18 @@ for (city in cities) {
       scen_transit_car = list(mode = c("CAR", "TRANSIT"), new_carspeeds = poly,
                               carspeed_scale = 0.6, max_car_time = 20, drop_geometry = TRUE),
       scen_egress_bike = list(mode = c("WALK", "TRANSIT"), mode_egress = "BICYCLE",
-                              new_lts = lines, drop_geometry = TRUE)
+                              new_lts = lines, drop_geometry = TRUE),
+      scen_car_ids = list(mode = "CAR", new_carspeeds = osm, carspeed_scale = 0.8,
+                          osm_link_ids = TRUE),
+      scen_bike_ids = list(mode = "BICYCLE", new_lts = lts, osm_link_ids = TRUE),
+      scen_egress_car = list(mode = c("WALK", "TRANSIT"), mode_egress = "CAR",
+                             new_carspeeds = poly, carspeed_scale = 0.7, osm_link_ids = TRUE)
     ))
+    files_scen <- list(
+      scen_car_files = list(mode = "CAR", new_carspeeds = kmh, osm_link_ids = TRUE),
+      scen_egress_files = list(mode = c("WALK", "TRANSIT"), mode_egress = "CAR",
+                               new_carspeeds = osm)
+    )
   }
   k <- 0
   for (name in names(scenarios)) {
@@ -104,6 +121,47 @@ for (city in cities) {
     message(sprintf("%s %-10s rows %5d  %s", city, name, nrow(r),
                     if (ok) "identical" else "DIFFERENT"))
     if (!ok) print(all.equal(q, r))
+  }
+  # output_dir: every file byte for byte, with and without the geometry
+  # (ids with commas and spaces, which r5r allows in file names)
+  files <- list(
+    walk = list(mode = "WALK"),
+    bike = list(mode = "BICYCLE", max_lts = 3),
+    car = list(mode = "CAR"),
+    car_nogeom = list(mode = "CAR", drop_geometry = TRUE)
+  )
+  if (city == "poa") {
+    files <- c(files, list(
+      transit = list(mode = c("WALK", "TRANSIT")),
+      bus_bike = list(mode = c("BICYCLE", "BUS"), max_bike_time = 15),
+      transit_osm = list(mode = c("WALK", "TRANSIT"), osm_link_ids = TRUE)
+    ))
+  }
+  files$car_osm <- list(mode = "CAR", osm_link_ids = TRUE)
+  if (city == "poa") files <- c(files, files_scen)
+  for (name in names(files)) {
+    k <- k + 1
+    p <- pairs_for(pts, min(n_pairs, 200L), 100 * k + nchar(city))
+    p$o$id <- paste0("o,", seq_len(nrow(p$o)), " x")
+    p$d$id <- paste0("d ", seq_len(nrow(p$d)), ",y")
+    dirs <- file.path(tempdir(), paste0("itin-files-", city, "-", name, c("-r5r", "-peabiru")))
+    for (d in dirs) {
+      unlink(d, recursive = TRUE)
+      dir.create(d)
+    }
+    a <- c(list(origins = p$o, destinations = p$d, departure_datetime = dep), files[[name]])
+    suppressWarnings(do.call(r5r::detailed_itineraries,
+                             c(list(r5), a, progress = FALSE, output_dir = dirs[1])))
+    suppressWarnings(do.call(peabiru::detailed_itineraries, c(list(pb), a, output_dir = dirs[2])))
+    fr <- sort(list.files(dirs[1]))
+    fp <- sort(list.files(dirs[2]))
+    same <- vapply(intersect(fr, fp), function(f) {
+      identical(readBin(file.path(dirs[1], f), "raw", 1e8), readBin(file.path(dirs[2], f), "raw", 1e8))
+    }, logical(1))
+    ok <- identical(fr, fp) && all(same)
+    if (!ok) failed <- failed + 1
+    message(sprintf("%s files %-8s %4d files, %4d identical  %s", city, name, length(fr),
+                    sum(same), if (ok) "identical" else "DIFFERENT"))
   }
   r5r::stop_r5(r5)
 }

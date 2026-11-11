@@ -118,7 +118,14 @@ progress counter.}
 \item{drop_geometry}{A logical. Whether to leave the geometry out and
 return a \code{data.frame}.}
 
-\item{osm_link_ids}{A logical, \code{FALSE}: \code{TRUE} is not supported yet.}
+\item{osm_link_ids}{A logical. Whether to add r5r's columns
+\code{osm_id_list} (the OpenStreetMap way ids of a street leg's edges),
+\code{edge_id_list} (the indices of the street network's edges, as
+\code{\link[=street_network_to_sf]{street_network_to_sf()}} numbers them), both as \code{"[id1, id2, ...]"} and
+\code{"[]"} for rides, and \code{board_stop_id}, \code{alight_stop_id} (a ride's stops,
+\code{"<feed>:<stop_id>"}; empty for street legs). As in r5r, consecutive
+edges on a roundabout give only their first ids, and connectors none.
+Needs \code{drop_geometry = FALSE}. Defaults to \code{FALSE}.}
 
 \item{output_dir}{\code{NULL}, or the path of an existing directory: instead of
 returning the result, write it there as r5r does, one CSV file per
@@ -146,9 +153,11 @@ EPSG:4326; otherwise a \code{data.frame}. One row per leg (\code{segment}) of
 each itinerary (\code{option}), with \code{from_id}, \code{from_lat}, \code{from_lon},
 \code{to_id}, \code{to_lat}, \code{to_lon}, \code{option}, \code{departure_time},
 \code{total_duration} (minutes), \code{total_distance} (metres), \code{segment},
-\code{mode}, \code{segment_duration}, \code{wait} (minutes), \code{distance} (metres) and
-\code{route}. Pairs without an itinerary have no rows. With \code{output_dir},
-\code{output_dir}.
+\code{mode}, \code{segment_duration}, \code{wait} (minutes), \code{distance} (metres),
+\code{route} and, with \code{osm_link_ids}, the four id columns. Pairs without an itinerary have no rows. With \code{output_dir},
+one CSV file per pair with itineraries is written,
+\verb{from_<origin id>_to_<destination id>.csv}, byte for byte as r5r writes
+it (the geometry as r5r's WKT text), and \code{output_dir} is returned.
 }
 \description{
 The itinerary of each trip between pairs of origins and destinations:
@@ -161,13 +170,19 @@ transport, the fastest trip over the departure window
 }
 \details{
 Not supported yet, and an error: \code{shortest_path = FALSE} with public
-transport (r5r routes it with R5's McRAPTOR), \code{osm_link_ids = TRUE},
-\code{output_dir} with the geometry (r5r writes JTS's WKT text; use
-\code{drop_geometry = TRUE}) and fares. As in r5r, networks
+transport (r5r routes it with R5's McRAPTOR) and fares. As in r5r, networks
 whose GTFS has frequency-based trips cannot be used with public
-transport. A car trip whose egress search crosses a turn restriction
-with two or more via ways is an error too (R5 changes the restriction
-in place on that search, so its results depend on earlier calls).
+transport.
+
+With \code{mode_egress = "CAR"}, R5 reverses the via edges of turn
+restrictions with two or more via ways in place each time its backward
+egress search checks one, so what r5r returns for a pair whose car
+searches cross such a restriction can depend on the searches that ran
+before (in the same call, on other threads, or in earlier calls).
+peabiru plans such a pair for every order those via edges can be in:
+when the itineraries are the same in all of them, they are returned (they
+are r5r's whatever ran before); otherwise the call stops with an error
+naming the pair.
 }
 \examples{
 \dontshow{if (requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}

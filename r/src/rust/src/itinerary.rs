@@ -1,34 +1,18 @@
 //! `detailed_itineraries()`: the core's itineraries as plain vectors, one
-//! element per leg, with the geometry as WKT text for `sf::st_as_sfc()`.
+//! element per leg, with the geometry as the WKT text r5r gives
+//! `sf::st_as_sfc()`.
 
 use super::{err, interruptible, network, points, street_mode, transit_modes, Outcome};
 use extendr_api::prelude::*;
 use extendr_api::Result;
 use peabiru_core::{detailed_itineraries, write_itineraries_csv, ItineraryParams, RouteError};
-use std::fmt::Write as _;
-
-/// One leg's line as `LINESTRING (x y, ...)` with every coordinate in its
-/// shortest round-trip decimal form (what sf reads back is the same
-/// double).
-fn wkt(line: &[[f64; 2]]) -> String {
-    if line.is_empty() {
-        return "LINESTRING EMPTY".into();
-    }
-    let mut s = String::from("LINESTRING (");
-    for (i, p) in line.iter().enumerate() {
-        if i > 0 {
-            s.push_str(", ");
-        }
-        let _ = write!(s, "{} {}", p[0], p[1]);
-    }
-    s.push(')');
-    s
-}
 
 /// Itineraries between `origins[i]` and `destinations[i]`, as
 /// `list(pair, option, departure_time, total_duration, total_distance,
-/// segment, mode, segment_duration, wait, distance, route, geometry)`
-/// (`pair` 1-based; `geometry` `NULL` with `drop_geometry`). With `output`
+/// segment, mode, segment_duration, wait, distance, route, osm_id_list,
+/// edge_id_list, board_stop_id, alight_stop_id, geometry)` (`pair` 1-based;
+/// the four id columns `NULL` without `osm_link_ids`, `geometry` `NULL`
+/// with `drop_geometry`). With `output`
 /// (`list(dir, from_ids, to_ids)`) the files are written instead and
 /// `NULL` returned.
 /// @noRd
@@ -58,6 +42,7 @@ fn rs_detailed_itineraries(
     n_threads: i32,
     drop_geometry: bool,
     scenario: Robj,
+    osm_link_ids: bool,
     output: Robj,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
@@ -82,6 +67,7 @@ fn rs_detailed_itineraries(
     p.max_lts = max_lts;
     p.shortest_path = shortest_path;
     p.n_threads = n_threads.max(0) as usize;
+    p.osm_link_ids = osm_link_ids;
     let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
     let res = match interruptible(&p.cancel, || {
         detailed_itineraries(&n.net, transit, &o, &d, &p)
@@ -100,7 +86,7 @@ fn rs_detailed_itineraries(
         let dir = get("dir")?.pop().unwrap_or_default();
         let ids: Vec<(String, String)> = get("from_ids")?.into_iter().zip(get("to_ids")?).collect();
         let pts: Vec<_> = o.iter().copied().zip(d.iter().copied()).collect();
-        write_itineraries_csv(&dir, &ids, &pts, &res)
+        write_itineraries_csv(&dir, &ids, &pts, &res, drop_geometry, osm_link_ids)
             .map_err(|e| err(RouteError::Invalid(format!("cannot write {dir}: {e}"))))?;
         return Ok(().into());
     }
@@ -116,6 +102,7 @@ fn rs_detailed_itineraries(
     let mut distance = Vec::new();
     let mut route = Vec::new();
     let mut geometry = Vec::new();
+    let mut links: [Vec<String>; 4] = Default::default();
     for (k, its) in res.iter().enumerate() {
         for it in its {
             for (j, l) in it.legs.iter().enumerate() {
@@ -130,8 +117,14 @@ fn rs_detailed_itineraries(
                 wait.push(l.wait);
                 distance.push(l.distance);
                 route.push(l.route.clone());
+                if osm_link_ids {
+                    links[0].push(l.osm_id_list());
+                    links[1].push(l.edge_id_list());
+                    links[2].push(l.board_stop_id.clone());
+                    links[3].push(l.alight_stop_id.clone());
+                }
                 if !drop_geometry {
-                    geometry.push(wkt(&l.geometry));
+                    geometry.push(l.wkt());
                 }
             }
         }
@@ -141,6 +134,13 @@ fn rs_detailed_itineraries(
     } else {
         geometry.into()
     };
+    let [osm, edges, board, alight] = links.map(|v| -> Robj {
+        if osm_link_ids {
+            v.into()
+        } else {
+            ().into()
+        }
+    });
     Ok(list!(
         pair = pair,
         option = option,
@@ -153,6 +153,10 @@ fn rs_detailed_itineraries(
         wait = wait,
         distance = distance,
         route = route,
+        osm_id_list = osm,
+        edge_id_list = edges,
+        board_stop_id = board,
+        alight_stop_id = alight,
         geometry = geometry
     )
     .into())

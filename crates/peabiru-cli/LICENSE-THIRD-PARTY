@@ -476,12 +476,19 @@ named here for transparency.
       itinerary/hops.rs: where a stop falls along a GTFS shape and the part
       of the shape between two such places (LocationIndexOfPoint,
       ExtractLineByLocation, as R5's TripPattern.getHopGeometries uses
-      them); itinerary/geom.rs: the double sf reads back from the WKT JTS
-      writes (at most 16 digits after the point).
+      them); itinerary/wkt.rs: the WKT text WKTWriter writes for a line
+      (OrdinateFormat: a DecimalFormat with pattern "0" and at most 16
+      fraction digits).
       street/scenario/jts.rs: the STRtree spatial index (its query order),
       DiscreteHausdorffDistance between two lines and the predicate
       Polygon.intersects(LineString), which R5's RoadCongestion and
       ShapefileMatcher use for r5r's scenarios.
+  java.text.DecimalFormat, java.text.DigitList and
+  jdk.internal.math.FloatingDecimal (OpenJDK 21)
+      itinerary/wkt.rs: the digits DecimalFormat writes for a double (the
+      binary-to-decimal conversion of FloatingDecimal, which is not always
+      the shortest, then rounded half-even to the fraction digits asked for
+      with that conversion's exactness flags), which JTS's WKTWriter uses.
   libc++ std::unordered_map (LLVM)
       isochrone/isoband.rs (HashTable): the bucket counts, growth and node
       order of libc++'s hash table, which fix the order in which isoband
