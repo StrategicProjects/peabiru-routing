@@ -7,7 +7,7 @@
 #
 # Needs r5r, a JDK 21 (JAVA_HOME) and r5r's sample data; `city` is Porto
 # Alegre inside its limits (bench/data/poa-city, with r5r's two Porto Alegre
-# feeds). Each network's .pbf and GTFS .zip files are copied into a fresh
+# feeds; PEABIRU_BENCH_DATA names bench/data if it is elsewhere). Each network's .pbf and GTFS .zip files are copied into a fresh
 # directory (r5r's extdata also holds a .tif and a cached network.dat). The
 # origins and destinations are random sample points, shuffled; Porto Alegre
 # uses the fare structure r5r ships (fares_poa.zip) and edits of it, Sao
@@ -63,6 +63,8 @@ both <- function(name, fun, ...) {
 }
 
 ext <- system.file("extdata", package = "r5r")
+# bench/data (it is not in git; PEABIRU_BENCH_DATA points to another copy)
+bench_data <- Sys.getenv("PEABIRU_BENCH_DATA", file.path(root, "bench", "data"))
 t14 <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
 t1430 <- as.POSIXct("2019-05-13 14:30:00", tz = "America/Sao_Paulo")
 fp <- r5r::read_fare_structure(file.path(ext, "poa/fares/fares_poa.zip"))
@@ -71,9 +73,9 @@ edit <- function(s, expr) { s <- copy(s); eval(substitute(expr)); s }
 for (city in cities) {
   w <- tempfile(paste0("fares-", city)); dir.create(w)
   if (city == "city") {
-    file.copy(c(file.path(root, "bench/data/poa-city/poa_city.osm.pbf"),
+    file.copy(c(file.path(bench_data, "poa-city/poa_city.osm.pbf"),
                 list.files(file.path(ext, "poa"), pattern = "\\.zip$", full.names = TRUE)), w)
-    pts <- fread(file.path(root, "bench/data/poa-city/points_700m.csv"))
+    pts <- fread(file.path(bench_data, "poa-city/points_700m.csv"))
   } else {
     file.copy(list.files(file.path(ext, city), pattern = "\\.(pbf|zip)$", full.names = TRUE), w)
     pts <- fread(file.path(ext, city, paste0(city, "_hexgrid.csv")))
