@@ -34,6 +34,13 @@ SECTIONS = [
         "isochrone", "IsochroneOptions", "IsochronePolygonProperties", "IsochroneLineProperties",
         "FeatureCollection", "Feature", "MultiPolygon", "LineString",
     ]),
+    ("Inspecting a network", [
+        "findSnap", "FindSnapOptions", "SnapTable", "streetNetworkBbox", "Polygon", "Point",
+        "streetNetworkToSf", "StreetVertexProperties", "StreetEdgeProperties", "InspectOptions",
+        "transitNetworkToSf", "TransitStopProperties", "TransitRouteProperties",
+        "checkTransitAvailability", "TransitAvailabilityOptions", "TransitAvailabilityTable",
+        "getGtfsErrors", "GtfsErrorsTable",
+    ]),
     ("Points, dates and shared options", ["Points", "Numbers", "DateTime", "RoutingOptions"]),
     ("Missing values and errors", ["NA_INT32", "UnsupportedError"]),
     ("Loading the module and versions", ["init", "initSync", "InitInput", "coreVersion", "version"]),

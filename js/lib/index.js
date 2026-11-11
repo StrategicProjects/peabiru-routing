@@ -15,10 +15,17 @@ import wasmInit, {
   accessibility as rawAccessibility,
   core_version as rawCoreVersion,
   expanded as rawExpanded,
+  find_snap as rawFindSnap,
+  gtfs_errors as rawGtfsErrors,
   isochrone_lines as rawIsochroneLines,
   isochrone_polygons as rawIsochronePolygons,
+  street_bbox as rawStreetBbox,
   street_edges as rawStreetEdges,
   street_ttm as rawStreetTtm,
+  street_vertices as rawStreetVertices,
+  transit_routes as rawTransitRoutes,
+  transit_service_dates as rawTransitServiceDates,
+  transit_stops as rawTransitStops,
   transit_ttm as rawTransitTtm,
 } from "../pkg/peabiru.js";
 
@@ -30,6 +37,12 @@ const RAW = {
   isochrone_polygons: rawIsochronePolygons,
   street_edges: rawStreetEdges,
   availability: (raw, date) => raw.transit_availability(date),
+  find_snap: rawFindSnap,
+  street_bbox: rawStreetBbox,
+  street_vertices: rawStreetVertices,
+  transit_stops: rawTransitStops,
+  transit_routes: rawTransitRoutes,
+  transit_service_dates: rawTransitServiceDates,
 };
 
 /** Version of this package. */
@@ -522,7 +535,7 @@ function commonChecks(o) {
 }
 
 /** r5r check_transit_availability_on_date(). */
-async function checkTransitAvailability(network, departure, warn, signal) {
+async function checkTransitAvailabilityOnDate(network, departure, warn, signal) {
   const [total, active] = await network._availability(departure.yyyymmdd, signal);
   const pct = total === 0 ? 0 : active / total;
   if (pct === 0) {
@@ -992,6 +1005,15 @@ export class Network {
     return r;
   }
 
+  /** @internal `RAW[fn](network, ...args)` on one instance: inline, or on one worker. */
+  async _one(fn, args, signal) {
+    this.#alive();
+    if (signal && signal.aborted) throw abortError(signal);
+    if (this.#raw) return RAW[fn](this.#raw, ...args);
+    const [r] = await this.#pool.run(fn, [{ args }], signal);
+    return r;
+  }
+
   /** @internal The street edges (the columns of the core's street_edges), from one instance. */
   async _edges(signal) {
     this.#alive();
@@ -1158,7 +1180,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
   const modeList = assignMode(opt.mode, opt.modeEgress);
   const departure = assignDeparture(opt.departureDatetime, modeList);
   assertNetwork(network);
-  if (modeList.transit) await checkTransitAvailability(network, departure, warn, opt.signal);
+  if (modeList.transit) await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
   // r5r reverse_if_direct_mode(): walking alone with more origins than
   // destinations routes from the destinations (there is no elevation
   // raster here, which would turn it off)
@@ -1289,7 +1311,7 @@ export async function accessibility(network, origins, destinations, options) {
   const opp = opportunityColumns(d, opt.opportunitiesColnames, warn);
   const modeList = assignMode(opt.mode, opt.modeEgress);
   const departure = assignDeparture(opt.departureDatetime, modeList);
-  if (modeList.transit) await checkTransitAvailability(network, departure, warn, opt.signal);
+  if (modeList.transit) await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
   const fun = opt.decayFunction;
   const value = assignDecay(fun, opt.decayValue);
   const cutoffs = assignCutoffs(opt.cutoffs, fun);
@@ -1398,7 +1420,7 @@ export async function expandedTravelTimeMatrix(network, origins, destinations, o
   checkExpandedMode(modeList);
   const departure = assignDeparture(opt.departureDatetime, modeList);
   assertNetwork(network);
-  await checkTransitAvailability(network, departure, warn, opt.signal);
+  await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
   const lim = streetLimits(opt, modeList);
   assertCount(opt.timeWindow, "timeWindow", true);
   const seed = commonChecks(opt);
@@ -1436,7 +1458,7 @@ export async function arrivalTravelTimeMatrix(network, origins, destinations, op
   const lim = streetLimits(opt, modeList);
   // the departure is arrival - max_trip_duration, as r5r computes it
   const departure = assignDeparture(minusMinutes(opt.arrivalDatetime, lim.trip, "arrivalDatetime"), modeList, "arrivalDatetime");
-  await checkTransitAvailability(network, departure, warn, opt.signal);
+  await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
   const seed = commonChecks(opt);
   checkOutputDir(opt.outputDir);
   assertFlag(opt.breakdown, "breakdown");
@@ -1615,4 +1637,282 @@ async function isochroneLines(network, origins, opt, cuts, limit, warn) {
     };
   }
   return { type: "FeatureCollection", features };
+}
+
+// ---------------------------------------------------------------------------
+// Inspecting a network: r5r's find_snap(), street_network_bbox(),
+// street_network_to_sf(), transit_network_to_sf(),
+// check_transit_availability() and get_gtfs_errors()
+
+/**
+ * Where points snap to the street network, as r5r's find_snap(): the
+ * nearest point of a street the mode may use, first within 300 metres and
+ * then within `radius`. Columns `point_id`, `lat`, `lon`, `snap_lat`,
+ * `snap_lon`, `distance` (metres; NaN where the point does not snap) and
+ * `found`.
+ */
+export async function findSnap(network, points, options) {
+  const opt = optionsObject(options);
+  for (const k of Object.keys(opt)) {
+    if (!["radius", "mode", "onWarning", "signal"].includes(k)) throw new TypeError(`unknown option '${k}'`);
+  }
+  const warn = warner(opt);
+  assertNetwork(network);
+  let radius = opt.radius === undefined ? 1600 : opt.radius;
+  const mode = opt.mode === undefined ? "WALK" : opt.mode;
+  // checkmate::assert_numeric(radius, lower = 0, finite = TRUE, max.len = 1)
+  if (!isNumber(radius)) fail("radius", "Must be of type 'numeric'", TypeError);
+  if (radius === Infinity || radius === -Infinity) fail("radius", "Must be finite");
+  if (radius < 0) fail("radius", "Element 1 is not >= 0");
+  // checkmate lets NA through and R5 then snaps nothing
+  if (Number.isNaN(radius)) radius = 0;
+  assertString(mode, "mode");
+  if (!["WALK", "BICYCLE", "CAR"].includes(mode)) {
+    fail("mode", `Must be a subset of {'WALK','BICYCLE','CAR'}, but has additional elements {'${mode}'}`);
+  }
+  const p = pointsInput(points, "points", warn);
+  const [snapLat, snapLon, distance, found] = await network._one("find_snap", [p.lat, p.lon, radius, mode], opt.signal);
+  return {
+    point_id: p.ids,
+    lat: p.lat,
+    lon: p.lon,
+    snap_lat: snapLat,
+    snap_lon: snapLon,
+    distance,
+    found: Array.from(found, (v) => v === 1),
+  };
+}
+
+/**
+ * The bounding box of the street network, as r5r's street_network_bbox():
+ * R5's envelope of the street layer. `output` is "polygon" (a GeoJSON
+ * Polygon, the default), "bbox" (`[xmin, ymin, xmax, ymax]`, a GeoJSON
+ * bbox) or "vector" (`{xmin, ymin, xmax, ymax}`).
+ */
+export async function streetNetworkBbox(network, output = "polygon") {
+  assertNetwork(network);
+  const choices = ["polygon", "bbox", "vector"];
+  if (!choices.includes(output)) throw new RangeError(`'arg' should be one of ${choices.map((c) => `"${c}"`).join(", ")}`);
+  const [xmin, ymin, xmax, ymax] = await network._one("street_bbox", []);
+  if (output === "vector") return { xmin, ymin, xmax, ymax };
+  if (output === "bbox") return [xmin, ymin, xmax, ymax];
+  // the ring of sf::st_as_sfc() of a bbox
+  return { type: "Polygon", coordinates: [[[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax], [xmin, ymin]]] };
+}
+
+/** LineString geometries from `n_points` and flat `x`, `y`. */
+function lineCoordinates(nPoints, x, y) {
+  const out = new Array(nPoints.length);
+  for (let i = 0, p = 0; i < nPoints.length; i++) {
+    const c = new Array(nPoints[i]);
+    for (let k = 0; k < nPoints[i]; k++, p++) c[k] = [x[p], y[p]];
+    out[i] = c;
+  }
+  return out;
+}
+
+/**
+ * The street network as GeoJSON, as r5r's street_network_to_sf():
+ * `vertices` (Points with `index`, `park_and_ride`, `bike_sharing`) and
+ * `edges` (LineStrings with `edge_index`, `osm_id`, `from_vertex`,
+ * `to_vertex`, `street_class`, `length` in metres, `walk`, `car`,
+ * `car_speed` in km/h, `bicycle`, `bicycle_lts`), in r5r's order.
+ */
+export async function streetNetworkToSf(network, options) {
+  const opt = optionsObject(options);
+  assertNetwork(network);
+  const [index, lat, lon, pnr, bs] = await network._one("street_vertices", [], opt.signal);
+  const vertices = new Array(index.length);
+  for (let i = 0; i < index.length; i++) {
+    vertices[i] = {
+      type: "Feature",
+      properties: { index: index[i], park_and_ride: pnr[i] === 1, bike_sharing: bs[i] === 1 },
+      geometry: { type: "Point", coordinates: [lon[i], lat[i]] },
+    };
+  }
+  const [edgeIndex, osmId, fromVertex, toVertex, classes, length, walk, car, carSpeed, bicycle, lts, , , nPoints, x, y] =
+    await network._edges(opt.signal);
+  const lines = lineCoordinates(nPoints, x, y);
+  const edges = new Array(edgeIndex.length);
+  for (let e = 0; e < edgeIndex.length; e++) {
+    edges[e] = {
+      type: "Feature",
+      properties: {
+        edge_index: edgeIndex[e],
+        osm_id: osmId[e],
+        from_vertex: fromVertex[e],
+        to_vertex: toVertex[e],
+        street_class: STREET_CLASSES[classes[e]],
+        length: length[e],
+        walk: walk[e] === 1,
+        car: car[e] === 1,
+        car_speed: carSpeed[e],
+        bicycle: bicycle[e] === 1,
+        bicycle_lts: lts[e],
+      },
+      geometry: { type: "LineString", coordinates: lines[e] },
+    };
+  }
+  return {
+    vertices: { type: "FeatureCollection", features: vertices },
+    edges: { type: "FeatureCollection", features: edges },
+  };
+}
+
+/**
+ * The public transport network as GeoJSON, as r5r's
+ * transit_network_to_sf(): `stops` (Points with `stop_index`, `stop_id`,
+ * `stop_name`, `linked_to_street`; a stop not linked to the streets has a
+ * null geometry) and `routes` (one LineString per trip pattern, with
+ * `agency_id`, `agency_name`, `route_id`, `long_name`, `short_name` and
+ * `mode`; patterns without a line are left out, and a line whose points
+ * are all the same is the Point sf::st_make_valid() makes of it).
+ */
+export async function transitNetworkToSf(network, options) {
+  const opt = optionsObject(options);
+  assertNetwork(network);
+  const [agencyId, agencyName, routeId, longName, shortName, mode, nPoints, x, y] = await network._one("transit_routes", [], opt.signal);
+  const lines = lineCoordinates(nPoints, x, y);
+  const routes = [];
+  for (let i = 0; i < lines.length; i++) {
+    const c = lines[i];
+    if (c.length === 0) continue;
+    const point = c.every((q) => q[0] === c[0][0] && q[1] === c[0][1]);
+    routes.push({
+      type: "Feature",
+      properties: {
+        agency_id: agencyId[i],
+        agency_name: agencyName[i],
+        route_id: routeId[i],
+        long_name: longName[i],
+        short_name: shortName[i],
+        mode: mode[i],
+      },
+      geometry: point ? { type: "Point", coordinates: c[0] } : { type: "LineString", coordinates: c },
+    });
+  }
+  const [stopIndex, stopId, stopName, lat, lon, linked] = await network._one("transit_stops", [], opt.signal);
+  const stops = new Array(stopIndex.length);
+  for (let i = 0; i < stopIndex.length; i++) {
+    stops[i] = {
+      type: "Feature",
+      properties: { stop_index: stopIndex[i], stop_id: stopId[i], stop_name: stopName[i], linked_to_street: linked[i] === 1 },
+      geometry: linked[i] === 1 ? { type: "Point", coordinates: [lon[i], lat[i]] } : null,
+    };
+  }
+  return {
+    stops: { type: "FeatureCollection", features: stops },
+    routes: { type: "FeatureCollection", features: routes },
+  };
+}
+
+/** r5r parse_date_input(): "YYYY-MM-DD" strings or Dates (their local date). */
+function parseDates(x, arg) {
+  const values = typeof x === "string" || x instanceof Date ? [x] : x !== null && typeof x === "object" && typeof x[Symbol.iterator] === "function" ? Array.from(x) : null;
+  if (values === null) throw new TypeError(`\`${arg}\` must be a vector of character strings or Date objects.`);
+  return values.map((v) => {
+    if (v instanceof Date) {
+      if (Number.isNaN(v.getTime())) throw new RangeError(`Could not parse all values in \`${arg}\`.`);
+      return { y: v.getFullYear(), mo: v.getMonth() + 1, d: v.getDate() };
+    }
+    if (typeof v !== "string") throw new TypeError(`\`${arg}\` must be a vector of character strings or Date objects.`);
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+    if (!m) throw new RangeError(`Invalid date format found in \`${arg}\`. Please use the strict 'YYYY-MM-DD' format for all date strings.`);
+    const [y, mo, d] = m.slice(1).map(Number);
+    const t = new Date(Date.UTC(y, mo - 1, d));
+    if (t.getUTCFullYear() !== y || t.getUTCMonth() !== mo - 1 || t.getUTCDate() !== d) {
+      throw new RangeError(`Could not parse all values in \`${arg}\`. One or more dates are logically invalid (e.g., '2025-02-29').`);
+    }
+    return { y, mo, d };
+  });
+}
+
+/**
+ * Services active on dates, as r5r's check_transit_availability(): with
+ * no `dates`, `startDate` or `endDate`, the dates with an active service
+ * used by some trip are discovered from the network. Columns `date`
+ * ("YYYY-MM-DD"), `total_services`, `active_services` and `pct_active`.
+ */
+export async function checkTransitAvailability(network, options) {
+  const opt = optionsObject(options);
+  for (const k of Object.keys(opt)) {
+    if (!["dates", "startDate", "endDate", "signal"].includes(k)) throw new TypeError(`unknown option '${k}'`);
+  }
+  assertNetwork(network);
+  const has = (k) => opt[k] !== undefined && opt[k] !== null;
+  const vector = has("dates") && !has("startDate") && !has("endDate");
+  const range = !has("dates") && has("startDate") && has("endDate");
+  const discover = !has("dates") && !has("startDate") && !has("endDate");
+  if (!discover && !vector && !range) {
+    throw new RangeError(
+      "Incorrect date arguments provided. Omit all date arguments for discovery, or use one of these methods: use the `dates` option to provide a vector of specific dates, or use both `startDate` and `endDate` to provide a continuous date range. You cannot mix these methods or provide an incomplete date range.",
+    );
+  }
+  let days;
+  if (discover) {
+    const found = await network._one("transit_service_dates", [], opt.signal);
+    days = Array.from(found, (v) => ({ y: Math.floor(v / 10000), mo: Math.floor(v / 100) % 100, d: v % 100 }));
+  } else if (vector) {
+    days = parseDates(opt.dates, "dates");
+  } else {
+    const start = parseDates(opt.startDate, "startDate");
+    const end = parseDates(opt.endDate, "endDate");
+    if (start.length > 1 || end.length > 1) throw new RangeError("`startDate` and `endDate` must each be a single date.");
+    const t0 = Date.UTC(start[0].y, start[0].mo - 1, start[0].d);
+    const t1 = Date.UTC(end[0].y, end[0].mo - 1, end[0].d);
+    if (t0 > t1) throw new RangeError("`startDate` must be before or the same as `endDate`.");
+    days = [];
+    for (let t = t0; t <= t1; t += 86400000) {
+      const u = new Date(t);
+      days.push({ y: u.getUTCFullYear(), mo: u.getUTCMonth() + 1, d: u.getUTCDate() });
+    }
+  }
+  const n = days.length;
+  const out = {
+    date: days.map((p) => `${pad(p.y, 4)}-${pad(p.mo)}-${pad(p.d)}`),
+    total_services: new Int32Array(n),
+    active_services: new Int32Array(n),
+    pct_active: new Float64Array(n),
+  };
+  for (let i = 0; i < n; i++) {
+    const [total, active] = await network._availability(days[i].y * 10000 + days[i].mo * 100 + days[i].d, opt.signal);
+    out.total_services[i] = total;
+    out.active_services[i] = active;
+    out.pct_active[i] = total === 0 ? 0 : active / total;
+  }
+  return out;
+}
+
+/**
+ * The errors gtfs-lib (R5's GTFS library) reports in GTFS feeds, as r5r's
+ * get_gtfs_errors() (which reads them from the gtfs_errors.csv its
+ * build_network() writes). A Network does not keep its feeds, so pass
+ * them as buildNetwork() takes them: an array of `{name, data}`, or an
+ * object with a `gtfs` array. Columns `file`, `line`, `type`, `field`,
+ * `id` and `priority`, feed by feed in the order gtfs-lib finds them.
+ * Throws an Error naming the cause for a feed on which gtfs-lib fails
+ * instead of listing errors (r5r's build_network() fails then too).
+ */
+export async function getGtfsErrors(feeds) {
+  if (feeds instanceof Network) {
+    throw new TypeError("a Network does not keep its GTFS feeds: pass them as buildNetwork() takes them ({gtfs: [{name, data}]})");
+  }
+  const list = Array.isArray(feeds) ? feeds : feeds !== null && typeof feeds === "object" && Array.isArray(feeds.gtfs) ? feeds.gtfs : null;
+  if (list === null) fail("feeds", "Must be an array of {name, data} or an object {gtfs}", TypeError);
+  await init();
+  const cols = [[], [], [], [], [], []];
+  list.forEach((f, i) => {
+    if (f === null || typeof f !== "object") fail(`gtfs[${i}]`, "Must be an object {name, data}", TypeError);
+    assertString(f.name, `gtfs[${i}].name`);
+    const r = rawGtfsErrors(f.name, bytesOf(f.data, `gtfs[${i}].data`));
+    for (let k = 0; k < 6; k++) cols[k].push(...Array.from(r[k]));
+  });
+  return {
+    file: cols[0],
+    line: Int32Array.from(cols[1]),
+    type: cols[2],
+    field: cols[3],
+    id: cols[4],
+    priority: cols[5],
+  };
 }
