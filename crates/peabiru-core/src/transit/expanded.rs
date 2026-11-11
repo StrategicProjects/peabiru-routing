@@ -23,7 +23,7 @@ use super::raptor::{self, Filtered, Leg, PathArena, RaptorRequest, NO_PATH, UNRE
 use super::walk;
 use super::TransitLayer;
 use crate::jcompat::TroveIntKeys;
-use crate::street::link::{find_split, Split};
+use crate::street::link::{find_split, link_points, Split};
 use crate::street::router::{search_from, worker_threads, Mode, ModeGraph, Search};
 use crate::street::StreetNetwork;
 use crate::{CancelToken, RouteError};
@@ -336,18 +336,31 @@ impl<'a> Context<'a> {
         data: &'a TransitData,
         destinations: &[(f64, f64)],
         p: &'a TransitParams,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, RouteError> {
         validate(layer, destinations.len(), p)?;
         let active = layer.active_services(p.date, weekday(p.date));
         let filtered = Filtered::new(layer, &active)?;
         let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
         let walk_mms = (walk_speed * 1000.0f32) as i32;
-        let mut scratch = Vec::new();
-        let dest_splits: Vec<Option<Split>> = destinations
-            .iter()
-            .map(|&(lat, lon)| find_split(net, lat, lon, Mode::Walk, &mut scratch))
-            .collect();
-        let egress = walk::egress_tables(layer, &data.trees, net, destinations, &dest_splits);
+        let dest_splits = link_points(
+            net,
+            destinations.len(),
+            |j| destinations[j],
+            Mode::Walk,
+            p.n_threads,
+            &p.cancel,
+        )
+        .ok_or(RouteError::Cancelled)?;
+        let egress = walk::egress_tables(
+            layer,
+            &data.trees,
+            net,
+            destinations,
+            &dest_splits,
+            p.n_threads,
+            &p.cancel,
+        )
+        .ok_or(RouteError::Cancelled)?;
         let mut retain = vec![false; layer.stop_ids.len()];
         let egress = egress
             .into_iter()

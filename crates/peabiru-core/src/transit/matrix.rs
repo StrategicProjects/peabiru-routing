@@ -431,17 +431,24 @@ impl<'a> Query<'a> {
         // stops at or beyond the egress limit skipped.
         let seconds = |mm: i32| Some(mm / walk_mms).filter(|&e| e < egress_limit);
         let egress = match destinations {
-            Dests::Points(points) => {
-                walk::egress_tables(layer, &data.trees, net, points, &dest_splits)
+            Dests::Points(points) => walk::egress_tables(
+                layer,
+                &data.trees,
+                net,
+                points,
+                &dest_splits,
+                p.n_threads,
+                &p.cancel,
+            )
+            .ok_or(RouteError::Cancelled)?
+            .into_iter()
+            .map(|table| {
+                table
                     .into_iter()
-                    .map(|table| {
-                        table
-                            .into_iter()
-                            .filter_map(|(stop, mm)| Some((stop, seconds(mm)?)))
-                            .collect()
-                    })
+                    .filter_map(|(stop, mm)| Some((stop, seconds(mm)?)))
                     .collect()
-            }
+            })
+            .collect(),
             // converted as they are found
             Dests::Grid(g) => walk::egress_tables_grid(
                 layer,

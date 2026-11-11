@@ -241,26 +241,61 @@ pub fn find_transfers(
 /// Egress distances (mm) from stops to each destination point, as R5's
 /// `EgressCostTable` for WALK: per stop, points strictly inside the stop's
 /// envelope grown by 2 km, cost through the nearer end of the point's
-/// linked edge. Returns, per destination, `(stop, mm)` pairs.
+/// linked edge. Returns, per destination, `(stop, mm)` pairs in increasing
+/// stop order.
+///
+/// The destinations are shared out in batches among up to `n_threads`
+/// threads (0 = all cores), each batch sorted by latitude to find a stop's
+/// points by binary search; the result does not depend on the number of
+/// threads. `None` when `cancel` is cancelled, which the workers check
+/// between batches.
 pub fn egress_tables(
     layer: &TransitLayer,
     trees: &[Option<Vec<(u32, i32)>>],
     net: &StreetNetwork,
     dest_points: &[(f64, f64)],
     dest_splits: &[Option<Split>],
-) -> Vec<Vec<(u32, i32)>> {
+    n_threads: usize,
+    cancel: &crate::CancelToken,
+) -> Option<Vec<Vec<(u32, i32)>>> {
+    const BATCH: usize = 4096;
+    let stops: Vec<(usize, &[(u32, i32)], (f64, f64, f64, f64))> = trees
+        .iter()
+        .enumerate()
+        .filter_map(|(s, tree)| Some((s, tree.as_deref()?, stop_envelope(layer, net, s))))
+        .collect();
     let mut out = vec![Vec::new(); dest_points.len()];
-    for (s, tree) in trees.iter().enumerate() {
-        let Some(tree) = tree else { continue };
-        let (south, north, west, east) = stop_envelope(layer, net, s);
-        for (p, &(lat, lon)) in dest_points.iter().enumerate() {
-            if !(lat < north && lat > south && lon < east && lon > west) {
-                continue;
+    let n_threads =
+        crate::street::router::worker_threads(n_threads, dest_points.len().div_ceil(BATCH));
+    let batches = std::sync::Mutex::new(out.chunks_mut(BATCH).enumerate());
+    crate::sys::scoped(0..n_threads, |_| {
+        let mut by_lat: Vec<(f64, usize)> = Vec::with_capacity(BATCH);
+        while !cancel.is_cancelled() {
+            // nothing panics while the lock is held
+            let next = batches.lock().unwrap_or_else(|e| e.into_inner()).next();
+            let Some((b, cells)) = next else { break };
+            let base = b * BATCH;
+            // a NaN latitude is inside no envelope
+            by_lat.clear();
+            by_lat.extend(
+                (base..base + cells.len())
+                    .filter(|&p| !dest_points[p].0.is_nan())
+                    .map(|p| (dest_points[p].0, p)),
+            );
+            by_lat.sort_unstable_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+            for &(s, tree, (south, north, west, east)) in &stops {
+                let lo = by_lat.partition_point(|e| e.0 <= south);
+                let hi = by_lat.partition_point(|e| e.0 < north);
+                for &(_, p) in by_lat.get(lo..hi).unwrap_or(&[]) {
+                    let lon = dest_points[p].1;
+                    if lon < east && lon > west {
+                        push_egress(&mut cells[p - base], s, tree, dest_splits[p]);
+                    }
+                }
             }
-            push_egress(&mut out[p], s, tree, dest_splits[p]);
         }
-    }
-    out
+    });
+    (!cancel.is_cancelled()).then_some(out)
 }
 
 /// Grid rows per batch of [`egress_tables_grid`].
@@ -570,5 +605,126 @@ mod tests {
         let got = find_transfers(&layer, &trees);
         assert_eq!(got, reference_find_transfers(&layer, &trees));
         assert!(got.iter().map(Vec::len).sum::<usize>() > 100);
+    }
+
+    const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
+
+    type Trees = Vec<Option<Vec<(u32, i32)>>>;
+
+    /// The São Paulo sample, its stop trees, and `n` pseudo-random points
+    /// over and around it (a few with NaN, repeated or on a stop
+    /// envelope's edge).
+    fn spo_points(n: usize) -> (StreetNetwork, TransitLayer, Trees, Vec<(f64, f64)>) {
+        let (net, layer) = crate::build_from_dir(SPO, &crate::BuildOptions::default()).unwrap();
+        let trees = stop_trees(&net, &layer);
+        let mut rng = crate::street::link::tests::Rng(0x5eed_1234_abcd_0042);
+        let mut pts: Vec<(f64, f64)> = (0..n)
+            .map(|_| (-23.60 + rng.unit() * 0.10, -46.70 + rng.unit() * 0.13))
+            .collect();
+        if n > 20 {
+            pts[3] = (f64::NAN, -46.63);
+            pts[7] = (-23.55, f64::NAN);
+            pts[11] = pts[10];
+            let (south, _, west, _) = stop_envelope(&layer, &net, 0);
+            pts[13] = (south, -46.63);
+            pts[17] = (-23.55, west);
+        }
+        (net, layer, trees, pts)
+    }
+
+    /// The tables as they were built before: every stop against every point.
+    fn reference_egress_tables(
+        layer: &TransitLayer,
+        trees: &[Option<Vec<(u32, i32)>>],
+        net: &StreetNetwork,
+        dest_points: &[(f64, f64)],
+        dest_splits: &[Option<Split>],
+    ) -> Vec<Vec<(u32, i32)>> {
+        let mut out = vec![Vec::new(); dest_points.len()];
+        for (s, tree) in trees.iter().enumerate() {
+            let Some(tree) = tree else { continue };
+            let (south, north, west, east) = stop_envelope(layer, net, s);
+            for (p, &(lat, lon)) in dest_points.iter().enumerate() {
+                if lat < north && lat > south && lon < east && lon > west {
+                    push_egress(&mut out[p], s, tree, dest_splits[p]);
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn egress_tables_match_every_stop_against_every_point() {
+        let (net, layer, trees, pts) = spo_points(9000);
+        let cancel = crate::CancelToken::default();
+        let splits = crate::street::link::link_points(
+            &net,
+            pts.len(),
+            |j| pts[j],
+            crate::Mode::Walk,
+            2,
+            &cancel,
+        )
+        .unwrap();
+        let want = reference_egress_tables(&layer, &trees, &net, &pts, &splits);
+        assert!(want.iter().map(Vec::len).sum::<usize>() > 10_000);
+        for threads in [1, 3] {
+            let got = egress_tables(&layer, &trees, &net, &pts, &splits, threads, &cancel);
+            assert!(got.as_ref() == Some(&want), "{threads} threads");
+        }
+        cancel.cancel();
+        assert!(egress_tables(&layer, &trees, &net, &pts, &splits, 2, &cancel).is_none());
+    }
+
+    #[test]
+    fn grid_egress_tables_match_every_stop_against_every_cell() {
+        let (net, layer, trees, _) = spo_points(0);
+        let cancel = crate::CancelToken::default();
+        for zoom in [10, 12] {
+            let grid = crate::WebMercatorGrid::for_network(&net, zoom).unwrap();
+            let splits = crate::street::link::link_points(
+                &net,
+                grid.n_cells(),
+                |i| grid.cell_center(i),
+                crate::Mode::Walk,
+                2,
+                &cancel,
+            )
+            .unwrap();
+            // per stop, every cell its envelope overlaps, in stop order
+            let mut want = vec![Vec::new(); grid.n_cells()];
+            for (s, tree) in trees.iter().enumerate() {
+                let Some(tree) = tree else { continue };
+                let Some(((y0, y1), (x0, x1))) =
+                    grid.cells_in_envelope(stop_envelope(&layer, &net, s))
+                else {
+                    continue;
+                };
+                for y in y0..=y1 {
+                    for x in x0..=x1 {
+                        let p = y * grid.width() as usize + x;
+                        push_egress(&mut want[p], s, tree, splits[p]);
+                    }
+                }
+            }
+            // an odd conversion, to see it applied to every pair
+            let convert = |mm: i32| Some(mm / 7).filter(|&e| e % 5 != 0);
+            for w in &mut want {
+                *w = w
+                    .iter()
+                    .filter_map(|&(s, mm)| Some((s, convert(mm)?)))
+                    .collect();
+            }
+            assert!(want.iter().map(Vec::len).sum::<usize>() > 10_000);
+            for threads in [1, 3] {
+                let got = egress_tables_grid(
+                    &layer, &trees, &net, &grid, &splits, convert, threads, &cancel,
+                );
+                assert!(
+                    got.as_ref() == Some(&want),
+                    "zoom {zoom}, {threads} threads"
+                );
+            }
+        }
     }
 }

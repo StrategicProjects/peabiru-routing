@@ -34,7 +34,7 @@
 //! one function that changes a built network, `TransitLayer::link_stops`,
 //! drops the kept hierarchies all the same.
 
-use super::link::{find_split, Split};
+use super::link::{find_split, link_points, Split};
 use super::router::{
     car_turn_cost, start_states, time_to_point, worker_threads, Mode, ModeGraph, RouteParams,
     Search, StreetEngine,
@@ -799,11 +799,15 @@ fn matrix(
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
     let cancel = &params.cancel;
-    let mut scratch = Vec::new();
-    let dest_splits: Vec<Option<Split>> = destinations
-        .iter()
-        .map(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch))
-        .collect();
+    let dest_splits = link_points(
+        net,
+        destinations.len(),
+        |j| destinations[j],
+        mode,
+        params.n_threads,
+        cancel,
+    )
+    .ok_or(RouteError::Cancelled)?;
     let vertices = dest_splits
         .iter()
         .flatten()

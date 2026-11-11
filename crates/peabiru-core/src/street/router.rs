@@ -990,11 +990,15 @@ fn matrix_minutes(
         return m;
     }
     let limit = m * 60;
-    let mut scratch = Vec::new();
-    let dest_splits: Vec<Option<Split>> = destinations
-        .iter()
-        .map(|&(lat, lon)| find_split(net, lat, lon, mode, &mut scratch))
-        .collect();
+    let dest_splits = link_points(
+        net,
+        destinations.len(),
+        |j| destinations[j],
+        mode,
+        params.n_threads,
+        &params.cancel,
+    )
+    .ok_or(RouteError::Cancelled)?;
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
     if out.is_empty() {
