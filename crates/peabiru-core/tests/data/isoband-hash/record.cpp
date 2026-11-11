@@ -14,6 +14,8 @@
 //   end <bucket count> <size> <r,c,type of every key in iteration order>
 //       (or `fnv <hash>` past 1500 keys)
 //   grow <bucket count after each insertion that changed it, from empty>
+//   policy <bucket counts of _Prime_rehash_policy, from 1, up to 60M keys>
+//       (libstdc++ only)
 #include <cstdint>
 #include <cstdio>
 #include <functional>
@@ -121,5 +123,22 @@ int main() {
     }
   }
   printf("\n");
+#ifdef __GLIBCXX__
+  // bucket counts libstdc++'s rehash policy (the one the container above
+  // calls on every insertion) gives, one key at a time, up to 60,000,000
+  // keys: past what a grid of isoband points can hold, without building
+  // the table
+  std::__detail::_Prime_rehash_policy policy;
+  size_t bkt = 1;
+  printf("policy %zu", bkt);
+  for (size_t n = 0; n < 60000000; n++) {
+    std::pair<bool, size_t> r = policy._M_need_rehash(bkt, n, 1);
+    if (r.first) {
+      bkt = r.second;
+      printf(" %zu", bkt);
+    }
+  }
+  printf("\n");
+#endif
   return 0;
 }

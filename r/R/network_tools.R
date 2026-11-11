@@ -420,10 +420,8 @@ check_transit_availability <- function(r5r_network,
 #'
 #' The errors that the 'GTFS' library of 'R5' (Conveyal's gtfs-lib) reports
 #' when it reads the network's feeds, as `r5r::get_gtfs_errors()` returns
-#' them. r5r refuses to build a network when any error has priority
-#' `"HIGH"`; peabiru builds it, warning about the cases that make routing
-#' differ (see [build_network()]), so this is the way to see what r5r
-#' would have refused.
+#' them. As r5r, [build_network()] refuses to build a network when any
+#' error has priority `"HIGH"`; this lists them.
 #'
 #' r5r writes the errors to `gtfs_errors.csv` in the data folder when it
 #' builds the network and reads that file back. peabiru writes nothing:

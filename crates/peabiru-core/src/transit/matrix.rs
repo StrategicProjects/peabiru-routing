@@ -123,6 +123,11 @@ pub struct TransitParams {
     /// the fare structure, read as a Java `float`; a finite value needs a
     /// `fare_structure`.
     pub max_fare: f64,
+    /// Car speeds and levels of traffic stress changed for this call
+    /// (r5r's `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
+    /// changes nothing. As in R5, it changes the street search from the
+    /// origins (access and direct trips) but not the egress from the stops.
+    pub scenario: crate::Scenario,
 }
 
 impl TransitParams {
@@ -238,7 +243,8 @@ impl TransitParams {
         if self.transit_modes.is_empty() {
             return Err("transit_modes must hold at least one public transport mode".into());
         }
-        check_max_fare(self.max_fare, self.fare_structure.is_some())
+        check_max_fare(self.max_fare, self.fare_structure.is_some())?;
+        self.scenario.check()
     }
 }
 
@@ -319,6 +325,7 @@ impl Default for TransitParams {
             cancel: CancelToken::default(),
             fare_structure: None,
             max_fare: f64::INFINITY,
+            scenario: crate::Scenario::default(),
         }
     }
 }
@@ -478,6 +485,9 @@ pub(crate) fn percentile_index(p: i32, n: usize) -> usize {
 /// accessibility (R5 `TravelTimeComputer` up to the reducer).
 pub(crate) struct Query<'a> {
     net: &'a StreetNetwork,
+    /// The scenario's network, which the access and direct searches run on
+    /// (`None`: they run on `net`).
+    scen: Option<StreetNetwork>,
     layer: &'a TransitLayer,
     data: &'a TransitData,
     p: &'a TransitParams,
@@ -739,13 +749,20 @@ impl<'a> Query<'a> {
             Some(fs) => Some(FareSetup::new(fs, layer, p.date, &p.transit_modes)?),
             None => None,
         };
+        let scen = crate::street::scenario::scenario_network(
+            net,
+            &p.scenario,
+            p.access_mode == Mode::Car,
+        )?;
+        let access = Access::new(scen.as_ref().unwrap_or(net), p);
         Ok(Query {
             net,
+            scen,
             layer,
             data,
             p,
             filtered,
-            access: Access::new(net, p),
+            access,
             dest_splits,
             egress,
             max_t: p.max_trip_duration * 60,
@@ -782,7 +799,7 @@ impl<'a> Query<'a> {
         max_fare: i32,
         mut per_destination: impl FnMut(usize, &mut [i32]),
     ) -> Result<bool, RouteError> {
-        let (net, layer, p) = (self.net, self.layer, self.p);
+        let (net, layer, p) = (self.scen.as_ref().unwrap_or(self.net), self.layer, self.p);
         let Scratch {
             split,
             times: tt,

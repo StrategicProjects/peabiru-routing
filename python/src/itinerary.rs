@@ -20,7 +20,7 @@ use pyo3::types::PyDict;
 #[pyo3(signature = (network, olat, olon, dlat, dlon, mode, transit_modes, egress_mode, date,
     departure_time, time_window, max_walk_time, max_bike_time, max_car_time,
     max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path,
-    n_threads, output, suboptimal_minutes=0, fare=None, max_fare=f64::INFINITY))]
+    n_threads, scenario, output, suboptimal_minutes=0, fare=None, max_fare=f64::INFINITY))]
 pub(crate) fn itineraries<'py>(
     py: Python<'py>,
     network: &Bound<'py, Network>,
@@ -44,6 +44,7 @@ pub(crate) fn itineraries<'py>(
     max_lts: i32,
     shortest_path: bool,
     n_threads: usize,
+    scenario: Option<Bound<'py, PyDict>>,
     output: Option<(String, Vec<String>, Vec<String>)>,
     suboptimal_minutes: i32,
     fare: Option<Bound<'py, PyDict>>,
@@ -52,6 +53,7 @@ pub(crate) fn itineraries<'py>(
     let n = network.get();
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let mut p = ItineraryParams::default();
+    p.scenario = crate::scenario::scenario_of(scenario.as_ref())?;
     p.mode = street_mode(mode)?;
     p.transit_modes = parse_transit_modes(transit_modes)?;
     if !p.transit_modes.is_empty() {

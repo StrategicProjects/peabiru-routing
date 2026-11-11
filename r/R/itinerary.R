@@ -14,9 +14,9 @@
 #' `max_fare` kept), and the result gets `total_fare` and `cumulative_fare`
 #' columns.
 #'
-#' Not supported yet, and an error: `osm_link_ids = TRUE`, `output_dir`
+#' Not supported yet, and an error: `osm_link_ids = TRUE` and `output_dir`
 #' with the geometry (r5r writes JTS's WKT text; use `drop_geometry =
-#' TRUE`) and scenarios. As in r5r, networks
+#' TRUE`). As in r5r, networks
 #' whose GTFS has frequency-based trips cannot be used with public
 #' transport. A car trip whose egress search crosses a turn restriction
 #' with two or more via ways is an error too (R5 changes the restriction
@@ -162,7 +162,7 @@ detailed_itineraries <- function(r5r_network,
     stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when ",
          "'shortest_path' is TRUE.", call. = FALSE)
   }
-  check_scenarios(new_carspeeds, carspeed_scale, new_lts)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts)
   if (osm_link_ids) unsupported("'osm_link_ids = TRUE'")
   if (!is.null(output_dir) && !drop_geometry) {
     unsupported("'output_dir' with the geometry (JTS's WKT text)",
@@ -182,7 +182,7 @@ detailed_itineraries <- function(r5r_network,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_bike_time, max_car_time, max_trip_duration,
     as.double(walk_speed), as.double(bike_speed), as.integer(max_rides),
-    as.integer(max_lts), shortest_path, threads, drop_geometry, output,
+    as.integer(max_lts), shortest_path, threads, drop_geometry, scenario, output,
     as.integer(suboptimal_minutes), fare_structure, as.double(max_fare)
   ))
   if (!is.null(output_dir)) return(output_dir)

@@ -1,8 +1,31 @@
 # Parity with r5r on its own sample data (Sao Paulo: OSM extract and the
 # SPTrans frequency-based GTFS). Needs r5r, a JDK 21 and the R5 jar, so it is
 # skipped on CRAN and wherever r5r cannot start. bench/compare/r_parity.R
-# runs the full comparison on both sample cities. The helpers are in
-# helper-r5r.R.
+# runs the full comparison on both sample cities.
+
+r5r_network <- local({
+  net <- NULL
+  function() {
+    if (!is.null(net)) return(net)
+    src <- r5r_sample("spo", packages = "sf") # helper-r5r.R
+    dir <- file.path(tempdir(), "peabiru-parity-spo")
+    unlink(dir, recursive = TRUE)
+    dir.create(dir)
+    file.copy(file.path(src, c("spo_osm.pbf", "spo.zip")), dir)
+    r5 <- r5r_network_or_skip(dir)
+    pb <- build_network(dir, n_threads = 2)
+    points <- read.csv(file.path(src, "spo_hexgrid.csv"), colClasses = c(id = "character"))
+    net <<- list(r5 = r5, pb = pb, points = points)
+    net
+  }
+})
+
+expect_same_as_r5r <- function(fun, ...) {
+  n <- r5r_network()
+  pb <- getExportedValue("peabiru", fun)(n$pb, ..., n_threads = 2)
+  r5 <- getExportedValue("r5r", fun)(n$r5, ..., n_threads = 2, progress = FALSE)
+  expect_identical(pb, as.data.frame(r5))
+}
 
 test_that("street travel time matrices equal r5r's", {
   pts <- r5r_network()$points[1:80, ]
@@ -83,6 +106,37 @@ test_that("isochrones equal r5r's", {
                         seed = 42)
 })
 
+test_that("scenarios equal r5r's", {
+  skip_if_not_installed("sf")
+  n <- r5r_network()
+  pts <- n$points[1:80, ]
+  edges <- street_network_to_sf(n$pb)$edges
+  ways <- unique(edges$osm_id)
+  set.seed(3)
+  osm <- data.frame(osm_id = sample(ways, 300), max_speed = sample(c(0, 0.4, 1.7), 300, TRUE),
+                    speed_type = "scale")
+  kmh <- data.frame(osm_id = sample(ways, 300), max_speed = runif(300, 5, 80),
+                    speed_type = "km/h")
+  lts <- data.frame(osm_id = sample(ways, 300), lts = sample(1:4, 300, TRUE))
+  box <- sf::st_bbox(sf::st_as_sf(pts[1:40, ], coords = c("lon", "lat"), crs = 4326))
+  poly <- sf::st_sf(poly_id = "a", scale = 0.6, priority = 1L, geometry = sf::st_as_sfc(box))
+  lines <- sf::st_sf(line_id = as.character(1:200), lts = sample(1:4, 200, TRUE),
+                     priority = 1L, geometry = sf::st_geometry(edges)[1:200])
+  for (s in list(list(mode = "CAR", new_carspeeds = osm, carspeed_scale = 0.8),
+                 list(mode = "CAR", new_carspeeds = kmh),
+                 list(mode = "CAR", new_carspeeds = poly, carspeed_scale = 1.2),
+                 list(mode = "BICYCLE", new_lts = lts),
+                 list(mode = "BICYCLE", new_lts = lines, max_lts = 3),
+                 list(mode = c("BICYCLE", "TRANSIT"), new_lts = lts, seed = 42,
+                      max_bike_time = 20),
+                 list(mode = c("CAR", "TRANSIT"), carspeed_scale = 0.5, seed = 42,
+                      max_car_time = 15))) {
+    suppressWarnings(do.call(expect_same_as_r5r,
+                             c(list("travel_time_matrix", origins = pts, destinations = pts,
+                                    departure_datetime = departure), s)))
+  }
+})
+
 # r5r's detailed_itineraries() returns an sf data.table; the rest is
 # identical, geometry included. bench/compare/itinerary_parity.R covers
 # public transport (Porto Alegre).
@@ -109,4 +163,39 @@ test_that("detailed itineraries equal r5r's", {
              departure_datetime = departure)
   expect_error(suppressMessages(do.call(detailed_itineraries, c(list(n$pb), tr))), "frequencies")
   expect_error(suppressMessages(do.call(r5r::detailed_itineraries, c(list(n$r5), tr))), "frequencies")
+})
+
+# ---- fares (the other fare tests are in test-fares.R) ----------------------
+
+test_that("fare structures equal r5r's, and each reads the other's files", {
+  n <- r5r_network()
+  for (by in c("MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC")) {
+    pb <- setup_fare_structure(n$pb, 4.8, by = by)
+    r5 <- r5r::setup_fare_structure(n$r5, 4.8, by = by)
+    r5[4:6] <- lapply(r5[4:6], as.data.frame)
+    expect_identical(pb, r5)
+  }
+  fs <- r5r::setup_fare_structure(n$r5, 3.75)
+  zr <- tempfile(fileext = ".zip")
+  zp <- tempfile(fileext = ".zip")
+  r5r::write_fare_structure(fs, zr)
+  write_fare_structure(read_fare_structure(zr), zp)
+  a <- r5r::read_fare_structure(zp)
+  b <- r5r::read_fare_structure(zr)
+  expect_identical(lapply(a, function(x) if (is.data.frame(x)) as.data.frame(x) else x),
+                   lapply(b, function(x) if (is.data.frame(x)) as.data.frame(x) else x))
+})
+
+test_that("travel times with fares and the Pareto frontier equal r5r's", {
+  n <- r5r_network()
+  pts <- n$points[1:40, ]
+  fs <- r5r::setup_fare_structure(n$r5, 4.4)
+  fs$fares_per_transfer$fare <- 6.6
+  expect_same_as_r5r("travel_time_matrix", origins = pts, destinations = pts,
+                     mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+                     fare_structure = fs, max_fare = 6.6, draws_per_minute = 2,
+                     seed = 42)
+  expect_same_as_r5r("pareto_frontier", origins = pts[1:10, ], destinations = pts,
+                     mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+                     fare_structure = fs, fare_cutoffs = c(0, 4.4, 6.6, 8.8), seed = 42)
 })

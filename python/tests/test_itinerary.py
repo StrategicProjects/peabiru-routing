@@ -77,3 +77,17 @@ def test_unsupported_options(network, points, departure):
     # the sample's GTFS is frequency-based, which r5r refuses here
     with pytest.raises(ValueError, match="frequencies"):
         di(mode=["WALK", "TRANSIT"])
+
+
+def test_scenarios_slow_the_car(network, points, departure):
+    def di(**kw):
+        return peabiru.detailed_itineraries(
+            network, points.iloc[:10], points.iloc[10:20], mode="CAR",
+            departure_datetime=departure, drop_geometry=True, **kw
+        )
+
+    base = di()
+    pd.testing.assert_frame_equal(di(carspeed_scale=1), base)
+    slow = di(carspeed_scale=0.5)
+    assert (slow["total_duration"].to_numpy() >= base["total_duration"].to_numpy()).all()
+    assert (slow["total_duration"].to_numpy() > base["total_duration"].to_numpy()).any()

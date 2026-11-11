@@ -5,8 +5,9 @@ use crate::osm::pbf::PbfError;
 use std::fmt;
 
 /// Why a network could not be built: a file or directory that cannot be
-/// read, a malformed or empty `.pbf` file, a malformed GTFS feed, or a
-/// directory without a `.pbf` file. The message names the file at fault.
+/// read, a malformed or empty `.pbf` file, a malformed GTFS feed or one
+/// with errors that make r5r refuse it, or a directory without a `.pbf`
+/// file. The message names the file at fault.
 #[derive(Debug)]
 pub struct NetworkError(Repr);
 
@@ -36,6 +37,20 @@ impl NetworkError {
 
     pub(crate) fn gtfs(e: GtfsError) -> Self {
         NetworkError(Repr::Gtfs(e))
+    }
+
+    /// When the build failed because GTFS feeds have errors of priority
+    /// `HIGH` (as r5r's `build_network()` fails): each such feed, as named
+    /// in the build, with its number of `HIGH` errors, in loading order.
+    /// [`gtfs_errors`](crate::gtfs_errors) lists the errors. `None` for any
+    /// other error.
+    pub fn high_priority_gtfs_errors(&self) -> Option<Vec<(&std::path::Path, usize)>> {
+        match &self.0 {
+            Repr::Gtfs(GtfsError::HighPriority(feeds)) => {
+                Some(feeds.iter().map(|(p, n)| (p.as_path(), *n)).collect())
+            }
+            _ => None,
+        }
     }
 }
 

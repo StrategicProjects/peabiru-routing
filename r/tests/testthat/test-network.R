@@ -99,7 +99,7 @@ write_stored_zip <- function(path, files) {
 # A small feed around the sample streets; each test breaks it in one way.
 small_feed <- list(
   "agency.txt" = "agency_id,agency_name,agency_url,agency_timezone\nA,A,http://a,America/Sao_Paulo\n",
-  "stops.txt" = "stop_id,stop_lat,stop_lon\nA,-23.5563,-46.6290\nB,-23.5577,-46.6321\n",
+  "stops.txt" = "stop_id,stop_name,stop_lat,stop_lon\nA,A,-23.5563,-46.6290\nB,B,-23.5577,-46.6321\n",
   "routes.txt" = "route_id,route_type\nR,3\n",
   "trips.txt" = "route_id,service_id,trip_id\nR,S,T1\n",
   "stop_times.txt" = paste0(
@@ -121,33 +121,59 @@ feed_dir <- function(feed) {
   dir
 }
 
-refuses <- "r5r refuses to build a network from this feed."
+# r5r's build_network() fails on feeds with errors of priority HIGH
+refused <- function(dir, feeds) {
+  paste0("High priority GTFS errors found; network build failed (", feeds,
+         "). Use get_gtfs_errors(\"", normalizePath(dir), "\") to see them.")
+}
 
-test_that("a feed with its tables in a subfolder gives a warning", {
+test_that("a feed with its tables in a subfolder is refused", {
   feed <- small_feed
   names(feed) <- paste0("gtfs/", names(feed))
   dir <- feed_dir(feed)
   on.exit(unlink(dir, recursive = TRUE))
-  expect_warning(
-    network <- build_network(dir, n_threads = 2),
-    paste0("GTFS feed 'bus.zip': its tables are in a subfolder of the .zip ('gtfs/'). ",
-           refuses),
-    fixed = TRUE
-  )
-  expect_true(any(grepl(" 1 patterns", capture.output(print(network)))))
+  expect_error(build_network(dir, n_threads = 2),
+               refused(dir, "bus.zip: 6 errors"), fixed = TRUE)
+  errors <- get_gtfs_errors(dir)
+  high <- errors$type[errors$priority == "HIGH"]
+  expect_equal(high, rep("TableInSubdirectoryError", 6))
 })
 
-test_that("a feed without agency.txt gives a warning", {
+test_that("a feed without agency.txt is refused", {
   dir <- feed_dir(small_feed[names(small_feed) != "agency.txt"])
   on.exit(unlink(dir, recursive = TRUE))
-  expect_warning(
-    build_network(dir, n_threads = 2),
-    paste("GTFS feed 'bus.zip': it has no agency.txt.", refuses),
-    fixed = TRUE
-  )
+  expect_error(build_network(dir, n_threads = 2),
+               refused(dir, "bus.zip: 1 error"), fixed = TRUE)
+  errors <- get_gtfs_errors(dir)
+  expect_equal(errors$type[errors$priority == "HIGH"], "NoAgencyInFeedError")
 })
 
-test_that("trips that refer to a missing stop or route give a warning", {
+test_that("a number that cannot be read is refused, with one or more threads", {
+  feed <- small_feed
+  feed[["stops.txt"]] <- sub("B,B,-23.5577", "B,B,x", feed[["stops.txt"]], fixed = TRUE)
+  dir <- feed_dir(feed)
+  on.exit(unlink(dir, recursive = TRUE))
+  for (n in c(1, 2)) {
+    expect_error(build_network(dir, n_threads = n),
+                 refused(dir, "bus.zip: 1 error"), fixed = TRUE)
+  }
+})
+
+test_that("feeds with errors of lower priority only are built", {
+  feed <- small_feed
+  # a duplicated stop (MEDIUM) and an agency URL that is not one (LOW)
+  feed[["stops.txt"]] <- paste0(feed[["stops.txt"]], "B,B,-23.5577,-46.6321\n")
+  feed[["agency.txt"]] <- sub("http://a", "www.a", feed[["agency.txt"]], fixed = TRUE)
+  dir <- feed_dir(feed)
+  on.exit(unlink(dir, recursive = TRUE))
+  expect_no_warning(network <- build_network(dir, n_threads = 2))
+  expect_s3_class(network, "peabiru_network")
+  errors <- get_gtfs_errors(dir)
+  expect_true(all(c("MEDIUM", "LOW") %in% errors$priority))
+  expect_false("HIGH" %in% errors$priority)
+})
+
+test_that("trips that refer to a missing stop or route are refused", {
   feed <- small_feed
   feed[["trips.txt"]] <- paste0(feed[["trips.txt"]], "R,S,T2\nX,S,T3\n")
   feed[["stop_times.txt"]] <- paste0(
@@ -157,12 +183,8 @@ test_that("trips that refer to a missing stop or route give a warning", {
   )
   dir <- feed_dir(feed)
   on.exit(unlink(dir, recursive = TRUE))
-  expect_warning(
-    build_network(dir, n_threads = 2),
-    paste("GTFS feed 'bus.zip': 2 trips left out (1 refers to a stop that does not exist,",
-          "1 to a route that does not exist).", refuses),
-    fixed = TRUE
-  )
+  expect_error(build_network(dir, n_threads = 2),
+               refused(dir, "bus.zip: 2 errors"), fixed = TRUE)
 })
 
 test_that("clean feeds give no warning", {

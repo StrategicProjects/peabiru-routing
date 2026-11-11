@@ -36,6 +36,7 @@ use std::time::Duration;
 mod fares;
 mod inspect;
 mod itinerary;
+mod scenario;
 
 /// Missing value in the `i32` columns handed to Python.
 const NA_I32: i32 = i32::MIN;
@@ -58,6 +59,30 @@ struct Transit {
 
 fn runtime_err(msg: impl std::fmt::Display) -> PyErr {
     PyRuntimeError::new_err(msg.to_string())
+}
+
+/// The error of a failed build; for feeds with errors of priority `HIGH`,
+/// r5r's message, pointing to `lister` to see them.
+fn build_error(e: &peabiru_core::NetworkError, lister: &str) -> String {
+    match e.high_priority_gtfs_errors() {
+        None => e.to_string(),
+        Some(feeds) => {
+            let list: Vec<String> = feeds
+                .iter()
+                .map(|(p, n)| {
+                    let name = p.file_name().map_or_else(
+                        || p.display().to_string(),
+                        |f| f.to_string_lossy().into_owned(),
+                    );
+                    format!("{name}: {n} error{}", if *n == 1 { "" } else { "s" })
+                })
+                .collect();
+            format!(
+                "High priority GTFS errors found; network build failed ({}). Use {lister} to see them.",
+                list.join(", ")
+            )
+        }
+    }
 }
 
 fn value_err(msg: impl std::fmt::Display) -> PyErr {
@@ -243,7 +268,9 @@ fn build_network(py: Python<'_>, data_path: String, n_threads: usize) -> PyResul
     py.detach(move || {
         let mut opts = BuildOptions::default();
         opts.n_threads = n_threads;
-        let (net, layer) = build_from_dir(&data_path, &opts).map_err(runtime_err)?;
+        let lister = format!("peabiru.get_gtfs_errors({data_path:?})");
+        let (net, layer) =
+            build_from_dir(&data_path, &opts).map_err(|e| runtime_err(build_error(&e, &lister)))?;
         let transit = if layer.feed_ids().is_empty() {
             None
         } else {
@@ -307,18 +334,21 @@ fn street_ttm<'py>(
     max_trip_duration: i32,
     n_threads: usize,
     percentiles: Vec<i32>,
+    scenario: Option<Bound<'py, PyDict>>,
     output: Output,
 ) -> PyResult<(Col<'py>, Col<'py>, Col<'py>)> {
+    let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let mode = street_mode(mode)?;
-    let params = route_params(
+    let mut params = route_params(
         walk_speed,
         bike_speed,
         max_lts,
         max_trip_duration,
         n_threads,
     );
+    params.scenario = scenario.clone();
     if let Some(out) = &output {
         let w = csv_writer(out, n_threads);
         written(interruptible(py, &params.cancel, || {
@@ -446,10 +476,12 @@ fn transit_ttm<'py>(
     draws_per_minute: i32,
     seed: Option<i32>,
     n_threads: usize,
+    scenario: Option<Bound<'py, PyDict>>,
     output: Output,
     fare: Option<Bound<'py, PyDict>>,
     max_fare: f64,
 ) -> PyResult<(Col<'py>, Col<'py>, Vec<Col<'py>>)> {
+    let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
     let modes = parse_transit_modes(transit_modes)?;
     let egress = transit_street_mode(egress_mode)?;
@@ -479,6 +511,7 @@ fn transit_ttm<'py>(
     );
     p.fare_structure = fares::fare_arg(fare.as_ref())?;
     p.max_fare = max_fare;
+    p.scenario = scenario.clone();
     if let Some(out) = &output {
         let w = csv_writer(out, n_threads);
         written(interruptible(py, &p.cancel, || {
@@ -573,10 +606,12 @@ fn accessibility<'py>(
     draws_per_minute: i32,
     seed: Option<i32>,
     n_threads: usize,
+    scenario: Option<Bound<'py, PyDict>>,
     output: Output,
     fare: Option<Bound<'py, PyDict>>,
     max_fare: f64,
 ) -> PyResult<Bound<'py, PyBytes>> {
+    let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
     let modes = parse_transit_modes(transit_modes)?;
     let egress = transit_street_mode(egress_mode)?;
@@ -639,6 +674,7 @@ fn accessibility<'py>(
     p.cancel = cancel.clone();
     p.fare_structure = fares::fare_arg(fare.as_ref())?;
     p.max_fare = max_fare;
+    p.scenario = scenario.clone();
     let mut params = route_params(
         walk_speed,
         bike_speed,
@@ -647,6 +683,7 @@ fn accessibility<'py>(
         n_threads,
     );
     params.cancel = cancel.clone();
+    params.scenario = scenario;
     let values = interruptible(py, &cancel, || {
         let dest = Destinations::new(&d, &opp);
         let mut all = None;
@@ -718,15 +755,17 @@ fn expanded<'py>(
     seed: Option<i32>,
     n_threads: usize,
     breakdown: bool,
+    scenario: Option<Bound<'py, PyDict>>,
     output: Output,
 ) -> PyResult<Bound<'py, PyDict>> {
+    let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
     let modes = parse_transit_modes(transit_modes)?;
     let egress = transit_street_mode(egress_mode)?;
     let access = street_mode(access_mode)?;
     let t = transit(n)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
-    let p = transit_params(
+    let mut p = transit_params(
         modes.clone(),
         access,
         egress,
@@ -746,6 +785,7 @@ fn expanded<'py>(
         seed,
         n_threads,
     );
+    p.scenario = scenario.clone();
     let route = |o: &[(f64, f64)]| {
         if arrival {
             arrival_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)

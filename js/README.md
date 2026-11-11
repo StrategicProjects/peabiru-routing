@@ -67,8 +67,7 @@ network with workers: `buildNetwork({ pbf, gtfs, nThreads: 4 })` (see
 | `coreVersion()`, `version` | versions of the Rust core and of this package |
 
 `network.info()` gives the sizes of a network, `await network.transitAvailability(date)`
-the services running on a date, `network.r5rWarnings()` the feeds that r5r
-would refuse, `network.workers` its number of workers, and `network.free()`
+the services running on a date, `network.workers` its number of workers, and `network.free()`
 releases its memory and stops its workers (a network lives in the
 WebAssembly module's memory, or in its workers' memory, until then).
 
@@ -161,10 +160,9 @@ for (let i = 0; i < ttm.from_id.length; i++) {
 ## What is not supported
 
 What peabiru does not support yet throws `peabiru.UnsupportedError`; it is
-never silently ignored: scenarios (`newCarspeeds`, `carspeedScale`,
-`newLts`), `outputDir`, expanded and arrival matrices by a street mode
-alone, R5's own fare calculators (a `fareStructure` with a `type`), and in
-`detailedItineraries()` `osmLinkIds: true`. Elevation is not supported either: `buildNetwork()` takes no
+never silently ignored: `outputDir`, expanded and arrival matrices by a
+street mode alone, R5's own fare calculators (a `fareStructure` with a
+`type`), and in `detailedItineraries()` `osmLinkIds: true`. Elevation is not supported either: `buildNetwork()` takes no
 elevation raster.
 
 ## Feed order

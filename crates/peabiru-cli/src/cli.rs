@@ -21,21 +21,76 @@ pub fn runtime_error(cmd: &str, msg: impl Display) -> ! {
 }
 
 /// Build the network of a data directory, as
-/// [`peabiru_core::build_from_dir`], and print to stderr one
-/// `peabiru <cmd>: warning: ...` line per GTFS feed and case that r5r
+/// [`peabiru_core::build_from_dir`]. As r5r, the build fails when a GTFS
+/// feed has errors of priority `HIGH`; with the environment variable
+/// `PEABIRU_IGNORE_GTFS_ERRORS=1` such feeds are built anyway
+/// ([`peabiru_core::BuildOptions::ignore_gtfs_errors`]), with one
+/// `peabiru <cmd>: warning: ...` line on stderr per feed and case that r5r
 /// refuses to build a network from.
 pub fn build_from_dir(
     cmd: &str,
     dir: impl AsRef<std::path::Path>,
     opts: &peabiru_core::BuildOptions,
 ) -> Result<(peabiru_core::StreetNetwork, peabiru_core::TransitLayer), peabiru_core::NetworkError> {
-    let built = peabiru_core::build_from_dir(dir, opts)?;
+    let mut opts = opts.clone();
+    opts.ignore_gtfs_errors = std::env::var("PEABIRU_IGNORE_GTFS_ERRORS").as_deref() == Ok("1");
+    let built = peabiru_core::build_from_dir(dir, &opts)?;
     for report in built.1.feed_reports() {
         for w in report.r5r_warnings_per_case() {
             eprintln!("peabiru {cmd}: warning: {w}");
         }
     }
     Ok(built)
+}
+
+/// The scenario of the environment variable `PEABIRU_SCENARIO`, a text
+/// file of lines `carspeed_scale <x>`, `car scale|km/h`, `way <osm id>
+/// <value>` (car speeds by way) and `lts <osm id> <level>` (levels of
+/// traffic stress by way), the values written as r5r hands them to R5;
+/// the default scenario (no change) without the variable. Polygons and
+/// lines are not read here (the packages take them).
+pub fn scenario(cmd: &str) -> peabiru_core::Scenario {
+    use peabiru_core::unstable::{java_parse_float, java_parse_int, java_parse_long};
+    use peabiru_core::{CarSpeeds, LtsChange};
+    let mut s = peabiru_core::Scenario::default();
+    let Ok(path) = std::env::var("PEABIRU_SCENARIO") else {
+        return s;
+    };
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| runtime_error(cmd, format!("cannot read {path}: {e}")));
+    let (mut car, mut kmh, mut ways, mut lts) = (false, false, Vec::new(), Vec::new());
+    for (n, line) in text.lines().enumerate() {
+        let f: Vec<&str> = line.split_whitespace().collect();
+        let bad = || -> ! { runtime_error(cmd, format!("{path}:{}: cannot read '{line}'", n + 1)) };
+        match f.as_slice() {
+            [] => {}
+            ["carspeed_scale", x] => {
+                s.car_speed_scale = java_parse_float(x).unwrap_or_else(|| bad())
+            }
+            ["car", "scale"] => car = true,
+            ["car", "km/h"] => (car, kmh) = (true, true),
+            ["way", id, v] => ways.push((
+                java_parse_long(id).unwrap_or_else(|| bad()),
+                java_parse_float(v).unwrap_or_else(|| bad()),
+            )),
+            ["lts", id, v] => lts.push((
+                java_parse_long(id).unwrap_or_else(|| bad()),
+                java_parse_int(v).unwrap_or_else(|| bad()),
+            )),
+            _ => bad(),
+        }
+    }
+    if car {
+        s.car_speeds = if kmh {
+            CarSpeeds::KmhByWay(ways)
+        } else {
+            CarSpeeds::ScaleByWay(ways)
+        };
+    }
+    if !lts.is_empty() {
+        s.lts = LtsChange::ByWay(lts);
+    }
+    s
 }
 
 /// Whether the user asked for help anywhere on the command line.

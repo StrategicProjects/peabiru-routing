@@ -427,18 +427,6 @@ def check_max_lts(max_lts: Any) -> None:
         )
 
 
-def check_scenarios(new_carspeeds: Any, carspeed_scale: Any, new_lts: Any) -> None:
-    """r5r set_new_congestion() and set_new_lts(): scenarios are not
-    supported."""
-    if new_carspeeds is not None and not isinstance(new_carspeeds, pd.DataFrame):
-        fail_assert("new_carspeeds", "Must inherit from class 'DataFrame'", TypeError)
-    assert_number(carspeed_scale, "carspeed_scale", lower=0, finite=True)
-    if new_lts is not None and not isinstance(new_lts, pd.DataFrame):
-        fail_assert("new_lts", "Must inherit from class 'DataFrame'", TypeError)
-    if new_carspeeds is not None or carspeed_scale != 1:
-        unsupported("Changing car speeds ('new_carspeeds', 'carspeed_scale')")
-    if new_lts is not None:
-        unsupported("Changing LTS levels ('new_lts')")
 
 
 def check_output_dir(output_dir: Any) -> Optional[str]:

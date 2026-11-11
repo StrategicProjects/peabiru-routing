@@ -32,8 +32,8 @@ JavaScript packages and the command-line tool of the same name.
 | `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` | fare structures, which the routing functions take as `fare_structure` |
 | `pareto_frontier()` | the trade-off between travel time and fare |
 
-Not implemented yet: scenarios and elevation. Asking for them stops with an
-error; nothing is silently ignored.
+Not implemented yet: elevation. Asking for it stops with an error; nothing
+is silently ignored.
 
 ## Installation
 

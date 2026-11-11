@@ -104,6 +104,13 @@
 //! copying (`into_vec`, `into_values`). [`CsvOutput`] writes them to one
 //! CSV file per origin, byte for byte as r5r does with `output_dir`.
 //!
+//! # Scenarios
+//!
+//! [`RouteParams::scenario`] and [`TransitParams::scenario`] change the car
+//! speeds and the levels of traffic stress of the streets for one call, as
+//! r5r's `new_carspeeds`, `carspeed_scale` and `new_lts` do (see
+//! [`Scenario`]); the network itself is left as it is.
+//!
 //! # Cancellation
 //!
 //! Every routing parameter struct holds a [`CancelToken`]: cancel a clone
@@ -152,8 +159,8 @@ pub use itinerary::{
 };
 pub use output::CsvOutput;
 pub use street::{
-    build_network, street_travel_time_matrix, BuildOptions, Mode, RouteParams, StreetEngine,
-    StreetMatrix, StreetNetwork,
+    build_network, street_travel_time_matrix, BuildOptions, CarSpeeds, LtsChange, LtsLine, Mode,
+    RouteParams, Scenario, SpeedPolygon, StreetEngine, StreetMatrix, StreetNetwork,
 };
 pub use transit::accessibility::{
     r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
@@ -195,6 +202,16 @@ pub mod unstable {
         crate::isochrone::isochrone_polygons_in(surface, cutoffs, lib)
     }
     pub use crate::osm::pbf::{read_pbf_file, tag, Extract, ReadOptions};
+    pub use crate::street::scenario::{java_parse_float, java_parse_int, java_parse_long};
+
+    /// The network the street searches of a call with scenario `s` run on
+    /// (`None`: the scenario changes nothing).
+    pub fn scenario_network(
+        net: &crate::StreetNetwork,
+        s: &crate::Scenario,
+    ) -> Result<Option<crate::StreetNetwork>, crate::RouteError> {
+        s.apply(net)
+    }
     pub use crate::street::flags;
     pub use crate::street::labels::{cms_to_ms, lts_of};
     use crate::StreetNetwork;

@@ -57,6 +57,7 @@ fn rs_detailed_itineraries(
     shortest_path: bool,
     n_threads: i32,
     drop_geometry: bool,
+    scenario: Robj,
     output: Robj,
     suboptimal_minutes: i32,
     fare_structure: Robj,
@@ -65,6 +66,7 @@ fn rs_detailed_itineraries(
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
     let mut p = ItineraryParams::default();
+    p.scenario = crate::scenario::scenario_of(&scenario)?;
     p.mode = street_mode(mode)?;
     p.transit_modes = transit_modes(transit)?;
     if !p.transit_modes.is_empty() {

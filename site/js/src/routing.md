@@ -175,8 +175,7 @@ Both need public transport; with a street mode alone they throw
 ```
 
 What peabiru does not support yet throws
-[`UnsupportedError`](api.md#UnsupportedError): scenarios
-(`newCarspeeds`, `carspeedScale`, `newLts`), `outputDir`, and expanded and
+[`UnsupportedError`](api.md#UnsupportedError): `outputDir`, and expanded and
 arrival matrices by a street mode alone. Elevation is not supported
 either: `buildNetwork()` takes no elevation raster. `verbose` and
 `progress` are checked as r5r checks them; peabiru prints nothing.

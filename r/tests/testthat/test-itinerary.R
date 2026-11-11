@@ -66,7 +66,22 @@ test_that("unsupported options are errors", {
   expect_error(di(mode = "WALK", output_dir = tempdir()), "not supported")
   expect_error(di(mode = "WALK", suboptimal_minutes = 5), "Must be 0")
   expect_error(di(mode = "WALK", fare_structure = list(type = "boston")), "not supported")
-  expect_error(di(mode = "WALK", new_lts = data.frame()), "not supported")
+  # an empty data frame is not a valid new_lts, as in r5r
+  expect_error(di(mode = "WALK", new_lts = data.frame()), "Names must include")
   # the fixture's GTFS is frequency-based, which r5r refuses here
   expect_error(di(mode = c("WALK", "TRANSIT")), "frequencies")
+})
+
+test_that("scenarios change itineraries by car", {
+  pts <- fixture_points()
+  net <- fixture_network()
+  di <- function(...) {
+    detailed_itineraries(net, pts[1:10, ], pts[11:20, ], mode = "CAR",
+                         departure_datetime = departure, drop_geometry = TRUE, ...)
+  }
+  base <- di()
+  expect_identical(di(carspeed_scale = 1), base)
+  slow <- di(carspeed_scale = 0.5)
+  expect_true(all(slow$total_duration >= base$total_duration))
+  expect_true(any(slow$total_duration > base$total_duration))
 })

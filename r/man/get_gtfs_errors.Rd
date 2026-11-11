@@ -22,10 +22,8 @@ a \code{data.table}.
 \description{
 The errors that the 'GTFS' library of 'R5' (Conveyal's gtfs-lib) reports
 when it reads the network's feeds, as \code{r5r::get_gtfs_errors()} returns
-them. r5r refuses to build a network when any error has priority
-\code{"HIGH"}; peabiru builds it, warning about the cases that make routing
-differ (see \code{\link[=build_network]{build_network()}}), so this is the way to see what r5r
-would have refused.
+them. As r5r, \code{\link[=build_network]{build_network()}} refuses to build a network when any
+error has priority \code{"HIGH"}; this lists them.
 }
 \details{
 r5r writes the errors to \code{gtfs_errors.csv} in the data folder when it

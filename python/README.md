@@ -57,8 +57,7 @@ access = peabiru.accessibility(
 Points are `pandas.DataFrame`s with `id`, `lon` and `lat` (or, with
 geopandas installed, a `GeoDataFrame` of points in EPSG:4326); results are
 `pandas.DataFrame`s in long format. What peabiru does not support
-yet (scenarios,
-elevation, ...) raises `peabiru.UnsupportedError`; nothing is silently
+yet (elevation, ...) raises `peabiru.UnsupportedError`; nothing is silently
 ignored.
 
 ## Install

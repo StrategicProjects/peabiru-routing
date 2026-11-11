@@ -94,7 +94,12 @@ pub struct RouteParams {
     pub cancel: CancelToken,
     /// How a street travel-time matrix is computed (see [`StreetEngine`]);
     /// it changes the speed of [`street_travel_time_matrix`], never its result.
+    /// A call with a [`Scenario`](crate::Scenario) always takes the search.
     pub engine: StreetEngine,
+    /// Car speeds and levels of traffic stress changed for this call
+    /// (r5r's `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
+    /// changes nothing.
+    pub scenario: crate::Scenario,
 }
 
 /// A number for an error message: as written when short, else in
@@ -144,7 +149,7 @@ impl RouteParams {
                 self.max_trip_duration_min
             )));
         }
-        Ok(())
+        self.scenario.check().map_err(RouteError::Invalid)
     }
 }
 
@@ -158,6 +163,7 @@ impl Default for RouteParams {
             n_threads: 0,
             cancel: CancelToken::default(),
             engine: StreetEngine::Auto,
+            scenario: crate::Scenario::default(),
         }
     }
 }
@@ -1215,10 +1221,16 @@ fn matrix_minutes(
     params: &RouteParams,
 ) -> Result<Vec<Option<u32>>, RouteError> {
     params.validate()?;
-    let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
+    // a scenario: the searches and the origins' links on its network, the
+    // destinations linked on `net` (R5 copies the base linkage)
+    let scen = super::scenario::scenario_network(net, &params.scenario, mode == Mode::Car)?;
+    let street = scen.as_ref().unwrap_or(net);
+    let g = ModeGraph::new(street, mode, Speeds::new(params, mode), params.max_lts);
     let m = params.max_trip_duration_min;
-    if let Some(m) = super::ch::travel_time_matrix(net, &g, origins, destinations, params) {
-        return m;
+    if scen.is_none() {
+        if let Some(m) = super::ch::travel_time_matrix(net, &g, origins, destinations, params) {
+            return m;
+        }
     }
     let limit = m * 60;
     let dest_splits = link_points(
@@ -1242,17 +1254,17 @@ fn matrix_minutes(
     // place: the rows are disjoint, so the matrix is never held twice.
     let rows = Mutex::new(out.chunks_mut(nd).enumerate());
     crate::sys::scoped(0..n_threads, |_| {
-        let mut search = Search::new(net);
+        let mut search = Search::new(street);
         let mut scratch = Vec::new();
         while !cancel.is_cancelled() {
             let next = rows.lock().expect("row queue").next();
             let Some((i, row)) = next else { break };
             let (lat, lon) = origins[i];
-            if let Some(o) = find_split(net, lat, lon, mode, &mut scratch) {
-                route(net, &g, &o, limit, &mut search);
+            if let Some(o) = find_split(street, lat, lon, mode, &mut scratch) {
+                route(street, &g, &o, limit, &mut search);
                 for (j, d) in dest_splits.iter().enumerate() {
                     let Some(d) = d else { continue };
-                    if let Some(secs) = time_to_point(net, &g, &o, d, &search) {
+                    if let Some(secs) = time_to_point(street, &g, &o, d, &search) {
                         let minutes = secs / 60;
                         if minutes <= i64::from(m) {
                             row[j] = Some(minutes as u32);
@@ -1297,7 +1309,8 @@ pub(crate) fn travel_time_seconds<T: Send>(
 }
 
 /// [`travel_time_seconds`] to destinations already linked by `mode`
-/// (`dest_splits`, `None` for one that cannot be linked).
+/// (`dest_splits`, `None` for one that cannot be linked) on `net`; with a
+/// scenario, the searches run on the scenario's network.
 pub(crate) fn travel_time_seconds_linked<T: Send>(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
@@ -1307,6 +1320,8 @@ pub(crate) fn travel_time_seconds_linked<T: Send>(
     reduce: impl Fn(usize, Option<&[i32]>) -> T + Sync,
 ) -> Result<Vec<T>, RouteError> {
     params.validate()?;
+    let scen = super::scenario::scenario_network(net, &params.scenario, mode == Mode::Car)?;
+    let net = scen.as_ref().unwrap_or(net);
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
     let limit = params.max_trip_duration_min * 60;
     let n_threads = worker_threads(params.n_threads, origins.len());

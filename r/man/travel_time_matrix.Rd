@@ -82,8 +82,30 @@ the network, as in r5r; R5's own fare calculators (a structure with a
 no limit), in the currency of the fare structure; a finite value needs
 a \code{fare_structure}.}
 
-\item{new_carspeeds, carspeed_scale, new_lts}{Scenarios; not supported yet
-(must be \code{NULL}, \code{1} and \code{NULL}).}
+\item{new_carspeeds}{A scenario of car speeds, as in r5r: \code{NULL}, a data
+frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type} (\code{"scale"}, a
+factor for the car speed of the way's edges, or \code{"km/h"}, a speed; 0
+closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s or
+\code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+(numeric) and \code{priority} (integer): each street edge takes the factor
+of the polygon it meets with the highest priority (ties: the one it
+overlaps most).}
+
+\item{carspeed_scale}{A number of at least 0, the factor for the car
+speeds of the edges \code{new_carspeeds} leaves out (all of them when it is
+\code{NULL}).}
+
+\item{new_lts}{A scenario of levels of traffic stress, as in r5r: \code{NULL},
+a data frame with columns \code{osm_id} and \code{lts} (integer), or an \code{sf} data
+frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts} (1 to 4)
+and \code{priority}: each street edge takes the level of the line closest to
+it among those whose bounding box meets its own. As in r5r, the
+scenario changes the street search from the origins (the trip without
+public transport, and access by bicycle or car) but not the egress
+from the stops, and \code{priority} is not used. A car speed that R5's
+16-bit cm/s would turn into 0 or less (a factor too small or too
+large) is an error, as are polygons that are not valid and ties
+between polygons that peabiru cannot settle exactly as R5 does.}
 
 \item{draws_per_minute}{An integer, the Monte Carlo draws per departure
 minute for frequency-based 'GTFS'.}
@@ -140,16 +162,8 @@ bicycle or car is searched from every stop with R5's defaults (up to
 5 km by bicycle at any level of traffic stress, up to 30 minutes by
 car) and must stay within \code{max_bike_time} or \code{max_car_time}.
 
-With a \code{fare_structure} (see \code{\link[r5r:setup_fare_structure]{setup_fare_structure()}}), public transport
-is routed as r5r routes it then: with R5's multi-criteria router
-(McRAPTOR) over \code{time_window * draws_per_minute} departure times sampled
-in the window, keeping at each stop the fastest trip whose fare is within
-\code{max_fare}. As in r5r, combinations of \code{time_window} and
-\code{draws_per_minute} that R5's sampler cannot meet (exactly 200 draws, or
-too many draws for the window) are an error.
-
-Not supported yet, and an error when requested: scenarios
-(\code{new_carspeeds}, \code{carspeed_scale}, \code{new_lts}).
+Not supported yet, and an error when requested: fares (\code{fare_structure},
+\code{max_fare}).
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")

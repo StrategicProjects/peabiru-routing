@@ -428,6 +428,78 @@ for (city in cities) {
     "transit", "arrival_travel_time_matrix", origins = o50, destinations = points,
     mode = transit, arrival_datetime = as.POSIXct("2019-05-14 00:30:00", tz = tz),
     breakdown = TRUE, seed = 42L))
+
+  # scenarios (new_carspeeds, carspeed_scale, new_lts): r5r's Porto Alegre
+  # files, and made-up ones from the network's ways for both cities
+  src <- system.file("extdata", city, package = "r5r")
+  set.seed(11)
+  ways <- unique(suppressWarnings(street_network_to_sf(nets$street$pb))$edges$osm_id)
+  rnd_osm <- data.frame(osm_id = sample(ways, 1000, replace = TRUE),
+                        max_speed = sample(c(0, 0.25, 0.6, 1.5), 1000, replace = TRUE),
+                        speed_type = "scale")
+  rnd_kmh <- data.frame(osm_id = sample(ways, 500), max_speed = round(runif(500, 0, 90), 1),
+                        speed_type = "km/h")
+  rnd_lts <- data.frame(osm_id = sample(ways, 1000), lts = sample(1:4, 1000, replace = TRUE))
+  scen <- list(
+    scen_car_scale = list("CAR carspeed_scale 0.7", list(mode = "CAR", carspeed_scale = 0.7)),
+    scen_car_osm = list("CAR random ways x factor, scale 0.9",
+                        list(mode = "CAR", new_carspeeds = rnd_osm, carspeed_scale = 0.9)),
+    scen_car_kmh = list("CAR random ways km/h", list(mode = "CAR", new_carspeeds = rnd_kmh)),
+    scen_bike_lts = list("BICYCLE random ways LTS", list(mode = "BICYCLE", new_lts = rnd_lts)),
+    scen_walk = list("WALK with every scenario", list(mode = "WALK", new_carspeeds = rnd_osm,
+                                                      new_lts = rnd_lts)),
+    scen_transit_bike = list("BICYCLE+TRANSIT, random LTS",
+                             list(mode = c("BICYCLE", "TRANSIT"), new_lts = rnd_lts,
+                                  departure_datetime = departure, max_bike_time = 20L, seed = 42L)),
+    scen_transit_car = list("CAR+TRANSIT, scale 0.5",
+                            list(mode = c("CAR", "TRANSIT"), carspeed_scale = 0.5,
+                                 departure_datetime = departure, max_car_time = 20L, seed = 42L)),
+    scen_egress_bike = list("egress BICYCLE, random LTS",
+                            list(mode = transit, mode_egress = "BICYCLE", new_lts = rnd_lts,
+                                 departure_datetime = departure, seed = 42L))
+  )
+  if (city == "poa") {
+    osm <- read.csv(file.path(src, "poa_osm_congestion.csv"))
+    poly <- readRDS(file.path(src, "poa_poly_congestion.rds"))
+    lts <- read.csv(file.path(src, "poa_osm_lts.csv"))
+    lines <- readRDS(file.path(src, "poa_ls_lts.rds"))
+    scen <- c(scen, list(
+      scen_poa_osm = list("CAR poa_osm_congestion", list(mode = "CAR", new_carspeeds = osm)),
+      scen_poa_poly = list("CAR poa_poly_congestion, scale 1.2",
+                           list(mode = "CAR", new_carspeeds = poly, carspeed_scale = 1.2)),
+      scen_poa_lts = list("BICYCLE poa_osm_lts", list(mode = "BICYCLE", new_lts = lts)),
+      scen_poa_lines = list("BICYCLE poa_ls_lts, max_lts 3",
+                            list(mode = "BICYCLE", new_lts = lines, max_lts = 3)),
+      scen_poa_transit = list("BICYCLE+TRANSIT poa_ls_lts",
+                              list(mode = c("BICYCLE", "TRANSIT"), new_lts = lines,
+                                   departure_datetime = departure, max_bike_time = 30L,
+                                   seed = 42L)),
+      scen_poa_car_transit = list("CAR+TRANSIT poa_poly_congestion",
+                                  list(mode = c("CAR", "TRANSIT"), new_carspeeds = poly,
+                                       departure_datetime = departure, max_car_time = 20L,
+                                       seed = 42L))
+    ))
+  }
+  for (nm in names(scen)) {
+    a <- scen[[nm]][[2]]
+    kind <- if (any(a$mode %in% "TRANSIT")) "transit" else "street"
+    run(nm, scen[[nm]][[1]], do.call(both, c(list(kind, "travel_time_matrix",
+                                                    origins = points, destinations = points), a)))
+    if (nm %in% c("scen_car_osm", "scen_bike_lts", "scen_transit_bike")) {
+      opp <- transform(points, jobs = seq_len(nrow(points)))
+      run(paste0(nm, "_acc"), paste(scen[[nm]][[1]], "accessibility"),
+          do.call(both, c(list(kind, "accessibility", origins = opp[1:200, ], destinations = opp,
+                               opportunities_colnames = "jobs", cutoffs = c(15L, 30L)), a)))
+    }
+  }
+  run("scen_expanded", "first 50, BICYCLE+TRANSIT random LTS", both(
+    "transit", "expanded_travel_time_matrix", origins = o50, destinations = points,
+    mode = c("BICYCLE", "TRANSIT"), departure_datetime = departure, new_lts = rnd_lts,
+    max_bike_time = 20L, breakdown = TRUE, seed = 42L))
+  run("scen_arrival", "first 50, CAR+TRANSIT scale 0.6", both(
+    "transit", "arrival_travel_time_matrix", origins = o50, destinations = points,
+    mode = c("CAR", "TRANSIT"), arrival_datetime = as.POSIXct("2019-05-13 16:00:00", tz = tz),
+    carspeed_scale = 0.6, max_car_time = 20L, seed = 42L))
 }
 
 summary <- do.call(rbind, results)

@@ -327,19 +327,6 @@ check_max_lts <- function(max_lts) {
   invisible(TRUE)
 }
 
-# r5r set_new_congestion() and set_new_lts(): scenarios are not supported.
-check_scenarios <- function(new_carspeeds, carspeed_scale, new_lts) {
-  if (!is.null(new_carspeeds) && !inherits(new_carspeeds, "data.frame")) {
-    fail_assert("new_carspeeds", "Must inherit from class 'data.frame'")
-  }
-  assert_number(carspeed_scale, "carspeed_scale", lower = 0, finite = TRUE)
-  if (!is.null(new_lts) && !inherits(new_lts, "data.frame")) {
-    fail_assert("new_lts", "Must inherit from class 'data.frame'")
-  }
-  if (!is.null(new_carspeeds) || carspeed_scale != 1) {
-    unsupported("Changing car speeds ('new_carspeeds', 'carspeed_scale')")
-  }
-  if (!is.null(new_lts)) unsupported("Changing LTS levels ('new_lts')")
   invisible(TRUE)
 }
 
