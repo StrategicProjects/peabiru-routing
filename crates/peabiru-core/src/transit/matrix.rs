@@ -6,11 +6,13 @@
 use super::raptor::{self, Filtered, RaptorRequest, StopTimes, UNREACHED};
 use super::walk;
 use super::TransitLayer;
-use crate::street::link::{find_split, Split};
+use crate::isochrone::linkage::{grid_links, Links};
+use crate::street::link::{find_split, link_points};
 use crate::street::router::{check_speed, search_from, worker_threads, Mode, ModeGraph, Search};
 use crate::street::StreetNetwork;
 use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 /// Public transport routing parameters (walk access, egress and transfers),
 /// with r5r's defaults but for the date and departure time, which have
@@ -328,7 +330,9 @@ pub(crate) struct Query<'a> {
     filtered: Filtered,
     /// The walking graph of the access and direct search.
     walk: ModeGraph,
-    dest_splits: Vec<Option<Split>>,
+    /// Walking links of the destinations (kept with the network for a
+    /// grid's cells).
+    dest_splits: Links,
     /// Per destination, `(stop, egress walk seconds)` for the stops within
     /// the egress walk limit, in increasing stop order.
     egress: Vec<Vec<(u32, i32)>>,
@@ -338,6 +342,15 @@ pub(crate) struct Query<'a> {
     walk_mms: i32,
     /// Access and direct walk search limit, seconds.
     street_limit: i32,
+}
+
+/// The destinations of a [`Query`].
+#[derive(Clone, Copy)]
+enum Dests<'p> {
+    Points(&'p [(f64, f64)]),
+    /// The cells of a grid, whose egress tables R5 builds from the cells
+    /// each stop's envelope overlaps.
+    Grid(&'p crate::WebMercatorGrid),
 }
 
 /// Per-thread buffers reused across origins.
@@ -358,8 +371,8 @@ impl<'a> Query<'a> {
         data: &'a TransitData,
         destinations: &[(f64, f64)],
         p: &'a TransitParams,
-    ) -> Result<Self, String> {
-        Self::build(net, layer, data, destinations, None, p)
+    ) -> Result<Self, RouteError> {
+        Self::build(net, layer, data, Dests::Points(destinations), p)
     }
 
     /// [`Query::new`] to the cells of a grid, whose egress tables R5 builds
@@ -370,19 +383,18 @@ impl<'a> Query<'a> {
         data: &'a TransitData,
         grid: &crate::WebMercatorGrid,
         p: &'a TransitParams,
-    ) -> Result<Self, String> {
-        Self::build(net, layer, data, &grid.cell_centers(), Some(grid), p)
+    ) -> Result<Self, RouteError> {
+        Self::build(net, layer, data, Dests::Grid(grid), p)
     }
 
     fn build(
         net: &'a StreetNetwork,
         layer: &'a TransitLayer,
         data: &'a TransitData,
-        destinations: &[(f64, f64)],
-        grid: Option<&crate::WebMercatorGrid>,
+        destinations: Dests<'_>,
         p: &'a TransitParams,
-    ) -> Result<Self, String> {
-        p.check()?;
+    ) -> Result<Self, RouteError> {
+        p.check().map_err(RouteError::Invalid)?;
         // RAPTOR keeps iterations x stops durations per origin; their byte
         // count must be a valid allocation size
         let per_minute = if layer.has_frequencies {
@@ -392,25 +404,36 @@ impl<'a> Query<'a> {
         };
         let cells = p.time_window as u64 * per_minute * layer.stop_ids.len() as u64;
         if cells > isize::MAX as u64 / 4 {
-            return Err(format!(
+            return Err(RouteError::Invalid(format!(
                 "time_window x draws_per_minute x stops ({cells}) is too large to allocate"
-            ));
+            )));
         }
         let active = layer.active_services(p.date, weekday(p.date));
         let filtered = Filtered::new(layer, &active)?;
         let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
-        let mut scratch = Vec::new();
-        let dest_splits: Vec<Option<Split>> = destinations
-            .iter()
-            .map(|&(lat, lon)| find_split(net, lat, lon, Mode::Walk, &mut scratch))
-            .collect();
+        let dest_splits = match destinations {
+            Dests::Points(points) => Arc::new(
+                link_points(
+                    net,
+                    points.len(),
+                    |j| points[j],
+                    Mode::Walk,
+                    p.n_threads,
+                    &p.cancel,
+                )
+                .ok_or(RouteError::Cancelled)?,
+            ),
+            Dests::Grid(g) => grid_links(net, g, Mode::Walk, p.n_threads, &p.cancel)?,
+        };
         let walk_mms = (walk_speed * 1000.0f32) as i32;
         let egress_limit = p.max_walk_time * 60;
         // PerTargetPropagater: egress seconds `mm / walkSpeedMillimetersPerSecond`,
         // stops at or beyond the egress limit skipped.
-        let tables = match grid {
-            None => walk::egress_tables(layer, &data.trees, net, destinations, &dest_splits),
-            Some(g) => walk::egress_tables_grid(layer, &data.trees, net, g, &dest_splits),
+        let tables = match destinations {
+            Dests::Points(points) => {
+                walk::egress_tables(layer, &data.trees, net, points, &dest_splits)
+            }
+            Dests::Grid(g) => walk::egress_tables_grid(layer, &data.trees, net, g, &dest_splits),
         };
         let egress = tables
             .into_iter()

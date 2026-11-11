@@ -22,13 +22,14 @@
 mod edges;
 mod grid;
 mod isoband;
+pub(crate) mod linkage;
 mod separate;
 
 pub use edges::{isochrone_lines, street_edges, IsochroneLine, StreetEdges};
 pub use grid::WebMercatorGrid;
 pub use separate::Polygon;
 
-use crate::street::router::{travel_time_seconds, Mode, RouteParams};
+use crate::street::router::{travel_time_seconds_linked, Mode, RouteParams};
 use crate::street::StreetNetwork;
 use crate::transit::matrix::{check_percentiles, par_origins, percentile_index, Query};
 use crate::transit::raptor::UNREACHED;
@@ -103,15 +104,16 @@ pub fn street_travel_time_surface(
     let mut percentiles = percentiles.to_vec();
     percentiles.sort_unstable();
     let np = percentiles.len();
-    let cells = grid.cell_centers();
-    let rows = travel_time_seconds(net, origins, &cells, mode, params, |_, times| {
-        let mut row = vec![UNREACHED; np * cells.len()];
+    let n = grid.n_cells();
+    let links = linkage::grid_links(net, &grid, mode, params.n_threads, &params.cancel)?;
+    let rows = travel_time_seconds_linked(net, origins, &links, mode, params, |_, times| {
+        let mut row = vec![UNREACHED; np * n];
         if let Some(times) = times {
             // TravelTimeReducer.recordUnvaryingTravelTimeAtTarget
             for (j, &t) in times.iter().enumerate() {
                 let m = if t == UNREACHED { UNREACHED } else { t / 60 };
                 for k in 0..np {
-                    row[k * cells.len() + j] = m;
+                    row[k * n + j] = m;
                 }
             }
         }

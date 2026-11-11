@@ -685,11 +685,11 @@ impl TransitLayer {
     /// vertex, a split of the nearest walkable street, and a LINK pair whose
     /// length is the haversine distance from the stop to the street vertex.
     ///
-    /// It changes `net`, so it drops any contraction hierarchy kept with
-    /// it (see the invariant on `StreetNetwork`'s fields); the only caller,
+    /// It changes `net`, so it drops any contraction hierarchy and grid
+    /// linkage kept with it (see the invariant on `StreetNetwork`'s fields); the only caller,
     /// `build_from_dir`, links before the network is handed out.
     pub(crate) fn link_stops(&mut self, net: &mut StreetNetwork) {
-        net.forget_hierarchies();
+        net.forget_kept();
         for s in 0..self.stop_ids.len() {
             let (lat, lon) = (self.stop_lat[s], self.stop_lon[s]);
             let stop_vertex = parkride::add_vertex_fixed(

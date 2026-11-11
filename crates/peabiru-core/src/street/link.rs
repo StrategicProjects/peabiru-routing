@@ -226,6 +226,40 @@ pub fn find_split(
         .or_else(|| find_split_radius(net, lat, lon, LINK_RADIUS_M, mode, scratch))
 }
 
+/// Points linked per batch by [`link_points`].
+const LINK_BATCH: usize = 512;
+
+/// [`find_split`] for `n` points, `point(i)` giving point `i` as `(lat,
+/// lon)`, shared out in batches among up to `n_threads` threads (0 = all
+/// cores): the splits in point order, the same whatever the number of
+/// threads. `None` when `cancel` is cancelled, which the workers check
+/// between batches.
+pub(crate) fn link_points(
+    net: &StreetNetwork,
+    n: usize,
+    point: impl Fn(usize) -> (f64, f64) + Sync,
+    mode: super::Mode,
+    n_threads: usize,
+    cancel: &crate::CancelToken,
+) -> Option<Vec<Option<Split>>> {
+    let mut out = vec![None; n];
+    let n_threads = super::router::worker_threads(n_threads, n.div_ceil(LINK_BATCH));
+    let batches = std::sync::Mutex::new(out.chunks_mut(LINK_BATCH).enumerate());
+    crate::sys::scoped(0..n_threads, |_| {
+        let mut scratch = Vec::new();
+        while !cancel.is_cancelled() {
+            // nothing panics while the lock is held
+            let next = batches.lock().unwrap_or_else(|e| e.into_inner()).next();
+            let Some((b, slots)) = next else { break };
+            for (k, slot) in slots.iter_mut().enumerate() {
+                let (lat, lon) = point(b * LINK_BATCH + k);
+                *slot = find_split(net, lat, lon, mode, &mut scratch);
+            }
+        }
+    });
+    (!cancel.is_cancelled()).then_some(out)
+}
+
 /// R5 `Split.find` within one radius.
 pub fn find_split_radius(
     net: &StreetNetwork,

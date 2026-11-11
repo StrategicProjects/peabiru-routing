@@ -1230,7 +1230,7 @@ mod tests {
 
     /// Kept hierarchies are not compared with the network (see the
     /// invariant on `StreetNetwork`'s fields): code that changes a
-    /// network's arrays drops them with `forget_hierarchies`. A network so
+    /// network's arrays drops them with `forget_kept`. A network so
     /// changed after hierarchies were kept gets the plain search's matrix
     /// of the changed network, the hierarchies built again when wanted; a
     /// clone made before the change keeps its own.
@@ -1253,7 +1253,7 @@ mod tests {
         for l in net.pair_length_mm.iter_mut().step_by(3) {
             *l += 5000;
         }
-        net.forget_hierarchies();
+        net.forget_kept();
         assert!(net.hierarchies.keys().is_empty());
         // a small call (Auto would search): no hierarchy is built
         let auto = with(&p, StreetEngine::Auto);
