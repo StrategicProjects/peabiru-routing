@@ -66,7 +66,7 @@ fn intelliround(mut s: String) -> String {
     // the digits at i-3 .. i-7 must be `c` unless the number has at least
     // 4 .. 8 digits before the point
     let tail =
-        |c: u8| (3..=7).all(|k| before >= k + 1 || b[i - k] == c) && b[i - 8] == c && b[i - 9] == c;
+        |c: u8| (3..=7).all(|k| before > k || b[i - k] == c) && b[i - 8] == c && b[i - 9] == c;
     if all(b'0', 2, 6) {
         s.pop();
     } else if dot < i - 8 && tail(b'0') {
