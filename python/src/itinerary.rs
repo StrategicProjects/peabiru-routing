@@ -20,7 +20,7 @@ use pyo3::types::PyDict;
 #[pyo3(signature = (network, olat, olon, dlat, dlon, mode, transit_modes, egress_mode, date,
     departure_time, time_window, max_walk_time, max_bike_time, max_car_time,
     max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path,
-    n_threads, output))]
+    n_threads, output, suboptimal_minutes=0, fare=None, max_fare=f64::INFINITY))]
 pub(crate) fn itineraries<'py>(
     py: Python<'py>,
     network: &Bound<'py, Network>,
@@ -45,6 +45,9 @@ pub(crate) fn itineraries<'py>(
     shortest_path: bool,
     n_threads: usize,
     output: Option<(String, Vec<String>, Vec<String>)>,
+    suboptimal_minutes: i32,
+    fare: Option<Bound<'py, PyDict>>,
+    max_fare: f64,
 ) -> PyResult<Option<Bound<'py, PyDict>>> {
     let n = network.get();
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
@@ -66,6 +69,9 @@ pub(crate) fn itineraries<'py>(
     p.max_rides = max_rides;
     p.max_lts = max_lts;
     p.shortest_path = shortest_path;
+    p.suboptimal_minutes = suboptimal_minutes;
+    p.fare_structure = super::fares::fare_arg(fare.as_ref())?;
+    p.max_fare = max_fare;
     p.n_threads = n_threads;
     let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
     let res = interruptible(py, &p.cancel, || {
@@ -89,6 +95,7 @@ pub(crate) fn itineraries<'py>(
     let (mut total_duration, mut segment_duration, mut wait, mut x, mut y) =
         (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
     let (mut departure, mut modes, mut route) = (Vec::new(), Vec::new(), Vec::new());
+    let (mut total_fare, mut cumulative_fare) = (Vec::new(), Vec::new());
     for (k, its) in res.iter().enumerate() {
         for it in its {
             for (j, l) in it.legs.iter().enumerate() {
@@ -108,6 +115,8 @@ pub(crate) fn itineraries<'py>(
                 departure.push(it.departure_time.clone());
                 modes.push(l.mode.clone());
                 route.push(l.route.clone());
+                total_fare.push(it.total_fare.unwrap_or(0.0));
+                cumulative_fare.push(l.cumulative_fare.unwrap_or(0.0));
             }
         }
     }
@@ -126,5 +135,7 @@ pub(crate) fn itineraries<'py>(
     out.set_item("departure_time", departure)?;
     out.set_item("mode", modes)?;
     out.set_item("route", route)?;
+    out.set_item("total_fare", f64_bytes(py, &total_fare)?)?;
+    out.set_item("cumulative_fare", f64_bytes(py, &cumulative_fare)?)?;
     Ok(Some(out))
 }

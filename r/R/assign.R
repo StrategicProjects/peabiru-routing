@@ -327,18 +327,6 @@ check_max_lts <- function(max_lts) {
   invisible(TRUE)
 }
 
-# r5r set_max_fare() and set_fare_structure(): fares are not supported.
-check_fares <- function(fare_structure, max_fare) {
-  if (!is.null(fare_structure)) unsupported("'fare_structure' (fare calculation)")
-  assert_number(max_fare, "max_fare", lower = 0)
-  if (is.finite(max_fare)) {
-    stop("'max_fare' requires a 'fare_structure': 'max_fare' is ", max_fare,
-         " but 'fare_structure' is NULL, so no fares are calculated and the ",
-         "limit would be ignored. Leave 'max_fare' as Inf.", call. = FALSE)
-  }
-  invisible(TRUE)
-}
-
 # r5r set_new_congestion() and set_new_lts(): scenarios are not supported.
 check_scenarios <- function(new_carspeeds, carspeed_scale, new_lts) {
   if (!is.null(new_carspeeds) && !inherits(new_carspeeds, "data.frame")) {
@@ -387,9 +375,34 @@ csv_output <- function(output_dir, origins, destinations, ...) {
        to_ids = destinations$id, ...)
 }
 
-# r5r set_monte_carlo_draws() without a fare structure
-check_draws <- function(draws_per_minute) {
+# r5r set_monte_carlo_draws(): with McRAPTOR (a fare structure, or the
+# alternatives of detailed_itineraries()), the draws R5 cannot sample are
+# rejected as r5r rejects them
+check_draws <- function(draws_per_minute, time_window = 1L, mcraptor = FALSE) {
   assert_count(draws_per_minute, "draws_per_minute", positive = TRUE)
+  if (mcraptor) {
+    draws <- as.integer(time_window * draws_per_minute)
+    if (draws == 200L) {
+      stop("A 'time_window' of ", time_window, " minutes with ", draws_per_minute,
+           " draw(s) per minute gives exactly 200 Monte Carlo draws, which R5's ",
+           "McRaptor algorithm does not accept. Use a slightly different ",
+           "'time_window', e.g. ", time_window + 1, ". See ",
+           "https://github.com/ipea/r5r/issues/602.", call. = FALSE)
+    }
+    m <- 60 %/% draws_per_minute
+    mu <- (m - 1) / 2 + m %/% 2
+    span <- 60 * time_window
+    sd <- sqrt(span * (m^2 - 1) / 12 / mu^3)
+    z <- ((span - (m - 1) / 2) / mu + 1 - draws) / sd
+    p <- if (m < 2) 0 else exp(-z^2 / 2) / sqrt(2 * pi) / sd
+    if (p < 5e-5) {
+      stop("'draws_per_minute' = ", draws_per_minute, " with a 'time_window' of ",
+           time_window, " minutes is not supported with a 'fare_structure'. R5's ",
+           "McRaptor algorithm cannot sample this many departure times and could ",
+           "run indefinitely. Use a lower 'draws_per_minute' or a shorter ",
+           "'time_window'. See https://github.com/ipea/r5r/issues/602.", call. = FALSE)
+    }
+  }
   invisible(TRUE)
 }
 

@@ -161,7 +161,7 @@ travel_time_matrix <- function(r5r_network,
 
   assert_count(time_window, "time_window", positive = TRUE)
   percentiles <- assign_percentiles(percentiles)
-  check_draws(draws_per_minute)
+  check_draws(draws_per_minute, time_window, mcraptor = !is.null(fare_structure))
   seed <- seed_args(seed)
   check_speed(walk_speed, "walk")
   check_speed(bike_speed, "bike")
@@ -169,7 +169,7 @@ travel_time_matrix <- function(r5r_network,
   check_max_lts(max_lts)
   threads <- assign_n_threads(n_threads)
   check_messages(verbose, progress)
-  check_fares(fare_structure, max_fare)
+  check_fares(fare_structure, max_fare, r5r_network)
   check_output_dir(output_dir)
   check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
@@ -185,7 +185,7 @@ travel_time_matrix <- function(r5r_network,
       departure$yyyymmdd, departure$seconds, as.integer(time_window),
       percentiles, max_walk_time, max_trip_duration, as.double(walk_speed),
       as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
-      threads, output
+      threads, output, fare_structure, as.double(max_fare)
     ))
     if (!is.null(output_dir)) return(output_dir)
     times <- res[-(1:2)]

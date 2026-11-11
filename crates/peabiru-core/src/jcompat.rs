@@ -109,18 +109,105 @@ impl MersenneTwister {
 }
 
 /// `Double.hashCode`.
-fn double_hash(x: f64) -> i32 {
+pub(crate) fn double_hash(x: f64) -> i32 {
     let b = x.to_bits();
     (b ^ (b >> 32)) as i32
 }
 
+/// `java.util.Objects.hash` of values whose own `hashCode`s are `hashes`.
+pub(crate) fn objects_hash(hashes: &[i32]) -> i32 {
+    hashes
+        .iter()
+        .fold(1i32, |h, &x| h.wrapping_mul(31).wrapping_add(x))
+}
+
+/// `String.hashCode` (over UTF-16 code units); `None`, Java's `null`, is 0
+/// as `java.util.HashMap` hashes it.
+pub(crate) fn string_hash(s: Option<&str>) -> i32 {
+    s.map_or(0, |s| {
+        s.encode_utf16()
+            .fold(0i32, |h, c| h.wrapping_mul(31).wrapping_add(i32::from(c)))
+    })
+}
+
+/// The bucket layout of a `java.util.HashMap` (or `HashSet`) built by
+/// insertions only, enough to reproduce its iteration order: buckets in
+/// table order, each in insertion order (a resize splits a bucket keeping
+/// that order). Java turns a bucket of more than 8 keys into a tree in a
+/// table of 64 or more buckets, whose order this does not follow: such an
+/// insertion is an error.
+pub(crate) struct JavaHashMap<K> {
+    table: Vec<Vec<usize>>,
+    entries: Vec<(i32, K)>,
+}
+
+impl<K: PartialEq> JavaHashMap<K> {
+    pub(crate) fn new() -> Self {
+        JavaHashMap {
+            table: Vec::new(),
+            entries: Vec::new(),
+        }
+    }
+
+    fn spread(h: i32) -> usize {
+        (h ^ ((h as u32) >> 16) as i32) as u32 as usize
+    }
+
+    /// The index of `key` (hashing to `hash`), inserting it if absent.
+    pub(crate) fn insert(&mut self, key: K, hash: i32) -> Result<usize, String> {
+        if self.table.is_empty() {
+            self.table = vec![Vec::new(); 16];
+        }
+        let n = self.table.len();
+        let b = Self::spread(hash) & (n - 1);
+        if let Some(&i) = self.table[b]
+            .iter()
+            .find(|&&i| self.entries[i].0 == hash && self.entries[i].1 == key)
+        {
+            return Ok(i);
+        }
+        let i = self.entries.len();
+        self.entries.push((hash, key));
+        self.table[b].push(i);
+        if self.table[b].len() > 8 {
+            if n < 64 {
+                self.resize();
+            } else {
+                return Err("a java.util.HashMap bucket holds more than 8 keys".into());
+            }
+        }
+        // `++size > threshold` (0.75 of the table)
+        if self.entries.len() > self.table.len() * 3 / 4 {
+            self.resize();
+        }
+        Ok(i)
+    }
+
+    fn resize(&mut self) {
+        let n = self.table.len() * 2;
+        let mut table = vec![Vec::new(); n];
+        for bucket in &self.table {
+            for &i in bucket {
+                table[Self::spread(self.entries[i].0) & (n - 1)].push(i);
+            }
+        }
+        self.table = table;
+    }
+
+    /// The indices of the keys in iteration order.
+    pub(crate) fn order(&self) -> impl Iterator<Item = usize> + '_ {
+        self.table.iter().flatten().copied()
+    }
+
+    /// The key of an index.
+    pub(crate) fn key(&self, i: usize) -> &K {
+        &self.entries[i].1
+    }
+}
+
 /// `java.util.Objects.hash(Integer seed, Double a, Double b)`.
 pub fn objects_hash_int_double_double(seed: i32, a: f64, b: f64) -> i32 {
-    let mut h: i32 = 1;
-    for x in [seed, double_hash(a), double_hash(b)] {
-        h = h.wrapping_mul(31).wrapping_add(x);
-    }
-    h
+    objects_hash(&[seed, double_hash(a), double_hash(b)])
 }
 
 /// Trove 3 `PrimeFinder.primeCapacities` up to ~47 million, sorted.

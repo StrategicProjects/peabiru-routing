@@ -26,6 +26,7 @@ use peabiru_core::{
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+mod fares;
 mod inspect;
 mod itinerary;
 
@@ -569,11 +570,13 @@ fn rs_transit_ttm(
     seed: i32,
     n_threads: i32,
     output: Robj,
+    fare_structure: Robj,
+    max_fare: f64,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let t = transit(n)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
-    let p = transit_params(
+    let mut p = transit_params(
         transit_modes,
         access_mode,
         egress_mode,
@@ -593,6 +596,8 @@ fn rs_transit_ttm(
         seed_of(has_seed, seed),
         n_threads,
     )?;
+    p.fare_structure = fares::fare_args(&fare_structure)?;
+    p.max_fare = max_fare;
     if let Some(out) = Output::of(&output)? {
         let w = out.writer(n_threads);
         done!(interruptible(&p.cancel, || {
@@ -684,6 +689,8 @@ fn rs_accessibility(
     seed: i32,
     n_threads: i32,
     output: Robj,
+    fare_structure: Robj,
+    max_fare: f64,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
@@ -720,7 +727,7 @@ fn rs_accessibility(
     a.decay = decay(decay_function, decay_value)?;
     let acc = if !transit_modes.is_empty() {
         let t = transit(n)?;
-        let p = transit_params(
+        let mut p = transit_params(
             transit_modes,
             mode,
             egress_mode,
@@ -740,6 +747,8 @@ fn rs_accessibility(
             seed_of(has_seed, seed),
             n_threads,
         )?;
+        p.fare_structure = fares::fare_args(&fare_structure)?;
+        p.max_fare = max_fare;
         done!(interruptible(&p.cancel, || {
             let mut all = None;
             for r in &chunks {
@@ -1147,5 +1156,6 @@ extendr_module! {
     fn rs_street_edges;
     fn rs_isochrone_lines;
     use inspect;
+    use fares;
     use itinerary;
 }

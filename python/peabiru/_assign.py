@@ -427,20 +427,6 @@ def check_max_lts(max_lts: Any) -> None:
         )
 
 
-def check_fares(fare_structure: Any, max_fare: Any) -> None:
-    """r5r set_max_fare() and set_fare_structure(): fares are not
-    supported."""
-    if fare_structure is not None:
-        unsupported("'fare_structure' (fare calculation)")
-    assert_number(max_fare, "max_fare", lower=0)
-    if math.isfinite(float(max_fare)):
-        raise ValueError(
-            f"'max_fare' requires a 'fare_structure': 'max_fare' is {_num(max_fare)} "
-            "but 'fare_structure' is None, so no fares are calculated and the "
-            "limit would be ignored. Leave 'max_fare' as math.inf."
-        )
-
-
 def check_scenarios(new_carspeeds: Any, carspeed_scale: Any, new_lts: Any) -> None:
     """r5r set_new_congestion() and set_new_lts(): scenarios are not
     supported."""
@@ -475,9 +461,38 @@ def check_output_dir(output_dir: Any) -> Optional[str]:
     return full
 
 
-def check_draws(draws_per_minute: Any) -> None:
-    """r5r set_monte_carlo_draws() without a fare structure"""
+def check_draws(draws_per_minute: Any, time_window: Any = 1, mcraptor: bool = False) -> None:
+    """r5r set_monte_carlo_draws(): with McRAPTOR (a fare structure, or the
+    alternatives of detailed_itineraries()), the draws R5 cannot sample are
+    rejected as r5r rejects them."""
     assert_count(draws_per_minute, "draws_per_minute", positive=True)
+    if not mcraptor:
+        return
+    dpm, tw = int(round(draws_per_minute)), float(time_window)
+    draws = int(tw * dpm)
+    if draws == 200:
+        raise ValueError(
+            f"A 'time_window' of {_num(time_window)} minutes with {dpm} draw(s) per minute "
+            "gives exactly 200 Monte Carlo draws, which R5's McRaptor algorithm does not "
+            f"accept. Use a slightly different 'time_window', e.g. {_num(tw + 1)}. See "
+            "https://github.com/ipea/r5r/issues/602."
+        )
+    m = 60 // dpm
+    mu = (m - 1) / 2 + m // 2
+    span = 60 * tw
+    p = 0.0
+    if m >= 2:
+        sd = math.sqrt(span * (m * m - 1) / 12 / mu ** 3)
+        z = ((span - (m - 1) / 2) / mu + 1 - draws) / sd
+        p = math.exp(-z * z / 2) / math.sqrt(2 * math.pi) / sd
+    if p < 5e-5:
+        raise ValueError(
+            f"'draws_per_minute' = {dpm} with a 'time_window' of {_num(time_window)} minutes "
+            "is not supported with a 'fare_structure'. R5's McRaptor algorithm cannot "
+            "sample this many departure times and could run indefinitely. Use a lower "
+            "'draws_per_minute' or a shorter 'time_window'. See "
+            "https://github.com/ipea/r5r/issues/602."
+        )
 
 
 def seed_arg(seed: Any) -> Optional[int]:

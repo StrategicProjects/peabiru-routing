@@ -58,6 +58,9 @@ fn rs_detailed_itineraries(
     n_threads: i32,
     drop_geometry: bool,
     output: Robj,
+    suboptimal_minutes: i32,
+    fare_structure: Robj,
+    max_fare: f64,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
@@ -79,6 +82,9 @@ fn rs_detailed_itineraries(
     p.max_rides = max_rides.max(0) as usize;
     p.max_lts = max_lts;
     p.shortest_path = shortest_path;
+    p.suboptimal_minutes = suboptimal_minutes;
+    p.fare_structure = super::fares::fare_args(&fare_structure)?;
+    p.max_fare = max_fare;
     p.n_threads = n_threads.max(0) as usize;
     let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
     let res = match interruptible(&p.cancel, || {
@@ -114,6 +120,9 @@ fn rs_detailed_itineraries(
     let mut distance = Vec::new();
     let mut route = Vec::new();
     let mut geometry = Vec::new();
+    let with_fares = p.fare_structure.is_some();
+    let mut total_fare = Vec::new();
+    let mut cumulative_fare = Vec::new();
     for (k, its) in res.iter().enumerate() {
         for it in its {
             for (j, l) in it.legs.iter().enumerate() {
@@ -128,6 +137,10 @@ fn rs_detailed_itineraries(
                 wait.push(l.wait);
                 distance.push(l.distance);
                 route.push(l.route.clone());
+                if with_fares {
+                    total_fare.push(it.total_fare.unwrap_or(0.0));
+                    cumulative_fare.push(l.cumulative_fare.unwrap_or(0.0));
+                }
                 if !drop_geometry {
                     geometry.push(wkt(&l.geometry));
                 }
@@ -139,7 +152,16 @@ fn rs_detailed_itineraries(
     } else {
         geometry.into()
     };
+    let fares = |v: Vec<f64>| -> Robj {
+        if with_fares {
+            v.into()
+        } else {
+            ().into()
+        }
+    };
     Ok(list!(
+        total_fare = fares(total_fare),
+        cumulative_fare = fares(cumulative_fare),
         pair = pair,
         option = option,
         departure_time = departure,

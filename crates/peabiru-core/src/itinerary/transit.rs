@@ -8,6 +8,7 @@
 
 use super::geom::{edge_line, line_length_m, Line};
 use super::hops::ride_line;
+use super::mc::McFares;
 use super::{street_path_line, ItineraryParams, Leg, Trip};
 use crate::street::link::{find_split, Split};
 use crate::street::p2p::{Router, NONE};
@@ -20,13 +21,19 @@ use crate::{RouteError, TransitData, TransitLayer};
 
 /// What every pair of a call shares.
 pub(crate) struct Planner<'a> {
-    net: &'a StreetNetwork,
-    layer: &'a TransitLayer,
-    data: &'a TransitData,
-    p: &'a ItineraryParams,
+    pub(super) net: &'a StreetNetwork,
+    pub(super) layer: &'a TransitLayer,
+    pub(super) data: &'a TransitData,
+    pub(super) p: &'a ItineraryParams,
     filtered: Filtered,
     /// The stop at each street vertex, or -1.
-    vertex_stop: Vec<i32>,
+    pub(super) vertex_stop: Vec<i32>,
+    /// McRAPTOR's patterns (running on the date, of the modes asked for)
+    /// and services running on the date.
+    pub(super) mc_allowed: Vec<bool>,
+    pub(super) mc_active: Vec<bool>,
+    /// With a fare structure, the calculator and `request.maxFare`.
+    pub(super) fares: Option<McFares<'a>>,
 }
 
 /// R5's `TransitLayer.TRANSFER_DISTANCE_LIMIT_METERS`.
@@ -38,6 +45,7 @@ impl<'a> Planner<'a> {
         layer: &'a TransitLayer,
         data: &'a TransitData,
         p: &'a ItineraryParams,
+        calc: Option<&'a crate::fares::FareCalculator>,
     ) -> Result<Self, RouteError> {
         if layer.has_frequencies {
             // detailed_itineraries() refuses them before calling R5
@@ -57,6 +65,13 @@ impl<'a> Planner<'a> {
                 vertex_stop[v as usize] = s as i32;
             }
         }
+        let mc_allowed =
+            crate::transit::mcraptor::allowed_patterns(layer, &active, &p.transit_modes)
+                .map_err(RouteError::Invalid)?;
+        let fares = calc.map(|calc| McFares {
+            calc,
+            max_fare: crate::transit::matrix::max_fare_cents(p.max_fare),
+        });
         Ok(Planner {
             net,
             layer,
@@ -64,6 +79,9 @@ impl<'a> Planner<'a> {
             p,
             filtered,
             vertex_stop,
+            mc_allowed,
+            mc_active: active,
+            fares,
         })
     }
 
@@ -304,13 +322,14 @@ impl<'a> Planner<'a> {
             sort_legs: n_legs,
             duration,
             legs: out,
+            fares: None,
         }))
     }
 
     /// `Trip.newStopTransferLeg`: a walk between two stops as a straight
     /// line between their vertices (empty when either is unlinked or they
     /// are the same stop), `(int)` its planar length as its distance.
-    fn stop_transfer_leg(&self, from: u32, to: u32, duration: i32) -> Leg {
+    pub(super) fn stop_transfer_leg(&self, from: u32, to: u32, duration: i32) -> Leg {
         let (net, layer) = (self.net, self.layer);
         let (a, b) = (
             layer.stop_vertex[from as usize],
@@ -343,7 +362,7 @@ impl<'a> Planner<'a> {
     /// on foot, at most 1 km, toward the second stop's coordinates; the
     /// path replaces the line and gives the distance, the duration stays
     /// RAPTOR's.
-    fn route_transfer(&self, leg: &mut Leg, from: u32, to: u32, scratch: &mut Vec<u32>) {
+    pub(super) fn route_transfer(&self, leg: &mut Leg, from: u32, to: u32, scratch: &mut Vec<u32>) {
         let (net, layer, p) = (self.net, self.layer, self.p);
         let (a, b) = (
             layer.stop_vertex[from as usize],
@@ -374,10 +393,16 @@ impl<'a> Planner<'a> {
 }
 
 /// The error for a pair r5r routes with McRAPTOR after FastRaptor fails.
-fn fallback(why: &str) -> RouteError {
-    RouteError::Invalid(format!(
-        "not supported: r5r routes this trip with McRAPTOR because FastRaptor's path fails ({why})"
-    ))
+pub(super) fn fallback(why: &str) -> RouteError {
+    RouteError::Invalid(format!("{FALLBACK}({why})"))
+}
+
+const FALLBACK: &str =
+    "not supported: r5r routes this trip with McRAPTOR because FastRaptor's path fails ";
+
+/// Whether `e` is [`fallback`]'s.
+pub(super) fn is_fallback(e: &RouteError) -> bool {
+    matches!(e, RouteError::Invalid(m) if m.starts_with(FALLBACK))
 }
 
 /// `Trip.stopPositions`: the positions in the pattern of a ride's board
@@ -419,7 +444,7 @@ fn stop_positions(
 /// split point, and the destination itself; consecutive equal points
 /// once. `None` when the path does not end at a seed (R5's
 /// `InvalidOriginException`).
-fn egress_line(r: &Router, st: u32, split: &Split, d: (f64, f64)) -> Option<Line> {
+pub(super) fn egress_line(r: &Router, st: u32, split: &Split, d: (f64, f64)) -> Option<Line> {
     let mut line: Line = Vec::new();
     let append = |line: &mut Line, pts: &[[f64; 2]]| {
         for &p in pts {

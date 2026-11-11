@@ -333,9 +333,10 @@ pub fn transit_accessibility(
         // (TravelTimeComputer.java:313-317).
         q.route_origin(origins[i], scratch, |j, times| {
             r.record(j, times, &mut pct, &mut acc)
-        });
-        acc
+        })?;
+        Ok(acc)
     })?;
+    let rows = rows.into_iter().collect::<Result<Vec<_>, RouteError>>()?;
     Ok(r.finish(origins.len(), rows.concat()))
 }
 

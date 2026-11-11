@@ -33,6 +33,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+mod fares;
 mod inspect;
 mod itinerary;
 
@@ -446,6 +447,8 @@ fn transit_ttm<'py>(
     seed: Option<i32>,
     n_threads: usize,
     output: Output,
+    fare: Option<Bound<'py, PyDict>>,
+    max_fare: f64,
 ) -> PyResult<(Col<'py>, Col<'py>, Vec<Col<'py>>)> {
     let n = network.get();
     let modes = parse_transit_modes(transit_modes)?;
@@ -454,7 +457,7 @@ fn transit_ttm<'py>(
     let t = transit(n)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let np = percentiles.len();
-    let p = transit_params(
+    let mut p = transit_params(
         modes.clone(),
         access,
         egress,
@@ -474,6 +477,8 @@ fn transit_ttm<'py>(
         seed,
         n_threads,
     );
+    p.fare_structure = fares::fare_arg(fare.as_ref())?;
+    p.max_fare = max_fare;
     if let Some(out) = &output {
         let w = csv_writer(out, n_threads);
         written(interruptible(py, &p.cancel, || {
@@ -569,6 +574,8 @@ fn accessibility<'py>(
     seed: Option<i32>,
     n_threads: usize,
     output: Output,
+    fare: Option<Bound<'py, PyDict>>,
+    max_fare: f64,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let n = network.get();
     let modes = parse_transit_modes(transit_modes)?;
@@ -630,6 +637,8 @@ fn accessibility<'py>(
         n_threads,
     );
     p.cancel = cancel.clone();
+    p.fare_structure = fares::fare_arg(fare.as_ref())?;
+    p.max_fare = max_fare;
     let mut params = route_params(
         walk_speed,
         bike_speed,
@@ -1092,5 +1101,6 @@ fn _peabiru(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(isochrone_lines, m)?)?;
     m.add_function(wrap_pyfunction!(itinerary::itineraries, m)?)?;
     inspect::register(m)?;
+    fares::register(m)?;
     Ok(())
 }

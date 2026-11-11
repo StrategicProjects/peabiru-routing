@@ -25,7 +25,6 @@ from ._assign import (
     assign_percentiles,
     assign_points_input,
     check_draws,
-    check_fares,
     check_max_lts,
     check_messages,
     check_output_dir,
@@ -45,6 +44,7 @@ from ._checks import (
     fail_assert,
     unsupported,
 )
+from ._fares import fare_arg
 from ._network import Network, assert_network
 
 Mode = Union[str, Sequence[str]]
@@ -317,7 +317,8 @@ def travel_time_matrix(
         draws_per_minute, seed, walk_speed, bike_speed, max_rides, max_lts,
         n_threads, verbose, progress,
     )
-    check_fares(fare_structure, max_fare)
+    check_draws(draws_per_minute, time_window, mcraptor=fare_structure is not None)
+    fares = fare_arg(fare_structure, max_fare, r5r_network)
     out_dir = check_output_dir(output_dir)
     check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
@@ -333,6 +334,7 @@ def travel_time_matrix(
                 departure.yyyymmdd, departure.seconds, int(time_window), pcts,
                 lim["walk"], mtd, float(walk_speed), int(max_rides),
                 int(draws_per_minute), c["seed"], c["threads"], output,
+                fares, float(max_fare),
             )
         times = [_i32(b) for b in cols]
     else:
@@ -569,7 +571,8 @@ def accessibility(
         draws_per_minute, seed, walk_speed, bike_speed, max_rides, max_lts,
         n_threads, verbose, progress,
     )
-    check_fares(fare_structure, max_fare)
+    check_draws(draws_per_minute, time_window, mcraptor=fare_structure is not None)
+    fares = fare_arg(fare_structure, max_fare, r5r_network)
     out_dir = check_output_dir(output_dir)
     check_scenarios(new_carspeeds, carspeed_scale, new_lts)
 
@@ -586,7 +589,7 @@ def accessibility(
                 lim["walk"], lim["bike"], lim["car"], lim["trip"],
                 float(walk_speed), float(bike_speed),
                 int(max_lts), int(max_rides), int(draws_per_minute), c["seed"], c["threads"],
-                output,
+                output, fares, float(max_fare),
             )
         )
     if output_dir is not None:

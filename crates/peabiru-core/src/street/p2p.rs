@@ -159,6 +159,9 @@ pub(crate) struct Router<'a> {
     stop_search: Option<(&'a [i32], i32)>,
     /// `StopVisitor.stops`: stop -> seconds.
     pub(crate) stops: HashMap<u32, i32>,
+    /// The stops of `stops` in the order they were first put (the order
+    /// of R5's `TIntIntHashMap` follows from it).
+    pub(crate) stops_order: Vec<u32>,
     pub(crate) states: Vec<St>,
     maps: Vec<RMap>,
     /// `bestStatesAtEdge`: per edge, its live states in insertion order.
@@ -198,6 +201,7 @@ impl<'a> Router<'a> {
             distance_limit_m: 0,
             stop_search: None,
             stops: HashMap::new(),
+            stops_order: Vec::new(),
             states: Vec::new(),
             maps: Vec::new(),
             at_edge: HashMap::new(),
@@ -642,7 +646,10 @@ impl<'a> Router<'a> {
             if let Some((vertex_stop, min_time)) = self.stop_search {
                 let stop = vertex_stop[s0.vertex as usize];
                 if stop >= 0 && s0.dur >= min_time {
-                    let e = self.stops.entry(stop as u32).or_insert(i32::MAX);
+                    let e = self.stops.entry(stop as u32).or_insert_with(|| {
+                        self.stops_order.push(stop as u32);
+                        i32::MAX
+                    });
                     if *e > s0.dur {
                         *e = s0.dur;
                     }

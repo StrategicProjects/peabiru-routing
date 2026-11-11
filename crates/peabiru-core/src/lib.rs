@@ -114,6 +114,7 @@
 
 mod cancel;
 mod error;
+mod fares;
 mod fastmath;
 mod fastmath_trig;
 mod gtfs;
@@ -132,6 +133,10 @@ mod review_tests;
 
 pub use cancel::{CancelToken, RouteError};
 pub use error::NetworkError;
+pub use fares::{
+    read_fare_structure, setup_fare_structure, write_fare_structure, FarePerRoute, FarePerTransfer,
+    FarePerType, FareStructure,
+};
 pub use gtfs::validate::{gtfs_errors, GtfsErrorPriority, GtfsFeedError};
 pub use inspect::{
     find_snap, street_vertices, transit_routes, transit_service_dates, transit_stops, Snap,
@@ -164,6 +169,7 @@ pub use transit::matrix::{
     transit_travel_time_matrix, validate_date, validate_percentiles, TransitData, TransitMatrix,
     TransitParams,
 };
+pub use transit::pareto::{pareto_frontier, ParetoFrontier, ParetoRow};
 pub use transit::raptor::TransitMode;
 pub use transit::{build_from_bytes, build_from_dir};
 
@@ -176,6 +182,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// out of the documentation on purpose. Do not use them from other crates.
 #[doc(hidden)]
 pub mod unstable {
+    pub use crate::fares::zipio::{fwrite_csv, zip_stored, FwriteColumn};
     pub use crate::isochrone::CxxLibrary;
     /// [`isochrone_polygons`](crate::isochrone_polygons) with the rings in
     /// the order isoband gives them when built with `lib`, whatever the

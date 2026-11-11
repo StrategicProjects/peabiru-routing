@@ -134,24 +134,27 @@ detailed_itineraries <- function(r5r_network,
          call. = FALSE)
   }
   assert_count(time_window, "time_window", positive = TRUE)
+  check_draws(1L, time_window,
+              mcraptor = mode_list$transit && !(shortest_path && is.null(fare_structure)))
   check_speed(walk_speed, "walk")
   check_speed(bike_speed, "bike")
   assert_count(max_rides, "max_rides", positive = TRUE)
   check_max_lts(max_lts)
   threads <- assign_n_threads(n_threads)
   check_messages(verbose, progress)
-  check_fares(fare_structure, max_fare)
+  check_fares(fare_structure, max_fare, r5r_network)
   check_output_dir(output_dir)
   assert_count(suboptimal_minutes, "suboptimal_minutes")
+  if (!is.null(fare_structure) && suboptimal_minutes > 0) {
+    stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when calculating ",
+         "fares with detailed_itineraries().", call. = FALSE)
+  }
   if (shortest_path && suboptimal_minutes > 0) {
     stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when ",
          "'shortest_path' is TRUE.", call. = FALSE)
   }
   check_scenarios(new_carspeeds, carspeed_scale, new_lts)
   if (osm_link_ids) unsupported("'osm_link_ids = TRUE'")
-  if (!shortest_path && mode_list$transit) {
-    unsupported("'shortest_path = FALSE' with public transport (McRAPTOR)")
-  }
   if (!is.null(output_dir) && !drop_geometry) {
     unsupported("'output_dir' with the geometry (JTS's WKT text)",
                 "; use 'drop_geometry = TRUE'")
@@ -170,19 +173,23 @@ detailed_itineraries <- function(r5r_network,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_bike_time, max_car_time, max_trip_duration,
     as.double(walk_speed), as.double(bike_speed), as.integer(max_rides),
-    as.integer(max_lts), shortest_path, threads, drop_geometry, output
+    as.integer(max_lts), shortest_path, threads, drop_geometry, output,
+    as.integer(suboptimal_minutes), fare_structure, as.double(max_fare)
   ))
   if (!is.null(output_dir)) return(output_dir)
 
   i <- res$pair
-  out <- new_df(list(
+  # the fare columns are NULL without a fare structure, and left out
+  out <- new_df(Filter(Negate(is.null), list(
     from_id = origins$id[i], from_lat = origins$lat[i], from_lon = origins$lon[i],
     to_id = destinations$id[i], to_lat = destinations$lat[i], to_lon = destinations$lon[i],
     option = res$option, departure_time = res$departure_time,
     total_duration = res$total_duration, total_distance = res$total_distance,
-    segment = res$segment, mode = res$mode, segment_duration = res$segment_duration,
+    total_fare = res$total_fare,
+    segment = res$segment, mode = res$mode, cumulative_fare = res$cumulative_fare,
+    segment_duration = res$segment_duration,
     wait = res$wait, distance = res$distance, route = res$route
-  ))
+  )))
   if (drop_geometry) return(out)
   # as r5r builds it: WKT read by sf, then an sf in EPSG:4326
   out$geometry <- if (nrow(out) > 0) {

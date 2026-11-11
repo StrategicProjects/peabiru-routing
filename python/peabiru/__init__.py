@@ -7,6 +7,11 @@ OpenStreetMap extract and GTFS feeds; [`travel_time_matrix()`][peabiru.travel_ti
 [`isochrone()`][peabiru.isochrone] compute travel times
 by walking, cycling, driving and public transport;
 [`detailed_itineraries()`][peabiru.detailed_itineraries] gives the legs of each trip;
+[`setup_fare_structure()`][peabiru.setup_fare_structure],
+[`read_fare_structure()`][peabiru.read_fare_structure] and
+[`write_fare_structure()`][peabiru.write_fare_structure] describe transit fares, which
+the routing functions take, and [`pareto_frontier()`][peabiru.pareto_frontier] trades
+travel time against fare;
 [`find_snap()`][peabiru.find_snap], [`street_network_to_sf()`][peabiru.street_network_to_sf],
 [`transit_network_to_sf()`][peabiru.transit_network_to_sf],
 [`check_transit_availability()`][peabiru.check_transit_availability] and
@@ -21,6 +26,12 @@ results are the same.
 
 from ._checks import UnsupportedError
 from ._data import sample_data_path, sample_points
+from ._fares import (
+    pareto_frontier,
+    read_fare_structure,
+    setup_fare_structure,
+    write_fare_structure,
+)
 from ._isochrone import isochrone
 from ._itinerary import detailed_itineraries
 from ._network import Network, build_network
@@ -74,10 +85,14 @@ __all__ = [
     "find_snap",
     "get_gtfs_errors",
     "isochrone",
+    "pareto_frontier",
+    "read_fare_structure",
     "sample_data_path",
     "sample_points",
+    "setup_fare_structure",
     "street_network_bbox",
     "street_network_to_sf",
     "transit_network_to_sf",
     "travel_time_matrix",
+    "write_fare_structure",
 ]
