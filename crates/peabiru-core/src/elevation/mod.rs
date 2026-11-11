@@ -323,9 +323,14 @@ fn suspect_warning(s: Suspect, n: usize, nodata: Option<f64>) -> Option<String> 
     }
     if s.nodata > 0 {
         parts.push(format!(
-            "{} equal to the raster's no-data value ({}), which r5r reads as an elevation",
+            "{} equal to the raster's no-data value ({}), which r5r {}",
             s.nodata,
-            nodata.map_or_else(String::new, |v| v.to_string())
+            nodata.map_or_else(String::new, |v| v.to_string()),
+            if nodata.is_some_and(f64::is_nan) {
+                "stores as 0 m"
+            } else {
+                "reads as an elevation"
+            }
         ));
     }
     Some(format!(
