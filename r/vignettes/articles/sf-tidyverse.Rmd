@@ -1,0 +1,262 @@
+---
+title: "peabiru with sf and the tidyverse"
+description: >
+  From points to maps with the tools you already use: an sf grid, routing
+  with the native pipe, dplyr on the tibbles peabiru returns, joins back to
+  the geometry and ggplot2's geom_sf().
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+knitr::opts_chunk$set(fig.width = 7.5, fig.height = 6, dpi = 110, out.width = "100%")
+```
+
+peabiru returns tibbles, and `sf` tibbles where the result has a geometry,
+so its results go straight into 'dplyr' and 'ggplot2'. This article walks
+from a set of points to maps of travel times, accessibility, isochrones and
+trips, on the São Paulo sample network shipped with the package (the streets
+around Avenida Paulista and the SPTrans GTFS feed), so that it runs offline
+in a few seconds.
+
+```{r packages, message = FALSE}
+library(peabiru)
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+data_path <- system.file("extdata/spo", package = "peabiru")
+network <- build_network(data_path, n_threads = 2)
+departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+```
+
+## Points and a grid as sf
+
+The sample has 27 points with their population and the jobs, schools and
+health care in each. As an `sf` tibble they keep those columns next to the
+geometry:
+
+```{r points}
+points <- read.csv(file.path(data_path, "spo_points.csv")) |>
+  as_tibble() |>
+  st_as_sf(coords = c("lon", "lat"), crs = 4326)
+points
+```
+
+A hexagonal grid over the network gives the areas to map. Grids are drawn in
+metres, so this one is made in SIRGAS 2000 / UTM zone 23S (EPSG:31983), the
+projected system of São Paulo, and kept there: peabiru takes `sf` points in
+any coordinate reference system and reprojects them to WGS 84 itself.
+
+```{r grid}
+area <- street_network_bbox(network) |> st_transform(31983)
+hexagons <- st_make_grid(area, cellsize = 300, square = FALSE) |>
+  st_as_sf() |>
+  st_set_geometry("geometry") |>
+  mutate(id = sprintf("h%03d", row_number()), .before = 1)
+# the attributes (the id) hold for the whole hexagon, so for its centre too
+centres <- hexagons |> st_set_agr("constant") |> st_centroid()
+nrow(hexagons)
+```
+
+## A travel-time matrix with the pipe
+
+The network is the first argument of every routing function, so a call reads
+from left to right with the native pipe. From the centre of every hexagon to
+the 27 points, walking and by public transport:
+
+```{r ttm}
+ttm <- network |>
+  travel_time_matrix(origins = centres, destinations = points,
+                     mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+                     max_trip_duration = 60, seed = 42, n_threads = 2)
+ttm
+```
+
+The centres are in UTM, so peabiru says it reprojected them (the points were
+already in WGS 84). The message has its own class, `peabiru_reprojected`;
+`suppressMessages()` silences it.
+
+## dplyr on the result
+
+The result is a tibble with one row per pair, ready for dplyr verbs. For each
+hexagon, the median time to the 27 points and how many of them are within
+20 minutes:
+
+```{r summary}
+by_hexagon <- ttm |>
+  group_by(id = from_id) |>
+  summarise(median_time = median(travel_time_p50),
+            within_20 = sum(travel_time_p50 <= 20),
+            .groups = "drop")
+by_hexagon |> arrange(median_time)
+```
+
+## Back to the geometry
+
+To map the summary, join it to the hexagons. **Put the `sf` object on the
+left**: `left_join()` keeps the class of its first argument, so
+`hexagons |> left_join(by_hexagon)` is an `sf` with the new columns, while
+`by_hexagon |> left_join(hexagons)` is a plain tibble that carries the
+geometry as a column without being `sf` (`st_as_sf()` would turn it back).
+
+```{r join}
+mapped <- hexagons |> left_join(by_hexagon, by = "id")
+class(mapped)
+class(by_hexagon |> left_join(hexagons, by = "id"))
+```
+
+A hexagon whose centre reached none of the points within the hour would
+have no row in the matrix; the join would leave it `NA`, and `geom_sf()`
+would draw it grey.
+
+```{r median-map, fig.alt = "A map of hexagons over central São Paulo, with the main streets, coloured by the median travel time walking and by public transport from each hexagon to the 27 sample points: about 15 minutes in the middle and to the west, where the points are, rising to about 50 minutes at the eastern edge."}
+streets <- street_network_to_sf(network)$edges |>
+  filter(street_class %in% c("PRIMARY", "SECONDARY"))
+
+ggplot() +
+  geom_sf(data = mapped, aes(fill = median_time), colour = "white", linewidth = 0.2) +
+  geom_sf(data = streets, colour = "#4a5a5f", linewidth = 0.25, alpha = 0.6) +
+  scale_fill_gradient(low = "#7a3318", high = "#f5d3b6", na.value = "grey85",
+                      name = "Median\nminutes") +
+  theme_void()
+```
+
+## Accessibility as a choropleth
+
+`accessibility()` counts, for each origin, the opportunities within the
+cutoff. The destinations carry the opportunity columns; the origins are the
+hexagon centres again:
+
+```{r access}
+jobs <- network |>
+  accessibility(origins = centres, destinations = points,
+                opportunities_colnames = c("jobs", "schools"),
+                mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+                cutoffs = c(15, 30), seed = 42, n_threads = 2) |>
+  suppressMessages()
+jobs |>
+  group_by(opportunity, cutoff) |>
+  summarise(mean = mean(accessibility), max = max(accessibility), .groups = "drop")
+```
+
+One cutoff and one opportunity per map, or `facet_wrap()` over the two
+cutoffs after the join:
+
+```{r access-map, fig.height = 4.4, fig.alt = "Two maps of hexagons, for 15 and 30 minutes, coloured by the number of jobs reachable walking and by public transport: within 15 minutes a few hexagons west of the centre reach more than 50 thousand jobs; within 30 minutes most of the western two thirds reach about 100 thousand, and the eastern edge few."}
+hexagons |>
+  inner_join(filter(jobs, opportunity == "jobs"), by = "id") |>
+  mutate(cutoff = paste(cutoff, "minutes")) |>
+  ggplot() +
+  geom_sf(aes(fill = accessibility / 1000), colour = "white", linewidth = 0.2) +
+  scale_fill_gradient(low = "#e8efe9", high = "#2f6b4f", name = "Jobs\n(thousands)") +
+  facet_wrap(~cutoff) +
+  theme_void() +
+  theme(strip.text = element_text(face = "bold", hjust = 0))
+```
+
+`inner_join()` keeps only the hexagons with a value, and the result is still
+`sf`, because the `sf` object is on the left.
+
+## Isochrones and itineraries as layers
+
+`isochrone()`, `detailed_itineraries()` and `trip_options()` return `sf`
+tibbles in WGS 84 that `geom_sf()` draws as they are. ggplot2 puts every layer
+in the coordinate system of the first, so the UTM hexagons and the WGS 84
+results share one map.
+
+```{r layers}
+origin <- points |> filter(id == "89a8100c037ffff")
+destination <- points |> filter(id == "89a8100c39bffff")
+
+reach <- network |>
+  isochrone(origins = origin, mode = c("WALK", "TRANSIT"), cutoffs = c(0, 10, 20, 30),
+            departure_datetime = departure, seed = 42, n_threads = 2)
+reach
+
+cycling <- network |>
+  detailed_itineraries(origins = origin, destinations = destination, mode = "BICYCLE",
+                       departure_datetime = departure, n_threads = 2)
+cycling |> select(mode, segment_duration, distance)
+```
+
+The bundled feed is frequency-based, so `detailed_itineraries()` routes
+street modes only (as r5r does); the public transport trip comes from
+`trip_options()` below.
+
+## trip_options() with dplyr
+
+`trip_options()` returns a list of tables: `options` (one row per trip worth
+considering), `itineraries` (an `sf` of their legs) and, with
+`by_departure = TRUE`, `departures`. Its options for the same pair:
+
+```{r options}
+trips <- network |>
+  trip_options(origins = origin, destinations = destination,
+               departure_datetime = departure, n_threads = 2)
+trips$options |> select(option, total_time, transfers, walk_time, description)
+```
+
+The legs summarise with dplyr like any table; `st_drop_geometry()` first
+when the lines are not needed, which keeps the summary light:
+
+```{r legs}
+trips$itineraries |>
+  st_drop_geometry() |>
+  group_by(option) |>
+  summarise(legs = n(), riding = sum(segment_duration[mode != "WALK"]),
+            walking = sum(segment_duration[mode == "WALK"]), metres = sum(distance))
+```
+
+On one map: the isochrones, the cycling route and the fastest public
+transport option, its legs coloured by mode.
+
+```{r layers-map, fig.height = 7.2, fig.alt = "A map over the hexagon grid with three nested areas reached from one point within 10, 20 and 30 minutes walking and by public transport, the dashed cycling route to a point about two kilometres to the north-east, and the fastest public transport option to it: a walk, a metro ride and another walk."}
+fastest <- trips$itineraries |> filter(option == 1)
+
+ggplot() +
+  geom_sf(data = hexagons, fill = NA, colour = "grey80", linewidth = 0.2) +
+  geom_sf(data = reach |> arrange(desc(isochrone)), aes(fill = factor(isochrone)),
+          colour = NA, alpha = 0.75) +
+  geom_sf(data = cycling, colour = "#4a5a5f", linewidth = 0.9, linetype = "22") +
+  geom_sf(data = fastest, aes(colour = mode), linewidth = 1.4) +
+  geom_sf(data = bind_rows(origin, destination), size = 2.5, shape = 21,
+          fill = "white", colour = "black") +
+  scale_fill_manual(values = c(`10` = "#a2502a", `20` = "#d46f3d", `30` = "#f5d3b6"),
+                    name = "Within\n(minutes)") +
+  scale_colour_manual(values = c(WALK = "#c98a1d", SUBWAY = "#2f6b4f", BUS = "#2f6b4f",
+                                 RAIL = "#2f6b4f"),
+                      name = "Fastest by\npublic transport") +
+  theme_void() +
+  theme(legend.position = "bottom", legend.box = "vertical",
+        plot.margin = margin(5, 5, 12, 5))
+```
+
+## Choosing the class of the results
+
+Every function returns tibbles because `options(peabiru.output = )` is
+`"tibble"` by default. It is read at each call; set it once at the top of a
+script:
+
+- `"data.frame"` gives base data frames (and plain `sf`), for code written
+  for them;
+- `"data.table"` gives `data.table`s, exactly as r5r returns them (`sf`
+  `data.table`s for isochrones and itineraries): the better choice for large
+  matrices, where data.table's grouping by reference saves time and memory,
+  and for scripts written for r5r.
+
+```{r data-table, message = FALSE, eval = requireNamespace("data.table", quietly = TRUE)}
+library(data.table)
+options(peabiru.output = "data.table")
+ttm_dt <- network |>
+  travel_time_matrix(origins = centres, destinations = points,
+                     mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+                     max_trip_duration = 60, seed = 42, n_threads = 2) |>
+  suppressMessages()
+class(ttm_dt)
+ttm_dt[, .(median_time = median(travel_time_p50)), by = .(id = from_id)][order(median_time)][1:3]
+options(peabiru.output = NULL) # back to the default, tibbles
+```
+
+The rows, columns, types and values are the same whatever the class: for a
+table without geometry, `as.data.frame()` of any of the three gives the same
+data frame.

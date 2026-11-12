@@ -89,7 +89,11 @@ the repository and open `_site/r/index.html`. It has a getting-started
 vignette and articles on travel-time matrices, accessibility, expanded and
 arrival matrices, detailed itineraries, fares, elevation, scenarios,
 inspecting a network, coming from r5r, how the engine works, and
-benchmarks.
+benchmarks. To go from points to maps with sf, dplyr and ggplot2, start with
+["peabiru with sf and the tidyverse"](https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/sf-tidyverse.Rmd):
+an sf grid in any coordinate reference system, the routing functions with
+the native pipe, dplyr on the tibbles they return, joins back to the
+geometry and `geom_sf()` maps.
 
 ## Licence and credits
 
