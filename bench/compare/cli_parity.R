@@ -134,7 +134,10 @@ same_table <- function(name, r, file, drop = character()) {
 }
 
 same_coords <- function(a, b) {
-  xy <- function(s) lapply(s, function(g) unname(sf::st_coordinates(g)))
+  # x and y only: a route through a single linked stop is a one-point
+  # LINESTRING in R and a POINT in the CLI's output (GeoJSON and GEOS have
+  # no line of one point), at the same position
+  xy <- function(s) lapply(s, function(g) unname(sf::st_coordinates(g))[, 1:2, drop = FALSE])
   length(a) == length(b) && identical(xy(a), xy(b))
 }
 

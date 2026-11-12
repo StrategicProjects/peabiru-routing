@@ -51,7 +51,12 @@ const WHEN: [&str; 4] = ["--date", "2019-05-13", "--time", "14:00:00"];
 
 #[test]
 fn help_goes_to_stdout_with_status_0() {
-    for args in [&["dev", "--help"][..], &["dev", "-h"], &["transit", "--help"], &["dev", "help"]] {
+    for args in [
+        &["dev", "--help"][..],
+        &["dev", "-h"],
+        &["transit", "--help"],
+        &["dev", "help"],
+    ] {
         let out = run(args);
         assert_eq!(out.status.code(), Some(0), "{args:?}");
         assert!(String::from_utf8_lossy(&out.stdout).starts_with("usage: peabiru"));
