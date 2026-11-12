@@ -17,9 +17,9 @@ The path passed to \code{file_path}, invisibly.
 \description{
 Writes a fare structure as r5r's \code{write_fare_structure()} does: five
 \code{.csv} files (\code{data.table::fwrite()}'s format) in a \code{.zip} file. The CSV
-files are those r5r writes; the archive around them stores them
-uncompressed, so its bytes differ from r5r's (whose archive also holds
-the files' modification times). Each file reads back with r5r's
+files are those r5r writes, deflated in the same order; the archive's
+bytes differ from r5r's (whose archive also holds the files'
+modification times). Each file reads back with r5r's
 \code{read_fare_structure()}, and the reverse.
 }
 \examples{

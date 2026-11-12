@@ -230,8 +230,9 @@ def write_fare_structure(fare_structure: FareStructure, file_path: PathArg) -> P
 
     As r5r's ``write_fare_structure()``: five CSV files in r5r's format
     (that of ``data.table::fwrite``), byte for byte those r5r writes, in a
-    ``.zip`` archive that stores them uncompressed (so the archive's own
-    bytes differ from r5r's). r5r's ``read_fare_structure()`` reads it, and
+    ``.zip`` archive that deflates them in the same order (the archive's
+    own bytes differ from r5r's, which hold the files' modification
+    times). r5r's ``read_fare_structure()`` reads it, and
     :func:`read_fare_structure` reads r5r's.
 
     Parameters

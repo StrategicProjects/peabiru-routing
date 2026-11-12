@@ -227,6 +227,18 @@ test_that("fare structures equal r5r's, and each reads the other's files", {
   b <- r5r::read_fare_structure(zr)
   expect_identical(lapply(a, function(x) if (is.data.frame(x)) as.data.frame(x) else x),
                    lapply(b, function(x) if (is.data.frame(x)) as.data.frame(x) else x))
+  # the same entries in the same order, deflated, with the same contents
+  lr <- utils::unzip(zr, list = TRUE)
+  lp <- utils::unzip(zp, list = TRUE)
+  expect_identical(lp[, 1:2], lr[, 1:2])
+  expect_lt(file.size(zp), sum(lp$Length))
+  er <- tempfile()
+  ep <- tempfile()
+  utils::unzip(zr, exdir = er)
+  utils::unzip(zp, exdir = ep)
+  for (f in lr$Name) {
+    expect_identical(readBin(file.path(ep, f), "raw", 1e7), readBin(file.path(er, f), "raw", 1e7))
+  }
 })
 
 test_that("travel times with fares and the Pareto frontier equal r5r's", {

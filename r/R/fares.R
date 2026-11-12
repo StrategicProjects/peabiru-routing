@@ -124,9 +124,9 @@ setup_fare_structure <- function(r5r_network,
 #'
 #' Writes a fare structure as r5r's `write_fare_structure()` does: five
 #' `.csv` files (`data.table::fwrite()`'s format) in a `.zip` file. The CSV
-#' files are those r5r writes; the archive around them stores them
-#' uncompressed, so its bytes differ from r5r's (whose archive also holds
-#' the files' modification times). Each file reads back with r5r's
+#' files are those r5r writes, deflated in the same order; the archive's
+#' bytes differ from r5r's (whose archive also holds the files'
+#' modification times). Each file reads back with r5r's
 #' `read_fare_structure()`, and the reverse.
 #'
 #' @param fare_structure A fare structure (see [setup_fare_structure()]).

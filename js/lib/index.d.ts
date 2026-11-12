@@ -573,7 +573,7 @@ export declare function readFareStructure(
 
 /**
  * The bytes of a fare structure `.zip` file: the CSV files r5r's
- * `write_fare_structure()` writes, stored uncompressed.
+ * `write_fare_structure()` writes, deflated, in the same order.
  */
 export declare function writeFareStructure(fareStructure: FareStructure): Uint8Array;
 

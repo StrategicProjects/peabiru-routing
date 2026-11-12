@@ -152,7 +152,7 @@ rs_read_fare_structure <- function(bytes, encoding) .Call(wrap__rs_read_fare_str
 #' @noRd
 rs_fwrite <- function(df) .Call(wrap__rs_fwrite, df)
 
-#' A stored `.zip` archive of the named texts.
+#' A deflated `.zip` archive of the named texts.
 #' @noRd
 rs_zip_texts <- function(names, texts) .Call(wrap__rs_zip_texts, names, texts)
 

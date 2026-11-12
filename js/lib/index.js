@@ -1642,7 +1642,7 @@ export function readFareStructure(bytes, encoding = "UTF-8") {
 
 /**
  * The bytes of a fare structure `.zip` file, as r5r's write_fare_structure()
- * writes it: the same five CSV files, stored uncompressed.
+ * writes it: the same five CSV files, deflated, in the same order.
  */
 export function writeFareStructure(fareStructure) {
   needInit();

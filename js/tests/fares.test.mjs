@@ -35,6 +35,9 @@ test("writeFareStructure() and readFareStructure() round-trip", async () => {
   fs.fare_cap = 7.5;
   const bytes = peabiru.writeFareStructure(fs);
   assert.ok(bytes instanceof Uint8Array);
+  // deflated entries (method 8), as r5r's zip::zip() writes them
+  assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+  assert.equal(bytes[8] | (bytes[9] << 8), 8);
   assert.deepEqual(peabiru.readFareStructure(bytes), fs);
 });
 

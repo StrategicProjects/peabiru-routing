@@ -3,10 +3,11 @@
 //! (`write_fare_structure()`, `read_fare_structure()`).
 //!
 //! The CSV text is `fwrite`'s (its quoting, its numbers, `\n` line ends);
-//! the archive around it is not `zip::zip()`'s: entries are stored, not
-//! deflated, and dated 1980-01-01, so the `.zip` bytes differ from r5r's
-//! (whose bytes carry the files' modification times anyway) while every
-//! file in it is the same.
+//! the archive around it is deflated as `zip::zip()`'s, with the same
+//! entries in the same order, but dated 1980-01-01 and compressed by
+//! miniz_oxide, so the `.zip` bytes differ from r5r's (whose bytes carry
+//! the files' modification times anyway) while every file in it is the
+//! same.
 
 use super::{FarePerRoute, FarePerTransfer, FarePerType, FareStructure};
 use crate::gtfs::zip::Archive;
@@ -184,8 +185,9 @@ fn crc32(data: &[u8]) -> u32 {
     !c
 }
 
-/// A `.zip` archive of `files` (name, bytes), stored, dated 1980-01-01.
-pub fn zip_stored(files: &[(&str, &[u8])]) -> Vec<u8> {
+/// A `.zip` archive of `files` (name, bytes), each entry deflated (level 9,
+/// as `zip::zip()`) and dated 1980-01-01.
+pub fn zip_deflated(files: &[(&str, &[u8])]) -> Vec<u8> {
     let mut out = Vec::new();
     let mut central = Vec::new();
     let le16 = |v: &mut Vec<u8>, x: u16| v.extend_from_slice(&x.to_le_bytes());
@@ -193,29 +195,30 @@ pub fn zip_stored(files: &[(&str, &[u8])]) -> Vec<u8> {
     for (name, data) in files {
         let offset = out.len() as u32;
         let crc = crc32(data);
-        let (n, len) = (name.len() as u16, data.len() as u32);
+        let packed = miniz_oxide::deflate::compress_to_vec(data, 9);
+        let (n, len, size) = (name.len() as u16, data.len() as u32, packed.len() as u32);
         le32(&mut out, 0x0403_4b50);
         le16(&mut out, 20); // version needed
         le16(&mut out, 0x0800); // UTF-8 names
-        le16(&mut out, 0); // stored
+        le16(&mut out, 8); // deflated
         le16(&mut out, 0); // time
         le16(&mut out, 0x21); // date 1980-01-01
         le32(&mut out, crc);
-        le32(&mut out, len);
+        le32(&mut out, size);
         le32(&mut out, len);
         le16(&mut out, n);
         le16(&mut out, 0);
         out.extend_from_slice(name.as_bytes());
-        out.extend_from_slice(data);
+        out.extend_from_slice(&packed);
         le32(&mut central, 0x0201_4b50);
         le16(&mut central, 0x031e); // made by: Unix
         le16(&mut central, 20);
         le16(&mut central, 0x0800);
-        le16(&mut central, 0);
+        le16(&mut central, 8);
         le16(&mut central, 0);
         le16(&mut central, 0x21);
         le32(&mut central, crc);
-        le32(&mut central, len);
+        le32(&mut central, size);
         le32(&mut central, len);
         le16(&mut central, n);
         le16(&mut central, 0); // extra
@@ -349,8 +352,9 @@ pub(crate) fn fare_csvs(s: &FareStructure) -> Result<Vec<String>, RouteError> {
 
 /// r5r's `write_fare_structure()`: the bytes of the `.zip` file. The five
 /// CSV files in it are byte for byte those r5r writes (`fwrite` with `\n`
-/// line ends, as on Linux and macOS); the archive stores them uncompressed
-/// and undated (see the module notes), so the `.zip` bytes differ.
+/// line ends, as on Linux and macOS); the archive deflates them, as r5r's,
+/// but leaves them undated (see the module notes), so the `.zip` bytes
+/// differ.
 pub fn write_fare_structure(s: &FareStructure) -> Result<Vec<u8>, RouteError> {
     let csvs = fare_csvs(s)?;
     let files: Vec<(&str, &[u8])> = FILES
@@ -358,7 +362,7 @@ pub fn write_fare_structure(s: &FareStructure) -> Result<Vec<u8>, RouteError> {
         .zip(&csvs)
         .map(|(n, c)| (*n, c.as_bytes()))
         .collect();
-    Ok(zip_stored(&files))
+    Ok(zip_deflated(&files))
 }
 
 /// A CSV file as `fread` splits it: the header and the rows of fields,
@@ -707,5 +711,23 @@ mod tests {
         assert!(back.fare_cap.is_infinite());
         assert_eq!(back.debug_output_file, "");
         assert_eq!(back.debug_trip_info, "MODE");
+    }
+
+    #[test]
+    fn archives_are_deflated() {
+        let text = "a,b\n".repeat(500);
+        let z = zip_deflated(&[("x.csv", text.as_bytes()), ("y.csv", b"")]);
+        assert!(z.len() < 300, "{}", z.len());
+        // method 8 in the local header and in the central directory
+        assert_eq!(&z[8..10], &[8, 0]);
+        let cd = z
+            .windows(4)
+            .position(|w| w == [0x50, 0x4b, 0x01, 0x02])
+            .unwrap();
+        assert_eq!(&z[cd + 10..cd + 12], &[8, 0]);
+        let arch = Archive::from_bytes(&z[..]).unwrap();
+        let read = |name: &str| arch.read(arch.find(name).unwrap()).unwrap();
+        assert_eq!(read("x.csv"), text.as_bytes());
+        assert_eq!(read("y.csv"), b"");
     }
 }
