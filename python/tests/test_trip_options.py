@@ -121,6 +121,10 @@ def test_criteria_limits_and_threads(network, points, departure, fares):
         call(criteria=[])
     with pytest.raises(ValueError, match="max_options"):
         call(max_options=0)
+    # exact walking keeps as many options or more
+    assert len(call(walk_resolution=1)) >= len(a)
+    with pytest.raises(ValueError, match="walk_resolution"):
+        call(walk_resolution=0)
 
 
 def test_street_only_and_output_dir(network, points, departure, tmp_path):

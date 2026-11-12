@@ -2439,7 +2439,7 @@ export async function tripOptions(network, origins, destinations, options) {
   const opt = withDefaults(
     options,
     {
-      mode: ["WALK", "TRANSIT"], criteria: null, maxOptions: Infinity, allToAll: false,
+      mode: ["WALK", "TRANSIT"], criteria: null, maxOptions: Infinity, walkResolution: 60, allToAll: false,
       itineraries: true, byDeparture: false, fareStructure: null, maxFare: Infinity,
       dropGeometry: false, osmLinkIds: false,
     },
@@ -2469,6 +2469,7 @@ export async function tripOptions(network, origins, destinations, options) {
   checkMaxLts(opt.maxLts);
   assertNumber(opt.maxOptions, "maxOptions", { lower: 1 });
   if (Number.isFinite(opt.maxOptions)) assertCount(opt.maxOptions, "maxOptions", true);
+  assertCount(opt.walkResolution, "walkResolution", true);
   for (const name of ["itineraries", "byDeparture", "dropGeometry", "osmLinkIds"]) assertFlag(opt[name], name);
   if (opt.dropGeometry && opt.osmLinkIds) {
     throw new RangeError("To set osmLinkIds to `true`, the parameter 'dropGeometry' must also be `false`");
@@ -2489,6 +2490,7 @@ export async function tripOptions(network, origins, destinations, options) {
         Math.round(opt.timeWindow), criteria, lim.walk, lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed,
         Math.round(opt.maxRides), Math.round(opt.maxLts), scenario, fares, opt.maxFare,
         Number.isFinite(opt.maxOptions) ? Math.round(opt.maxOptions) : 0, opt.itineraries, opt.osmLinkIds,
+        Math.round(opt.walkResolution),
       ];
     },
     opt.nThreads, opt.signal,

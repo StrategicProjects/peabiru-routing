@@ -737,6 +737,12 @@ export interface TripOptionsOptions extends RoutingOptions {
   criteria?: TripCriterion[] | TripCriterion | null;
   /** At most this many options per pair, the first in `option` order (default Infinity). */
   maxOptions?: number;
+  /**
+   * Seconds to which minutes on foot are compared (default 60: the whole
+   * minute, rounded), so that of two trips a few seconds of walking apart and
+   * otherwise no better only one is returned; 1 compares the exact seconds.
+   */
+  walkResolution?: number;
   /** Route from every origin to every destination (default false: pair them row by row). */
   allToAll?: boolean;
   /** Build the legs of each option (default true). */

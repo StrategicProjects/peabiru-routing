@@ -22,7 +22,21 @@ better on at least one. The criteria are
 
 By default all four are used with a fare structure, all but `"FARE"`
 without one. At each departure minute of the window the options are the
-exact set of trips not dominated, with one trip per combination of values.
+set of trips not dominated, with one trip per combination of values.
+
+The search is exact, to the second. What is returned is then compared at
+the resolution the values are read at: total time to a tenth of a minute,
+as it is reported, and walking to the whole minute (rounded half up;
+`walkResolution` sets the step in seconds, and 1 compares the exact seconds). Of the
+trips of a minute, one is left out when another is no worse on every
+criterion in those terms and better on one, or equal on all of them and
+better in exact terms (less total time, then fewer transfers, less walking,
+a lower fare). Without this, a trip that is slower, dearer and with more
+transfers would be returned only because it walks a few seconds less. The
+values reported stay exact. Rounding cannot make a trip look better than
+one that beats it to the second, so the result is the same as comparing
+every trip at that resolution.
+
 The trips are those of r5r's network semantics (the same access and egress
 searches, transfers between stops and boarding rules as
 `detailedItineraries()`), so the times agree with the other functions.

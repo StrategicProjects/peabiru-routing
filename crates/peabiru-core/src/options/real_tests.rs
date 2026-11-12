@@ -184,15 +184,18 @@ fn read_points(path: &str) -> Vec<(f64, f64)> {
         .collect()
 }
 
-/// The values of an option on criteria `c`, with fare -1 when absent.
+/// The values of an option on criteria `c` as `trip_options` compares them
+/// (total time to a tenth of a minute, walking to the minute, rounded half
+/// up), with fare -1 when absent.
 fn on(c: &[Criterion], t: &TripOption, total: i32) -> Vec<i64> {
+    let round = |v: i32, r: i32| i64::from((v + r / 2).div_euclid(r));
     let mut v = Vec::new();
     for k in c {
         v.push(match k {
-            Criterion::Time => i64::from(total),
+            Criterion::Time => round(total, TIME_RESOLUTION_S),
             Criterion::Fare => t.fare.map_or(-1, |f| (f * 100.0).round() as i64),
             Criterion::Transfers => i64::from(t.transfers),
-            Criterion::Walk => i64::from(t.walk_time_s),
+            Criterion::Walk => round(t.walk_time_s, 60),
         });
     }
     v
@@ -254,6 +257,10 @@ fn properties(
                 );
             }
         }
+        // and no two with the same values as compared
+        for w in m.windows(2) {
+            assert!(w[0] != w[1], "pair {i}: {:?} twice", w[0]);
+        }
         n += opts.len();
         // the legs add up to the values
         for t in opts {
@@ -301,13 +308,31 @@ fn properties(
     let mut p = base.clone();
     p.max_trip_duration = 45;
     let short = run(&p);
+    // The limit applies to exact times, and what is returned is compared in
+    // tenths of a minute: a trip of 45 min and 1 or 2 s counts as 45.0 but is
+    // over the limit. So the trips of the full frontier within the limit are
+    // all kept, and the only others the shorter limit may let through are
+    // trips that such a trip (over the limit, within the rounding) beat.
     for (i, (a, b)) in short.iter().zip(&full).enumerate() {
         let have = by_minute(a, &all);
-        let want: Vec<_> = by_minute(b, &all)
-            .into_iter()
-            .filter(|(_, v)| v[0] <= 45 * 60)
-            .collect();
-        assert_eq!(have, want, "pair {i}: max_trip_duration");
+        let mut want = Vec::new();
+        for t in b {
+            for (&d, &tt) in t.departures.iter().zip(&t.totals_s) {
+                if tt <= 45 * 60 {
+                    want.push((d, on(&all, t, tt)));
+                }
+            }
+        }
+        want.sort();
+        for w in &want {
+            assert!(have.contains(w), "pair {i}: max_trip_duration drops {w:?}");
+        }
+        for h in &have {
+            assert!(
+                want.contains(h) || h.1[0] == 450,
+                "pair {i}: max_trip_duration adds {h:?}"
+            );
+        }
     }
     // the fare limit only filters (with the fare criterion)
     if base.fare_structure.is_some() {

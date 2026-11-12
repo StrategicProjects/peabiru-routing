@@ -5,7 +5,7 @@
 use super::{err, interruptible, network, points, threads, Outcome};
 use extendr_api::prelude::*;
 use extendr_api::Result;
-use peabiru_core::unstable::{fwrite_csv, zip_deflated, FwriteColumn};
+use peabiru_core::unstable::{fwrite_csv_native, zip_deflated, FwriteColumn};
 use peabiru_core::{
     pareto_frontier, read_fare_structure, setup_fare_structure, FarePerRoute, FarePerTransfer,
     FarePerType, FareStructure, TransitParams,
@@ -344,7 +344,8 @@ fn rs_fwrite(df: List) -> Result<String> {
         };
         cols.push((name.to_string(), c));
     }
-    fwrite_csv(&cols).map_err(err)
+    // with the platform's line ends, as data.table's fwrite
+    fwrite_csv_native(&cols).map_err(err)
 }
 
 /// A deflated `.zip` archive of the named texts.

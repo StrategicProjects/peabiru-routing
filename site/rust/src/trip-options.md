@@ -58,6 +58,12 @@ ride takes the vehicle that reaches the alighting stop first.
   headway of waiting; the scheduled departures with `exact_times = 1`), so
   a trip is still a path and the search is exact on those values. There are
   no random draws.
+- **Coarse comparison of what is returned:** of each minute's exact
+  frontier, the trips beaten once total time is rounded to a tenth of a
+  minute and walking to `TripOptionsParams::walk_resolution_s` (default 60
+  s) are left out (ties go to the better trip in exact terms). Rounding is
+  monotone, so filtering the exact frontier gives the coarse Pareto set of
+  all trips; the values reported stay exact.
 - **Lower bounds** per stop of the time, rides and walking still to come
   (a backward Dijkstra from the egress stops) prune labels that cannot reach
   the destination within the limits or that a trip already found dominates.
