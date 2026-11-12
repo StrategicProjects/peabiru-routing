@@ -6,7 +6,8 @@ the same values: the engine is the same Rust core, compiled to
 WebAssembly. `bench/compare/js_parity.mjs` in the repository compares its
 results with those of the native command-line tool cell by cell on r5r's
 sample data, on the calling thread and on a pool of workers. What differs
-is what JavaScript makes different.
+is what JavaScript makes different. `tripOptions()`, peabiru's own planner
+(see [Trip options](trip-options.md)), is the same in the three packages too.
 
 ## The calls
 

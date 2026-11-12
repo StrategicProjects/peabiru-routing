@@ -48,6 +48,18 @@ pub(crate) struct ViaOrders {
 }
 
 impl ViaOrders {
+    /// Every check sees the via edges in the order of its own search (as
+    /// built in a forward search, reversed in a reverse one): the turn
+    /// restrictions as OpenStreetMap states them, whatever ran before. For
+    /// peabiru's own functions, which do not reproduce R5's in-place
+    /// reversal.
+    pub(super) fn as_stated() -> Self {
+        ViaOrders {
+            choices: Some(Vec::new()),
+            ..ViaOrders::default()
+        }
+    }
+
     /// Give `r` the orders of the checks still to come.
     pub(crate) fn prepare(&self, r: &mut Router) {
         r.via_choices = self

@@ -11,6 +11,7 @@
 - [Isochrones](isochrones.md)
 - [Detailed itineraries](itineraries.md)
 - [Fares and Pareto frontiers](fares.md)
+- [Trip options](trip-options.md)
 - [Elevation](elevation.md)
 - [Scenarios](scenarios.md)
 - [Inspecting a network](inspect.md)

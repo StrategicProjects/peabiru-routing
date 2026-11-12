@@ -48,3 +48,7 @@ cost more.
 
 `monetary_cost` is the cutoff as R5 reads it, a Java `float` (4.4 is
 4.400000095367432), as r5r reports it.
+
+## Trip options
+
+To see every trip worth considering between two points, faster or cheaper, with fewer transfers or less walking, and not only the fastest one, see `tripOptions()`, peabiru's own multi-criteria planner: [Trip options](trip-options.md).

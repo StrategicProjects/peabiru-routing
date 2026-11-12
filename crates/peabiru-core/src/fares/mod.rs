@@ -17,6 +17,7 @@
 //! (Copyright (c) 2020 r5r contributors, MIT licence); see
 //! `LICENSE-THIRD-PARTY`.
 
+pub(crate) mod incremental;
 pub(crate) mod zipio;
 
 pub use zipio::{read_fare_structure, write_fare_structure};

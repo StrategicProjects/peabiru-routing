@@ -34,6 +34,7 @@ import wasmInit, {
   transit_service_dates as rawTransitServiceDates,
   transit_stops as rawTransitStops,
   transit_ttm as rawTransitTtm,
+  trip_options_js as rawTripOptions,
 } from "../pkg/peabiru.js";
 
 const RAW = {
@@ -42,6 +43,7 @@ const RAW = {
   accessibility: rawAccessibility,
   expanded: rawExpanded,
   itineraries: rawItineraries,
+  trip_options: rawTripOptions,
   isochrone_polygons: rawIsochronePolygons,
   street_edges: rawStreetEdges,
   availability: (raw, date) => raw.transit_availability(date),
@@ -2389,6 +2391,151 @@ export async function detailedItineraries(network, origins, destinations, option
     }
   }
   return opt.dropGeometry ? rows : { type: "FeatureCollection", features: rows };
+}
+
+// ---------------------------------------------------------------------------
+// Trip options
+
+const TRIP_CRITERIA = ["TIME", "FARE", "TRANSFERS", "WALK"];
+
+/** The criteria of tripOptions(): the default, or a subset of the four names. */
+function tripCriteria(criteria, fareStructure) {
+  const fares = fareStructure !== null && fareStructure !== undefined;
+  if (criteria === null || criteria === undefined) {
+    return TRIP_CRITERIA.filter((c) => c !== "FARE" || fares);
+  }
+  const list = typeof criteria === "string" ? [criteria] : criteria;
+  if (!Array.isArray(list) || list.length === 0 || !list.every((c) => typeof c === "string")) {
+    fail("criteria", "Must be a non-empty array of strings", TypeError);
+  }
+  const out = list.map((c) => c.toUpperCase());
+  if (new Set(out).size !== out.length) fail("criteria", "Contains duplicated values");
+  const bad = out.filter((c) => !TRIP_CRITERIA.includes(c));
+  if (bad.length) {
+    fail("criteria", `Must be a subset of {'TIME','FARE','TRANSFERS','WALK'}, but has additional elements {${bad.map((b) => `'${b}'`).join(",")}}`);
+  }
+  if (out.includes("FARE") && !fares) {
+    throw new RangeError('The "FARE" criterion needs a fareStructure: create one with setupFareStructure() or readFareStructure().');
+  }
+  return out;
+}
+
+/**
+ * peabiru's own multi-criteria trip planner: for each origin-destination
+ * pair, the trips not dominated on the chosen criteria at each departure
+ * minute, merged into options. Returns `{ options, itineraries, departures }`
+ * (see index.d.ts).
+ */
+export async function tripOptions(network, origins, destinations, options) {
+  const opt = withDefaults(
+    options,
+    {
+      mode: ["WALK", "TRANSIT"], criteria: null, maxOptions: Infinity, allToAll: false,
+      itineraries: true, byDeparture: false, fareStructure: null, maxFare: Infinity,
+      dropGeometry: false, osmLinkIds: false,
+    },
+    [
+      "modeEgress", "maxWalkTime", "maxBikeTime", "maxCarTime", "maxTripDuration", "walkSpeed",
+      "bikeSpeed", "maxRides", "maxLts", "newCarspeeds", "carspeedScale", "newLts", "nThreads",
+      "verbose", "progress", "outputDir", "departureDatetime", "timeWindow",
+    ],
+  );
+  const warn = warner(opt);
+  assertNetwork(network);
+  const all = opt.allToAll === true;
+  let o = pointsInput(origins, "origins", warn, all);
+  let d = pointsInput(destinations, "destinations", warn, all);
+  const { oi, di } = expandOdPairs(o.length, d.length, opt.allToAll, warn);
+  o = pick(o, oi);
+  d = pick(d, di);
+  const modeList = assignMode(opt.mode, opt.modeEgress);
+  const departure = assignDeparture(opt.departureDatetime, modeList);
+  if (modeList.transit) await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
+  const criteria = tripCriteria(opt.criteria, opt.fareStructure);
+  const lim = streetLimits(opt, modeList);
+  assertCount(opt.timeWindow, "timeWindow", true);
+  checkSpeed(opt.walkSpeed, "walk");
+  checkSpeed(opt.bikeSpeed, "bike");
+  assertCount(opt.maxRides, "maxRides", true);
+  checkMaxLts(opt.maxLts);
+  assertNumber(opt.maxOptions, "maxOptions", { lower: 1 });
+  if (Number.isFinite(opt.maxOptions)) assertCount(opt.maxOptions, "maxOptions", true);
+  for (const name of ["itineraries", "byDeparture", "dropGeometry", "osmLinkIds"]) assertFlag(opt[name], name);
+  if (opt.dropGeometry && opt.osmLinkIds) {
+    throw new RangeError("To set osmLinkIds to `true`, the parameter 'dropGeometry' must also be `false`");
+  }
+  checkThreads(opt.nThreads);
+  const fares = await fareArg(opt.fareStructure, opt.maxFare, network, opt.signal);
+  checkOutputDir(opt.outputDir);
+  const scenario = scenarioSpec(opt, network, warn);
+  let start = 0;
+  const parts = await network._route(
+    "trip_options", o,
+    (olat, olon) => {
+      const s = start;
+      start += olat.length;
+      return [
+        olat, olon, d.lat.slice(s, s + olat.length), d.lon.slice(s, s + olat.length),
+        modeList.directModes, modeList.transitMode, modeList.egressMode, departure.yyyymmdd, departure.seconds,
+        Math.round(opt.timeWindow), criteria, lim.walk, lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed,
+        Math.round(opt.maxRides), Math.round(opt.maxLts), scenario, fares, opt.maxFare,
+        Number.isFinite(opt.maxOptions) ? Math.round(opt.maxOptions) : 0, opt.itineraries, opt.osmLinkIds,
+      ];
+    },
+    opt.nThreads, opt.signal,
+  );
+  const rows = [];
+  const deps = [];
+  const legs = [];
+  const key = (i) => ({ from_id: o.ids[i], to_id: d.ids[i] });
+  for (const { offset, result } of parts) {
+    const [[pair, option, transfers, nDep, total, fare, walk, dep, arr, first, last, desc],
+      [dPair, dOption, dTotal, dDep, dArr],
+      [lPair, lOption, segment, distance, nPoints, cum, segDur, wait, x, y, mode, route,
+        osmIds, edgeIds, boardStop, alightStop]] = result;
+    for (let k = 0; k < pair.length; k++) {
+      rows.push({
+        ...key(pair[k] + offset), option: option[k], total_time: total[k],
+        ...(fares !== null ? { fare: fare[k] } : {}),
+        transfers: transfers[k], walk_time: walk[k], departure_time: dep[k], arrival_time: arr[k],
+        n_departures: nDep[k], first_departure: first[k], last_departure: last[k], description: desc[k],
+      });
+    }
+    if (opt.byDeparture) {
+      for (let k = 0; k < dPair.length; k++) {
+        deps.push({
+          ...key(dPair[k] + offset), option: dOption[k], departure_time: dDep[k],
+          arrival_time: dArr[k], total_time: dTotal[k],
+        });
+      }
+    }
+    let at = 0;
+    for (let k = 0; k < lPair.length; k++) {
+      const row = {
+        ...key(lPair[k] + offset), option: lOption[k], segment: segment[k], mode: mode[k],
+        ...(fares !== null ? { cumulative_fare: cum[k] } : {}),
+        segment_duration: segDur[k], wait: wait[k], distance: distance[k], route: route[k],
+      };
+      if (opt.osmLinkIds) {
+        row.osm_id_list = osmIds[k];
+        row.edge_id_list = edgeIds[k];
+        row.board_stop_id = boardStop[k];
+        row.alight_stop_id = alightStop[k];
+      }
+      const n = nPoints[k];
+      if (opt.dropGeometry) {
+        legs.push(row);
+      } else {
+        const coordinates = [];
+        for (let p = at; p < at + n; p++) coordinates.push([x[p], y[p]]);
+        legs.push({ type: "Feature", properties: row, geometry: { type: "LineString", coordinates } });
+      }
+      at += n;
+    }
+  }
+  let itineraries = null;
+  if (opt.itineraries) itineraries = opt.dropGeometry ? legs : { type: "FeatureCollection", features: legs };
+  return { options: rows, itineraries, departures: opt.byDeparture ? deps : null };
 }
 
 // ---------------------------------------------------------------------------

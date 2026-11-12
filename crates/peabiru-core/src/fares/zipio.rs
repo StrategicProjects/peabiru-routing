@@ -118,9 +118,15 @@ pub(crate) fn fwrite_number(x: f64, out: &mut String) {
     });
 }
 
-/// A table as `fwrite(x, file)` writes it: a header of the column names,
-/// then one line per row, `\n` line ends.
+/// A table as `fwrite(x, file)` writes it on Linux and macOS: a header of
+/// the column names, then one line per row, `\n` line ends.
 pub fn fwrite_csv(columns: &[(String, FwriteColumn)]) -> Result<String, RouteError> {
+    fwrite_csv_eol(columns, "\n")
+}
+
+/// [`fwrite_csv`] with the line end given (`fwrite`'s `eol`, `"\r\n"` by
+/// default on Windows); line breaks inside quoted fields are left alone.
+fn fwrite_csv_eol(columns: &[(String, FwriteColumn)], eol: &str) -> Result<String, RouteError> {
     let n = columns.first().map_or(0, |c| c.1.len());
     if columns.iter().any(|c| c.1.len() != n) {
         return Err(RouteError::Invalid(
@@ -134,7 +140,7 @@ pub fn fwrite_csv(columns: &[(String, FwriteColumn)]) -> Result<String, RouteErr
         }
         fwrite_text(name, &mut s);
     }
-    s.push('\n');
+    s.push_str(eol);
     for i in 0..n {
         for (k, (_, col)) in columns.iter().enumerate() {
             if k > 0 {
@@ -159,7 +165,7 @@ pub fn fwrite_csv(columns: &[(String, FwriteColumn)]) -> Result<String, RouteErr
                 }
             }
         }
-        s.push('\n');
+        s.push_str(eol);
     }
     Ok(s)
 }
@@ -258,105 +264,121 @@ fn text(v: impl IntoIterator<Item = Option<String>>) -> FwriteColumn {
 
 /// The five CSV files of `write_fare_structure()`, in its order, for a
 /// structure whose tables have r5r's columns.
-pub(crate) fn fare_csvs(s: &FareStructure) -> Result<Vec<String>, RouteError> {
+pub(crate) fn fare_csvs(s: &FareStructure, eol: &str) -> Result<Vec<String>, RouteError> {
     let col = |n: &str, c: FwriteColumn| (n.to_string(), c);
-    let global = fwrite_csv(&[
-        col(
-            "setting",
-            text(
-                [
-                    "max_discounted_transfers",
-                    "transfer_time_allowance",
-                    "fare_cap",
-                ]
-                .map(|s| Some(s.to_string())),
+    let global = fwrite_csv_eol(
+        &[
+            col(
+                "setting",
+                text(
+                    [
+                        "max_discounted_transfers",
+                        "transfer_time_allowance",
+                        "fare_cap",
+                    ]
+                    .map(|s| Some(s.to_string())),
+                ),
             ),
-        ),
-        col(
-            "value",
-            FwriteColumn::Number(vec![
-                s.max_discounted_transfers,
-                s.transfer_time_allowance,
-                s.fare_cap,
-            ]),
-        ),
-    ])?;
+            col(
+                "value",
+                FwriteColumn::Number(vec![
+                    s.max_discounted_transfers,
+                    s.transfer_time_allowance,
+                    s.fare_cap,
+                ]),
+            ),
+        ],
+        eol,
+    )?;
     let t = &s.fares_per_type;
-    let types = fwrite_csv(&[
-        col("type", text(t.iter().map(|x| x.fare_type.clone()))),
-        col(
-            "unlimited_transfers",
-            FwriteColumn::Logical(t.iter().map(|x| Some(x.unlimited_transfers)).collect()),
-        ),
-        col(
-            "allow_same_route_transfer",
-            FwriteColumn::Logical(
-                t.iter()
-                    .map(|x| Some(x.allow_same_route_transfer))
-                    .collect(),
+    let types = fwrite_csv_eol(
+        &[
+            col("type", text(t.iter().map(|x| x.fare_type.clone()))),
+            col(
+                "unlimited_transfers",
+                FwriteColumn::Logical(t.iter().map(|x| Some(x.unlimited_transfers)).collect()),
             ),
-        ),
-        col(
-            "use_route_fare",
-            FwriteColumn::Logical(t.iter().map(|x| Some(x.use_route_fare)).collect()),
-        ),
-        col(
-            "fare",
-            FwriteColumn::Number(t.iter().map(|x| x.fare).collect()),
-        ),
-    ])?;
+            col(
+                "allow_same_route_transfer",
+                FwriteColumn::Logical(
+                    t.iter()
+                        .map(|x| Some(x.allow_same_route_transfer))
+                        .collect(),
+                ),
+            ),
+            col(
+                "use_route_fare",
+                FwriteColumn::Logical(t.iter().map(|x| Some(x.use_route_fare)).collect()),
+            ),
+            col(
+                "fare",
+                FwriteColumn::Number(t.iter().map(|x| x.fare).collect()),
+            ),
+        ],
+        eol,
+    )?;
     let tr = &s.fares_per_transfer;
-    let transfers = fwrite_csv(&[
-        col("first_leg", text(tr.iter().map(|x| x.first_leg.clone()))),
-        col("second_leg", text(tr.iter().map(|x| x.second_leg.clone()))),
-        col(
-            "fare",
-            FwriteColumn::Number(tr.iter().map(|x| x.fare).collect()),
-        ),
-    ])?;
+    let transfers = fwrite_csv_eol(
+        &[
+            col("first_leg", text(tr.iter().map(|x| x.first_leg.clone()))),
+            col("second_leg", text(tr.iter().map(|x| x.second_leg.clone()))),
+            col(
+                "fare",
+                FwriteColumn::Number(tr.iter().map(|x| x.fare).collect()),
+            ),
+        ],
+        eol,
+    )?;
     let r = &s.fares_per_route;
-    let routes = fwrite_csv(&[
-        col("agency_id", text(r.iter().map(|x| x.agency_id.clone()))),
-        col("agency_name", text(r.iter().map(|x| x.agency_name.clone()))),
-        col("route_id", text(r.iter().map(|x| x.route_id.clone()))),
-        col(
-            "route_short_name",
-            text(r.iter().map(|x| x.route_short_name.clone())),
-        ),
-        col(
-            "route_long_name",
-            text(r.iter().map(|x| x.route_long_name.clone())),
-        ),
-        col("mode", text(r.iter().map(|x| x.mode.clone()))),
-        col(
-            "route_fare",
-            FwriteColumn::Number(r.iter().map(|x| x.route_fare).collect()),
-        ),
-        col("fare_type", text(r.iter().map(|x| x.fare_type.clone()))),
-    ])?;
-    let debug = fwrite_csv(&[
-        col(
-            "setting",
-            text(["output_file", "trip_info"].map(|s| Some(s.to_string()))),
-        ),
-        col(
-            "value",
-            text([
-                Some(s.debug_output_file.clone()),
-                Some(s.debug_trip_info.clone()),
-            ]),
-        ),
-    ])?;
+    let routes = fwrite_csv_eol(
+        &[
+            col("agency_id", text(r.iter().map(|x| x.agency_id.clone()))),
+            col("agency_name", text(r.iter().map(|x| x.agency_name.clone()))),
+            col("route_id", text(r.iter().map(|x| x.route_id.clone()))),
+            col(
+                "route_short_name",
+                text(r.iter().map(|x| x.route_short_name.clone())),
+            ),
+            col(
+                "route_long_name",
+                text(r.iter().map(|x| x.route_long_name.clone())),
+            ),
+            col("mode", text(r.iter().map(|x| x.mode.clone()))),
+            col(
+                "route_fare",
+                FwriteColumn::Number(r.iter().map(|x| x.route_fare).collect()),
+            ),
+            col("fare_type", text(r.iter().map(|x| x.fare_type.clone()))),
+        ],
+        eol,
+    )?;
+    let debug = fwrite_csv_eol(
+        &[
+            col(
+                "setting",
+                text(["output_file", "trip_info"].map(|s| Some(s.to_string()))),
+            ),
+            col(
+                "value",
+                text([
+                    Some(s.debug_output_file.clone()),
+                    Some(s.debug_trip_info.clone()),
+                ]),
+            ),
+        ],
+        eol,
+    )?;
     Ok(vec![global, types, transfers, routes, debug])
 }
 
 /// r5r's `write_fare_structure()`: the bytes of the `.zip` file. The five
-/// CSV files in it are byte for byte those r5r writes (`fwrite` with `\n`
-/// line ends, as on Linux and macOS); the archive deflates them, as r5r's,
+/// CSV files in it are byte for byte those r5r writes on the same platform
+/// (`fwrite`'s line ends: `\r\n` on Windows, `\n` elsewhere, and in
+/// WebAssembly); the archive deflates them, as r5r's,
 /// but leaves them undated (see the module notes), so the `.zip` bytes
 /// differ.
 pub fn write_fare_structure(s: &FareStructure) -> Result<Vec<u8>, RouteError> {
-    let csvs = fare_csvs(s)?;
+    let csvs = fare_csvs(s, crate::output::LINE_END)?;
     let files: Vec<(&str, &[u8])> = FILES
         .iter()
         .zip(&csvs)

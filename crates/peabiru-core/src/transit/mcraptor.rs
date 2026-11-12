@@ -305,13 +305,25 @@ impl<'a> McRaptor<'a> {
         &mut self,
         access: &[(u32, i32)],
         cancel: &CancelToken,
-        mut sink: impl FnMut(i32, DrawOut<'_>),
+        sink: impl FnMut(i32, DrawOut<'_>),
     ) -> Result<(), String> {
         let deps = self.departure_times()?;
+        self.route_departures(&deps, access, cancel, sink)
+    }
+
+    /// [`McRaptor::route`]'s draws from the departure times `deps` (for
+    /// comparing with it at chosen times).
+    pub(crate) fn route_departures(
+        &mut self,
+        deps: &[i32],
+        access: &[(u32, i32)],
+        cancel: &CancelToken,
+        mut sink: impl FnMut(i32, DrawOut<'_>),
+    ) -> Result<(), String> {
         let n_stops = self.layer.stop_ids.len();
         let mut times = vec![UNREACHED; n_stops];
         let mut final_states = Vec::new();
-        for &dep in &deps {
+        for &dep in deps {
             if cancel.is_cancelled() {
                 return Ok(());
             }

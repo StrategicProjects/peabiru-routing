@@ -11,6 +11,13 @@ routing and network functions (without r5r's functions for Java).
 
 ### Routing and inputs (all packages)
 
+- `trip_options()` (Python, R; `tripOptions()` in JavaScript; the core's
+  `trip_options` and `write_trip_options_csv`; `peabiru options` on the
+  command line): peabiru's own multi-criteria trip planner, with no r5r
+  counterpart. The trips not dominated on total time, fare, transfers and
+  time on foot at each departure minute, merged into options, with their
+  legs; frequency-based routes at their expected times. GTFS `exact_times`
+  is now read (only this function uses it).
 - Public transport by any subset of modes (`BUS`, `RAIL`, ...); bicycle and
   car access and egress, with `max_bike_time` and `max_car_time`.
 - Detailed itineraries: the fastest trip or McRAPTOR alternatives

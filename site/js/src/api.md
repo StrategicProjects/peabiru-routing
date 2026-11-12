@@ -27,6 +27,7 @@ package (`node site/js/run_examples.mjs` runs each of them after it):
 | Points, dates, scenarios and shared options | [`Points`](#Points), [`Numbers`](#Numbers), [`DateTime`](#DateTime), [`RoutingOptions`](#RoutingOptions), [`ScenarioTable`](#ScenarioTable), [`GeoJsonFeatureCollection`](#GeoJsonFeatureCollection) |
 | Missing values and errors | [`NA_INT32`](#NA_INT32), [`UnsupportedError`](#UnsupportedError) |
 | Loading the module and versions | [`init`](#init), [`initSync`](#initSync), [`InitInput`](#InitInput), [`coreVersion`](#coreVersion), [`version`](#version) |
+| Other declarations | [`TripCriterion`](#TripCriterion), [`TripOptionsOptions`](#TripOptionsOptions), [`TripOptionRow`](#TripOptionRow), [`TripDepartureRow`](#TripDepartureRow), [`TripLegRow`](#TripLegRow), [`TripLegFeature`](#TripLegFeature), [`TripOptions`](#TripOptions), [`tripOptions`](#tripOptions) |
 
 ## Networks
 
@@ -1268,4 +1269,155 @@ The version of this package, such as `"0.1.0"`.
 
 ```js
 console.log(peabiru.version);
+```
+
+## Other declarations
+
+### TripCriterion {#TripCriterion}
+
+*type*
+
+```typescript
+export type TripCriterion = "TIME" | "FARE" | "TRANSFERS" | "WALK";
+```
+
+A criterion of `tripOptions()`.
+
+### TripOptionsOptions {#TripOptionsOptions}
+
+*interface*
+
+```typescript
+export interface TripOptionsOptions extends RoutingOptions
+```
+
+Also takes every option of [`RoutingOptions`](#RoutingOptions).
+
+- `departureDatetime?: DateTime | null`: Required with public transport.
+- `timeWindow?: number`: Minutes of departure, one at a time from `departureDatetime` (default 10).
+- `criteria?: TripCriterion[] | TripCriterion | null`: Some of `"TIME"` (door-to-door minutes from the departure minute), `"FARE"` (needs a `fareStructure`), `"TRANSFERS"` (rides minus one; 0 without public transport) and `"WALK"` (minutes on foot: walked access and egress legs and walks between stops). Default null: all four with a `fareStructure`, all but `"FARE"` without one.
+- `maxOptions?: number`: At most this many options per pair, the first in `option` order (default Infinity).
+- `allToAll?: boolean`: Route from every origin to every destination (default false: pair them row by row).
+- `itineraries?: boolean`: Build the legs of each option (default true).
+- `byDeparture?: boolean`: Add the options of every departure minute (default false).
+- `fareStructure?: FareStructure | null`: A fare structure (default null): needed for the `"FARE"` criterion, gives every option its fare.
+- `maxFare?: number`: The highest fare of a trip (default Infinity).
+- `dropGeometry?: boolean`: Plain rows for the legs instead of GeoJSON features (default false).
+- `osmLinkIds?: boolean`: Add r5r's `osm_link_ids` properties to each leg (default false), as in `detailedItineraries()`.
+
+### TripOptionRow {#TripOptionRow}
+
+*interface*
+
+```typescript
+export interface TripOptionRow
+```
+
+One option of a pair: trips with the same street modes, the same routes between the same stops and the same fare, transfers and minutes on foot, not dominated at `n_departures` departure minutes. Times are those of its best minute (the least total time); minutes have one decimal.
+
+- `from_id: string | null`
+- `to_id: string | null`
+- `option: number`: From 1, ordered by total time, then fare, transfers and minutes on foot.
+- `total_time: number`
+- `fare?: number`: With a fare structure only.
+- `transfers: number`
+- `walk_time: number`
+- `departure_time: string`
+- `arrival_time: string`
+- `n_departures: number`
+- `first_departure: string`
+- `last_departure: string`
+- `description: string`: The modes and route short names, as `"WALK > BUS 343 > WALK"`.
+
+### TripDepartureRow {#TripDepartureRow}
+
+*interface*
+
+```typescript
+export interface TripDepartureRow
+```
+
+One option on the frontier of one departure minute (`byDeparture`).
+
+- `from_id: string | null`
+- `to_id: string | null`
+- `option: number`
+- `departure_time: string`
+- `arrival_time: string`
+- `total_time: number`
+
+### TripLegRow {#TripLegRow}
+
+*interface*
+
+```typescript
+export interface TripLegRow
+```
+
+One leg of an option, keyed by `from_id`, `to_id` and `option`, in the format of `detailedItineraries()`.
+
+- `from_id: string | null`
+- `to_id: string | null`
+- `option: number`
+- `segment: number`
+- `mode: string`
+- `cumulative_fare?: number`: With a fare structure only: the fare paid up to the end of the leg.
+- `segment_duration: number`
+- `wait: number`
+- `distance: number`
+- `route: string`
+- `osm_id_list?: string`
+- `edge_id_list?: string`
+- `board_stop_id?: string`
+- `alight_stop_id?: string`
+
+### TripLegFeature {#TripLegFeature}
+
+*interface*
+
+```typescript
+export interface TripLegFeature
+```
+
+A leg of an option with its line (longitude, latitude), as a GeoJSON feature.
+
+- `type: "Feature"`
+- `properties: TripLegRow`
+- `geometry: { type: "LineString"; coordinates: [number, number][] }`
+
+### TripOptions {#TripOptions}
+
+*interface*
+
+```typescript
+export interface TripOptions
+```
+
+The result of `tripOptions()`.
+
+- `options: TripOptionRow[]`
+- `itineraries: { type: "FeatureCollection"; features: TripLegFeature[] } | TripLegRow[] | null`: The legs (null with `itineraries: false`).
+- `departures: TripDepartureRow[] | null`: Every minute's options (null without `byDeparture`).
+
+### tripOptions {#tripOptions}
+
+*function*
+
+```typescript
+export declare function tripOptions(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: TripOptionsOptions,
+): Promise<TripOptions>;
+```
+
+peabiru's own multi-criteria trip planner (r5r has no counterpart): for each origin-destination pair, the trips that no other trip beats on all the chosen criteria at once, at each departure minute of the window, merged into options. Frequency-based routes are boarded at their expected times (half a headway): no random draws. See the guide "Trip options".
+
+```js
+const res = await peabiru.tripOptions(network, { id: ["a"], lon: [-46.6290], lat: [-23.5563] },
+  { id: ["c"], lon: [-46.6355], lat: [-23.5601] }, {
+    departureDatetime: "2019-05-13 14:00:00", timeWindow: 3, itineraries: false,
+  });
+console.log(res.options.map((o) => `${o.total_time} min, ${o.walk_time} on foot: ${o.description}`));
 ```

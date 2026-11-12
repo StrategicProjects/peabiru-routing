@@ -89,7 +89,8 @@
       <h3>Itineraries and fares</h3>
       <p>Detailed itineraries leg by leg, with their lines: the fastest trip or the
       alternatives. Fare structures, travel times within a budget, and the Pareto frontier of
-      time and fare.</p>
+      time and fare. And peabiru's own trip planner, <code>trip_options()</code>: every trip
+      worth considering on time, fare, transfers and walking, with its legs.</p>
     </div>
     <div class="card">
       <h3>Scenarios and terrain</h3>
@@ -312,6 +313,7 @@ Measured 2026-11-10; <a href="benchmarks.html">methodology, all tasks and how th
         <li><code>expanded_travel_time_matrix()</code> and <code>arrival_travel_time_matrix()</code></li>
         <li><code>isochrone()</code>: polygons from a travel-time surface, or the street segments reached</li>
         <li><code>detailed_itineraries()</code>: the fastest trip or the alternatives, leg by leg</li>
+        <li><code>trip_options()</code> (peabiru's own, no r5r counterpart): the trips not dominated on time, fare, transfers and walking, over the departure window</li>
         <li>Fares: <code>setup_fare_structure()</code>, <code>read_fare_structure()</code>, <code>write_fare_structure()</code>, <code>max_fare</code> and <code>pareto_frontier()</code></li>
         <li>Slope costs from elevation (Tobler, Minetti); car speed and traffic stress scenarios</li>
         <li><code>find_snap()</code>, <code>street_network_bbox()</code>, <code>street_network_to_sf()</code>, <code>transit_network_to_sf()</code>, <code>check_transit_availability()</code>, <code>get_gtfs_errors()</code></li>

@@ -17,9 +17,12 @@ pub(crate) mod geom;
 mod hops;
 mod links;
 mod mc;
+mod options;
 mod transit;
 mod via;
 mod wkt;
+
+pub(crate) use options::trip_options_impl;
 
 use crate::street::link::find_split;
 use crate::street::p2p::{Req, Router};

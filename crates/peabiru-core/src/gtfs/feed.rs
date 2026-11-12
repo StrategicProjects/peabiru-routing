@@ -170,6 +170,9 @@ pub struct Frequency {
     pub end_time: i32,
     /// 0 when blank.
     pub headway_secs: i32,
+    /// `exact_times` is 1 (R5 ignores it; only peabiru's
+    /// `trip_options()` reads it).
+    pub exact_times: bool,
 }
 
 /// The tables of one feed.
@@ -404,6 +407,7 @@ impl Feed {
                 start_time: f.time("start_time").unwrap_or(INT_MISSING),
                 end_time: f.time("end_time").unwrap_or(INT_MISSING),
                 headway_secs: f.int("headway_secs", 0),
+                exact_times: f.int("exact_times", 0) == 1,
             });
         })?;
 

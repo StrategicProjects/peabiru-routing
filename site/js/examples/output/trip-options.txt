@@ -1,0 +1,22 @@
+option  total_time  fare  transfers  walk_time  departure_time  n_departures  description
+1       30.8        7.2   1          16.8       14:05:00        5             WALK > BUS T4 > BUS T1D > WALK
+2       35.1        4.8   0          24.7       14:05:00        8             WALK > BUS T4 > WALK
+3       35.8        7.2   1          20.4       14:00:00        5             WALK > BUS T11 > BUS T1D > WALK
+4       42.1        4.8   0          33.8       14:07:00        2             WALK > BUS T4 > WALK
+5       57.7        0     0          57.7       14:00:00        10            WALK
+option  departure_time  arrival_time  total_time
+1       14:01:00        14:35:48      34.8
+1       14:02:00        14:35:48      33.8
+2       14:00:00        14:35:48      35.8
+3       14:00:00        14:40:03      40.1
+3       14:01:00        14:40:03      39.1
+3       14:02:00        14:40:03      38.1
+4       14:00:00        14:57:40      57.7
+4       14:01:00        14:58:40      57.7
+4       14:02:00        14:59:40      57.7
+5 options with the four criteria; the legs of the first:
+segment  mode  cumulative_fare  segment_duration  wait  distance  route
+1        WALK  0                10.9              0     694
+2        BUS   4.8              7.4               1.2   2113      T4
+3        BUS   7.2              2.7               2.9   1392      T1D
+4        WALK  7.2              5.8               0     350

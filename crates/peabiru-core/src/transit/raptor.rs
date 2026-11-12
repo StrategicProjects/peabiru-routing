@@ -1654,6 +1654,7 @@ mod tests {
                         start: 59,
                         end: 59,
                         headway: 1,
+                        exact: false,
                     }],
                 }],
                 services: vec![0],

@@ -48,7 +48,22 @@ impl<'a> Planner<'a> {
         p: &'a ItineraryParams,
         calc: Option<&'a crate::fares::FareCalculator>,
     ) -> Result<Self, RouteError> {
-        if layer.has_frequencies {
+        Self::with_frequencies(net, layer, data, p, calc, false)
+    }
+
+    /// [`Planner::new`], or with `frequencies` a planner that accepts a
+    /// network with frequency-based trips (for `trip_options()`, whose
+    /// router handles them; the FastRaptor and McRAPTOR paths of r5r's
+    /// planner are not used then).
+    pub(crate) fn with_frequencies(
+        net: &'a StreetNetwork,
+        layer: &'a TransitLayer,
+        data: &'a TransitData,
+        p: &'a ItineraryParams,
+        calc: Option<&'a crate::fares::FareCalculator>,
+        frequencies: bool,
+    ) -> Result<Self, RouteError> {
+        if layer.has_frequencies && !frequencies {
             // detailed_itineraries() refuses them before calling R5
             return Err(RouteError::Invalid(
                 "None of the GTFS feeds used to create the transit network can contain a \

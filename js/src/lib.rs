@@ -36,6 +36,7 @@ use wasm_bindgen::prelude::*;
 mod fares;
 mod inspect;
 mod itinerary;
+mod options;
 mod scenario;
 
 /// Missing value in the `i32` columns handed to JavaScript.

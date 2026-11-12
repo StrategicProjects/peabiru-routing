@@ -6,7 +6,9 @@ drives: result columns, row order and values are r5r's. Every function is
 compared with r5r itself, call for call, on r5r's two sample cities (Porto
 Alegre and Sao Paulo), and the results are identical, including the last bit
 of the accessibility values. This page lists how a call translates, and every
-place where peabiru differs from r5r on purpose.
+place where peabiru differs from r5r on purpose. Besides r5r's functions,
+peabiru has one of its own, [`trip_options()`](trip-options.md), with no r5r
+counterpart; it is not a difference and is not listed here.
 
 ## From r5r
 

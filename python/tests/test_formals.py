@@ -62,6 +62,19 @@ def _r_default(fun: str, arg: str, text: str):
     return float(text.rstrip("L"))
 
 
+# what the package exports besides r5r's functions: its own helpers, and
+# trip_options() (peabiru's own planner, no r5r counterpart)
+OWN = {
+    "Network", "UnsupportedError", "__version__", "core_version", "sample_data_path",
+    "sample_points", "trip_options", "TripOptions",
+}
+
+
+def test_exports_are_r5rs_and_peabirus_own():
+    rows = _rows()
+    assert set(peabiru.__all__) - set(rows) == OWN
+
+
 def test_names_order_and_defaults_are_r5rs():
     rows = _rows()
     assert set(peabiru.__all__) >= set(rows) - NO_JAVA

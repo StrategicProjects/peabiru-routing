@@ -93,6 +93,12 @@ reference:
   contents:
   - isochrone
   - detailed_itineraries
+- title: Trip options
+  desc: >
+    peabiru's own multi-criteria trip planner, with no r5r counterpart: every
+    trip worth considering on time, fare, transfers and walking.
+  contents:
+  - trip_options
 - title: Inspecting a network
   desc: >
     Where points snap, the street and transit networks as `sf`, the dates with
@@ -129,6 +135,7 @@ articles:
   - articles/expanded-and-arrival
   - articles/itineraries
   - articles/fares
+  - articles/trip-options
   - articles/elevation
   - articles/scenarios
   - articles/network-inspection

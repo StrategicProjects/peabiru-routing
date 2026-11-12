@@ -1,0 +1,150 @@
+---
+title: "Trip options"
+description: >
+  peabiru's own trip planner: every trip worth considering between two
+  points, on time, fare, transfers and walking, with the legs of each.
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+```
+
+`trip_options()` is peabiru's own trip planner, with no counterpart in r5r:
+for each origin and destination it gives every trip worth considering, the
+ones that no other trip beats on all the chosen criteria at once. Where
+`detailed_itineraries()` answers "what is the fastest way there?",
+`trip_options()` answers "what are my choices?": faster but dearer, cheaper
+but slower, fewer transfers, less walking.
+
+## Not dominated
+
+A trip *dominates* another when it is no worse on every chosen criterion and
+better on at least one. The criteria are
+
+- `"TIME"`: door-to-door minutes from the departure minute, waits included;
+- `"FARE"`: the fare by a fare structure (see `vignette("fares")`);
+- `"TRANSFERS"`: rides minus one; a trip without public transport has 0, as
+  many as a trip with a single ride;
+- `"WALK"`: minutes on foot: the access and egress legs when they are
+  walked, and the walks between stops (a bicycle or car leg counts 0).
+
+By default all four are used with a fare structure, all but `"FARE"`
+without one. At each departure minute of the window the options are the
+exact set of trips not dominated, with one trip per combination of values.
+The trips are those of r5r's network semantics (the same access and egress
+searches, transfers between stops and boarding rules as
+`detailed_itineraries()`), so the times agree with the other functions.
+
+The example uses r5r's sample data of Porto Alegre, whose GTFS has
+timetables, and the fare structure r5r ships for it, downloaded once into
+the temporary directory.
+
+```{r data}
+poa <- r5r_sample()
+poa_network <- build_network(poa, n_threads = 2)
+fares_zip <- file.path(tempdir(), "fares_poa.zip")
+if (!file.exists(fares_zip)) {
+  download.file(paste0("https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/",
+                       "inst/extdata/poa/fares/fares_poa.zip"),
+                fares_zip, mode = "wb", quiet = TRUE)
+}
+fares <- read_fare_structure(fares_zip)
+origin <- data.frame(id = "89a90128053ffff", lat = -30.0722552482611, lon = -51.1863771572777)
+destination <- data.frame(id = "89a90129c9bffff", lat = -30.0511737750423, lon = -51.1733521719011)
+```
+
+## Time and fare
+
+With time and fare as the criteria, the options over the ten minutes from
+14:00 trade minutes for reais:
+
+```{r time-fare}
+res <- trip_options(poa_network, origin, destination,
+                    departure_datetime = departure,
+                    criteria = c("TIME", "FARE"), fare_structure = fares,
+                    n_threads = 2)
+res$options[, c("option", "total_time", "fare", "transfers", "walk_time",
+                "departure_time", "n_departures", "description")]
+```
+
+Each row is an *option*: trips with the same street modes, the same routes
+between the same stops, and the same fare, transfers and minutes on foot,
+found at `n_departures` of the window's minutes. Its total time changes with
+the minute (the wait at the start does), so the row reports the trip of its
+best minute, `departure_time`. Over the whole window an option can look
+dominated by another that was not available at its own minutes;
+`by_departure = TRUE` adds the frontier of every minute:
+
+```{r by-departure}
+res <- trip_options(poa_network, origin, destination,
+                    departure_datetime = departure, time_window = 3L,
+                    criteria = c("TIME", "FARE"), fare_structure = fares,
+                    by_departure = TRUE, itineraries = FALSE, n_threads = 2)
+res$departures
+```
+
+## All four criteria and the legs
+
+With the default criteria (all four, since there is a fare structure) the
+trade-offs with transfers and walking come in too. The legs of each option
+are in `itineraries`, in the format of `detailed_itineraries()` and keyed by
+`from_id`, `to_id` and `option`: an `sf` of lines, or a `data.frame` with
+`drop_geometry = TRUE`.
+
+```{r legs}
+res <- trip_options(poa_network, origin, destination,
+                    departure_datetime = departure, fare_structure = fares,
+                    drop_geometry = TRUE, n_threads = 2)
+nrow(res$options)
+legs <- res$itineraries
+legs[legs$option == 1, c("segment", "mode", "cumulative_fare",
+                         "segment_duration", "wait", "distance", "route")]
+```
+
+`max_options` keeps the first options of each pair, `max_fare` and
+`max_trip_duration` leave out the trips beyond them, and
+`itineraries = FALSE` skips the legs. `output_dir` writes one CSV file per
+pair instead.
+
+## Fares are not additive
+
+A fare is not the sum of its rides: a transfer within the time allowance is
+discounted, some types have unlimited transfers, a cap may apply. Two
+partial trips are only compared on fare when one is at least as cheap for
+every way both can continue; the comparison makes no assumption about the
+fare structure (a discounted transfer may even cost more than two full
+fares). This exactness has a price: partial trips that could still get a
+discount are kept apart until they cannot, which makes the fare criterion
+the slowest one.
+
+## Frequency-based routes
+
+GTFS `frequencies.txt` gives a headway, not departure times. r5r draws
+random departures (Monte Carlo); `trip_options()` does not: a
+frequency-based vehicle is boarded at its expected time, half a headway
+after the traveller is ready to board (or after the period starts), within
+the period, and with `exact_times = 1` at the first scheduled departure.
+The results do not change from call to call, and differ on purpose from
+r5r's draws. The Sao Paulo sample shipped with the package runs by
+frequency:
+
+```{r frequencies}
+res <- trip_options(network, points[1, ], points[27, ],
+                    departure_datetime = departure, time_window = 5L,
+                    itineraries = FALSE, n_threads = 2)
+res$options[, c("option", "total_time", "transfers", "walk_time",
+                "n_departures", "description")]
+```
+
+## Compared with r5r's functions
+
+- `pareto_frontier()` (r5r's) gives, for each fare cutoff, the percentiles
+  of the travel time over Monte Carlo draws of departure times: a summary of
+  time against budget, without the trips.
+- `detailed_itineraries()` (r5r's) gives the fastest trip, or with
+  `shortest_path = FALSE` R5's alternatives (one per sequence of routes,
+  the fastest of each).
+- `trip_options()` gives the trade-offs themselves, trip by trip, with their
+  legs, on any of four criteria. With `criteria = "TIME"` and
+  `time_window = 1`, its first option has the total time of
+  `detailed_itineraries()`'s fastest trip for that minute.

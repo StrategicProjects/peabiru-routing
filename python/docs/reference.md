@@ -40,6 +40,14 @@ All functions are available at the top level of the package
 
 ::: peabiru.pareto_frontier
 
+## Trip options
+
+peabiru's own multi-criteria planner (no r5r counterpart).
+
+::: peabiru.trip_options
+
+::: peabiru.TripOptions
+
 ## Inspecting a network
 
 ::: peabiru.find_snap

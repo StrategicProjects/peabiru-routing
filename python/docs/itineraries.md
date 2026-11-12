@@ -206,3 +206,7 @@ R5's cut. Networks whose
 GTFS has frequency-based trips cannot be used with public transport here,
 as in r5r: convert the frequencies to stop times first (with gtfstools'
 `frequencies_to_stop_times()` in R, for instance).
+
+## Trip options
+
+To see every trip worth considering between two points, faster or cheaper, with fewer transfers or less walking, and not only the fastest one, see [`trip_options()`][peabiru.trip_options], peabiru's own multi-criteria planner: [Trip options](trip-options.md).

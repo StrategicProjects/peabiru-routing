@@ -5,6 +5,13 @@ The package now exports all 22 functions of r5r 2.5.0, with r5r's formals
 
 ## New functions
 
+* `trip_options()`, peabiru's own multi-criteria trip planner (r5r has no
+  counterpart): for each pair, the trips not dominated on total time, fare,
+  transfers and minutes on foot (any subset) at each departure minute of the
+  window, merged into options, with their legs in the format of
+  `detailed_itineraries()`. Exact on its trip definition (r5r's network
+  semantics), fares compared soundly for any fare structure, and
+  frequency-based routes boarded at their expected times (no random draws).
 * `detailed_itineraries()`: the legs of each
   trip with their geometry, the fastest trip or the alternatives
   (`shortest_path = FALSE`, `suboptimal_minutes`), `all_to_all`,

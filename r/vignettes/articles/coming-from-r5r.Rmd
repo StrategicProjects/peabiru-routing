@@ -14,7 +14,9 @@ peabiru is a drop-in for r5r 2.5.0: it exports the same 22 functions, and a
 script written for r5r runs unchanged once the package is swapped. This
 page lists what is the same and every difference, on purpose, between the
 two. The same list, in the terms of each language, is on the Python and
-JavaScript sites.
+JavaScript sites. Besides r5r's functions, peabiru has one of its own,
+[trip_options()](trip-options.html), which r5r has no counterpart for; it
+is not a difference and is not listed here.
 
 ## The same
 
