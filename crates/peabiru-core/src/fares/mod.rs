@@ -513,6 +513,47 @@ pub(crate) struct FareCalculator {
     /// `route_id` of each `FarePerRoute` (the same-route check compares
     /// these).
     route_ids: Vec<Option<String>>,
+    /// Per pattern: a number standing for the `route_id` of its
+    /// `FarePerRoute`, equal for two patterns exactly when the two
+    /// `route_ids` are equal (so that the same-route check compares two
+    /// integers instead of two strings).
+    route_class: Vec<u32>,
+    /// Per fare type: the largest `first_full + second_full - fare` of the
+    /// discounted transfers from it, at least 0 (the allowance value
+    /// `fare` gives a trip whose last ride is of the type).
+    max_allowance: Vec<i32>,
+}
+
+/// [`FareCalculator::fare`]'s loop variables after the rides of a trip:
+/// all that the fare of a longer trip depends on. `Default` is the trip
+/// without rides.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct FareProgress {
+    /// `paid`, before the cap.
+    paid: i32,
+    /// `prev` (which, after a ride, is also `current`): the pattern of the
+    /// last ride, -1 without rides.
+    last: i32,
+    /// `prev_board`: when the last ride that was not a free ride of an
+    /// unlimited type was boarded.
+    prev_board: i32,
+    /// `discounts`.
+    discounts: i32,
+    /// `current_board`: -1 after a single ride (as in the calculator, whose
+    /// loop starts at the second ride), the last ride's boarding otherwise.
+    current_board: i32,
+}
+
+impl Default for FareProgress {
+    fn default() -> Self {
+        FareProgress {
+            paid: 0,
+            last: -1,
+            prev_board: 0,
+            discounts: 0,
+            current_board: -1,
+        }
+    }
 }
 
 /// What a state has paid and the transfer allowance it holds (R5's
@@ -614,6 +655,17 @@ impl FareCalculator {
             };
             patterns.push((rule.0, rule.1, k));
         }
+        // equal route_ids (missing ones included), equal numbers
+        let mut classes: std::collections::HashMap<Option<&str>, u32> = Default::default();
+        let route_class = patterns
+            .iter()
+            .map(|&(_, _, k)| {
+                let next = classes.len() as u32;
+                *classes
+                    .entry(s.fares_per_route[k as usize].route_id.as_deref())
+                    .or_insert(next)
+            })
+            .collect();
         let n = types.len();
         let mut transfers = vec![vec![None; n]; n];
         for t in &s.fares_per_transfer {
@@ -624,7 +676,23 @@ impl FareCalculator {
                 second_full: type_cents[b as usize],
             });
         }
+        // the loop of `fare` over the transfers from the last ride's type
+        let max_allowance = transfers
+            .iter()
+            .map(|from: &Vec<Option<TransferRule>>| {
+                let mut max_allowance = 0;
+                for t in from.iter().flatten() {
+                    let allowance = t
+                        .first_full
+                        .wrapping_add(t.second_full)
+                        .wrapping_sub(t.fare);
+                    max_allowance = max_allowance.max(allowance);
+                }
+                max_allowance
+            })
+            .collect();
         Ok(FareCalculator {
+            max_allowance,
             max_discounted,
             allowance_s: allowance_min.wrapping_mul(60),
             cap_positive: cap_f > 0.0,
@@ -637,6 +705,7 @@ impl FareCalculator {
                 .iter()
                 .map(|r| r.route_id.clone())
                 .collect(),
+            route_class,
         })
     }
 
@@ -657,9 +726,107 @@ impl FareCalculator {
         if self.types[ta as usize].same_route {
             return true;
         }
-        let ra = &self.route_ids[self.patterns[a as usize].2 as usize];
-        let rb = &self.route_ids[self.patterns[b as usize].2 as usize];
-        ra != rb
+        // `route_ids` of the two patterns differ: their classes do
+        self.route_class[a as usize] != self.route_class[b as usize]
+    }
+
+    /// Whether the fares of trips of at most `rides` rides are far from the
+    /// ends of an `i32`, so that what is paid less the value of the
+    /// allowance (which R5's `FareDominatingList` compares) is the
+    /// difference of the two numbers, not a wrapped one. Each ride changes
+    /// what is paid by a full fare or by a transfer fare less a full fare,
+    /// and the value of an allowance is at most two full fares, all at most
+    /// `big` here; so `|paid| + |value| <= (rides + 2) * big`.
+    pub(crate) fn exact_within(&self, rides: usize) -> bool {
+        let mut full = 0i64;
+        for &(_, cents, _) in &self.patterns {
+            full = full.max(i64::from(cents).abs());
+        }
+        let mut transfer = 0i64;
+        for t in self.transfers.iter().flatten().flatten() {
+            transfer = transfer.max(i64::from(t.fare).abs());
+            full = full
+                .max(i64::from(t.first_full).abs())
+                .max(i64::from(t.second_full).abs());
+        }
+        let big = 2 * full + transfer;
+        (rides as i64 + 2).saturating_mul(big) < 1 << 30
+    }
+
+    /// One more ride, `pattern` boarded at `board`, after the rides behind
+    /// `s`: the first ride's setup of [`FareCalculator::fare`] when `s` has
+    /// no ride, one turn of its loop otherwise. The statements are those of
+    /// `fare`, in its order, on the same variables, so folding the rides of
+    /// a trip from `FareProgress::default()` leaves the variables as `fare`
+    /// has them after its loop (`prev == current` there, hence one `last`).
+    pub(crate) fn ride(&self, s: &FareProgress, pattern: i32, board: i32) -> FareProgress {
+        if s.last < 0 {
+            // paid = full(first); prev = current = first; discounts = 0;
+            // prev_board = first_board; current_board = -1
+            return FareProgress {
+                paid: self.full(pattern),
+                last: pattern,
+                prev_board: board,
+                discounts: 0,
+                current_board: -1,
+            };
+        }
+        let mut n = *s;
+        // current = pattern; current_board = board
+        n.last = pattern;
+        n.current_board = board;
+        let (ta, tb) = (self.type_of(s.last), self.type_of(pattern));
+        if ta == tb && self.types[ta as usize].unlimited {
+            // prev = current; continue (prev_board stays)
+            return n;
+        }
+        if s.discounts >= self.max_discounted {
+            n.paid = s.paid.wrapping_add(self.full(pattern));
+        } else {
+            let gap = board.wrapping_sub(s.prev_board);
+            match self.transfers[ta as usize][tb as usize] {
+                Some(t) if self.transfer_allowed(s.last, pattern) && gap <= self.allowance_s => {
+                    n.paid = s.paid.wrapping_add(t.fare.wrapping_sub(self.full(s.last)));
+                    n.discounts = s.discounts + 1;
+                }
+                _ => n.paid = s.paid.wrapping_add(self.full(pattern)),
+            }
+        }
+        n.prev_board = board;
+        n
+    }
+
+    /// What [`FareCalculator::fare`] returns for the rides behind `s`: its
+    /// statements after the loop.
+    pub(crate) fn bounds(&self, s: &FareProgress) -> FareBounds {
+        let empty = |paid| FareBounds {
+            paid,
+            value: 0,
+            number: 0,
+            expiration: 0,
+        };
+        if s.last < 0 {
+            return empty(0);
+        }
+        let mut paid = s.paid;
+        if self.cap_positive {
+            paid = paid.min(self.cap);
+        }
+        let remaining = self.max_discounted.wrapping_sub(s.discounts);
+        if remaining <= 0 {
+            return empty(paid);
+        }
+        let full = self.full(s.last);
+        let mut max_allowance = self.max_allowance[self.type_of(s.last) as usize];
+        if self.cap_positive && paid > self.cap {
+            max_allowance = max_allowance.max(full);
+        }
+        FareBounds {
+            paid,
+            value: max_allowance,
+            number: remaining,
+            expiration: s.current_board.wrapping_add(self.allowance_s),
+        }
     }
 
     /// `calculateFare` for the rides of a state, `(pattern, board time)`

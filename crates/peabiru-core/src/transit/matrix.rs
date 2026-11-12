@@ -280,6 +280,7 @@ pub(crate) struct FareSetup {
     pub(crate) calc: FareCalculator,
     pub(crate) allowed: Vec<bool>,
     pub(crate) active: Vec<bool>,
+    pub(crate) schedules: mcraptor::Schedules,
 }
 
 impl FareSetup {
@@ -295,6 +296,7 @@ impl FareSetup {
             mcraptor::allowed_patterns(layer, &active, modes).map_err(RouteError::Invalid)?;
         Ok(FareSetup {
             calc,
+            schedules: mcraptor::Schedules::new(layer, &allowed, &active),
             allowed,
             active,
         })
@@ -839,6 +841,7 @@ impl<'a> Query<'a> {
                 &self.data.transfers,
                 &f.allowed,
                 &f.active,
+                &f.schedules,
                 &req,
                 Dominance::Fare(&f.calc),
                 None,

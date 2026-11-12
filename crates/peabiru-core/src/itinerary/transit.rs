@@ -34,6 +34,9 @@ pub(crate) struct Planner<'a> {
     /// and services running on the date.
     pub(super) mc_allowed: Vec<bool>,
     pub(super) mc_active: Vec<bool>,
+    /// McRAPTOR's timetables of those patterns, made by the first search
+    /// that needs them.
+    pub(super) mc_schedules: std::sync::OnceLock<crate::transit::mcraptor::Schedules>,
     /// With a fare structure, the calculator and `request.maxFare`.
     pub(super) fares: Option<McFares<'a>>,
 }
@@ -98,6 +101,7 @@ impl<'a> Planner<'a> {
             vertex_stop,
             mc_allowed,
             mc_active: active,
+            mc_schedules: std::sync::OnceLock::new(),
             fares,
         })
     }

@@ -388,7 +388,7 @@ impl<'a> FareModel<'a> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::fares::{FarePerRoute, FarePerTransfer, FarePerType, FareStructure};
     use crate::transit::layer::{Pattern, RouteInfo};
@@ -571,5 +571,48 @@ mod tests {
                 assert_eq!(m.total(&st), want, "seed {seed} rides {rides:?}");
             }
         }
+    }
+
+    /// [`FareCalculator::ride`] and [`FareCalculator::bounds`], which
+    /// McRAPTOR uses, give `fare`'s whole result (paid, allowance value,
+    /// number and expiration) for every prefix of a trip, capped structures
+    /// and unlimited types included.
+    #[test]
+    fn rides_fold_to_the_calculators_bounds() {
+        use crate::fares::FareProgress;
+        let mut with_allowance = 0;
+        let mut capped = 0;
+        for seed in 0..600u64 {
+            let (layer, mut s) = random_structure(seed, 8);
+            if seed % 3 == 0 {
+                s.fare_cap = 3.0 + (seed % 7) as f64;
+            }
+            if seed % 4 == 0 {
+                s.max_discounted_transfers = (seed % 5) as f64;
+            }
+            let calc = FareCalculator::new(&s, &layer).expect("structure");
+            let mut rng = crate::options::testing::Rng::new(seed ^ 0xb0b);
+            assert_eq!(calc.bounds(&FareProgress::default()), calc.fare(&[]));
+            for _ in 0..80 {
+                let n = 1 + rng.below(6);
+                let mut rides = Vec::new();
+                let mut t = rng.below(1000) as i32;
+                let mut st = FareProgress::default();
+                for _ in 0..n {
+                    let p = rng.below(8) as i32;
+                    t += rng.below(4000) as i32;
+                    rides.push((p, t));
+                    st = calc.ride(&st, p, t);
+                    let want = calc.fare(&rides);
+                    assert_eq!(calc.bounds(&st), want, "seed {seed} rides {rides:?}");
+                    with_allowance += usize::from(want.number > 0);
+                    capped += usize::from(calc.cap_positive && want.paid == calc.cap);
+                }
+            }
+        }
+        assert!(
+            with_allowance > 10_000 && capped > 1_000,
+            "{with_allowance} {capped}"
+        );
     }
 }
