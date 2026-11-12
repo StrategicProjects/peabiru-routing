@@ -114,7 +114,7 @@ test_that("criteria, limits and threads", {
   # without a fare structure there is no fare column
   a <- call(n_threads = 1)
   expect_false("fare" %in% names(a))
-  expect_identical(call(n_threads = 3), a)
+  expect_identical(call(n_threads = several_threads()), a)
   # time only: the fastest trip of the window, as with more criteria
   t <- call(criteria = "TIME")
   fastest <- function(x) tapply(x$total_time, paste(x$from_id, x$to_id), min)

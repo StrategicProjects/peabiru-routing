@@ -90,6 +90,8 @@ The package now exports all 22 functions of r5r 2.5.0, with r5r's formals
   what ran before (both were errors).
 * `write_fare_structure()` deflates the archive, as r5r's does.
 * What peabiru does not do "is not supported by peabiru" (no "yet").
+* Under `R CMD check` with its limit on cores (`_R_CHECK_LIMIT_CORES_`), the
+  default `n_threads = Inf` uses two threads instead of all cores.
 * The reference documentation describes each function on its own terms,
   with a "Compatibility with r5r" section; new articles on itineraries,
   elevation, scenarios and inspecting a network, and "Coming from r5r" lists

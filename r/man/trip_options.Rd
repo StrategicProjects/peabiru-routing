@@ -146,7 +146,8 @@ transport, and access by bicycle or car) but not the egress from the
 stops, and turns off slope costs, with a warning, on a network built
 with an elevation raster.}
 
-\item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores.}
+\item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores
+(two under \verb{R CMD check} when it limits the cores).}
 
 \item{verbose, progress}{Logicals, checked but without effect: no progress
 counter or routing log is printed.}

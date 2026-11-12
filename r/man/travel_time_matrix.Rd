@@ -130,7 +130,8 @@ to 5.}
 default: the draws differ from call to call). With a seed, the same
 inputs give the same results whatever \code{n_threads}.}
 
-\item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores.}
+\item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores
+(two under \verb{R CMD check} when it limits the cores).}
 
 \item{verbose, progress}{Logicals, checked but without effect: no progress
 counter or routing log is printed.}

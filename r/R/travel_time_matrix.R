@@ -148,7 +148,8 @@
 #' @param seed An integer seed for the Monte Carlo draws, or `NULL` (the
 #'   default: the draws differ from call to call). With a seed, the same
 #'   inputs give the same results whatever `n_threads`.
-#' @param n_threads The number of threads; `Inf` (the default) uses all cores.
+#' @param n_threads The number of threads; `Inf` (the default) uses all cores
+#'   (two under `R CMD check` when it limits the cores).
 #' @param verbose,progress Logicals, checked but without effect: no progress
 #'   counter or routing log is printed.
 #' @param output_dir `NULL` (the default), or the path of an existing
