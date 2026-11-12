@@ -1,12 +1,12 @@
-# The argument errors of peabiru's R package, which bench/compare/error_parity.R
-# holds equal to r5r's, written as the shared list of cases the Python and
+# The argument errors of peabiru's R package (which bench/compare/error_parity.R
+# compares with r5r's), written as the shared list of cases the Python and
 # JavaScript tests check their messages against (python/tests/
 # test_argument_errors.py, js/tests/argument_errors.test.mjs), so the three
 # packages cannot drift apart.
 #
 #   PEABIRU_R_LIB=<lib with peabiru> Rscript bench/compare/argument_errors.R [out.json]
 #
-# Each exported function shared with r5r is called on the sample network of
+# Each exported function below is called on the sample network of
 # the Python package (python/peabiru/data/spo, which the three test suites
 # use) with one argument replaced by one of the values below, which each
 # language can write; the cases R refuses are written with R's message and
@@ -57,12 +57,12 @@ base <- list(
 )
 # Arguments not tried: points and data frames (each language takes its own
 # kinds), files, and those without effect.
-untried <- c("r5r_network", "r5r_core", "origins", "destinations", "points", "new_carspeeds",
+untried <- c("network", "origins", "destinations", "points", "new_carspeeds",
              "new_lts", "carspeed_scale", "output_dir", "verbose", "progress", "n_threads",
              "fare_structure", "debug_path")
 # Valid values that would make an expensive call.
 skip <- c("time_window:big", "draws_per_minute:big", "max_rides:big", "max_trip_duration:big",
-          "max_walk_time:big", "max_bike_time:big", "max_car_time:big", "sample_size:big",
+          "max_walk_time:big", "max_bike_time:big", "max_car_time:big",
           "radius:big", "cutoffs:big", "suboptimal_minutes:big", "zoom:big")
 cases <- list()
 for (fun in names(base)) {
@@ -71,7 +71,7 @@ for (fun in names(base)) {
     for (vn in names(values)) {
       key <- paste(fun, an, vn, sep = ":")
       if (key %in% skip) next
-      a <- c(list(r5r_network = net), base[[fun]])
+      a <- c(list(network = net), base[[fun]])
       a[an] <- list(values[[vn]])
       setTimeLimit(elapsed = 30, transient = TRUE)
       res <- tryCatch({
@@ -133,13 +133,12 @@ both <- list(
   "setup_fare_structure:by:(neg|zero|frac|big|inf|nan|lgl|num2)" = coerced,
   "arrival_travel_time_matrix:arrival_datetime:.*" = paste0(
     "R checks arrival_datetime - max_trip_duration as 'departure_datetime' (a difftime for ",
-    "a number) and notes where r5r fails with an internal error; Python and JavaScript ",
-    "check arrival_datetime itself"),
+    "a number); Python and JavaScript check arrival_datetime itself"),
   "pareto_frontier:fare_cutoffs:NULL_" = paste0(
     "in R a missing argument and NULL differ; in Python and JavaScript None and undefined ",
     "are the default, which says that fare_cutoffs is required"),
   "detailed_itineraries:all_to_all:.*" = paste0(
-    "R (as r5r) names the internal argument 'unique_ids'; Python and JavaScript name ",
+    "R names the internal argument 'unique_ids'; Python and JavaScript name ",
     "'all_to_all'")
 )
 deliberate <- list(python = both, js = c(both, list(

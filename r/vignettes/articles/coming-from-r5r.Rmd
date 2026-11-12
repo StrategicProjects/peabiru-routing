@@ -32,15 +32,15 @@ on the Python and JavaScript sites.
   differences in the arguments are three: the network argument is called
   `network`, not `r5r_network`; the deprecated `r5r_core` and
   `sample_size` are gone; `build_network()` has `n_threads`. A check in
-  the repository compares peabiru's formals with a snapshot of r5r's and
-  fails on any other drift.
+  the repository (`bench/compare/testthat/test-formals.R`) compares
+  peabiru's formals with a snapshot of r5r's and fails on any other drift.
 - **Argument checks** accept and reject the same values, in the same order,
   with the same bounds and conversions (a factor `mode`, a POSIXlt
-  `arrival_datetime`) and messages of the same wording (where a message
-  names the network argument it says `network`).
-  `bench/compare/error_parity.R` in the repository calls every function
-  with invalid values of every argument in both packages and compares the
-  errors.
+  `arrival_datetime`) and messages of the same wording, except that
+  peabiru's never name r5r (see "Errors" under
+  [Differences](#differences)). `bench/compare/error_parity.R` in the
+  repository calls every function with invalid values of every argument in
+  both packages and compares the errors.
 - **Results**: the same rows, in the same order, with the same column
   names, types and values. For a frequency-based feed this needs the same
   `seed` (without one, both packages draw from the clock and every run
@@ -190,11 +190,17 @@ ttm <- travel_time_matrix(network, pts_utm, pts_utm, mode = "WALK", n_threads = 
   `verbose = TRUE` in `build_network()` reports the build in messages.
 
 <!-- diff:error-classes -->
-- **Errors**: where the network's argument or class is named, they are
-  `network` and `peabiru_network`; r5r's errors from 'cli' are 'rlang'
-  conditions, and peabiru's are plain errors with the same text. The error
-  for a time window with more than 200 Monte Carlo draws under a fare
-  structure has class `peabiru_200_draws` (r5r's is `r5r_200_draws`).
+- **Errors and warnings**: where the network's argument or class is named,
+  they are `network` and `peabiru_network`; r5r's errors from 'cli' are
+  'rlang' conditions, and peabiru's are plain errors with the same text.
+  The error for exactly 200 Monte Carlo draws under a fare structure has
+  class `peabiru_200_draws` (r5r's is `r5r_200_draws`), and it and the
+  error for too many draws leave out the link to r5r's issue tracker; the
+  error for the modes `CAR_PARK` and `BICYCLE_RENT` says they are
+  "currently unsupported" (r5r's adds "by r5r"). A scenario
+  (`new_carspeeds`, `carspeed_scale`, `new_lts`) is routed without slope
+  costs in both packages: r5r warns of it on every scenario, peabiru only
+  on a network built with an elevation raster, in its own words.
 
 <!-- diff:deprecated-args -->
 - **Deprecated arguments.** The arguments r5r 2.5.0 still accepts with a

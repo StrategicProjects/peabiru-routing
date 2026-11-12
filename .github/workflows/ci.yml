@@ -163,8 +163,8 @@ jobs:
         run: rustup target add x86_64-pc-windows-gnu
       - name: Install testthat and the package's one dependency
         # tibble is the class of the tables returned by default (Imports);
-        # sf, data.table and r5r are left out on purpose: the tests that
-        # need them must skip
+        # sf and data.table are left out on purpose: the tests that need
+        # them must skip
         run: install.packages(c("testthat", "tibble"))
         shell: Rscript {0}
       - name: Install the package from the checkout
@@ -199,8 +199,8 @@ jobs:
       # the vignette is built by R CMD build
       - uses: r-lib/actions/setup-pandoc@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
       - name: Install what the build and the check need
-        # rextendr vendors the crates; sf, data.table and r5r (Suggests) are
-        # left out, as in the r job: examples and tests must do without them
+        # rextendr vendors the crates; sf and data.table (Suggests) are left
+        # out, as in the r job: examples and tests must do without them
         run: install.packages(c("rextendr", "tibble", "testthat", "knitr", "rmarkdown"))
         shell: Rscript {0}
       - name: Build the tarball
