@@ -107,9 +107,7 @@ pub(crate) fn scenario_of(spec: Option<&Bound<'_, PyDict>>) -> PyResult<Scenario
                 .iter()
                 .map(|v| {
                     java_parse_int(v).ok_or_else(|| {
-                        PyValueError::new_err(format!(
-                            "'new_lts': lts '{v}' is not an integer"
-                        ))
+                        PyValueError::new_err(format!("'new_lts': lts '{v}' is not an integer"))
                     })
                 })
                 .collect::<PyResult<Vec<i32>>>()?;
