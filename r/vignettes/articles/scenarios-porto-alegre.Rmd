@@ -397,7 +397,9 @@ sample rules (R\$ 7.20) and in reach when transfers are free, which is
 where the difference is. With R\$ 7.20, the sample's discount covers one
 transfer, and only the structure without discounts falls behind. (The
 structure with free transfers is also the slowest to route, several times
-slower than the other two in this run.)
+slower than the other two in this run, and in r5r too: on 103 of these
+origins it took r5r 2.5.0 about 35 seconds against 6 to 10 with the sample
+structure, and peabiru 14 to 15 against 2 to 4, for the same results.)
 
 For one trip, `trip_options()` lists the options worth considering, here
 by travel time and fare; the best option within one fare changes with
