@@ -19,49 +19,46 @@ r5r_spo <- local({
   }
 })
 
-# r5r's results are data.tables (with data.table's attributes, and an index
-# left by find_snap()); the columns and attributes are otherwise the same.
-plain <- function(x) {
-  class(x) <- setdiff(class(x), "data.table")
-  attr(x, ".internal.selfref") <- NULL
-  attr(x, "index") <- NULL
-  x
-}
+# With options(peabiru.output = "data.table") the results are identical to
+# r5r's: the class, find_snap()'s index on `found` and the sf attributes
+# included (data.table's self-reference pointer aside, no_selfref()).
 
 test_that("find_snap equals r5r's", {
   n <- r5r_spo()
+  local_output("data.table")
   for (m in c("WALK", "BICYCLE", "CAR")) {
     for (radius in c(1600, 100, 2500)) {
-      expect_identical(find_snap(n$pb, n$points, radius = radius, mode = m),
-                       plain(r5r::find_snap(n$r5, n$points, radius = radius, mode = m)))
+      expect_identical_r5r(find_snap(n$pb, n$points, radius = radius, mode = m),
+                           r5r::find_snap(n$r5, n$points, radius = radius, mode = m))
     }
   }
 })
 
 test_that("street_network_bbox and street_network_to_sf equal r5r's", {
   n <- r5r_spo()
+  local_output("data.table")
   for (o in c("polygon", "bbox", "vector")) {
     expect_identical(street_network_bbox(n$pb, o), r5r::street_network_bbox(n$r5, o))
   }
   pb <- street_network_to_sf(n$pb)
   r5 <- r5r::street_network_to_sf(n$r5)
-  expect_identical(pb$vertices, plain(r5$vertices))
-  expect_identical(pb$edges, plain(r5$edges))
+  expect_identical_r5r(pb, r5)
 })
 
 test_that("transit_network_to_sf equals r5r's", {
   n <- r5r_spo()
+  local_output("data.table")
   pb <- transit_network_to_sf(n$pb)
   r5 <- r5r::transit_network_to_sf(n$r5)
-  expect_identical(pb$stops, plain(r5$stops))
-  expect_identical(pb$routes, plain(r5$routes))
+  expect_identical_r5r(pb, r5)
 })
 
 test_that("check_transit_availability equals r5r's", {
   n <- r5r_spo()
+  local_output("data.table")
   same <- function(...) {
-    expect_identical(check_transit_availability(n$pb, ...),
-                     plain(r5r::check_transit_availability(n$r5, ...)))
+    expect_identical_r5r(check_transit_availability(n$pb, ...),
+                         r5r::check_transit_availability(n$r5, ...))
   }
   same()
   same(dates = c("2019-05-13", "2019-05-19", "2007-12-31"))
@@ -70,13 +67,14 @@ test_that("check_transit_availability equals r5r's", {
 
 test_that("get_gtfs_errors equals r5r's, but for the row order", {
   n <- r5r_spo()
+  local_output("data.table")
+  # the rows in one order (setorderv() keeps the class and attributes)
   sorted <- function(d) {
-    d <- as.data.frame(d)
-    d <- d[do.call(order, unname(as.list(d))), , drop = FALSE]
-    rownames(d) <- NULL
-    d
+    d <- data.table::copy(d)
+    data.table::setorderv(d, names(d))
+    no_selfref(d)
   }
-  r5 <- plain(r5r::get_gtfs_errors(n$r5))
+  r5 <- r5r::get_gtfs_errors(n$r5)
   expect_identical(sorted(get_gtfs_errors(n$pb)), sorted(r5))
   expect_identical(sorted(get_gtfs_errors(n$dir)), sorted(r5))
 })

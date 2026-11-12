@@ -114,7 +114,7 @@ sf::st_drop_geometry(ids)[, c("segment", "mode", "osm_id_list",
 
 `all_to_all = TRUE` routes from each origin to each destination instead of
 row by row. `drop_geometry = TRUE` leaves the lines out and returns a
-`data.frame`, and `output_dir` writes one CSV file per pair instead of
+table without geometry, and `output_dir` writes one CSV file per pair instead of
 returning the result.
 
 ```{r all}

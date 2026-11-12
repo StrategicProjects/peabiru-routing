@@ -13,6 +13,8 @@
 # differs. JS_THREADS (default 3) runs the npm package with a pool of
 # workers.
 
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 suppressMessages(library(peabiru))
 root <- normalizePath(file.path(dirname(sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))), "..", ".."))
 python <- Sys.getenv("PYTHON", "python3")

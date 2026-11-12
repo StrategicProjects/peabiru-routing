@@ -99,6 +99,13 @@ r5r's.
   Column names, order and values are r5r's (see the table above for
   missing values).
 
+<!-- diff:sf-any-crs -->
+- **Geometries in another coordinate reference system** (R only). The R
+  package reprojects an `sf` input in any CRS to WGS 84, with a message,
+  where r5r stops with an error. In JavaScript points are longitudes and
+  latitudes, and scenario polygons and lines GeoJSON, in WGS 84 as GeoJSON
+  requires: there is no CRS to reproject from.
+
 <!-- diff:network-in-memory -->
 - **The network lives in memory only**, built from the bytes of the files
   (`buildNetwork({ pbf, gtfs, tif })`) rather than from a directory:

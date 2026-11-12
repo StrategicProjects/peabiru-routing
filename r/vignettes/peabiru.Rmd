@@ -69,6 +69,13 @@ sapply(list(walk = walk, bike = bike, car = car),
        function(m) mean(m$travel_time_p50))
 ```
 
+The results are tibbles. `options(peabiru.output = "data.frame")` makes
+every function return base data frames instead, and
+`options(peabiru.output = "data.table")` `data.table`s, exactly as r5r
+returns them; the rows, columns and values are the same whatever the class.
+The article ["peabiru with sf and the tidyverse"](sf-tidyverse.html) on the
+package website goes from points to maps with sf, dplyr and ggplot2.
+
 Walking is at `walk_speed` (3.6 km/h by default). Cycling is at `bike_speed`
 on streets whose level of traffic stress is at most `max_lts`; elsewhere the
 cyclist walks the bike. Driving uses each street's speed, turn costs and turn

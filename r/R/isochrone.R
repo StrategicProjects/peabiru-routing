@@ -40,8 +40,9 @@
 #' (r5r lets them through and then fails, or passes the fraction to R5).
 #'
 #' @inheritParams travel_time_matrix
-#' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
-#'   `POINT sf` with an `id` column, in WGS 84.
+#' @param origins A `data.frame` with columns `id`, `lon` and `lat` (WGS
+#'   84), or a `POINT sf` with an `id` column, in any coordinate reference
+#'   system (reprojected to WGS 84, see [travel_time_matrix()]).
 #' @param mode A character vector, the transport modes (default
 #'   `"transit"`): one of `"WALK"`, `"BICYCLE"` or `"CAR"`, and for public
 #'   transport `"TRANSIT"` or some of its modes (see
@@ -64,7 +65,7 @@
 #' @param sample_size Deprecated and ignored (a warning when
 #'   given).
 #'
-#' @return A `"sf" "data.frame"` in WGS 84. With `polygon_output = TRUE`,
+#' @return An `sf` table in WGS 84 (EPSG:4326). With `polygon_output = TRUE`,
 #'   one `POLYGON` or `MULTIPOLYGON` per origin, percentile and cutoff, with
 #'   columns `id`, `isochrone` (the cutoff), `percentile` (such as `"p50"`)
 #'   and `polygons`; rows by origin, percentile and cutoff (descending). Each
@@ -76,6 +77,9 @@
 #'   (`from_vertex`, `to_vertex`, `street_class`, `length`, `walk`, `car`,
 #'   `car_speed`, `bicycle`, `bicycle_lts`) and `geometry`; rows by origin,
 #'   then by band and travel time, both descending.
+#'
+#'   `r doc_output_class(sf = TRUE)` With "data.table", r5r's polygons are an
+#'   `sf` `data.table` and its lines a plain `sf` data frame; so are these.
 #' @family routing functions
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
@@ -122,6 +126,7 @@ isochrone <- function(r5r_network,
                       sample_size = deprecated(),
                       r5r_core = deprecated()) {
   # mirrors r5r R/isochrone.R
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -156,7 +161,7 @@ isochrone <- function(r5r_network,
     cm_assert(check_numeric(zoom, lower = 9, upper = 12, len = 1), "zoom")
     # r5r lets a fractional or missing zoom through to R5
     assert_int(zoom, "zoom")
-    isochrone_polygons(
+    out <- isochrone_polygons(
       r5r_network, origins, mode, mode_egress, cutoffs, zoom,
       departure_datetime, time_window, max_walk_time, max_bike_time,
       max_car_time,
@@ -166,16 +171,18 @@ isochrone <- function(r5r_network,
       walk_speed, bike_speed, max_rides, max_lts, draws_per_minute, seed,
       percentiles, n_threads, verbose, progress
     )
+    as_output_sf(out, kind, data_table = TRUE)
   } else {
     if (!is.null(percentiles)) {
       stop("Percentiles not supported for line-based isochrones", call. = FALSE)
     }
-    isochrone_lines(
+    out <- isochrone_lines(
       r5r_network, origins, mode, mode_egress, cutoffs, departure_datetime,
       time_window, max_walk_time, max_bike_time, max_car_time,
       max_trip_duration, walk_speed, bike_speed, max_rides, max_lts,
       draws_per_minute, seed, n_threads, verbose, progress
     )
+    as_output_sf(out, kind, data_table = FALSE)
   }
 }
 

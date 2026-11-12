@@ -8,7 +8,7 @@ test_that("accessibility has r5r's columns, types and row order", {
   a <- acc(opportunities_colnames = c("schools", "jobs"), mode = "TRANSIT",
            departure_datetime = departure, cutoffs = c(30, 15),
            percentiles = c(50, 25), seed = 1)
-  expect_identical(class(a), "data.frame")
+  expect_identical(class(a), c("tbl_df", "tbl", "data.frame"))
   expect_identical(names(a), c("id", "opportunity", "percentile", "cutoff", "accessibility"))
   expect_type(a$percentile, "integer")
   expect_type(a$cutoff, "integer")

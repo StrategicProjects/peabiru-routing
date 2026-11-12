@@ -37,7 +37,10 @@ expanded_travel_time_matrix(
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
-\code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84. Ids that are not
+\code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
+column, in any coordinate reference system (CRS): an \code{sf} in another
+CRS than WGS 84 is reprojected with \code{sf::st_transform()}, with a
+message, and one without a CRS is an error. Ids that are not
 character are converted, with a warning; points with missing
 coordinates are not routed, with a warning; duplicated ids are an
 error.}
@@ -82,7 +85,8 @@ Defaults to 2.}
 data frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type}
 (\code{"scale"}, a factor for the car speed of the way's edges, or \code{"km/h"},
 a speed; 0 closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s
-or \code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+or \code{MULTIPOLYGON}s (in any CRS, reprojected to WGS 84 as \code{origins})
+with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
 overlaps most). Polygons that are not valid are an error, and so are
@@ -96,7 +100,8 @@ past that range, is an error.}
 
 \item{new_lts}{A scenario of levels of traffic stress: \code{NULL} (the
 default), a data frame with columns \code{osm_id} and \code{lts} (integer), or an
-\code{sf} data frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts}
+\code{sf} data frame of \code{LINESTRING}s (in any CRS, reprojected to WGS 84 as
+\code{origins}) with columns \code{line_id}, \code{lts}
 (1 to 4) and \code{priority}: each street edge takes the level of the line
 closest to it among those whose bounding box meets its own (\code{priority}
 is not used). A scenario (of car speeds or of levels of traffic stress)
@@ -138,13 +143,15 @@ the returned result.}
 accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A \code{data.frame} with \code{from_id}, \code{to_id}, \code{departure_time}
+A table with \code{from_id}, \code{to_id}, \code{departure_time}
 (\code{"HH:MM:SS"}), \code{draw_number}, with \code{breakdown = TRUE} \code{access_time},
 \code{wait_time}, \code{ride_time}, \code{transfer_time}, \code{egress_time}, then \code{routes}
 (route ids joined by \code{"|"}, or \code{"[WALK]"}), with \code{breakdown = TRUE}
 \code{n_rides}, and \code{total_time}. Times are in minutes, with one decimal.
 Trips longer than \code{max_trip_duration} have \code{NA} times and routes. With
 \code{output_dir}, \code{output_dir}.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 The travel time of every trip between each origin and destination, for
@@ -165,8 +172,8 @@ destinations are accepted (R5's limit).
 
 The arguments, their defaults and checks, the columns, the rows and their
 order are those of \code{r5r::expanded_travel_time_matrix()} in r5r 2.5.0,
-with the same values (with frequencies, for the same \code{seed}); the result
-is a \code{data.frame} rather than a \code{data.table}. With a street mode alone
+with the same values (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
+the result is identical to r5r's, its class included. With a street mode alone
 r5r reports the same trip for every minute of a departure time taken
 from the computer's clock (\code{Sys.time()}) rather than from
 \code{departure_datetime}; peabiru stops with an error instead. With more

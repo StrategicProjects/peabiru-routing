@@ -29,7 +29,8 @@ and park-and-rides left out), in the order of the network's edge index.
 
 The arguments and the result are those of \code{r5r::street_network_to_sf()}
 in r5r 2.5.0: the same rows in the same order, columns and values;
-\code{edges} is an \code{sf} \code{data.frame}, where r5r's is also a \code{data.table}.
+with \code{options(peabiru.output = "data.table")} both tables have r5r's class too (\code{vertices} a
+plain \code{sf} data frame, \code{edges} an \code{sf} \code{data.table}).
 }
 
 \examples{

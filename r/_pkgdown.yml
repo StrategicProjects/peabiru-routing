@@ -143,6 +143,7 @@ articles:
 - title: Examples
   navbar: Examples
   contents:
+  - articles/sf-tidyverse
   - articles/isochrones
   - articles/accessibility-map
   - articles/trips

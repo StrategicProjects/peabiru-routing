@@ -39,6 +39,8 @@ ITEMS: dict[str, frozenset[str]] = {
     "verbose-progress": ALL,
     "error-classes": ALL,
     "deprecated-args": ALL,
+    # R reprojects sf inputs; the Python and JavaScript pages say "R only"
+    "sf-any-crs": ALL,
     # where peabiru does not depend on the run or the machine
     "gtfs-errors-order": ALL,
     "elevation-strictmath": ALL,

@@ -16,4 +16,11 @@ fixture_points <- function() {
            colClasses = c(id = "character"))
 }
 
+# options(peabiru.output = kind) until the calling test (or function) ends.
+local_output <- function(kind, frame = parent.frame()) {
+  old <- options(peabiru.output = kind)
+  do.call(on.exit, list(bquote(options(.(old))), add = TRUE, after = FALSE), envir = frame)
+  invisible(old)
+}
+
 departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")

@@ -35,7 +35,8 @@ feeds, and the line of every trip pattern of each route.
 
 The arguments and the result are those of \code{r5r::transit_network_to_sf()}
 in r5r 2.5.0: the same rows in the same order, columns and values;
-\code{routes} is an \code{sf} \code{data.frame}, where r5r's is also a \code{data.table}.
+with \code{options(peabiru.output = "data.table")} both tables have r5r's class too (\code{stops} a plain
+\code{sf} data frame, \code{routes} an \code{sf} \code{data.table}).
 }
 
 \examples{

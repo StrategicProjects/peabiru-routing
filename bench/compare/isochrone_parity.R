@@ -25,6 +25,8 @@
 # 14:00 on 2019-05-13 (15:00 for one scenario); SPO's frequency-based GTFS is
 # routed with a seed.
 
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 xmx <- Sys.getenv("R5R_XMX", "6G")
 options(java.parameters = paste0("-Xmx", xmx))
 suppressPackageStartupMessages({

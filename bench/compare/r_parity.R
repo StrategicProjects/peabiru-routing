@@ -28,6 +28,8 @@
 #                    and a point far from the network, x the first 60
 #                    destinations
 
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 xmx <- Sys.getenv("R5R_XMX", "6G")
 options(java.parameters = paste0("-Xmx", xmx))
 suppressPackageStartupMessages({

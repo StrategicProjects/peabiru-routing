@@ -10,6 +10,8 @@
 # m, km, mixed, shapes_only, stops_only, gaps, errors, nan, words, bad; all
 # by default). N_PAIRS (default 150) random pairs of hexagon centres,
 # 2019-05-13 14:00, one thread. Exits with status 1 if anything differs.
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 variants <- commandArgs(TRUE)
 lib <- Sys.getenv("PEABIRU_R_LIB")
 if (nzchar(lib)) .libPaths(c(lib, .libPaths()))

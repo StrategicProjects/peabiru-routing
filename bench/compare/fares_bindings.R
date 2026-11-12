@@ -9,6 +9,8 @@
 # Needs r5r, a JDK 21 (JAVA_HOME), node and the npm package built
 # (js/build.sh). Exits with status 1 if any scenario differs.
 
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 if (is.null(getOption("java.parameters"))) options(java.parameters = "-Xmx6G")
 suppressMessages(library(data.table))
 root <- normalizePath(file.path(dirname(sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))), "..", ".."))

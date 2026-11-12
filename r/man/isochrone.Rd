@@ -35,8 +35,9 @@ isochrone(
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
-\item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat}, or a
-\verb{POINT sf} with an \code{id} column, in WGS 84.}
+\item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat} (WGS
+84), or a \verb{POINT sf} with an \code{id} column, in any coordinate reference
+system (reprojected to WGS 84, see \code{\link[=travel_time_matrix]{travel_time_matrix()}}).}
 
 \item{mode}{A character vector, the transport modes (default
 \code{"transit"}): one of \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}, and for public
@@ -110,7 +111,7 @@ given).}
 accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A \verb{"sf" "data.frame"} in WGS 84. With \code{polygon_output = TRUE},
+An \code{sf} table in WGS 84 (EPSG:4326). With \code{polygon_output = TRUE},
 one \code{POLYGON} or \code{MULTIPOLYGON} per origin, percentile and cutoff, with
 columns \code{id}, \code{isochrone} (the cutoff), \code{percentile} (such as \code{"p50"})
 and \code{polygons}; rows by origin, percentile and cutoff (descending). Each
@@ -122,6 +123,9 @@ segment's attributes from \code{\link[=street_network_to_sf]{street_network_to_s
 (\code{from_vertex}, \code{to_vertex}, \code{street_class}, \code{length}, \code{walk}, \code{car},
 \code{car_speed}, \code{bicycle}, \code{bicycle_lts}) and \code{geometry}; rows by origin,
 then by band and travel time, both descending.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", the class r5r gives it. With "data.table", r5r's polygons are an
+\code{sf} \code{data.table} and its lines a plain \code{sf} data frame; so are these.
 }
 \description{
 The areas (\code{polygon_output = TRUE}) or the street segments

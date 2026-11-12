@@ -87,14 +87,6 @@ cm_geometry_types <- function(x, choices, name) {
   }
 }
 
-# r5r's CRS check: sf::st_crs(x) != sf::st_crs(4326)
-check_wgs84 <- function(x, what) {
-  if (sf::st_crs(x) != sf::st_crs(4326)) {
-    stop("The CRS of parameter `", what, "` must be WGS 84 (EPSG 4326). ",
-         "Please use either sf::set_crs() to set it or ",
-         "sf::st_transform() to reproject it.", call. = FALSE)
-  }
-}
 
 # The coordinates of an sfc as flat vectors: x, y, the points of each ring
 # (or line), and, for polygons, the polygon of each ring and the feature of
@@ -164,7 +156,8 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts,
                "new_speeds_poly$priority")
       cm_geometry_types(x, c("POLYGON", "MULTIPOLYGON"),
                         "unique(as.character(sf::st_geometry_type(new_speeds_poly)))")
-      check_wgs84(x, "new_speeds")
+      # r5r requires WGS 84; any other CRS is reprojected, with a message
+      x <- as_wgs84(x, "new_carspeeds")
       # r5r writes the polygons to GeoJSON for R5, where GDAL keeps 15
       # decimals of each coordinate (and trims what looks like round-off):
       # the same round trip gives R5's coordinates
@@ -211,7 +204,7 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts,
                "new_lts_lines$priority")
       cm_geometry_types(x, "LINESTRING",
                         "unique(as.character(sf::st_geometry_type(new_lts_lines)))")
-      check_wgs84(x, "new_lts_lines")
+      x <- as_wgs84(x, "new_lts")
       spec$lts <- "line"
       spec <- c(spec, flatten_lines(sf::st_geometry(x)),
                 list(line_lts = as.integer(x$lts)))

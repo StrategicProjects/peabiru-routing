@@ -2,6 +2,8 @@
 # ggplot2 theme, and save_svg(), which writes an SVG that switches to the dark
 # palette by itself (as the diagrams of site/assets/diagrams do).
 
+# peabiru returns tibbles by default; these scripts work with data.frames.
+options(peabiru.output = "data.frame")
 suppressPackageStartupMessages({
   library(peabiru)
   library(sf)

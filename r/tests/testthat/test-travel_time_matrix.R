@@ -3,7 +3,7 @@ test_that("street matrices have r5r's columns and types", {
   pts <- fixture_points()
   for (m in c("WALK", "BICYCLE", "CAR")) {
     ttm <- travel_time_matrix(network, pts, pts, mode = m, n_threads = 2)
-    expect_identical(class(ttm), "data.frame")
+    expect_identical(class(ttm), c("tbl_df", "tbl", "data.frame"))
     expect_identical(names(ttm), c("from_id", "to_id", "travel_time_p50"))
     expect_type(ttm$from_id, "character")
     expect_type(ttm$travel_time_p50, "integer")
@@ -242,9 +242,10 @@ test_that("sf and data.table points give the data.frame result", {
     accessibility(network, pts, pts, opportunities_colnames = "jobs", cutoffs = 20,
                   n_threads = 2)
   )
-  expect_error(
+  # another CRS is reprojected (test-crs.R)
+  expect_message(
     travel_time_matrix(network, sf::st_transform(s, 3857), s, n_threads = 2),
-    "WGS 84"
+    "reprojected", class = "peabiru_reprojected"
   )
   skip_if_not_installed("data.table")
   dt <- data.table::as.data.table(pts)
