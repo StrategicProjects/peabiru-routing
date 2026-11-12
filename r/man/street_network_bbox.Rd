@@ -7,7 +7,7 @@
 street_network_bbox(
   r5r_network,
   output = c("polygon", "bbox", "vector"),
-  r5r_core = deprecated()
+  r5r_core
 )
 }
 \arguments{
@@ -16,7 +16,8 @@ street_network_bbox(
 \item{output}{A character string specifying the desired output format.
 One of \code{"polygon"} (the default), \code{"bbox"}, or \code{"vector"}.}
 
-\item{r5r_core}{Deprecated, as in r5r: the network, with a warning.}
+\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
+accepted with a warning.}
 }
 \value{
 By default (\code{output = "polygon"}), an \code{sfc} with a single
@@ -26,11 +27,17 @@ By default (\code{output = "polygon"}), an \code{sfc} with a single
 Package 'sf' is needed for the first two.
 }
 \description{
-The bounding box of the street network, as \code{r5r::street_network_bbox()}
-returns it: R5's envelope of the street layer, which covers every
-'OpenStreetMap' node of the ways streets were made from (it can be a
-little larger than the box of the edges of \code{\link[=street_network_to_sf]{street_network_to_sf()}}).
+The bounding box of the street network: the envelope of the street
+layer, which covers every 'OpenStreetMap' node of the ways streets were
+made from (it can be a little larger than the box of the edges of
+\code{\link[=street_network_to_sf]{street_network_to_sf()}}).
 }
+\section{Compatibility with r5r}{
+
+The arguments, their defaults and checks and the result are those of
+\code{r5r::street_network_bbox()} in r5r 2.5.0, with the same coordinates.
+}
+
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
@@ -38,8 +45,10 @@ street_network_bbox(network, output = "vector")
 }
 \seealso{
 Other network functions:
+\code{\link[=build_network]{build_network()}},
 \code{\link[=check_transit_availability]{check_transit_availability()}},
 \code{\link[=find_snap]{find_snap()}},
+\code{\link[=get_gtfs_errors]{get_gtfs_errors()}},
 \code{\link[=street_network_to_sf]{street_network_to_sf()}},
 \code{\link[=transit_network_to_sf]{transit_network_to_sf()}}
 }

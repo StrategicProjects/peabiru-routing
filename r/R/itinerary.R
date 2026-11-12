@@ -2,11 +2,9 @@
 #'
 #' The itinerary of each trip between pairs of origins and destinations:
 #' its legs (walking, cycling, driving and each ride), with their duration,
-#' waiting time, distance, route and line. Arguments, defaults and the
-#' result are those of `r5r::detailed_itineraries()` (r5r 2.5.0), with the
-#' same values: the direct trip by the street mode and, with public
-#' transport, the fastest trip over the departure window
-#' (`shortest_path = TRUE`) or, with `shortest_path = FALSE`, the
+#' waiting time, distance, route and geometry: the direct trip by the street
+#' mode and, with public transport, the fastest trip over the departure
+#' window (`shortest_path = TRUE`) or, with `shortest_path = FALSE`, the
 #' alternatives R5's multi-criteria router (McRAPTOR) finds over
 #' `time_window` sampled departure times, one per sequence of routes (the
 #' fastest of each), up to `suboptimal_minutes` slower than the best. With a
@@ -14,25 +12,30 @@
 #' `max_fare` kept), and the result gets `total_fare` and `cumulative_fare`
 #' columns.
 #'
-#' As in r5r, networks
-#' whose GTFS has frequency-based trips cannot be used with public
-#' transport.
+#' Networks whose 'GTFS' has frequency-based trips cannot be used with
+#' public transport (the itineraries of a Monte Carlo draw are not trips
+#' that run).
 #'
-#' With `mode_egress = "CAR"`, R5 reverses the via edges of turn
-#' restrictions with two or more via ways in place each time its backward
-#' egress search checks one, so what r5r returns for a pair whose car
-#' searches cross such a restriction can depend on the searches that ran
-#' before (in the same call, on other threads, or in earlier calls).
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks, the columns, the rows and the
+#' geometries are those of `r5r::detailed_itineraries()` in r5r 2.5.0; with
+#' `drop_geometry = TRUE` the result is a `data.frame` rather than a
+#' `data.table`. With `mode_egress = "CAR"`, R5 reverses the via edges of
+#' turn restrictions with two or more via ways in place each time its
+#' backward egress search checks one, so what r5r returns for a pair whose
+#' car searches cross such a restriction can depend on the searches that
+#' ran before (in the same call, on other threads, or in earlier calls).
 #' peabiru plans such a pair for every order those via edges can be in:
-#' when the itineraries are the same in all of them, they are returned (they
-#' are r5r's whatever ran before); otherwise the call stops with an error
-#' naming the pair.
+#' when the itineraries are the same in all of them, they are returned
+#' (they are r5r's whatever ran before); otherwise the call stops with an
+#' error naming the pair. The few pairs that r5r routes again with McRAPTOR
+#' because the path of its first router cannot be rebuilt are errors too.
 #'
 #' @inheritParams travel_time_matrix
 #' @param suboptimal_minutes An integer, 0 (the default): with
 #'   `shortest_path = FALSE`, how many minutes slower than the best an
 #'   alternative may be. It must be 0 with `shortest_path = TRUE` and with a
-#'   `fare_structure`, as in r5r.
+#'   `fare_structure`.
 #' @param shortest_path A logical. Whether to return only the fastest
 #'   itinerary (`TRUE`, the default).
 #' @param all_to_all A logical. Whether to route from every origin to
@@ -41,12 +44,12 @@
 #'   other).
 #' @param drop_geometry A logical. Whether to leave the geometry out and
 #'   return a `data.frame`.
-#' @param osm_link_ids A logical. Whether to add r5r's columns
+#' @param osm_link_ids A logical. Whether to add the columns
 #'   `osm_id_list` (the OpenStreetMap way ids of a street leg's edges),
 #'   `edge_id_list` (the indices of the street network's edges, as
 #'   [street_network_to_sf()] numbers them), both as `"[id1, id2, ...]"` and
 #'   `"[]"` for rides, and `board_stop_id`, `alight_stop_id` (a ride's stops,
-#'   `"<feed>:<stop_id>"`; empty for street legs). As in r5r, consecutive
+#'   `"<feed>:<stop_id>"`; empty for street legs). Consecutive
 #'   edges on a roundabout give only their first ids, and connectors none.
 #'   Needs `drop_geometry = FALSE`. Defaults to `FALSE`.
 #'
@@ -61,8 +64,9 @@
 #'   `cumulative_fare` (after `mode`), the fare paid up to the end of the
 #'   leg. Pairs without an itinerary have no rows. With `output_dir`,
 #'   one CSV file per pair with itineraries is written,
-#'   `from_<origin id>_to_<destination id>.csv`, byte for byte as r5r writes
-#'   it (the geometry as r5r's WKT text), and `output_dir` is returned.
+#'   `from_<origin id>_to_<destination id>.csv` (the geometry as WKT text,
+#'   byte for byte the files r5r writes), and `output_dir` is returned.
+#' @family routing functions
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
 #' data_path <- system.file("extdata/spo", package = "peabiru")

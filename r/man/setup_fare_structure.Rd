@@ -10,7 +10,7 @@ setup_fare_structure(
   by = "MODE",
   debug_path = NULL,
   debug_info = NULL,
-  r5r_core = deprecated()
+  r5r_core
 )
 }
 \arguments{
@@ -23,12 +23,13 @@ transfer.}
 agency (\code{"AGENCY_ID"}, or \code{"AGENCY_NAME"}), or one type for all routes
 (\code{"GENERIC"}).}
 
-\item{debug_path, debug_info}{As in r5r: a \code{.csv} path and one of \code{"MODE"},
-\code{"ROUTE"} and \code{"MODE_ROUTE"}, stored in the structure's
-\code{debug_settings}. r5r 2.5.0 writes no debug file whatever they say, and
-neither does peabiru.}
+\item{debug_path, debug_info}{A \code{.csv} path (or \code{NULL}) and one of
+\code{"MODE"}, \code{"ROUTE"} and \code{"MODE_ROUTE"} (or \code{NULL}), stored in the
+structure's \code{debug_settings}. No debug file is written whatever they
+say (nor does r5r 2.5.0 write one).}
 
-\item{r5r_core}{Deprecated, as in r5r: the network.}
+\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
+accepted with a warning.}
 }
 \value{
 A fare structure (a list, see Details).
@@ -36,10 +37,10 @@ A fare structure (a list, see Details).
 \description{
 Creates a basic fare structure that describes how transit fares should be
 calculated in \code{\link[=travel_time_matrix]{travel_time_matrix()}}, \code{\link[=accessibility]{accessibility()}},
-\code{\link[=detailed_itineraries]{detailed_itineraries()}} and \code{\link[=pareto_frontier]{pareto_frontier()}}, as r5r's
-\code{setup_fare_structure()}: every route, fare type and transfer costs
-\code{base_fare}, read as a Java \code{float} as in r5r. The structure can then be
-edited to follow the fare rules of the study area.
+\code{\link[=detailed_itineraries]{detailed_itineraries()}} and \code{\link[=pareto_frontier]{pareto_frontier()}}: every route, fare type
+and transfer costs \code{base_fare} (read as a 32-bit float, the type R5 keeps
+fares in). The structure can then be edited to follow the fare rules of
+the study area.
 }
 \details{
 The structure is a list:
@@ -55,7 +56,7 @@ discounted transfer (default 120).
 \item \code{fares_per_route}: the fare type of each GTFS route (\code{agency_id},
 \code{agency_name}, \code{route_id}, \code{route_short_name}, \code{route_long_name}, \code{mode},
 \code{route_fare}, \code{fare_type}), matched by \code{agency_id} and \code{route_id}.
-\item \code{debug_settings}: r5r's debug settings (\code{output_file}, \code{trip_info}).
+\item \code{debug_settings}: the debug settings (\code{output_file}, \code{trip_info}).
 }
 
 How the fare of a trip follows from it: the first ride costs its route's
@@ -67,15 +68,24 @@ free when the type has \code{unlimited_transfers}; otherwise, while fewer than
 \code{fares_per_transfer} for the two types (and not on the same route, unless
 the type has \code{allow_same_route_transfer}) brings the two rides to that
 row's \code{fare}; any other ride costs its full fare. The total is capped at
-\code{fare_cap}.
+\code{fare_cap}. These are the rules of R5's \code{RuleBasedInRoutingFareCalculator},
+written for r5r and ported to the 'Rust' core.
 }
+\section{Compatibility with r5r}{
+
+The arguments, their defaults and checks and the structure are those of
+\code{r5r::setup_fare_structure()} in r5r 2.5.0; its tables are \code{data.frame}s
+rather than \code{data.table}s. Structures move between the two packages
+through \code{\link[=write_fare_structure]{write_fare_structure()}} and \code{\link[=read_fare_structure]{read_fare_structure()}}. R5's own
+fare calculators (a structure with a \code{type}, which r5r passes to R5) are
+not available: the routing functions stop with an error on one.
+}
+
 \examples{
-\dontshow{if (identical(tolower(Sys.getenv("NOT_CRAN")), "true")) withAutoprint(\{ # examplesIf}
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
 fare_structure <- setup_fare_structure(network, base_fare = 4.4)
 fare_structure$fares_per_type
-\dontshow{\}) # examplesIf}
 }
 \seealso{
 Other fare structure:

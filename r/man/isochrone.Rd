@@ -28,8 +28,8 @@ isochrone(
   n_threads = Inf,
   verbose = FALSE,
   progress = TRUE,
-  sample_size = deprecated(),
-  r5r_core = deprecated()
+  sample_size,
+  r5r_core
 )
 }
 \arguments{
@@ -40,11 +40,12 @@ isochrone(
 
 \item{mode}{A character vector, the transport modes (default
 \code{"transit"}): one of \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}, and for public
-transport \code{"TRANSIT"} or some of its modes (as in
+transport \code{"TRANSIT"} or some of its modes (see
 \code{\link[=travel_time_matrix]{travel_time_matrix()}}).}
 
 \item{mode_egress}{A string, the mode from the last stop to the
-destination: \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}.}
+destination: \code{"WALK"} (the default), \code{"BICYCLE"} or \code{"CAR"}. Ignored
+without public transport.}
 
 \item{cutoffs}{A numeric vector, the travel times in minutes that delimit
 the isochrones. Values are sorted and duplicates removed; 0 is added and
@@ -55,35 +56,42 @@ travel-time grid polygons are interpolated from (only used with
 \code{polygon_output = TRUE}). Defaults to 10 (cells of about 153 metres at
 the Equator).}
 
-\item{departure_datetime}{A POSIXct, the departure date and time. Its
-clock time and date are taken in its own time zone. Required with
-transit.}
+\item{departure_datetime}{A POSIXct, the departure date and time (see
+the section "Date and time"). Required with public transport.}
 
 \item{polygon_output}{A logical. \code{TRUE} (the default) for polygon
 isochrones, \code{FALSE} for the street segments reached.}
 
-\item{time_window}{An integer, the window of departure minutes, starting
-at \code{departure_datetime}, over which travel times are computed.}
+\item{time_window}{An integer, the number of departure minutes, from
+\code{departure_datetime} on, over which travel times are computed.
+Defaults to 10.}
 
 \item{max_walk_time, max_bike_time, max_car_time}{The maximum time in
-minutes for each street mode (\code{Inf}, the default, means the trip limit).}
+minutes on foot, by bicycle and by car. Each limit applies to each leg
+on its own (15 minutes to reach the first stop and another 15 from the
+last), and to the whole trip when that mode is the only one. \code{Inf}, the
+default, leaves only \code{max_trip_duration}.}
 
-\item{max_trip_duration}{Ignored, as in r5r: the trip limit comes from
+\item{max_trip_duration}{Not used: the trip limit comes from
 \code{max(cutoffs)}.}
 
-\item{walk_speed, bike_speed}{Speeds in km/h.}
+\item{walk_speed, bike_speed}{Average speeds in km/h, 3.6 and 12 by
+default.}
 
-\item{max_rides}{An integer, the maximum number of public transport rides.}
+\item{max_rides}{An integer, the maximum number of public transport rides
+in a trip. Defaults to 3.}
 
 \item{max_lts}{An integer from 1 to 4, the highest level of traffic stress
-a cyclist will ride on.}
+a cyclist rides on (see the section "Level of traffic stress").
+Defaults to 2.}
 
 \item{draws_per_minute}{An integer, the Monte Carlo draws per departure
-minute for frequency-based 'GTFS'.}
+minute (see the section "Departures and Monte Carlo draws"). Defaults
+to 5.}
 
-\item{seed}{An integer seed for the Monte Carlo draws, or \code{NULL}. With
-frequency-based 'GTFS', results are reproducible (and equal to r5r's)
-only with a seed.}
+\item{seed}{An integer seed for the Monte Carlo draws, or \code{NULL} (the
+default: the draws differ from call to call). With a seed, the same
+inputs give the same results whatever \code{n_threads}.}
 
 \item{percentiles}{An integer vector of up to 5 values from 1 to 99, the
 travel time percentiles to make polygons for (one set per percentile).
@@ -92,15 +100,14 @@ travel time percentiles to make polygons for (one set per percentile).
 
 \item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores.}
 
-\item{verbose, progress}{Logicals, checked as in r5r; peabiru prints no
-progress counter.}
+\item{verbose, progress}{Logicals, checked but without effect: no progress
+counter or routing log is printed.}
 
-\item{sample_size}{Deprecated and ignored, as in r5r (a warning when
+\item{sample_size}{Deprecated and ignored (a warning when
 given).}
 
-\item{r5r_core}{Deprecated: the network under the name r5r used before
-version 2.3.0. As in r5r, it is accepted with a warning and used as
-\code{r5r_network}.}
+\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
+accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 A \verb{"sf" "data.frame"} in WGS 84. With \code{polygon_output = TRUE},
@@ -111,7 +118,7 @@ polygon covers the whole area reached from 0 up to its cutoff. With
 \code{polygon_output = FALSE}, one \code{LINESTRING} per street segment reached,
 with columns \code{id}, \code{edge_index}, \code{osm_id}, \code{isochrone} (the smallest
 cutoff at or above the segment's travel time), \code{travel_time_p50}, the
-segment's attributes as in r5r's \code{street_network_to_sf()}
+segment's attributes from \code{\link[=street_network_to_sf]{street_network_to_sf()}}
 (\code{from_vertex}, \code{to_vertex}, \code{street_class}, \code{length}, \code{walk}, \code{car},
 \code{car_speed}, \code{bicycle}, \code{bicycle_lts}) and \code{geometry}; rows by origin,
 then by band and travel time, both descending.
@@ -120,39 +127,45 @@ then by band and travel time, both descending.
 The areas (\code{polygon_output = TRUE}) or the street segments
 (\code{polygon_output = FALSE}) reached from each origin within each cutoff,
 by one street mode (\code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}) or by public
-transport (see \code{\link[=travel_time_matrix]{travel_time_matrix()}} for the modes).
-Arguments, defaults and the result are those of \code{r5r::isochrone()}
-(r5r 2.5.0).
+transport (see \code{\link[=travel_time_matrix]{travel_time_matrix()}} for the modes). Package 'sf' is
+required.
 }
 \details{
-Polygon isochrones are made as r5r makes them: travel times from each
-origin to the centres of a regular grid of Web Mercator pixels covering
-the network (see \code{zoom}), the bands from 0 to each cutoff traced over that
-grid by marching squares (as \code{isoband::isobands()}), grouped into
-polygons with holes (as \code{isoband::iso_to_sfg()}) and finally passed to
-\code{sf::st_make_valid()}. The travel times and the polygons before
-\code{sf::st_make_valid()} are r5r's exactly; that last step is the same call
-to 'sf', so the result is r5r's too, coordinate for coordinate, when the
-input to it is. The order of the rings and the vertex each one starts at
-depend on the C++ library 'isoband' was built with (libc++ on macOS,
-libstdc++ on Linux and Windows): peabiru follows the platform it runs on,
-so its polygons are those of r5r on the same platform. Between platforms
-they differ in that order and, by the system's \code{sinh()} and
-\code{atan()}, in the last bits of some latitudes.
+Polygon isochrones are traced from the travel times from each origin to
+the centres of a regular grid of Web Mercator pixels covering the network
+(see \code{zoom}): the bands from 0 to each cutoff are traced over that grid
+by marching squares (the algorithm of \code{isoband::isobands()}), grouped
+into polygons with holes (as \code{isoband::iso_to_sfg()} groups them) and
+passed to \code{sf::st_make_valid()}. The order of the rings and the vertex
+each one starts at follow the C++ library 'isoband' is built with on
+each platform (libc++ on macOS, libstdc++ on Linux and Windows); between
+platforms the polygons differ in that order and, by the system's
+\code{sinh()} and \code{atan()}, in the last bits of some latitudes.
 
 Line isochrones are the travel times from each origin to the centroid of
-every street segment (\code{sf::st_centroid()} of r5r's
-\code{street_network_to_sf()} edges), each segment in the band of the smallest
-cutoff at or above its travel time. The centroids agree with r5r's to
-within a few units in the last place (about 1e-14 degrees), which has not
-changed a travel time in any comparison made.
+every street segment (\code{sf::st_centroid()} of the edges of
+\code{\link[=street_network_to_sf]{street_network_to_sf()}}), each segment in the band of the smallest
+cutoff at or above its travel time.
 
-As in r5r, \code{max_trip_duration} is ignored: the trip limit is the largest
-cutoff (plus 10 minutes for polygons, so that the outer band is
-interpolated like the inner ones).
-
-Package 'sf' is required.
+\code{max_trip_duration} is not used: the trip limit is the largest cutoff
+(plus 10 minutes for polygons, so that the outer band is interpolated
+like the inner ones).
 }
+\section{Compatibility with r5r}{
+
+The arguments, their defaults and checks and the result are those of
+\code{r5r::isochrone()} in r5r 2.5.0. The travel times are r5r's, and so are
+the polygons before \code{sf::st_make_valid()}, ring for ring and vertex for
+vertex on the same platform, so the \code{sf} returned is r5r's, coordinate
+for coordinate (compared with \code{identical()}). The centroids of the line
+isochrones agree with r5r's to within a few units in the last place
+(about 1e-14 degrees), which has not changed a travel time in any
+comparison made. The deprecated \code{sample_size} is accepted with r5r's
+warning and ignored. An empty \code{percentiles}, a \code{polygon_output} of \code{NA},
+\code{origins} without rows and a fractional \code{zoom} are errors that say so
+(r5r lets them through and then fails, or passes the fraction to R5).
+}
+
 \examples{
 \dontshow{if (requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 data_path <- system.file("extdata/spo", package = "peabiru")
@@ -174,3 +187,12 @@ iso_lines <- isochrone(network, points[1, ], mode = "TRANSIT",
 head(iso_lines)
 \dontshow{\}) # examplesIf}
 }
+\seealso{
+Other routing functions:
+\code{\link[=accessibility]{accessibility()}},
+\code{\link[=arrival_travel_time_matrix]{arrival_travel_time_matrix()}},
+\code{\link[=detailed_itineraries]{detailed_itineraries()}},
+\code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}},
+\code{\link[=travel_time_matrix]{travel_time_matrix()}}
+}
+\concept{routing functions}

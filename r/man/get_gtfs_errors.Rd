@@ -16,52 +16,58 @@ A \code{data.frame} with columns \code{file} (the table, without
 \code{.txt}), \code{line} (the record, the header being line 1; 0 for a whole
 table), \code{type} (gtfs-lib's error class), \code{field}, \code{id} (the key
 concerned, for duplicate keys and suspect stop locations) and
-\code{priority} (\code{"HIGH"}, \code{"MEDIUM"}, \code{"LOW"} or \code{"UNKNOWN"}). r5r returns
-a \code{data.table}.
+\code{priority} (\code{"HIGH"}, \code{"MEDIUM"}, \code{"LOW"} or \code{"UNKNOWN"}).
 }
 \description{
 The errors that the 'GTFS' library of 'R5' (Conveyal's gtfs-lib) reports
-when it reads the network's feeds, as \code{r5r::get_gtfs_errors()} returns
-them. As r5r, \code{\link[=build_network]{build_network()}} refuses to build a network when any
-error has priority \code{"HIGH"}; this lists them.
+when it reads the network's feeds. \code{\link[=build_network]{build_network()}} refuses to build a
+network when any error has priority \code{"HIGH"}; this lists them, also for
+a directory a network could not be built from.
 }
 \details{
-r5r writes the errors to \code{gtfs_errors.csv} in the data folder when it
-builds the network and reads that file back. peabiru writes nothing:
-it reads the feeds again (from the files the network was built from, or
-the \code{.zip} files of the directory given) and makes gtfs-lib's checks:
+The feeds are read again (the files the network was built from, or the
+\code{.zip} files of the directory given) with gtfs-lib's checks:
 every check of its table loaders (empty required fields, numbers, times
 and URLs that do not parse, values out of range, duplicate and missing
 keys, references to stops, trips, routes, services, agencies and fares
 that do not exist, tables missing, empty or in a subfolder of the
 \code{.zip}) and of its post-load validation (services, parent stations,
 stops in places with nearly no population, GTFS-Flex trips), with the
-same \code{file}, \code{line}, \code{type}, \code{field}, \code{id} and \code{priority}. The column
-types are those \code{data.table::fread()} gives r5r reading the file back
-(exactly, when 'data.table' is installed).
-
-Differences: the rows are listed feed by feed, in the order gtfs-lib
-finds them; r5r lists them in the order of a Java \code{HashSet}, which
-changes from one run to the next. A feed on which gtfs-lib fails
-instead of listing errors (a date that is not \code{YYYYMMDD}, a frequency
-of a trip that does not exist, a service or fare without an id), on
-which r5r's \code{build_network()} fails without writing the file, is an
-error naming the cause (as is a \code{locations.geojson}, of GTFS-Flex zones,
-that is not in UTF-8). GTFS-Flex zones and location groups are read as
-gtfs-lib reads them, for its errors; on-demand trips are not routed, as
-in r5r.
+\code{file}, \code{line}, \code{type}, \code{field}, \code{id} and \code{priority} gtfs-lib gives. The
+rows are listed feed by feed, in the order gtfs-lib finds them. A feed on
+which gtfs-lib fails instead of listing errors (a date that is not
+\code{YYYYMMDD}, a frequency of a trip that does not exist, a service or fare
+without an id) is an error naming the cause, as is a \code{locations.geojson}
+(of GTFS-Flex zones) that is not in UTF-8. GTFS-Flex zones and location
+groups are read as gtfs-lib reads them, for its errors; on-demand trips
+are not routed.
 }
+\section{Compatibility with r5r}{
+
+The argument and the columns are those of \code{r5r::get_gtfs_errors()} in
+r5r 2.5.0, with the same rows; the result is a \code{data.frame} rather than a
+\code{data.table}, with the column types \code{data.table::fread()} gives r5r
+(exactly, when 'data.table' is installed). r5r writes the errors to
+\code{gtfs_errors.csv} in the data folder when it builds the network and
+reads that file back, listing them in the order of a Java \code{HashSet},
+which changes from one run to the next; peabiru writes nothing, reads
+the feeds again and lists the rows in a fixed order. On a feed where
+gtfs-lib fails, r5r's \code{build_network()} fails without writing the file.
+A folder that does not exist is an error of peabiru's own.
+}
+
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
 get_gtfs_errors(network)
 }
 \seealso{
-Other support functions:
-\code{\link[=download_r5]{download_r5()}},
-\code{\link[=r5r_cache]{r5r_cache()}},
-\code{\link[=r5r_sitrep]{r5r_sitrep()}},
-\code{\link[=setup_r5]{setup_r5()}},
-\code{\link[=stop_r5]{stop_r5()}}
+Other network functions:
+\code{\link[=build_network]{build_network()}},
+\code{\link[=check_transit_availability]{check_transit_availability()}},
+\code{\link[=find_snap]{find_snap()}},
+\code{\link[=street_network_bbox]{street_network_bbox()}},
+\code{\link[=street_network_to_sf]{street_network_to_sf()}},
+\code{\link[=transit_network_to_sf]{transit_network_to_sf()}}
 }
-\concept{support functions}
+\concept{network functions}

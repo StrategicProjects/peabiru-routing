@@ -11,13 +11,19 @@ needs_sf <- function(fun) {
 
 #' Find snapped locations of input points on street network
 #'
-#' Finds where points snap to the street network, as `r5r::find_snap()`
-#' does: snapping is how routing places origins and destinations on the
-#' network. The nearest point of a street the mode may use is looked for
-#' first within 300 metres of the point and then, if there is none, within
-#' `radius`. A point that does not snap is not routed. The street a point
-#' snaps to depends on the mode, since some streets cannot be used by some
-#' modes (a pedestrian street cannot be used to snap car trips).
+#' Finds where points snap to the street network: snapping is how routing
+#' places origins and destinations on the network. The nearest point of a
+#' street the mode may use is looked for first within 300 metres of the
+#' point and then, if there is none, within `radius`. A point that does not
+#' snap is not routed. The street a point snaps to depends on the mode,
+#' since some streets cannot be used by some modes (a pedestrian street
+#' cannot be used to snap car trips).
+#'
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks, the columns and the values are
+#' those of `r5r::find_snap()` in r5r 2.5.0; the result is a `data.frame`
+#' rather than a `data.table`. A `radius` of `NA` or of length 0 is an error
+#' that says so (r5r lets it through and fails in Java).
 #'
 #' @param r5r_network A network built with [build_network()].
 #' @param points Either a `POINT sf` object with WGS84 CRS, or a
@@ -27,15 +33,16 @@ needs_sf <- function(fun) {
 #' @param mode A string. Which mode to consider when trying to snap the
 #'   points to the network. Defaults to `WALK`, also allows `BICYCLE` and
 #'   `CAR`.
-#' @param r5r_core Deprecated, as in r5r: the network, with a warning.
+#' @param r5r_core Deprecated: the network under its name before r5r 2.3.0,
+#'   accepted with a warning.
 #'
 #' @return A `data.frame` with the original points (`point_id`, `lat`,
 #'   `lon`), their snapped coordinates on the street network (`snap_lat`,
 #'   `snap_lon`), the distance in meters between the point and its snapped
 #'   location (`distance`, haversine on a sphere of radius 6,367,450 m, as
-#'   in R5) and whether the point snapped (`found`). Points that could not
-#'   be snapped have `NA` coordinates and distance and `found = FALSE`.
-#'   r5r returns a `data.table`; the columns and values are the same.
+#'   R5 measures it) and whether the point snapped (`found`). Points that
+#'   could not be snapped have `NA` coordinates and distance and
+#'   `found = FALSE`.
 #' @family network functions
 #' @export
 #' @examples
@@ -85,10 +92,14 @@ find_snap <- function(r5r_network,
 
 #' Extract the geographic bounding box of the transport network
 #'
-#' The bounding box of the street network, as `r5r::street_network_bbox()`
-#' returns it: R5's envelope of the street layer, which covers every
-#' 'OpenStreetMap' node of the ways streets were made from (it can be a
-#' little larger than the box of the edges of [street_network_to_sf()]).
+#' The bounding box of the street network: the envelope of the street
+#' layer, which covers every 'OpenStreetMap' node of the ways streets were
+#' made from (it can be a little larger than the box of the edges of
+#' [street_network_to_sf()]).
+#'
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks and the result are those of
+#' `r5r::street_network_bbox()` in r5r 2.5.0, with the same coordinates.
 #'
 #' @inheritParams find_snap
 #' @param output A character string specifying the desired output format.
@@ -160,10 +171,14 @@ linestring_sfc <- function(n_points, x, y) {
 
 #' Extract OpenStreetMap network in sf format
 #'
-#' The street network in `sf` format, as `r5r::street_network_to_sf()`
-#' returns it: the vertices at the ends of street edges and every directed
-#' street edge (the connectors of transit stops and park-and-rides left
-#' out), in r5r's order.
+#' The street network in `sf` format: the vertices at the ends of street
+#' edges and every directed street edge (the connectors of transit stops
+#' and park-and-rides left out), in the order of the network's edge index.
+#'
+#' @section Compatibility with r5r:
+#' The arguments and the result are those of `r5r::street_network_to_sf()`
+#' in r5r 2.5.0: the same rows in the same order, columns and values;
+#' `edges` is an `sf` `data.frame`, where r5r's is also a `data.table`.
 #'
 #' @inheritParams find_snap
 #'
@@ -172,8 +187,7 @@ linestring_sfc <- function(n_points, x, y) {
 #'   `geometry`, and `edges` (`LINESTRING`), with columns `edge_index`,
 #'   `osm_id`, `from_vertex`, `to_vertex`, `street_class`, `length` (meters),
 #'   `walk`, `car`, `car_speed` (km/h), `bicycle`, `bicycle_lts` and
-#'   `geometry`. Package 'sf' is needed. r5r's `edges` is also a
-#'   `data.table`; the columns and values are the same.
+#'   `geometry`. Package 'sf' is needed.
 #' @family network functions
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
@@ -218,8 +232,13 @@ street_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
 
 #' Extract transit network in sf format
 #'
-#' The public transport network in `sf` format, as
-#' `r5r::transit_network_to_sf()` returns it.
+#' The public transport network in `sf` format: the stops of the 'GTFS'
+#' feeds, and the line of every trip pattern of each route.
+#'
+#' @section Compatibility with r5r:
+#' The arguments and the result are those of `r5r::transit_network_to_sf()`
+#' in r5r 2.5.0: the same rows in the same order, columns and values;
+#' `routes` is an `sf` `data.frame`, where r5r's is also a `data.table`.
 #'
 #' @inheritParams find_snap
 #'
@@ -233,10 +252,9 @@ street_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
 #'   of the first trip of the pattern or, without one, the positions of its
 #'   stops. A stop not linked to the street network (outside the area of the
 #'   `.pbf`, for instance) has an empty geometry (`POINT EMPTY`), and a
-#'   pattern with no line is left out, as in r5r. Positions of stops are
-#'   those of their vertices in the street network (the coordinates rounded
-#'   down to 1e-7 degrees). Package 'sf' is needed. r5r's `routes` is also
-#'   a `data.table`; the columns and values are the same.
+#'   pattern with no line is left out. Positions of stops are those of
+#'   their vertices in the street network (the coordinates rounded down to
+#'   1e-7 degrees). Package 'sf' is needed.
 #' @family network functions
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
@@ -283,8 +301,8 @@ transit_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
 #' Check transit service availability by date
 #'
 #' Counts the public transport services in the GTFS feeds of a network that
-#' are active on given dates, and their proportion of all services, as
-#' `r5r::check_transit_availability()` does. Use it to pick a departure
+#' are active on given dates, and their proportion of all services. Use it
+#' to pick a departure
 #' date with adequate service: public transport routing only finds trips
 #' on dates when services run (per the GTFS calendars and date
 #' exceptions).
@@ -304,6 +322,11 @@ transit_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
 #' invalid, automatic discovery fails naming the service; explicit date
 #' queries remain available.
 #'
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks, the columns and the values are
+#' those of `r5r::check_transit_availability()` in r5r 2.5.0; the result is
+#' a `data.frame` rather than a `data.table`.
+#'
 #' @inheritParams find_snap
 #' @param dates A vector of specific dates to be checked. Can be character
 #'   strings in "YYYY-MM-DD" format, or objects of class `Date`. This
@@ -321,8 +344,7 @@ transit_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
 #'   `total_services`, `active_services` and `pct_active` (the proportion
 #'   of active services). Automatic discovery returns dates in ascending
 #'   order, or a zero-row table with these columns if no retained transit
-#'   trips operate. r5r returns a `data.table`; the columns and values are
-#'   the same.
+#'   trips operate.
 #' @family network functions
 #' @export
 #' @examples
@@ -418,34 +440,38 @@ check_transit_availability <- function(r5r_network,
 #' Get GTFS errors encountered in network building
 #'
 #' The errors that the 'GTFS' library of 'R5' (Conveyal's gtfs-lib) reports
-#' when it reads the network's feeds, as `r5r::get_gtfs_errors()` returns
-#' them. As r5r, [build_network()] refuses to build a network when any
-#' error has priority `"HIGH"`; this lists them.
+#' when it reads the network's feeds. [build_network()] refuses to build a
+#' network when any error has priority `"HIGH"`; this lists them, also for
+#' a directory a network could not be built from.
 #'
-#' r5r writes the errors to `gtfs_errors.csv` in the data folder when it
-#' builds the network and reads that file back. peabiru writes nothing:
-#' it reads the feeds again (from the files the network was built from, or
-#' the `.zip` files of the directory given) and makes gtfs-lib's checks:
+#' The feeds are read again (the files the network was built from, or the
+#' `.zip` files of the directory given) with gtfs-lib's checks:
 #' every check of its table loaders (empty required fields, numbers, times
 #' and URLs that do not parse, values out of range, duplicate and missing
 #' keys, references to stops, trips, routes, services, agencies and fares
 #' that do not exist, tables missing, empty or in a subfolder of the
 #' `.zip`) and of its post-load validation (services, parent stations,
 #' stops in places with nearly no population, GTFS-Flex trips), with the
-#' same `file`, `line`, `type`, `field`, `id` and `priority`. The column
-#' types are those `data.table::fread()` gives r5r reading the file back
-#' (exactly, when 'data.table' is installed).
+#' `file`, `line`, `type`, `field`, `id` and `priority` gtfs-lib gives. The
+#' rows are listed feed by feed, in the order gtfs-lib finds them. A feed on
+#' which gtfs-lib fails instead of listing errors (a date that is not
+#' `YYYYMMDD`, a frequency of a trip that does not exist, a service or fare
+#' without an id) is an error naming the cause, as is a `locations.geojson`
+#' (of GTFS-Flex zones) that is not in UTF-8. GTFS-Flex zones and location
+#' groups are read as gtfs-lib reads them, for its errors; on-demand trips
+#' are not routed.
 #'
-#' Differences: the rows are listed feed by feed, in the order gtfs-lib
-#' finds them; r5r lists them in the order of a Java `HashSet`, which
-#' changes from one run to the next. A feed on which gtfs-lib fails
-#' instead of listing errors (a date that is not `YYYYMMDD`, a frequency
-#' of a trip that does not exist, a service or fare without an id), on
-#' which r5r's `build_network()` fails without writing the file, is an
-#' error naming the cause (as is a `locations.geojson`, of GTFS-Flex zones,
-#' that is not in UTF-8). GTFS-Flex zones and location groups are read as
-#' gtfs-lib reads them, for its errors; on-demand trips are not routed, as
-#' in r5r.
+#' @section Compatibility with r5r:
+#' The argument and the columns are those of `r5r::get_gtfs_errors()` in
+#' r5r 2.5.0, with the same rows; the result is a `data.frame` rather than a
+#' `data.table`, with the column types `data.table::fread()` gives r5r
+#' (exactly, when 'data.table' is installed). r5r writes the errors to
+#' `gtfs_errors.csv` in the data folder when it builds the network and
+#' reads that file back, listing them in the order of a Java `HashSet`,
+#' which changes from one run to the next; peabiru writes nothing, reads
+#' the feeds again and lists the rows in a fixed order. On a feed where
+#' gtfs-lib fails, r5r's `build_network()` fails without writing the file.
+#' A folder that does not exist is an error of peabiru's own.
 #'
 #' @param r5r_network A network built with [build_network()], or the path
 #'   of a directory with 'GTFS' feeds (`.zip`), for instance one a network
@@ -455,9 +481,8 @@ check_transit_availability <- function(r5r_network,
 #'   `.txt`), `line` (the record, the header being line 1; 0 for a whole
 #'   table), `type` (gtfs-lib's error class), `field`, `id` (the key
 #'   concerned, for duplicate keys and suspect stop locations) and
-#'   `priority` (`"HIGH"`, `"MEDIUM"`, `"LOW"` or `"UNKNOWN"`). r5r returns
-#'   a `data.table`.
-#' @family support functions
+#'   `priority` (`"HIGH"`, `"MEDIUM"`, `"LOW"` or `"UNKNOWN"`).
+#' @family network functions
 #' @export
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")

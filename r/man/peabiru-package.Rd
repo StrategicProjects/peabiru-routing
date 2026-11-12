@@ -6,22 +6,33 @@
 \alias{peabiru-package}
 \title{peabiru: multimodal routing on OpenStreetMap and GTFS networks}
 \description{
-peabiru builds a network from an 'OpenStreetMap' extract and 'GTFS' feeds
-with \code{\link[=build_network]{build_network()}} and computes travel times by walking, cycling,
-driving and public transport with \code{\link[=travel_time_matrix]{travel_time_matrix()}},
-\code{\link[=accessibility]{accessibility()}}, \code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}} and
-\code{\link[=arrival_travel_time_matrix]{arrival_travel_time_matrix()}}, and inspects it with \code{\link[=find_snap]{find_snap()}},
-\code{\link[=street_network_to_sf]{street_network_to_sf()}}, \code{\link[=transit_network_to_sf]{transit_network_to_sf()}},
-\code{\link[=check_transit_availability]{check_transit_availability()}} and \code{\link[=get_gtfs_errors]{get_gtfs_errors()}}. The routing
-engine is written in 'Rust' and
-runs inside the R session; no 'Java' is needed. Options that peabiru does
-not support yet are errors, never silently ignored.
+peabiru builds a network from an 'OpenStreetMap' extract, 'GTFS' feeds
+and an optional elevation raster with \code{\link[=build_network]{build_network()}}, and computes,
+by walking, cycling, driving and public transport:
+travel-time matrices (\code{\link[=travel_time_matrix]{travel_time_matrix()}},
+\code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}}, \code{\link[=arrival_travel_time_matrix]{arrival_travel_time_matrix()}}),
+accessibility (\code{\link[=accessibility]{accessibility()}}), isochrones (\code{\link[=isochrone]{isochrone()}}) and
+detailed itineraries (\code{\link[=detailed_itineraries]{detailed_itineraries()}}), with or without fares
+(\code{\link[=setup_fare_structure]{setup_fare_structure()}}, \code{\link[=read_fare_structure]{read_fare_structure()}},
+\code{\link[=write_fare_structure]{write_fare_structure()}}, \code{\link[=pareto_frontier]{pareto_frontier()}}) and scenarios of car
+speeds and traffic stress. It inspects a network with \code{\link[=find_snap]{find_snap()}},
+\code{\link[=street_network_bbox]{street_network_bbox()}}, \code{\link[=street_network_to_sf]{street_network_to_sf()}},
+\code{\link[=transit_network_to_sf]{transit_network_to_sf()}}, \code{\link[=check_transit_availability]{check_transit_availability()}} and
+\code{\link[=get_gtfs_errors]{get_gtfs_errors()}}. The routing engine is written in 'Rust' and runs
+inside the R session; no 'Java' is needed. What the engine cannot do
+exactly is an error, never silently ignored.
 }
-\details{
-The functions have the names, arguments and defaults of the 'r5r' package
-(2.5.0), and the engine is a port of 'R5' 7.6, the engine r5r drives, so
-the results are the same.
+\section{Compatibility with r5r}{
+
+The engine is a port of Conveyal's 'R5' 7.6, the engine the 'r5r'
+package drives, and the package exports the 22 functions of r5r 2.5.0
+with their arguments and defaults, so the results are r5r's (compared
+with \code{identical()} in the tests). r5r's functions that manage 'Java' and
+the R5 jar (\code{\link[=setup_r5]{setup_r5()}}, \code{\link[=stop_r5]{stop_r5()}}, \code{\link[=download_r5]{download_r5()}}, \code{\link[=r5r_cache]{r5r_cache()}},
+\code{\link[=r5r_sitrep]{r5r_sitrep()}}) are kept so that r5r scripts run. See
+the article "Coming from r5r" on the package website for the differences.
 }
+
 \section{Sample data}{
 
 \code{system.file("extdata/spo", package = "peabiru")} holds a small network

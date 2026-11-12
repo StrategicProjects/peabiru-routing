@@ -4,12 +4,13 @@
 \alias{street_network_to_sf}
 \title{Extract OpenStreetMap network in sf format}
 \usage{
-street_network_to_sf(r5r_network, r5r_core = deprecated())
+street_network_to_sf(r5r_network, r5r_core)
 }
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
-\item{r5r_core}{Deprecated, as in r5r: the network, with a warning.}
+\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
+accepted with a warning.}
 }
 \value{
 A list with two \code{sf} data frames in WGS 84: \code{vertices}
@@ -17,15 +18,20 @@ A list with two \code{sf} data frames in WGS 84: \code{vertices}
 \code{geometry}, and \code{edges} (\code{LINESTRING}), with columns \code{edge_index},
 \code{osm_id}, \code{from_vertex}, \code{to_vertex}, \code{street_class}, \code{length} (meters),
 \code{walk}, \code{car}, \code{car_speed} (km/h), \code{bicycle}, \code{bicycle_lts} and
-\code{geometry}. Package 'sf' is needed. r5r's \code{edges} is also a
-\code{data.table}; the columns and values are the same.
+\code{geometry}. Package 'sf' is needed.
 }
 \description{
-The street network in \code{sf} format, as \code{r5r::street_network_to_sf()}
-returns it: the vertices at the ends of street edges and every directed
-street edge (the connectors of transit stops and park-and-rides left
-out), in r5r's order.
+The street network in \code{sf} format: the vertices at the ends of street
+edges and every directed street edge (the connectors of transit stops
+and park-and-rides left out), in the order of the network's edge index.
 }
+\section{Compatibility with r5r}{
+
+The arguments and the result are those of \code{r5r::street_network_to_sf()}
+in r5r 2.5.0: the same rows in the same order, columns and values;
+\code{edges} is an \code{sf} \code{data.frame}, where r5r's is also a \code{data.table}.
+}
+
 \examples{
 \dontshow{if (requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 data_path <- system.file("extdata/spo", package = "peabiru")
@@ -36,8 +42,10 @@ head(street_net$edges)
 }
 \seealso{
 Other network functions:
+\code{\link[=build_network]{build_network()}},
 \code{\link[=check_transit_availability]{check_transit_availability()}},
 \code{\link[=find_snap]{find_snap()}},
+\code{\link[=get_gtfs_errors]{get_gtfs_errors()}},
 \code{\link[=street_network_bbox]{street_network_bbox()}},
 \code{\link[=transit_network_to_sf]{transit_network_to_sf()}}
 }
