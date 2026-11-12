@@ -110,8 +110,22 @@ dtype: object
 
 <!-- diff:error-classes -->
 - **Errors are Python exceptions** with r5r's messages, word for word
-  (checkmate's and cli's), except where the network class is named
-  (`peabiru.Network`): `TypeError` for an argument of the wrong type,
+  (checkmate's and cli's) in Python's terms (`None` for `NULL`, `bool`,
+  `str`, `float`, `int` and `datetime` for R's types, positions counted
+  from 1 as in R, cli's bullets and line breaks dropped), except where the
+  network class is named (`peabiru.Network`) and in a few cases worded
+  differently on purpose:
+  r5r turns numbers and logical values given as a mode (`mode`, `mode_egress`,
+  `by`) into text and reports the text as not a mode, where Python reports
+  the value's type; `arrival_datetime` is checked itself (R and r5r check
+  the departure, `arrival_datetime - max_trip_duration`); `all_to_all` is
+  named as such (R names the internal `unique_ids`); and a missing
+  `fare_cutoffs` is the default. Every other argument error is
+  r5r's text in Python's terms: the test suite checks 1,367 cases, shared by
+  the three packages (`bench/compare/argument_errors.json`, written from
+  the R package by `bench/compare/argument_errors.R`), and lists these
+  exceptions there.
+  Classes: `TypeError` for an argument of the wrong type,
   `ValueError` for an invalid value, `RuntimeError` for a file that cannot
   be read or a network that cannot be built, and
   [`peabiru.UnsupportedError`][peabiru.UnsupportedError] (a

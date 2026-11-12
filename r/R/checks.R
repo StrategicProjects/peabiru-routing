@@ -67,7 +67,7 @@ assert_network <- function(x) {
 
 # An argument peabiru does not support yet: always an error, never ignored.
 unsupported <- function(what, instead = "") {
-  stop(what, " is not supported by peabiru yet", instead, ".", call. = FALSE)
+  stop(what, " is not supported by peabiru", instead, ".", call. = FALSE)
 }
 
 # lifecycle::deprecated() and lifecycle::is_present(), without depending on

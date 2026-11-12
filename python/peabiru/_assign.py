@@ -16,6 +16,7 @@ from typing import Any, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
+from . import _checkmate as cm
 from ._checks import (
     as_strings,
     assert_count,
@@ -25,6 +26,7 @@ from ._checks import (
     assert_number,
     assert_string,
     fail_assert,
+    scalar,
     unique,
     unsupported,
 )
@@ -155,6 +157,16 @@ class ModeList:
     transit: bool
 
 
+def check_destination_ids(d: "Points") -> None:
+    """r5r's Java side fails on a missing destination id
+    (NullPointerException): an error here, as in the R package."""
+    if any(i is None or (isinstance(i, float) and math.isnan(i)) for i in d.ids):
+        raise ValueError(
+            "'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing "
+            "destination id in Java)."
+        )
+
+
 def _set(values: Sequence[str]) -> str:
     """checkmate's set_collapse(): {'a','b'}"""
     return "{" + ",".join(f"'{v}'" for v in unique(list(values))) + "}"
@@ -173,22 +185,19 @@ def _val(values: Sequence[Any]) -> str:
 def assign_mode(mode: Any, mode_egress: Any) -> ModeList:
     """r5r assign_mode()."""
     all_modes = R5R_TRANSIT_MODES + R5R_DIRECT_MODES
-    modes = unique([m.upper() for m in as_strings(mode, "mode")])
-    extra = [m for m in modes if m not in all_modes]
-    if extra:
-        fail_assert("mode", "Names must be a subset of " + _set(all_modes)
-                    + ", but has additional elements " + _set(extra))
-
-    # as in r5r, unique() comes before the check, so a repeated mode passes
-    if isinstance(mode_egress, (list, tuple)) and all(isinstance(m, str) for m in mode_egress):
-        repeated = unique([m.upper() for m in mode_egress])
-        if len(repeated) == 1:
-            mode_egress = repeated[0]
-    assert_string(mode_egress, "mode_egress")
-    egress = mode_egress.upper()
-    if egress not in ("WALK", "BICYCLE", "CAR"):
-        fail_assert("mode_egress", "Names must be a subset of {'WALK','BICYCLE','CAR'}, "
-                    "but has additional elements " + _set([egress]))
+    # as in r5r, unique() and toupper() come before the checks, so a
+    # repeated mode is accepted
+    mode = cm.to_upper_unique(mode)
+    cm.cm_assert_and(
+        "mode",
+        cm.check_character(mode, min_len=1, any_missing=False),
+        lambda: cm.check_names(mode, subset_of=all_modes),
+    )
+    modes = [str(m) for m in cm.Vec(mode).values]
+    mode_egress = cm.to_upper_unique(mode_egress)
+    cm.cm_assert(cm.check_string(mode_egress), "mode_egress")
+    cm.cm_assert(cm.check_names(mode_egress, subset_of=["WALK", "BICYCLE", "CAR"]), "mode_egress")
+    egress = str(scalar(mode_egress))
 
     direct = [m for m in modes if m in R5R_DIRECT_MODES]
     transit = [m for m in modes if m in R5R_TRANSIT_MODES]
@@ -242,12 +251,12 @@ def assign_departure(
             datetime = _dt.datetime.now()
         else:
             raise ValueError(
-                f"You must pass a '{name}' for public transport routing. Results "
+                "You must pass a 'departure_datetime' for public transport routing. Results "
                 "depend on the departure time. Supply an explicit datetime value "
                 "to make results reproducible."
             )
-    if not _is_datetime(datetime):
-        fail_assert(name, "Must be a single datetime.datetime without missing values", TypeError)
+    cm.cm_assert(cm.check_datetime(datetime, len_=1, any_missing=False), name)
+    datetime = scalar(datetime)
     d = datetime
     return Departure(
         date=f"{d.year:04d}-{d.month:02d}-{d.day:02d}",
@@ -274,10 +283,12 @@ def assign_max_street_time(
     """r5r assign_max_street_time()"""
     var = f"max_{mode}_time"
     assert_number(max_time, var, lower=1)
+    max_time = scalar(max_time)
     if math.isfinite(float(max_time)):
         assert_count(max_time, var, positive=True)
     assert_number(speed, f"{mode}_speed", finite=True, none_ok=True)
     assert_count(max_trip_duration, "max_trip_duration", positive=True)
+    speed, max_trip_duration = scalar(speed), scalar(max_trip_duration)
     if speed is not None and speed <= 0:
         raise ValueError(f"Assertion on '{mode}_speed' failed: Must have value greater than 0.")
     if math.isinf(float(max_time)):
@@ -295,7 +306,7 @@ def assign_max_trip_duration(
     """r5r assign_max_trip_duration(): with a street mode alone, the mode's
     own limit caps the trip."""
     assert_count(max_trip_duration, "max_trip_duration", positive=True)
-    mtd = int(round(max_trip_duration))
+    mtd = int(round(scalar(max_trip_duration)))
     if not modes.transit:
         if modes.direct_modes == "WALK" and max_walk_time < mtd:
             mtd = max_walk_time
@@ -308,25 +319,17 @@ def assign_max_trip_duration(
 
 def assign_opportunities(df: pd.DataFrame, colnames: Any) -> Tuple[List[str], List[bytes]]:
     """r5r assign_opportunities(): numeric columns, NA counted as 0."""
-    msg = "Must be a character vector of unique names without missing values"
-    names = as_strings(colnames, "opportunities_colnames") if colnames is not None else []
-    if not names or len(set(names)) < len(names):
-        fail_assert("opportunities_colnames", msg)
-    missing = [c for c in names if c not in df.columns]
-    if missing:
-        fail_assert(
-            "destinations",
-            "Names must include the elements {"
-            + ",".join(f"'{c}'" for c in names)
-            + "}, but is missing elements {"
-            + ",".join(f"'{c}'" for c in missing)
-            + "}",
-        )
+    cm.cm_assert(
+        cm.check_character(colnames, min_len=1, unique=True, any_missing=False),
+        "opportunities_colnames",
+    )
+    names = [str(c) for c in cm.Vec(colnames).values]
+    cm.cm_assert(cm.check_names(list(map(str, df.columns)), must_include=names), "destinations")
     out = []
     for c in names:
         col = df[c]
         if not pd.api.types.is_numeric_dtype(col) or pd.api.types.is_bool_dtype(col):
-            fail_assert(c, "Must be of type 'numeric'", TypeError)
+            fail_assert(c, f"Must be of type 'numeric', not '{col.dtype}'", TypeError)
         x = col.to_numpy(dtype=np.float64, na_value=np.nan)
         if np.isinf(x).any():
             fail_assert(c, "Must be finite")
@@ -345,11 +348,14 @@ DECAY_FUNCTIONS = ["step", "exponential", "fixed_exponential", "linear", "logist
 
 def assign_decay_function(decay_function: Any, decay_value: Any) -> Tuple[str, float]:
     """r5r assign_decay_function()"""
-    assert_string(decay_function, "decay_function")
-    if decay_function not in DECAY_FUNCTIONS:
-        fail_assert("decay_function", "Names must be a subset of " + _set(DECAY_FUNCTIONS)
-                    + ", but has additional elements " + _set([decay_function]))
+    cm.cm_assert_and(
+        "decay_function",
+        cm.check_string(decay_function),
+        lambda: cm.check_names(decay_function, subset_of=DECAY_FUNCTIONS),
+    )
+    decay_function = str(scalar(decay_function))
     assert_number(decay_value, "decay_value", finite=True, none_ok=True)
+    decay_value = scalar(decay_value)
 
     if decay_value is not None and decay_function in ("step", "exponential"):
         raise ValueError(
@@ -416,6 +422,7 @@ def assign_n_threads(n_threads: Any) -> int:
     if n_threads is None:
         return 0
     assert_number(n_threads, "n_threads", lower=1)
+    n_threads = scalar(n_threads)
     if math.isinf(float(n_threads)):
         return 0
     assert_count(n_threads, "n_threads", positive=True)
@@ -426,13 +433,14 @@ def check_speed(speed: Any, mode: str) -> None:
     """r5r set_speed()"""
     name = f"{mode}_speed"
     assert_number(speed, name, finite=True)
-    if speed <= 0:
+    if scalar(speed) <= 0:
         raise ValueError(f"Assertion on '{name}' failed: Must have value greater than 0.")
 
 
 def check_max_lts(max_lts: Any) -> None:
     """r5r set_max_lts()"""
     assert_count(max_lts, "max_lts", positive=True)
+    max_lts = scalar(max_lts)
     if max_lts < 1 or max_lts > 4:
         raise ValueError(
             f"{_num(max_lts)} is not a valid value for the maximum Level of Transit "
@@ -467,7 +475,7 @@ def check_draws(draws_per_minute: Any, time_window: Any = 1, mcraptor: bool = Fa
     assert_count(draws_per_minute, "draws_per_minute", positive=True)
     if not mcraptor:
         return
-    dpm, tw = int(round(draws_per_minute)), float(time_window)
+    dpm, tw = int(round(scalar(draws_per_minute))), float(scalar(time_window))
     draws = int(tw * dpm)
     if draws == 200:
         raise ValueError(
@@ -496,7 +504,7 @@ def check_draws(draws_per_minute: Any, time_window: Any = 1, mcraptor: bool = Fa
 
 def seed_arg(seed: Any) -> Optional[int]:
     assert_int(seed, "seed", none_ok=True)
-    return None if seed is None else int(round(seed))
+    return None if seed is None else int(round(scalar(seed)))
 
 
 def check_messages(verbose: Any, progress: Any) -> None:
@@ -550,5 +558,5 @@ def seconds_to_hhmmss(s: np.ndarray) -> np.ndarray:
 
 
 def _num(x: Any) -> str:
-    x = float(x)
-    return str(int(x)) if x.is_integer() else repr(x)
+    """A number as R prints it."""
+    return cm.r_num(x)

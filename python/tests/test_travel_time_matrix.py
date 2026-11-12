@@ -171,9 +171,12 @@ def test_arguments_are_checked_as_r5r_checks_them(network, points, departure):
         call(mode="PLANE")
     with pytest.raises(TypeError, match="mode"):
         call(mode=["WALK", 1])
-    # as in r5r, a repeated egress mode is one mode
-    assert len(call(mode="WALK", mode_egress=["WALK", "walk"])) == len(call(mode="WALK"))
-    with pytest.raises(TypeError, match="mode_egress"):
+    # as in r5r (toupper(unique(x))), a repeated egress mode is one mode,
+    # but unique() comes first: "WALK" and "walk" are two
+    assert len(call(mode="WALK", mode_egress=["WALK", "WALK"])) == len(call(mode="WALK"))
+    with pytest.raises(ValueError, match="'mode_egress' failed: Must have length 1"):
+        call(mode="WALK", mode_egress=["WALK", "walk"])
+    with pytest.raises(ValueError, match="mode_egress"):
         call(mode="WALK", mode_egress=["WALK", "CAR"])
     with pytest.raises(ValueError, match="length <= 5"):
         call(percentiles=[1, 2, 3, 4, 5, 6])
@@ -291,6 +294,12 @@ def test_time_window_longer_than_a_day_is_accepted(network, points, departure):
     assert ttm["travel_time_p50"].tolist() == [0, 7]
 
 
+# Shared CI runners stall for seconds at a time: the bounds get slack there
+# (as in the R package's tests). The calls take far longer than any of them
+# when they are not stopped.
+CI_SLACK = 4.0 if os.environ.get("CI") else 0.0
+
+
 def _long_calls(network, points):
     """One call per routing entry point, each taking several seconds at one
     thread on the sample network."""
@@ -346,13 +355,21 @@ def test_ctrl_c_interrupts_a_long_call(network, points, call):
         time.sleep(0.3)
         os.kill(os.getpid(), signal.SIGINT)
 
+    # the clocks start before the timer, so the interrupt cannot come
+    # before 0.3 s on them
+    t0, c0 = time.perf_counter(), time.process_time()
     threading.Thread(target=fire).start()
-    t0 = time.perf_counter()
     with pytest.raises(KeyboardInterrupt):
         run()
     elapsed = time.perf_counter() - t0
-    # uninterrupted, each call takes several seconds
-    assert 0.3 <= elapsed < 1.3
+    cpu = time.process_time() - c0
+    assert elapsed >= 0.3
+    # uninterrupted, each call takes several seconds of CPU. The bound is on
+    # the CPU time of the process (all its threads): on a loaded machine the
+    # wall clock runs on while the process waits for a core, and the time
+    # between two checks of the cancel token grows with it, but the work
+    # done between them does not
+    assert cpu < 1.3 + CI_SLACK, (elapsed, cpu)
     # the session goes on: the next call runs to the end
     m = peabiru.travel_time_matrix(network, points, points, mode="WALK", n_threads=1)
     assert len(m) > 0
@@ -368,10 +385,11 @@ def test_an_exception_from_a_signal_handler_stops_a_long_call(network, points):
 
     old = signal.signal(signal.SIGUSR1, handler)
     try:
+        run = _long_calls(network, points)["transit_matrix"]
+        c0 = time.process_time()
         threading.Timer(0.3, os.kill, (os.getpid(), signal.SIGUSR1)).start()
-        t0 = time.perf_counter()
         with pytest.raises(Stop):
-            _long_calls(network, points)["transit_matrix"]()
-        assert time.perf_counter() - t0 < 1.3
+            run()
+        assert time.process_time() - c0 < 1.3 + CI_SLACK
     finally:
         signal.signal(signal.SIGUSR1, old)

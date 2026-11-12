@@ -429,18 +429,19 @@ fn direct_trip(
 
 /// Detailed itineraries between each origin and the destination of the
 /// same index (`origins[i]` to `destinations[i]`, `(lat, lon)` degrees), as
-/// r5r 2.5.0's `detailed_itineraries()` without fares, `all_to_all = FALSE`
-/// (pair the points beforehand for `all_to_all`): per pair its itineraries
-/// in r5r's order, none when no trip is found (r5r then has no rows).
+/// r5r 2.5.0's `detailed_itineraries()` with `all_to_all = FALSE` (pair the
+/// points beforehand for `all_to_all`): per pair its itineraries in r5r's
+/// order, none when no trip is found (r5r then has no rows).
 ///
 /// Without public transport (`p.transit_modes` empty) the itinerary is the
 /// street path by `p.mode`. With it, `transit` must hold the network's
-/// public transport, and the result is the faster of the direct trip and
-/// the fastest public transport trip over the window (`shortest_path`).
-/// Errors: invalid parameters, `shortest_path = false` with public
-/// transport (McRAPTOR, not ported), a network with frequency-based trips
-/// (r5r refuses them too), cancellation, and the rare cases noted in the
-/// error message that R5 does not route reproducibly. The notes of
+/// public transport; with `shortest_path` and no fare structure the result
+/// is the faster of the direct trip and the fastest public transport trip
+/// over the window (FastRaptor), otherwise the trips McRAPTOR finds, with
+/// their fares when `p.fare_structure` is given.
+/// Errors: invalid parameters, a network with frequency-based trips (r5r
+/// refuses them too), cancellation, and the rare cases noted in the error
+/// message that R5 does not route reproducibly. The notes of
 /// [`detailed_itineraries_noted`] are dropped.
 pub fn detailed_itineraries(
     net: &StreetNetwork,

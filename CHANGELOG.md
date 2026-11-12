@@ -42,6 +42,7 @@ routing and network functions (without r5r's functions for Java).
   result in r5r depends on the searches that ran before (they were
   refused).
 - `write_fare_structure()` deflates the archive, as r5r's does.
+- "is not supported by peabiru yet" is now "is not supported by peabiru".
 
 ### Rust crate and CLI
 
@@ -73,6 +74,15 @@ routing and network functions (without r5r's functions for Java).
 - The text columns of fare-structure tables have `object` dtype, as in every
   other result.
 - A test compares every function's arguments with r5r 2.5.0's.
+- Argument errors are r5r's messages in Python's terms (a port of the R
+  package's checkmate checks, `peabiru._checkmate`): a test checks 1,367
+  cases shared with the R and JavaScript packages
+  (`bench/compare/argument_errors.json`). A list of one value counts as
+  that value, as a vector of one in R. As in R: a missing destination id is
+  an error; `isochrone()` with no origins is an error; `write_fare_structure()`
+  checks the structure; the engine's refusals are `UnsupportedError`s.
+- Ctrl-C tests bound the CPU time of the interrupted call, not the wall
+  time, so a loaded machine no longer fails them.
 - Docs: guides on itineraries, fares, elevation, scenarios, network
   inspection and GTFS errors; every function's docstring has a doctested
   example and a "Compatibility with r5r" note; "Coming from r5r / r5py"
@@ -85,6 +95,13 @@ routing and network functions (without r5r's functions for Java).
   `findSnap()`, `streetNetworkBbox()`, `streetNetworkToSf()`,
   `transitNetworkToSf()`, `checkTransitAvailability()`, `getGtfsErrors()`;
   `tif` and `elevation` in `buildNetwork()`, `network.r5rWarnings()`.
+- Argument errors are r5r's messages in JavaScript's terms, with the
+  options in camelCase (engine errors too), checked on the 1,367 cases shared
+  with the R and Python packages; every function refuses options r5r's
+  function does not have (`detailedItineraries()` took `drawsPerMinute` and
+  `seed` and ignored them). As in R: a missing destination id is an error;
+  `isochrone()` with no origins is an error; the engine's refusals are
+  `UnsupportedError`s.
 - Fixed: `paretoFrontier()` defaults to `mode: ["WALK", "TRANSIT"]`, as r5r;
   `getGtfsErrors()` copes with very long lists of errors.
 - Guide: pages on itineraries, elevation, scenarios, inspecting a network

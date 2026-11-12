@@ -204,7 +204,7 @@ test("bad arguments are errors, never ignored", async () => {
   }
   // the core's own checks come back with its message
   await assert.rejects(() => peabiru.travelTimeMatrix(net, pts, pts, { mode: "TRANSIT", departureDatetime: DEPARTURE, timeWindow: 100000, drawsPerMinute: 1000 }),
-    /time_window x draws_per_minute/,
+    /timeWindow x drawsPerMinute/,
   );
 });
 

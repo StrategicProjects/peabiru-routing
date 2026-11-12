@@ -116,8 +116,24 @@ r5r's.
   printed: no progress counter, no report of the build.
 
 <!-- diff:error-classes -->
-- **Errors**: argument errors give the messages of r5r's checks, with the
-  option names in camelCase, as a `TypeError` (a value of the wrong type)
+- **Errors**: argument errors give the messages of r5r's checks in
+  JavaScript's terms (`null`, `boolean`, `string`, `number`, `Date`,
+  `Array`; positions counted from 1 as in R; cli's bullets and line breaks
+  dropped), with the option names in camelCase, except in a few cases
+  worded differently on purpose:
+  r5r turns numbers and logical values given as a mode (`mode`, `modeEgress`,
+  `by`) into text and reports the text as not a mode, where JavaScript reports
+  the value's type; `arrivalDatetime` is checked itself (R and r5r check
+  the departure, `arrival_datetime - max_trip_duration`); `allToAll` is
+  named as such (R names the internal `unique_ids`); and a missing
+  `fareCutoffs` is the default, and `departureDatetime` also takes a string
+  `"YYYY-MM-DD HH:MM:SS"`, so a string that is not one says what it must
+  be. Every other argument error is
+  r5r's text in JavaScript's terms: the test suite checks 1,367 cases, shared by
+  the three packages (`bench/compare/argument_errors.json`, written from
+  the R package by `bench/compare/argument_errors.R`), and lists these
+  exceptions there.
+  Errors are a `TypeError` (a value of the wrong type)
   or a `RangeError` (a value out of range); what peabiru does not do is an
   [`UnsupportedError`](api.md#UnsupportedError); what the engine finds
   wrong in the data (a fare structure, a scenario, a GTFS feed, a raster)

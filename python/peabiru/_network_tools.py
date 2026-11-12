@@ -12,9 +12,10 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 
+from . import _checkmate as cm
 from . import _peabiru
 from ._assign import assign_points_input
-from ._checks import assert_string, core_errors, fail_assert, is_number
+from ._checks import assert_string, core_errors, fail_assert, is_number, scalar
 from ._network import Network, PathLike, assert_network
 from ._routing import _f64, _i32, _strings
 
@@ -89,25 +90,18 @@ def find_snap(
     True
     """
     assert_network(r5r_network)
-    # checkmate::assert_numeric(radius, lower = 0, finite = TRUE, max.len = 1)
-    if not is_number(radius):
-        fail_assert("radius", "Must be of type 'numeric'", TypeError)
-    radius = float(radius)
-    if np.isinf(radius):
-        fail_assert("radius", "Must be finite")
-    if radius < 0:
-        fail_assert("radius", "Element 1 is not >= 0")
-    if np.isnan(radius):
+    cm.cm_assert(cm.check_numeric(radius, lower=0, finite=True, max_len=1), "radius")
+    modes = ["WALK", "BICYCLE", "CAR"]
+    cm.cm_assert_and("mode", cm.check_string(mode), lambda: cm.check_names(mode, subset_of=modes))
+    mode = str(scalar(mode))
+    p_ = cm.Vec(radius)
+    if len(p_) == 0:
+        # r5r hands Java a zero-length radius; it fails there
+        raise ValueError("'radius' must be a single number.")
+    if p_.type == "missing":
         # checkmate lets NA through and R5 then snaps nothing
         radius = 0.0
-    modes = ["WALK", "BICYCLE", "CAR"]
-    assert_string(mode, "mode")
-    if mode not in modes:
-        fail_assert(
-            "mode",
-            "Must be a subset of {'WALK','BICYCLE','CAR'}, but has additional "
-            f"elements {{'{mode}'}}",
-        )
+    radius = float(scalar(radius))
     p = assign_points_input(points, "points")
     with core_errors("find_snap"):
         r = _peabiru.find_snap(r5r_network._core, p.lat_bytes(), p.lon_bytes(), radius, mode)
@@ -350,29 +344,32 @@ _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _parse_dates(x: Any, arg: str) -> List[_dt.date]:
-    """r5r's parse_date_input(): ``"YYYY-MM-DD"`` strings or dates."""
-    values = [x] if isinstance(x, (str, _dt.date)) else list(x)
+    """r5r's parse_date_input(): ``"YYYY-MM-DD"`` strings or dates (a
+    datetime counts as its date)."""
+    v = cm.Vec(x)
+    # strings and dates, mixed as Python lists may mix them
+    if v.type not in ("character", "Date", "POSIXct") and not (
+        v.type == "list" and all(isinstance(d, (str, _dt.date)) for d in v.values)
+    ):
+        raise TypeError(f"'{arg}' must be a vector of character strings or Date objects.")
+    texts = [d for d in v.values if isinstance(d, str)]
+    if not all(_ISO.match(d) for d in texts):
+        raise ValueError(
+            f"Invalid date format found in '{arg}'. Please use the strict \"'YYYY-MM-DD'\" "
+            "format for all date strings."
+        )
     out: List[_dt.date] = []
-    for v in values:
-        if isinstance(v, _dt.datetime):
-            out.append(v.date())
-        elif isinstance(v, _dt.date):
-            out.append(v)
-        elif isinstance(v, str):
-            if not _ISO.match(v):
-                raise ValueError(
-                    f"Invalid date format found in `{arg}`. Please use the strict "
-                    "'YYYY-MM-DD' format for all date strings."
-                )
-            try:
-                out.append(_dt.date.fromisoformat(v))
-            except ValueError:
-                raise ValueError(
-                    f"Could not parse all values in `{arg}`. One or more dates are "
-                    "logically invalid (e.g., '2025-02-29')."
-                ) from None
-        else:
-            raise TypeError(f"`{arg}` must be a vector of character strings or Date objects.")
+    for d in v.values:
+        if isinstance(d, _dt.date):
+            out.append(d.date() if isinstance(d, _dt.datetime) else d)
+            continue
+        try:
+            out.append(_dt.date.fromisoformat(d))
+        except ValueError:
+            raise ValueError(
+                f"Could not parse all values in '{arg}'. One or more dates are "
+                "logically invalid (e.g., '2025-02-29')."
+            ) from None
     return out
 
 
@@ -434,8 +431,8 @@ def check_transit_availability(
     if not (discover or vector or range_):
         raise ValueError(
             "Incorrect date arguments provided. Omit all date arguments for discovery, "
-            "or use one of these methods: use the `dates` argument to provide a vector "
-            "of specific dates, or use both `start_date` and `end_date` to provide a "
+            "or use one of these methods: Use the 'dates' argument to provide a vector "
+            "of specific dates. Use both 'start_date' and 'end_date' to provide a "
             "continuous date range. You cannot mix these methods or provide an "
             "incomplete date range."
         )

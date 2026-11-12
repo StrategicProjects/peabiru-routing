@@ -17,8 +17,10 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 
+from . import _checkmate as cm
 from . import _peabiru
 from ._assign import (
+    check_destination_ids,
     assign_departure,
     assign_mode,
     assign_n_threads,
@@ -38,6 +40,7 @@ from ._checks import (
     assert_string,
     core_errors,
     fail_assert,
+    scalar,
     unsupported,
 )
 from ._network import Network, assert_network
@@ -209,18 +212,15 @@ def setup_fare_structure(
     [4.4, 4.4, 4.4]
     """
     assert_network(r5r_network)
-    if isinstance(base_fare, bool) or not isinstance(base_fare, (int, float, np.number)):
-        fail_assert("base_fare", "Must be of type 'numeric'")
-    if math.isnan(float(base_fare)):
-        fail_assert("base_fare", "Contains missing values (element 1)")
-    if float(base_fare) < 0:
-        fail_assert("base_fare", "Element 1 is not >= 0")
-    assert_string(by, "by")
-    by = by.upper()
-    options = ["MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC"]
-    if by not in options:
-        fail_assert("by", "Must be a subset of {'" + "','".join(options) + "'}, but has "
-                    f"additional elements {{'{by}'}}")
+    cm.cm_assert(cm.check_numeric(base_fare, lower=0, len_=1, any_missing=False), "base_fare")
+    base_fare = float(scalar(base_fare))
+    by_options = ["MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC"]
+    # toupper(by): None and [] are character(0)
+    vb = cm.Vec(by)
+    if vb.type == "NULL" or len(vb) == 0 or (vb.type == "character" and len(vb) == 1):
+        by = cm.to_upper_unique(by)
+    cm.cm_assert_and("by", cm.check_string(by), lambda: cm.check_names(by, subset_of=by_options))
+    by = str(scalar(by))
     assert_string(debug_path, "debug_path", none_ok=True)
     if debug_path is not None and not str(debug_path).endswith(".csv"):
         fail_assert("debug_path", "Must comply to pattern '\\.csv$'")
@@ -282,9 +282,15 @@ def write_fare_structure(fare_structure: FareStructure, file_path: PathArg) -> P
     >>> peabiru.write_fare_structure(fares, path) == path
     True
     """
+    if file_path is None:
+        fail_assert("file_path", "Must be of type 'string', not 'None'", TypeError)
     p = os.fspath(file_path)
     if not p.endswith(".zip"):
         fail_assert("file_path", "Must comply to pattern '\\.zip$'")
+    # r5r checks nothing and fails while writing (or writes tables recycled
+    # to the wrong length): the structure is checked, as the routing
+    # functions check it
+    assert_fare_structure(fare_structure)
     with core_errors("write_fare_structure"):
         data = _peabiru.fare_write(_to_core(fare_structure))
     with open(p, "wb") as f:
@@ -383,11 +389,11 @@ def fare_arg(fare_structure: Any, max_fare: Any, network: Network) -> Optional[D
         with core_errors("fare_structure"):
             _peabiru.fare_check(network._core, core)
     assert_number(max_fare, "max_fare", lower=0)
-    if math.isfinite(float(max_fare)) and fare_structure is None:
+    if math.isfinite(float(scalar(max_fare))) and fare_structure is None:
         raise ValueError(
-            f"'max_fare' requires a 'fare_structure': 'max_fare' is {max_fare} but "
-            "'fare_structure' is None, so no fares are calculated and the limit would be "
-            "ignored. Pass a fare structure (see setup_fare_structure()) or leave "
+            f"'max_fare' requires a 'fare_structure'. 'max_fare' is {cm.r_num(scalar(max_fare))} "
+            "but 'fare_structure' is None, so no fares are calculated and the limit would be "
+            "ignored. Pass a fare structure (see 'setup_fare_structure()') or leave "
             "'max_fare' as math.inf."
         )
     return core
@@ -485,6 +491,7 @@ def pareto_frontier(
                          "frontier, e.g. the fares of your 'fare_structure'.")
     o = assign_points_input(origins, "origins")
     d = assign_points_input(destinations, "destinations")
+    check_destination_ids(d)
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
     assert_network(r5r_network)
@@ -534,18 +541,9 @@ def pareto_frontier(
 
 def _fare_cutoffs(fare_cutoffs: Any) -> List[float]:
     """r5r set_fare_cutoffs(): numeric, at least one, no NA, >= 0, unique."""
-    if isinstance(fare_cutoffs, (int, float, np.number)) and not isinstance(fare_cutoffs, bool):
-        fare_cutoffs = [fare_cutoffs]
-    try:
-        values = [float(v) for v in fare_cutoffs]
-    except (TypeError, ValueError):
-        fail_assert("fare_cutoffs", "Must be of type 'numeric'", TypeError)
-    if len(values) < 1:
-        fail_assert("fare_cutoffs", "Must have length >= 1, but has length 0")
-    if any(math.isnan(v) for v in values):
-        fail_assert("fare_cutoffs", "Contains missing values")
-    if any(v < 0 for v in values):
-        fail_assert("fare_cutoffs", "Element is not >= 0")
-    if len(set(values)) != len(values):
-        fail_assert("fare_cutoffs", "Contains duplicated values")
+    cm.cm_assert(
+        cm.check_numeric(fare_cutoffs, lower=0, any_missing=False, min_len=1, unique=True),
+        "fare_cutoffs",
+    )
+    values = [float(v) for v in cm.Vec(fare_cutoffs).values]
     return values

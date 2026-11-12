@@ -173,12 +173,274 @@ export class UnsupportedError extends Error {
 }
 
 function unsupported(what, instead = "") {
-  throw new UnsupportedError(`${what} is not supported by peabiru yet${instead}.`);
+  throw new UnsupportedError(`${what} is not supported by peabiru${instead}.`);
 }
 
 function fail(name, msg, Kind = RangeError) {
   throw new Kind(`Assertion on '${name}' failed: ${msg}.`);
 }
+
+// ---------------------------------------------------------------------------
+// A port of the R package's port of checkmate (r/R/checkmate.R), so that the
+// same values are accepted and rejected, with r5r's messages in JavaScript's
+// terms: values are read as R vectors (null and undefined are NULL; a
+// boolean, number, string or Date is a vector of one; an array or typed
+// array is a vector of its elements, with NaN, null and invalid Dates
+// missing; an empty array is R's numeric(0); a mix of kinds is a list), and
+// types are named 'boolean', 'number', 'string', 'Date', 'null' and
+// 'Array' (see bench/compare/argument_errors.json, whose "js" rules turn
+// R's messages into these). Positions count from 1, as in R.
+
+const isNA = (v) => v === null || v === undefined || (typeof v === "number" && Number.isNaN(v)) ||
+  (v instanceof Date && Number.isNaN(v.getTime()));
+
+function kindOf(v) {
+  if (isNA(v)) return null;
+  if (typeof v === "boolean") return "logical";
+  if (typeof v === "number") return "double";
+  if (typeof v === "string") return "character";
+  if (v instanceof Date) return "POSIXct";
+  return "other";
+}
+
+const JS_NAMES = { NULL: "null", logical: "boolean", double: "number", character: "string", list: "Array", POSIXct: "Date" };
+
+/** R's character(0), as toupper() makes of NULL or an empty vector. */
+const CHR0 = Object.freeze({ chr0: true });
+
+class Vec {
+  constructor(x) {
+    this.x = x;
+    this.cls = null;
+    if (x === null || x === undefined) {
+      this.type = "NULL";
+      this.values = [];
+      return;
+    }
+    if (x === CHR0) {
+      this.type = "character";
+      this.values = [];
+      return;
+    }
+    let values;
+    if (["boolean", "number", "string"].includes(typeof x) || x instanceof Date) values = [x];
+    else if (Array.isArray(x) || ArrayBuffer.isView(x)) values = Array.from(x);
+    else {
+      this.type = "other";
+      this.values = [x];
+      this.cls = typeof x === "object" ? "object" : typeof x;
+      return;
+    }
+    this.values = values;
+    const kinds = new Set(values.map(kindOf).filter((k) => k !== null));
+    if (kinds.size === 0) this.type = "missing";
+    else if (kinds.size === 1 && !kinds.has("other")) this.type = [...kinds][0];
+    else this.type = "list";
+  }
+
+  get length() {
+    return this.values.length;
+  }
+
+  numeric() {
+    return this.type === "double" || (this.type === "missing" && this.values.length === 0);
+  }
+
+  na() {
+    return this.values.map(isNA);
+  }
+
+  guess() {
+    if (this.cls !== null) return this.cls;
+    if (this.type === "missing") {
+      return this.values.length === 0 || this.values.some((v) => typeof v === "number") ? "number" : "boolean";
+    }
+    return JS_NAMES[this.type] ?? this.type;
+  }
+}
+
+/** A number as R prints it: 15 significant digits, scientific when shorter. */
+function rNum(x) {
+  if (Number.isNaN(x)) return "NaN";
+  if (x === Infinity) return "Inf";
+  if (x === -Infinity) return "-Inf";
+  if (x === 0) return "0";
+  const [m0, e0] = x.toExponential(14).split("e");
+  const m = m0.replace(/0+$/, "").replace(/\.$/, "");
+  const exp = Number(e0);
+  const sci = `${m}e${exp < 0 ? "-" : "+"}${String(Math.abs(exp)).padStart(2, "0")}`;
+  const digits = m.replace("-", "").replace(".", "").length;
+  let fixed = x.toFixed(Math.min(100, Math.max(0, digits - 1 - exp)));
+  if (fixed.includes(".")) fixed = fixed.replace(/0+$/, "").replace(/\.$/, "");
+  return fixed.length > sci.length ? sci : fixed;
+}
+
+const cm = {
+  typeMsg: (v, expected, nullOk = false) =>
+    `Must be of type '${expected}'${nullOk ? " (or 'null')" : ""}, not '${v.guess()}'`,
+  integerish(v) {
+    if (v.type === "missing") return ["ok", 0];
+    if (v.type !== "double") return ["type", 0];
+    for (let i = 0; i < v.values.length; i++) {
+      const x = v.values[i];
+      if (isNA(x)) continue;
+      if (x <= -2147483648 || x > 2147483647) return ["range", i + 1];
+      if (Math.abs(x - Math.round(x)) > TOL) return ["tol", i + 1];
+    }
+    return ["ok", 0];
+  },
+  checkLen(v, len, minLen, maxLen) {
+    const n = v.length;
+    if (len !== undefined && n !== len) return `Must have length ${rNum(len)}, but has length ${n}`;
+    if (minLen !== undefined && n < minLen) return `Must have length >= ${rNum(minLen)}, but has length ${n}`;
+    if (maxLen !== undefined && n > maxLen) return `Must have length <= ${rNum(maxLen)}, but has length ${n}`;
+    return true;
+  },
+  checkMissings(v, anyMissing = true, allMissing = true) {
+    const na = v.na();
+    if (!anyMissing && na.some(Boolean)) return `Contains missing values (element ${na.indexOf(true) + 1})`;
+    if (!allMissing && v.type !== "list" && na.every(Boolean)) return "Contains only missing values";
+    return true;
+  },
+  checkBounds(v, lower = -Infinity, upper = Infinity) {
+    if (!v.numeric()) return true;
+    const xs = v.values.map((x, i) => [i + 1, x]).filter(([, x]) => !isNA(x));
+    if (Number.isFinite(lower) || lower === Infinity) {
+      for (const [i, x] of xs) if (x < lower) return `Element ${i} is not >= ${rNum(lower)}`;
+    }
+    if (Number.isFinite(upper) || upper === -Infinity) {
+      for (const [i, x] of xs) if (x > upper) return `Element ${i} is not <= ${rNum(upper)}`;
+    }
+    return true;
+  },
+  checkUnique(v, unique = false) {
+    if (!unique) return true;
+    const seen = [];
+    for (let i = 0; i < v.values.length; i++) {
+      const x = v.values[i];
+      const k = isNA(x) ? "NA" : x instanceof Date ? x.getTime() : x;
+      if (seen.includes(k)) return `Contains duplicated values, position ${i + 1}`;
+      seen.push(k);
+    }
+    return true;
+  },
+  vectorChecks(v, { len, minLen, maxLen, anyMissing = true, allMissing = true, lower, upper, finite = false, unique = false } = {}) {
+    for (const r of [cm.checkLen(v, len, minLen, maxLen), cm.checkMissings(v, anyMissing, allMissing), cm.checkBounds(v, lower, upper)]) {
+      if (r !== true) return r;
+    }
+    if (finite && v.numeric() && v.values.some((x) => !isNA(x) && !Number.isFinite(x))) return "Must be finite";
+    return cm.checkUnique(v, unique);
+  },
+  checkNumeric(x, o = {}) {
+    const v = new Vec(x);
+    if (v.type === "NULL") return o.nullOk ? true : "Must be of type 'number', not 'null'";
+    if (!(v.numeric() || v.type === "missing")) return cm.typeMsg(v, "number", o.nullOk);
+    return cm.vectorChecks(v, o);
+  },
+  checkIntegerish(x, o = {}) {
+    const v = new Vec(x);
+    if (v.type === "NULL") return o.nullOk ? true : "Must be of type 'integerish', not 'null'";
+    const [err, pos] = cm.integerish(v);
+    if (err === "type") return cm.typeMsg(v, "integerish", o.nullOk);
+    if (err === "range") return `Must be of type 'integerish', but element ${pos} is not in integer range`;
+    if (err === "tol") return `Must be of type 'integerish', but element ${pos} is not close to an integer`;
+    return cm.vectorChecks(v, { ...o, finite: false });
+  },
+  checkCharacter(x, o = {}) {
+    const v = new Vec(x);
+    if (v.type === "NULL") return o.nullOk ? true : "Must be of type 'string', not 'null'";
+    if (!(v.type === "character" || v.type === "missing")) return cm.typeMsg(v, "string", o.nullOk);
+    return cm.vectorChecks(v, { ...o, lower: undefined, upper: undefined, finite: false });
+  },
+  checkLogical(x, o = {}) {
+    const v = new Vec(x);
+    if (v.type === "NULL") return o.nullOk ? true : "Must be of type 'boolean', not 'null'";
+    if (!(v.type === "logical" || v.type === "missing")) return cm.typeMsg(v, "boolean", o.nullOk);
+    return cm.vectorChecks(v, { len: o.len, minLen: o.minLen, maxLen: o.maxLen, anyMissing: o.anyMissing, allMissing: o.allMissing });
+  },
+  /** The checks of a scalar: NA first, then the type, then the length. */
+  scalarHead(v, expected, okType, nullOk) {
+    if (v.length === 1 && v.type === "missing") return "May not be NA";
+    if (v.type === "NULL") return nullOk ? null : `Must be of type '${expected}', not 'null'`;
+    if (!okType) return cm.typeMsg(v, expected, nullOk);
+    if (v.length !== 1) return "Must have length 1";
+    return true;
+  },
+  checkCount(x, positive = false) {
+    const v = new Vec(x);
+    const h = cm.scalarHead(v, "count", cm.integerish(v)[0] === "ok", false);
+    if (h !== true) return h;
+    if (Math.trunc(v.values[0]) < (positive ? 1 : 0)) return `Must be >= ${positive ? 1 : 0}`;
+    return true;
+  },
+  checkInt(x, nullOk = false) {
+    const v = new Vec(x);
+    const h = cm.scalarHead(v, "single integerish value", cm.integerish(v)[0] === "ok", nullOk);
+    return h === null ? true : h;
+  },
+  checkNumber(x, { lower = -Infinity, upper = Infinity, finite = false, nullOk = false } = {}) {
+    const v = new Vec(x);
+    const h = cm.scalarHead(v, "number", v.numeric(), nullOk);
+    if (h !== true) return h === null ? true : h;
+    if (finite && !Number.isFinite(v.values[0])) return "Must be finite";
+    return cm.checkBounds(v, lower, upper);
+  },
+  checkString(x, nullOk = false) {
+    const v = new Vec(x);
+    const h = cm.scalarHead(v, "string", v.type === "character", nullOk);
+    return h === null ? true : h;
+  },
+  text(v) {
+    if (isNA(v)) return typeof v === "number" ? "NaN" : "NA";
+    if (typeof v === "number") return rNum(v);
+    return String(v);
+  },
+  setCollapse(values) {
+    if (!values.length) return "{}";
+    return `{'${[...new Set(values.map(cm.text))].join("','")}'}`;
+  },
+  checkNames(x, { subsetOf, mustInclude, what = "names" } = {}) {
+    const v = new Vec(x);
+    if (!["character", "NULL"].includes(v.type) && !(v.type === "missing" && v.length === 0)) return "Must be a character vector";
+    if (v.type === "NULL") return `Must have ${what}`;
+    const na = v.na();
+    if (na.some(Boolean)) return `Must have ${what}, but is NA at position ${na.indexOf(true) + 1}`;
+    for (let i = 0; i < v.length; i++) if (v.values[i].length < 1) return `Must have ${what}, but element ${i + 1} is empty`;
+    const cap = (s) => s[0].toUpperCase() + s.slice(1);
+    if (subsetOf !== undefined) {
+      const extra = v.values.filter((s) => !subsetOf.includes(s));
+      if (extra.length) return `${cap(what)} must be a subset of ${cm.setCollapse(subsetOf)}, but has additional elements ${cm.setCollapse(extra)}`;
+    }
+    if (mustInclude !== undefined) {
+      const missing = mustInclude.filter((m) => !v.values.includes(m));
+      if (missing.length) return `${cap(what)} must include the elements ${cm.setCollapse(mustInclude)}, but is missing elements ${cm.setCollapse(missing)}`;
+    }
+    return true;
+  },
+  /**
+   * r5r's toupper(unique(x)) on a mode: strings upper-cased, repeats dropped
+   * first; null and [] are character(0); anything else as given (R turns
+   * numbers and booleans into text, JavaScript reports their type).
+   */
+  upperUnique(x) {
+    if (x === null || x === undefined) return CHR0;
+    const v = new Vec(x);
+    if (v.type === "missing" && v.length === 0) return CHR0;
+    if (v.type !== "character") return x;
+    return [...new Set(v.values)].map((s) => s.toUpperCase());
+  },
+  /** checkmate's error: a TypeError about the type, else a RangeError. */
+  assert(res, name) {
+    if (res === true) return;
+    const m = String(res);
+    const Kind = m.startsWith("Must be of type") || m.startsWith("Must be a character vector") ? TypeError : RangeError;
+    throw new Kind(`Assertion on '${name}' failed: ${m}.`);
+  },
+  /** checkmate::assert(..., combine = "and"): the first failing check. */
+  assertAnd(name, ...checks) {
+    for (const c of checks) cm.assert(typeof c === "function" ? c() : c, name);
+  },
+};
 
 function fmt(x) {
   if (x === Infinity) return "Inf";
@@ -188,74 +450,46 @@ function fmt(x) {
 
 const isNumber = (x) => typeof x === "number";
 const isIntegerish = (x) => Number.isFinite(x) && Math.abs(x - Math.round(x)) < TOL;
+/** The one element of a value that passed a scalar check ([5] is 5, as c(5) in R). */
+const scalar = (x) => (x === CHR0 ? undefined : Array.isArray(x) || ArrayBuffer.isView(x) ? x[0] : x);
 
 function assertNumber(x, name, { lower = -Infinity, upper = Infinity, finite = false, nullOk = false } = {}) {
-  if (x === null || x === undefined) {
-    if (nullOk) return;
-    fail(name, "Must be of type 'number', not 'null'", TypeError);
-  }
-  if (!isNumber(x)) fail(name, "Must be of type 'number'", TypeError);
-  if (Number.isNaN(x)) fail(name, "May not be NA");
-  if (finite && !Number.isFinite(x)) fail(name, "Must be finite");
-  if (x < lower) fail(name, `Element 1 is not >= ${fmt(lower)}`);
-  if (x > upper) fail(name, `Element 1 is not <= ${fmt(upper)}`);
+  cm.assert(cm.checkNumber(x, { lower, upper, finite, nullOk }), name);
 }
 
 function assertCount(x, name, positive = false) {
-  if (!isNumber(x)) fail(name, "Must be of type 'count'", TypeError);
-  if (Number.isNaN(x)) fail(name, "May not be NA");
-  if (!isIntegerish(x) || Math.abs(x) > INT_MAX) fail(name, "Must be of type 'count'", TypeError);
-  if (x < (positive ? 1 : 0)) fail(name, `Must be >= ${positive ? 1 : 0}`);
+  cm.assert(cm.checkCount(x, positive), name);
 }
 
 function assertInt(x, name, nullOk = false) {
-  if ((x === null || x === undefined) && nullOk) return;
-  if (!isNumber(x) || !isIntegerish(x) || Math.abs(x) > INT_MAX) {
-    fail(name, "Must be a single integerish value", TypeError);
-  }
+  cm.assert(cm.checkInt(x, nullOk), name);
 }
 
 function numberList(x, name, kind) {
-  if (isNumber(x)) return [x];
-  if (x === null || typeof x !== "object" || typeof x[Symbol.iterator] !== "function") {
-    fail(name, `Must be of type '${kind}'`, TypeError);
-  }
-  const values = Array.from(x);
-  if (!values.every(isNumber)) fail(name, `Must be of type '${kind}'`, TypeError);
-  return values;
+  const v = new Vec(x);
+  if (!(v.numeric() || v.type === "missing")) cm.assert(cm.typeMsg(v, kind), name);
+  return v.values.map((e) => (isNA(e) ? NaN : e));
 }
 
-function assertIntegerish(x, name, { lower = -Infinity, upper = Infinity, minLen = 0, maxLen = Infinity, unique = false, nullOk = false } = {}) {
-  if (x === null || x === undefined) {
-    if (nullOk) return null;
-    fail(name, "Must be of type 'integerish', not 'null'", TypeError);
-  }
-  const values = numberList(x, name, "integerish");
-  if (!values.every((v) => Number.isNaN(v) || isIntegerish(v))) fail(name, "Must be of type 'integerish'", TypeError);
-  if (values.some(Number.isNaN)) fail(name, "Contains missing values");
-  if (values.length < minLen) fail(name, `Must have length >= ${minLen}`);
-  if (values.length > maxLen) fail(name, `Must have length <= ${fmt(maxLen)}`);
-  if (values.some((v) => v < lower)) fail(name, `All elements must be >= ${fmt(lower)}`);
-  if (values.some((v) => v > upper)) fail(name, `All elements must be <= ${fmt(upper)}`);
-  if (unique && new Set(values).size < values.length) fail(name, "Contains duplicated values");
-  return values.map((v) => Math.round(v));
+function assertIntegerish(x, name, { lower = -Infinity, upper = Infinity, minLen, maxLen, unique = false, nullOk = false } = {}) {
+  cm.assert(cm.checkIntegerish(x, {
+    lower, upper, anyMissing: false, minLen, maxLen: maxLen === Infinity ? undefined : maxLen, unique, nullOk,
+  }), name);
+  if (x === null || x === undefined) return null;
+  return new Vec(x).values.map((v) => Math.round(v));
 }
 
 function assertFlag(x, name) {
-  if (typeof x !== "boolean") fail(name, "Must be a single true or false", TypeError);
+  cm.assert(cm.checkLogical(x, { len: 1, anyMissing: false }), name);
 }
 
 function assertString(x, name) {
-  if (typeof x !== "string") fail(name, "Must be a single string", TypeError);
+  cm.assert(cm.checkString(x), name);
 }
 
 function asStrings(x, name) {
-  if (typeof x === "string") return [x];
-  const msg = "Must be of type 'character' with at least 1 element and no missing values";
-  if (x === null || typeof x !== "object" || typeof x[Symbol.iterator] !== "function") fail(name, msg, TypeError);
-  const values = Array.from(x);
-  if (values.length < 1 || !values.every((v) => typeof v === "string")) fail(name, msg, TypeError);
-  return values;
+  cm.assert(cm.checkCharacter(x, { minLen: 1, anyMissing: false }), name);
+  return new Vec(x).values.map(String);
 }
 
 const uniq = (values) => [...new Set(values)];
@@ -352,17 +586,14 @@ const DIRECT_MODES = ["WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK"];
 /** r5r assign_mode(). */
 function assignMode(mode, modeEgress) {
   const all = [...TRANSIT_MODES, ...DIRECT_MODES];
-  const modes = uniq(asStrings(mode, "mode").map((m) => m.toUpperCase()));
-  const setOf = (v) => `{${uniq(v).map((m) => `'${m}'`).join(",")}}`;
-  const extra = modes.filter((m) => !all.includes(m));
-  if (extra.length) fail("mode", `Names must be a subset of ${setOf(all)}, but has additional elements ${setOf(extra)}`);
-  if (Array.isArray(modeEgress) && modeEgress.every((m) => typeof m === "string")) {
-    const repeated = uniq(modeEgress.map((m) => m.toUpperCase()));
-    if (repeated.length === 1) modeEgress = repeated[0];
-  }
-  assertString(modeEgress, "modeEgress");
-  const egress = modeEgress.toUpperCase();
-  if (!["WALK", "BICYCLE", "CAR"].includes(egress)) fail("modeEgress", `Names must be a subset of {'WALK','BICYCLE','CAR'}, but has additional elements {'${egress}'}`);
+  // as in r5r, unique() and toupper() come before the checks
+  const m = cm.upperUnique(mode);
+  cm.assertAnd("mode", cm.checkCharacter(m, { minLen: 1, anyMissing: false }), () => cm.checkNames(m, { subsetOf: all }));
+  const modes = new Vec(m).values;
+  const e = cm.upperUnique(modeEgress);
+  cm.assert(cm.checkString(e), "modeEgress");
+  cm.assert(cm.checkNames(e, { subsetOf: ["WALK", "BICYCLE", "CAR"] }), "modeEgress");
+  const egress = scalar(e);
 
   let direct = modes.filter((m) => DIRECT_MODES.includes(m));
   const transit = modes.filter((m) => TRANSIT_MODES.includes(m));
@@ -427,11 +658,25 @@ function assignDeparture(datetime, modeList, name = "departureDatetime") {
     if (!modeList.transit) datetime = new Date();
     else {
       throw new RangeError(
-        `You must pass a '${name}' for public transport routing. Results depend on the departure time. Supply an explicit datetime value to make results reproducible.`,
+        "You must pass a 'departureDatetime' for public transport routing. Results depend on the departure time. Supply an explicit Date value to make results reproducible.",
       );
     }
   }
+  if (typeof datetime !== "string" && !(datetime instanceof Date)) {
+    cm.assert(dateCheck(datetime), name);
+    datetime = scalar(datetime);
+  }
   return departureOf(clockParts(datetime, name));
+}
+
+/** check_posixct(len = 1, any.missing = FALSE) on a value that is not a string. */
+function dateCheck(x) {
+  const v = new Vec(x);
+  if (v.type === "NULL") return "Must be of type 'Date', not 'null'";
+  if (v.type !== "POSIXct" && !(v.type === "missing" && v.values.some((d) => d instanceof Date))) {
+    return cm.typeMsg(v, "Date");
+  }
+  return cm.vectorChecks(v, { len: 1, anyMissing: false });
 }
 
 /**
@@ -821,6 +1066,38 @@ function revive({ name, message }) {
   const e = new Kind(message);
   if (e.name !== name) e.name = name;
   return e;
+}
+
+/** r5r's Java side fails on a missing destination id: an error here, as in R. */
+function destinationIds(d) {
+  if (d.ids.some((i) => i === null || i === undefined)) {
+    throw new RangeError("'destinations.id' cannot be missing (r5r 2.5.0 fails on a missing destination id in Java).");
+  }
+}
+
+// the engine's parameter names that are not the options'
+const CORE_NAMES = { walk_speed_kmh: "walkSpeed", bike_speed_kmh: "bikeSpeed", max_trip_duration_min: "maxTripDuration" };
+const snakeCase = (s) => s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+
+/**
+ * An error of the engine in the terms of the options: its parameter names,
+ * which are r5r's (snake_case), in camelCase; its refusals ("not
+ * supported: ...") as UnsupportedError.
+ */
+function engineError(e) {
+  if (!(e instanceof Error) || e.name === "AbortError") return e;
+  const options = new Set([...Object.keys(DEFAULTS), "fareStructure", "maxFare", "fareCutoffs", "suboptimalMinutes",
+    "shortestPath", "allToAll", "dropGeometry", "osmLinkIds", "opportunitiesColnames", "decayFunction", "decayValue",
+    "cutoffs", "breakdown", "arrivalDatetime", "zoom", "polygonOutput", "radius", "baseFare"].map(snakeCase));
+  let message = e.message.replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/g, (w) => {
+    if (Object.hasOwn(CORE_NAMES, w)) return CORE_NAMES[w];
+    return options.has(w) ? w.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()) : w;
+  });
+  if (/^not supported: /.test(message) && !(e instanceof UnsupportedError)) return new UnsupportedError(message);
+  if (message === e.message) return e;
+  const out = new (Object.getPrototypeOf(e).constructor)(message);
+  if (out.name !== e.name) out.name = e.name;
+  return out;
 }
 
 function abortError(signal) {
@@ -1222,6 +1499,14 @@ export class Network {
 
   /** @internal `RAW[fn](network, ...args)` on one instance: inline, or on one worker. */
   async _one(fn, args, signal) {
+    try {
+      return await this.#one(fn, args, signal);
+    } catch (e) {
+      throw engineError(e);
+    }
+  }
+
+  async #one(fn, args, signal) {
     this.#alive();
     if (signal && signal.aborted) throw abortError(signal);
     if (this.#raw) return RAW[fn](this.#raw, ...args);
@@ -1246,6 +1531,14 @@ export class Network {
    * the same workers when they are idle (see Pool.pump()).
    */
   async _route(fn, o, args, nThreads, signal, key) {
+    try {
+      return await this.#route(fn, o, args, nThreads, signal, key);
+    } catch (e) {
+      throw engineError(e);
+    }
+  }
+
+  async #route(fn, o, args, nThreads, signal, key) {
     this.#alive();
     if (signal && signal.aborted) throw abortError(signal);
     if (this.#raw) return [{ offset: 0, result: RAW[fn](this.#raw, ...args(o.lat, o.lon)) }];
@@ -1408,6 +1701,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
   const warn = warner(opt);
   let o = pointsInput(origins, "origins", warn);
   let d = pointsInput(destinations, "destinations", warn);
+  destinationIds(d);
   const modeList = assignMode(opt.mode, opt.modeEgress);
   const departure = assignDeparture(opt.departureDatetime, modeList);
   assertNetwork(network);
@@ -1549,9 +1843,9 @@ async function fareArg(fareStructure, maxFare, network, signal) {
     await network._one("fare_check", [core], signal);
   }
   assertNumber(maxFare, "maxFare", { lower: 0 });
-  if (Number.isFinite(maxFare) && core === null) {
+  if (Number.isFinite(scalar(maxFare)) && core === null) {
     throw new RangeError(
-      `'maxFare' requires a 'fareStructure': 'maxFare' is ${maxFare} but 'fareStructure' is null, so no fares are calculated and the limit would be ignored. Pass a fare structure (see setupFareStructure()) or leave 'maxFare' as Infinity.`,
+      `'maxFare' requires a 'fareStructure'. 'maxFare' is ${rNum(scalar(maxFare))} but 'fareStructure' is null, so no fares are calculated and the limit would be ignored. Pass a fare structure (see 'setupFareStructure()') or leave 'maxFare' as Infinity.`,
     );
   }
   return core;
@@ -1599,14 +1893,15 @@ export async function setupFareStructure(network, baseFare, options = {}) {
     if (!["by", "debugPath", "debugInfo"].includes(k)) throw new TypeError(`unknown option '${k}'`);
   }
   assertNetwork(network);
-  if (typeof baseFare !== "number") fail("baseFare", "Must be of type 'numeric'", TypeError);
-  if (Number.isNaN(baseFare)) fail("baseFare", "Contains missing values (element 1)");
-  if (baseFare < 0) fail("baseFare", "Element 1 is not >= 0");
+  cm.assert(cm.checkNumeric(baseFare, { lower: 0, len: 1, anyMissing: false }), "baseFare");
+  baseFare = scalar(baseFare);
   const options_ = ["MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC"];
-  const by = o.by === undefined ? "MODE" : o.by;
-  assertString(by, "by");
-  const byU = by.toUpperCase();
-  if (!options_.includes(byU)) fail("by", `Must be a subset of {'${options_.join("','")}'}, but has additional elements {'${byU}'}`);
+  let by = o.by === undefined ? "MODE" : o.by;
+  // toupper(by): null and [] are character(0)
+  const vb = new Vec(by);
+  if (vb.type === "NULL" || vb.length === 0 || (vb.type === "character" && vb.length === 1)) by = cm.upperUnique(by);
+  cm.assertAnd("by", cm.checkString(by), () => cm.checkNames(by, { subsetOf: options_ }));
+  const byU = scalar(by);
   let debugPath = o.debugPath === undefined ? null : o.debugPath;
   let debugInfo = o.debugInfo === undefined ? null : o.debugInfo;
   if (debugPath !== null) {
@@ -1670,6 +1965,7 @@ export async function paretoFrontier(network, origins, destinations, options) {
   const warn = warner(opt);
   const o = pointsInput(origins, "origins", warn);
   const d = pointsInput(destinations, "destinations", warn);
+  destinationIds(d);
   const modeList = assignMode(opt.mode, opt.modeEgress);
   const departure = assignDeparture(opt.departureDatetime, modeList);
   assertNetwork(network);
@@ -1681,11 +1977,8 @@ export async function paretoFrontier(network, origins, destinations, options) {
   const seed = commonChecks({ ...opt, drawsPerMinute: 1 });
   const core = await fareArg(opt.fareStructure, Infinity, network, opt.signal);
   checkOutputDir(opt.outputDir);
-  const cutoffs = numberList(opt.fareCutoffs, "fareCutoffs", "numeric");
-  if (!cutoffs.length) fail("fareCutoffs", "Must have length >= 1, but has length 0");
-  if (cutoffs.some(Number.isNaN)) fail("fareCutoffs", "Contains missing values");
-  if (cutoffs.some((v) => v < 0)) fail("fareCutoffs", "Element is not >= 0");
-  if (new Set(cutoffs).size !== cutoffs.length) fail("fareCutoffs", "Contains duplicated values");
+  cm.assert(cm.checkNumeric(opt.fareCutoffs, { lower: 0, anyMissing: false, minLen: 1, unique: true }), "fareCutoffs");
+  const cutoffs = new Vec(opt.fareCutoffs).values;
   const parts = await network._route(
     "pareto", o,
     (olat, olon) => [
@@ -1741,9 +2034,8 @@ function assignCutoffs(cutoffs, fun) {
 
 /** r5r assign_opportunities(): numeric columns, NA counted as 0. */
 function opportunityColumns(d, colnames, warn) {
-  const msg = "Must be a character vector of unique names without missing values";
-  const names = colnames === null || colnames === undefined ? [] : asStrings(colnames, "opportunitiesColnames");
-  if (!names.length || new Set(names).size < names.length) fail("opportunitiesColnames", msg);
+  cm.assert(cm.checkCharacter(colnames, { minLen: 1, unique: true, anyMissing: false }), "opportunitiesColnames");
+  const names = new Vec(colnames).values;
   const flat = new Float64Array(names.length * d.length);
   const missing = names.filter((c) => (Array.isArray(d.points) ? d.length > 0 && !(c in (d.points[0] || {})) : d.points[c] === undefined));
   if (missing.length) {
@@ -1780,6 +2072,7 @@ export async function accessibility(network, origins, destinations, options) {
   assertNetwork(network);
   const o = pointsInput(origins, "origins", warn);
   const d = pointsInput(destinations, "destinations", warn);
+  destinationIds(d);
   const opp = opportunityColumns(d, opt.opportunitiesColnames, warn);
   const modeList = assignMode(opt.mode, opt.modeEgress);
   const departure = assignDeparture(opt.departureDatetime, modeList);
@@ -1889,6 +2182,7 @@ export async function expandedTravelTimeMatrix(network, origins, destinations, o
   const warn = warner(opt);
   const o = pointsInput(origins, "origins", warn);
   const d = pointsInput(destinations, "destinations", warn);
+  destinationIds(d);
   const modeList = assignMode(opt.mode, opt.modeEgress);
   checkExpandedMode(modeList);
   const departure = assignDeparture(opt.departureDatetime, modeList);
@@ -1927,6 +2221,7 @@ export async function arrivalTravelTimeMatrix(network, origins, destinations, op
   assertNetwork(network);
   const o = pointsInput(origins, "origins", warn);
   const d = pointsInput(destinations, "destinations", warn);
+  destinationIds(d);
   const modeList = assignMode(opt.mode, opt.modeEgress);
   checkExpandedMode(modeList);
   const lim = streetLimits(opt, modeList);
@@ -1993,7 +2288,8 @@ export async function detailedItineraries(network, origins, destinations, option
   const opt = withDefaults(
     options,
     { suboptimalMinutes: 0, shortestPath: true, allToAll: false, fareStructure: null, maxFare: Infinity, dropGeometry: false, osmLinkIds: false },
-    [...COMMON, "departureDatetime", "timeWindow"],
+    // r5r's detailed_itineraries() has no draws_per_minute or seed
+    [...COMMON.filter((k) => k !== "drawsPerMinute" && k !== "seed"), "departureDatetime", "timeWindow"],
   );
   const warn = warner(opt);
   assertNetwork(network);
@@ -2107,16 +2403,14 @@ const ISOCHRONE = [
 
 /** r5r's checks of the cutoffs: the cutoffs with 0, sorted and distinct, and the trip limit. */
 function isochroneCutoffs(cutoffs) {
-  // checkmate::assert_numeric(cutoffs, lower = 0, finite = TRUE, any.missing = FALSE, min.len = 1)
-  const values = numberList(cutoffs, "cutoffs", "numeric");
-  if (!values.length) fail("cutoffs", "Must have length >= 1");
-  if (values.some(Number.isNaN)) fail("cutoffs", "Contains missing values");
-  if (values.some((v) => !Number.isFinite(v))) fail("cutoffs", "Must be finite");
-  if (values.some((v) => v < 0)) fail("cutoffs", "All elements must be >= 0");
-  // the largest cutoff is the trip limit (as.integer() truncates)
-  const limit = Math.trunc(Math.max(...values));
+  cm.assert(cm.checkNumeric(cutoffs, { lower: 0, finite: true, anyMissing: false, minLen: 1 }), "cutoffs");
+  const values = new Vec(cutoffs).values;
+  // the largest cutoff is the trip limit (as.integer() truncates; NA out of
+  // the integer range, which the trip limit's check then refuses)
+  const top = Math.max(...values);
+  const limit = top <= INT_MAX ? Math.trunc(top) : NaN;
   const cuts = [...new Set([0, ...values])].sort((a, b) => a - b);
-  if (cuts.length < 2) throw new RangeError("`cutoffs` must contain at least one value greater than 0.");
+  if (cuts.length < 2) throw new RangeError("'cutoffs' must contain at least one value greater than 0.");
   return { cuts, limit };
 }
 
@@ -2165,11 +2459,15 @@ export async function isochrone(network, origins, options) {
 
 async function isochronePolygons(network, origins, opt, cuts, limit, warn) {
   const percentiles = opt.percentiles === null || opt.percentiles === undefined ? 50 : opt.percentiles;
-  assertNumber(opt.zoom, "zoom", { lower: 9, upper: 12 });
+  cm.assert(cm.checkNumeric(opt.zoom, { lower: 9, upper: 12, len: 1 }), "zoom");
+  // r5r lets a fractional or missing zoom through to R5
   assertInt(opt.zoom, "zoom");
+  opt.zoom = scalar(opt.zoom);
   // r5r's travel_time_surface(), routed past max(cutoffs) so the outer band
   // is interpolated like the inner ones
   const o = pointsInput(origins, "origins", warn);
+  // r5r fails on origins without rows (an internal R error); an error here, as in R
+  if (o.length === 0) throw new RangeError("'origins' has no rows.");
   const modeList = assignMode(opt.mode, opt.modeEgress);
   const departure = assignDeparture(opt.departureDatetime, modeList);
   const lim = streetLimits({ ...opt, maxTripDuration: limit + 10 }, modeList);
@@ -2281,16 +2579,14 @@ export async function findSnap(network, points, options) {
   assertNetwork(network);
   let radius = opt.radius === undefined ? 1600 : opt.radius;
   const mode = opt.mode === undefined ? "WALK" : opt.mode;
-  // checkmate::assert_numeric(radius, lower = 0, finite = TRUE, max.len = 1)
-  if (!isNumber(radius)) fail("radius", "Must be of type 'numeric'", TypeError);
-  if (radius === Infinity || radius === -Infinity) fail("radius", "Must be finite");
-  if (radius < 0) fail("radius", "Element 1 is not >= 0");
+  cm.assert(cm.checkNumeric(radius, { lower: 0, finite: true, maxLen: 1 }), "radius");
+  const modes = ["WALK", "BICYCLE", "CAR"];
+  cm.assertAnd("mode", cm.checkString(mode), () => cm.checkNames(mode, { subsetOf: modes }));
+  // r5r hands Java a zero-length radius; it fails there
+  if (new Vec(radius).length === 0) throw new RangeError("'radius' must be a single number.");
+  radius = scalar(radius);
   // checkmate lets NA through and R5 then snaps nothing
-  if (Number.isNaN(radius)) radius = 0;
-  assertString(mode, "mode");
-  if (!["WALK", "BICYCLE", "CAR"].includes(mode)) {
-    fail("mode", `Must be a subset of {'WALK','BICYCLE','CAR'}, but has additional elements {'${mode}'}`);
-  }
+  if (isNA(radius)) radius = 0;
   const p = pointsInput(points, "points", warn);
   const [snapLat, snapLon, distance, found] = await network._one("find_snap", [p.lat, p.lon, radius, mode], opt.signal);
   return {
@@ -2429,20 +2725,25 @@ export async function transitNetworkToSf(network, options) {
 
 /** r5r parse_date_input(): "YYYY-MM-DD" strings or Dates (their local date). */
 function parseDates(x, arg) {
-  const values = typeof x === "string" || x instanceof Date ? [x] : x !== null && typeof x === "object" && typeof x[Symbol.iterator] === "function" ? Array.from(x) : null;
-  if (values === null) throw new TypeError(`\`${arg}\` must be a vector of character strings or Date objects.`);
+  const vec = new Vec(x);
+  // strings and Dates, mixed as arrays may mix them
+  if (!["character", "POSIXct"].includes(vec.type) && !(vec.type === "list" && vec.values.every((v) => typeof v === "string" || v instanceof Date))) {
+    throw new TypeError(`'${arg}' must be a vector of character strings or Date objects.`);
+  }
+  const values = vec.values;
+  if (!values.every((v) => v instanceof Date || /^(\d{4})-(\d{2})-(\d{2})$/.test(v))) {
+    throw new RangeError(`Invalid date format found in '${arg}'. Please use the strict "'YYYY-MM-DD'" format for all date strings.`);
+  }
   return values.map((v) => {
     if (v instanceof Date) {
-      if (Number.isNaN(v.getTime())) throw new RangeError(`Could not parse all values in \`${arg}\`.`);
+      if (Number.isNaN(v.getTime())) throw new RangeError(`Could not parse all values in '${arg}'.`);
       return { y: v.getFullYear(), mo: v.getMonth() + 1, d: v.getDate() };
     }
-    if (typeof v !== "string") throw new TypeError(`\`${arg}\` must be a vector of character strings or Date objects.`);
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
-    if (!m) throw new RangeError(`Invalid date format found in \`${arg}\`. Please use the strict 'YYYY-MM-DD' format for all date strings.`);
     const [y, mo, d] = m.slice(1).map(Number);
     const t = new Date(Date.UTC(y, mo - 1, d));
     if (t.getUTCFullYear() !== y || t.getUTCMonth() !== mo - 1 || t.getUTCDate() !== d) {
-      throw new RangeError(`Could not parse all values in \`${arg}\`. One or more dates are logically invalid (e.g., '2025-02-29').`);
+      throw new RangeError(`Could not parse all values in '${arg}'. One or more dates are logically invalid (e.g., '2025-02-29').`);
     }
     return { y, mo, d };
   });
@@ -2466,7 +2767,7 @@ export async function checkTransitAvailability(network, options) {
   const discover = !has("dates") && !has("startDate") && !has("endDate");
   if (!discover && !vector && !range) {
     throw new RangeError(
-      "Incorrect date arguments provided. Omit all date arguments for discovery, or use one of these methods: use the `dates` option to provide a vector of specific dates, or use both `startDate` and `endDate` to provide a continuous date range. You cannot mix these methods or provide an incomplete date range.",
+      "Incorrect date arguments provided. Omit all date arguments for discovery, or use one of these methods: Use the 'dates' argument to provide a vector of specific dates. Use both 'startDate' and 'endDate' to provide a continuous date range. You cannot mix these methods or provide an incomplete date range.",
     );
   }
   let days;

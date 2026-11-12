@@ -204,7 +204,7 @@ test("errors from a worker keep their class and message", async () => {
     assert.fail("no error");
   };
   const want = await message(inline);
-  assert.match(want[2], /time_window x draws_per_minute/);
+  assert.match(want[2], /timeWindow x drawsPerMinute/);
   assert.deepEqual(await message(pool), want);
   // the checks on the calling side are the same with workers
   await assert.rejects(peabiru.travelTimeMatrix(pool, pts, pts, { mode: "WALK", outputDir: "out" }), peabiru.UnsupportedError);

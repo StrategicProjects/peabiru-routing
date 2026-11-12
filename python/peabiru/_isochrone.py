@@ -10,6 +10,7 @@ from typing import Any, List, Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 
+from . import _checkmate as cm
 from . import _peabiru
 from ._assign import (
     assign_departure,
@@ -19,6 +20,7 @@ from ._assign import (
 )
 from ._checks import (
     as_number_list,
+    scalar,
     assert_count,
     assert_flag,
     assert_int,
@@ -233,37 +235,36 @@ def isochrone(
     assert_network(r5r_network)
     gpd, shapely = _geo()
 
-    # checkmate::assert_numeric(cutoffs, lower = 0, finite = TRUE,
-    #                           any.missing = FALSE, min.len = 1)
-    values = as_number_list(cutoffs, "cutoffs", "numeric")
-    if len(values) < 1:
-        fail_assert("cutoffs", "Must have length >= 1")
-    if any(math.isnan(v) for v in values):
-        fail_assert("cutoffs", "Contains missing values")
-    if any(math.isinf(v) for v in values):
-        fail_assert("cutoffs", "Must be finite")
-    if any(v < 0 for v in values):
-        fail_assert("cutoffs", "All elements must be >= 0")
+    cm.cm_assert(
+        cm.check_numeric(cutoffs, lower=0, finite=True, any_missing=False, min_len=1), "cutoffs"
+    )
+    cm.cm_assert(cm.check_logical(polygon_output), "polygon_output")
+    # r5r takes anything but TRUE as FALSE and then fails on an undefined
+    # object; an error of peabiru's own here
     assert_flag(polygon_output, "polygon_output")
+    polygon_output = bool(scalar(polygon_output))
+    values = [float(v) for v in cm.Vec(cutoffs).values]
 
-    # the largest cutoff is the trip limit; the user's max_trip_duration is
-    # ignored
-    limit = int(max(values))
+    # the largest cutoff is the trip limit (as.integer(): NA out of the
+    # integer range); the user's max_trip_duration is ignored
+    top = max(values)
+    limit: Any = int(top) if top <= 2147483647 else math.nan
     cuts = sorted(set([0.0] + values))
     if len(cuts) < 2:
-        raise ValueError("`cutoffs` must contain at least one value greater than 0.")
+        raise ValueError("'cutoffs' must contain at least one value greater than 0.")
 
     if polygon_output:
         if percentiles is None:
             percentiles = 50
-        assert_number(zoom, "zoom", lower=9, upper=12)
+        cm.cm_assert(cm.check_numeric(zoom, lower=9, upper=12, len_=1), "zoom")
+        # r5r lets a fractional or missing zoom through to R5
         assert_int(zoom, "zoom")
         return _polygons(
-            gpd, shapely, r5r_network, origins, mode, mode_egress, cuts, int(round(zoom)),
+            gpd, shapely, r5r_network, origins, mode, mode_egress, cuts, int(round(scalar(zoom))),
             departure_datetime, time_window, max_walk_time, max_bike_time, max_car_time,
             # route past max(cutoffs) so the outer band is interpolated like
             # the inner ones
-            limit + 10,
+            limit + 10,  # NaN stays NaN
             walk_speed, bike_speed, max_rides, max_lts, draws_per_minute, seed,
             percentiles, n_threads, verbose, progress,
         )
@@ -288,6 +289,10 @@ def _polygons(
     """r5r's travel_time_surface() argument handling, then the core's
     surfaces and polygons."""
     o = assign_points_input(origins, "origins")
+    # r5r fails on origins without rows (an internal R error); an error here,
+    # as in R
+    if len(o) == 0:
+        raise ValueError("'origins' has no rows.")
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
     lim = _street_limits(
