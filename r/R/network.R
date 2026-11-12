@@ -90,7 +90,8 @@
 #' @param overwrite A logical. Accepted for compatibility with r5r, which uses
 #'   it to rebuild a cached `network.dat`; the network is always built anew.
 #' @param n_threads The number of threads used to read the `.pbf` file.
-#'   Defaults to `Inf`, all cores.
+#'   Defaults to `Inf`, all cores (two under `R CMD check` when it limits
+#'   the cores).
 #'
 #' @return A `peabiru_network` object to pass to the routing functions
 #'   (printing it summarises the network).

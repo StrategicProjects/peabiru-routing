@@ -89,7 +89,8 @@ in a trip. Defaults to 3.}
 a cyclist rides on (see the section "Level of traffic stress").
 Defaults to 2.}
 
-\item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores.}
+\item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores
+(two under \verb{R CMD check} when it limits the cores).}
 
 \item{verbose, progress}{Logicals, checked but without effect: no progress
 counter or routing log is printed.}

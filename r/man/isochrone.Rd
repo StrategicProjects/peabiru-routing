@@ -99,7 +99,8 @@ travel time percentiles to make polygons for (one set per percentile).
 \code{NULL} (the default) means 50. Must be \code{NULL} with
 \code{polygon_output = FALSE}.}
 
-\item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores.}
+\item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores
+(two under \verb{R CMD check} when it limits the cores).}
 
 \item{verbose, progress}{Logicals, checked but without effect: no progress
 counter or routing log is printed.}

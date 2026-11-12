@@ -32,7 +32,8 @@ of walking) or \code{"NONE"} (no slope costs).}
 it to rebuild a cached \code{network.dat}; the network is always built anew.}
 
 \item{n_threads}{The number of threads used to read the \code{.pbf} file.
-Defaults to \code{Inf}, all cores.}
+Defaults to \code{Inf}, all cores (two under \verb{R CMD check} when it limits
+the cores).}
 }
 \value{
 A \code{peabiru_network} object to pass to the routing functions

@@ -268,11 +268,26 @@ assign_percentiles <- function(percentiles) {
   sort(as.integer(percentiles))
 }
 
-# r5r set_n_threads(): Inf means all cores (0 for the core).
+# r5r set_n_threads(): Inf means all cores (0 for the core). Under R CMD
+# check with the limit on cores (_R_CHECK_LIMIT_CORES_, set by --as-cran and
+# in CRAN's incoming checks) "all cores" is two, the most CRAN allows; a
+# number given by the caller is used as it is.
 assign_n_threads <- function(n_threads) {
   assert_number(n_threads, "n_threads", lower = 1)
   if (is.finite(n_threads)) assert_count(n_threads, "n_threads", positive = TRUE)
-  if (is.infinite(n_threads)) 0L else as.integer(n_threads)
+  if (is.infinite(n_threads)) {
+    if (check_limits_cores()) 2L else 0L
+  } else {
+    as.integer(n_threads)
+  }
+}
+
+# Whether R CMD check asks packages to keep to two cores: the variable is
+# "TRUE" or "warn" then (any value but empty and a false one counts, as in
+# parallel::makeCluster()).
+check_limits_cores <- function() {
+  limit <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", ""))
+  nzchar(limit) && !limit %in% c("false", "f", "no", "n", "0")
 }
 
 # r5r set_speed()
