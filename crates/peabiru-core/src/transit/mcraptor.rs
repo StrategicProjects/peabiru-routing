@@ -139,6 +139,10 @@ struct Rider {
     board_time: i32,
     /// It boarded at the pattern's last visit to its stop.
     at_last_visit: bool,
+    /// A state that boarded the same trip before it, at the last visit to
+    /// its own stop, offers states no worse than this one's at every stop
+    /// (see [`McRaptor::ride_timetable`]).
+    shadowed: bool,
     memo: Memo,
 }
 
@@ -235,6 +239,17 @@ fn suboptimal_add(
     true
 }
 
+/// [`fare_better_or_equal`] of two states of the same time, from their
+/// fares.
+#[inline(always)]
+fn fare_no_worse(a: &FareBounds, b: &FareBounds) -> bool {
+    a.paid <= b.paid.wrapping_sub(b.value)
+        || (a.paid <= b.paid
+            && a.value >= b.value
+            && a.expiration >= b.expiration
+            && a.number >= b.number)
+}
+
 /// `FareDominatingList.betterOrEqual(a, b)`.
 #[inline(always)]
 fn fare_better_or_equal(a: &Entry, b: &Entry) -> bool {
@@ -329,6 +344,14 @@ pub(crate) struct McRaptor<'a> {
     on_board: Vec<u32>,
     /// The same along a pattern with a timetable.
     riders: Vec<Rider>,
+    /// With the fare list, [`FareCalculator::exact_within`] the rides of
+    /// a search: `ride_timetable` may then leave shadowed states behind.
+    exact_fares: bool,
+    /// Per running trip of the pattern being ridden: the fares offered by
+    /// the states on board that can shadow others (none of them no worse
+    /// than another); `shadow_trips` lists the trips with any.
+    shadow: Vec<Vec<FareBounds>>,
+    shadow_trips: Vec<u32>,
     touched_stops: Bits,
     touched_patterns: Bits,
     round: i32,
@@ -499,6 +522,10 @@ impl<'a> McRaptor<'a> {
             Dominance::Suboptimal { max_duration, .. } => max_duration,
             Dominance::Fare(_) => i32::MAX,
         };
+        let exact_fares = match dom {
+            Dominance::Fare(calc) => calc.exact_within(req.max_rides),
+            Dominance::Suboptimal { .. } => false,
+        };
         McRaptor {
             layer,
             transfers,
@@ -522,6 +549,9 @@ impl<'a> McRaptor<'a> {
             by_transfer: Bits::new(n_stops),
             on_board: Vec::new(),
             riders: Vec::new(),
+            exact_fares,
+            shadow: Vec::new(),
+            shadow_trips: Vec::new(),
             touched_stops: Bits::new(n_stops),
             touched_patterns: Bits::new(layer.patterns.len()),
             round: 0,
@@ -1056,10 +1086,59 @@ impl<'a> McRaptor<'a> {
     ///      makes the stop's bag if it has none; and gets no entry from
     ///      [`McRaptor::fare_entry`], which refuses on these same two
     ///      grounds (the time, or the same fare against the same limit)
-    ///      before any list is looked at.
+    ///      before any list is looked at;
+    ///    - (c) with the fare list and exact fares, its arrival at `pos` is
+    ///      not before the time of `s` and it is shadowed: a state `a`
+    ///      boarded the same trip `k` before it (it comes earlier in the
+    ///      order of the states on board), at the last visit to its own
+    ///      stop, and the fare `a` offers is no worse than the fare this
+    ///      one offers ([`fare_no_worse`]). At `pos` and at every later
+    ///      position both offer a state of the same time (the trip's
+    ///      arrival), `a` first. Call the two states offered at a stop
+    ///      `A` and `B`: `betterOrEqual(A, B)`, at every such stop. Then
+    ///      offering `B` changes nothing:
+    ///
+    ///      - `betterOrEqual` is transitive when fares are exact (what is
+    ///        paid less the value of the allowance is not a wrapped
+    ///        number, [`FareCalculator::exact_within`]) since the value of
+    ///        an allowance is never negative: with `X >= A` and `A >= B`,
+    ///        by the first rule both times `X.paid <= A.paid - A.value <=
+    ///        A.paid <= B.paid - B.value`; by the first then the second,
+    ///        `X.paid <= A.paid - A.value <= B.paid - B.value` (`A` pays no
+    ///        more and holds no less); by the second then the first,
+    ///        `X.paid <= A.paid <= B.paid - B.value`; by the second both
+    ///        times, each of its comparisons is transitive. The same shows
+    ///        `A.paid - A.value <= B.paid - B.value`.
+    ///      - No state of a list is better than or equal to another of the
+    ///        same list: a state enters only after a scan of the whole
+    ///        list that removed those it is better than or equal to and
+    ///        found none better than or equal to it.
+    ///      - If `A` was offered to a list, the list has from then on a
+    ///        state `X >= A`: `A` itself or the state that refused it; and
+    ///        `X` leaves a list only in the scan of a state `C >= X`,
+    ///        which then enters (`C >= A`) or is refused by a state
+    ///        `F >= C >= A` that stays.
+    ///      - So when `B` is offered to that list, with `X >= A >= B`: its
+    ///        scan stops at `X` at the latest, refused; and it removes
+    ///        nothing on the way, for a state `O` with `B >= O` would have
+    ///        `X >= O`, two states of one list.
+    ///      - `A` and `B`, both off a vehicle, are offered to the same two
+    ///        lists of the stop. When `A` is not offered to them, `B` is
+    ///        not either or is refused before them: `add_state`'s first
+    ///        two tests read the time alone (and `best_at_target`, which
+    ///        only decreases); the test on going back in time passes for
+    ///        `B` (its arrival is not before the time of its state from
+    ///        `pos` on); and `fare_entry` refuses `B` when it refuses `A`,
+    ///        on the time or because `A.paid - A.value`, hence
+    ///        `B.paid - B.value`, is over `max_fare`.
+    ///      - When `a` has itself been left behind, by (a) or (b) its
+    ///        offers would be refused on grounds that refuse `B` too, as
+    ///        just shown, and by (c) it is shadowed by a state whose fare
+    ///        is no worse than its own, hence than this one's.
     ///
     /// In every case the state offered is refused and no list changes. The
-    /// one trace (b) can skip is a bag made for a stop that has none, and
+    /// one trace (b) and (c) can skip is a bag made for a stop that has
+    /// none, and
     /// an empty bag is the same as none for all that reads the bags:
     /// `do_one_round`'s copy (no state to board with), `do_transfers` (only
     /// stops where a state was accepted), `collate` (no time for a stop
@@ -1083,6 +1162,19 @@ impl<'a> McRaptor<'a> {
         let max_fare = self.req.max_fare;
         let over =
             |memo: &Memo| matches!(memo, Some((f, _)) if f.paid.wrapping_sub(f.value) > max_fare);
+        // (c): the fares that can shadow, per trip
+        let shadowing = match self.dom {
+            Dominance::Fare(calc) if self.exact_fares => Some(calc),
+            _ => None,
+        };
+        let mut shadow = std::mem::take(&mut self.shadow);
+        let mut shadow_trips = std::mem::take(&mut self.shadow_trips);
+        for k in shadow_trips.drain(..) {
+            shadow[k as usize].clear();
+        }
+        if shadow.len() < n {
+            shadow.resize(n, Vec::new());
+        }
         states.clear();
         for (pos, &stop) in layer.patterns[pat].stops.iter().enumerate() {
             let at = pos * n;
@@ -1097,7 +1189,7 @@ impl<'a> McRaptor<'a> {
                     && (arrival > limit
                         || (fare_list
                             && arrival >= rider.s_time
-                            && (arrival > max_clock || over(&rider.memo))))
+                            && (arrival > max_clock || over(&rider.memo) || rider.shadowed)))
                 {
                     continue;
                 }
@@ -1138,18 +1230,45 @@ impl<'a> McRaptor<'a> {
                             earlier.memo = None;
                         }
                     }
+                    let at_last_visit = table.last_visit[pos];
+                    let mut memo = None;
+                    let mut shadowed = false;
+                    if let Some(calc) = shadowing {
+                        // the fare `fare_entry` would work out at the
+                        // first stop that needs it
+                        let p = calc.ride(&self.progress[s as usize], pat as i32, board_time);
+                        let f = calc.bounds(&p);
+                        memo = Some((f, p));
+                        if at_last_visit {
+                            let seen = &mut shadow[k];
+                            if seen.iter().any(|a| fare_no_worse(a, &f)) {
+                                shadowed = true;
+                            } else {
+                                // this one shadows whatever those it is
+                                // no worse than would (transitivity)
+                                if seen.is_empty() {
+                                    shadow_trips.push(k as u32);
+                                }
+                                seen.retain(|o| !fare_no_worse(&f, o));
+                                seen.push(f);
+                            }
+                        }
+                    }
                     states.push(Rider {
                         s,
                         s_time,
                         k: k as u32,
                         board_pos: pos as u32,
                         board_time,
-                        at_last_visit: table.last_visit[pos],
-                        memo: None,
+                        at_last_visit,
+                        shadowed,
+                        memo,
                     });
                 }
             }
         }
+        self.shadow = shadow;
+        self.shadow_trips = shadow_trips;
         Ok(())
     }
 
@@ -1537,7 +1656,9 @@ mod tests {
             .unwrap_or(8000);
         let cancel = CancelToken::default();
         let (mut with_states, mut with_times, mut errors, mut searches) = (0u64, 0u64, 0u64, 0u64);
-        for seed in 0..n_cases {
+        // two more networks, which caught wrong versions of the rules on the
+        // patterns that come back to a stop
+        for seed in (0..n_cases).chain([5060, 16860]) {
             let net = network(seed);
             let Ok(calc) = FareCalculator::new(&net.fares, &net.layer) else {
                 continue;

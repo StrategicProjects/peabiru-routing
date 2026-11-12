@@ -730,6 +730,29 @@ impl FareCalculator {
         self.route_class[a as usize] != self.route_class[b as usize]
     }
 
+    /// Whether the fares of trips of at most `rides` rides are far from the
+    /// ends of an `i32`, so that what is paid less the value of the
+    /// allowance (which R5's `FareDominatingList` compares) is the
+    /// difference of the two numbers, not a wrapped one. Each ride changes
+    /// what is paid by a full fare or by a transfer fare less a full fare,
+    /// and the value of an allowance is at most two full fares, all at most
+    /// `big` here; so `|paid| + |value| <= (rides + 2) * big`.
+    pub(crate) fn exact_within(&self, rides: usize) -> bool {
+        let mut full = 0i64;
+        for &(_, cents, _) in &self.patterns {
+            full = full.max(i64::from(cents).abs());
+        }
+        let mut transfer = 0i64;
+        for t in self.transfers.iter().flatten().flatten() {
+            transfer = transfer.max(i64::from(t.fare).abs());
+            full = full
+                .max(i64::from(t.first_full).abs())
+                .max(i64::from(t.second_full).abs());
+        }
+        let big = 2 * full + transfer;
+        (rides as i64 + 2).saturating_mul(big) < 1 << 30
+    }
+
     /// One more ride, `pattern` boarded at `board`, after the rides behind
     /// `s`: the first ride's setup of [`FareCalculator::fare`] when `s` has
     /// no ride, one turn of its loop otherwise. The statements are those of
