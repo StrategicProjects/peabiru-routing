@@ -277,7 +277,7 @@ every unit; the smallest time of each cell is its time to the nearest one.
 Driving is free flow (no congestion), and these networks are built without
 an elevation raster (a `.tif` raster in the data directory adds slope
 costs, see `build_network()`). The
-[terrain example](../../r/articles/terrain.html#recife-and-caruaru-as-published)
+<a href="../../r/articles/terrain.html#recife-and-caruaru-as-published">terrain example</a>
 of the R site recomputes the shares below with slopes: on foot, within 15
 minutes of a health unit, Recife goes from 75.8% to 73.7% and Caruaru from
 68.0% to 65.8%, and within 30 minutes or by bicycle very little changes.

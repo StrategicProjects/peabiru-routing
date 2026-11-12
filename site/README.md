@@ -102,6 +102,31 @@ committed); then the R article
 `recife-caruaru.Rmd` is knitted from its `.Rmd.orig`. The raw downloads stay
 in the cache, outside the repository.
 
+`bash site/figures/make.sh --capitals` draws the figures of the "Brazilian
+capitals with open GTFS" example: `site/figures/capitals-data.R` downloads
+(once, into `PEABIRU_CAPITALS_CACHE`, by default
+`tools::R_user_dir("peabiru", "cache")/capitals`, about 1 GB) Geofabrik's
+dated extract of the Sudeste, the official GTFS feeds of São Paulo (SPTrans,
+through the Mobility Database's dated copy), Rio de Janeiro (SMTR) and Belo
+Horizonte (SUMOB), IBGE's boundaries and the grid of Ipea's Access to
+Opportunities Project (aopdata release v1.0.0: population and income of the
+Censo 2010, jobs, schools and health facilities of 2019), and cuts the
+streets with osmium; it checks each feed against the SHA-256 of the file the
+figures were computed from and stops if the publisher has replaced it
+(`PEABIRU_CAPITALS_ACCEPT_NEW=true` goes on: the figures and the text of the
+pages then need revising). `site/figures/capitals.R` computes the access of
+every inhabited cell (half an hour on a laptop; kept in `<cache>/results/`
+with a log of times, delete it to compute again) and draws
+`jobs-60min-{spo,rio,bho}.svg`, `access-income-capitals.svg`,
+`access-compare-capitals.svg`, `access-aop-capitals.svg` and, on r5r's
+Porto Alegre sample with r5r's fare structure, `fare-budget-poa.svg`,
+`pareto-poa.svg` and `trip-options-poa.svg`; then the R article
+`capitals.Rmd` is knitted from its `.Rmd.orig` (another half hour: it
+computes everything again from the downloads). The Python page
+`example-capitals.md` (Belo Horizonte and the fares) runs in
+`test_docs.py` only with osmium and `PEABIRU_EXAMPLE_DATA` (the same cache
+can be reused). Nothing of the feeds or the grid is committed.
+
 The examples:
 
 - R: the pkgdown-only articles `r/vignettes/articles/isochrones.Rmd`,

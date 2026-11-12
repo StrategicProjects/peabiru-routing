@@ -14,7 +14,7 @@ health care unit.
 
 The code blocks make one script; the output shown under each block is what
 it prints, computed on 2026-11-12. It repeats, step by step, the cities of
-hills of the [R example](../../r/articles/terrain.html), and prints the same
+hills of the <a href="../../r/articles/terrain.html">R example</a>, and prints the same
 numbers; the R example also covers the Recife metropolitan region and five
 more municipalities of Pernambuco, and compares GLO-90 with GLO-30 (see
 [Which raster](#which-raster) below). It needs
@@ -196,7 +196,7 @@ radar saw, buildings and trees included. At 1 arc second (GLO-30, the same
 address with `30m` and `COG_10`) a street between towers reads metres above
 its neighbour, and since peabiru samples the raster every 10 m along each
 street, at the nearest pixel, those steps become slopes. The
-[R example](../../r/articles/terrain.html#the-elevation-model-checked-against-the-ground)
+<a href="../../r/articles/terrain.html#the-elevation-model-checked-against-the-ground">R example</a>
 measures it on a flat district of towers in Recife, where slopes should
 cost nothing: GLO-30 adds a minute to the average walk to a health unit,
 GLO-90 0.15 of a minute. So this example uses GLO-90, which averages the

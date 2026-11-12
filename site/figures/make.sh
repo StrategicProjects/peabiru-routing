@@ -6,6 +6,7 @@
 #   bash site/figures/make.sh --demo       # also the screenshot of the demo
 #   bash site/figures/make.sh --pernambuco # only the Recife and Caruaru ones
 #   bash site/figures/make.sh --terrain    # only the terrain ones
+#   bash site/figures/make.sh --capitals   # only the ones of the capitals
 #
 # --terrain runs site/figures/terrain.R: elevation in Pernambuco (the Recife
 # metropolitan region as one network, five more municipalities) and in two
@@ -20,6 +21,13 @@
 # the browser demo (site/demo/data/pe/), and knits the precomputed R article
 # r/vignettes/articles/recife-caruaru.Rmd from its .Rmd.orig. Names after it
 # select figures of pernambuco.R (pe_iso_recife, pe_share, ...).
+#
+# --capitals runs site/figures/capitals.R: São Paulo, Rio de Janeiro and Belo
+# Horizonte from their official GTFS feeds and Ipea's grid (capitals-data.R:
+# about 1 GB of downloads, cached, and osmium; half an hour of routing, kept
+# in the cache), and the fares of Porto Alegre; then it knits the precomputed
+# R article r/vignettes/articles/capitals.Rmd from its .Rmd.orig. Names after
+# it select figures of capitals.R (cap_income, cap_fare_budget, ...).
 #
 # The SVG figures are computed with the peabiru R package on the sample data
 # of Porto Alegre (r5r 2.5.0's, downloaded once into a cache directory) and
@@ -37,12 +45,14 @@ root="$(cd "$here/../.." && pwd)"
 
 demo=0
 pe=0
+capitals=0
 terrain=0
 names=()
 for a in "$@"; do
   case "$a" in
     --demo) demo=1 ;;
     --pernambuco) pe=1 ;;
+    --capitals) capitals=1 ;;
     --terrain) terrain=1 ;;
     *) names+=("$a") ;;
   esac
@@ -58,6 +68,18 @@ fi
 if [ -n "$lib" ]; then
   R_LIBS="$(cd "$lib" && pwd)${R_LIBS:+:$R_LIBS}"
   export R_LIBS
+fi
+
+if [ "$capitals" = 1 ]; then
+  Rscript "$here/capitals.R" ${names[@]+"${names[@]}"}
+  if [ ${#names[@]} -eq 0 ]; then
+    # the article reuses the downloads of capitals-data.R (PEABIRU_CAPITALS_CACHE)
+    (cd "$root/r/vignettes/articles" &&
+      PEABIRU_CAPITALS_CACHE="$(Rscript -e 'source("'"$here"'/capitals-data.R"); cat(cap_cache())')" \
+      Rscript -e 'knitr::knit("capitals.Rmd.orig", "capitals.Rmd", quiet = TRUE)')
+  fi
+  du -ch "$root"/site/assets/figures/* | tail -1
+  exit 0
 fi
 
 if [ "$terrain" = 1 ]; then
