@@ -118,8 +118,8 @@ pages then need revising). `site/figures/capitals.R` computes the access of
 every inhabited cell (half an hour to an hour on a laptop; kept in `<cache>/results/`
 with a log of times, delete it to compute again) and draws
 `jobs-60min-{spo,rio,bho}.svg`, `access-income-capitals.svg`,
-`access-compare-capitals.svg`, `access-aop-capitals.svg` and, on r5r's
-Porto Alegre sample with r5r's fare structure, `fare-budget-poa.svg`,
+`access-compare-capitals.svg`, `access-aop-capitals.svg` and, on the
+Porto Alegre sample with a fare structure by mode, `fare-budget-poa.svg`,
 `pareto-poa.svg` and `trip-options-poa.svg`; then the R article
 `capitals.Rmd` is knitted from its `.Rmd.orig` (another half hour: it
 computes everything again from the downloads). The Python page

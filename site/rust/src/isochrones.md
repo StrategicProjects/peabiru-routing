@@ -2,7 +2,7 @@
 
 <img src="../assets/figures/isochrones-by-mode.svg" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes: a small area walking, a few kilometres around the park cycling, most of the map driving, and long arms along the bus corridors with public transport." width="576" height="662">
 
-An isochrone is made in two steps, as in r5r's `isochrone()`. First a
+An isochrone is made in two steps. First a
 **travel-time surface**: the time from each origin to every cell of a Web
 Mercator grid laid over the network (zoom 9 to 12; at zoom 12 a cell is
 about 38 m wide at the equator), by street or by public transport, at each
@@ -41,10 +41,11 @@ nothing has no polygons. The R and Python packages make an `sf` or
 rings and the vertex each ring starts at are those isoband gives on the
 platform the crate is compiled for (isoband walks a C++ hash table: libc++
 order on Apple targets and WebAssembly, libstdc++ order elsewhere); see
-[Parity](parity.md).
+the [comparison with r5r](parity.md#where-results-depend-on-the-machine).
 
-r5r routes polygon isochrones up to the largest cutoff plus 10 minutes,
-whatever `max_trip_duration` says; `isochrone_trip_limit(cutoffs)` gives the
+Polygon isochrones are routed up to the largest cutoff plus 10 minutes,
+whatever `max_trip_duration` says, so that the outer band is interpolated
+from both sides; `isochrone_trip_limit(cutoffs)` gives the
 largest cutoff (minutes, truncated) and the packages add the 10.
 
 For the street segments reached instead of areas, `street_edges` lists the

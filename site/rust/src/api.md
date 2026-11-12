@@ -23,7 +23,7 @@ Main entry points:
 | [`Scenario`](api/peabiru_core/struct.Scenario.html) | car speeds and traffic stress changed per call |
 | [`find_snap`](api/peabiru_core/fn.find_snap.html), [`street_vertices`](api/peabiru_core/fn.street_vertices.html), [`street_edges`](api/peabiru_core/fn.street_edges.html), [`transit_stops`](api/peabiru_core/fn.transit_stops.html), [`transit_routes`](api/peabiru_core/fn.transit_routes.html), [`transit_service_dates`](api/peabiru_core/fn.transit_service_dates.html) | network inspection |
 | [`gtfs_errors`](api/peabiru_core/fn.gtfs_errors.html) | the GTFS errors of a feed |
-| [`CsvOutput`](api/peabiru_core/struct.CsvOutput.html), [`write_itineraries_csv`](api/peabiru_core/fn.write_itineraries_csv.html) | CSV files as r5r writes with `output_dir` |
+| [`CsvOutput`](api/peabiru_core/struct.CsvOutput.html), [`write_itineraries_csv`](api/peabiru_core/fn.write_itineraries_csv.html) | CSV files, one per origin (or per pair for itineraries) |
 
 The parameter structs ([`BuildOptions`](api/peabiru_core/struct.BuildOptions.html),
 [`RouteParams`](api/peabiru_core/struct.RouteParams.html),

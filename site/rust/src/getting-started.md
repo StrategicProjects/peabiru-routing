@@ -24,11 +24,11 @@ data/spo/
 └── elevation.tif    # elevation (optional, read with BuildOptions::elevation)
 ```
 
-Files are recognised by their extension in lower case only, as in r5r: a
+Files are recognised by their extension in lower case only: a
 `map.PBF` or a `feed.ZIP` in the directory is ignored.
 
 The examples use `r/inst/extdata/spo` in the repository, a small network
-around Avenida Paulista, in São Paulo (cut from r5r's sample data), with 27
+around Avenida Paulista, in São Paulo (cut from the sample data of the r5r project), with 27
 points in `spo_points.csv`; pass another directory as
 the first argument to use your own data.
 
@@ -53,7 +53,7 @@ if let Some(transit) = network.transit() {
 ```
 
 `BuildOptions::default()` uses all cores to decode the PBF file; set
-`n_threads` on it to use fewer. As r5r's `build_network()` does, the build
+`n_threads` on it to use fewer. The build
 fails when a GTFS feed has errors of priority `HIGH` (set
 `ignore_gtfs_errors` to build what can be read; see
 [Inspecting a network](inspect.md#feeds-with-errors-of-priority-high)), and

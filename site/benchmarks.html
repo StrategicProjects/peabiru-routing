@@ -61,12 +61,12 @@ Measured 2026-11-12.</p>
     <li><strong>Inputs</strong>: the Porto Alegre and São Paulo samples shipped with r5r
       (<code>poa_osm.pbf</code> with the scheduled <code>poa_eptc.zip</code> and <code>poa_trensurb.zip</code> feeds;
       <code>spo_osm.pbf</code> with the frequency-based <code>spo.zip</code>), no elevation raster. Origins and destinations
-      are r5r's hexagonal grid of each city, all to all. Every package reads the same <code>.pbf</code>: dodgr and
+      are the hexagonal grid of each city that comes with the samples, all to all. Every package reads the same <code>.pbf</code>: dodgr and
       cppRouting through <code>osmdata_sc()</code>, from the ways with a <code>highway</code> tag converted once to
       <code>.osm</code> XML with <code>osmium</code> (what <code>dodgr_streetnet_sc()</code> would download; the
       conversion is not timed), networkx, igraph and pandana through pyrosm (OSMnx cannot read a <code>.pbf</code>; pyrosm reads it
       with OSMnx's network filters and exports an OSMnx-compatible graph).</li>
-    <li><strong>Parameters</strong>: r5r's names and defaults, written out: departure 2019-05-13 14:00
+    <li><strong>Parameters</strong>: the same for every package that has them, written out: departure 2019-05-13 14:00
       (America/Sao_Paulo; the Porto Alegre feed only has afternoon service), <code>time_window = 10</code>,
       percentile 50, <code>max_trip_duration = 120</code>, walking 3.6 km/h, cycling 12 km/h, <code>max_lts = 2</code>,
       <code>max_rides = 3</code>, <code>draws_per_minute = 5</code>, <code>seed = 42</code>. Accessibility: jobs, step

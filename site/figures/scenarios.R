@@ -494,7 +494,7 @@ figures$hel_iso <- function() {
   modes <- list(WALK = "Walking", BICYCLE = "Cycling", CAR = "Driving (free flow)",
                 TRANSIT = "Walking + public transport")
   cutoffs <- c(15, 30, 45)
-  # isochrone() repairs the polygons with st_make_valid(), as r5r does; with
+  # isochrone() repairs the polygons with st_make_valid(); with
   # s2 on, that repair enlarges the 30-minute driving polygon by 45 km2
   s2 <- suppressMessages(sf_use_s2(FALSE))
   on.exit(suppressMessages(sf_use_s2(s2)))

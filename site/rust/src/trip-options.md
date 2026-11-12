@@ -1,6 +1,6 @@
 # Trip options
 
-`trip_options` is peabiru's own trip planner, with no counterpart in r5r:
+`trip_options` is peabiru's own trip planner:
 for each origin-destination pair, every trip worth considering, the ones
 that no other trip beats on all the chosen criteria at once (`Criterion::Time`,
 `Fare`, `Transfers`, `Walk`), at each departure minute of the window, merged
@@ -41,7 +41,7 @@ The search (`options/search.rs`) is McRAPTOR (Delling, Pajor and Werneck,
 "Round-Based Public Transit Routing") from each departure minute, with Pareto
 bags of labels: arrival time, rides, seconds on foot and fare state. It runs
 on R5's network semantics, so that its times agree with the other functions:
-the access and egress stop searches of r5r's trip planner, R5's transfer
+the access and egress stop searches of the itinerary planner, R5's transfer
 tables, a minimum boarding wait of 60 s, the trip limit of R5's RAPTOR. A
 ride takes the vehicle that reaches the alighting stop first.
 
@@ -52,7 +52,7 @@ ride takes the vehicle that reaches the alighting stop first.
   the last ride, same time and discount deadline), or a later deadline is
   provably no worse, or one has paid less by more than the other could still
   save. R5's own `FareDominatingList` (paid fare and transfer allowance) is
-  not sound for every structure; on r5r's Porto Alegre structure the two give
+  not sound for every structure; on the Porto Alegre sample's structure the two give
   the same frontiers.
 - **Frequency-based trips** are boarded at their expected times (half a
   headway of waiting; the scheduled departures with `exact_times = 1`), so

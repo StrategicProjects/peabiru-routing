@@ -1,7 +1,7 @@
 {
   "title": "peabiru: multimodal routing on OpenStreetMap and GTFS networks",
   "upload_type": "software",
-  "description": "<p>peabiru computes travel-time matrices and accessibility on multimodal transport networks (walk, bicycle, car and public transport) built from OpenStreetMap extracts and GTFS feeds. Its routing engine is a Rust port of Conveyal's R5 and reproduces the results of the R package r5r exactly, without a Java runtime. The same engine is distributed as the Rust crate peabiru-core and as the R and Python packages peabiru.</p>",
+  "description": "<p>peabiru computes travel-time matrices and accessibility on multimodal transport networks (walk, bicycle, car and public transport) built from OpenStreetMap extracts and GTFS feeds. Its routing engine is a Rust port of Conveyal's R5 and needs no Java runtime. The same engine is distributed as the Rust crate peabiru-core and as the R and Python packages peabiru.</p>",
   "creators": [
     { "name": "Leite, André", "orcid": "0000-0002-4718-9766" },
     { "name": "Wasiliew, Marcos", "orcid": "0009-0004-4694-3159" },
