@@ -24,6 +24,10 @@
 // (default: the usual install paths). Without a browser they are skipped,
 // with a message, unless --require-browser is given.
 //
+// The examples in the doc comments of js/lib/index.d.ts, shown in the API
+// reference, run after the setup in sample-api.mjs and must exit with
+// status 0 (`node site/js/run_examples.mjs api` runs only those).
+//
 // The JavaScript examples of the home page (site/index.html) and of the
 // README at the root follow a marker <!-- example: FILE:ANCHOR -->; the
 // code block after it must be that part of the example (--update rewrites
@@ -76,8 +80,8 @@ const all = readdirSync(examples)
   .map((f) => f.slice(0, -4))
   .sort();
 for (const name of only) {
-  if (!all.includes(name)) {
-    console.error(`no example ${name} (have: ${all.join(", ")})`);
+  if (!all.includes(name) && name !== "api") {
+    console.error(`no example ${name} (have: ${all.join(", ")}, and api for the examples of the API reference)`);
     process.exit(2);
   }
 }
@@ -181,6 +185,39 @@ for (const name of nodeExamples) {
   }
   if (r.stderr) process.stderr.write(r.stderr.replace(/^/gm, `  ${name}: `));
   check(name, r.stdout);
+}
+
+// ---------------------------------------------------------------- API reference
+
+// The examples in the doc comments of js/lib/index.d.ts (```js blocks),
+// which the API reference shows: each runs after the setup of
+// sample-api.mjs and must exit with status 0. Every exported value,
+// function and class needs one.
+if (!only.length || only.includes("api")) {
+  const setup = anchored("site/js/examples/sample-api.mjs", "setup");
+  const dts = readFileSync(join(root, "js/lib/index.d.ts"), "utf8");
+  const documented = /\/\*\*((?:(?!\*\/)[\s\S])*)\*\/\s*\nexport (?:declare )?(const|function|class|type|interface) (\w+)/g;
+  const seen = new Set();
+  for (const [, doc, kind, name] of dts.matchAll(documented)) {
+    const lines = doc.split("\n").map((l) => l.replace(/^\s*\* ?/, ""));
+    const blocks = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim() !== "```js") continue;
+      const end = lines.findIndex((l, k) => k > i && l.trim() === "```");
+      blocks.push(lines.slice(i + 1, end).join("\n"));
+      i = end;
+    }
+    if (blocks.length) seen.add(name);
+    blocks.forEach((code, k) => {
+      const file = `api-${name}${k ? `-${k + 1}` : ""}.mjs`;
+      writeFileSync(join(work, file), `${setup}\n\n${code}\n`);
+      const r = spawnSync(process.execPath, [file], { cwd: work, encoding: "utf8", timeout: 300_000 });
+      ran++;
+      if (r.status !== 0) fail(`api: ${name}`, `exit status ${r.status ?? r.signal}\n${r.stdout}${r.stderr}`);
+      else console.log(`ok     api: ${name}`);
+    });
+    if (["const", "function", "class"].includes(kind) && !seen.has(name)) fail(`api: ${name}`, "no example in its doc comment in js/lib/index.d.ts");
+  }
 }
 
 // ---------------------------------------------------------------- browser
