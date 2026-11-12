@@ -9,7 +9,7 @@ check_transit_availability(
   dates = NULL,
   start_date = NULL,
   end_date = NULL,
-  r5r_core
+  r5r_core = deprecated()
 )
 }
 \arguments{

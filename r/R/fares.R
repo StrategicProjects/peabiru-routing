@@ -75,8 +75,8 @@ setup_fare_structure <- function(r5r_network,
                                  by = "MODE",
                                  debug_path = NULL,
                                  debug_info = NULL,
-                                 r5r_core) {
-  if (!missing(r5r_core)) {
+                                 r5r_core = deprecated()) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
@@ -422,9 +422,9 @@ pareto_frontier <- function(r5r_network,
                             verbose = FALSE,
                             progress = TRUE,
                             output_dir = NULL,
-                            r5r_core) {
+                            r5r_core = deprecated()) {
   # mirrors r5r R/pareto_frontier.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }

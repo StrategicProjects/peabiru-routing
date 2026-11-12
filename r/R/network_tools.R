@@ -48,8 +48,8 @@ find_snap <- function(r5r_network,
                       points,
                       radius = 1600,
                       mode = "WALK",
-                      r5r_core) {
-  if (!missing(r5r_core)) {
+                      r5r_core = deprecated()) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
@@ -107,8 +107,8 @@ find_snap <- function(r5r_network,
 #' street_network_bbox(network, output = "vector")
 street_network_bbox <- function(r5r_network,
                                 output = c("polygon", "bbox", "vector"),
-                                r5r_core) {
-  if (!missing(r5r_core)) {
+                                r5r_core = deprecated()) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
@@ -181,8 +181,8 @@ linestring_sfc <- function(n_points, x, y) {
 #' network <- build_network(data_path, n_threads = 2)
 #' street_net <- street_network_to_sf(network)
 #' head(street_net$edges)
-street_network_to_sf <- function(r5r_network, r5r_core) {
-  if (!missing(r5r_core)) {
+street_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
@@ -244,8 +244,8 @@ street_network_to_sf <- function(r5r_network, r5r_core) {
 #' network <- build_network(data_path, n_threads = 2)
 #' transit_net <- transit_network_to_sf(network)
 #' head(transit_net$stops)
-transit_network_to_sf <- function(r5r_network, r5r_core) {
-  if (!missing(r5r_core)) {
+transit_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
@@ -334,8 +334,8 @@ check_transit_availability <- function(r5r_network,
                                        dates = NULL,
                                        start_date = NULL,
                                        end_date = NULL,
-                                       r5r_core) {
-  if (!missing(r5r_core)) {
+                                       r5r_core = deprecated()) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }

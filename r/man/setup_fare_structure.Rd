@@ -10,7 +10,7 @@ setup_fare_structure(
   by = "MODE",
   debug_path = NULL,
   debug_info = NULL,
-  r5r_core
+  r5r_core = deprecated()
 )
 }
 \arguments{

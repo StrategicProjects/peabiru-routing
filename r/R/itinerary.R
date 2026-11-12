@@ -106,9 +106,9 @@ detailed_itineraries <- function(r5r_network,
                                  drop_geometry = FALSE,
                                  osm_link_ids = FALSE,
                                  output_dir = NULL,
-                                 r5r_core) {
+                                 r5r_core = deprecated()) {
   # mirrors r5r R/detailed_itineraries.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }

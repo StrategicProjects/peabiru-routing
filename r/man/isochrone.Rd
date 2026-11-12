@@ -28,8 +28,8 @@ isochrone(
   n_threads = Inf,
   verbose = FALSE,
   progress = TRUE,
-  sample_size,
-  r5r_core
+  sample_size = deprecated(),
+  r5r_core = deprecated()
 )
 }
 \arguments{

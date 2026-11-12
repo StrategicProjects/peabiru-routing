@@ -66,9 +66,9 @@ expanded_travel_time_matrix <- function(r5r_network,
                                         verbose = FALSE,
                                         progress = TRUE,
                                         output_dir = NULL,
-                                        r5r_core) {
+                                        r5r_core = deprecated()) {
   # mirrors r5r R/expanded_travel_time_matrix.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
@@ -182,9 +182,9 @@ arrival_travel_time_matrix <- function(r5r_network,
                                        verbose = FALSE,
                                        progress = TRUE,
                                        output_dir = NULL,
-                                       r5r_core) {
+                                       r5r_core = deprecated()) {
   # mirrors r5r R/arrival_travel_time_matrix.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }

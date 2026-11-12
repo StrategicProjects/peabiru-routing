@@ -4,7 +4,7 @@
 \alias{street_network_to_sf}
 \title{Extract OpenStreetMap network in sf format}
 \usage{
-street_network_to_sf(r5r_network, r5r_core)
+street_network_to_sf(r5r_network, r5r_core = deprecated())
 }
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}

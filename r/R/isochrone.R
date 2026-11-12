@@ -114,14 +114,14 @@ isochrone <- function(r5r_network,
                       n_threads = Inf,
                       verbose = FALSE,
                       progress = TRUE,
-                      sample_size,
-                      r5r_core) {
+                      sample_size = deprecated(),
+                      r5r_core = deprecated()) {
   # mirrors r5r R/isochrone.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
-  if (!missing(sample_size)) {
+  if (is_present(sample_size)) {
     warning("The `sample_size` argument is no longer used and has no effect.",
             call. = FALSE)
   }

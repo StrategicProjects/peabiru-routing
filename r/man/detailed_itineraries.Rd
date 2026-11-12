@@ -34,7 +34,7 @@ detailed_itineraries(
   drop_geometry = FALSE,
   osm_link_ids = FALSE,
   output_dir = NULL,
-  r5r_core
+  r5r_core = deprecated()
 )
 }
 \arguments{
@@ -162,7 +162,10 @@ each itinerary (\code{option}), with \code{from_id}, \code{from_lat}, \code{from
 \code{to_id}, \code{to_lat}, \code{to_lon}, \code{option}, \code{departure_time},
 \code{total_duration} (minutes), \code{total_distance} (metres), \code{segment},
 \code{mode}, \code{segment_duration}, \code{wait} (minutes), \code{distance} (metres),
-\code{route} and, with \code{osm_link_ids}, the four id columns. Pairs without an itinerary have no rows. With \code{output_dir},
+\code{route} and, with \code{osm_link_ids}, the four id columns; with a
+\code{fare_structure}, also \code{total_fare} (after \code{total_distance}) and
+\code{cumulative_fare} (after \code{mode}), the fare paid up to the end of the
+leg. Pairs without an itinerary have no rows. With \code{output_dir},
 one CSV file per pair with itineraries is written,
 \verb{from_<origin id>_to_<destination id>.csv}, byte for byte as r5r writes
 it (the geometry as r5r's WKT text), and \code{output_dir} is returned.
@@ -183,8 +186,7 @@ fastest of each), up to \code{suboptimal_minutes} slower than the best. With a
 columns.
 }
 \details{
-Not supported yet, and an error: \code{shortest_path = FALSE} with public
-transport (r5r routes it with R5's McRAPTOR) and fares. As in r5r, networks
+As in r5r, networks
 whose GTFS has frequency-based trips cannot be used with public
 transport.
 
