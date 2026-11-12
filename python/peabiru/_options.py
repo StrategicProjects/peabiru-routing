@@ -75,7 +75,7 @@ def _criteria(criteria: Any, fare_structure: Any) -> list:
 
 
 def trip_options(
-    r5r_network: Network,
+    network: Network,
     origins: Any,
     destinations: Any,
     mode: Any = ("WALK", "TRANSIT"),
@@ -112,8 +112,7 @@ def trip_options(
 
     For each pair of origin and destination, every trip worth considering:
     the trips that no other trip beats on all the chosen criteria at once.
-    This is peabiru's own multi-criteria trip planner, with no counterpart
-    in r5r; see the guide [Trip options](trip-options.md) for the
+    This is peabiru's own multi-criteria trip planner; see the guide [Trip options](trip-options.md) for the
     definitions, a worked example, and how it differs from
     [`pareto_frontier()`][peabiru.pareto_frontier] and
     [`detailed_itineraries()`][peabiru.detailed_itineraries].
@@ -135,7 +134,7 @@ def trip_options(
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     origins, destinations : pandas.DataFrame
         Points with columns ``id``, ``lon`` and ``lat``, or a
@@ -204,7 +203,7 @@ def trip_options(
     >>> list(res.options.columns[:4])
     ['from_id', 'to_id', 'option', 'total_time']
     """
-    assert_network(r5r_network)
+    assert_network(network)
     o = assign_points_input(origins, "origins", unique_ids=bool(all_to_all))
     d = assign_points_input(destinations, "destinations", unique_ids=bool(all_to_all))
     o, d = _expand_od_pairs(o, d, all_to_all)
@@ -220,7 +219,7 @@ def trip_options(
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
     if mode_list.transit:
-        check_transit_availability_on_date(r5r_network, departure)
+        check_transit_availability_on_date(network, departure)
     crit = _criteria(criteria, fare_structure)
     lim = _street_limits(
         max_walk_time, max_bike_time, max_car_time, walk_speed, bike_speed,
@@ -244,9 +243,9 @@ def trip_options(
         )
     threads = assign_n_threads(n_threads)
     check_messages(verbose, progress)
-    fares = fare_arg(fare_structure, max_fare, r5r_network)
+    fares = fare_arg(fare_structure, max_fare, network)
     out_dir = check_output_dir(output_dir)
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
     lines = itineraries and not drop_geometry and out_dir is None
     if lines:
         try:
@@ -262,7 +261,7 @@ def trip_options(
 
     with core_errors("trip_options"):
         r = _peabiru.trip_options_py(
-            r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+            network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
             mode_list.direct_modes, mode_list.transit_mode, mode_list.egress_mode,
             departure.yyyymmdd, departure.seconds, int(time_window), crit,
             lim["walk"], lim["bike"], lim["car"], lim["trip"],

@@ -1,4 +1,4 @@
-"""r5r 2.5.0's network functions: find_snap(), street_network_bbox(),
+"""Inspecting a network: find_snap(), street_network_bbox(),
 street_network_to_sf(), transit_network_to_sf(), check_transit_availability()
 and get_gtfs_errors()."""
 
@@ -39,7 +39,7 @@ def _bools(b: bytes) -> np.ndarray:
 
 
 def find_snap(
-    r5r_network: Network,
+    network: Network,
     points: pd.DataFrame,
     radius: float = 1600,
     mode: str = "WALK",
@@ -56,7 +56,7 @@ def find_snap(
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     points : pandas.DataFrame or geopandas.GeoDataFrame
         Points with ``id``, ``lon`` and ``lat`` columns, or a GeoDataFrame
@@ -74,13 +74,6 @@ def find_snap(
         R5's sphere of radius 6,367,450 m) and ``found``. Points that do not
         snap have NaN coordinates and distance and ``found`` False.
 
-    Notes
-    -----
-    **Compatibility with r5r.** The arguments, defaults, checks, columns
-    and values are those of ``find_snap()`` in r5r 2.5.0 (R5 7.6's
-    snapping, ported from Conveyal's R5). Differences: no ``r5r_core``
-    argument; a pandas DataFrame instead of a ``data.table``.
-
     Examples
     --------
     >>> import peabiru
@@ -89,14 +82,14 @@ def find_snap(
     >>> bool(snaps["found"].all())
     True
     """
-    assert_network(r5r_network)
+    assert_network(network)
     cm.cm_assert(cm.check_numeric(radius, lower=0, finite=True, max_len=1), "radius")
     modes = ["WALK", "BICYCLE", "CAR"]
     cm.cm_assert_and("mode", cm.check_string(mode), lambda: cm.check_names(mode, subset_of=modes))
     mode = str(scalar(mode))
     p_ = cm.Vec(radius)
     if len(p_) == 0:
-        # r5r hands Java a zero-length radius; it fails there
+        # a zero-length radius is no radius
         raise ValueError("'radius' must be a single number.")
     if p_.type == "missing":
         # checkmate lets NA through and R5 then snaps nothing
@@ -104,7 +97,7 @@ def find_snap(
     radius = float(scalar(radius))
     p = assign_points_input(points, "points")
     with core_errors("find_snap"):
-        r = _peabiru.find_snap(r5r_network._core, p.lat_bytes(), p.lon_bytes(), radius, mode)
+        r = _peabiru.find_snap(network._core, p.lat_bytes(), p.lon_bytes(), radius, mode)
     return pd.DataFrame({
         "point_id": _strings(p.ids),
         "lat": p.lat,
@@ -116,7 +109,7 @@ def find_snap(
     })
 
 
-def street_network_bbox(r5r_network: Network, output: str = "polygon") -> Any:
+def street_network_bbox(network: Network, output: str = "polygon") -> Any:
     """The bounding box of the street network.
 
     R5's envelope of the street layer, which covers every OpenStreetMap node of the ways streets were made from
@@ -125,7 +118,7 @@ def street_network_bbox(r5r_network: Network, output: str = "polygon") -> Any:
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     output : {"polygon", "bbox", "vector"}, default "polygon"
         The form of the result.
@@ -138,14 +131,6 @@ def street_network_bbox(r5r_network: Network, output: str = "polygon") -> Any:
         xmax, ymax)``, as shapely's ``bounds``. ``"vector"``: a dict with
         the keys ``xmin``, ``ymin``, ``xmax`` and ``ymax``.
 
-    Notes
-    -----
-    **Compatibility with r5r.** The arguments, the choices of ``output``
-    and the coordinates are those of ``street_network_bbox()`` in r5r
-    2.5.0. Differences: no ``r5r_core`` argument; the results are Python
-    objects (a GeoSeries for r5r's ``sfc``, a tuple for its ``bbox``, a
-    dict for its named vector).
-
     Examples
     --------
     >>> import peabiru
@@ -153,13 +138,13 @@ def street_network_bbox(r5r_network: Network, output: str = "polygon") -> Any:
     >>> sorted(peabiru.street_network_bbox(network, "vector"))
     ['xmax', 'xmin', 'ymax', 'ymin']
     """
-    assert_network(r5r_network)
+    assert_network(network)
     choices = ["polygon", "bbox", "vector"]
     if output not in choices:
         raise ValueError(
             "'arg' should be one of " + ", ".join(f'"{c}"' for c in choices)
         )
-    xmin, ymin, xmax, ymax = _peabiru.street_bbox(r5r_network._core)
+    xmin, ymin, xmax, ymax = _peabiru.street_bbox(network._core)
     if output == "vector":
         return {"xmin": xmin, "ymin": ymin, "xmax": xmax, "ymax": ymax}
     if output == "bbox":
@@ -172,8 +157,7 @@ def _lines(shapely: Any, n_points: np.ndarray, x: np.ndarray, y: np.ndarray) -> 
     ends = np.cumsum(n_points)
     starts = ends - n_points
     xy = np.column_stack([x, y])
-    # GEOS (shapely) has no line of one point, which r5r's sf holds as a
-    # one-point LINESTRING: the point keeps its position
+    # GEOS (shapely) has no line of one point: a Point keeps its position
     return [
         shapely.LineString(xy[s:e])
         if e - s > 1
@@ -182,7 +166,7 @@ def _lines(shapely: Any, n_points: np.ndarray, x: np.ndarray, y: np.ndarray) -> 
     ]
 
 
-def street_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
+def street_network_to_sf(network: Network) -> Dict[str, Any]:
     """The street network as GeoDataFrames.
 
     The vertices at the ends of street edges and every directed street edge
@@ -191,7 +175,7 @@ def street_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
 
     Returns
@@ -207,11 +191,7 @@ def street_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
 
     Notes
     -----
-    **Compatibility with r5r.** The rows, their order, the columns and the
-    geometries are those of ``street_network_to_sf()`` in r5r 2.5.0.
-    Differences: no ``r5r_core`` argument; GeoDataFrames instead of ``sf``
-    data frames, with ``osm_id`` as ``int64`` (r5r's is a double, R having
-    no 64-bit integers).
+    ``osm_id`` is ``int64``.
 
     Examples
     --------
@@ -221,9 +201,9 @@ def street_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
     >>> list(streets["edges"].columns[:4])
     ['edge_index', 'osm_id', 'from_vertex', 'to_vertex']
     """
-    assert_network(r5r_network)
+    assert_network(network)
     gpd, shapely = _geo()
-    v = _peabiru.street_vertices(r5r_network._core)
+    v = _peabiru.street_vertices(network._core)
     vertices = gpd.GeoDataFrame(
         pd.DataFrame({
             "index": _i32(v["index"]).copy(),
@@ -232,7 +212,7 @@ def street_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
         }),
         geometry=gpd.GeoSeries(shapely.points(_f64(v["lon"]), _f64(v["lat"])), crs="EPSG:4326"),
     )
-    e = _peabiru.street_edges(r5r_network._core)
+    e = _peabiru.street_edges(network._core)
     edges = gpd.GeoDataFrame(
         pd.DataFrame({
             "edge_index": _i32(e["edge_index"]).copy(),
@@ -254,7 +234,7 @@ def street_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
     return {"vertices": vertices, "edges": edges}
 
 
-def transit_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
+def transit_network_to_sf(network: Network) -> Dict[str, Any]:
     """The public transport network as GeoDataFrames.
 
     The stops and the routes of the public transport layer. There is one
@@ -270,7 +250,7 @@ def transit_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
 
     Returns
@@ -283,16 +263,6 @@ def transit_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
         ``route_id``, ``long_name``, ``short_name``, ``mode`` and
         ``geometry``. Both in EPSG:4326; needs geopandas.
 
-    Notes
-    -----
-    **Compatibility with r5r.** The rows, their order, the columns and the
-    geometries are those of ``transit_network_to_sf()`` in r5r 2.5.0, which
-    repairs invalid lines with ``sf::st_make_valid()`` (GEOS, as shapely).
-    Differences: no ``r5r_core`` argument; GeoDataFrames instead of ``sf``
-    data frames; a route line of a single point is a shapely ``Point``,
-    where r5r's ``sf`` holds a one-point ``LINESTRING`` (shapely cannot
-    represent one).
-
     Examples
     --------
     >>> import peabiru
@@ -301,10 +271,10 @@ def transit_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
     >>> sorted(transit)
     ['routes', 'stops']
     """
-    assert_network(r5r_network)
+    assert_network(network)
     gpd, shapely = _geo()
     with core_errors("transit_network_to_sf"):
-        r = _peabiru.transit_routes(r5r_network._core)
+        r = _peabiru.transit_routes(network._core)
     lines = _lines(shapely, _i32(r["n_points"]), _f64(r["x"]), _f64(r["y"]))
     routes = gpd.GeoDataFrame(
         pd.DataFrame({
@@ -320,7 +290,7 @@ def transit_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
     if len(routes) and not routes.geometry.is_valid.all():
         routes = routes.set_geometry(routes.geometry.make_valid())
     routes = routes[~routes.geometry.is_empty].reset_index(drop=True)
-    s = _peabiru.transit_stops(r5r_network._core)
+    s = _peabiru.transit_stops(network._core)
     stops = gpd.GeoDataFrame(
         pd.DataFrame({
             "stop_index": _i32(s["stop_index"]).copy(),
@@ -344,7 +314,7 @@ _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _parse_dates(x: Any, arg: str) -> List[_dt.date]:
-    """r5r's parse_date_input(): ``"YYYY-MM-DD"`` strings or dates (a
+    """The dates of an argument: ``"YYYY-MM-DD"`` strings or dates (a
     datetime counts as its date)."""
     v = cm.Vec(x)
     # strings and dates, mixed as Python lists may mix them
@@ -374,7 +344,7 @@ def _parse_dates(x: Any, arg: str) -> List[_dt.date]:
 
 
 def check_transit_availability(
-    r5r_network: Network,
+    network: Network,
     dates: Optional[Union[DateLike, Sequence[DateLike]]] = None,
     start_date: Optional[DateLike] = None,
     end_date: Optional[DateLike] = None,
@@ -394,7 +364,7 @@ def check_transit_availability(
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     dates : str, datetime.date or a sequence of them, optional
         Dates to check, as ``"YYYY-MM-DD"`` strings or dates.
@@ -410,11 +380,7 @@ def check_transit_availability(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments, their checks and messages,
-    the columns and the values are those of ``check_transit_availability()``
-    in r5r 2.5.0. Differences: no ``r5r_core`` argument; a pandas
-    DataFrame instead of a ``data.table``, with ``date`` as
-    ``datetime64`` (r5r's is a ``Date``).
+    ``date`` is ``datetime64``.
 
     Examples
     --------
@@ -424,7 +390,7 @@ def check_transit_availability(
             date  total_services  active_services  pct_active
     0 2019-05-13               6                3         0.5
     """
-    assert_network(r5r_network)
+    assert_network(network)
     vector = dates is not None and start_date is None and end_date is None
     range_ = dates is None and start_date is not None and end_date is not None
     discover = dates is None and start_date is None and end_date is None
@@ -438,7 +404,7 @@ def check_transit_availability(
         )
     if discover:
         with core_errors("check_transit_availability"):
-            found = _peabiru.transit_service_dates(r5r_network._core)
+            found = _peabiru.transit_service_dates(network._core)
         days = [_dt.date(d // 10000, d // 100 % 100, d % 100) for d in found]
     elif vector:
         days = _parse_dates(dates, "dates")
@@ -452,7 +418,7 @@ def check_transit_availability(
         n = (end[0] - start[0]).days + 1
         days = [start[0] + _dt.timedelta(days=k) for k in range(n)]
     counts = [
-        r5r_network._core.transit_availability(d.year * 10000 + d.month * 100 + d.day)
+        network._core.transit_availability(d.year * 10000 + d.month * 100 + d.day)
         for d in days
     ]
     total = np.array([c[0] for c in counts], dtype=np.int32)
@@ -467,7 +433,7 @@ def check_transit_availability(
     })
 
 
-def get_gtfs_errors(r5r_network: Union[Network, PathLike]) -> pd.DataFrame:
+def get_gtfs_errors(network: Union[Network, PathLike]) -> pd.DataFrame:
     """The errors gtfs-lib reports in the network's GTFS feeds.
 
     The errors that R5's GTFS library (Conveyal's gtfs-lib) reports when it
@@ -489,7 +455,7 @@ def get_gtfs_errors(r5r_network: Union[Network, PathLike]) -> pd.DataFrame:
 
     Parameters
     ----------
-    r5r_network : Network, str or os.PathLike
+    network : Network, str or os.PathLike
         A network built with [`build_network()`][peabiru.build_network], or
         a directory with GTFS feeds (``.zip``).
 
@@ -504,14 +470,9 @@ def get_gtfs_errors(r5r_network: Union[Network, PathLike]) -> pd.DataFrame:
 
     Notes
     -----
-    **Compatibility with r5r.** The argument, the rows and the columns
-    (``file``, ``line``, ``type``, ``field``, ``id``, ``priority``) are
-    those of ``get_gtfs_errors()`` in r5r 2.5.0. Differences: r5r reads the
-    ``gtfs_errors.csv`` its ``build_network()`` wrote, and lists the rows
-    in the order of a Java ``HashSet``, which changes from one run to the
-    next; on a feed where gtfs-lib fails, r5r's ``build_network()`` fails
-    without writing the file. A pandas DataFrame instead of a
-    ``data.table``; a directory that does not exist is an error.
+    The feeds are read again at each call, and the rows are listed feed by
+    feed in the order the errors are found, the same in every run. A
+    directory that does not exist is an error.
 
     Examples
     --------
@@ -521,16 +482,16 @@ def get_gtfs_errors(r5r_network: Union[Network, PathLike]) -> pd.DataFrame:
     >>> sorted(set(errors["type"]))
     ['DuplicateKeyError']
     """
-    if isinstance(r5r_network, Network):
-        paths = _peabiru.feed_paths(r5r_network._core)
-    elif isinstance(r5r_network, (str, os.PathLike)):
-        d = os.path.realpath(os.path.expanduser(os.fspath(r5r_network)))
+    if isinstance(network, Network):
+        paths = _peabiru.feed_paths(network._core)
+    elif isinstance(network, (str, os.PathLike)):
+        d = os.path.realpath(os.path.expanduser(os.fspath(network)))
         if not os.path.isdir(d):
-            raise ValueError(f"Directory '{os.fspath(r5r_network)}' does not exist.")
+            raise ValueError(f"Directory '{os.fspath(network)}' does not exist.")
         paths = _peabiru.gtfs_files(d)
     else:
         raise TypeError(
-            "Assertion on 'r5r_network' failed: Must be a 'peabiru.Network' or a path."
+            "Assertion on 'network' failed: Must be a 'peabiru.Network' or a path."
         )
     e = _peabiru.gtfs_errors(paths)
     return pd.DataFrame({

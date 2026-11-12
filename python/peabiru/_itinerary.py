@@ -1,4 +1,4 @@
-"""detailed_itineraries(), as r5r's (2.5.0)."""
+"""detailed_itineraries(): the legs of each trip."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ PathArg = Union[str, "os.PathLike[str]"]
 
 
 def _expand_od_pairs(o: Points, d: Points, all_to_all: Any) -> tuple:
-    """r5r expand_od_pairs()."""
+    """The pairs to route: all to all, or row by row."""
     assert_flag(all_to_all, "all_to_all")
     no, nd = len(o), len(d)
     if all_to_all or no == 1 or nd == 1:
@@ -61,7 +61,7 @@ def _expand_od_pairs(o: Points, d: Points, all_to_all: Any) -> tuple:
 
 
 def detailed_itineraries(
-    r5r_network: Network,
+    network: Network,
     origins: pd.DataFrame,
     destinations: pd.DataFrame,
     mode: Any = "WALK",
@@ -106,14 +106,14 @@ def detailed_itineraries(
 
     Networks whose GTFS has frequency-based trips cannot be used with
     public transport here. With ``mode_egress="CAR"``, a pair whose
-    itineraries in r5r may depend on the searches that ran before (R5
-    reverses the via edges of some turn restrictions in place) gets r5r's
-    itineraries on a freshly built network, with a warning; see [Detailed
+    itineraries in R5 depend on the searches that ran before (R5
+    reverses the via edges of some turn restrictions in place) gets the
+    itineraries of a freshly built network, with a warning; see [Detailed
     itineraries](itineraries.md).
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     origins, destinations : pandas.DataFrame
         Points with columns ``id``, ``lon`` and ``lat`` (WGS 84), or
@@ -176,16 +176,8 @@ def detailed_itineraries(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments (names, order and defaults),
-    their checks and messages, the rows, their order, the columns and the
-    values (coordinates included) are those of ``detailed_itineraries()``
-    in r5r 2.5.0, and the files written to ``output_dir`` are r5r's byte
-    for byte; the paths are R5 7.6's (ported from Conveyal's R5).
-    Differences: no ``r5r_core`` argument; a GeoDataFrame (or, with
-    ``drop_geometry=True``, a DataFrame) instead of an ``sf`` data frame
-    (or ``data.table``); the pairs above that are an error, where r5r
-    returns an itinerary that depends on what ran before or on paths not
-    reproduced. See [Coming from r5py / r5r](coming-from-r5.md).
+    The paths are those of the routing engine (a port of Conveyal's R5
+    7.6). With ``drop_geometry=True`` the result is a DataFrame.
 
     Examples
     --------
@@ -201,8 +193,7 @@ def detailed_itineraries(
     >>> list(trips.columns[:4])
     ['from_id', 'from_lat', 'from_lon', 'to_id']
     """
-    # mirrors r5r R/detailed_itineraries.R
-    assert_network(r5r_network)
+    assert_network(network)
     o = assign_points_input(origins, "origins", unique_ids=bool(all_to_all))
     d = assign_points_input(destinations, "destinations", unique_ids=bool(all_to_all))
     o, d = _expand_od_pairs(o, d, all_to_all)
@@ -223,10 +214,10 @@ def detailed_itineraries(
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
     if mode_list.transit:
-        check_transit_availability_on_date(r5r_network, departure)
-        if r5r_network.info()["frequencies"]:
+        check_transit_availability_on_date(network, departure)
+        if network.info()["frequencies"]:
             raise ValueError(
-                "Assertion on 'r5r_network' failed: None of the GTFS feeds used to create "
+                "Assertion on 'network' failed: None of the GTFS feeds used to create "
                 "the transit network can contain a 'frequencies' table. Try using "
                 "gtfstools::frequencies_to_stop_times() to create a suitable feed."
             )
@@ -250,7 +241,7 @@ def detailed_itineraries(
     check_max_lts(max_lts)
     threads = assign_n_threads(n_threads)
     check_messages(verbose, progress)
-    fares = fare_arg(fare_structure, max_fare, r5r_network)
+    fares = fare_arg(fare_structure, max_fare, network)
     out_dir = check_output_dir(output_dir)
     assert_count(suboptimal_minutes, "suboptimal_minutes")
     if fare_structure is not None and suboptimal_minutes > 0:
@@ -262,7 +253,7 @@ def detailed_itineraries(
         raise ValueError(
             "Assertion on 'suboptimal_minutes' failed: Must be 0 when 'shortest_path' is True."
         )
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
     if out_dir is None and not drop_geometry:
         try:
             import geopandas as gpd
@@ -277,7 +268,7 @@ def detailed_itineraries(
 
     with core_errors("detailed_itineraries"):
         r = _peabiru.itineraries(
-            r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+            network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
             mode_list.direct_modes, mode_list.transit_mode, mode_list.egress_mode,
             departure.yyyymmdd, departure.seconds, int(time_window),
             lim["walk"], lim["bike"], lim["car"], lim["trip"],

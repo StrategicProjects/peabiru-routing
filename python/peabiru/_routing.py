@@ -1,4 +1,4 @@
-"""The routing functions of r5r 2.5.0: travel-time matrices, accessibility,
+"""The routing functions: travel-time matrices, accessibility,
 expanded and arrival matrices."""
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ from ._fares import fare_arg
 from ._network import Network, assert_network
 
 Mode = Union[str, Sequence[str]]
-# Numbers, and also the integer arguments: as in r5r, a whole-valued float
+# Numbers, and also the integer arguments: a whole-valued float
 # such as 60.0 is accepted (and math.inf for n_threads and the street time
 # limits); the checks reject a fractional value at run time.
 Number = Union[int, float]
@@ -81,10 +81,10 @@ def _csv_output(
     out_dir: Optional[str], o: Points, d: Points, third: Optional[List[str]] = None
 ) -> Any:
     """The ``output`` argument of the extension's routing functions:
-    ``None`` to return the result, or where to write r5r's CSV files (one
+    ``None`` to return the result, or where to write the CSV files (one
     per origin, named after its id) and with which ids (``third`` replaces
-    the destination ids: the opportunity names of accessibility). r5r's
-    Java side fails on a missing id; so does this."""
+    the destination ids: the opportunity names of accessibility). A missing
+    id cannot name a file or a row: an error."""
     if out_dir is None:
         return None
     if any(i is None for i in o.ids) or any(i is None for i in d.ids):
@@ -133,7 +133,7 @@ def _common_checks(
 
 
 def travel_time_matrix(
-    r5r_network: Network,
+    network: Network,
     origins: pd.DataFrame,
     destinations: pd.DataFrame,
     mode: Mode = "WALK",
@@ -180,7 +180,7 @@ def travel_time_matrix(
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     origins : pandas.DataFrame
         Points with columns ``id``, ``lon`` and ``lat`` (WGS 84), or a
@@ -296,14 +296,8 @@ def travel_time_matrix(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments (names, order and defaults),
-    their checks and messages, the columns, the row order and the values
-    are those of ``travel_time_matrix()`` in r5r 2.5.0; the routing is a
-    port of Conveyal's R5 7.6, which r5r drives, and with a ``seed`` the
-    Monte Carlo draws of frequency-based GTFS are r5r's too. Differences:
-    no ``r5r_core`` argument, a pandas DataFrame instead of a
-    ``data.table``, and the ones listed in [Coming from r5py /
-    r5r](coming-from-r5.md).
+    The routing is a port of Conveyal's R5 7.6. With a ``seed``, the Monte
+    Carlo draws of frequency-based GTFS are reproducible.
 
     Examples
     --------
@@ -322,20 +316,19 @@ def travel_time_matrix(
     >>> list(ttm.columns)
     ['from_id', 'to_id', 'travel_time_p25', 'travel_time_p50', 'travel_time_p75']
     """
-    # mirrors r5r R/travel_time_matrix.R
     o = assign_points_input(origins, "origins")
     d = assign_points_input(destinations, "destinations")
     check_destination_ids(d)
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
 
-    assert_network(r5r_network)
+    assert_network(network)
     if mode_list.transit:
-        check_transit_availability_on_date(r5r_network, departure)
+        check_transit_availability_on_date(network, departure)
 
-    # as in r5r, not with output_dir: the files are named after the origins
+    # not with output_dir: the files are named after the origins
     # routed from
-    swapped = output_dir is None and swap_od(o, d, mode_list, r5r_network)
+    swapped = output_dir is None and swap_od(o, d, mode_list, network)
     if swapped:
         o, d = d, o
 
@@ -352,12 +345,12 @@ def travel_time_matrix(
         n_threads, verbose, progress,
     )
     check_draws(draws_per_minute, time_window, mcraptor=fare_structure is not None)
-    fares = fare_arg(fare_structure, max_fare, r5r_network)
+    fares = fare_arg(fare_structure, max_fare, network)
     out_dir = check_output_dir(output_dir)
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
 
     names = [f"travel_time_p{p:02d}" for p in pcts]
-    core = r5r_network._core
+    core = network._core
     output = _csv_output(out_dir, o, d)
     if mode_list.transit:
         with core_errors("travel_time_matrix"):
@@ -385,20 +378,20 @@ def travel_time_matrix(
     frm, to = _i32(fb), _i32(tb)
 
     if swapped:
-        # r5r reverse_back_if_direct_mode(): the routed destinations are the
+        # swapped back: the routed destinations are the
         # caller's origins
         from_id, to_id = d.ids[to], o.ids[frm]
     else:
         from_id, to_id = o.ids[frm], d.ids[to]
     data: Dict[str, Any] = {"from_id": _strings(from_id), "to_id": _strings(to_id)}
     for name, t in zip(names, times):
-        # r5r: travel times of non-viable trips become NA
+        # travel times of non-viable trips become NA
         data[name] = _nullable_int(t, (t == _NA) | (t > mtd))
     return pd.DataFrame(data)
 
 
 def accessibility(
-    r5r_network: Network,
+    network: Network,
     origins: pd.DataFrame,
     destinations: pd.DataFrame,
     opportunities_colnames: Union[str, Sequence[str]] = "opportunities",
@@ -447,7 +440,7 @@ def accessibility(
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     origins : pandas.DataFrame
         Points with columns ``id``, ``lon`` and ``lat`` (WGS 84), or a
@@ -577,14 +570,8 @@ def accessibility(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments (names, order and defaults),
-    their checks and messages, the columns, the row order and the values
-    are those of ``accessibility()`` in r5r 2.5.0, to the last bit: the
-    decay functions are R5 7.6's, ported from Conveyal's R5, and use the
-    ``FastMath.exp()`` of Apache Commons Math that R5 calls. Differences:
-    no ``r5r_core`` argument, a pandas DataFrame instead of a
-    ``data.table``, and the ones listed in [Coming from r5py /
-    r5r](coming-from-r5.md).
+    The decay functions are those of Conveyal's R5 7.6, and use the
+    ``FastMath.exp()`` of Apache Commons Math that R5 calls.
 
     Examples
     --------
@@ -606,8 +593,7 @@ def accessibility(
     >>> len(access) == len(points) * 2 * 2
     True
     """
-    # mirrors r5r R/accessibility.R
-    assert_network(r5r_network)
+    assert_network(network)
     o = assign_points_input(origins, "origins")
     d = assign_points_input(destinations, "destinations")
     check_destination_ids(d)
@@ -615,7 +601,7 @@ def accessibility(
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
     if mode_list.transit:
-        check_transit_availability_on_date(r5r_network, departure)
+        check_transit_availability_on_date(network, departure)
 
     fun, value = assign_decay_function(decay_function, decay_value)
 
@@ -643,9 +629,9 @@ def accessibility(
         n_threads, verbose, progress,
     )
     check_draws(draws_per_minute, time_window, mcraptor=fare_structure is not None)
-    fares = fare_arg(fare_structure, max_fare, r5r_network)
+    fares = fare_arg(fare_structure, max_fare, network)
     out_dir = check_output_dir(output_dir)
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
 
     # the third element of an accessibility output holds the opportunity
     # names
@@ -653,7 +639,7 @@ def accessibility(
     with core_errors("accessibility"):
         values = _f64(
             _peabiru.accessibility(
-                r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+                network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
                 opp, mode_list.direct_modes, mode_list.transit_mode, mode_list.egress_mode,
                 fun, value, cutoffs_r5, pcts,
                 departure.yyyymmdd, departure.seconds, int(time_window),
@@ -683,7 +669,7 @@ def accessibility(
 
 
 def expanded_travel_time_matrix(
-    r5r_network: Network,
+    network: Network,
     origins: pd.DataFrame,
     destinations: pd.DataFrame,
     mode: Mode = "WALK",
@@ -727,7 +713,7 @@ def expanded_travel_time_matrix(
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     origins : pandas.DataFrame
         Points with columns ``id``, ``lon`` and ``lat`` (WGS 84), or a
@@ -835,15 +821,9 @@ def expanded_travel_time_matrix(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments (names, order and defaults),
-    their checks and messages, the columns, the row order and the values
-    are those of ``expanded_travel_time_matrix()`` in r5r 2.5.0, whose
-    paths are R5 7.6's (ported from Conveyal's R5). Differences: no
-    ``r5r_core`` argument, a pandas DataFrame instead of a ``data.table``,
-    and a street mode alone is an error: there r5r reports the same trip
-    for every minute of a departure time taken from the computer's clock,
-    not from ``departure_datetime``. See also [Coming from r5py /
-    r5r](coming-from-r5.md).
+    A street mode alone is an error: without public transport there is one
+    trip, whatever the minute; use
+    [`travel_time_matrix()`][peabiru.travel_time_matrix].
 
     Examples
     --------
@@ -863,7 +843,6 @@ def expanded_travel_time_matrix(
     >>> sorted(ettm["departure_time"].unique())
     ['14:00:00', '14:01:00']
     """
-    # mirrors r5r R/expanded_travel_time_matrix.R
     o = assign_points_input(origins, "origins")
     d = assign_points_input(destinations, "destinations")
     check_destination_ids(d)
@@ -871,8 +850,8 @@ def expanded_travel_time_matrix(
     _check_expanded_mode(mode_list)
     departure = assign_departure(departure_datetime, mode_list)
 
-    assert_network(r5r_network)
-    check_transit_availability_on_date(r5r_network, departure)
+    assert_network(network)
+    check_transit_availability_on_date(network, departure)
 
     lim = _street_limits(
         max_walk_time, max_bike_time, max_car_time, walk_speed, bike_speed,
@@ -886,11 +865,11 @@ def expanded_travel_time_matrix(
     )
     out_dir = check_output_dir(output_dir)
     assert_flag(breakdown, "breakdown")
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
 
     with core_errors("expanded_travel_time_matrix", n_destinations=len(d)):
         res = _peabiru.expanded(
-            r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+            network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
             mode_list.transit_mode, mode_list.access_mode, mode_list.egress_mode,
             float(bike_speed), int(max_lts), lim["bike"], lim["car"],
             False, departure.yyyymmdd, departure.seconds, int(time_window),
@@ -904,7 +883,7 @@ def expanded_travel_time_matrix(
 
 
 def arrival_travel_time_matrix(
-    r5r_network: Network,
+    network: Network,
     origins: pd.DataFrame,
     destinations: pd.DataFrame,
     mode: Mode = "WALK",
@@ -943,7 +922,7 @@ def arrival_travel_time_matrix(
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     origins : pandas.DataFrame
         Points with columns ``id``, ``lon`` and ``lat`` (WGS 84), or a
@@ -1044,16 +1023,10 @@ def arrival_travel_time_matrix(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments (names, order and defaults),
-    their checks and messages, the columns, the row order and the values
-    are those of ``arrival_travel_time_matrix()`` in r5r 2.5.0 (paths of
-    R5 7.6, ported from Conveyal's R5). Differences: no ``r5r_core``
-    argument; ``arrival_datetime`` has a default of ``None`` because
-    Python cannot have a required argument after optional ones (leaving it
-    out is the error r5r gives); a pandas DataFrame instead of a
-    ``data.table``; a street mode alone is an error, as in
+    ``arrival_datetime`` has a default of ``None`` because Python cannot
+    have a required argument after optional ones; leaving it out is an
+    error. A street mode alone is an error, as in
     [`expanded_travel_time_matrix()`][peabiru.expanded_travel_time_matrix].
-    See also [Coming from r5py / r5r](coming-from-r5.md).
 
     Examples
     --------
@@ -1072,7 +1045,6 @@ def arrival_travel_time_matrix(
     >>> bool((attm["total_time"] <= 30).all())
     True
     """
-    # mirrors r5r R/arrival_travel_time_matrix.R
     if arrival_datetime is None:
         raise ValueError(
             "'arrival_datetime' is required. Supply a datetime value specifying "
@@ -1081,7 +1053,7 @@ def arrival_travel_time_matrix(
         )
     if n_threads is not None:
         assert_number(n_threads, "n_threads", lower=1)
-    assert_network(r5r_network)
+    assert_network(network)
 
     o = assign_points_input(origins, "origins")
     d = assign_points_input(destinations, "destinations")
@@ -1097,7 +1069,7 @@ def arrival_travel_time_matrix(
     )
     mtd = lim["trip"]
 
-    # the departure is arrival - max_trip_duration, as r5r computes it
+    # the departure is arrival - max_trip_duration
     if not isinstance(arrival_datetime, _dt.datetime) or pd.isna(arrival_datetime):
         fail_assert(
             "arrival_datetime",
@@ -1107,7 +1079,7 @@ def arrival_travel_time_matrix(
     departure = assign_departure(
         minus_minutes(arrival_datetime, mtd), mode_list, "arrival_datetime"
     )
-    check_transit_availability_on_date(r5r_network, departure)
+    check_transit_availability_on_date(network, departure)
 
     # the time window is max_trip_duration
     c = _common_checks(
@@ -1116,7 +1088,7 @@ def arrival_travel_time_matrix(
     )
     out_dir = check_output_dir(output_dir)
     assert_flag(breakdown, "breakdown")
-    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+    scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
 
     # the engine's time window is max_trip_duration here
     with core_errors(
@@ -1125,7 +1097,7 @@ def arrival_travel_time_matrix(
         n_destinations=len(d),
     ):
         res = _peabiru.expanded(
-            r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+            network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
             mode_list.transit_mode, mode_list.access_mode, mode_list.egress_mode,
             float(bike_speed), int(max_lts), lim["bike"], lim["car"],
             True, departure.yyyymmdd, departure.seconds, mtd,
@@ -1152,10 +1124,10 @@ _BREAKDOWN = ["access_time", "wait_time", "ride_time", "transfer_time", "egress_
 def _expanded_result(
     res: Dict[str, Any], o: Points, d: Points, breakdown: bool, max_trip_duration: int
 ) -> pd.DataFrame:
-    """Column assembly of r5r's expanded and arrival matrices."""
+    """Column assembly of the expanded and arrival matrices."""
     frm, to = _i32(res["from"]), _i32(res["to"])
     total = _f64(res["total_time"])
-    # r5r: replace travel times of non-viable trips with NAs (NaN compares
+    # travel times of non-viable trips become NA (NaN compares
     # False, so missing values stay missing)
     over = total > max_trip_duration
 

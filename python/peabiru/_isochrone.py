@@ -1,4 +1,4 @@
-"""r5r 2.5.0's isochrone(): polygons from travel-time surfaces, or the street
+"""isochrone(): polygons from travel-time surfaces, or the street
 segments reached."""
 
 from __future__ import annotations
@@ -41,8 +41,6 @@ from ._routing import (
 )
 
 _NA = _peabiru.NA_I32
-# r5r's sample_size is deprecated: any value given warns
-_UNSET: Any = object()
 
 
 def _geo() -> Any:
@@ -58,7 +56,7 @@ def _geo() -> Any:
 
 
 def isochrone(
-    r5r_network: Network,
+    network: Network,
     origins: pd.DataFrame,
     mode: Mode = "transit",
     mode_egress: str = "walk",
@@ -81,7 +79,6 @@ def isochrone(
     n_threads: Optional[Number] = math.inf,
     verbose: bool = False,
     progress: bool = True,
-    sample_size: Any = _UNSET,
 ) -> Any:
     """Isochrones: the areas or street segments reached from each origin.
 
@@ -113,7 +110,7 @@ def isochrone(
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     origins : pandas.DataFrame
         Points with columns ``id``, ``lon`` and ``lat`` (WGS 84), or a
@@ -177,8 +174,6 @@ def isochrone(
         Only checked; it has no effect.
     progress : bool, default True
         Only checked; peabiru prints no progress counter.
-    sample_size : optional
-        Deprecated and ignored: giving it only warns.
 
     Returns
     -------
@@ -197,21 +192,13 @@ def isochrone(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments (names, order and defaults),
-    their checks and messages, the columns and the row order are those of
-    ``isochrone()`` in r5r 2.5.0, and the travel times are R5 7.6's (ported
-    from Conveyal's R5). The polygons are those r5r gets from isoband,
-    vertex for vertex on the same platform (rings follow the C++ library
-    isoband is built with: libc++ on macOS, libstdc++ on Linux and
-    Windows); r5r then passes them to ``sf::st_make_valid()``, which
-    rebuilds them with the s2 library (snapping vertices to 1e-7 degrees,
-    re-orienting rings, turning a single polygon into a ``POLYGON``). That
-    step is not reproduced: the polygons cover the same areas as r5r's but
-    are always ``MultiPolygon``s. Line isochrones route to the centroids
-    r5r takes with ``sf::st_centroid()``, to within about 1e-14 degrees.
-    Other differences: no ``r5r_core`` argument; a GeoDataFrame instead of
-    an ``sf`` data frame, with ``osm_id`` as ``int64``. See [Coming from
-    r5py / r5r](coming-from-r5.md).
+    The travel times are those of the routing engine (a port of Conveyal's
+    R5 7.6). The polygons are contoured with the isoband algorithm, whose
+    rings follow the C++ library isoband is built with on each platform
+    (libc++ on macOS, libstdc++ on Linux and Windows). They are returned as
+    contoured, always as ``MultiPolygon``s, and are not made valid: pass
+    them to ``shapely.make_valid()`` if your tools need valid geometries.
+    Line isochrones route to the centroids of the street segments.
 
     Examples
     --------
@@ -226,21 +213,14 @@ def isochrone(
     >>> list(iso.columns), list(iso.isochrone)
     (['id', 'isochrone', 'percentile', 'polygons'], [20.0, 10.0])
     """
-    # mirrors r5r R/isochrone.R
-    if sample_size is not _UNSET:
-        warnings.warn(
-            "The `sample_size` argument is no longer used and has no effect.",
-            stacklevel=2,
-        )
-    assert_network(r5r_network)
+    assert_network(network)
     gpd, shapely = _geo()
 
     cm.cm_assert(
         cm.check_numeric(cutoffs, lower=0, finite=True, any_missing=False, min_len=1), "cutoffs"
     )
     cm.cm_assert(cm.check_logical(polygon_output), "polygon_output")
-    # r5r takes anything but TRUE as FALSE and then fails on an undefined
-    # object; an error of peabiru's own here
+    # one flag, not a vector of them
     assert_flag(polygon_output, "polygon_output")
     polygon_output = bool(scalar(polygon_output))
     values = [float(v) for v in cm.Vec(cutoffs).values]
@@ -257,10 +237,10 @@ def isochrone(
         if percentiles is None:
             percentiles = 50
         cm.cm_assert(cm.check_numeric(zoom, lower=9, upper=12, len_=1), "zoom")
-        # r5r lets a fractional or missing zoom through to R5
+        # a whole zoom level, not missing
         assert_int(zoom, "zoom")
         return _polygons(
-            gpd, shapely, r5r_network, origins, mode, mode_egress, cuts, int(round(scalar(zoom))),
+            gpd, shapely, network, origins, mode, mode_egress, cuts, int(round(scalar(zoom))),
             departure_datetime, time_window, max_walk_time, max_bike_time, max_car_time,
             # route past max(cutoffs) so the outer band is interpolated like
             # the inner ones
@@ -271,7 +251,7 @@ def isochrone(
     if percentiles is not None:
         raise ValueError("Percentiles not supported for line-based isochrones")
     return _lines(
-        gpd, shapely, r5r_network, origins, mode, mode_egress, cuts, departure_datetime,
+        gpd, shapely, network, origins, mode, mode_egress, cuts, departure_datetime,
         time_window, max_walk_time, max_bike_time, max_car_time, limit, walk_speed,
         bike_speed, max_rides, max_lts, draws_per_minute, seed, n_threads, verbose,
         progress,
@@ -286,11 +266,10 @@ def _polygons(
     draws_per_minute: Any, seed: Any, percentiles: Any, n_threads: Any, verbose: Any,
     progress: Any,
 ) -> Any:
-    """r5r's travel_time_surface() argument handling, then the core's
+    """The argument handling of the travel-time surface, then the core's
     surfaces and polygons."""
     o = assign_points_input(origins, "origins")
-    # r5r fails on origins without rows (an internal R error); an error here,
-    # as in R
+    # as in the R package
     if len(o) == 0:
         raise ValueError("'origins' has no rows.")
     mode_list = assign_mode(mode, mode_egress)
@@ -355,7 +334,7 @@ def _lines(
     bike_speed: Any, max_rides: Any, max_lts: Any, draws_per_minute: Any, seed: Any,
     n_threads: Any, verbose: Any, progress: Any,
 ) -> Any:
-    """r5r's line isochrones: travel_time_matrix() to the centroids of the
+    """Line isochrones: travel_time_matrix() to the centroids of the
     street edges, banded by the core."""
     e = _peabiru.street_edges(network._core)
     edge_index = _i32(e["edge_index"])

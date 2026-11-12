@@ -12,13 +12,14 @@ _SPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "spo")
 def sample_data_path() -> str:
     """Directory of the sample network shipped with peabiru.
 
-    A small network for examples and tests, cut from the Sao Paulo sample
-    data of r5r: ``spo_osm.pbf``, the streets around Avenida Paulista (map
-    data (c) OpenStreetMap contributors, available under the Open Database
-    License, https://www.openstreetmap.org/copyright); ``spo_gtfs.zip``,
-    the SPTrans frequency-based GTFS feed shipped with r5r, without
-    ``shapes.txt``; and ``spo_points.csv``, 27 points of r5r's hexagonal
-    grid with their population and opportunity counts.
+    A small network of Sao Paulo for examples and tests, cut from the
+    sample data of the r5r project: ``spo_osm.pbf``, the streets around
+    Avenida Paulista (map data (c) OpenStreetMap contributors, available
+    under the Open Database License,
+    https://www.openstreetmap.org/copyright); ``spo_gtfs.zip``, a
+    frequency-based GTFS feed of SPTrans, without ``shapes.txt``; and
+    ``spo_points.csv``, 27 points of a hexagonal grid with their population
+    and opportunity counts.
 
     Returns
     -------

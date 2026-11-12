@@ -1,4 +1,4 @@
-"""Building a transport network (r5r ``build_network()``)."""
+"""Building a transport network: ``build_network()``."""
 
 from __future__ import annotations
 
@@ -101,7 +101,7 @@ class Network:
 def assert_network(x: Any) -> None:
     if not isinstance(x, Network):
         raise TypeError(
-            "Assertion on 'r5r_network' failed: Must be a 'peabiru.Network' "
+            "Assertion on 'network' failed: Must be a 'peabiru.Network' "
             "(see build_network())."
         )
 
@@ -208,23 +208,13 @@ def build_network(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments ``data_path``, ``verbose``,
-    ``temp_dir``, ``elevation`` and ``overwrite``, their defaults and
-    checks, and the network's routing are those of ``build_network()`` in
-    r5r 2.5.0 (the network is R5 7.6's, ported from Conveyal's R5):
-    the slope costs, the refusal of feeds with errors of priority
-    ``"HIGH"`` and the order of the feeds are r5r's. Differences: there is
-    no Java, so ``temp_dir`` (where r5r keeps the R5 jar) and ``overwrite``
-    (which rebuilds r5r's cached ``network.dat``) have no effect; nothing
-    is written to ``data_path`` (no ``network.dat``, no
-    ``gtfs_errors.csv``); ``n_threads`` is added; more than one ``.pbf``
-    file is an error (r5r uses one of them); the rasters r5r reads but
-    peabiru refuses are listed above (r5r uses a ``.prj`` file's system,
-    fails on a ``.tiff`` and reads the last of several rasters). In a
-    projected raster, r5r's own result for the points within nanometres of
-    a pixel boundary depends on the machine (the last bits of the JVM's
-    sines and cosines), and r5r gives no warning for wrapped values. See
-    [Coming from r5py / r5r](coming-from-r5.md).
+    The network is that of Conveyal's R5 7.6, ported to Rust. Nothing is
+    written to ``data_path``; ``temp_dir`` and ``overwrite`` are checked and
+    have no effect (there is no file to keep or to rebuild). More than one
+    ``.pbf`` file is an error. In a projected raster, the pixel read for a
+    point within nanometres of a pixel boundary is the one Java's
+    ``StrictMath`` gives, on every machine, with a warning that counts such
+    points.
 
     Examples
     --------
@@ -244,7 +234,7 @@ def build_network(
     assert_flag(overwrite, "overwrite")
     threads = assign_n_threads(n_threads)
 
-    # r5r set_elevation()
+    # the elevation model
     elevation = elevation.upper()
     valid = ["TOBLER", "MINETTI", "NONE"]
     if elevation not in valid:
@@ -257,13 +247,13 @@ def build_network(
     data_path = os.path.realpath(os.path.expanduser(data_path))
     # R's list.files(): no hidden files
     files = sorted(f for f in os.listdir(data_path) if not f.startswith("."))
-    # r5r build_network() looks for its inputs with these patterns. They
-    # are regular expressions, so ".tif" also matches a name such as
-    # "identificacao.csv"; any_tif keeps that loose match because r5r uses
-    # it to turn off the swap of origins and destinations.
+    # The inputs are found with these patterns. They are regular
+    # expressions, so ".tif" also matches a name such as
+    # "identificacao.csv"; any_tif keeps that loose match because it turns
+    # off the swap of origins and destinations (see swap_od()).
     any_pbf = any(re.search(".pbf", f) for f in files)
     any_tif = any(re.search(".tif", f) for f in files)
-    # lower case only, as r5r and the engine match the extension
+    # lower case only, as the engine matches the extension
     pbf = [f for f in files if re.search(r"\.pbf$", f)]
     if not any_pbf or not pbf:
         raise ValueError(f"An OSM .pbf file is required in '{data_path}' to build a network.")
@@ -284,7 +274,7 @@ def build_network(
     core = _peabiru.build_network(data_path, threads, elevation)
     # the model in use: "NONE" when no file ends in .tif (R5 finds no raster)
     network = Network(core, data_path, core.info()["elevation"], any_tif)
-    for message in core.r5r_warnings():
+    for message in core.build_warnings():
         warnings.warn(message, stacklevel=2)
     if verbose:
         print(

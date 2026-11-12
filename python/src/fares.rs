@@ -1,6 +1,6 @@
 //! Fare structures and `pareto_frontier()`. A structure crosses the
 //! boundary as a flat dict of lists (see `peabiru/_fares.py`), which the
-//! Python side turns into r5r's object (a dict with DataFrames).
+//! Python side turns into a fare structure (a dict with DataFrames).
 
 use super::{
     f64_bytes, i32_bytes, interruptible, parse_transit_modes, points, street_mode, transit,
@@ -168,7 +168,7 @@ pub(crate) fn fare_arg(fare: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Arc<
     fare.map(|d| from_py(d).map(Arc::new)).transpose()
 }
 
-/// r5r's `setup_fare_structure()`, as the flat dict.
+/// `setup_fare_structure()`, as the flat dict.
 #[pyfunction]
 fn fare_setup<'py>(
     py: Python<'py>,
@@ -181,14 +181,14 @@ fn fare_setup<'py>(
     to_py(py, &s)
 }
 
-/// r5r's `read_fare_structure()` of the bytes of a `.zip` file.
+/// `read_fare_structure()` of the bytes of a `.zip` file.
 #[pyfunction]
 fn fare_read<'py>(py: Python<'py>, bytes: &[u8], encoding: &str) -> PyResult<Bound<'py, PyDict>> {
     let s = read_fare_structure(bytes, encoding).map_err(value_err)?;
     to_py(py, &s)
 }
 
-/// r5r's `write_fare_structure()`: the bytes of the `.zip` file.
+/// `write_fare_structure()`: the bytes of the `.zip` file.
 #[pyfunction]
 fn fare_write<'py>(py: Python<'py>, fare: &Bound<'py, PyDict>) -> PyResult<Bound<'py, PyBytes>> {
     let s = from_py(fare)?;
@@ -198,7 +198,7 @@ fn fare_write<'py>(py: Python<'py>, fare: &Bound<'py, PyDict>) -> PyResult<Bound
     ))
 }
 
-/// The checks r5r makes when it is given a structure for a network.
+/// The checks of a structure against a network's routes.
 #[pyfunction]
 fn fare_check(network: &Bound<'_, Network>, fare: &Bound<'_, PyDict>) -> PyResult<()> {
     let s = from_py(fare)?;
@@ -206,7 +206,7 @@ fn fare_check(network: &Bound<'_, Network>, fare: &Bound<'_, PyDict>) -> PyResul
     s.validate_for(&network.get().net).map_err(value_err)
 }
 
-/// r5r's `pareto_frontier()`: `(from, to, percentile, travel_time)` as
+/// `pareto_frontier()`: `(from, to, percentile, travel_time)` as
 /// int32 bytes and `monetary_cost` as float64 bytes; `transit_modes`
 /// empty routes by `mode` alone.
 #[pyfunction]

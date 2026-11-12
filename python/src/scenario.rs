@@ -1,6 +1,6 @@
-//! r5r's scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`) from the
+//! Scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`) from the
 //! dictionary `peabiru._scenario.scenario_spec()` builds: the data frame
-//! columns as text, written as r5r hands them to R5 (Java parses them
+//! columns as text, written as R5 receives them (Java parses them
 //! here), and the geometries flattened.
 
 use peabiru_core::unstable::{java_parse_float, java_parse_int, java_parse_long};
@@ -24,8 +24,7 @@ fn ids(arg: &str, text: &[String]) -> PyResult<Vec<i64>> {
         .map(|s| {
             java_parse_long(s).ok_or_else(|| {
                 PyValueError::new_err(format!(
-                    "'{arg}': osm_id '{s}' is not an integer as R writes it (r5r fails too: \
-                     java.lang.NumberFormatException: For input string: \"{s}\")"
+                    "'{arg}': osm_id '{s}' is not an integer as R writes it"
                 ))
             })
         })
@@ -49,9 +48,7 @@ pub(crate) fn scenario_of(spec: Option<&Bound<'_, PyDict>>) -> PyResult<Scenario
                 .map(|v| {
                     java_parse_float(v).ok_or_else(|| {
                         PyValueError::new_err(format!(
-                            "'new_carspeeds': max_speed '{v}' is not a number as Java reads it \
-                             (r5r fails too: java.lang.NumberFormatException: For input \
-                             string: \"{v}\")"
+                            "'new_carspeeds': max_speed '{v}' is not a number as Java reads it"
                         ))
                     })
                 })
@@ -64,7 +61,7 @@ pub(crate) fn scenario_of(spec: Option<&Bound<'_, PyDict>>) -> PyResult<Scenario
             };
         }
         "polygon" => {
-            // r5r hands the polygons to R5 through GeoJSON written by GDAL
+            // R5 receives the polygons as GeoJSON written by GDAL
             let gdal = |v: Vec<f64>| -> Vec<f64> {
                 v.into_iter()
                     .map(peabiru_core::unstable::gdal_geojson_coordinate)
@@ -111,8 +108,7 @@ pub(crate) fn scenario_of(spec: Option<&Bound<'_, PyDict>>) -> PyResult<Scenario
                 .map(|v| {
                     java_parse_int(v).ok_or_else(|| {
                         PyValueError::new_err(format!(
-                            "'new_lts': lts '{v}' is not an integer (r5r fails too: \
-                             java.lang.NumberFormatException: For input string: \"{v}\")"
+                            "'new_lts': lts '{v}' is not an integer"
                         ))
                     })
                 })

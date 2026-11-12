@@ -1,7 +1,6 @@
-"""Fare structures and pareto_frontier(), as r5r's (2.5.0)
-R/fare_structure.R and R/pareto_frontier.R.
+"""Fare structures and pareto_frontier().
 
-A fare structure is r5r's object as a dict: ``max_discounted_transfers``,
+A fare structure is a dict: ``max_discounted_transfers``,
 ``transfer_time_allowance``, ``fare_cap``, the tables ``fares_per_type``,
 ``fares_per_transfer`` and ``fares_per_route`` (pandas DataFrames) and
 ``debug_settings`` (a dict with ``output_file`` and ``trip_info``).
@@ -66,7 +65,7 @@ def _count(x: float) -> Optional[int]:
 
 
 def _from_core(d: Dict[str, Any]) -> FareStructure:
-    """The core's flat dict as r5r's object."""
+    """The core's flat dict as a fare structure."""
     def frame(cols: List[str], keys: List[str]) -> pd.DataFrame:
         # explicit dtypes: text columns of object dtype holding str (None
         # when missing), as in every other result, whatever pandas' default
@@ -119,7 +118,7 @@ def _number(x: Any, name: str) -> float:
 
 
 def _to_core(fs: FareStructure) -> Dict[str, Any]:
-    """r5r's object as the core's flat dict (the checks of
+    """A fare structure as the core's flat dict (the checks of
     assert_fare_structure() on the values are the core's)."""
     t, tr, r = fs["fares_per_type"], fs["fares_per_transfer"], fs["fares_per_route"]
 
@@ -148,7 +147,7 @@ def _to_core(fs: FareStructure) -> Dict[str, Any]:
 
 
 def setup_fare_structure(
-    r5r_network: Network,
+    network: Network,
     base_fare: Number,
     by: str = "MODE",
     debug_path: Optional[str] = None,
@@ -165,7 +164,7 @@ def setup_fare_structure(
 
     Parameters
     ----------
-    r5r_network : Network
+    network : Network
         A network built with [`build_network()`][peabiru.build_network].
     base_fare : float
         The fare of every route, type and transfer, at least 0.
@@ -192,14 +191,8 @@ def setup_fare_structure(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments, their checks and messages,
-    and the structure (its elements, tables, columns and values) are those
-    of ``setup_fare_structure()`` in r5r 2.5.0; fares are computed by a
-    translation of r5r's Java fare calculator (``RuleBasedInRoutingFareCalculator``,
-    by the r5r contributors, MIT). Differences: no
-    ``r5r_core`` argument; a dict of pandas DataFrames instead of a list of
-    ``data.table``s. As in r5r 2.5.0, the debug settings are kept but no
-    debug file is written.
+    The debug settings are kept in the structure, but no debug file is
+    written.
 
     Examples
     --------
@@ -211,7 +204,7 @@ def setup_fare_structure(
     >>> fares["fares_per_type"]["fare"].tolist()
     [4.4, 4.4, 4.4]
     """
-    assert_network(r5r_network)
+    assert_network(network)
     cm.cm_assert(cm.check_numeric(base_fare, lower=0, len_=1, any_missing=False), "base_fare")
     base_fare = float(scalar(base_fare))
     by_options = ["MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC"]
@@ -235,7 +228,7 @@ def setup_fare_structure(
             fail_assert("debug_info", "Must be a subset of {'MODE','ROUTE','MODE_ROUTE'}, but has "
                         f"additional elements {{'{debug_info}'}}")
     with core_errors("setup_fare_structure"):
-        fs = _from_core(_peabiru.fare_setup(r5r_network._core, float(base_fare), by))
+        fs = _from_core(_peabiru.fare_setup(network._core, float(base_fare), by))
     fs["debug_settings"] = (
         {"output_file": debug_path, "trip_info": debug_info} if debug_path is not None
         else {"output_file": "", "trip_info": "MODE"}
@@ -247,7 +240,7 @@ def write_fare_structure(fare_structure: FareStructure, file_path: PathArg) -> P
     """Write a fare structure to a ``.zip`` file.
 
     Five CSV files (the settings and the three tables) in a ``.zip``
-    archive that deflates them (as r5r's), to be read again with
+    archive that deflates them, to be read again with
     [`read_fare_structure()`][peabiru.read_fare_structure] here or in the R
     package.
 
@@ -266,12 +259,8 @@ def write_fare_structure(fare_structure: FareStructure, file_path: PathArg) -> P
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments and the CSV files are those of
-    ``write_fare_structure()`` in r5r 2.5.0, byte for byte (in the format of
-    ``data.table::fwrite()``), so r5r's ``read_fare_structure()`` reads the
-    file and this package reads r5r's. Difference: the archive deflates the
-    files as r5r's does but without r5r's file dates, so its own bytes
-    differ from r5r's.
+    The CSV files are in the format of R's ``data.table::fwrite()``, so the
+    R package of peabiru reads the file too.
 
     Examples
     --------
@@ -287,8 +276,7 @@ def write_fare_structure(fare_structure: FareStructure, file_path: PathArg) -> P
     p = os.fspath(file_path)
     if not p.endswith(".zip"):
         fail_assert("file_path", "Must comply to pattern '\\.zip$'")
-    # r5r checks nothing and fails while writing (or writes tables recycled
-    # to the wrong length): the structure is checked, as the routing
+    # the structure is checked before anything is written, as the routing
     # functions check it
     assert_fare_structure(fare_structure)
     with core_errors("write_fare_structure"):
@@ -303,7 +291,7 @@ def read_fare_structure(file_path: PathArg, encoding: str = "UTF-8") -> FareStru
 
     Reads the files written by
     [`write_fare_structure()`][peabiru.write_fare_structure], here or in the
-    R packages (peabiru's or r5r's).
+    R package.
 
     Parameters
     ----------
@@ -317,13 +305,6 @@ def read_fare_structure(file_path: PathArg, encoding: str = "UTF-8") -> FareStru
     dict
         The fare structure (see
         [`setup_fare_structure()`][peabiru.setup_fare_structure]).
-
-    Notes
-    -----
-    **Compatibility with r5r.** The arguments, their checks and the
-    structure read (the columns r5r reads, with their types) are those of
-    ``read_fare_structure()`` in r5r 2.5.0. Difference: a dict of pandas
-    DataFrames instead of a list of ``data.table``s.
 
     Examples
     --------
@@ -349,7 +330,7 @@ def read_fare_structure(file_path: PathArg, encoding: str = "UTF-8") -> FareStru
 
 
 def assert_fare_structure(fare_structure: Any) -> None:
-    """r5r's assert_fare_structure(): the element names here, the values
+    """The checks of a fare structure: the element names here, the values
     and tables in the core."""
     if not isinstance(fare_structure, dict):
         fail_assert("fare_structure", "Must be of type 'list'", TypeError)
@@ -364,12 +345,12 @@ def assert_fare_structure(fare_structure: Any) -> None:
     for n, cols in known.items():
         if not isinstance(fare_structure[n], pd.DataFrame):
             raise TypeError(f"Check on 'fare_structure${n}' failed: Must be a data.frame")
-        # r5r hands the columns to Java, which fails on a column it does not know
+        # only the columns of a fare structure
         extra = [c for c in fare_structure[n].columns if c not in cols]
         if extra:
             raise ValueError(
-                f"fare_structure${n} has column(s) r5r cannot read: {extra} (r5r fails "
-                "reading the structure in Java)."
+                f"fare_structure${n} has column(s) that are not part of a fare "
+                f"structure: {extra}."
             )
     ds = fare_structure["debug_settings"]
     if not isinstance(ds, dict) or sorted(ds) != ["output_file", "trip_info"]:
@@ -379,8 +360,8 @@ def assert_fare_structure(fare_structure: Any) -> None:
 
 
 def fare_arg(fare_structure: Any, max_fare: Any, network: Network) -> Optional[Dict[str, Any]]:
-    """r5r's set_fare_structure() and set_max_fare(): the structure checked
-    and, as in r5r, read in for the network's routes whatever the modes; a
+    """The fare arguments of a routing call: the structure checked
+    and read in for the network's routes whatever the modes; a
     finite max_fare needs a structure. Returns the core's flat dict."""
     core = None
     if fare_structure is not None:
@@ -400,7 +381,7 @@ def fare_arg(fare_structure: Any, max_fare: Any, network: Network) -> Optional[D
 
 
 def pareto_frontier(
-    r5r_network: Network,
+    network: Network,
     origins: Any,
     destinations: Any,
     mode: Union[str, Sequence[str]] = ("WALK", "TRANSIT"),
@@ -435,7 +416,7 @@ def pareto_frontier(
 
     Parameters
     ----------
-    r5r_network, origins, destinations, mode, mode_egress, departure_datetime, time_window, seed, percentiles, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, verbose, progress
+    network, origins, destinations, mode, mode_egress, departure_datetime, time_window, seed, percentiles, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, verbose, progress
         As in [`travel_time_matrix()`][peabiru.travel_time_matrix].
     fare_structure : dict
         A fare structure (see
@@ -455,16 +436,9 @@ def pareto_frontier(
 
     Notes
     -----
-    **Compatibility with r5r.** The arguments (names, order and defaults),
-    their checks and messages, the rows, their order, the columns and the
-    values are those of ``pareto_frontier()`` in r5r 2.5.0 (R5 7.6's
-    McRAPTOR, ported from Conveyal's R5, and r5r's Java fare calculator,
-    translated). Differences: no
-    ``r5r_core`` argument; ``fare_structure`` and ``fare_cutoffs`` have a
-    default of ``None`` because Python cannot have required arguments after
-    optional ones (leaving them out is an error); a pandas DataFrame
-    instead of a ``data.table``; ``output_dir`` (r5r writes CSV files) is
-    refused. See [Coming from r5py / r5r](coming-from-r5.md).
+    ``fare_structure`` and ``fare_cutoffs`` have a default of ``None``
+    because Python cannot have required arguments after optional ones;
+    leaving them out is an error.
 
     Examples
     --------
@@ -494,9 +468,9 @@ def pareto_frontier(
     check_destination_ids(d)
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
-    assert_network(r5r_network)
+    assert_network(network)
     if mode_list.transit:
-        check_transit_availability_on_date(r5r_network, departure)
+        check_transit_availability_on_date(network, departure)
     lim = _street_limits(
         max_walk_time, max_bike_time, max_car_time, walk_speed, bike_speed,
         max_trip_duration, mode_list,
@@ -511,14 +485,14 @@ def pareto_frontier(
     check_max_lts(max_lts)
     threads = assign_n_threads(n_threads)
     check_messages(verbose, progress)
-    core = fare_arg(fare_structure, math.inf, r5r_network)
+    core = fare_arg(fare_structure, math.inf, network)
     check_output_dir(output_dir)
     if output_dir is not None:
         unsupported("'output_dir' in pareto_frontier()")
     cutoffs = _fare_cutoffs(fare_cutoffs)
     with core_errors("pareto_frontier"):
         res = _peabiru.pareto(
-            r5r_network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
+            network._core, o.lat_bytes(), o.lon_bytes(), d.lat_bytes(), d.lon_bytes(),
             mode_list.access_mode, mode_list.transit_mode if mode_list.transit else "",
             mode_list.egress_mode if mode_list.transit else mode_list.access_mode,
             departure.yyyymmdd, departure.seconds, int(time_window), pcts,
@@ -540,7 +514,7 @@ def pareto_frontier(
 
 
 def _fare_cutoffs(fare_cutoffs: Any) -> List[float]:
-    """r5r set_fare_cutoffs(): numeric, at least one, no NA, >= 0, unique."""
+    """The fare cutoffs: numeric, at least one, no NA, >= 0, unique."""
     cm.cm_assert(
         cm.check_numeric(fare_cutoffs, lower=0, any_missing=False, min_len=1, unique=True),
         "fare_cutoffs",
