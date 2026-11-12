@@ -116,7 +116,7 @@ residents without a building. `site/figures/scenarios.R` draws
 `scenario-cycle-path.svg`, `scenario-car.svg`, `scenario-health.svg`,
 `scenario-fares.svg`, `helsinki-jobs.svg` and `helsinki-isochrones.svg`;
 then the R articles `scenarios-porto-alegre.Rmd` and `helsinki.Rmd` are
-knitted from their `.Rmd.orig` (about ten minutes: routing with a fare
+knitted from their `.Rmd.orig` (about twenty minutes on a busy laptop: routing with a fare
 structure is slow). HSL replaces its feed every day and keeps about two
 months of service in it, so a later run needs a later date (`hel_date` in
 `scenarios-data.R`, and the date in the two pages) and gives other numbers.

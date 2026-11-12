@@ -31,9 +31,9 @@ the repository. The fare routing takes a few minutes. It needs
 | Data | Source | Licence |
 |---|---|---|
 | Streets | OpenStreetMap extract of Porto Alegre in r5r 2.5.0's sample data (`poa_osm.pbf`) | ODbL 1.0, © OpenStreetMap contributors |
-| Public transport | The EPTC bus and Trensurb train GTFS feeds of r5r's sample (`poa_eptc.zip`, `poa_trensurb.zip`), cut for the sample: the buses run from 11:20 to 17:50 only, so the analyses below leave at 14:00 on Monday 13 May 2019 | distributed with r5r (MIT) |
-| Grid | `poa_hexgrid.csv`: 1,227 H3 cells (resolution 9) with population, jobs, schools and health facilities; r5r does not document its sources | distributed with r5r (MIT) |
-| Fares | `fares/fares_poa.zip`, r5r's fare structure of the sample | distributed with r5r (MIT) |
+| Public transport | The EPTC bus and Trensurb train GTFS feeds of r5r's sample (`poa_eptc.zip`, `poa_trensurb.zip`), cut for the sample: the buses run from 11:20 to 17:50 only, so the analyses below leave at 14:00 on Monday 13 May 2019 | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
+| Grid | `poa_hexgrid.csv`: 1,227 H3 cells (resolution 9) with population, jobs, schools and health facilities; r5r does not document its sources | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
+| Fares | `fares/fares_poa.zip`, r5r's fare structure of the sample | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
 
 All files come from r5r's repository at the tag of version 2.5.0. The
 sample also has an elevation raster, left out here: a call with a scenario
@@ -76,7 +76,8 @@ def timed(f, *args, **kwargs):
     return out, time.perf_counter() - start
 
 
-network, build_time = timed(peabiru.build_network, data_dir / "network")
+threads = 4   # of this laptop's ten cores
+network, build_time = timed(peabiru.build_network, data_dir / "network", n_threads=threads)
 print(network.info())
 
 grid = pd.read_csv(data_dir / "poa_hexgrid.csv")
@@ -100,10 +101,12 @@ def ways_named(name):
 ```
 
 ```text
+{'vertices': 26880, 'edges': 66652, 'elevation': 'NONE', 'feeds': ['poa_trensurb', 'poa_eptc'], 'stops': 4010, 'patterns': 226, 'services': 118, 'frequencies': False}
+{'population': 812935, 'jobs': 337921, 'schools': 194, 'healthcare': 141}
 ```
 
 Building the network takes about a second; every call below is timed the
-same way, on a laptop with ten cores and other work running, so the
+same way, on a laptop with ten cores, four of them used, and other work running, so the
 timings are indications.
 
 ## A new cycle path
@@ -122,7 +125,8 @@ print(len(path))
 
 def jobs_by_bike(**scenario):
     return peabiru.accessibility(network, grid, grid, opportunities_colnames="jobs",
-                                 mode="BICYCLE", max_lts=2, cutoffs=20, **scenario)
+                                 mode="BICYCLE", max_lts=2, cutoffs=20, n_threads=threads,
+                                 **scenario)
 
 
 before, t_before = timed(jobs_by_bike)
@@ -136,6 +140,8 @@ print(round(per_resident(gain, "accessibility_before")),
 ```
 
 ```text
+94
+30069 31075 0.312
 ```
 
 One ride across it, from the east end of the avenue to the Santa Casa
@@ -158,6 +164,8 @@ for when, r in [("today", ride()), ("with the path", ride(new_lts=path))]:
 ```
 
 ```text
+today 86.4 11397
+with the path 66.6 9476
 ```
 
 ## Congestion and a closed avenue
@@ -178,7 +186,8 @@ closed = pd.DataFrame({"osm_id": ipiranga["osm_id"].astype("int64"), "max_speed"
 
 
 def drive(**scenario):
-    m = peabiru.travel_time_matrix(network, grid, grid, mode="CAR", **scenario)
+    m = peabiru.travel_time_matrix(network, grid, grid, mode="CAR", n_threads=threads,
+                                   **scenario)
     return m[["from_id", "to_id", "travel_time_p50"]]
 
 
@@ -191,14 +200,20 @@ def change(scenario):
     m = base.merge(scenario, on=["from_id", "to_id"], how="left", suffixes=("", "_s"))
     after = m["travel_time_p50_s"].astype("float").fillna(120)   # no longer within the limit
     d = after - m["travel_time_p50"].astype("float")
-    return round(d.mean(), 3), round((d > 0).mean(), 3), d.max()
+    return float(round(d.mean(), 3)), float(round((d > 0).mean(), 3)), float(d.max())
 
 
 print(len(base), change(slow), change(shut))
 ```
 
 ```text
+1483605 (0.348, 0.143, 9.0) (0.73, 0.137, 119.0)
 ```
+
+Over all 1,483,605 pairs of cells, the slower centre adds 0.35 minutes on
+average and the closed avenue 0.73 (each scenario slows 14% of the pairs;
+a pair no longer reached within the two-hour limit counts as 120
+minutes): small numbers, because most pairs do not cross either.
 
 Access to health facilities by car, within 10 minutes, on average over the
 residents:
@@ -206,7 +221,7 @@ residents:
 ```python
 def health_by_car(**scenario):
     a = peabiru.accessibility(network, grid, grid, opportunities_colnames="healthcare",
-                              mode="CAR", cutoffs=10, **scenario)
+                              mode="CAR", cutoffs=10, n_threads=threads, **scenario)
     return round(per_resident(a), 2)
 
 
@@ -215,6 +230,7 @@ print(health_by_car(), health_by_car(new_carspeeds=slow_centre),
 ```
 
 ```text
+35.51 32.35 33.43
 ```
 
 And access to public transport by car: with `mode=["CAR", "TRANSIT"]` a
@@ -228,7 +244,7 @@ some = grid.iloc[::25]
 def legs(**scenario):
     e = peabiru.expanded_travel_time_matrix(network, some, some, mode=["CAR", "TRANSIT"],
                                             departure_datetime=monday, time_window=1,
-                                            **scenario)
+                                            n_threads=threads, **scenario)
     return (e["routes"] != "[CAR]").value_counts().to_dict()
 
 
@@ -236,6 +252,7 @@ print(legs(), legs(new_carspeeds=slow_centre))
 ```
 
 ```text
+{False: 2500} {False: 2500}
 ```
 
 ## One more health facility
@@ -246,7 +263,7 @@ cell to every cell answers it for every candidate site at once.
 
 ```python
 walk, t_walk = timed(peabiru.travel_time_matrix, network, grid, grid, mode="WALK",
-                     max_trip_duration=60)
+                     max_trip_duration=60, n_threads=threads)
 walk["travel_time_p50"] = walk["travel_time_p50"].astype("float")
 
 
@@ -276,6 +293,8 @@ print(share_15(today), share_15(with_one_more),
 ```
 
 ```text
+{'89a90129ca7ffff': 17525, '89a90129d73ffff': 17279, '89a90129dcbffff': 17172}
+0.7901 0.8117 0.9468
 ```
 
 The best cell is the one the map of the R example marks. The cells are
@@ -303,31 +322,47 @@ print(free["fares_per_transfer"])
 ```
 
 ```text
+  first_leg second_leg  fare
+0       BUS        BUS   4.8
+1      RAIL        BUS   4.8
+2       BUS       RAIL   4.8
 ```
 
 The jobs within 45 minutes by public transport, on average over the
 residents, with one fare to spend and with R$ 7.20, under each structure;
 with a fare structure the multi-criteria router is used, far slower than
-the one used without fares:
+the one used without fares. The two are different algorithms and their
+travel times differ a little, in both directions, so the reference for the
+budgets is the second row: the multi-criteria router with a budget that
+never binds.
 
 ```python
 def jobs_by_transit(**fare_args):
     a, seconds = timed(peabiru.accessibility, network, grid, grid,
                        opportunities_colnames="jobs", mode=["WALK", "TRANSIT"],
                        departure_datetime=monday, time_window=5, cutoffs=45, seed=42,
-                       **fare_args)
+                       n_threads=threads, **fare_args)
     return round(per_resident(a)), round(seconds, 1)
 
 
-rows = {"no fare limit": jobs_by_transit()}
+rows = {"no fare structure": jobs_by_transit(),
+        "any budget": jobs_by_transit(fare_structure=fares, max_fare=1000)}
 for budget in [4.8, 7.2]:
     for name, structure in [("sample", fares), ("free", free), ("none", none)]:
         rows[f"{name} {budget:.2f}"] = jobs_by_transit(fare_structure=structure, max_fare=budget)
 for k, (jobs, seconds) in rows.items():
-    print(f"{k:<14} {jobs:>7}")
+    print(f"{k:<17} {jobs:>7}")
 ```
 
 ```text
+no fare structure  196273
+any budget         196456
+sample 4.80        159996
+free 4.80          196375
+none 4.80          159996
+sample 7.20        192062
+free 7.20          196375
+none 7.20          159996
 ```
 
 For one trip, [`trip_options()`][peabiru.trip_options] lists the options
@@ -349,7 +384,26 @@ print(options_under(free).to_string(index=False))
 ```
 
 ```text
+ option  total_time  fare  transfers departure_time                              description
+      1        48.6  12.0          2       14:00:00 WALK > BUS 493 > BUS T7 > BUS 289 > WALK
+      2        52.5   7.2          1       14:09:00          WALK > BUS 441 > BUS 260 > WALK
+      3        53.5   7.2          1       14:08:00           WALK > BUS T7 > BUS 260 > WALK
+      4        54.5   7.2          1       14:07:00           WALK > BUS T7 > BUS 260 > WALK
+      5        58.5   7.2          1       14:03:00          WALK > BUS 495 > BUS 260 > WALK
+      6        59.5   7.2          1       14:02:00          WALK > BUS 494 > BUS 260 > WALK
+      7        61.5   7.2          1       14:00:00          WALK > BUS 491 > BUS 260 > WALK
+      8        82.2   4.8          0       14:09:00                   WALK > BUS 2802 > WALK
+      9        87.2   4.8          0       14:04:00                   WALK > BUS 2802 > WALK
+     10        91.2   4.8          0       14:00:00                   WALK > BUS 2802 > WALK
+ option  total_time  fare  transfers departure_time                              description
+      1        48.6   4.8          2       14:00:00 WALK > BUS 493 > BUS T7 > BUS 289 > WALK
+      2        52.5   4.8          1       14:09:00         WALK > BUS 2802 > BUS 260 > WALK
+      3        57.5   4.8          1       14:04:00         WALK > BUS 2802 > BUS 260 > WALK
 ```
+
+Under the sample rules, the 49-minute trip with three buses costs R$ 12.00
+and the fastest at one fare is a single bus at 82 minutes; with free
+transfers, the 49-minute trip costs one fare.
 
 ## What each what-if cost
 

@@ -12,7 +12,7 @@ description: >
 # helsinki.Rmd by `bash site/figures/make.sh --scenarios` (the data takes
 # about 880 MB of downloads and osmium). Only the chunks written out below by
 # cat() run when pkgdown renders it.
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", error = FALSE)   # an error stops the knit
 work <- file.path(tempdir(), "helsinki")
 dir.create(work, showWarnings = FALSE)
 if (nzchar(Sys.getenv("PEABIRU_SCENARIOS_CACHE")) && !file.exists(file.path(work, "example-data"))) {
@@ -63,9 +63,9 @@ example](../../python/example-helsinki/).
 | Data | Source | Licence |
 |---|---|---|
 | Streets | [OpenStreetMap](https://www.openstreetmap.org/copyright), extract of Finland by [Geofabrik](https://download.geofabrik.de/europe/finland.html), dated 2026-11-11 (776 MB, MD5 `ff7c5c52ce53880611989d15378b13af`), cut with osmium to the box 24.45–25.30° E, 60.03–60.42° N | ODbL 1.0 |
-| Public transport | [HSL](https://www.hsl.fi/en/opendata) (Helsinki Region Transport), GTFS feed `https://infopalvelut.storage.hsldev.com/gtfs/hsl.zip`, published 2026-11-12 05:42 (feed_version), valid 2026-11-11 to 2027-01-09, downloaded on 2026-11-12 (88 MB, SHA-256 `1cd6f532…7223c`); the feed is replaced every day | CC BY 4.0, © HSL 2026 |
-| Residents | HSY (Helsinki Region Environmental Services), [*Väestötietoruudukko*](https://hri.fi/data/en/dataset/vaestotietoruudukko) 2025, residents on a 250 m grid (updated 2026-08-05), from HSY's open WFS `kartta.hsy.fi` | CC BY 4.0, © HSY, from Statistics Finland |
-| Jobs | HSY, [*Työpaikkaruudukko*](https://hri.fi/data/en/dataset/helsingin-seudun-tyopaikkaruudukko) 2024, jobs on a 250 m grid (updated 2026-08-26), same WFS | CC BY 4.0, © HSY, from Statistics Finland |
+| Public transport | [HSL](https://www.hsl.fi/en/opendata) (Helsinki Region Transport), GTFS feed `https://infopalvelut.storage.hsldev.com/gtfs/hsl.zip`, published 2026-11-12 05:42 (feed_version), valid 2026-11-11 to 2027-01-09, downloaded on 2026-11-12 (88 MB, SHA-256 `1cd6f532…7223c`); the feed is replaced every day | CC BY 4.0 (HSL's open data terms); © HSL 2026 |
+| Residents | HSY (Helsinki Region Environmental Services), [*Väestötietoruudukko*](https://www.hsy.fi/en/environmental-information/open-data/avoin-data---sivut/population-grid-of-helsinki-metropolitan-area/) 2025, residents on a 250 m grid (HSY's page of the dataset: updated 2026-07-08), from HSY's open WFS `kartta.hsy.fi` | CC BY 4.0, © HSY |
+| Jobs | HSY, [*Työpaikkaruudukko*](https://www.hsy.fi/en/environmental-information/open-data/avoin-data---sivut/grid-data-on-enterprises-and-establishments-in-the-helsinki-region/) 2024, jobs (full-time equivalents) on a 250 m grid (updated 2026-08-26), same WFS | CC BY 4.0, © HSY; original source: Statistics Finland's Business Register |
 
 Three things to know about the grids, each visible in the numbers below.
 
@@ -77,14 +77,14 @@ Three things to know about the grids, each visible in the numbers below.
   would count as 33,575 residents who reach no job.
 - **Jobs.** The job grid counts jobs in companies and non-profit
   organisations only, **not public-sector jobs** (schools, hospitals, the
-  administration), and gives `-1` for cells with one to three jobs, which
-  are counted as 0 here. So "jobs" below are private and third-sector
-  jobs, a lower bound.
+  administration), as full-time equivalents, and gives `-1` for cells
+  with three or fewer employees, which are counted as 0 here. So "jobs"
+  below are private and third-sector jobs, a lower bound.
 - **Coverage.** The job grid covers the wider Helsinki region,
   572,915 jobs; the box of this example keeps the capital region,
   486,976 of them. Of the rest, 43,423 are in the outer municipalities and
-  42,516 have no location: HSY puts them in cells in the sea, south of the
-  box (near 59.94° N, 25.23° E).
+  42,516 are in cells in the sea, south of the box (near 59.94° N,
+  25.23° E), where HSY puts the establishments without a location.
 
 ```{r download, message = FALSE}
 library(peabiru)
@@ -178,23 +178,30 @@ gtfs_one_day <- function(src, date, out) {
     close(con)
     close(to)
   }
+  out <- file.path(normalizePath(dirname(out)), basename(out))
   unlink(out)
   old <- setwd(tmp)
   on.exit(setwd(old))
-  zip(normalizePath(out, mustWork = FALSE), tables, flags = "-q9X")
+  stopifnot(zip(out, tables, flags = "-q9X") == 0)
   c(services = length(active), trips = nrow(trips))
 }
 gtfs_one_day(hsl, "20261117", file.path(data_dir, "network", "hsl.zip"))
 
 get_gtfs_errors(file.path(data_dir, "network"))
-network <- build_network(file.path(data_dir, "network"))
+threads <- 4   # of this laptop's ten cores
+build_time <- system.time(
+  network <- build_network(file.path(data_dir, "network"), n_threads = threads)
+)[["elapsed"]]
 network
+build_time
 ```
 
 The cut feed passes the GTFS checks peabiru shares with r5r without a
-single error (the whole feed was not checked). Building the network takes
-about 20 seconds; the R session peaked at 1.3 GB of memory with the
-network built and the accessibility below computed.
+single error (the whole feed was not checked). Building the network took
+`r round(build_time)` seconds here, with four threads on a laptop with
+other work running (the timings on this page are indications); the R
+process that knitted this page, from the cut of the feed to the last
+table, peaked at 3.9 GB of memory.
 
 ## Residents and jobs
 
@@ -222,7 +229,7 @@ jobs <- data.frame(id = jobs$id, lon = round(xy[, 1], 6), lat = round(xy[, 2], 6
 c(jobs_in_the_grid = sum(jobs$jobs), without_a_location = sum(jobs$jobs[jobs$lat < 60]))
 jobs <- jobs[jobs$lon > 24.45 & jobs$lon < 25.30 & jobs$lat > 60.03 & jobs$lat < 60.42, ]
 c(cells = nrow(cells), residents = sum(cells$population),
-  job_cells = nrow(jobs), jobs = sum(jobs$jobs), cells_with_1_to_3_jobs = sum(jobs$suppressed))
+  job_cells = nrow(jobs), jobs = sum(jobs$jobs), suppressed_job_cells = sum(jobs$suppressed))
 ```
 
 ## Jobs within reach at the morning peak
@@ -235,7 +242,7 @@ peak <- as.POSIXct("2026-11-17 07:30:00", tz = "Europe/Helsinki")
 t <- system.time(
   access <- accessibility(network, cells, jobs, opportunities_colnames = "jobs",
                           mode = c("WALK", "TRANSIT"), departure_datetime = peak,
-                          time_window = 60, cutoffs = c(30, 45))
+                          time_window = 60, cutoffs = c(30, 45), n_threads = threads)
 )
 t[["elapsed"]]
 access$population <- cells$population[match(access$id, cells$id)]
@@ -257,20 +264,31 @@ live('fig("helsinki-jobs.svg")', 'echo = FALSE, fig.alt = "A map of the Helsinki
 
 ## Isochrones from the Central Station
 
-```{r isochrones}
+```{r isochrones, message = FALSE}
 station <- data.frame(id = "Helsinki Central Station", lon = 24.94124, lat = 60.17128)
+s2 <- sf_use_s2(FALSE)   # see the note below
 iso <- do.call(rbind, lapply(list("WALK", "BICYCLE", "CAR", c("WALK", "TRANSIT")), function(m) {
   i <- isochrone(network, station, mode = m, cutoffs = c(15, 30, 45), zoom = 10,
-                 departure_datetime = peak, time_window = 60)
+                 departure_datetime = peak, time_window = 60, n_threads = threads)
   data.frame(mode = paste(m, collapse = "+"), minutes = i$isochrone,
              km2 = round(as.numeric(st_area(st_transform(i, 3067))) / 1e6, 1))
 }))
+sf_use_s2(s2)
 xtabs(km2 ~ mode + minutes, data = iso)
 ```
 
 Driving is free flow: no congestion, so its isochrones are an upper bound
 at the morning peak. The 45-minute areas by car and by public transport
 run past the box cut from OpenStreetMap, where the network ends.
+
+Why `sf_use_s2(FALSE)`: `isochrone()` passes each polygon through
+`sf::st_make_valid()`, as r5r does, and that repair depends on whether sf
+is using spherical geometry (s2, its default). For eleven of these twelve
+polygons the area is the same either way; the 30-minute driving polygon,
+which has 114 parts and 217 holes, comes out of the s2 repair at 523.8 km²
+instead of 478.3, more than its outer rings enclose. With s2 off, the
+areas are those of the bands as contoured, and those of the Python
+example.
 
 ```{r, echo = FALSE, results = "asis"}
 live('fig("helsinki-isochrones.svg")', 'echo = FALSE, fig.alt = "Four maps of the Helsinki capital region with the areas reached from Helsinki Central Station within 15, 30 and 45 minutes walking, cycling, driving and by public transport."')
@@ -287,22 +305,27 @@ pair <- data.frame(id = c("Itäkeskus", "Otaniemi"), lon = c(25.0815, 24.8268),
                    lat = c(60.2102, 60.1847))
 opts <- trip_options(network, pair[1, ], pair[2, ], departure_datetime = peak,
                      criteria = c("TIME", "TRANSFERS", "WALK"), itineraries = FALSE)
-opts$options[, c("option", "total_time", "transfers", "walk_time", "departure_time", "description")]
+as.data.frame(opts$options[, c("option", "total_time", "transfers", "walk_time",
+                               "departure_time", "description")])
 ```
+
+The metro takes 39 minutes without a transfer, with a departure on each of
+its two lines in those ten minutes; the two options that start by bus
+take half an hour longer and are listed only because they walk a little
+less.
 
 ## Variations
 
 - **The whole feed.** On a machine with memory to spare, put HSL's feed in
-  the network directory as it is: the routing on the chosen day is the
-  same.
-- **Another region.** Any Finnish region with a GTFS feed (the Waltti
-  cities publish theirs under CC BY 4.0) works the same way; the HSY
-  grids cover the Helsinki region only, and Statistics Finland publishes
-  a 1 km population grid for the whole country.
+  the network directory as it is: the routing on the chosen day should
+  be the same (not run here).
+- **Another region.** Any region with a valid GTFS feed and an
+  OpenStreetMap extract works the same way (check the feed's licence);
+  the HSY grids cover the Helsinki region only.
 - **Scenarios.** The what-if arguments of the [Porto Alegre
   example](scenarios-porto-alegre.html) work here too, for instance
   `new_lts` on a planned cycle route.
 
 Map data © OpenStreetMap contributors, under the ODbL; timetables © HSL
-2026, CC BY 4.0; residents and jobs © HSY, from Statistics Finland, CC BY
-4.0.
+2026, CC BY 4.0; residents and jobs © HSY, CC BY 4.0 (jobs: from Statistics Finland's
+Business Register).

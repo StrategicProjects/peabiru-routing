@@ -12,7 +12,7 @@ description: >
 # `bash site/figures/make.sh --scenarios` (the fare routing takes minutes,
 # too long for every site build). Only the chunks written out below by cat()
 # run when pkgdown renders it.
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", error = FALSE)   # an error stops the knit
 work <- file.path(tempdir(), "scenarios-poa")
 dir.create(work, showWarnings = FALSE)
 if (nzchar(Sys.getenv("PEABIRU_SCENARIOS_CACHE")) && !file.exists(file.path(work, "example-data"))) {
@@ -55,9 +55,9 @@ example](../../python/example-scenarios/).
 | Data | Source | Licence |
 |---|---|---|
 | Streets | OpenStreetMap extract of Porto Alegre in r5r 2.5.0's sample data (`poa_osm.pbf`) | ODbL 1.0, © OpenStreetMap contributors |
-| Public transport | The EPTC bus and Trensurb train GTFS feeds of r5r's sample (`poa_eptc.zip`, `poa_trensurb.zip`), cut for the sample: the buses run from 11:20 to 17:50 only, so the analyses below leave at 14:00 on Monday 13 May 2019 | distributed with r5r (MIT) |
-| Grid | `poa_hexgrid.csv`: 1,227 H3 cells (resolution 9) with population, jobs, schools and health facilities; r5r does not document its sources | distributed with r5r (MIT) |
-| Fares | `fares/fares_poa.zip`, r5r's fare structure of the sample | distributed with r5r (MIT) |
+| Public transport | The EPTC bus and Trensurb train GTFS feeds of r5r's sample (`poa_eptc.zip`, `poa_trensurb.zip`), cut for the sample: the buses run from 11:20 to 17:50 only, so the analyses below leave at 14:00 on Monday 13 May 2019 | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
+| Grid | `poa_hexgrid.csv`: 1,227 H3 cells (resolution 9) with population, jobs, schools and health facilities; r5r does not document its sources | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
+| Fares | `fares/fares_poa.zip`, r5r's fare structure of the sample | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
 
 All files come from r5r's repository at the tag of version 2.5.0
 (`https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/`).
@@ -65,7 +65,7 @@ The sample also has an elevation raster, left out here: a call with a
 scenario routes without slope costs (as r5r does, with a warning), so
 the before and the after would not be comparable.
 
-```{r data}
+```{r data, message = FALSE}
 library(peabiru)
 library(sf)
 
@@ -82,7 +82,9 @@ for (f in c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip")) {
   if (!file.exists(file.path(data_dir, "network", f))) file.copy(file.path(data_dir, f), file.path(data_dir, "network"))
 }
 
-build_time <- system.time(network <- build_network(file.path(data_dir, "network")))[["elapsed"]]
+threads <- 4   # of this laptop's ten cores
+build_time <- system.time(network <- build_network(file.path(data_dir, "network"),
+                                                   n_threads = threads))[["elapsed"]]
 network
 build_time
 
@@ -99,7 +101,8 @@ ways_named <- function(name) osm[!is.na(osm$name) & osm$name == name & !is.na(os
 
 Building the network takes about `r round(build_time, 1)` seconds; every
 call below is timed the same way, by `system.time()`, on a laptop with ten
-cores (four used) and other work running, so the timings are indications.
+cores, four of them used (`n_threads`), and other work running, so the
+timings are indications.
 
 ## A new cycle path
 
@@ -116,7 +119,7 @@ nrow(path)
 
 jobs_by_bike <- function(...) {
   accessibility(network, grid, grid, opportunities_colnames = "jobs",
-                mode = "BICYCLE", max_lts = 2, cutoffs = 20, ...)
+                mode = "BICYCLE", max_lts = 2, cutoffs = 20, n_threads = threads, ...)
 }
 t_before <- system.time(before <- jobs_by_bike())[["elapsed"]]
 t_after <- system.time(after <- jobs_by_bike(new_lts = path))[["elapsed"]]
@@ -150,7 +153,7 @@ ride <- function(...) {
                        departure_datetime = monday, ...)
 }
 rides <- rbind(cbind(when = "today", ride()), cbind(when = "with the path", ride(new_lts = path)))
-st_drop_geometry(rides)[, c("when", "total_duration", "total_distance")]
+as.data.frame(st_drop_geometry(rides)[, c("when", "total_duration", "total_distance")])
 ```
 
 ```{r, echo = FALSE, results = "asis"}
@@ -180,7 +183,7 @@ ipiranga <- ways_named("Avenida Ipiranga")
 closed <- data.frame(osm_id = as.numeric(ipiranga$osm_id), max_speed = 0, speed_type = "km/h")
 
 drive <- function(...) {
-  m <- travel_time_matrix(network, grid, grid, mode = "CAR", ...)
+  m <- travel_time_matrix(network, grid, grid, mode = "CAR", n_threads = threads, ...)
   m[, c("from_id", "to_id", "travel_time_p50")]
 }
 t_base <- system.time(base <- drive())[["elapsed"]]
@@ -212,7 +215,7 @@ Access to health facilities by car, within 10 minutes:
 ```{r car-health}
 health_by_car <- function(...) {
   a <- accessibility(network, grid, grid, opportunities_colnames = "healthcare",
-                     mode = "CAR", cutoffs = 10, ...)
+                     mode = "CAR", cutoffs = 10, n_threads = threads, ...)
   per_resident(a$accessibility, a$id)
 }
 c(today = health_by_car(), half_speed = health_by_car(new_carspeeds = slow_centre),
@@ -228,7 +231,8 @@ faster, before and after (one departure per pair, a cell in 25):
 some <- grid[seq(1, nrow(grid), by = 25), ]
 legs <- function(...) {
   e <- expanded_travel_time_matrix(network, some, some, mode = c("CAR", "TRANSIT"),
-                                   departure_datetime = monday, time_window = 1, ...)
+                                   departure_datetime = monday, time_window = 1,
+                                   n_threads = threads, ...)
   table(uses_transit = e$routes != "[CAR]")
 }
 legs()
@@ -249,7 +253,8 @@ question for every candidate site at once.
 
 ```{r facility}
 t_walk <- system.time(walk <- travel_time_matrix(network, grid, grid, mode = "WALK",
-                                                  max_trip_duration = 60))[["elapsed"]]
+                                                  max_trip_duration = 60,
+                                                  n_threads = threads))[["elapsed"]]
 nearest <- function(sites) {
   w <- walk[walk$to_id %in% sites, ]
   unname(tapply(w$travel_time_p50, w$from_id, min)[grid$id])   # NA: none within the hour
@@ -276,8 +281,8 @@ live('fig("scenario-health.svg")', 'echo = FALSE, fig.alt = "Two maps of Porto A
 
 The best cell brings `r format(best[[1]], big.mark = ",")` more people
 within 15 minutes, and the share of the population within 15 minutes of a
-health facility goes from `r round(100 * share_15(today), 1)`% to
-`r round(100 * share_15(with_one_more), 1)`%. The search is over the cells
+health facility goes from `r sprintf("%.1f", 100 * share_15(today))`% to
+`r sprintf("%.1f", 100 * share_15(with_one_more))`%. The search is over the cells
 of the grid, which are hexagons about 350 m across: it says where to look
 for a site, not which plot to buy. The same code with `grid$schools`
 finds that schools are already within 15 minutes of
@@ -311,13 +316,16 @@ The jobs within 45 minutes by public transport, on average over the
 residents, with one fare to spend (`max_fare = 4.8`) and with R\$ 7.20,
 under each structure. With a fare structure, public transport is routed by
 R5's multi-criteria router, which is far slower than the one-criterion
-router used without fares (compare the first timing with the others):
+router used without fares (compare the first timing with the others). The
+two are different algorithms and their travel times differ a little, in
+both directions, so the reference for the budgets is the second row: the
+multi-criteria router with a budget that never binds.
 
 ```{r fare-access}
 jobs_by_transit <- function(...) {
   a <- accessibility(network, grid, grid, opportunities_colnames = "jobs",
                      mode = c("WALK", "TRANSIT"), departure_datetime = monday,
-                     time_window = 5, cutoffs = 45, seed = 42, ...)
+                     time_window = 5, cutoffs = 45, seed = 42, n_threads = threads, ...)
   per_resident(a$accessibility, a$id)
 }
 timed <- function(...) {
@@ -325,7 +333,8 @@ timed <- function(...) {
   c(jobs = round(v), seconds = round(t, 1))
 }
 rbind(
-  no_fare_limit = timed(),
+  no_fare_structure = timed(),
+  any_budget = timed(fare_structure = fares, max_fare = 1000),
   sample_4.80 = timed(fare_structure = fares, max_fare = 4.8),
   free_4.80 = timed(fare_structure = free, max_fare = 4.8),
   none_4.80 = timed(fare_structure = none, max_fare = 4.8),
@@ -336,13 +345,15 @@ rbind(
 ```
 
 ```{r, echo = FALSE, results = "asis"}
-live('fig("scenario-fares.svg")', 'echo = FALSE, fig.alt = "Bars of the average number of jobs reachable within 45 minutes by public transport under the sample fare structure, free transfers and no transfer discount, for budgets of R$ 4.80 and R$ 7.20, against the access with no fare limit."')
+live('fig("scenario-fares.svg")', 'echo = FALSE, fig.alt = "Bars of the average number of jobs reachable within 45 minutes by public transport under the sample fare structure, free transfers and no transfer discount, for budgets of R$ 4.80 and R$ 7.20, against the access with any budget."')
 ```
 
 With one fare to spend, a trip with a transfer is out of reach under the
 sample rules (R\$ 7.20) and in reach when transfers are free, which is
 where the difference is. With R\$ 7.20, the sample's discount covers one
-transfer, and only the structure without discounts falls behind.
+transfer, and only the structure without discounts falls behind. (The
+structure with free transfers is also the slowest to route, several times
+slower than the other two in this run.)
 
 For one trip, `trip_options()` lists the options worth considering, here
 by travel time and fare; the best option within one fare changes with
@@ -354,7 +365,7 @@ options_under <- function(structure) {
   o <- trip_options(network, pair[1, ], pair[2, ], departure_datetime = monday,
                     criteria = c("TIME", "FARE"), fare_structure = structure,
                     itineraries = FALSE)$options
-  o[, c("option", "total_time", "fare", "transfers", "departure_time", "description")]
+  as.data.frame(o[, c("option", "total_time", "fare", "transfers", "departure_time", "description")])
 }
 options_under(fares)
 options_under(free)
@@ -382,8 +393,8 @@ contraction hierarchies peabiru keeps for repeated street matrices, so it
 can take longer than the same call without one (the car matrix here).
 This sample is small and builds in about a second, so what a scenario
 saves here is the work of editing the OpenStreetMap file, not time; the
-network of the [Helsinki example](helsinki.html) takes about 20 seconds
-to build, and a what-if on it is still one call.
+network of the [Helsinki example](helsinki.html) takes about 15
+seconds to build, and a what-if on it is still one call.
 
 ## Variations
 

@@ -26,17 +26,18 @@ downloads about 880 MB into `PEABIRU_EXAMPLE_DATA` and needs
 | Data | Source | Licence |
 |---|---|---|
 | Streets | [OpenStreetMap](https://www.openstreetmap.org/copyright), extract of Finland by [Geofabrik](https://download.geofabrik.de/europe/finland.html), dated 2026-11-11 (776 MB, MD5 `ff7c5c52ce53880611989d15378b13af`), cut with osmium to the box 24.45–25.30° E, 60.03–60.42° N | ODbL 1.0 |
-| Public transport | [HSL](https://www.hsl.fi/en/opendata) (Helsinki Region Transport), GTFS feed `https://infopalvelut.storage.hsldev.com/gtfs/hsl.zip`, published 2026-11-12 05:42 (feed_version), valid 2026-11-11 to 2027-01-09, downloaded on 2026-11-12 (88 MB, SHA-256 `1cd6f532…7223c`); the feed is replaced every day | CC BY 4.0, © HSL 2026 |
-| Residents | HSY (Helsinki Region Environmental Services), [*Väestötietoruudukko*](https://hri.fi/data/en/dataset/vaestotietoruudukko) 2025, residents on a 250 m grid (updated 2026-08-05), from HSY's open WFS `kartta.hsy.fi` | CC BY 4.0, © HSY, from Statistics Finland |
-| Jobs | HSY, [*Työpaikkaruudukko*](https://hri.fi/data/en/dataset/helsingin-seudun-tyopaikkaruudukko) 2024, jobs on a 250 m grid (updated 2026-08-26), same WFS | CC BY 4.0, © HSY, from Statistics Finland |
+| Public transport | [HSL](https://www.hsl.fi/en/opendata) (Helsinki Region Transport), GTFS feed `https://infopalvelut.storage.hsldev.com/gtfs/hsl.zip`, published 2026-11-12 05:42 (feed_version), valid 2026-11-11 to 2027-01-09, downloaded on 2026-11-12 (88 MB, SHA-256 `1cd6f532…7223c`); the feed is replaced every day | CC BY 4.0 (HSL's open data terms); © HSL 2026 |
+| Residents | HSY (Helsinki Region Environmental Services), [*Väestötietoruudukko*](https://www.hsy.fi/en/environmental-information/open-data/avoin-data---sivut/population-grid-of-helsinki-metropolitan-area/) 2025, residents on a 250 m grid (HSY's page of the dataset: updated 2026-07-08), from HSY's open WFS `kartta.hsy.fi` | CC BY 4.0, © HSY |
+| Jobs | HSY, [*Työpaikkaruudukko*](https://www.hsy.fi/en/environmental-information/open-data/avoin-data---sivut/grid-data-on-enterprises-and-establishments-in-the-helsinki-region/) 2024, jobs (full-time equivalents) on a 250 m grid (updated 2026-08-26), same WFS | CC BY 4.0, © HSY; original source: Statistics Finland's Business Register |
 
 Cells with fewer than five residents are left out of HSY's population
 grid, and one of its cells is not a place: HSY puts the residents it
 cannot assign to a building (33,575 in 2025, 2.6% of the total) in a cell
 in the sea, at the south-east corner of the grid; it is left out below.
 The job grid counts jobs in companies and non-profit organisations only,
-**not public-sector jobs**, and gives `-1` for cells with one to three
-jobs, counted as 0 here: "jobs" below are a lower bound. It covers the
+**not public-sector jobs**, as full-time equivalents, and gives `-1` for
+cells with three or fewer employees, counted as 0 here: "jobs" below are a
+lower bound. It covers the
 wider Helsinki region (572,915 jobs); the box of this example keeps the
 486,976 of the capital region, and leaves out the 42,516 without a
 location, which HSY puts in cells in the sea south of the box.
@@ -150,11 +151,15 @@ def gtfs_one_day(src, date, out):
 
 print(gtfs_one_day(hsl, "20261117", data_dir / "network" / "hsl.zip"))
 print(len(peabiru.get_gtfs_errors(data_dir / "network")))
-network = peabiru.build_network(data_dir / "network")
+threads = 4   # of this laptop's ten cores
+network = peabiru.build_network(data_dir / "network", n_threads=threads)
 print(network.info())
 ```
 
 ```text
+{'services': 509, 'trips': 24083}
+0
+{'vertices': 641401, 'edges': 1662710, 'elevation': 'NONE', 'feeds': ['hsl'], 'stops': 8404, 'patterns': 911, 'services': 509, 'frequencies': False}
 ```
 
 ## Residents and jobs
@@ -189,6 +194,9 @@ print(len(cells), cells["population"].sum(), len(jobs), jobs["jobs"].sum(),
 ```
 
 ```text
+{'id': '27699', 'lon': 25.25355, 'lat': 60.05407, 'population': 33575}
+572915 42516
+5825 1253793 8578 486976 4094
 ```
 
 ## Jobs within reach at the morning peak
@@ -200,7 +208,7 @@ on Tuesday 17 November 2026, the median travel time of each pair:
 peak = dt.datetime(2026, 11, 17, 7, 30)
 access = peabiru.accessibility(network, cells, jobs, opportunities_colnames="jobs",
                                mode=["WALK", "TRANSIT"], departure_datetime=peak,
-                               time_window=60, cutoffs=[30, 45])
+                               time_window=60, cutoffs=[30, 45], n_threads=threads)
 access["population"] = cells.set_index("id")["population"].loc[access["id"]].to_numpy()
 total = jobs["jobs"].sum()
 for cutoff, a in access.groupby("cutoff"):
@@ -210,6 +218,8 @@ for cutoff, a in access.groupby("cutoff"):
 ```
 
 ```text
+30 41169 0.085 0.0
+45 151537 0.311 0.223
 ```
 
 ## Isochrones from the Central Station
@@ -219,18 +229,23 @@ station = pd.DataFrame({"id": ["Helsinki Central Station"], "lon": [24.94124],
                         "lat": [60.17128]})
 for mode in ["WALK", "BICYCLE", "CAR", ["WALK", "TRANSIT"]]:
     iso = peabiru.isochrone(network, station, mode=mode, cutoffs=[15, 30, 45], zoom=10,
-                            departure_datetime=peak, time_window=60)
+                            departure_datetime=peak, time_window=60, n_threads=threads)
     km2 = (iso.to_crs(3067).make_valid().area / 1e6).round(1)
     print(mode, dict(zip(iso["isochrone"], km2)))
 ```
 
 ```text
+WALK {45.0: 14.3, 30.0: 6.7, 15.0: 1.6}
+BICYCLE {45.0: 84.9, 30.0: 38.0, 15.0: 10.2}
+CAR {45.0: 1312.9, 30.0: 478.3, 15.0: 26.0}
+['WALK', 'TRANSIT'] {45.0: 238.5, 30.0: 54.0, 15.0: 3.7}
 ```
 
-The polygons are repaired here with GEOS in metres; the R example repairs
-them as r5r does (`sf::st_make_valid()` on longitude and latitude), so an
-area can differ a little between the two pages where a polygon has
-touching holes. Driving is free flow: no congestion.
+The polygons are repaired here with GEOS, which leaves their areas as
+contoured; the R package repairs them as r5r does (`sf::st_make_valid()`),
+which with sf's spherical geometry on enlarges the 30-minute driving
+polygon to 523.8 km², so the R example switches it off for this call and
+prints the same areas. Driving is free flow: no congestion.
 
 ## The options for one trip
 
@@ -247,8 +262,13 @@ print(opts.options[["option", "total_time", "transfers", "walk_time", "departure
 ```
 
 ```text
+ option  total_time  transfers  walk_time departure_time                                description
+      1        39.3          0       10.7       07:30:00                    WALK > SUBWAY M2 > WALK
+      2        39.3          0       10.7       07:33:00                    WALK > SUBWAY M1 > WALK
+      3        70.3          2       10.3       07:39:00 WALK > BUS 97V > BUS 82 > SUBWAY M2 > WALK
+      4        72.0          1        9.3       07:31:00            WALK > BUS 500 > BUS 510 > WALK
 ```
 
 Map data © OpenStreetMap contributors, under the ODbL; timetables © HSL
-2026, CC BY 4.0; residents and jobs © HSY, from Statistics Finland, CC BY
-4.0.
+2026, CC BY 4.0; residents and jobs © HSY, CC BY 4.0 (jobs: from Statistics Finland's
+Business Register).
