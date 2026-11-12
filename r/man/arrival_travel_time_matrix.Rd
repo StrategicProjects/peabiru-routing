@@ -135,9 +135,11 @@ the returned result.}
 accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A \code{data.frame} with the columns of
+A table with the columns of
 \code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}}: one row per origin and destination
 reached in time. With \code{output_dir}, \code{output_dir}.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 For each origin and destination, the trip by public transport that
@@ -155,8 +157,8 @@ and at most 5,000 destinations are accepted.
 
 The arguments, their defaults and checks, the columns, the rows and their
 order are those of \code{r5r::arrival_travel_time_matrix()} in r5r 2.5.0,
-with the same values (with frequencies, for the same \code{seed}); the result
-is a \code{data.frame} rather than a \code{data.table}. An \code{arrival_datetime} that
+with the same values (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
+the result is identical to r5r's, its class included. An \code{arrival_datetime} that
 is not a date-time is an error that says so (r5r fails on it with an
 internal R error); a street mode alone is an error, as in
 \code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}}.

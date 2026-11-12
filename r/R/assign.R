@@ -413,10 +413,3 @@ check_messages <- function(verbose, progress) {
 seconds_to_hhmmss <- function(s) {
   sprintf("%02d:%02d:%02d", s %/% 3600L, (s %/% 60L) %% 60L, s %% 60L)
 }
-
-# A plain data.frame with compact row names, as as.data.frame() gives.
-new_df <- function(cols) {
-  n <- length(cols[[1]])
-  structure(cols, class = "data.frame",
-            row.names = if (n > 0) c(NA_integer_, -n) else integer(0))
-}

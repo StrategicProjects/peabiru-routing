@@ -35,10 +35,13 @@ is not a difference and is not listed here.
 - **Results**: the same rows, in the same order, with the same column
   names, types and values. For a frequency-based feed this needs the same
   `seed` (without one, both packages draw from the clock and every run
-  differs).
+  differs). With `options(peabiru.output = "data.table")` the results are
+  r5r's `data.table`s and `sf` objects, class and attributes included (see
+  the class of the results under [Differences](#differences)).
 
 Here both packages compute the same matrix on the sample network, and the
-results are compared with `identical()`:
+results are compared with `identical()` (data.table's self-reference
+attribute, a pointer to the table itself, left aside):
 
 ```{r, include = FALSE}
 # r5r needs a JDK 21; site/build.sh points JAVA_HOME to one when it can.
@@ -55,6 +58,7 @@ dir.create(r5r_dir)
 invisible(file.copy(list.files(data_path, pattern = "\\.(pbf|zip)$", full.names = TRUE),
                     r5r_dir))
 r5r_network <- r5r::build_network(r5r_dir, verbose = FALSE)
+options(peabiru.output = "data.table")
 
 args <- list(origins = points, destinations = points,
              mode = c("WALK", "TRANSIT"), departure_datetime = departure,
@@ -63,7 +67,9 @@ args <- list(origins = points, destinations = points,
 from_r5r <- do.call(r5r::travel_time_matrix, c(list(r5r_network), args))
 from_peabiru <- do.call(peabiru::travel_time_matrix, c(list(network), args))
 
-identical(as.data.frame(from_r5r), from_peabiru)
+no_selfref <- function(x) `attr<-`(x, ".internal.selfref", NULL)
+identical(no_selfref(from_r5r), no_selfref(from_peabiru))
+options(peabiru.output = NULL)
 ```
 
 ```{r, echo = FALSE, results = "asis", eval = !run_r5r}
@@ -135,11 +141,20 @@ it stops with an error that says so.
   `set_memory` and `session_info`).
 
 <!-- diff:result-type -->
-- **Results are `data.frame`s**, not `data.table`s (also the tables inside
-  a fare structure, and the `edges` and `routes` of
-  `street_network_to_sf()` and `transit_network_to_sf()`), so the package
-  imports nothing. `data.table::setDT()` converts them if you prefer. The
-  columns, their order and types and the values are r5r's.
+- **Results are tibbles by default**, not `data.table`s, and `sf` results
+  are `sf` tibbles. The option `peabiru.output` chooses the class, at each
+  call: `"tibble"` (the default; 'tibble' is the package's one
+  dependency), `"data.frame"` (base data frames, plain `sf`) or
+  `"data.table"`, which gives exactly what r5r returns: `data.table`s,
+  `sf` `data.table`s where r5r's `sf` is one (isochrone polygons,
+  itineraries, street edges, transit routes) and plain `sf` elsewhere, and
+  the index r5r's `find_snap()` leaves on `found`. It applies to every
+  table, the tables of a fare structure included. The rows, the columns,
+  their order and types, and the values do not depend on it.
+
+  ```r
+  options(peabiru.output = "data.table") # r5r's classes, for r5r scripts
+  ```
 
 <!-- diff:network-in-memory -->
 - **The network lives in memory only.** Nothing is written to the data

@@ -12,7 +12,7 @@ of a directory with 'GTFS' feeds (\code{.zip}), for instance one a network
 could not be built from.}
 }
 \value{
-A \code{data.frame} with columns \code{file} (the table, without
+A table with columns \code{file} (the table, without
 \code{.txt}), \code{line} (the record, the header being line 1; 0 for a whole
 table), \code{type} (gtfs-lib's error class), \code{field}, \code{id} (the key
 concerned, for duplicate keys and suspect stop locations) and
@@ -45,9 +45,9 @@ are not routed.
 \section{Compatibility with r5r}{
 
 The argument and the columns are those of \code{r5r::get_gtfs_errors()} in
-r5r 2.5.0, with the same rows; the result is a \code{data.frame} rather than a
-\code{data.table}, with the column types \code{data.table::fread()} gives r5r
-(exactly, when 'data.table' is installed). r5r writes the errors to
+r5r 2.5.0, with the same rows, and the column types \code{data.table::fread()}
+gives r5r (exactly, when 'data.table' is installed); with \code{options(peabiru.output = "data.table")}
+the result is a \code{data.table}, as r5r's. r5r writes the errors to
 \code{gtfs_errors.csv} in the data folder when it builds the network and
 reads that file back, listing them in the order of a Java \code{HashSet},
 which changes from one run to the next; peabiru writes nothing, reads

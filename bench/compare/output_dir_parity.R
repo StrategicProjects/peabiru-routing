@@ -17,6 +17,8 @@
 #   SCENARIOS   comma-separated scenario name prefixes to run (default all)
 #   KEEP        a directory to keep the written files in (default: removed)
 
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 xmx <- Sys.getenv("R5R_XMX", "6G")
 options(java.parameters = paste0("-Xmx", xmx))
 suppressPackageStartupMessages({

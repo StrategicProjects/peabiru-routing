@@ -8,6 +8,8 @@
 # Needs r5r 2.5.0 (with its Java), peabiru, sf. Calls that both packages
 # accept are run on a three-point sample of Porto Alegre, so a value that is
 # valid but expensive is not tried (see `skip_valid`).
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 options(java.parameters = "-Xmx4G", width = 80)
 args <- commandArgs(TRUE)
 only <- if (length(args) >= 1 && nzchar(args[1])) args[1] else "."

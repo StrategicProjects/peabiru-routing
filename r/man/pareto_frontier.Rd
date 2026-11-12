@@ -98,8 +98,10 @@ files is not available.}
 accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A \code{data.frame} with \code{from_id}, \code{to_id} (character), \code{percentile},
+A table with \code{from_id}, \code{to_id} (character), \code{percentile},
 \code{travel_time} and \code{monetary_cost}.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 Fits the Pareto frontier of travel time and fare between each origin and
@@ -116,8 +118,8 @@ Carlo draws: pass \code{seed} for reproducible results.
 
 The arguments, their defaults and checks, the columns and the rows of the
 result are those of \code{r5r::pareto_frontier()} in r5r 2.5.0, with the same
-values (with frequencies, for the same \code{seed}); the result is a
-\code{data.frame} rather than a \code{data.table}. \code{output_dir}, with which r5r
+values (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
+the result is identical to r5r's, its class included. \code{output_dir}, with which r5r
 writes the result to CSV files, is not available: anything but \code{NULL}
 is an error.
 }

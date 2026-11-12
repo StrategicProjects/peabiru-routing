@@ -138,13 +138,15 @@ the returned result.}
 accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A \code{data.frame} with \code{from_id}, \code{to_id}, \code{departure_time}
+A table with \code{from_id}, \code{to_id}, \code{departure_time}
 (\code{"HH:MM:SS"}), \code{draw_number}, with \code{breakdown = TRUE} \code{access_time},
 \code{wait_time}, \code{ride_time}, \code{transfer_time}, \code{egress_time}, then \code{routes}
 (route ids joined by \code{"|"}, or \code{"[WALK]"}), with \code{breakdown = TRUE}
 \code{n_rides}, and \code{total_time}. Times are in minutes, with one decimal.
 Trips longer than \code{max_trip_duration} have \code{NA} times and routes. With
 \code{output_dir}, \code{output_dir}.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 The travel time of every trip between each origin and destination, for
@@ -165,8 +167,8 @@ destinations are accepted (R5's limit).
 
 The arguments, their defaults and checks, the columns, the rows and their
 order are those of \code{r5r::expanded_travel_time_matrix()} in r5r 2.5.0,
-with the same values (with frequencies, for the same \code{seed}); the result
-is a \code{data.frame} rather than a \code{data.table}. With a street mode alone
+with the same values (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
+the result is identical to r5r's, its class included. With a street mode alone
 r5r reports the same trip for every minute of a departure time taken
 from the computer's clock (\code{Sys.time()}) rather than from
 \code{departure_datetime}; peabiru stops with an error instead. With more

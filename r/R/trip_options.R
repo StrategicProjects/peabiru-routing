@@ -80,14 +80,14 @@
 #' @param by_departure A logical. Whether to add the options of every
 #'   departure minute (`FALSE`, the default).
 #' @param drop_geometry A logical. Whether to leave the geometry of the legs
-#'   out (and return them as a `data.frame`).
+#'   out (and return them as a table without geometry).
 #' @param output_dir `NULL` or a directory: write one CSV file per pair with
 #'   options, `from_<origin id>_to_<destination id>.csv`, one row per leg (or
 #'   per option, with `itineraries = FALSE`) with the option's and the leg's
 #'   columns and the geometry as WKT, and return `output_dir`.
 #'
 #' @return A list with
-#'   * `options`, a `data.frame`: one row per option, with `from_id`,
+#'   * `options`, a table: one row per option, with `from_id`,
 #'     `to_id`, `option` (from 1, ordered by total time, then fare,
 #'     transfers and minutes on foot), `total_time` (minutes, one decimal
 #'     place), `fare` (with a `fare_structure`), `transfers`, `walk_time`
@@ -101,10 +101,13 @@
 #'     `cumulative_fare` (with a `fare_structure`), `segment_duration`,
 #'     `wait`, `distance`, `route`, the four id columns with `osm_link_ids`,
 #'     and the geometry: an `sf` of `LINESTRING`s in EPSG:4326, or a
-#'     `data.frame` with `drop_geometry = TRUE`;
-#'   * `departures` (with `by_departure = TRUE`), a `data.frame`: for every
+#'     table without geometry with `drop_geometry = TRUE`;
+#'   * `departures` (with `by_departure = TRUE`), a table: for every
 #'     departure minute, the options on its frontier (`from_id`, `to_id`,
 #'     `option`, `departure_time`, `arrival_time`, `total_time`).
+#'
+#'   `r doc_output_class(sf = TRUE)` With "data.table", the itineraries are
+#'   an `sf` `data.table`, as those of [detailed_itineraries()].
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -149,6 +152,7 @@ trip_options <- function(r5r_network,
                          drop_geometry = FALSE,
                          osm_link_ids = FALSE,
                          output_dir = NULL) {
+  kind <- output_class()
   assert_network(r5r_network)
   origins <- assign_points_input(origins, "origins", unique_ids = all_to_all)
   destinations <- assign_points_input(destinations, "destinations", unique_ids = all_to_all)
@@ -249,7 +253,8 @@ trip_options <- function(r5r_network,
     out$itineraries <- legs
   }
   if (by_departure) out$departures <- ids(res$departures)
-  out
+  as_output_list(out, kind, c("options", "itineraries", "departures"),
+                 sf_data_table = "itineraries")
 }
 
 # The criteria of trip_options(): NULL for the default, else a subset of the

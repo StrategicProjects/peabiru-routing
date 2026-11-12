@@ -33,6 +33,34 @@ the R5 jar (\code{\link[=setup_r5]{setup_r5()}}, \code{\link[=stop_r5]{stop_r5()
 the article "Coming from r5r" on the package website for the differences.
 }
 
+\section{Class of the results}{
+
+The tables the functions return are tibbles by default. The option
+\code{peabiru.output}, read at each call, chooses another class:
+\itemize{
+\item \code{options(peabiru.output = "tibble")} (the default; 'tibble' is the
+package's one dependency): tibbles, and \code{sf} tibbles (class
+\code{c("sf", "tbl_df", "tbl", "data.frame")}) for the results with a
+geometry, as \code{sf::st_as_sf()} makes of a tibble;
+\item \code{options(peabiru.output = "data.frame")}: base \code{data.frame}s, and plain
+\code{sf} data frames;
+\item \code{options(peabiru.output = "data.table")} (needs 'data.table'):
+\code{data.table}s, with the class r5r 2.5.0 gives each result, so that the
+result is identical to r5r's: \code{sf} \code{data.table}s for isochrone
+polygons, itineraries, the street edges and the transit routes, plain
+\code{sf} data frames for isochrone lines, street vertices and transit
+stops, and the index r5r's \code{\link[=find_snap]{find_snap()}} leaves on \code{found}. A good
+choice for large matrices handled with 'data.table'.
+}
+
+Any other value is an error. The option applies to every table: the
+matrices, accessibility, Pareto frontiers, \code{\link[=find_snap]{find_snap()}},
+\code{\link[=check_transit_availability]{check_transit_availability()}}, \code{\link[=get_gtfs_errors]{get_gtfs_errors()}}, the tables of a fare
+structure, the tables of \code{\link[=trip_options]{trip_options()}} and the \code{sf} results (whose
+geometries are always in EPSG:4326). The rows, the columns, their order
+and types, and the row names are the same whatever the class.
+}
+
 \section{Sample data}{
 
 \code{system.file("extdata/spo", package = "peabiru")} holds a small network

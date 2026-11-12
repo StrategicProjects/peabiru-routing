@@ -64,10 +64,11 @@
 #' The arguments, their defaults and checks, the columns and the rows of the
 #' result are those of `r5r::travel_time_matrix()` in r5r 2.5.0, and the
 #' travel times are equal pair by pair (with frequencies, for the same
-#' `seed`): the engine is a port of R5 7.6, the engine r5r drives. The
-#' result is a `data.frame` rather than a `data.table`. For a walking trip
-#' with more origins than destinations the search runs from the
-#' destinations, as r5r runs it, and the columns are swapped back. A
+#' `seed`): the engine is a port of R5 7.6, the engine r5r drives. With
+#' `options(peabiru.output = "data.table")` the result is identical to
+#' r5r's, its class included. For a walking trip with more origins than
+#' destinations the search runs from the destinations, as r5r runs it, and
+#' the columns are swapped back. A
 #' missing destination id is an error (r5r fails on it in Java). See
 #' the article "Coming from r5r" on the package website for every difference.
 #'
@@ -161,11 +162,13 @@
 #' @param r5r_core Deprecated: the network under its name before r5r 2.3.0,
 #'   accepted with a warning and used as `r5r_network`.
 #'
-#' @return A `data.frame` with `from_id`, `to_id` (character) and one
+#' @return A table with `from_id`, `to_id` (character) and one
 #'   integer column `travel_time_pXX` per percentile (minutes). Pairs that
 #'   cannot be completed within `max_trip_duration`, or whose points are
 #'   too far from the street network, are not returned; a higher percentile
 #'   beyond the limit is `NA`. With `output_dir`, `output_dir`.
+#'
+#'   `r doc_output_class()`
 #' @family routing functions
 #' @export
 #' @examples
@@ -218,6 +221,7 @@ travel_time_matrix <- function(r5r_network,
                                output_dir = NULL,
                                r5r_core = deprecated()) {
   # mirrors r5r R/travel_time_matrix.R
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -310,5 +314,5 @@ travel_time_matrix <- function(r5r_network,
     over <- which(travel_times[[j]] > max_trip_duration)
     travel_times[[j]][over] <- NA_integer_
   }
-  travel_times
+  as_output(travel_times, kind)
 }

@@ -51,6 +51,16 @@ The package now exports all 22 functions of r5r 2.5.0, with r5r's formals
 
 ## Changes
 
+* The class of the tables returned is chosen by
+  `options(peabiru.output = )`, read at each call: `"tibble"` (the default),
+  `"data.frame"` (what every function returned before) or `"data.table"`,
+  with which results are identical to r5r's, class and attributes included
+  (`sf` `data.table`s where r5r's are, `find_snap()`'s index on `found`).
+  It applies to every table, `sf` results and the tables of fare structures
+  and of `trip_options()` included. 'tibble' is now imported; 'data.table'
+  stays suggested.
+* `read_fare_structure()` keeps the columns of a table without rows
+  in the file, as r5r's `fread()` does (it returned a table without columns).
 * Deprecated arguments (`r5r_core`, and `sample_size` in `isochrone()`)
   have r5r's default, `deprecated()`; passing `deprecated()` counts as not
   giving the argument, as in r5r.

@@ -169,10 +169,12 @@ the returned result.}
 accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A \code{data.frame} with \code{id}, \code{opportunity}, \code{percentile}, \code{cutoff}
+A table with \code{id}, \code{opportunity}, \code{percentile}, \code{cutoff}
 (absent with \code{"fixed_exponential"}) and \code{accessibility}, one row per
 origin, opportunity, percentile and cutoff, in that order. With
 \code{output_dir}, \code{output_dir}.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 Cumulative or decay-weighted access to the opportunities at the
@@ -214,8 +216,8 @@ draws").
 
 The arguments, their defaults and checks, the columns and the rows of the
 result are those of \code{r5r::accessibility()} in r5r 2.5.0, and the values
-are equal to the last bit (with frequencies, for the same \code{seed}); the
-result is a \code{data.frame} rather than a \code{data.table}. An empty
+are equal to the last bit (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
+the result is identical to r5r's, its class included. An empty
 \code{percentiles} is an error that says so (r5r fails on it in Java).
 }
 

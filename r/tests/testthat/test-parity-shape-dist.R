@@ -52,6 +52,7 @@ add_shape_dist <- function(feed, dir) {
 test_that("rides along shapes cut by shape_dist_traveled equal r5r's", {
   skip_if_not_installed("sf")
   src <- r5r_sample("poa", packages = "sf") # helper-r5r.R
+  local_output("data.table")
   skip_if(!nzchar(Sys.which("zip")), "no zip program")
   dir <- tempfile()
   dir.create(dir)
@@ -71,16 +72,9 @@ test_that("rides along shapes cut by shape_dist_traveled equal r5r's", {
     args[names(a)] <- a
     x <- do.call(detailed_itineraries, c(list(pb), args, n_threads = 2))
     y <- do.call(r5r::detailed_itineraries, c(list(r5), args, n_threads = 2, progress = FALSE))
-    class(y) <- setdiff(class(y), "data.table")
-    attr(y, ".internal.selfref") <- NULL
     expect_true(any(x$mode == "BUS"))
-    expect_identical(x, y)
+    expect_identical_r5r(x, y)
   }
   # transit_network_to_sf() draws whole shapes: the distances play no part
-  y <- lapply(r5r::transit_network_to_sf(r5), function(t) {
-    class(t) <- setdiff(class(t), "data.table")
-    attr(t, ".internal.selfref") <- NULL
-    t
-  })
-  expect_identical(transit_network_to_sf(pb), y)
+  expect_identical_r5r(transit_network_to_sf(pb), r5r::transit_network_to_sf(r5))
 })

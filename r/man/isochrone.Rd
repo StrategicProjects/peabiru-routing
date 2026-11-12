@@ -110,7 +110,7 @@ given).}
 accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A \verb{"sf" "data.frame"} in WGS 84. With \code{polygon_output = TRUE},
+An \code{sf} table in WGS 84 (EPSG:4326). With \code{polygon_output = TRUE},
 one \code{POLYGON} or \code{MULTIPOLYGON} per origin, percentile and cutoff, with
 columns \code{id}, \code{isochrone} (the cutoff), \code{percentile} (such as \code{"p50"})
 and \code{polygons}; rows by origin, percentile and cutoff (descending). Each
@@ -122,6 +122,9 @@ segment's attributes from \code{\link[=street_network_to_sf]{street_network_to_s
 (\code{from_vertex}, \code{to_vertex}, \code{street_class}, \code{length}, \code{walk}, \code{car},
 \code{car_speed}, \code{bicycle}, \code{bicycle_lts}) and \code{geometry}; rows by origin,
 then by band and travel time, both descending.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", the class r5r gives it. With "data.table", r5r's polygons are an
+\code{sf} \code{data.table} and its lines a plain \code{sf} data frame; so are these.
 }
 \description{
 The areas (\code{polygon_output = TRUE}) or the street segments

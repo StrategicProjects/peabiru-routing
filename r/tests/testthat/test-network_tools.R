@@ -2,7 +2,7 @@ test_that("find_snap has r5r's columns, and NA where nothing snaps", {
   pts <- fixture_points()
   far <- data.frame(id = "far", lon = -46.0, lat = -23.0)
   x <- find_snap(fixture_network(), rbind(pts[1:3, c("id", "lon", "lat")], far))
-  expect_identical(class(x), "data.frame")
+  expect_identical(class(x), c("tbl_df", "tbl", "data.frame"))
   expect_identical(names(x), c("point_id", "lat", "lon", "snap_lat", "snap_lon",
                                "distance", "found"))
   expect_identical(x$point_id, c(pts$id[1:3], "far"))
@@ -54,8 +54,8 @@ test_that("street_network_to_sf has r5r's columns, and every edge end is a verte
   expect_identical(names(s), c("vertices", "edges"))
   v <- s$vertices
   e <- s$edges
-  expect_identical(class(v), c("sf", "data.frame"))
-  expect_identical(class(e), c("sf", "data.frame"))
+  expect_identical(class(v), c("sf", "tbl_df", "tbl", "data.frame"))
+  expect_identical(class(e), c("sf", "tbl_df", "tbl", "data.frame"))
   expect_identical(names(v), c("index", "park_and_ride", "bike_sharing", "geometry"))
   expect_identical(names(e), c("edge_index", "osm_id", "from_vertex", "to_vertex",
                                "street_class", "length", "walk", "car", "car_speed",
@@ -94,6 +94,7 @@ test_that("transit_network_to_sf has r5r's columns", {
 })
 
 test_that("check_transit_availability discovers dates and counts services", {
+  local_output("data.frame") # rows compared with their row names
   net <- fixture_network()
   d <- check_transit_availability(net)
   expect_identical(names(d), c("date", "total_services", "active_services", "pct_active"))
@@ -131,7 +132,7 @@ test_that("check_transit_availability rejects bad dates as r5r does", {
 test_that("get_gtfs_errors lists gtfs-lib's errors, for a network or a directory", {
   e <- get_gtfs_errors(fixture_network())
   expect_identical(names(e), c("file", "line", "type", "field", "id", "priority"))
-  expect_identical(class(e), "data.frame")
+  expect_identical(class(e), c("tbl_df", "tbl", "data.frame"))
   # the SPTrans sample repeats its agency and calendar rows
   expect_true(all(e$type == "DuplicateKeyError"))
   expect_true(all(e$priority == "MEDIUM"))

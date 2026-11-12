@@ -8,6 +8,8 @@
 # in the box of the sample points, sample points, equal points and points
 # off the network. Exits with status 1 if any scenario differs.
 
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 args <- commandArgs(TRUE)
 n_pairs <- suppressWarnings(as.integer(args[grepl("^[0-9]+$", args)]))
 n_pairs <- if (length(n_pairs) == 1) n_pairs else 300L

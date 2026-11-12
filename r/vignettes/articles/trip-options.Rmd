@@ -88,8 +88,8 @@ res$departures
 With the default criteria (all four, since there is a fare structure) the
 trade-offs with transfers and walking come in too. The legs of each option
 are in `itineraries`, in the format of `detailed_itineraries()` and keyed by
-`from_id`, `to_id` and `option`: an `sf` of lines, or a `data.frame` with
-`drop_geometry = TRUE`.
+`from_id`, `to_id` and `option`: an `sf` of lines, or a table without
+geometry with `drop_geometry = TRUE`.
 
 ```{r legs}
 res <- trip_options(poa_network, origin, destination,

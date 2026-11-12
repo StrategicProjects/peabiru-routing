@@ -21,8 +21,11 @@ needs_sf <- function(fun) {
 #'
 #' @section Compatibility with r5r:
 #' The arguments, their defaults and checks, the columns and the values are
-#' those of `r5r::find_snap()` in r5r 2.5.0; the result is a `data.frame`
-#' rather than a `data.table`. A `radius` of `NA` or of length 0 is an error
+#' those of `r5r::find_snap()` in r5r 2.5.0; with
+#' `options(peabiru.output = "data.table")` the result is identical to r5r's,
+#' with the index on `found` that r5r's update of the points not found leaves
+#' (when `options(datatable.auto.index)` is on, as by default). A `radius`
+#' of `NA` or of length 0 is an error
 #' that says so (r5r lets it through and fails in Java).
 #'
 #' @param r5r_network A network built with [build_network()].
@@ -36,13 +39,15 @@ needs_sf <- function(fun) {
 #' @param r5r_core Deprecated: the network under its name before r5r 2.3.0,
 #'   accepted with a warning.
 #'
-#' @return A `data.frame` with the original points (`point_id`, `lat`,
+#' @return A table with the original points (`point_id`, `lat`,
 #'   `lon`), their snapped coordinates on the street network (`snap_lat`,
 #'   `snap_lon`), the distance in meters between the point and its snapped
 #'   location (`distance`, haversine on a sphere of radius 6,367,450 m, as
 #'   R5 measures it) and whether the point snapped (`found`). Points that
 #'   could not be snapped have `NA` coordinates and distance and
 #'   `found = FALSE`.
+#'
+#'   `r doc_output_class()`
 #' @family network functions
 #' @export
 #' @examples
@@ -56,6 +61,7 @@ find_snap <- function(r5r_network,
                       radius = 1600,
                       mode = "WALK",
                       r5r_core = deprecated()) {
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -79,7 +85,7 @@ find_snap <- function(r5r_network,
   if (is.na(radius)) radius <- 0
   res <- rs_find_snap(r5r_network$ptr, points$lat, points$lon,
                       as.double(radius), mode)
-  new_df(list(
+  out <- as_output(new_df(list(
     point_id = points$id,
     lat = points$lat,
     lon = points$lon,
@@ -87,7 +93,16 @@ find_snap <- function(r5r_network,
     snap_lon = res$snap_lon,
     distance = res$distance,
     found = res$found
-  ))
+  )), kind)
+  # r5r's snap_df[found == FALSE, `:=`(...)] leaves an index on `found`
+  # (data.table's auto-indexing, when options(datatable.auto.index) is on):
+  # the same subset, evaluated where data.table's syntax applies, leaves the
+  # same index
+  if (kind == "data.table") {
+    eval(call("[", out, quote(found == FALSE), which = TRUE),
+         envir = new.env(parent = asNamespace("data.table")))
+  }
+  out
 }
 
 #' Extract the geographic bounding box of the transport network
@@ -178,7 +193,8 @@ linestring_sfc <- function(n_points, x, y) {
 #' @section Compatibility with r5r:
 #' The arguments and the result are those of `r5r::street_network_to_sf()`
 #' in r5r 2.5.0: the same rows in the same order, columns and values;
-#' `edges` is an `sf` `data.frame`, where r5r's is also a `data.table`.
+#' with `options(peabiru.output = "data.table")` both tables have r5r's class too (`vertices` a
+#' plain `sf` data frame, `edges` an `sf` `data.table`).
 #'
 #' @inheritParams find_snap
 #'
@@ -196,6 +212,7 @@ linestring_sfc <- function(n_points, x, y) {
 #' street_net <- street_network_to_sf(network)
 #' head(street_net$edges)
 street_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -227,7 +244,8 @@ street_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
   edges$geometry <- linestring_sfc(e$n_points, e$x, e$y)
   edges <- sf::st_sf(edges)
 
-  list(vertices = vertices, edges = edges)
+  list(vertices = as_output_sf(vertices, kind, data_table = FALSE),
+       edges = as_output_sf(edges, kind, data_table = TRUE))
 }
 
 #' Extract transit network in sf format
@@ -238,7 +256,8 @@ street_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
 #' @section Compatibility with r5r:
 #' The arguments and the result are those of `r5r::transit_network_to_sf()`
 #' in r5r 2.5.0: the same rows in the same order, columns and values;
-#' `routes` is an `sf` `data.frame`, where r5r's is also a `data.table`.
+#' with `options(peabiru.output = "data.table")` both tables have r5r's class too (`stops` a plain
+#' `sf` data frame, `routes` an `sf` `data.table`).
 #'
 #' @inheritParams find_snap
 #'
@@ -263,6 +282,7 @@ street_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
 #' transit_net <- transit_network_to_sf(network)
 #' head(transit_net$stops)
 transit_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -295,7 +315,8 @@ transit_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
     linked_to_street = s$linked_to_street
   )), s$lon, s$lat)
 
-  list(stops = stops, routes = routes)
+  list(stops = as_output_sf(stops, kind, data_table = FALSE),
+       routes = as_output_sf(routes, kind, data_table = TRUE))
 }
 
 #' Check transit service availability by date
@@ -324,8 +345,8 @@ transit_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
 #'
 #' @section Compatibility with r5r:
 #' The arguments, their defaults and checks, the columns and the values are
-#' those of `r5r::check_transit_availability()` in r5r 2.5.0; the result is
-#' a `data.frame` rather than a `data.table`.
+#' those of `r5r::check_transit_availability()` in r5r 2.5.0; with `options(peabiru.output = "data.table")`
+#' the result is identical to r5r's, its class included.
 #'
 #' @inheritParams find_snap
 #' @param dates A vector of specific dates to be checked. Can be character
@@ -340,7 +361,7 @@ transit_network_to_sf <- function(r5r_network, r5r_core = deprecated()) {
 #'   single character string in "YYYY-MM-DD" format or a `Date` object. Must
 #'   be used with `start_date`.
 #'
-#' @return A `data.frame` with four columns: `date` (`Date`),
+#' @return A table with four columns: `date` (`Date`),
 #'   `total_services`, `active_services` and `pct_active` (the proportion
 #'   of active services). Automatic discovery returns dates in ascending
 #'   order, or a zero-row table with these columns if no retained transit
@@ -357,6 +378,7 @@ check_transit_availability <- function(r5r_network,
                                        start_date = NULL,
                                        end_date = NULL,
                                        r5r_core = deprecated()) {
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -428,13 +450,13 @@ check_transit_availability <- function(r5r_network,
   dim(counts) <- c(2L, length(yyyymmdd))
   total <- as.integer(counts[1, ])
   active <- as.integer(counts[2, ])
-  new_df(list(
+  as_output(new_df(list(
     date = as.Date(dates_formatted),
     total_services = total,
     active_services = active,
     # as.numeric: ifelse() of no dates is logical(0), r5r's column double
     pct_active = as.numeric(ifelse(total == 0L, 0, active / total))
-  ))
+  )), kind)
 }
 
 #' Get GTFS errors encountered in network building
@@ -463,9 +485,9 @@ check_transit_availability <- function(r5r_network,
 #'
 #' @section Compatibility with r5r:
 #' The argument and the columns are those of `r5r::get_gtfs_errors()` in
-#' r5r 2.5.0, with the same rows; the result is a `data.frame` rather than a
-#' `data.table`, with the column types `data.table::fread()` gives r5r
-#' (exactly, when 'data.table' is installed). r5r writes the errors to
+#' r5r 2.5.0, with the same rows, and the column types `data.table::fread()`
+#' gives r5r (exactly, when 'data.table' is installed); with `options(peabiru.output = "data.table")`
+#' the result is a `data.table`, as r5r's. r5r writes the errors to
 #' `gtfs_errors.csv` in the data folder when it builds the network and
 #' reads that file back, listing them in the order of a Java `HashSet`,
 #' which changes from one run to the next; peabiru writes nothing, reads
@@ -477,7 +499,7 @@ check_transit_availability <- function(r5r_network,
 #'   of a directory with 'GTFS' feeds (`.zip`), for instance one a network
 #'   could not be built from.
 #'
-#' @return A `data.frame` with columns `file` (the table, without
+#' @return A table with columns `file` (the table, without
 #'   `.txt`), `line` (the record, the header being line 1; 0 for a whole
 #'   table), `type` (gtfs-lib's error class), `field`, `id` (the key
 #'   concerned, for duplicate keys and suspect stop locations) and
@@ -489,6 +511,7 @@ check_transit_availability <- function(r5r_network,
 #' network <- build_network(data_path, n_threads = 2)
 #' get_gtfs_errors(network)
 get_gtfs_errors <- function(r5r_network) {
+  kind <- output_class()
   if (inherits(r5r_network, "peabiru_network")) {
     assert_network(r5r_network)
     paths <- rs_feed_paths(r5r_network$ptr)
@@ -504,7 +527,7 @@ get_gtfs_errors <- function(r5r_network) {
          paste(class(r5r_network), collapse = "/"), "'.", call. = FALSE)
   }
   errors <- rs_gtfs_errors(paths)
-  as_read_by_fread(errors)
+  as_output(as_read_by_fread(errors), kind)
 }
 
 # The table r5r gets: data.table::fwrite() to gtfs_errors.csv, then

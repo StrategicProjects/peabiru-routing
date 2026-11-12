@@ -60,6 +60,8 @@ SystemRequirements: Cargo (Rust's package manager), rustc >= 1.81
 Config/rextendr/version: 0.5.0
 Depends: 
     R (>= 4.2)
+Imports:
+    tibble (>= 3.0.0)
 Suggests:
     data.table,
     knitr,

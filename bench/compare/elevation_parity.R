@@ -31,6 +31,8 @@
 # directory has a raster. POA's GTFS only has service in the afternoon:
 # transit departs at 14:00 on 2019-05-13.
 
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 xmx <- Sys.getenv("R5R_XMX", "6G")
 options(java.parameters = paste0("-Xmx", xmx))
 suppressPackageStartupMessages({

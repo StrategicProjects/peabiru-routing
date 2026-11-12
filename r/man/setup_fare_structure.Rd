@@ -33,6 +33,8 @@ accepted with a warning.}
 }
 \value{
 A fare structure (a list, see Details).
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 Creates a basic fare structure that describes how transit fares should be
@@ -74,8 +76,8 @@ written for r5r and ported to the 'Rust' core.
 \section{Compatibility with r5r}{
 
 The arguments, their defaults and checks and the structure are those of
-\code{r5r::setup_fare_structure()} in r5r 2.5.0; its tables are \code{data.frame}s
-rather than \code{data.table}s. Structures move between the two packages
+\code{r5r::setup_fare_structure()} in r5r 2.5.0; with \code{options(peabiru.output = "data.table")}
+its tables are \code{data.table}s, and the structure is identical to r5r's. Structures move between the two packages
 through \code{\link[=write_fare_structure]{write_fare_structure()}} and \code{\link[=read_fare_structure]{read_fare_structure()}}. R5's own
 fare calculators (a structure with a \code{type}, which r5r passes to R5) are
 not available: the routing functions stop with an error on one.

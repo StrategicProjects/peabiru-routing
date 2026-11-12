@@ -6,7 +6,7 @@ iso <- function(...) {
 test_that("polygon isochrones have r5r's columns, types and row order", {
   pts <- fixture_points()[1:2, ]
   x <- iso(pts, mode = "WALK", cutoffs = c(20, 0, 10, 10), percentiles = c(50, 25))
-  expect_identical(class(x), c("sf", "data.frame"))
+  expect_identical(class(x), c("sf", "tbl_df", "tbl", "data.frame"))
   expect_identical(names(x), c("id", "isochrone", "percentile", "polygons"))
   expect_identical(attr(x, "sf_column"), "polygons")
   expect_identical(sf::st_crs(x), sf::st_crs(4326))
@@ -25,7 +25,7 @@ test_that("polygon isochrones have r5r's columns, types and row order", {
 test_that("line isochrones have r5r's columns, types and row order", {
   pts <- fixture_points()[1:2, ]
   x <- iso(pts, mode = "WALK", cutoffs = c(0, 5, 10), polygon_output = FALSE)
-  expect_identical(class(x), c("sf", "data.frame"))
+  expect_identical(class(x), c("sf", "tbl_df", "tbl", "data.frame"))
   expect_identical(names(x), c(
     "id", "edge_index", "osm_id", "isochrone", "travel_time_p50", "from_vertex",
     "to_vertex", "street_class", "length", "walk", "car", "car_speed",

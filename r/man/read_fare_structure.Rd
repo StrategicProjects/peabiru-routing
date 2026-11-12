@@ -14,6 +14,8 @@ read_fare_structure(file_path, encoding = "UTF-8")
 }
 \value{
 A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}).
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 Reads a fare structure from a \code{.zip} file written by
@@ -24,7 +26,7 @@ with the columns and types of the structure (see
 \section{Compatibility with r5r}{
 
 The arguments and the result are those of \code{r5r::read_fare_structure()}
-in r5r 2.5.0, with \code{data.frame}s rather than \code{data.table}s. A
+in r5r 2.5.0 (identical, tables included, with \code{options(peabiru.output = "data.table")}). A
 \code{file_path} that names several files is an error (r5r's check lets it
 through and then fails unzipping them).
 }

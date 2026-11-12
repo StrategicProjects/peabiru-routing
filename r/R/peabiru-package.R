@@ -25,6 +25,31 @@
 #' [r5r_sitrep()]) are kept so that r5r scripts run. See
 #' the article "Coming from r5r" on the package website for the differences.
 #'
+#' @section Class of the results:
+#' The tables the functions return are tibbles by default. The option
+#' `peabiru.output`, read at each call, chooses another class:
+#'
+#' * `options(peabiru.output = "tibble")` (the default; 'tibble' is the
+#'   package's one dependency): tibbles, and `sf` tibbles (class
+#'   `c("sf", "tbl_df", "tbl", "data.frame")`) for the results with a
+#'   geometry, as `sf::st_as_sf()` makes of a tibble;
+#' * `options(peabiru.output = "data.frame")`: base `data.frame`s, and plain
+#'   `sf` data frames;
+#' * `options(peabiru.output = "data.table")` (needs 'data.table'):
+#'   `data.table`s, with the class r5r 2.5.0 gives each result, so that the
+#'   result is identical to r5r's: `sf` `data.table`s for isochrone
+#'   polygons, itineraries, the street edges and the transit routes, plain
+#'   `sf` data frames for isochrone lines, street vertices and transit
+#'   stops, and the index r5r's [find_snap()] leaves on `found`. A good
+#'   choice for large matrices handled with 'data.table'.
+#'
+#' Any other value is an error. The option applies to every table: the
+#' matrices, accessibility, Pareto frontiers, [find_snap()],
+#' [check_transit_availability()], [get_gtfs_errors()], the tables of a fare
+#' structure, the tables of [trip_options()] and the `sf` results (whose
+#' geometries are always in EPSG:4326). The rows, the columns, their order
+#' and types, and the row names are the same whatever the class.
+#'
 #' @section Sample data:
 #' `system.file("extdata/spo", package = "peabiru")` holds a small network
 #' for examples and tests, cut from the Sao Paulo sample data of the 'r5r'

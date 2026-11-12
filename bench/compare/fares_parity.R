@@ -17,6 +17,8 @@
 # builds both networks with that slope cost. Exits with status 1 if any
 # scenario differs.
 
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 args <- commandArgs(TRUE)
 n_o <- suppressWarnings(as.integer(args[grepl("^[0-9]+$", args)]))
 n_o <- if (length(n_o) == 1) n_o else 30L

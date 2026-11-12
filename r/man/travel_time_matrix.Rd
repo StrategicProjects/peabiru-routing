@@ -150,11 +150,13 @@ the returned result.}
 accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A \code{data.frame} with \code{from_id}, \code{to_id} (character) and one
+A table with \code{from_id}, \code{to_id} (character) and one
 integer column \code{travel_time_pXX} per percentile (minutes). Pairs that
 cannot be completed within \code{max_trip_duration}, or whose points are
 too far from the street network, are not returned; a higher percentile
 beyond the limit is \code{NA}. With \code{output_dir}, \code{output_dir}.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 Travel times between every origin and every destination, by one street
@@ -229,10 +231,11 @@ window of 150 minutes or more): those combinations are an error.
 The arguments, their defaults and checks, the columns and the rows of the
 result are those of \code{r5r::travel_time_matrix()} in r5r 2.5.0, and the
 travel times are equal pair by pair (with frequencies, for the same
-\code{seed}): the engine is a port of R5 7.6, the engine r5r drives. The
-result is a \code{data.frame} rather than a \code{data.table}. For a walking trip
-with more origins than destinations the search runs from the
-destinations, as r5r runs it, and the columns are swapped back. A
+\code{seed}): the engine is a port of R5 7.6, the engine r5r drives. With
+\code{options(peabiru.output = "data.table")} the result is identical to
+r5r's, its class included. For a walking trip with more origins than
+destinations the search runs from the destinations, as r5r runs it, and
+the columns are swapped back. A
 missing destination id is an error (r5r fails on it in Java). See
 the article "Coming from r5r" on the package website for every difference.
 }

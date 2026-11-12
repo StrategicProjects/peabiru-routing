@@ -3,7 +3,7 @@ test_that("street matrices have r5r's columns and types", {
   pts <- fixture_points()
   for (m in c("WALK", "BICYCLE", "CAR")) {
     ttm <- travel_time_matrix(network, pts, pts, mode = m, n_threads = 2)
-    expect_identical(class(ttm), "data.frame")
+    expect_identical(class(ttm), c("tbl_df", "tbl", "data.frame"))
     expect_identical(names(ttm), c("from_id", "to_id", "travel_time_p50"))
     expect_type(ttm$from_id, "character")
     expect_type(ttm$travel_time_p50, "integer")

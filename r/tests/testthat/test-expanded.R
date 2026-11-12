@@ -4,7 +4,7 @@ test_that("expanded matrices have r5r's columns and types", {
   e <- expanded_travel_time_matrix(network, pts[1:3, ], pts, mode = "TRANSIT",
                                    departure_datetime = departure, time_window = 3,
                                    breakdown = TRUE, seed = 1, n_threads = 2)
-  expect_identical(class(e), "data.frame")
+  expect_identical(class(e), c("tbl_df", "tbl", "data.frame"))
   expect_identical(names(e), c(
     "from_id", "to_id", "departure_time", "draw_number", "access_time",
     "wait_time", "ride_time", "transfer_time", "egress_time", "routes",

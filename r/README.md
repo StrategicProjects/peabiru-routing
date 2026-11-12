@@ -74,9 +74,12 @@ ttm <- travel_time_matrix(
 
 The package exports the 22 functions of [r5r](https://github.com/ipea/r5r)
 2.5.0, with their arguments and defaults, and the results are r5r's: with
-the same arguments and `seed`, r5r returns the same `data.frame`
-(`identical()` after converting r5r's `data.table`). The article "Coming
-from r5r" lists what is the same and every difference.
+the same arguments and `seed`, r5r returns the same rows, columns and
+values. peabiru returns tibbles by default;
+`options(peabiru.output = "data.table")` gives r5r's `data.table`s,
+`identical()` to r5r's results, class included, and
+`options(peabiru.output = "data.frame")` base data frames. The article
+"Coming from r5r" lists what is the same and every difference.
 
 ## Documentation
 
