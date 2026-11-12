@@ -82,6 +82,9 @@ routing and network functions (without r5r's functions for Java).
   `trip_options` may grow), and `Criterion::ALL` and `TransitMode::ALL`
   are `&'static [_]` slices instead of arrays of a fixed length, so that a
   new criterion or mode does not change their type.
+- `StreetVertices`, `StreetEdges`, `TransitStops` and `TransitRoutes`
+  implement `PartialEq`, as the other result types do (not `Eq`: each holds
+  coordinates as floats).
 - `cargo test` passes in the packaged `peabiru-core`: the 38 tests that
   read the repository's sample data (`r/inst/extdata/spo`), which the
   crate does not carry, say on stderr that they are skipped and return.

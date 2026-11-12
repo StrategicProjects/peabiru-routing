@@ -82,7 +82,7 @@ impl StreetNetwork {
 /// The vertices of r5r's `street_network_to_sf()$vertices`: those at an end
 /// of a street edge (connectors of transit stops and park-and-rides left
 /// out), in r5r's order. Made by [`street_vertices`](crate::street_vertices).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub struct StreetVertices {
     /// `index`: the vertex index in the network.
@@ -148,7 +148,7 @@ fn java_hash_set_order(keys: Vec<u32>) -> Vec<u32> {
 
 /// The stops of r5r's `transit_network_to_sf()$stops`, one per stop in
 /// stop index order. Made by [`transit_stops`](crate::transit_stops).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub struct TransitStops {
     /// `stop_index`.
@@ -188,7 +188,7 @@ pub(crate) fn transit_stops(net: &StreetNetwork, layer: &TransitLayer) -> Transi
 /// The routes of r5r's `transit_network_to_sf()$routes`: one row per trip
 /// pattern (the trips of a route with the same stops), in pattern order.
 /// Made by [`transit_routes`](crate::transit_routes).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub struct TransitRoutes {
     /// `agency_id` of the route's agency.

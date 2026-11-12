@@ -974,8 +974,11 @@ pub fn peabiru_core::StreetEdges::to_vertex(&self, usize) -> u32
 pub fn peabiru_core::StreetEdges::walk(&self, usize) -> bool
 impl core::clone::Clone for peabiru_core::StreetEdges
 pub fn peabiru_core::StreetEdges::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::StreetEdges
+pub fn peabiru_core::StreetEdges::eq(&self, &Self) -> bool
 impl core::fmt::Debug for peabiru_core::StreetEdges
 pub fn peabiru_core::StreetEdges::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::StreetEdges
 impl core::marker::Forget for peabiru_core::StreetEdges
 impl core::marker::Freeze for peabiru_core::StreetEdges
 impl core::marker::Send for peabiru_core::StreetEdges
@@ -1040,10 +1043,13 @@ pub peabiru_core::StreetVertices::lon: alloc::vec::Vec<f64>
 pub peabiru_core::StreetVertices::park_and_ride: alloc::vec::Vec<bool>
 impl core::clone::Clone for peabiru_core::StreetVertices
 pub fn peabiru_core::StreetVertices::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::StreetVertices
+pub fn peabiru_core::StreetVertices::eq(&self, &Self) -> bool
 impl core::default::Default for peabiru_core::StreetVertices
 pub fn peabiru_core::StreetVertices::default() -> Self
 impl core::fmt::Debug for peabiru_core::StreetVertices
 pub fn peabiru_core::StreetVertices::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::StreetVertices
 impl core::marker::Forget for peabiru_core::StreetVertices
 impl core::marker::Freeze for peabiru_core::StreetVertices
 impl core::marker::Send for peabiru_core::StreetVertices
@@ -1156,10 +1162,13 @@ pub fn peabiru_core::TransitRoutes::is_empty(&self) -> bool
 pub fn peabiru_core::TransitRoutes::len(&self) -> usize
 impl core::clone::Clone for peabiru_core::TransitRoutes
 pub fn peabiru_core::TransitRoutes::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::TransitRoutes
+pub fn peabiru_core::TransitRoutes::eq(&self, &Self) -> bool
 impl core::default::Default for peabiru_core::TransitRoutes
 pub fn peabiru_core::TransitRoutes::default() -> Self
 impl core::fmt::Debug for peabiru_core::TransitRoutes
 pub fn peabiru_core::TransitRoutes::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::TransitRoutes
 impl core::marker::Forget for peabiru_core::TransitRoutes
 impl core::marker::Freeze for peabiru_core::TransitRoutes
 impl core::marker::Send for peabiru_core::TransitRoutes
@@ -1177,10 +1186,13 @@ pub peabiru_core::TransitStops::stop_index: alloc::vec::Vec<u32>
 pub peabiru_core::TransitStops::stop_name: alloc::vec::Vec<core::option::Option<alloc::string::String>>
 impl core::clone::Clone for peabiru_core::TransitStops
 pub fn peabiru_core::TransitStops::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::TransitStops
+pub fn peabiru_core::TransitStops::eq(&self, &Self) -> bool
 impl core::default::Default for peabiru_core::TransitStops
 pub fn peabiru_core::TransitStops::default() -> Self
 impl core::fmt::Debug for peabiru_core::TransitStops
 pub fn peabiru_core::TransitStops::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::TransitStops
 impl core::marker::Forget for peabiru_core::TransitStops
 impl core::marker::Freeze for peabiru_core::TransitStops
 impl core::marker::Send for peabiru_core::TransitStops
