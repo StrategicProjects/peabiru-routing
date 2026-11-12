@@ -215,11 +215,6 @@ mod tests {
     use super::*;
     use crate::gtfs::zip::tests::make_zip;
 
-    const PBF: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../r/inst/extdata/spo/spo_osm.pbf"
-    );
-
     fn feed(changes: &[(&str, &str)]) -> Vec<u8> {
         let mut files = vec![
             (
@@ -255,8 +250,13 @@ mod tests {
         make_zip(&files, true)
     }
 
-    fn build(feeds: &[(&str, &[u8])], ignore: bool, threads: usize) -> Result<usize, NetworkError> {
-        let pbf = std::fs::read(PBF).unwrap();
+    fn build(
+        spo: &str,
+        feeds: &[(&str, &[u8])],
+        ignore: bool,
+        threads: usize,
+    ) -> Result<usize, NetworkError> {
+        let pbf = std::fs::read(format!("{spo}/spo_osm.pbf")).unwrap();
         let opts = BuildOptions {
             n_threads: threads,
             ignore_gtfs_errors: ignore,
@@ -267,6 +267,9 @@ mod tests {
 
     #[test]
     fn feeds_with_high_priority_errors_are_refused_as_in_r5r() {
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
         let clean = feed(&[]);
         // a duplicated stop is MEDIUM, an agency URL that is not one LOW
         let medium = feed(&[
@@ -292,14 +295,14 @@ mod tests {
         )]);
         for threads in [1, 2] {
             let two = [("a.zip", &clean[..]), ("b.zip", &medium[..])];
-            assert_eq!(build(&two, false, threads).unwrap(), 2);
+            assert_eq!(build(spo, &two, false, threads).unwrap(), 2);
             let four = [
                 ("a.zip", &no_agency[..]),
                 ("b.zip", &clean[..]),
                 ("c.zip", &bad_number[..]),
                 ("d.zip", &unknown_stop[..]),
             ];
-            let e = build(&four, false, threads).unwrap_err();
+            let e = build(spo, &four, false, threads).unwrap_err();
             let found: Vec<(String, usize)> = e
                 .high_priority_gtfs_errors()
                 .unwrap()
@@ -321,17 +324,23 @@ mod tests {
                  d.zip (1 error); network build failed (as in r5r)"
             );
             for f in [&no_agency, &unknown_stop] {
-                assert_eq!(build(&[("a.zip", f)], true, threads).unwrap(), 1);
+                assert_eq!(build(spo, &[("a.zip", f)], true, threads).unwrap(), 1);
             }
             // without the check, numbers that do not parse are read as
             // gtfs-lib reads them (NaN coordinates: the stops link to no
             // street)
-            assert_eq!(build(&[("c.zip", &bad_number)], true, threads).unwrap(), 1);
+            assert_eq!(
+                build(spo, &[("c.zip", &bad_number)], true, threads).unwrap(),
+                1
+            );
         }
     }
 
     #[test]
     fn a_feed_gtfs_lib_fails_on_is_an_error() {
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
         let one_point = feed(&[
             (
                 "trips.txt",
@@ -343,11 +352,11 @@ mod tests {
             ),
         ]);
         for threads in [1, 2] {
-            let e = build(&[("a.zip", &one_point)], false, threads).unwrap_err();
+            let e = build(spo, &[("a.zip", &one_point)], false, threads).unwrap_err();
             assert!(e.high_priority_gtfs_errors().is_none());
             assert!(e.to_string().starts_with("a.zip: shape 'P'"), "{e}");
             // R5 fails on it too, when it draws the shape of the pattern
-            let e = build(&[("a.zip", &one_point)], true, threads).unwrap_err();
+            let e = build(spo, &[("a.zip", &one_point)], true, threads).unwrap_err();
             assert!(e.to_string().contains("IllegalArgumentException"), "{e}");
         }
     }
@@ -356,6 +365,9 @@ mod tests {
     /// builds: values gtfs-lib cannot read take its defaults.
     #[test]
     fn feeds_r5r_builds_are_read() {
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
         // a TimeParseError (the time is missing, then interpolated), a
         // missing route_type (0, tram), stop_sequence (0: one stop time per
         // trip) and calendar start (0)
@@ -379,7 +391,7 @@ mod tests {
         ] {
             for threads in [1, 2] {
                 assert_eq!(
-                    build(&[("a.zip", &feed(changes))], false, threads).unwrap(),
+                    build(spo, &[("a.zip", &feed(changes))], false, threads).unwrap(),
                     1
                 );
             }
@@ -387,7 +399,7 @@ mod tests {
         // a trip without route_id: gtfs-lib records an EmptyFieldError
         // (MEDIUM), then R5 fails on it
         let no_route = feed(&[("trips.txt", "route_id,service_id,trip_id\n,S,T1\n")]);
-        let e = build(&[("a.zip", &no_route)], false, 1).unwrap_err();
+        let e = build(spo, &[("a.zip", &no_route)], false, 1).unwrap_err();
         assert_eq!(
             e.to_string(),
             "a.zip: trip 'T1' has no route_id, and R5 fails building its transit layer from the \

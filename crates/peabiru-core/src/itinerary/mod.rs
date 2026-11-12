@@ -72,9 +72,9 @@ pub struct ItineraryParams {
     /// r5r lowers it to the street mode's own limit.
     pub max_trip_duration: i32,
     /// Walking speed, km/h (default 3.6).
-    pub walk_speed_kmh: f64,
+    pub walk_speed: f64,
     /// Cycling speed, km/h (default 12).
-    pub bike_speed_kmh: f64,
+    pub bike_speed: f64,
     /// Most vehicles boarded (default 3).
     pub max_rides: usize,
     /// Highest level of traffic stress a cyclist rides on, 1 to 4
@@ -126,8 +126,8 @@ impl Default for ItineraryParams {
             max_bike_time: 120,
             max_car_time: 120,
             max_trip_duration: 120,
-            walk_speed_kmh: 3.6,
-            bike_speed_kmh: 12.0,
+            walk_speed: 3.6,
+            bike_speed: 12.0,
             max_rides: 3,
             max_lts: 2,
             shortest_path: true,
@@ -156,8 +156,8 @@ impl ItineraryParams {
             max_bike_time: self.max_bike_time,
             max_car_time: self.max_car_time,
             max_trip_duration: self.max_trip_duration,
-            walk_speed_kmh: self.walk_speed_kmh,
-            bike_speed_kmh: self.bike_speed_kmh,
+            walk_speed: self.walk_speed,
+            bike_speed: self.bike_speed,
             max_rides: self.max_rides,
             max_lts: self.max_lts,
             draws_per_minute: 1,
@@ -189,7 +189,7 @@ impl ItineraryParams {
     }
 
     fn req(&self) -> Req {
-        Req::new(self.walk_speed_kmh, self.bike_speed_kmh, self.max_lts)
+        Req::new(self.walk_speed, self.bike_speed, self.max_lts)
     }
 
     /// `getMaxTimeSeconds(mode)`.

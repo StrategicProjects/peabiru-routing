@@ -542,10 +542,10 @@ pub fn transit_call(t: &TransitArgs, d: Option<&DrawArgs>, when: When) -> Res<Tr
 /// Street routing parameters.
 pub fn route_params(s: &Street, trip: i32, threads: usize, scenario: &Scenario) -> RouteParams {
     let mut p = RouteParams::default();
-    p.walk_speed_kmh = s.walk_speed;
-    p.bike_speed_kmh = s.bike_speed;
+    p.walk_speed = s.walk_speed;
+    p.bike_speed = s.bike_speed;
     p.max_lts = s.max_lts;
-    p.max_trip_duration_min = trip;
+    p.max_trip_duration = trip;
     p.n_threads = threads;
     p.scenario = scenario.clone();
     p.cancel = cancel_token().clone();
@@ -563,7 +563,7 @@ pub fn transit_params(
 ) -> TransitParams {
     let mut p = TransitParams::default();
     p.transit_modes = m.transit.clone();
-    p.access_mode = m.street;
+    p.mode = m.street;
     p.egress_mode = m.egress;
     p.date = c.when.date;
     p.departure_time = c.when.time;
@@ -573,8 +573,8 @@ pub fn transit_params(
     p.max_bike_time = s.lim.bike;
     p.max_car_time = s.lim.car;
     p.max_trip_duration = s.lim.trip;
-    p.walk_speed_kmh = s.walk_speed;
-    p.bike_speed_kmh = s.bike_speed;
+    p.walk_speed = s.walk_speed;
+    p.bike_speed = s.bike_speed;
     p.max_lts = s.max_lts;
     p.max_rides = c.max_rides;
     p.draws_per_minute = c.draws;

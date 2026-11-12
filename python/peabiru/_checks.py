@@ -12,7 +12,7 @@ import math
 import numbers
 import re
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence
+from typing import Any, Iterator, List, Mapping, Optional, Sequence
 
 import numpy as np
 
@@ -35,12 +35,6 @@ def fail_assert(name: str, msg: str, exc: type = ValueError) -> None:
     raise exc(f"Assertion on '{name}' failed: {msg}.")
 
 
-# the engine's parameter names that differ from the functions' arguments
-_CORE_NAMES: Dict[str, str] = {
-    "walk_speed_kmh": "walk_speed",
-    "bike_speed_kmh": "bike_speed",
-    "max_trip_duration_min": "max_trip_duration",
-}
 _NUMBER = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w.])")
 _PATHS = re.compile(r"at most (\d+) destinations are supported with paths")
 
@@ -59,10 +53,9 @@ def user_message(
     n_destinations: Optional[int] = None,
 ) -> str:
     """An error message of the engine in the terms of ``function``'s
-    arguments: the engine's parameter names become the argument names, and
-    numbers in scientific or long decimal notation are shortened."""
-    renames = dict(_CORE_NAMES)
-    renames.update(names or {})
+    arguments: the engine's parameter names in ``names`` become the argument
+    names, and numbers in scientific or long decimal notation are shortened."""
+    renames = dict(names or {})
     for core in sorted(renames, key=len, reverse=True):
         msg = re.sub(rf"\b{re.escape(core)}\b", renames[core], msg)
     paths = _PATHS.search(msg)

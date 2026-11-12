@@ -69,11 +69,14 @@ def test_arrival_window_is_max_trip_duration(network, points, departure):
 
 
 def test_user_message():
-    assert user_message("max_trip_duration_min must be from 1 to 35791394 minutes, got 0", "f") == (
+    # the engine's parameters have the arguments' names
+    assert user_message("max_trip_duration must be from 1 to 35791394 minutes, got 0", "f") == (
         "max_trip_duration must be from 1 to 35791394 minutes, got 0"
     )
     # whole words only, numbers that are already short are kept
-    assert user_message("my_walk_speed_kmh is 0.0036 or 120", "f") == "my_walk_speed_kmh is 0.0036 or 120"
+    assert user_message("my_time_window is 0.0036 or 120", "f", {"time_window": "x"}) == (
+        "my_time_window is 0.0036 or 120"
+    )
     assert user_message("got 1e300", "f") == "got 1e+300"
     assert user_message("got 3.333333333333333e-4", "f") == "got 0.000333333"
     assert user_message("time_window must be at least 1", "f", {"time_window": "max_trip_duration"}) == (

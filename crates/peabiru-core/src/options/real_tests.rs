@@ -13,8 +13,6 @@ use crate::transit::layer::FrequencyEntry;
 use crate::transit::matrix::TransitData;
 use crate::{BuildOptions, TransitLayer, TransitMode};
 
-const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
 #[test]
 fn frequency_boarding_rules() {
     let e = |start, end, headway, exact| FrequencyEntry {
@@ -354,9 +352,12 @@ fn properties(
 
 #[test]
 fn properties_on_sao_paulo() {
-    let (net, layer) = crate::transit::build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let Some(spo) = crate::sample_data::spo() else {
+        return;
+    };
+    let (net, layer) = crate::transit::build_from_dir(spo, &BuildOptions::default()).unwrap();
     let data = TransitData::new(&net, &layer);
-    let pts = read_points(&format!("{SPO}/spo_points.csv"));
+    let pts = read_points(&format!("{spo}/spo_points.csv"));
     let mut rng = super::testing::Rng::new(5);
     let (mut o, mut d) = (Vec::new(), Vec::new());
     for _ in 0..12 {
@@ -376,9 +377,12 @@ fn properties_on_sao_paulo() {
 
 #[test]
 fn cancelled_calls_stop() {
-    let (net, layer) = crate::transit::build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let Some(spo) = crate::sample_data::spo() else {
+        return;
+    };
+    let (net, layer) = crate::transit::build_from_dir(spo, &BuildOptions::default()).unwrap();
     let data = TransitData::new(&net, &layer);
-    let pts = read_points(&format!("{SPO}/spo_points.csv"));
+    let pts = read_points(&format!("{spo}/spo_points.csv"));
     let p = TripOptionsParams {
         transit_modes: TransitMode::ALL.to_vec(),
         date: 20190513,

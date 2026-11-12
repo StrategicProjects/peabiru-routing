@@ -69,8 +69,8 @@ fn rs_detailed_itineraries(
     p.max_bike_time = max_bike_time;
     p.max_car_time = max_car_time;
     p.max_trip_duration = max_trip_duration;
-    p.walk_speed_kmh = walk_speed;
-    p.bike_speed_kmh = bike_speed;
+    p.walk_speed = walk_speed;
+    p.bike_speed = bike_speed;
     p.max_rides = max_rides.max(0) as usize;
     p.max_lts = max_lts;
     p.shortest_path = shortest_path;

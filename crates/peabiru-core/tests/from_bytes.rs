@@ -1,15 +1,16 @@
 //! A network built from bytes in memory is the one built from the same
 //! files in a directory.
 
+#[path = "../src/sample_data.rs"]
+mod sample_data;
+
 use peabiru_core::{
     build_from_bytes, build_from_dir, street_travel_time_matrix, transit_travel_time_matrix,
     BuildOptions, Mode, RouteParams, TransitParams,
 };
 
-const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
-fn points() -> Vec<(f64, f64)> {
-    let text = std::fs::read_to_string(format!("{SPO}/spo_points.csv")).unwrap();
+fn points(spo: &str) -> Vec<(f64, f64)> {
+    let text = std::fs::read_to_string(format!("{spo}/spo_points.csv")).unwrap();
     text.lines()
         .skip(1)
         .map(|line| {
@@ -19,15 +20,18 @@ fn points() -> Vec<(f64, f64)> {
         .collect()
 }
 
-fn read(name: &str) -> Vec<u8> {
-    std::fs::read(format!("{SPO}/{name}")).unwrap()
+fn read(spo: &str, name: &str) -> Vec<u8> {
+    std::fs::read(format!("{spo}/{name}")).unwrap()
 }
 
 #[test]
 fn bytes_build_the_network_of_the_directory() {
+    let Some(spo) = sample_data::spo() else {
+        return;
+    };
     let opts = BuildOptions::default();
-    let net_d = build_from_dir(SPO, &opts).unwrap();
-    let (pbf, gtfs) = (read("spo_osm.pbf"), read("spo_gtfs.zip"));
+    let net_d = build_from_dir(spo, &opts).unwrap();
+    let (pbf, gtfs) = (read(spo, "spo_osm.pbf"), read(spo, "spo_gtfs.zip"));
     let net_b = build_from_bytes(&pbf, &[("spo_gtfs.zip", &gtfs)], &opts).unwrap();
 
     assert_eq!(net_b.street().n_vertices(), net_d.street().n_vertices());
@@ -42,7 +46,7 @@ fn bytes_build_the_network_of_the_directory() {
     assert_eq!(rb.file_name(), rd.file_name());
     assert_eq!(rb.r5r_refusals(), rd.r5r_refusals());
 
-    let pts = points();
+    let pts = points(spo);
     for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
         let p = RouteParams::default();
         let b = street_travel_time_matrix(&net_b, &pts, &pts, mode, &p).unwrap();
@@ -61,7 +65,10 @@ fn bytes_build_the_network_of_the_directory() {
 
 #[test]
 fn feeds_load_in_the_order_given() {
-    let (pbf, gtfs) = (read("spo_osm.pbf"), read("spo_gtfs.zip"));
+    let Some(spo) = sample_data::spo() else {
+        return;
+    };
+    let (pbf, gtfs) = (read(spo, "spo_osm.pbf"), read(spo, "spo_gtfs.zip"));
     let opts = BuildOptions::default();
     let feeds: [(&str, &[u8]); 2] = [("b.zip", &gtfs), ("a.zip", &gtfs)];
     let net = build_from_bytes(&pbf, &feeds, &opts).unwrap();
@@ -80,7 +87,10 @@ fn errors_name_the_data() {
     let opts = BuildOptions::default();
     let e = build_from_bytes(b"not a pbf", &[], &opts).unwrap_err();
     assert!(e.to_string().starts_with("OpenStreetMap data: "), "{e}");
-    let pbf = read("spo_osm.pbf");
+    let Some(spo) = sample_data::spo() else {
+        return;
+    };
+    let pbf = read(spo, "spo_osm.pbf");
     let e = build_from_bytes(&pbf, &[("feed.zip", b"not a zip")], &opts).unwrap_err();
     assert!(e.to_string().starts_with("feed.zip: "), "{e}");
 }

@@ -126,10 +126,10 @@ pub(crate) struct Req {
 }
 
 impl Req {
-    pub(crate) fn new(walk_speed_kmh: f64, bike_speed_kmh: f64, max_lts: i32) -> Self {
+    pub(crate) fn new(walk_speed: f64, bike_speed: f64, max_lts: i32) -> Self {
         Req {
-            walk: (walk_speed_kmh * 5.0 / 18.0) as f32,
-            bike: (bike_speed_kmh * 5.0 / 18.0) as f32,
+            walk: (walk_speed * 5.0 / 18.0) as f32,
+            bike: (bike_speed * 5.0 / 18.0) as f32,
             lts: max_lts,
         }
     }

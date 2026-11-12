@@ -176,8 +176,8 @@ pub fn itineraries(a: ItinerariesArgs) -> Res<()> {
     p.max_bike_time = street.lim.bike;
     p.max_car_time = street.lim.car;
     p.max_trip_duration = street.lim.trip;
-    p.walk_speed_kmh = street.walk_speed;
-    p.bike_speed_kmh = street.bike_speed;
+    p.walk_speed = street.walk_speed;
+    p.bike_speed = street.bike_speed;
     p.max_rides = call.max_rides;
     p.max_lts = street.max_lts;
     p.shortest_path = a.shortest_path;
@@ -398,15 +398,15 @@ pub fn options(a: OptionsArgs) -> Res<()> {
     p.max_bike_time = street.lim.bike;
     p.max_car_time = street.lim.car;
     p.max_trip_duration = street.lim.trip;
-    p.walk_speed_kmh = street.walk_speed;
-    p.bike_speed_kmh = street.bike_speed;
+    p.walk_speed = street.walk_speed;
+    p.bike_speed = street.bike_speed;
     p.max_rides = call.max_rides;
     p.max_lts = street.max_lts;
     let with_fare = fares.is_some();
     p.fare_structure = fares;
     p.max_fare = max_fare;
     p.max_options = max_options;
-    p.walk_resolution_s = walk_resolution;
+    p.walk_resolution = walk_resolution;
     // the legs are made only to be written
     p.itineraries = dir.is_some() || a.legs.is_some();
     p.osm_link_ids = a.osm_link_ids;
