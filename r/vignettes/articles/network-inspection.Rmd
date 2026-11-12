@@ -1,0 +1,120 @@
+---
+title: "Inspecting a network"
+description: >
+  Where points snap to the streets, the street and transit networks as sf,
+  the dates with service, and the errors in the GTFS feeds.
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+```
+
+Before routing, it helps to look at the network: whether the points reach
+the streets, which streets each mode may use, where the stops are, on which
+dates services run and what is wrong with the feeds. This page uses the
+São Paulo sample that ships with the package.
+
+```{r network}
+library(peabiru)
+data_path <- system.file("extdata/spo", package = "peabiru")
+network <- build_network(data_path, n_threads = 2)
+network
+```
+
+## Where points snap
+
+Routing starts and ends at the nearest point of a street the mode may use,
+looked for within 300 m and then within `radius`. `find_snap()` shows where
+that is, and how far:
+
+```{r snap}
+points <- read.csv(file.path(data_path, "spo_points.csv"))
+snap <- find_snap(network, points, mode = "CAR")
+head(snap)
+summary(snap$distance)
+```
+
+A point that does not snap (`found = FALSE`) is not routed and has no rows
+in the results.
+
+## The street network
+
+`street_network_bbox()` gives the extent of the street network, and
+`street_network_to_sf()` its vertices and edges as `sf`, with the modes each
+edge allows, the car speed and the level of traffic stress for cyclists:
+
+```{r streets, eval = requireNamespace("sf", quietly = TRUE)}
+street_network_bbox(network, output = "vector")
+streets <- street_network_to_sf(network)
+head(streets$edges[, c("edge_index", "osm_id", "street_class", "length",
+                       "walk", "car", "car_speed", "bicycle", "bicycle_lts")])
+table(streets$edges$bicycle_lts)
+```
+
+```{r lts-map, eval = requireNamespace("sf", quietly = TRUE), fig.alt = "The streets of the sample, coloured by the level of traffic stress for cyclists, from 1 to 4."}
+plot(streets$edges["bicycle_lts"], main = NULL, key.pos = 1)
+```
+
+## The transit network
+
+`transit_network_to_sf()` gives the stops (with whether each is linked to
+the street network) and one line per trip pattern of each route:
+
+```{r transit, eval = requireNamespace("sf", quietly = TRUE)}
+transit <- transit_network_to_sf(network)
+head(transit$stops)
+head(sf::st_drop_geometry(transit$routes))
+```
+
+## Dates with service
+
+Public transport is only routed on dates when services run.
+`check_transit_availability()` counts the services active on each date:
+without dates, every date with service; with `dates`, or `start_date` and
+`end_date`, those dates.
+
+```{r dates}
+check_transit_availability(network, start_date = "2019-05-11",
+                           end_date = "2019-05-14")
+```
+
+## GTFS errors
+
+`get_gtfs_errors()` lists the errors the 'GTFS' library of R5 (gtfs-lib)
+finds in the feeds. This feed has a few of priority `"MEDIUM"`
+(duplicated keys), which do not stop a network from being built:
+
+```{r errors}
+get_gtfs_errors(network)
+```
+
+Errors of priority `"HIGH"` do: a feed whose trips refer to a route that
+does not exist, for instance. Here is a copy of the sample feed with one
+such trip.
+
+```{r broken}
+broken <- file.path(tempdir(), "spo_broken")
+gtfs <- file.path(tempdir(), "spo_gtfs")
+dir.create(broken, showWarnings = FALSE)
+dir.create(gtfs, showWarnings = FALSE)
+invisible(file.copy(file.path(data_path, "spo_osm.pbf"), broken))
+unzip(file.path(data_path, "spo_gtfs.zip"), exdir = gtfs)
+trips <- read.csv(file.path(gtfs, "trips.txt"), colClasses = "character")
+trips$route_id[1] <- "NO_SUCH_ROUTE"
+write.csv(trips, file.path(gtfs, "trips.txt"), row.names = FALSE, quote = FALSE)
+old <- setwd(gtfs)
+utils::zip(file.path(broken, "spo_gtfs.zip"), list.files(), flags = "-q")
+setwd(old)
+```
+
+`build_network()` refuses it, and `get_gtfs_errors()` takes the directory
+(there is no network to pass) and lists the errors:
+
+```{r refuse, error = TRUE}
+build_network(broken, n_threads = 2)
+errors <- get_gtfs_errors(broken)
+errors[errors$priority == "HIGH", ]
+```
+
+Nothing is written to the data directory: the errors are found again from
+the feeds each time.

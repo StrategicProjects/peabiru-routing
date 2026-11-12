@@ -25,3 +25,19 @@ data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
 points <- read.csv(file.path(data_path, "spo_points.csv"))
 departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+
+# r5r_sample(files): files of the Porto Alegre sample of r5r 2.5.0, downloaded
+# once into a temporary directory, which is returned. For the articles that
+# need timetables (the bundled Sao Paulo feed is frequency-based), an
+# elevation raster or r5r's scenario tables.
+r5r_sample <- function(files = c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip"),
+                       dir = file.path(tempdir(), "poa")) {
+  url <- "https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/"
+  dir.create(dir, showWarnings = FALSE)
+  for (f in files) {
+    if (!file.exists(file.path(dir, basename(f)))) {
+      download.file(paste0(url, f), file.path(dir, basename(f)), mode = "wb", quiet = TRUE)
+    }
+  }
+  dir
+}

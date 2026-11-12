@@ -1,0 +1,130 @@
+---
+title: "Detailed itineraries"
+description: >
+  The legs of each trip, with their times, distances, routes and
+  geometries: the fastest trip, the alternatives, and the street edges a
+  trip uses.
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+```
+
+`travel_time_matrix()` says how long a trip takes; `detailed_itineraries()`
+says how it is made: each leg on foot, by bicycle, by car or on a ride,
+with its duration, waiting time, distance, route and line.
+
+Itineraries by public transport need timetables: on routes given only by
+frequencies (such as the São Paulo sample that ships with the package) the
+departures of a Monte Carlo draw are not trips that run, and public
+transport is refused there. This page uses the Porto Alegre sample of r5r
+2.5.0 (about 2 MB, downloaded once), whose bus and train feeds have
+timetables.
+
+```{r data, message = FALSE}
+library(peabiru)
+poa <- r5r_sample(c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip",
+                    "poa_points_of_interest.csv"))
+poa_network <- build_network(poa, n_threads = 2)
+poi <- read.csv(file.path(poa, "poa_points_of_interest.csv"))
+poi[, c("id", "lon", "lat")]
+monday <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+```
+
+## The fastest trip
+
+By default (`shortest_path = TRUE`) each pair of origin and destination gets
+the fastest trip leaving within `time_window` minutes of the departure time.
+The origins and destinations are paired row by row; a single origin or
+destination is repeated to match the other.
+
+```{r fastest}
+from <- poi[poi$id == "farrapos_station", ]
+to <- poi[poi$id == "praia_de_belas_shopping_center", ]
+trip <- detailed_itineraries(
+  poa_network, from, to,
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = monday,
+  n_threads = 2
+)
+trip[, c("option", "departure_time", "total_duration", "segment", "mode",
+         "segment_duration", "wait", "distance", "route")]
+```
+
+The result is an `sf` data frame with one `LINESTRING` per leg, in WGS 84:
+
+```{r map, fig.alt = "The legs of the trip, coloured by mode: a short walk, a train ride, a walk to the bus, a bus ride and a last walk."}
+plot(trip["mode"], main = NULL, key.pos = 1, lwd = 3)
+```
+
+## Alternatives
+
+With `shortest_path = FALSE` the trips are routed with R5's multi-criteria
+router (McRAPTOR) over `time_window` departure times sampled in the window,
+and each sequence of routes gives one option, the fastest of its kind.
+`suboptimal_minutes` keeps the options up to that many minutes slower than
+the best.
+
+```{r alternatives}
+options <- detailed_itineraries(
+  poa_network, from, to,
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = monday,
+  shortest_path = FALSE,
+  suboptimal_minutes = 10,
+  drop_geometry = TRUE,
+  n_threads = 2
+)
+rides <- options[options$mode != "WALK", ]
+summary_of_options <- options[options$segment == 1,
+                              c("option", "departure_time", "total_duration")]
+summary_of_options$routes <- tapply(rides$route, rides$option, paste,
+                                    collapse = " > ")[as.character(summary_of_options$option)]
+summary_of_options
+```
+
+The first option walks all the way; the others ride the train and a bus,
+or two buses.
+
+With a `fare_structure` each option also gets its fare (`total_fare`) and
+the fare paid by the end of each leg (`cumulative_fare`); see the article
+on [fares](fares.html).
+
+## Street edges and stops
+
+`osm_link_ids = TRUE` adds, for each street leg, the 'OpenStreetMap' way ids
+and the indices of the street network's edges it goes along (the
+`edge_index` of `street_network_to_sf()`), and for each ride the stops
+where it boards and alights:
+
+```{r ids}
+ids <- detailed_itineraries(
+  poa_network, from, to,
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = monday,
+  osm_link_ids = TRUE,
+  n_threads = 2
+)
+ids$osm_id_list <- substr(ids$osm_id_list, 1, 30)
+sf::st_drop_geometry(ids)[, c("segment", "mode", "osm_id_list",
+                              "board_stop_id", "alight_stop_id")]
+```
+
+## Every origin to every destination
+
+`all_to_all = TRUE` routes from each origin to each destination instead of
+row by row. `drop_geometry = TRUE` leaves the lines out and returns a
+`data.frame`, and `output_dir` writes one CSV file per pair instead of
+returning the result.
+
+```{r all}
+places <- poi[1:3, ]
+all <- detailed_itineraries(
+  poa_network, places, places,
+  mode = "WALK",
+  all_to_all = TRUE,
+  drop_geometry = TRUE,
+  n_threads = 2
+)
+unique(all[, c("from_id", "to_id", "total_duration", "total_distance")])
+```
