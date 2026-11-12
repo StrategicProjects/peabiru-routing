@@ -116,8 +116,24 @@ r5r's.
   printed: no progress counter, no report of the build.
 
 <!-- diff:error-classes -->
-- **Errors**: argument errors give the messages of r5r's checks, with the
-  option names in camelCase, as a `TypeError` (a value of the wrong type)
+- **Errors**: argument errors give the messages of r5r's checks in
+  JavaScript's terms (`null`, `boolean`, `string`, `number`, `Date`,
+  `Array`; positions counted from 1 as in R; cli's bullets and line breaks
+  dropped), with the option names in camelCase, except in a few cases
+  worded differently on purpose:
+  r5r turns numbers and logical values given as a mode (`mode`, `modeEgress`,
+  `by`) into text and reports the text as not a mode, where JavaScript reports
+  the value's type; `arrivalDatetime` is checked itself (R and r5r check
+  the departure, `arrival_datetime - max_trip_duration`); `allToAll` is
+  named as such (R names the internal `unique_ids`); and a missing
+  `fareCutoffs` is the default, and `departureDatetime` also takes a string
+  `"YYYY-MM-DD HH:MM:SS"`, so a string that is not one says what it must
+  be. Every other argument error is
+  r5r's text in JavaScript's terms: the test suite checks 1,367 cases, shared by
+  the three packages (`bench/compare/argument_errors.json`, written from
+  the R package by `bench/compare/argument_errors.R`), and lists these
+  exceptions there.
+  Errors are a `TypeError` (a value of the wrong type)
   or a `RangeError` (a value out of range); what peabiru does not do is an
   [`UnsupportedError`](api.md#UnsupportedError); what the engine finds
   wrong in the data (a fare structure, a scenario, a GTFS feed, a raster)
@@ -204,22 +220,23 @@ These are errors that say so, where r5r computes something:
 - r5r takes one of several `.pbf` files in its data directory; here there
   is one `pbf` by construction.
 
-<!-- diff:refuse-itinerary-cases -->
-- `detailedItineraries()`: the few pairs whose itinerary in r5r depends on
-  something peabiru does not reproduce are an error naming the pair
-  (`not supported: ...`) rather than a different itinerary: a car search
-  that crosses a turn restriction with two or more via ways in a way that
-  matters (R5 reverses those via edges in place, so r5r's result depends
-  on the searches that ran before), and a ride along a GTFS shape cut by
-  `shape_dist_traveled`. See
-  [Detailed itineraries](itineraries.md#pairs-that-are-refused).
+<!-- diff:car-egress-history -->
+- `detailedItineraries()` with `modeEgress: "CAR"`: where a car search
+  crosses a turn restriction with two or more via ways, r5r's itineraries
+  can depend on the searches that ran before (R5 reverses those via edges
+  in place); peabiru returns what r5r gives on a freshly built network for
+  that pair alone with one thread, with a warning (`onWarning`) naming the
+  pairs some other order would change. In r5r a car matrix, accessibility
+  or Pareto frontier computed after such a call could differ too (none did
+  on Porto Alegre); peabiru's are those of a fresh network. See
+  [Detailed itineraries](itineraries.md#car-egress-and-turn-restrictions).
 
 ### Output details
 
 <!-- diff:write-fare-zip -->
 - `writeFareStructure()` writes the same CSV files as r5r's
-  `write_fare_structure()`, stored uncompressed in a `.zip`, so the bytes
-  of the archive differ from r5r's (which also holds file dates); each
+  `write_fare_structure()`, deflated in the same order, but the bytes of
+  the archive differ from r5r's (which also holds file dates); each
   package reads the other's files. As in r5r 2.5.0, `debugPath` and
   `debugInfo` are kept in the structure and no debug file is written.
 

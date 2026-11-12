@@ -169,7 +169,7 @@ def test_output_dir_is_checked_as_r5r_checks_it(network, points, tmp_path):
         call([str(tmp_path)])
     p = points.iloc[:2].copy()
     p["id"] = [None, "x"]
-    with pytest.raises(ValueError, match="ids .* cannot be missing"):
+    with pytest.raises(ValueError, match="id.* cannot be missing"):
         peabiru.travel_time_matrix(network, p, p, output_dir=tmp_path)
     # a path-like object is returned as given
     assert call(tmp_path) is tmp_path

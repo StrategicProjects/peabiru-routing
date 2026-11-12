@@ -14,6 +14,7 @@ import pandas as pd
 from . import _peabiru
 from ._scenario import scenario_spec
 from ._assign import (
+    check_destination_ids,
     Points,
     assign_cutoffs,
     assign_decay_function,
@@ -321,6 +322,7 @@ def travel_time_matrix(
     # mirrors r5r R/travel_time_matrix.R
     o = assign_points_input(origins, "origins")
     d = assign_points_input(destinations, "destinations")
+    check_destination_ids(d)
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
 
@@ -602,6 +604,7 @@ def accessibility(
     assert_network(r5r_network)
     o = assign_points_input(origins, "origins")
     d = assign_points_input(destinations, "destinations")
+    check_destination_ids(d)
     opp_names, opp = assign_opportunities(d.df, opportunities_colnames)
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
@@ -854,6 +857,7 @@ def expanded_travel_time_matrix(
     # mirrors r5r R/expanded_travel_time_matrix.R
     o = assign_points_input(origins, "origins")
     d = assign_points_input(destinations, "destinations")
+    check_destination_ids(d)
     mode_list = assign_mode(mode, mode_egress)
     _check_expanded_mode(mode_list)
     departure = assign_departure(departure_datetime, mode_list)
@@ -1069,6 +1073,7 @@ def arrival_travel_time_matrix(
 
     o = assign_points_input(origins, "origins")
     d = assign_points_input(destinations, "destinations")
+    check_destination_ids(d)
     mode_list = assign_mode(mode, mode_egress)
     _check_expanded_mode(mode_list)
 

@@ -4,8 +4,11 @@
 //! projecting each stop onto the shape in a local coordinate system
 //! (`LocationIndexedLineInLocalCoordinateSystem`, JTS 1.18.1
 //! `LocationIndexOfPoint`, the fraction kept as a `float`) and cuts with
-//! JTS's `ExtractLineByLocation`; a pattern without a shape gets straight
-//! lines between its stops' street vertices.
+//! JTS's `ExtractLineByLocation`; when the shape's points and the stop
+//! times of the pattern's first trip all carry `shape_dist_traveled`, R5
+//! locates the stops by those distances instead
+//! ([`crate::transit::layer::cuts_by_distance`]). A pattern without a shape
+//! gets straight lines between its stops' street vertices.
 //!
 //! The functions below are written for this project to behave as JTS
 //! 1.18.1's `LinearLocation`, `LocationIndexOfPoint` and
@@ -232,19 +235,17 @@ pub(crate) fn ride_line(
     let pat = &layer.patterns[pattern];
     let mut out: Line = Vec::new();
     match layer.pattern_shape.get(pattern).copied().flatten() {
-        Some(_)
-            if layer
-                .pattern_shape_dist
-                .get(pattern)
-                .copied()
-                .unwrap_or(false) =>
-        {
-            return Err("a ride along a GTFS shape cut by shape_dist_traveled");
-        }
         Some(s) => {
             let shape = &layer.shapes[s as usize];
-            let locs = stop_locations(layer, pattern, shape)
-                .ok_or("a GTFS shape with fewer than two points")?;
+            let locs = match layer
+                .pattern_shape_cuts
+                .get(pattern)
+                .and_then(Option::as_ref)
+            {
+                Some(cuts) => cuts.iter().map(|&(seg, f)| (seg as usize, f)).collect(),
+                None => stop_locations(layer, pattern, shape)
+                    .ok_or("a GTFS shape with fewer than two points")?,
+            };
             // R5 cuts every hop of the pattern, and fails if any one fails
             let mut hops = Vec::with_capacity(locs.len().saturating_sub(1));
             for w in locs.windows(2) {

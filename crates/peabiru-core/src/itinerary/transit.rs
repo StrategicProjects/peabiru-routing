@@ -144,6 +144,11 @@ impl<'a> Planner<'a> {
         if access_times.is_empty() {
             return Ok(None);
         }
+        // r5r's test switch fails in addFastRaptorTrip, once an origin
+        // search exists
+        if p.fail_fast_raptor {
+            return Err(fallback("r5r.failFastRaptor is set"));
+        }
         // FastRaptorWorker over the window, paths kept to the egress stops
         let n_stops = layer.stop_ids.len();
         let mut retain = vec![false; n_stops];

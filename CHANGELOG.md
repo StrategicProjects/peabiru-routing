@@ -34,6 +34,15 @@ routing and network functions (without r5r's functions for Java).
   there. Park-and-ride areas link to the street as in R5; edge lengths use
   Apache Commons Math's `FastMath`.
 - Argument errors have r5r's messages, word for word.
+- Itineraries: rides along GTFS shapes whose stop times and points carry
+  `shape_dist_traveled` are cut by those distances, as R5 cuts them (they
+  were refused). With car egress through a turn restriction with two or
+  more via ways, every pair gets what r5r gives on a freshly built network
+  for that pair alone, with one warning per call naming the pairs whose
+  result in r5r depends on the searches that ran before (they were
+  refused).
+- `write_fare_structure()` deflates the archive, as r5r's does.
+- "is not supported by peabiru yet" is now "is not supported by peabiru".
 
 ### Rust crate and CLI
 
@@ -42,7 +51,13 @@ routing and network functions (without r5r's functions for Java).
   `detailed_itineraries`, `write_itineraries_csv`, `Scenario` and its parts,
   `FareStructure` with `setup_`/`read_`/`write_fare_structure`,
   `pareto_frontier`, `Elevation` and `build_from_bytes_with_elevation`;
-  `BuildOptions::ignore_gtfs_errors` and `BuildOptions::elevation`.
+  `BuildOptions::ignore_gtfs_errors` and `BuildOptions::elevation`;
+  `detailed_itineraries_noted` and `ItineraryNotes` (the pairs to warn
+  about, and the pairs planned again with McRAPTOR because FastRaptor's
+  path could not be read back, as r5r does). The CLI's `itineraries` reports
+  those pairs on stderr, and `PEABIRU_FAIL_FAST_RAPTOR=1` fails every
+  FastRaptor trip, as r5r's test switch `r5r.failFastRaptor` does, to
+  compare the fallback with r5r's.
 - CLI: `isochrone`, `itineraries`, `dump-elevation`, `sample-raster`,
   `crs-transform`; `dump-edges` accepts a directory; `PEABIRU_ELEVATION`,
   `PEABIRU_IGNORE_GTFS_ERRORS`, `PEABIRU_SCENARIO`.
@@ -63,6 +78,15 @@ routing and network functions (without r5r's functions for Java).
 - The text columns of fare-structure tables have `object` dtype, as in every
   other result.
 - A test compares every function's arguments with r5r 2.5.0's.
+- Argument errors are r5r's messages in Python's terms (a port of the R
+  package's checkmate checks, `peabiru._checkmate`): a test checks 1,367
+  cases shared with the R and JavaScript packages
+  (`bench/compare/argument_errors.json`). A list of one value counts as
+  that value, as a vector of one in R. As in R: a missing destination id is
+  an error; `isochrone()` with no origins is an error; `write_fare_structure()`
+  checks the structure; the engine's refusals are `UnsupportedError`s.
+- Ctrl-C tests bound the CPU time of the interrupted call, not the wall
+  time, so a loaded machine no longer fails them.
 - Docs: guides on itineraries, fares, elevation, scenarios, network
   inspection and GTFS errors; every function's docstring has a doctested
   example and a "Compatibility with r5r" note; "Coming from r5r / r5py"
@@ -75,6 +99,13 @@ routing and network functions (without r5r's functions for Java).
   `findSnap()`, `streetNetworkBbox()`, `streetNetworkToSf()`,
   `transitNetworkToSf()`, `checkTransitAvailability()`, `getGtfsErrors()`;
   `tif` and `elevation` in `buildNetwork()`, `network.r5rWarnings()`.
+- Argument errors are r5r's messages in JavaScript's terms, with the
+  options in camelCase (engine errors too), checked on the 1,367 cases shared
+  with the R and Python packages; every function refuses options r5r's
+  function does not have (`detailedItineraries()` took `drawsPerMinute` and
+  `seed` and ignored them). As in R: a missing destination id is an error;
+  `isochrone()` with no origins is an error; the engine's refusals are
+  `UnsupportedError`s.
 - Fixed: `paretoFrontier()` defaults to `mode: ["WALK", "TRANSIT"]`, as r5r;
   `getGtfsErrors()` copes with very long lists of errors.
 - Guide: pages on itineraries, elevation, scenarios, inspecting a network

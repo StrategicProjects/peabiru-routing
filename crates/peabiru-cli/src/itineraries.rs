@@ -4,7 +4,7 @@
 
 use crate::cli::{self, runtime_error, usage_error};
 use peabiru_core::{
-    detailed_itineraries, BuildOptions, ItineraryParams, Mode, TransitData, TransitMode,
+    detailed_itineraries_noted, BuildOptions, ItineraryParams, Mode, TransitData, TransitMode,
 };
 use std::fmt::Write as _;
 use std::time::Instant;
@@ -74,6 +74,8 @@ pub fn run(args: &[String]) {
     }
     let (dir, origins, dests, out) = (&args[0], &args[1], &args[2], &args[3]);
     let mut p = ItineraryParams::default();
+    // r5r's test switch r5r.failFastRaptor: every pair to McRAPTOR
+    p.fail_fast_raptor = std::env::var_os("PEABIRU_FAIL_FAST_RAPTOR").is_some_and(|v| v == "1");
     p.scenario = crate::cli::scenario(cmd);
     let mut i = 4;
     while i < args.len() {
@@ -121,8 +123,23 @@ pub fn run(args: &[String]) {
     let data = (!p.transit_modes.is_empty()).then(|| TransitData::new(&net, &layer));
     let transit = data.as_ref().map(|d| (&layer, d));
     let t1 = Instant::now();
-    let res = detailed_itineraries(&net, transit, &opts, &dpts, &p)
+    let (res, notes) = detailed_itineraries_noted(&net, transit, &opts, &dpts, &p)
         .unwrap_or_else(|e| runtime_error(cmd, e));
+    for w in notes.warnings(opts.len()) {
+        eprintln!("warning: {w}");
+    }
+    if !notes.mcraptor_fallbacks.is_empty() {
+        let pairs: Vec<String> = notes
+            .mcraptor_fallbacks
+            .iter()
+            .map(|i| (i + 1).to_string())
+            .collect();
+        eprintln!(
+            "{} pairs planned again with McRAPTOR (FastRaptor's path failed): {}",
+            pairs.len(),
+            pairs.join(",")
+        );
+    }
     let t2 = Instant::now();
     let mut s = String::from(
         "from_id,to_id,option,departure_time,total_duration,total_distance,segment,mode,\

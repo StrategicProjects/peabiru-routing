@@ -59,5 +59,7 @@ test_that("an explicit deprecated() counts as not given, as in r5r", {
   f <- function(r5r_core = peabiru:::deprecated()) peabiru:::is_present(r5r_core)
   expect_false(f())
   expect_true(f(NULL))
-  expect_no_warning(street_network_bbox(fixture_network(), r5r_core = peabiru:::deprecated()))
+  # output = "vector" needs no other package
+  expect_no_warning(street_network_bbox(fixture_network(), output = "vector",
+                                       r5r_core = peabiru:::deprecated()))
 })

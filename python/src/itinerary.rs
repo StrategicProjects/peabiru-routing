@@ -5,7 +5,7 @@ use super::{
     f64_bytes, i32_bytes, interruptible, parse_transit_modes, points, street_mode,
     transit_street_mode, value_err, Network,
 };
-use peabiru_core::{detailed_itineraries, write_itineraries_csv, ItineraryParams};
+use peabiru_core::{detailed_itineraries_noted, write_itineraries_csv, ItineraryParams};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -17,7 +17,8 @@ use pyo3::types::PyDict;
 /// `osm_link_ids` also `osm_id_list`, `edge_id_list`, `board_stop_id`,
 /// `alight_stop_id` as lists). With
 /// `output` (`(dir, from ids, to ids)`) the files are written instead (the
-/// geometry as JTS's WKT unless `drop_geometry`) and `None` returned.
+/// geometry as JTS's WKT unless `drop_geometry`) and only `warnings`
+/// returned. `warnings`: a list of the texts Python shows as warnings.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 #[pyo3(signature = (network, olat, olon, dlat, dlon, mode, transit_modes, egress_mode, date,
@@ -55,7 +56,7 @@ pub(crate) fn itineraries<'py>(
     suboptimal_minutes: i32,
     fare: Option<Bound<'py, PyDict>>,
     max_fare: f64,
-) -> PyResult<Option<Bound<'py, PyDict>>> {
+) -> PyResult<Bound<'py, PyDict>> {
     let n = network.get();
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let mut p = ItineraryParams::default();
@@ -83,15 +84,17 @@ pub(crate) fn itineraries<'py>(
     p.n_threads = n_threads;
     p.osm_link_ids = osm_link_ids;
     let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
-    let res = interruptible(py, &p.cancel, || {
-        detailed_itineraries(&n.net, transit, &o, &d, &p)
+    let (res, notes) = interruptible(py, &p.cancel, || {
+        detailed_itineraries_noted(&n.net, transit, &o, &d, &p)
     })?;
+    let out = PyDict::new(py);
+    out.set_item("warnings", notes.warnings(o.len()))?;
     if let Some((dir, from, to)) = output {
         let ids: Vec<(String, String)> = from.into_iter().zip(to).collect();
         let pts: Vec<_> = o.iter().copied().zip(d.iter().copied()).collect();
         write_itineraries_csv(&dir, &ids, &pts, &res, drop_geometry, osm_link_ids)
             .map_err(|e| value_err(format!("cannot write {dir}: {e}")))?;
-        return Ok(None);
+        return Ok(out);
     }
     let (mut pair, mut option, mut total_distance, mut segment, mut distance, mut n_points) = (
         Vec::new(),
@@ -136,7 +139,6 @@ pub(crate) fn itineraries<'py>(
             }
         }
     }
-    let out = PyDict::new(py);
     out.set_item("pair", i32_bytes(py, &pair)?)?;
     out.set_item("option", i32_bytes(py, &option)?)?;
     out.set_item("total_distance", i32_bytes(py, &total_distance)?)?;
@@ -160,5 +162,5 @@ pub(crate) fn itineraries<'py>(
         out.set_item("board_stop_id", c)?;
         out.set_item("alight_stop_id", e)?;
     }
-    Ok(Some(out))
+    Ok(out)
 }

@@ -110,8 +110,22 @@ dtype: object
 
 <!-- diff:error-classes -->
 - **Errors are Python exceptions** with r5r's messages, word for word
-  (checkmate's and cli's), except where the network class is named
-  (`peabiru.Network`): `TypeError` for an argument of the wrong type,
+  (checkmate's and cli's) in Python's terms (`None` for `NULL`, `bool`,
+  `str`, `float`, `int` and `datetime` for R's types, positions counted
+  from 1 as in R, cli's bullets and line breaks dropped), except where the
+  network class is named (`peabiru.Network`) and in a few cases worded
+  differently on purpose:
+  r5r turns numbers and logical values given as a mode (`mode`, `mode_egress`,
+  `by`) into text and reports the text as not a mode, where Python reports
+  the value's type; `arrival_datetime` is checked itself (R and r5r check
+  the departure, `arrival_datetime - max_trip_duration`); `all_to_all` is
+  named as such (R names the internal `unique_ids`); and a missing
+  `fare_cutoffs` is the default. Every other argument error is
+  r5r's text in Python's terms: the test suite checks 1,367 cases, shared by
+  the three packages (`bench/compare/argument_errors.json`, written from
+  the R package by `bench/compare/argument_errors.R`), and lists these
+  exceptions there.
+  Classes: `TypeError` for an argument of the wrong type,
   `ValueError` for an invalid value, `RuntimeError` for a file that cannot
   be read or a network that cannot be built, and
   [`peabiru.UnsupportedError`][peabiru.UnsupportedError] (a
@@ -210,15 +224,17 @@ ignoring the request:
 - [`pareto_frontier()`][peabiru.pareto_frontier] with `output_dir` (r5r
   writes CSV files): `UnsupportedError`.
 
-<!-- diff:refuse-itinerary-cases -->
-- [`detailed_itineraries()`][peabiru.detailed_itineraries]: the few pairs
-  whose r5r result depends on paths peabiru does not reproduce are an error
-  (`ValueError`, starting with `not supported:`) naming the pair, rather than
-  a different itinerary: a car search backwards (`mode_egress="CAR"`) through
-  a turn restriction with two or more via ways, when the itineraries change
-  with the order R5 leaves those via edges in (see
-  [Detailed itineraries](itineraries.md#car-egress-and-turn-restrictions)),
-  and a ride along a GTFS shape cut by `shape_dist_traveled`.
+<!-- diff:car-egress-history -->
+- [`detailed_itineraries()`][peabiru.detailed_itineraries] with
+  `mode_egress="CAR"`: where a car search crosses a turn restriction with two
+  or more via ways, r5r's itineraries can depend on the searches that ran
+  before (R5 reverses those via edges in place); peabiru returns what r5r
+  gives on a freshly built network for that pair alone with one thread, with
+  a warning naming the pairs some other order would change (see
+  [Detailed itineraries](itineraries.md#car-egress-and-turn-restrictions)).
+  In r5r a car matrix, accessibility or Pareto frontier computed after such
+  a call could differ too (none did on Porto Alegre); peabiru's are those of
+  a fresh network.
 
 (The expanded and arrival matrices by a street mode alone, above, are also
 a refusal.)
@@ -227,7 +243,7 @@ a refusal.)
 
 <!-- diff:write-fare-zip -->
 - [`write_fare_structure()`][peabiru.write_fare_structure] writes the same
-  CSV files as r5r into an uncompressed `.zip`, so the archive's bytes
+  CSV files as r5r, deflated in the same order, but the archive's bytes
   differ from r5r's (which also holds file dates); each package reads the
   other's files. As in r5r 2.5.0, `debug_path` and `debug_info` are kept in
   the structure and no debug file is written.

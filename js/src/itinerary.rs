@@ -6,7 +6,7 @@ use super::{
     Network,
 };
 use js_sys::Array;
-use peabiru_core::{detailed_itineraries, ItineraryParams};
+use peabiru_core::{detailed_itineraries_noted, ItineraryNotes, ItineraryParams};
 use wasm_bindgen::prelude::*;
 
 /// Itineraries between `o[i]` and `d[i]` as an array of columns: `pair`
@@ -16,7 +16,10 @@ use wasm_bindgen::prelude::*;
 /// `mode`, `route` (arrays of strings). The lines' points are `x`, `y`,
 /// leg after leg, `n_points` per leg. With `osm_link_ids`, four more
 /// arrays of strings: `osm_id_list`, `edge_id_list`, `board_stop_id`,
-/// `alight_stop_id`.
+/// `alight_stop_id` (empty without), then `total_fare` and
+/// `cumulative_fare` (Float64Array), and last the pairs (0-based,
+/// Int32Array) whose itineraries in r5r depend on what ran before (see
+/// [`itinerary_warnings`]).
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn itineraries(
@@ -75,7 +78,8 @@ pub fn itineraries(
     p.n_threads = 1;
     p.osm_link_ids = osm_link_ids;
     let transit = network.transit.as_ref().map(|t| (&t.layer, &t.data));
-    let res = detailed_itineraries(&network.net, transit, &o, &d, &p).map_err(route_err)?;
+    let (res, notes) =
+        detailed_itineraries_noted(&network.net, transit, &o, &d, &p).map_err(route_err)?;
     let mut ints: [Vec<i32>; 6] = Default::default();
     let mut nums: [Vec<f64>; 5] = Default::default();
     let mut fare_cols: [Vec<f64>; 2] = Default::default();
@@ -129,5 +133,17 @@ pub fn itineraries(
     for c in &fare_cols {
         out.push(&f64_array(c));
     }
+    let dependent: Vec<i32> = notes.history_dependent.iter().map(|&i| i as i32).collect();
+    out.push(&i32_array(&dependent));
     Ok(out)
+}
+
+/// The warnings of a call of `n_pairs` pairs, given the pairs (0-based,
+/// ascending, over the whole call) whose itineraries in r5r depend on what
+/// ran before (`ItineraryNotes::warnings` of the core).
+#[wasm_bindgen]
+pub fn itinerary_warnings(history_dependent: &[i32], n_pairs: usize) -> JsValue {
+    let mut notes = ItineraryNotes::default();
+    notes.history_dependent = history_dependent.iter().map(|&i| i as usize).collect();
+    strings(&notes.warnings(n_pairs))
 }

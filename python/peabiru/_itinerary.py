@@ -105,13 +105,11 @@ def detailed_itineraries(
     ``total_fare`` and ``cumulative_fare`` columns (see [Fares](fares.md)).
 
     Networks whose GTFS has frequency-based trips cannot be used with
-    public transport here. A pair whose itineraries peabiru cannot
-    reproduce exactly is an error naming the pair (a ``ValueError`` that
-    starts with ``not supported:``): with ``mode_egress="CAR"``, a car search
-    backwards through a turn restriction with two or more via ways whose
-    result depends on the searches that ran before (R5 reverses those via
-    edges in place), and a ride along a GTFS shape cut by
-    ``shape_dist_traveled``; see [Detailed itineraries](itineraries.md).
+    public transport here. With ``mode_egress="CAR"``, a pair whose
+    itineraries in r5r may depend on the searches that ran before (R5
+    reverses the via edges of some turn restrictions in place) gets r5r's
+    itineraries on a freshly built network, with a warning; see [Detailed
+    itineraries](itineraries.md).
 
     Parameters
     ----------
@@ -288,7 +286,9 @@ def detailed_itineraries(
             None if out_dir is None else (out_dir, [str(i) for i in o.ids], [str(i) for i in d.ids]),
             int(suboptimal_minutes), fares, float(max_fare),
         )
-    if r is None:
+    for w in r["warnings"]:
+        warnings.warn(w, stacklevel=2)
+    if out_dir is not None:
         return output_dir
     pair = _i32(r["pair"])
     df = pd.DataFrame({

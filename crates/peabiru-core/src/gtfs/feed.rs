@@ -119,7 +119,7 @@ pub struct Trip {
     pub shape_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StopTime {
     pub trip_id: String,
     /// Seconds after midnight of the service day; `None` when blank or not
@@ -133,9 +133,11 @@ pub struct StopTime {
     /// other numbers as given.
     pub pickup_type: i32,
     pub drop_off_type: i32,
-    /// Whether `shape_dist_traveled` holds a number (gtfs-lib reads a
-    /// missing one as NaN); R5 then cuts the shape by distance.
-    pub shape_dist: bool,
+    /// `shape_dist_traveled`, NaN when blank or missing (gtfs-lib's
+    /// `getDoubleField`; a value out of range is kept, with a LOW error).
+    /// R5 cuts a shape by these distances when they and the shape's are
+    /// all numbers.
+    pub shape_dist: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -189,9 +191,9 @@ pub struct Feed {
     /// `shape_pt_sequence` (a repeated sequence keeps the last row, as in
     /// gtfs-lib's map).
     pub shapes: HashMap<String, BTreeMap<i32, (f64, f64)>>,
-    /// Per shape and sequence, whether the point's `shape_dist_traveled`
-    /// holds a number.
-    pub shape_dists: HashMap<String, BTreeMap<i32, bool>>,
+    /// Per shape and sequence, the point's `shape_dist_traveled` (NaN when
+    /// blank or missing), kept like the points.
+    pub shape_dists: HashMap<String, BTreeMap<i32, f64>>,
     /// Trips with a GTFS-Flex stop time (gtfs-lib's `flexTripIds`): R5
     /// leaves them out of the timetable.
     pub flex_trips: std::collections::HashSet<String>,
@@ -362,7 +364,7 @@ impl Feed {
                 stop_sequence: f.int("stop_sequence", 0),
                 pickup_type: f.int("pickup_type", 0),
                 drop_off_type: f.int("drop_off_type", 0),
-                shape_dist: !f.double("shape_dist_traveled").is_nan(),
+                shape_dist: f.double("shape_dist_traveled"),
             });
         })?;
 
@@ -413,7 +415,7 @@ impl Feed {
             };
             let seq = f.int("shape_pt_sequence", 0);
             let point = (f.double("shape_pt_lon"), f.double("shape_pt_lat"));
-            let dist = !f.double("shape_dist_traveled").is_nan();
+            let dist = f.double("shape_dist_traveled");
             feed.shape_dists
                 .entry(id.to_string())
                 .or_default()

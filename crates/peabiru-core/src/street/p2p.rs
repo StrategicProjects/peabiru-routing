@@ -19,7 +19,7 @@ use super::labels::cms_to_ms;
 use super::link::Split;
 use super::router::{car_turn_cost, Mode};
 use super::StreetNetwork;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// No state (`backState == null`).
 pub(crate) const NONE: u32 = u32::MAX;
@@ -179,20 +179,33 @@ pub(crate) struct Router<'a> {
     /// Set when the search met something R5 does not reproduce (see
     /// [`Router::unsupported`]).
     pub(crate) unsupported: Option<&'static str>,
-    /// With `Some`, the via edges of a turn restriction with two or more
-    /// of them may be in either order: R5 reverses that array in place,
-    /// in the network every search shares, on each check of a reverse car
-    /// search (`TurnRestriction.reverse` in `canTurnFrom`), so the order a
-    /// check sees depends on every earlier check, in this call or an
-    /// earlier one, on any thread. A check whose outcome depends on the
-    /// order is "ambiguous"; the `i`-th one met takes the order
-    /// `choices[i]` (`true`: reversed), or, past the end, reversed in a
-    /// reverse search and as built in a forward one. The orders taken are
-    /// recorded in `via_used`. With `None`, the order is the one built (a
-    /// fresh network), and a reverse search that checks such a
-    /// restriction sets `unsupported`.
+    /// The via edges of a turn restriction with two or more of them may
+    /// be in either order: R5 reverses that array in place, in the network
+    /// every search shares, on each check of a reverse car search
+    /// (`TurnRestriction.reverse` in `canTurnFrom`), so the order a check
+    /// sees depends on every earlier check, in this call or an earlier one,
+    /// on any thread. The arrays reversed are those of the `no_`
+    /// restrictions (forward and reverse searches share them) and of the
+    /// `no_` ones R5 derives from `only_` restrictions for reverse searches;
+    /// no search reverses the array of a forward `only_` restriction. A
+    /// check whose outcome depends on the order is "ambiguous".
+    ///
+    /// With `via_fresh`, the orders are those of a network on which no
+    /// reverse car search ran before the pair, each array reversed by every
+    /// check of the pair's own reverse searches, in the order they run:
+    /// `via_fresh` holds, per array ([`Router::via_key`]), whether it is
+    /// reversed now. With `via_choices`, the `i`-th ambiguous check met
+    /// takes the order `choices[i]` (`true`: reversed), or, past the end,
+    /// reversed in a reverse search and as built in a forward one. Both
+    /// record the orders their ambiguous checks took in `via_used`. With
+    /// neither, the order is the one built, and a reverse search that
+    /// checks such a restriction sets `unsupported`.
     pub(crate) via_choices: Option<Vec<bool>>,
+    pub(crate) via_fresh: Option<HashMap<u64, bool>>,
     pub(crate) via_used: Vec<bool>,
+    /// Relations of the network's `no_` restrictions with two or more via
+    /// edges, found on the first reverse check that needs them.
+    shared_via: Option<HashSet<i64>>,
 }
 
 impl<'a> Router<'a> {
@@ -230,7 +243,9 @@ impl<'a> Router<'a> {
             reverse_starts,
             unsupported: None,
             via_choices: None,
+            via_fresh: None,
             via_used: Vec::new(),
+            shared_via: None,
         }
     }
 
@@ -451,35 +466,49 @@ impl<'a> Router<'a> {
             };
             let via = &rest.via_edges;
             let k = via.len();
-            if self.reverse && k > 1 && self.via_choices.is_none() {
-                // R5 reverses the restriction's via edges in place on every
-                // such check (TurnRestriction.reverse), changing the
-                // network for every later search: see `via_choices`
-                self.unsupported = Some(
-                    "a car search backwards through a turn restriction with two or more via ways",
-                );
-            }
             let to_edge = if self.reverse {
                 rest.from_edge
             } else {
                 rest.to_edge
             };
             let p = (pos - 1) as usize;
-            if p < k {
-                // the via edge R5 compares with: in the order built, or in
-                // the reversed order the array may be left in
-                let (built, reversed) = (via[p], via[k - 1 - p]);
-                let mut expected = built;
-                if let Some(choices) = &self.via_choices {
-                    if built != reversed && ((edge == built) != (edge == reversed)) {
-                        let i = self.via_used.len();
-                        let rev = choices.get(i).copied().unwrap_or(self.reverse);
-                        self.via_used.push(rev);
-                        if rev {
-                            expected = reversed;
+            // the order of the via edges R5 compares with: as built, or
+            // reversed (see `via_fresh`)
+            let mut reversed_now = false;
+            if k > 1 {
+                if let Some(key) = Self::via_key(self.net, &mut self.shared_via, self.reverse, r) {
+                    // whether the step's outcome depends on the order
+                    let ambiguous = p < k && {
+                        let (built, reversed) = (via[p], via[k - 1 - p]);
+                        built != reversed && ((edge == built) != (edge == reversed))
+                    };
+                    if let Some(fresh) = &mut self.via_fresh {
+                        let state = fresh.entry(key).or_insert(false);
+                        if self.reverse {
+                            *state = !*state; // TurnRestriction.reverse
                         }
+                        reversed_now = *state;
+                        if ambiguous {
+                            self.via_used.push(reversed_now);
+                        }
+                    } else if let Some(choices) = &self.via_choices {
+                        if ambiguous {
+                            let i = self.via_used.len();
+                            reversed_now = choices.get(i).copied().unwrap_or(self.reverse);
+                            self.via_used.push(reversed_now);
+                        }
+                    } else if self.reverse {
+                        // the reversal changes the network for every later
+                        // search: see `via_fresh`
+                        self.unsupported = Some(
+                            "a car search backwards through a turn restriction with two or more \
+                             via ways",
+                        );
                     }
                 }
+            }
+            if p < k {
+                let expected = if reversed_now { via[k - 1 - p] } else { via[p] };
                 if edge != expected {
                     if rest.only {
                         return None;
@@ -496,6 +525,39 @@ impl<'a> Router<'a> {
             }
         }
         Some(Some(out))
+    }
+
+    /// The via edge array R5 may have reversed that restriction `r` of a
+    /// search (reverse or forward) checks, as a key of
+    /// [`Router::via_fresh`]: a `no_` restriction's relation (forward and
+    /// reverse searches share its array), or, with the top bit set, the
+    /// index of a reverse restriction derived from an `only_` one (its own
+    /// array). `None` for a forward `only_` restriction, whose array no
+    /// search reverses. `shared` caches the relations of the network's `no_`
+    /// restrictions with two or more via edges.
+    fn via_key(
+        net: &StreetNetwork,
+        shared: &mut Option<HashSet<i64>>,
+        reverse: bool,
+        r: u32,
+    ) -> Option<u64> {
+        if !reverse {
+            let rest = &net.restrictions[r as usize];
+            return (!rest.only).then_some(rest.relation as u64);
+        }
+        let rest = &net.reverse_restrictions[r as usize];
+        let shared = shared.get_or_insert_with(|| {
+            net.restrictions
+                .iter()
+                .filter(|t| !t.only && t.via_edges.len() > 1)
+                .map(|t| t.relation)
+                .collect()
+        });
+        Some(if shared.contains(&rest.relation) {
+            rest.relation as u64
+        } else {
+            (1 << 63) | u64::from(r)
+        })
     }
 
     /// `Edge.traverse(s0, streetMode, req, timeCalculator)` from state

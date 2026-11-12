@@ -54,7 +54,7 @@ ITEMS: dict[str, frozenset[str]] = {
     "refuse-elevation-formats": ALL,
     "refuse-multiple-pbf": ALL,
     "refuse-pareto-output-dir": frozenset({"R", "Python"}),
-    "refuse-itinerary-cases": ALL,
+    "car-egress-history": ALL,
     # files and geometries
     "write-fare-zip": ALL,
     "isochrone-make-valid": frozenset({"Python", "JavaScript"}),

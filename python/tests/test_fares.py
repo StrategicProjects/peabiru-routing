@@ -4,6 +4,7 @@ bench/compare/fares_py.py."""
 
 import math
 import os
+import zipfile
 
 import pandas as pd
 import pytest
@@ -57,6 +58,14 @@ def test_write_and_read_round_trip(network, tmp_path):
         pd.testing.assert_frame_equal(back[k], fs[k])
     assert back["fare_cap"] == 7.5
     assert back["debug_settings"] == fs["debug_settings"]
+    # r5r's five files, in its order, deflated as zip::zip() does
+    with zipfile.ZipFile(path) as z:
+        assert z.namelist() == [
+            "global_settings.csv", "fares_per_type.csv", "fares_per_transfer.csv",
+            "fares_per_route.csv", "debug_settings.csv",
+        ]
+        assert all(i.compress_type == zipfile.ZIP_DEFLATED for i in z.infolist())
+        assert z.testzip() is None
     with pytest.raises(ValueError, match="zip"):
         peabiru.write_fare_structure(fs, os.path.join(tmp_path, "fares.csv"))
 

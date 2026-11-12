@@ -76,7 +76,11 @@ mode alone, the alternatives R5's multi-criteria router (McRAPTOR) finds
 over the departure window, one per sequence of routes. `suboptimal_minutes`
 (which must be 0 with `shortest_path=True`) keeps search branches up to
 that many minutes slower than the best one, so higher values return more
-itineraries. The options are numbered by `option`:
+itineraries. The options are numbered by `option` in r5r's order: the trip
+by the street mode alone first, then by the number of legs, then by
+duration, so the first option is not the fastest when a trip with fewer
+legs is slower (on Porto Alegre with `suboptimal_minutes=10`, a pair had 102
+options, the first of 60.4 minutes and the fastest of 53.3):
 
 ```python
 def alternatives(minutes):
@@ -193,14 +197,12 @@ With `mode_egress="CAR"`, R5 reverses the via edges of turn restrictions
 with two or more via ways in place each time its backward egress search
 checks one, so what r5r returns for a pair whose car searches cross such a
 restriction can depend on the searches that ran before (in the same call,
-on other threads, or in earlier calls). peabiru plans such a pair for every
-order those via edges can be in: when the itineraries are the same in all
-of them, they are returned (they are r5r's whatever ran before); otherwise
-the call raises a `ValueError` that starts with `not supported:` and names
-the pair.
-
-The other pair peabiru refuses is one with a ride along a GTFS shape cut by
-`shape_dist_traveled`, whose line it does not reproduce. Networks whose
+on other threads, or in earlier calls). peabiru returns, for every pair,
+what r5r gives on a freshly built network for that pair alone with one
+thread, and warns once per call, naming the pairs whose itineraries some
+other order of those via edges would change (on Porto Alegre, about 1 pair
+in 200). Rides along GTFS shapes cut by `shape_dist_traveled` follow
+R5's cut. Networks whose
 GTFS has frequency-based trips cannot be used with public transport here,
 as in r5r: convert the frequencies to stop times first (with gtfstools'
 `frequencies_to_stop_times()` in R, for instance).

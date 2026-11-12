@@ -16,6 +16,8 @@ from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence
 
 import numpy as np
 
+from . import _checkmate as cm
+
 INT_MAX = 2147483647
 # checkmate's default tolerance for "integerish"
 _TOL = math.sqrt(np.finfo(float).eps)
@@ -80,12 +82,16 @@ def core_errors(
     try:
         yield
     except ValueError as e:
-        raise ValueError(user_message(str(e), function, names, n_destinations)) from None
+        msg = user_message(str(e), function, names, n_destinations)
+        # the engine's refusals of what it does not reproduce
+        if msg.startswith("not supported: "):
+            raise UnsupportedError(msg) from None
+        raise ValueError(msg) from None
 
 
 def unsupported(what: str, instead: str = "") -> None:
     """An argument peabiru does not support yet: always an error."""
-    raise UnsupportedError(f"{what} is not supported by peabiru yet{instead}.")
+    raise UnsupportedError(f"{what} is not supported by peabiru{instead}.")
 
 
 def is_number(x: Any) -> bool:
@@ -97,6 +103,14 @@ def is_integerish_value(x: float) -> bool:
     return math.isfinite(x) and abs(x - round(x)) < _TOL
 
 
+def scalar(x: Any) -> Any:
+    """The one element of a value that passed a scalar check (``[5]`` is
+    5, as ``c(5)`` is in R)."""
+    if isinstance(x, (list, tuple, np.ndarray)) or type(x).__name__ == "Series":
+        return list(np.asarray(x, dtype=object).ravel())[0] if isinstance(x, np.ndarray) else list(x)[0]
+    return x
+
+
 def assert_number(
     x: Any,
     name: str,
@@ -106,59 +120,25 @@ def assert_number(
     none_ok: bool = False,
 ) -> None:
     """checkmate::assert_number"""
-    if x is None:
-        if none_ok:
-            return
-        fail_assert(name, "Must be of type 'number', not 'None'", TypeError)
-    if not is_number(x):
-        fail_assert(name, "Must be of type 'number'", TypeError)
-    x = float(x)
-    if math.isnan(x):
-        fail_assert(name, "May not be NA")
-    if finite and not math.isfinite(x):
-        fail_assert(name, "Must be finite")
-    if x < lower:
-        fail_assert(name, f"Element 1 is not >= {_fmt(lower)}")
-    if x > upper:
-        fail_assert(name, f"Element 1 is not <= {_fmt(upper)}")
+    cm.cm_assert(cm.check_number(x, lower=lower, upper=upper, finite=finite, null_ok=none_ok), name)
 
 
 def assert_count(x: Any, name: str, positive: bool = False) -> None:
     """checkmate::assert_count"""
-    if not is_number(x):
-        fail_assert(name, "Must be of type 'count'", TypeError)
-    x = float(x)
-    if math.isnan(x):
-        fail_assert(name, "May not be NA")
-    if not is_integerish_value(x) or abs(x) > INT_MAX:
-        fail_assert(name, "Must be of type 'count'", TypeError)
-    if x < int(positive):
-        fail_assert(name, f"Must be >= {int(positive)}")
+    cm.cm_assert(cm.check_count(x, positive=positive), name)
 
 
 def assert_int(x: Any, name: str, none_ok: bool = False) -> None:
     """checkmate::assert_int"""
-    if x is None and none_ok:
-        return
-    if (
-        not is_number(x)
-        or math.isnan(float(x))
-        or not is_integerish_value(float(x))
-        or abs(float(x)) > INT_MAX
-    ):
-        fail_assert(name, "Must be a single integerish value", TypeError)
+    cm.cm_assert(cm.check_int(x, null_ok=none_ok), name)
 
 
 def as_number_list(x: Any, name: str, kind: str) -> List[float]:
     """A scalar or a one-dimensional sequence of numbers, as floats."""
-    if is_number(x):
-        return [float(x)]
-    if isinstance(x, (str, bytes)) or not hasattr(x, "__iter__"):
-        fail_assert(name, f"Must be of type '{kind}'", TypeError)
-    values = list(x)
-    if not all(is_number(v) for v in values):
-        fail_assert(name, f"Must be of type '{kind}'", TypeError)
-    return [float(v) for v in values]
+    v = cm.Vec(x)
+    if not (v.numeric() or v.type == "missing") or v.type == "NULL":
+        cm.cm_assert(cm.type_msg(v, kind), name)
+    return [math.nan if cm._is_na(e) else float(e) for e in v.values]
 
 
 def assert_integerish(
@@ -166,60 +146,38 @@ def assert_integerish(
     name: str,
     lower: float = -math.inf,
     upper: float = math.inf,
-    min_len: int = 0,
-    max_len: float = math.inf,
+    min_len: Optional[int] = None,
+    max_len: Optional[float] = None,
     unique: bool = False,
     none_ok: bool = False,
 ) -> Optional[List[int]]:
-    """checkmate::assert_integerish with the options r5r uses; returns the
-    values as ints (or None)."""
+    """checkmate::assert_integerish(any.missing = FALSE, ...), as r5r calls
+    it; returns the values as ints (or None)."""
+    cm.cm_assert(
+        cm.check_integerish(x, lower=lower, upper=upper, any_missing=False, min_len=min_len,
+                            max_len=max_len, unique=unique, null_ok=none_ok),
+        name,
+    )
     if x is None:
-        if none_ok:
-            return None
-        fail_assert(name, "Must be of type 'integerish', not 'None'", TypeError)
-    values = as_number_list(x, name, "integerish")
-    if not all(math.isnan(v) or is_integerish_value(v) for v in values):
-        fail_assert(name, "Must be of type 'integerish'", TypeError)
-    if any(math.isnan(v) for v in values):
-        fail_assert(name, "Contains missing values")
-    if len(values) < min_len:
-        fail_assert(name, f"Must have length >= {min_len}")
-    if len(values) > max_len:
-        fail_assert(name, f"Must have length <= {_fmt(max_len)}")
-    if any(v < lower for v in values):
-        fail_assert(name, f"All elements must be >= {_fmt(lower)}")
-    if any(v > upper for v in values):
-        fail_assert(name, f"All elements must be <= {_fmt(upper)}")
-    if unique and len(set(values)) < len(values):
-        fail_assert(name, "Contains duplicated values")
-    return [int(round(v)) for v in values]
+        return None
+    return [int(round(float(v))) for v in cm.Vec(x).values]
 
 
 def assert_flag(x: Any, name: str) -> None:
     """checkmate::assert_logical(x, len = 1, any.missing = FALSE)"""
-    if not isinstance(x, (bool, np.bool_)):
-        fail_assert(name, "Must be a single True or False", TypeError)
+    cm.cm_assert(cm.check_logical(x, len_=1, any_missing=False), name)
 
 
 def assert_string(x: Any, name: str, none_ok: bool = False) -> None:
     """checkmate::assert_string"""
-    if x is None and none_ok:
-        return
-    if not isinstance(x, str):
-        fail_assert(name, "Must be a single string", TypeError)
+    cm.cm_assert(cm.check_string(x, null_ok=none_ok), name)
 
 
 def as_strings(x: Any, name: str) -> List[str]:
-    """A string or a sequence of strings, as a list."""
-    if isinstance(x, str):
-        return [x]
-    msg = "Must be of type 'character' with at least 1 element and no missing values"
-    if isinstance(x, bytes) or not hasattr(x, "__iter__"):
-        fail_assert(name, msg, TypeError)
-    values = list(x)
-    if len(values) < 1 or not all(isinstance(v, str) for v in values):
-        fail_assert(name, msg, TypeError)
-    return values
+    """checkmate::assert_character(x, min.len = 1, any.missing = FALSE): a
+    string or a sequence of strings, as a list."""
+    cm.cm_assert(cm.check_character(x, min_len=1, any_missing=False), name)
+    return [str(v) for v in cm.Vec(x).values]
 
 
 def unique(values: Sequence[Any]) -> List[Any]:

@@ -5,7 +5,7 @@
 use super::{err, interruptible, network, points, threads, Outcome};
 use extendr_api::prelude::*;
 use extendr_api::Result;
-use peabiru_core::unstable::{fwrite_csv, zip_stored, FwriteColumn};
+use peabiru_core::unstable::{fwrite_csv, zip_deflated, FwriteColumn};
 use peabiru_core::{
     pareto_frontier, read_fare_structure, setup_fare_structure, FarePerRoute, FarePerTransfer,
     FarePerType, FareStructure, TransitParams,
@@ -352,7 +352,7 @@ fn rs_fwrite(df: List) -> Result<String> {
     fwrite_csv(&cols).map_err(err)
 }
 
-/// A stored `.zip` archive of the named texts.
+/// A deflated `.zip` archive of the named texts.
 /// @noRd
 #[extendr]
 fn rs_zip_texts(names: Vec<String>, texts: Vec<String>) -> Raw {
@@ -361,7 +361,7 @@ fn rs_zip_texts(names: Vec<String>, texts: Vec<String>) -> Raw {
         .zip(&texts)
         .map(|(n, t)| (n.as_str(), t.as_bytes()))
         .collect();
-    Raw::from_bytes(&zip_stored(&files))
+    Raw::from_bytes(&zip_deflated(&files))
 }
 
 /// r5r's `pareto_frontier()`: `list(from, to, percentile, travel_time,

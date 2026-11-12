@@ -687,11 +687,10 @@ export interface ItineraryFeature {
  * with `dropGeometry`, an array of rows; pairs without an itinerary have
  * none. Every option is in `DetailedItinerariesOptions` and
  * `RoutingOptions`. Public transport needs feeds with timetables: a
- * network with frequency-based trips is an error. The few pairs whose
- * itinerary depends on what peabiru does not reproduce (a car search
- * through a turn restriction with two or more via ways, where the order of
- * earlier searches matters; a ride along a shape cut by
- * `shape_dist_traveled`) reject with an error naming the pair.
+ * network with frequency-based trips is an error. With `modeEgress:
+ * "CAR"`, a pair whose itinerary in r5r may depend on the searches that ran
+ * before (a car search through a turn restriction with two or more via
+ * ways) gets r5r's itinerary on a fresh network, with a warning.
  *
  * ```js
  * const back = { id: [...points.id].reverse(), lon: [...points.lon].reverse(), lat: [...points.lat].reverse() };
@@ -807,7 +806,7 @@ export declare function readFareStructure(
 
 /**
  * The bytes of a fare structure `.zip` file: one CSV file for the global
- * settings and one per table, stored uncompressed. Synchronous; needs the
+ * settings and one per table, deflated as r5r's are. Synchronous; needs the
  * module loaded. Throws when the structure is not one.
  *
  * ```js

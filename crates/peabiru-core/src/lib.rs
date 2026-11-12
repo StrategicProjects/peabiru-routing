@@ -230,7 +230,8 @@ pub use isochrone::{
     Polygon, StreetEdges, TravelTimeSurface, WebMercatorGrid,
 };
 pub use itinerary::{
-    detailed_itineraries, write_itineraries_csv, Itinerary, ItineraryLeg, ItineraryParams,
+    detailed_itineraries, detailed_itineraries_noted, write_itineraries_csv, Itinerary,
+    ItineraryLeg, ItineraryNotes, ItineraryParams,
 };
 pub use output::CsvOutput;
 pub use street::{
@@ -264,7 +265,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// out of the documentation on purpose. Do not use them from other crates.
 #[doc(hidden)]
 pub mod unstable {
-    pub use crate::fares::zipio::{fwrite_csv, zip_stored, FwriteColumn};
+    pub use crate::fares::zipio::{fwrite_csv, zip_deflated, FwriteColumn};
     pub use crate::gdal::{gdal_geojson_coordinate, gdal_geojson_text};
     pub use crate::isochrone::CxxLibrary;
     /// [`isochrone_polygons`](crate::isochrone_polygons) with the rings in

@@ -23,9 +23,9 @@ Writes a fare structure to a \code{.zip} file holding five \code{.csv} files
 \section{Compatibility with r5r}{
 
 The arguments are those of \code{r5r::write_fare_structure()} in r5r 2.5.0,
-and the CSV files are those r5r writes, byte for byte; the archive
-around them stores them uncompressed, so its bytes differ from r5r's
-(whose archive also holds the files' modification times). A file written
+and the CSV files are those r5r writes, byte for byte, deflated in the
+same order; the archive's bytes differ from r5r's (whose archive also
+holds the files' modification times). A file written
 by either package reads back in the other. A \code{fare_structure} that is not
 a fare structure, or whose settings have the wrong length, and a \code{NULL}
 \code{file_path} are errors that say so (r5r checks nothing there and fails

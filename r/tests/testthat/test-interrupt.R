@@ -82,9 +82,21 @@ test_that("a time limit stops every long computation with R's error", {
   }
 })
 
+# A process started in the background of a non-interactive shell (`cmd &`)
+# inherits SIGINT ignored: an interrupt sent to this process then never
+# arrives.
+sigint_ignored <- function() {
+  !tryCatch({
+    tools::pskill(Sys.getpid(), tools::SIGINT)
+    Sys.sleep(0.5)
+    FALSE
+  }, interrupt = function(c) TRUE)
+}
+
 test_that("Ctrl-C stops a long computation with an ordinary interrupt", {
   skip_on_os("windows")
   skip_on_cran()
+  skip_if(sigint_ignored(), "SIGINT is ignored in this process")
   calls <- long_calls()
   for (name in c("transit_matrix", "street_matrix")) {
     t0 <- Sys.time()

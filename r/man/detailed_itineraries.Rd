@@ -186,7 +186,12 @@ mode and, with public transport, the fastest trip over the departure
 window (\code{shortest_path = TRUE}) or, with \code{shortest_path = FALSE}, the
 alternatives R5's multi-criteria router (McRAPTOR) finds over
 \code{time_window} sampled departure times, one per sequence of routes (the
-fastest of each), up to \code{suboptimal_minutes} slower than the best. With a
+fastest of each), up to \code{suboptimal_minutes} slower than the best. As in
+r5r, a pair's options are ordered by the trip by the street mode alone
+first, then by the number of legs, then by duration, so the first option
+is not the fastest when a trip with fewer legs (or the street trip) is
+slower: on Porto Alegre with \code{suboptimal_minutes = 10}, a pair had 102
+options, the first of 60.4 minutes and the fastest of 53.3. With a
 \code{fare_structure} the trips are routed with fares (and only those within
 \code{max_fare} kept), and the result gets \code{total_fare} and \code{cumulative_fare}
 columns.
@@ -206,11 +211,10 @@ turn restrictions with two or more via ways in place each time its
 backward egress search checks one, so what r5r returns for a pair whose
 car searches cross such a restriction can depend on the searches that
 ran before (in the same call, on other threads, or in earlier calls).
-peabiru plans such a pair for every order those via edges can be in:
-when the itineraries are the same in all of them, they are returned
-(they are r5r's whatever ran before); otherwise the call stops with an
-error naming the pair. A ride along a 'GTFS' shape that the feed cuts by
-\code{shape_dist_traveled} is an error too: its geometry is not reproduced.
+peabiru returns, for every pair, what r5r gives on a freshly built
+network for that pair alone with one thread, and warns once per call,
+naming the pairs whose itineraries some other order of those via edges
+would change (on Porto Alegre, about 1 pair in 200).
 }
 
 \examples{

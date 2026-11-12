@@ -110,7 +110,8 @@ fn raster_in_dir(dir: &Path, mut rasters: Vec<PathBuf>) -> Result<Option<Named>,
             if layer::has_suffix(one.as_os_str(), ".tiff") {
                 return Err(NetworkError::elevation(
                     one,
-                    "r5r cannot read a raster whose name ends in .tiff (R5 looks for the same                      name ending in .tif and fails): rename it to .tif"
+                    "r5r cannot read a raster whose name ends in .tiff (R5 looks for the same \
+                     name ending in .tif and fails): rename it to .tif"
                         .into(),
                 ));
             }
