@@ -28,6 +28,18 @@ def test_setup_fare_structure(network):
     g = peabiru.setup_fare_structure(network, 2, by="generic", debug_path="x.csv")
     assert g["fares_per_type"]["type"].tolist() == ["GENERIC"]
     assert g["debug_settings"] == {"output_file": "x.csv", "trip_info": "ROUTE"}
+
+
+def test_fare_tables_have_the_dtypes_of_the_other_results(network, tmp_path):
+    # text as object dtype holding str, whatever pandas' default string dtype
+    fs = peabiru.setup_fare_structure(network, 4.4)
+    path = str(tmp_path / "f.zip")
+    peabiru.write_fare_structure(fs, path)
+    for f in (fs, peabiru.read_fare_structure(path)):
+        t, tr, r = f["fares_per_type"], f["fares_per_transfer"], f["fares_per_route"]
+        assert [str(t[c].dtype) for c in t.columns] == ["object", "bool", "bool", "bool", "float64"]
+        assert [str(tr[c].dtype) for c in tr.columns] == ["object", "object", "float64"]
+        assert [str(r[c].dtype) for c in r.columns] == ["object"] * 6 + ["float64", "object"]
     with pytest.raises(ValueError, match=">= 0"):
         peabiru.setup_fare_structure(network, -1)
     with pytest.raises(ValueError, match="subset"):

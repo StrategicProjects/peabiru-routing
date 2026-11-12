@@ -9,7 +9,7 @@ check_transit_availability(
   dates = NULL,
   start_date = NULL,
   end_date = NULL,
-  r5r_core
+  r5r_core = deprecated()
 )
 }
 \arguments{
@@ -29,20 +29,20 @@ be used with \code{end_date}.}
 single character string in "YYYY-MM-DD" format or a \code{Date} object. Must
 be used with \code{start_date}.}
 
-\item{r5r_core}{Deprecated, as in r5r: the network, with a warning.}
+\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
+accepted with a warning.}
 }
 \value{
 A \code{data.frame} with four columns: \code{date} (\code{Date}),
 \code{total_services}, \code{active_services} and \code{pct_active} (the proportion
 of active services). Automatic discovery returns dates in ascending
 order, or a zero-row table with these columns if no retained transit
-trips operate. r5r returns a \code{data.table}; the columns and values are
-the same.
+trips operate.
 }
 \description{
 Counts the public transport services in the GTFS feeds of a network that
-are active on given dates, and their proportion of all services, as
-\code{r5r::check_transit_availability()} does. Use it to pick a departure
+are active on given dates, and their proportion of all services. Use it
+to pick a departure
 date with adequate service: public transport routing only finds trips
 on dates when services run (per the GTFS calendars and date
 exceptions).
@@ -63,6 +63,13 @@ trips; counts are of services, not trips. If calendar bounds are
 invalid, automatic discovery fails naming the service; explicit date
 queries remain available.
 }
+\section{Compatibility with r5r}{
+
+The arguments, their defaults and checks, the columns and the values are
+those of \code{r5r::check_transit_availability()} in r5r 2.5.0; the result is
+a \code{data.frame} rather than a \code{data.table}.
+}
+
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
@@ -71,7 +78,9 @@ check_transit_availability(network, dates = c("2019-05-13", "2019-05-19"))
 }
 \seealso{
 Other network functions:
+\code{\link[=build_network]{build_network()}},
 \code{\link[=find_snap]{find_snap()}},
+\code{\link[=get_gtfs_errors]{get_gtfs_errors()}},
 \code{\link[=street_network_bbox]{street_network_bbox()}},
 \code{\link[=street_network_to_sf]{street_network_to_sf()}},
 \code{\link[=transit_network_to_sf]{transit_network_to_sf()}}

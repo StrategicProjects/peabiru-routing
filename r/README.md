@@ -11,9 +11,10 @@
 -->
 <!-- badges: end -->
 
-Travel-time matrices and accessibility by walking, cycling, driving and
-public transport, on networks built from an OpenStreetMap extract and GTFS
-public transport feeds. The routing engine is written in Rust and runs inside
+Travel-time matrices, accessibility, isochrones and detailed itineraries by
+walking, cycling, driving and public transport, with fares, slope costs and
+scenarios, on networks built from an OpenStreetMap extract, GTFS public
+transport feeds and an optional elevation raster. The routing engine is written in Rust and runs inside
 the R session: no Java is needed, and the network is built once, in memory,
 and reused by every call. The same engine is behind the Python and
 JavaScript packages and the command-line tool of the same name.
@@ -22,7 +23,7 @@ JavaScript packages and the command-line tool of the same name.
 
 | Function | What it computes |
 |---|---|
-| `build_network()` | a network from one `.pbf` and any number of GTFS feeds |
+| `build_network()` | a network from one `.pbf`, any number of GTFS feeds and an optional elevation raster (`.tif`) |
 | `travel_time_matrix()` | travel times by `"WALK"`, `"BICYCLE"`, `"CAR"` or public transport (`"TRANSIT"` or any of its modes, reached by walking, bicycle or car), with percentiles over a departure window |
 | `accessibility()` | opportunities reachable from each origin, with five decay functions |
 | `expanded_travel_time_matrix()` | the trip of every departure minute, with its breakdown |
@@ -31,9 +32,15 @@ JavaScript packages and the command-line tool of the same name.
 | `detailed_itineraries()` | the legs of each trip, with their lines (the fastest trip, or the alternatives) |
 | `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` | fare structures, which the routing functions take as `fare_structure` |
 | `pareto_frontier()` | the trade-off between travel time and fare |
+| `find_snap()`, `street_network_bbox()`, `street_network_to_sf()`, `transit_network_to_sf()` | where points snap, and the street and transit networks as `sf` |
+| `check_transit_availability()`, `get_gtfs_errors()` | the dates with service, and the errors in the GTFS feeds |
+| `setup_r5()`, `stop_r5()`, `download_r5()`, `r5r_cache()`, `r5r_sitrep()` | r5r's functions for Java, kept so that r5r scripts run |
 
-Not implemented yet: R5's own fare calculators (a fare structure with a
-`type`). Asking for them stops with an error; nothing is silently ignored.
+The routing functions also take scenarios of car speeds (`new_carspeeds`,
+`carspeed_scale`) and of traffic stress for cyclists (`new_lts`). What the
+engine cannot compute exactly as R5 does, such as R5's own fare calculators
+(a fare structure with a `type`), stops with an error; nothing is silently
+ignored.
 
 ## Installation
 
@@ -65,11 +72,11 @@ ttm <- travel_time_matrix(
 
 ## Coming from r5r
 
-The functions, arguments and defaults are those of
-[r5r](https://github.com/ipea/r5r) 2.5.0, and so are the results: with the
-same arguments and `seed`, r5r returns the same `data.frame` (`identical()`
-after converting r5r's `data.table`). The article "Coming from r5r" lists
-what is the same, what differs on purpose and what is not there yet.
+The package exports the 22 functions of [r5r](https://github.com/ipea/r5r)
+2.5.0, with their arguments and defaults, and the results are r5r's: with
+the same arguments and `seed`, r5r returns the same `data.frame`
+(`identical()` after converting r5r's `data.table`). The article "Coming
+from r5r" lists what is the same and every difference.
 
 ## Documentation
 
@@ -77,7 +84,9 @@ The package website is built from this directory with pkgdown, together with
 the rest of the project's documentation: run `site/build.sh` at the root of
 the repository and open `_site/r/index.html`. It has a getting-started
 vignette and articles on travel-time matrices, accessibility, expanded and
-arrival matrices, coming from r5r, how the engine works, and benchmarks.
+arrival matrices, detailed itineraries, fares, elevation, scenarios,
+inspecting a network, coming from r5r, how the engine works, and
+benchmarks.
 
 ## Licence and credits
 

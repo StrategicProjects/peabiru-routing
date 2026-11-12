@@ -28,41 +28,47 @@ pareto_frontier(
   verbose = FALSE,
   progress = TRUE,
   output_dir = NULL,
-  r5r_core
+  r5r_core = deprecated()
 )
 }
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
-\code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84.}
+\code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84. Ids that are not
+character are converted, with a warning; points with missing
+coordinates are not routed, with a warning; duplicated ids are an
+error.}
 
-\item{mode}{A character vector, the transport modes: one of \code{"WALK"},
-\code{"BICYCLE"} or \code{"CAR"}, and for public transport \code{"TRANSIT"} (every
-transit mode) or any of \code{"TRAM"}, \code{"SUBWAY"}, \code{"RAIL"}, \code{"BUS"},
-\code{"FERRY"}, \code{"CABLE_CAR"}, \code{"GONDOLA"} and \code{"FUNICULAR"}; the street
-mode, \code{"WALK"} by default with transit, is the access mode.}
+\item{mode}{A character vector, the transport modes (see the section
+"Transport modes"). Defaults to \code{"WALK"}.}
 
 \item{mode_egress}{A string, the mode from the last stop to the
-destination: \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}.}
+destination: \code{"WALK"} (the default), \code{"BICYCLE"} or \code{"CAR"}. Ignored
+without public transport.}
 
-\item{departure_datetime}{A POSIXct, the departure date and time. Its
-clock time and date are taken in its own time zone. Required with
-transit.}
+\item{departure_datetime}{A POSIXct, the departure date and time (see
+the section "Date and time"). Required with public transport.}
 
-\item{time_window}{An integer, the window of departure minutes, starting
-at \code{departure_datetime}, over which travel times are computed.}
+\item{time_window}{An integer, the number of departure minutes, from
+\code{departure_datetime} on, over which travel times are computed.
+Defaults to 10.}
 
 \item{seed}{An integer or \code{NULL}: the seed of the Monte Carlo draws of
 frequency-based routes.}
 
 \item{percentiles}{An integer vector of up to 5 values from 1 to 99, the
-travel time percentiles over the time window to report.}
+percentiles of the travel time over the departures of the window to
+report. Defaults to 50, the median.}
 
 \item{max_walk_time, max_bike_time, max_car_time}{The maximum time in
-minutes for each street mode (\code{Inf}, the default, means the trip limit).}
+minutes on foot, by bicycle and by car. Each limit applies to each leg
+on its own (15 minutes to reach the first stop and another 15 from the
+last), and to the whole trip when that mode is the only one. \code{Inf}, the
+default, leaves only \code{max_trip_duration}.}
 
-\item{max_trip_duration}{An integer, the maximum trip duration in minutes.}
+\item{max_trip_duration}{An integer, the maximum trip duration in
+minutes. Defaults to 120.}
 
 \item{fare_structure}{A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}});
 required.}
@@ -70,45 +76,53 @@ required.}
 \item{fare_cutoffs}{A numeric vector, required: the fare cutoffs, at
 least 0, unique.}
 
-\item{walk_speed, bike_speed}{Speeds in km/h.}
+\item{walk_speed, bike_speed}{Average speeds in km/h, 3.6 and 12 by
+default.}
 
-\item{max_rides}{An integer, the maximum number of public transport rides.}
+\item{max_rides}{An integer, the maximum number of public transport rides
+in a trip. Defaults to 3.}
 
 \item{max_lts}{An integer from 1 to 4, the highest level of traffic stress
-a cyclist will ride on.}
+a cyclist rides on (see the section "Level of traffic stress").
+Defaults to 2.}
 
 \item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores.}
 
-\item{verbose, progress}{Logicals, checked as in r5r; peabiru prints no
-progress counter.}
+\item{verbose, progress}{Logicals, checked but without effect: no progress
+counter or routing log is printed.}
 
-\item{output_dir}{Not supported (an error unless \code{NULL}).}
+\item{output_dir}{Must be \code{NULL} (the default): writing the frontier to
+files is not available.}
 
-\item{r5r_core}{Deprecated: the network under the name r5r used before
-version 2.3.0. As in r5r, it is accepted with a warning and used as
-\code{r5r_network}.}
+\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
+accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A data.frame with \code{from_id}, \code{to_id}, \code{percentile},
+A \code{data.frame} with \code{from_id}, \code{to_id} (character), \code{percentile},
 \code{travel_time} and \code{monetary_cost}.
 }
 \description{
 Fits the Pareto frontier of travel time and fare between each origin and
-each destination, as r5r's \code{pareto_frontier()}: for every value of
-\code{fare_cutoffs}, in the order given, the travel times of R5's fare router
-(McRAPTOR, over \code{time_window} sampled departure times) when no trip may
-cost more than the cutoff; a destination and percentile gets a row at each
-cutoff where its travel time changes and is below \code{max_trip_duration}.
+each destination: for every value of \code{fare_cutoffs}, in the order given,
+the travel times of R5's fare router (McRAPTOR, over \code{time_window}
+sampled departure times) when no trip may cost more than the cutoff; a
+destination and percentile gets a row at each cutoff where its travel
+time changes and is below \code{max_trip_duration}. \code{monetary_cost} is the
+cutoff as the router reads it, a 32-bit float (\code{4.8} is
+\code{4.800000190734863}). Routes given by frequencies are routed with Monte
+Carlo draws: pass \code{seed} for reproducible results.
 }
-\details{
-The arguments are those of r5r 2.5.0's \code{pareto_frontier()}, with the same
-defaults and checks. \code{monetary_cost} is the cutoff as R5 reads it, a Java
-\code{float} (\code{4.8} is \code{4.800000190734863}), as r5r reports it. As in r5r,
-frequency-based routes are routed with Monte Carlo draws: pass \code{seed}
-for reproducible results.
+\section{Compatibility with r5r}{
+
+The arguments, their defaults and checks, the columns and the rows of the
+result are those of \code{r5r::pareto_frontier()} in r5r 2.5.0, with the same
+values (with frequencies, for the same \code{seed}); the result is a
+\code{data.frame} rather than a \code{data.table}. \code{output_dir}, with which r5r
+writes the result to CSV files, is not available: anything but \code{NULL}
+is an error.
 }
+
 \examples{
-\dontshow{if (identical(tolower(Sys.getenv("NOT_CRAN")), "true")) withAutoprint(\{ # examplesIf}
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
 points <- read.csv(file.path(data_path, "spo_points.csv"))
@@ -122,7 +136,6 @@ pf <- pareto_frontier(
   seed = 42, n_threads = 2
 )
 head(pf)
-\dontshow{\}) # examplesIf}
 }
 \seealso{
 Other fare structure:

@@ -4,7 +4,13 @@
 \alias{find_snap}
 \title{Find snapped locations of input points on street network}
 \usage{
-find_snap(r5r_network, points, radius = 1600, mode = "WALK", r5r_core)
+find_snap(
+  r5r_network,
+  points,
+  radius = 1600,
+  mode = "WALK",
+  r5r_core = deprecated()
+)
 }
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
@@ -19,26 +25,35 @@ snap. Defaults to 1600m.}
 points to the network. Defaults to \code{WALK}, also allows \code{BICYCLE} and
 \code{CAR}.}
 
-\item{r5r_core}{Deprecated, as in r5r: the network, with a warning.}
+\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
+accepted with a warning.}
 }
 \value{
 A \code{data.frame} with the original points (\code{point_id}, \code{lat},
 \code{lon}), their snapped coordinates on the street network (\code{snap_lat},
 \code{snap_lon}), the distance in meters between the point and its snapped
 location (\code{distance}, haversine on a sphere of radius 6,367,450 m, as
-in R5) and whether the point snapped (\code{found}). Points that could not
-be snapped have \code{NA} coordinates and distance and \code{found = FALSE}.
-r5r returns a \code{data.table}; the columns and values are the same.
+R5 measures it) and whether the point snapped (\code{found}). Points that
+could not be snapped have \code{NA} coordinates and distance and
+\code{found = FALSE}.
 }
 \description{
-Finds where points snap to the street network, as \code{r5r::find_snap()}
-does: snapping is how routing places origins and destinations on the
-network. The nearest point of a street the mode may use is looked for
-first within 300 metres of the point and then, if there is none, within
-\code{radius}. A point that does not snap is not routed. The street a point
-snaps to depends on the mode, since some streets cannot be used by some
-modes (a pedestrian street cannot be used to snap car trips).
+Finds where points snap to the street network: snapping is how routing
+places origins and destinations on the network. The nearest point of a
+street the mode may use is looked for first within 300 metres of the
+point and then, if there is none, within \code{radius}. A point that does not
+snap is not routed. The street a point snaps to depends on the mode,
+since some streets cannot be used by some modes (a pedestrian street
+cannot be used to snap car trips).
 }
+\section{Compatibility with r5r}{
+
+The arguments, their defaults and checks, the columns and the values are
+those of \code{r5r::find_snap()} in r5r 2.5.0; the result is a \code{data.frame}
+rather than a \code{data.table}. A \code{radius} of \code{NA} or of length 0 is an error
+that says so (r5r lets it through and fails in Java).
+}
+
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
@@ -48,7 +63,9 @@ head(snaps)
 }
 \seealso{
 Other network functions:
+\code{\link[=build_network]{build_network()}},
 \code{\link[=check_transit_availability]{check_transit_availability()}},
+\code{\link[=get_gtfs_errors]{get_gtfs_errors()}},
 \code{\link[=street_network_bbox]{street_network_bbox()}},
 \code{\link[=street_network_to_sf]{street_network_to_sf()}},
 \code{\link[=transit_network_to_sf]{transit_network_to_sf()}}

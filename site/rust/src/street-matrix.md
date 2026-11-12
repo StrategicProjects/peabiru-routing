@@ -1,7 +1,7 @@
 # Street travel-time matrices
 
 `street_travel_time_matrix` computes walking, cycling or driving times
-between every origin and every destination (in R and Python,
+between every origin and every destination (in R, Python and JavaScript,
 `travel_time_matrix(mode = "WALK" | "BICYCLE" | "CAR")`):
 
 ```rust,ignore
@@ -22,8 +22,14 @@ a street open to the mode, an unreachable destination, or a trip longer than
 whole buffer, row by row, without copying.
 
 `RouteParams::default()` holds the defaults: `walk_speed_kmh = 3.6`,
-`bike_speed_kmh = 12.0`, `max_lts = 2`, `max_trip_duration_min = 120`, and
-`n_threads = 0` (all cores). Change the fields you need on a default value
+`bike_speed_kmh = 12.0`, `max_lts = 2`, `max_trip_duration_min = 120`,
+`n_threads = 0` (all cores), no [scenario](scenarios.md), and
+`engine = StreetEngine::Auto`. The engine only decides how the times are
+found, never what they are: `Search` runs a search from every origin,
+`Hierarchy` builds a contraction hierarchy of the network (kept in the
+network for later calls) and answers from it, and `Auto` builds one when
+enough origins make it pay off. Car routing on a network with turn
+restrictions always searches. Change the fields you need on a default value
 (`let mut p = RouteParams::default(); p.max_lts = 3;`). Origins are spread
 over the threads; the result does not depend on how many there are.
 

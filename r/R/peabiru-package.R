@@ -1,19 +1,29 @@
 #' peabiru: multimodal routing on OpenStreetMap and GTFS networks
 #'
-#' peabiru builds a network from an 'OpenStreetMap' extract and 'GTFS' feeds
-#' with [build_network()] and computes travel times by walking, cycling,
-#' driving and public transport with [travel_time_matrix()],
-#' [accessibility()], [expanded_travel_time_matrix()] and
-#' [arrival_travel_time_matrix()], and inspects it with [find_snap()],
-#' [street_network_to_sf()], [transit_network_to_sf()],
-#' [check_transit_availability()] and [get_gtfs_errors()]. The routing
-#' engine is written in 'Rust' and
-#' runs inside the R session; no 'Java' is needed. Options that peabiru does
-#' not support yet are errors, never silently ignored.
+#' peabiru builds a network from an 'OpenStreetMap' extract, 'GTFS' feeds
+#' and an optional elevation raster with [build_network()], and computes,
+#' by walking, cycling, driving and public transport:
+#' travel-time matrices ([travel_time_matrix()],
+#' [expanded_travel_time_matrix()], [arrival_travel_time_matrix()]),
+#' accessibility ([accessibility()]), isochrones ([isochrone()]) and
+#' detailed itineraries ([detailed_itineraries()]), with or without fares
+#' ([setup_fare_structure()], [read_fare_structure()],
+#' [write_fare_structure()], [pareto_frontier()]) and scenarios of car
+#' speeds and traffic stress. It inspects a network with [find_snap()],
+#' [street_network_bbox()], [street_network_to_sf()],
+#' [transit_network_to_sf()], [check_transit_availability()] and
+#' [get_gtfs_errors()]. The routing engine is written in 'Rust' and runs
+#' inside the R session; no 'Java' is needed. What the engine cannot do
+#' exactly is an error, never silently ignored.
 #'
-#' The functions have the names, arguments and defaults of the 'r5r' package
-#' (2.5.0), and the engine is a port of 'R5' 7.6, the engine r5r drives, so
-#' the results are the same.
+#' @section Compatibility with r5r:
+#' The engine is a port of Conveyal's 'R5' 7.6, the engine the 'r5r'
+#' package drives, and the package exports the 22 functions of r5r 2.5.0
+#' with their arguments and defaults, so the results are r5r's (compared
+#' with `identical()` in the tests). r5r's functions that manage 'Java' and
+#' the R5 jar ([setup_r5()], [stop_r5()], [download_r5()], [r5r_cache()],
+#' [r5r_sitrep()]) are kept so that r5r scripts run. See
+#' the article "Coming from r5r" on the package website for the differences.
 #'
 #' @section Sample data:
 #' `system.file("extdata/spo", package = "peabiru")` holds a small network

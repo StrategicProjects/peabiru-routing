@@ -65,17 +65,18 @@ def _count(x: float) -> Optional[int]:
 def _from_core(d: Dict[str, Any]) -> FareStructure:
     """The core's flat dict as r5r's object."""
     def frame(cols: List[str], keys: List[str]) -> pd.DataFrame:
-        data = {c: d[k] for c, k in zip(cols, keys)}
-        df = pd.DataFrame(data, columns=cols)
-        for c in cols:
-            if df[c].dtype == object or len(df) == 0:
-                if c in ("unlimited_transfers", "allow_same_route_transfer", "use_route_fare"):
-                    df[c] = df[c].astype(bool)
-                elif c in ("fare", "route_fare"):
-                    df[c] = df[c].astype(float)
-                else:
-                    df[c] = df[c].astype(object)
-        return df
+        # explicit dtypes: text columns of object dtype holding str (None
+        # when missing), as in every other result, whatever pandas' default
+        # string dtype is
+        data = {}
+        for c, k in zip(cols, keys):
+            if c in ("unlimited_transfers", "allow_same_route_transfer", "use_route_fare"):
+                data[c] = pd.Series(list(d[k]), dtype=bool)
+            elif c in ("fare", "route_fare"):
+                data[c] = pd.Series(list(d[k]), dtype=float)
+            else:
+                data[c] = pd.Series(list(d[k]), dtype=object)
+        return pd.DataFrame(data, columns=cols)
 
     return {
         "max_discounted_transfers": _count(d["max_discounted_transfers"]),
@@ -152,38 +153,55 @@ def setup_fare_structure(
 ) -> FareStructure:
     """Set up a fare structure to calculate the monetary costs of trips.
 
-    As r5r's ``setup_fare_structure()``: every route, fare type and
-    transfer between two types costs ``base_fare`` (read as a Java float,
-    as in r5r), with one fare type per mode (``by="MODE"``), per agency
-    (``"AGENCY_ID"``, ``"AGENCY_NAME"``) or one for all routes
-    (``"GENERIC"``). Edit the result to follow the fare rules of the study
-    area.
+    Every route, fare type and transfer between two types costs
+    ``base_fare`` (read as a Java float, as R5 reads it), with one fare type
+    per mode (``by="MODE"``), per agency (``"AGENCY_ID"``,
+    ``"AGENCY_NAME"``) or one for all routes (``"GENERIC"``). Edit the
+    result to follow the fare rules of the study area, and pass it to the
+    routing functions as ``fare_structure`` (see [Fares](fares.md)).
 
     Parameters
     ----------
     r5r_network : Network
-        A network built with :func:`peabiru.build_network`.
+        A network built with [`build_network()`][peabiru.build_network].
     base_fare : float
         The fare of every route, type and transfer, at least 0.
-    by : str
-        ``"MODE"`` (default), ``"AGENCY_ID"``, ``"AGENCY_NAME"`` or
-        ``"GENERIC"``.
+    by : {"MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC"}, default "MODE"
+        What a fare type groups: the routes of a mode, of an agency (by id or
+        by name), or all routes. Case does not matter.
     debug_path, debug_info : str, optional
-        r5r's debug settings, kept in ``debug_settings``; r5r 2.5.0 writes no
-        debug file whatever they say, and neither does peabiru.
+        Debug settings, kept in ``debug_settings``: a ``.csv`` path and
+        ``"MODE"``, ``"ROUTE"`` (the default with a ``debug_path``) or
+        ``"MODE_ROUTE"``. No debug file is written.
 
     Returns
     -------
     dict
         The fare structure: ``max_discounted_transfers`` (1),
         ``transfer_time_allowance`` (120 minutes), ``fare_cap`` (``inf``),
-        the DataFrames ``fares_per_type``, ``fares_per_transfer`` and
-        ``fares_per_route``, and ``debug_settings``.
+        the DataFrames ``fares_per_type`` (``type``,
+        ``unlimited_transfers``, ``allow_same_route_transfer``,
+        ``use_route_fare``, ``fare``), ``fares_per_transfer``
+        (``first_leg``, ``second_leg``, ``fare``) and ``fares_per_route``
+        (``agency_id``, ``agency_name``, ``route_id``, ``route_short_name``,
+        ``route_long_name``, ``mode``, ``route_fare``, ``fare_type``), and
+        ``debug_settings`` (a dict with ``output_file`` and ``trip_info``).
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments, their checks and messages,
+    and the structure (its elements, tables, columns and values) are those
+    of ``setup_fare_structure()`` in r5r 2.5.0; fares are computed by a
+    translation of r5r's Java fare calculator (``RuleBasedInRoutingFareCalculator``,
+    by the r5r contributors, MIT). Differences: no
+    ``r5r_core`` argument; a dict of pandas DataFrames instead of a list of
+    ``data.table``s. As in r5r 2.5.0, the debug settings are kept but no
+    debug file is written.
 
     Examples
     --------
     >>> import peabiru
-    >>> network = peabiru.build_network(peabiru.sample_data_path())
+    >>> network = peabiru.build_network(peabiru.sample_data_path(), n_threads=2)
     >>> fares = peabiru.setup_fare_structure(network, base_fare=4.4)
     >>> sorted(fares["fares_per_type"]["type"])
     ['BUS', 'RAIL', 'SUBWAY']
@@ -228,16 +246,16 @@ def setup_fare_structure(
 def write_fare_structure(fare_structure: FareStructure, file_path: PathArg) -> PathArg:
     """Write a fare structure to a ``.zip`` file.
 
-    As r5r's ``write_fare_structure()``: five CSV files in r5r's format
-    (that of ``data.table::fwrite``), byte for byte those r5r writes, in a
-    ``.zip`` archive that stores them uncompressed (so the archive's own
-    bytes differ from r5r's). r5r's ``read_fare_structure()`` reads it, and
-    :func:`read_fare_structure` reads r5r's.
+    Five CSV files (the settings and the three tables) in a ``.zip``
+    archive that stores them uncompressed, to be read again with
+    [`read_fare_structure()`][peabiru.read_fare_structure] here or in the R
+    package.
 
     Parameters
     ----------
     fare_structure : dict
-        A fare structure (see :func:`setup_fare_structure`).
+        A fare structure (see
+        [`setup_fare_structure()`][peabiru.setup_fare_structure]).
     file_path : str or path-like
         A path ending in ``.zip``.
 
@@ -246,10 +264,19 @@ def write_fare_structure(fare_structure: FareStructure, file_path: PathArg) -> P
     str or path-like
         ``file_path``.
 
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments and the CSV files are those of
+    ``write_fare_structure()`` in r5r 2.5.0, byte for byte (in the format of
+    ``data.table::fwrite()``), so r5r's ``read_fare_structure()`` reads the
+    file and this package reads r5r's. Difference: the archive stores the
+    files uncompressed and without r5r's file dates, so its own bytes
+    differ from r5r's.
+
     Examples
     --------
     >>> import os, tempfile, peabiru
-    >>> network = peabiru.build_network(peabiru.sample_data_path())
+    >>> network = peabiru.build_network(peabiru.sample_data_path(), n_threads=2)
     >>> fares = peabiru.setup_fare_structure(network, base_fare=4.4)
     >>> path = os.path.join(tempfile.mkdtemp(), "fares.zip")
     >>> peabiru.write_fare_structure(fares, path) == path
@@ -268,26 +295,34 @@ def write_fare_structure(fare_structure: FareStructure, file_path: PathArg) -> P
 def read_fare_structure(file_path: PathArg, encoding: str = "UTF-8") -> FareStructure:
     """Read a fare structure from a ``.zip`` file.
 
-    As r5r's ``read_fare_structure()``: the files written by r5r's or
-    :func:`write_fare_structure`, with the columns r5r reads.
+    Reads the files written by
+    [`write_fare_structure()`][peabiru.write_fare_structure], here or in the
+    R packages (peabiru's or r5r's).
 
     Parameters
     ----------
     file_path : str or path-like
         A fare structure ``.zip`` file.
-    encoding : str
-        ``"UTF-8"`` (default), ``"unknown"`` (read as UTF-8) or
-        ``"Latin-1"``.
+    encoding : {"UTF-8", "unknown", "Latin-1"}, default "UTF-8"
+        The encoding of the files (``"unknown"`` is read as UTF-8).
 
     Returns
     -------
     dict
-        The fare structure (see :func:`setup_fare_structure`).
+        The fare structure (see
+        [`setup_fare_structure()`][peabiru.setup_fare_structure]).
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments, their checks and the
+    structure read (the columns r5r reads, with their types) are those of
+    ``read_fare_structure()`` in r5r 2.5.0. Difference: a dict of pandas
+    DataFrames instead of a list of ``data.table``s.
 
     Examples
     --------
     >>> import os, tempfile, peabiru
-    >>> network = peabiru.build_network(peabiru.sample_data_path())
+    >>> network = peabiru.build_network(peabiru.sample_data_path(), n_threads=2)
     >>> path = os.path.join(tempfile.mkdtemp(), "fares.zip")
     >>> _ = peabiru.write_fare_structure(peabiru.setup_fare_structure(network, 4.4), path)
     >>> peabiru.read_fare_structure(path)["transfer_time_allowance"]
@@ -385,35 +420,50 @@ def pareto_frontier(
 ) -> pd.DataFrame:
     """Travel time and monetary cost Pareto frontier.
 
-    As r5r's ``pareto_frontier()``: for every value of ``fare_cutoffs``, in
-    the order given, the travel times of R5's fare router (McRAPTOR over
-    ``time_window`` sampled departure times) when no trip may cost more
-    than the cutoff; a destination and percentile gets a row at each cutoff
-    where its travel time changes and is below ``max_trip_duration``.
-    ``monetary_cost`` is the cutoff as R5 reads it, a Java float (4.8 is
-    4.800000190734863), as r5r reports it.
+    For every value of ``fare_cutoffs``, in the order given, the travel
+    times of R5's fare router (McRAPTOR over ``time_window`` sampled
+    departure times) when no trip may cost more than the cutoff; a
+    destination and percentile gets a row at each cutoff where its travel
+    time changes and is below ``max_trip_duration``. ``monetary_cost`` is
+    the cutoff as R5 reads it, a Java float (4.8 is 4.800000190734863).
 
     Parameters
     ----------
     r5r_network, origins, destinations, mode, mode_egress, departure_datetime, time_window, seed, percentiles, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, verbose, progress
-        As in :func:`peabiru.travel_time_matrix`.
+        As in [`travel_time_matrix()`][peabiru.travel_time_matrix].
     fare_structure : dict
-        A fare structure (see :func:`setup_fare_structure`); required.
+        A fare structure (see
+        [`setup_fare_structure()`][peabiru.setup_fare_structure]); required.
     fare_cutoffs : sequence of float
         The fare cutoffs, at least 0 and unique; required.
     output_dir : None
-        Not supported (an error unless ``None``).
+        Must be ``None``: writing the frontier to files raises
+        [`UnsupportedError`][peabiru.UnsupportedError].
 
     Returns
     -------
     pandas.DataFrame
-        ``from_id``, ``to_id``, ``percentile``, ``travel_time`` and
-        ``monetary_cost``.
+        ``from_id``, ``to_id`` (strings, object dtype), ``percentile``
+        (``int32``), ``travel_time`` (``Int32``, minutes) and
+        ``monetary_cost`` (``float64``).
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments (names, order and defaults),
+    their checks and messages, the rows, their order, the columns and the
+    values are those of ``pareto_frontier()`` in r5r 2.5.0 (R5 7.6's
+    McRAPTOR, ported from Conveyal's R5, and r5r's Java fare calculator,
+    translated). Differences: no
+    ``r5r_core`` argument; ``fare_structure`` and ``fare_cutoffs`` have a
+    default of ``None`` because Python cannot have required arguments after
+    optional ones (leaving them out is an error); a pandas DataFrame
+    instead of a ``data.table``; ``output_dir`` (r5r writes CSV files) is
+    refused. See [Coming from r5py / r5r](coming-from-r5.md).
 
     Examples
     --------
     >>> import datetime as dt, peabiru
-    >>> network = peabiru.build_network(peabiru.sample_data_path())
+    >>> network = peabiru.build_network(peabiru.sample_data_path(), n_threads=2)
     >>> points = peabiru.sample_points()
     >>> fares = peabiru.setup_fare_structure(network, base_fare=4.4)
     >>> pf = peabiru.pareto_frontier(

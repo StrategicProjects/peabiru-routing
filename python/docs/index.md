@@ -25,6 +25,11 @@ arguments. Coming from r5r or r5py? See
 | [`accessibility()`](accessibility.md) | cumulative or decay-weighted access to opportunities |
 | [`expanded_travel_time_matrix()`](expanded-arrival.md) | travel times minute by minute, with a breakdown of each trip |
 | [`arrival_travel_time_matrix()`](expanded-arrival.md#arrival-matrices) | the latest trip that arrives by a given time |
+| [`isochrone()`](example-isochrones.md) | the areas or street segments reached within each cutoff |
+| [`detailed_itineraries()`](itineraries.md) | the legs of each trip, with their lines |
+| [`setup_fare_structure()`](fares.md), [`pareto_frontier()`](fares.md#the-pareto-frontier) | transit fares, and the trade-off between travel time and fare |
+| [`find_snap()`](network-inspection.md), [`street_network_to_sf()`](network-inspection.md#streets), ... | where points snap, the streets, stops and routes of a network |
+| [`get_gtfs_errors()`](gtfs-errors.md) | the errors of the GTFS feeds |
 
 ## Install
 
@@ -159,12 +164,15 @@ print(access.head())
 4  89a8100c077ffff        jobs          50      15        13099.0
 ```
 
-## What is not supported yet
+## What peabiru refuses
 
-Anything peabiru does not implement yet is an error
-([`UnsupportedError`](reference.md#peabiru.UnsupportedError)), never
-silently ignored: R5's own fare calculators, and expanded or arrival matrices by a street mode alone. The full list is under
-[Not supported yet](coming-from-r5.md#not-supported-yet).
+A request peabiru cannot honour exactly is an error, never silently
+ignored: R5's own fare calculators, expanded or arrival matrices by a street
+mode alone and `pareto_frontier()` with `output_dir` raise
+[`UnsupportedError`](reference.md#peabiru.UnsupportedError); some elevation
+rasters, more than one `.pbf` file and a few itinerary pairs are errors too.
+The full list, with every other deliberate difference from r5r, is under
+[Coming from r5py / r5r](coming-from-r5.md#deliberate-differences).
 
 ## Sample data
 

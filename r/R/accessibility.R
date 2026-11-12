@@ -3,21 +3,40 @@
 #' Cumulative or decay-weighted access to the opportunities at the
 #' destinations from each origin, by one street mode (`"WALK"`, `"BICYCLE"`
 #' or `"CAR"`) or by public transport (see [travel_time_matrix()] for the
-#' modes). Arguments, defaults and the result are those of
-#' `r5r::accessibility()` (r5r 2.5.0); the values are bit-identical.
+#' modes). For each origin, the opportunities of every destination are
+#' summed, each weighted by the decay function of the travel time to it,
+#' for every percentile of the travel time over the departure window and
+#' every cutoff.
 #'
-#' As in r5r, with the `"step"` function trips longer than the largest
-#' cutoff are not considered (`max_trip_duration` becomes `max(cutoffs)`),
-#' while the other functions still weight them; and `max_trip_duration` may
-#' not be shorter than the largest cutoff.
+#' @section Decay functions:
+#' With `t` the travel time and `c` a cutoff:
+#' - `"step"`: weight 1 below the cutoff, 0 from it on (cumulative
+#'   opportunities). Trips longer than the largest cutoff are not routed
+#'   (`max_trip_duration` becomes `max(cutoffs)`).
+#' - `"exponential"`: `2^(-t / c)`, half the weight at the cutoff; 0 from
+#'   two hours on.
+#' - `"fixed_exponential"`: `exp(-decay_value * t)` with `t` in seconds,
+#'   without cutoffs; 0 from two hours on.
+#' - `"linear"`: 1 up to `decay_value / 2` minutes before the cutoff, 0 from
+#'   `decay_value / 2` minutes after it, falling linearly in between.
+#' - `"logistic"`: a logistic curve with its median at the cutoff and
+#'   standard deviation `decay_value` minutes, scaled to 1 at `t = 0`.
 #'
-#' With a `fare_structure` (see [setup_fare_structure()]), public transport
-#' is routed as r5r routes it then: with R5's multi-criteria router
-#' (McRAPTOR) over `time_window * draws_per_minute` departure times sampled
-#' in the window, keeping at each stop the fastest trip whose fare is within
-#' `max_fare`. As in r5r, combinations of `time_window` and
-#' `draws_per_minute` that R5's sampler cannot meet (exactly 200 draws, or
-#' too many draws for the window) are an error.
+#' The weights are those of R5, computed with the exponential of Apache
+#' Commons Math (`FastMath.exp()`) that R5 calls, so the sums are R5's to the
+#' last bit. Except with `"step"`, `max_trip_duration` may not be shorter
+#' than the largest cutoff.
+#'
+#' With a `fare_structure`, public transport is routed with fares as in
+#' [travel_time_matrix()] (see its section "Departures and Monte Carlo
+#' draws").
+#'
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks, the columns and the rows of the
+#' result are those of `r5r::accessibility()` in r5r 2.5.0, and the values
+#' are equal to the last bit (with frequencies, for the same `seed`); the
+#' result is a `data.frame` rather than a `data.table`. An empty
+#' `percentiles` is an error that says so (r5r fails on it in Java).
 #'
 #' @inheritParams travel_time_matrix
 #' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
@@ -41,6 +60,7 @@
 #'   (absent with `"fixed_exponential"`) and `accessibility`, one row per
 #'   origin, opportunity, percentile and cutoff, in that order. With
 #'   `output_dir`, `output_dir`.
+#' @family routing functions
 #' @export
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -91,9 +111,9 @@ accessibility <- function(r5r_network,
                           verbose = FALSE,
                           progress = TRUE,
                           output_dir = NULL,
-                          r5r_core) {
+                          r5r_core = deprecated()) {
   # mirrors r5r R/accessibility.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }

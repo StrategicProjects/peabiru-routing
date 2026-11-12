@@ -84,7 +84,7 @@ def detailed_itineraries(
     new_carspeeds: Optional[Any] = None,
     carspeed_scale: float = 1,
     new_lts: Optional[Any] = None,
-    n_threads: Optional[Number] = None,
+    n_threads: Optional[Number] = math.inf,
     verbose: bool = False,
     progress: bool = True,
     drop_geometry: bool = False,
@@ -95,20 +95,23 @@ def detailed_itineraries(
 
     The itinerary of each trip between pairs of origins and destinations:
     its legs (walking, cycling, driving and each ride), with their
-    duration, waiting time, distance, route and line. Arguments, defaults
-    and the result are those of ``r5r::detailed_itineraries()`` (r5r
-    2.5.0), with the same values: the direct trip by the street mode and,
-    with public transport, the fastest trip over the departure window
-    (``shortest_path=True``) or, with ``shortest_path=False``, the
+    duration, waiting time, distance, route and line. Each pair gets the
+    trip by the street mode alone and, with public transport, the fastest
+    trip over the departure window (``shortest_path=True``: only the
+    fastest of all is kept) or, with ``shortest_path=False``, the
     alternatives R5's multi-criteria router (McRAPTOR) finds, one per
-    sequence of routes; with a ``fare_structure``, the trips are routed
-    with fares and get ``total_fare`` and ``cumulative_fare`` columns.
+    sequence of routes (more of them with ``suboptimal_minutes``).
+    With a ``fare_structure``, the trips are routed with fares and get
+    ``total_fare`` and ``cumulative_fare`` columns (see [Fares](fares.md)).
 
-    As in r5r, networks
-    whose GTFS has frequency-based trips cannot be used with public
-    transport. With ``mode_egress="CAR"``, a pair whose itineraries in r5r
-    depend on the searches that ran before (R5 reverses the via edges of
-    some turn restrictions in place) is an error; see the guide.
+    Networks whose GTFS has frequency-based trips cannot be used with
+    public transport here. A pair whose itineraries peabiru cannot
+    reproduce exactly is an error naming the pair (a ``ValueError`` that
+    starts with ``not supported:``): with ``mode_egress="CAR"``, a car search
+    backwards through a turn restriction with two or more via ways whose
+    result depends on the searches that ran before (R5 reverses those via
+    edges in place), and a ride along a GTFS shape cut by
+    ``shape_dist_traveled``; see [Detailed itineraries](itineraries.md).
 
     Parameters
     ----------
@@ -123,7 +126,8 @@ def detailed_itineraries(
         As in [`travel_time_matrix()`][peabiru.travel_time_matrix].
     suboptimal_minutes : int, default 0
         With ``shortest_path=False``, how many minutes slower than the best
-        an alternative may be; must be 0 with ``shortest_path=True`` or a
+        a search branch may be and still be kept (more minutes, more
+        itineraries); must be 0 with ``shortest_path=True`` or a
         ``fare_structure``.
     shortest_path : bool, default True
         Whether to return only the fastest itinerary.
@@ -134,23 +138,27 @@ def detailed_itineraries(
     max_fare : float, default math.inf
         The highest fare of a trip; a finite value needs a ``fare_structure``.
     new_carspeeds, carspeed_scale, new_lts
-        Not supported yet (the defaults only).
+        Scenarios of car speeds and levels of traffic stress, as in
+        [`travel_time_matrix()`][peabiru.travel_time_matrix] (see
+        [Scenarios](scenarios.md)).
     drop_geometry : bool, default False
         Whether to return a ``pandas.DataFrame`` without the lines.
     osm_link_ids : bool, default False
-        Whether to add r5r's columns ``osm_id_list`` (the OpenStreetMap way
+        Whether to add the columns ``osm_id_list`` (the OpenStreetMap way
         ids of a street leg's edges), ``edge_id_list`` (the indices of the
-        street network's edges, as ``street_network_to_gdf()`` numbers
+        street network's edges, as
+        [`street_network_to_sf()`][peabiru.street_network_to_sf] numbers
         them), both as ``"[id1, id2, ...]"`` and ``"[]"`` for rides, and
         ``board_stop_id``, ``alight_stop_id`` (a ride's stops,
-        ``"<feed>:<stop_id>"``; empty for street legs). As in r5r,
-        consecutive edges on a roundabout give only their first ids, and
+        ``"<feed>:<stop_id>"``; empty for street legs). Consecutive edges on a roundabout give only their first ids, and
         connectors none. Needs ``drop_geometry=False``.
     output_dir : str or os.PathLike, optional
-        Write one CSV file per pair with itineraries,
-        ``from_<origin id>_to_<destination id>.csv``, byte for byte as r5r
-        does (the ``geometry`` column, unless ``drop_geometry``, as the WKT
-        text r5r writes), and return ``output_dir``.
+        An existing directory: instead of returning the result, write one
+        CSV file per pair with itineraries,
+        ``from_<origin id>_to_<destination id>.csv`` (the ``geometry``
+        column, unless ``drop_geometry``, as WKT text), and return
+        ``output_dir``. Pairs must then be unique, and ids cannot contain
+        characters that file names do not allow.
 
     Returns
     -------
@@ -161,7 +169,25 @@ def detailed_itineraries(
         (minutes), ``total_distance`` (metres), ``segment``, ``mode``,
         ``segment_duration``, ``wait`` (minutes), ``distance`` (metres),
         ``route`` and, unless ``drop_geometry``, ``geometry`` (shapely
-        ``LineString`` in EPSG:4326). Integer columns are ``int32``.
+        ``LineString`` in EPSG:4326); with a ``fare_structure``,
+        ``total_fare`` after ``total_distance`` and ``cumulative_fare``
+        after ``mode``; with ``osm_link_ids``, the four columns above at
+        the end, before ``geometry``. Integer columns are ``int32``; text
+        columns are of object dtype. With ``output_dir``, ``output_dir``
+        itself.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments (names, order and defaults),
+    their checks and messages, the rows, their order, the columns and the
+    values (coordinates included) are those of ``detailed_itineraries()``
+    in r5r 2.5.0, and the files written to ``output_dir`` are r5r's byte
+    for byte; the paths are R5 7.6's (ported from Conveyal's R5).
+    Differences: no ``r5r_core`` argument; a GeoDataFrame (or, with
+    ``drop_geometry=True``, a DataFrame) instead of an ``sf`` data frame
+    (or ``data.table``); the pairs above that are an error, where r5r
+    returns an itinerary that depends on what ran before or on paths not
+    reproduced. See [Coming from r5py / r5r](coming-from-r5.md).
 
     Examples
     --------

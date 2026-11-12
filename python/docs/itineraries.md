@@ -69,13 +69,125 @@ As in r5r:
 - a walk between stops is routed again on the streets for its line and
   distance; its duration is the one public transport routing used.
 
-With `shortest_path=False` the result lists the alternatives R5's
-McRAPTOR finds, one per sequence of routes, up to `suboptimal_minutes`
-slower than the best; with a fare structure, each with its fares (see
-[Fares](fares.md)).
+## Alternatives
 
-As in r5r, a network whose GTFS has frequency-based
-trips cannot be used with public transport here.
+With `shortest_path=False`, each pair gets, besides the trip by the street
+mode alone, the alternatives R5's multi-criteria router (McRAPTOR) finds
+over the departure window, one per sequence of routes. `suboptimal_minutes`
+(which must be 0 with `shortest_path=True`) keeps search branches up to
+that many minutes slower than the best one, so higher values return more
+itineraries. The options are numbered by `option`:
+
+```python
+def alternatives(minutes):
+    return peabiru.detailed_itineraries(
+        network, points.iloc[[1]], points.iloc[[4]],
+        mode=["WALK", "TRANSIT"],
+        departure_datetime=dt.datetime(2019, 5, 13, 14, 0),
+        shortest_path=False, suboptimal_minutes=minutes, drop_geometry=True,
+    )
+
+
+for minutes in [0, 1, 5]:
+    print(minutes, "minutes:", alternatives(minutes)["option"].nunique(), "options")
+print(alternatives(0)[["option", "departure_time", "total_duration", "segment", "mode",
+                       "segment_duration", "wait", "route"]].to_string())
+```
+
+```text
+0 minutes: 7 options
+1 minutes: 10 options
+5 minutes: 19 options
+    option departure_time  total_duration  segment  mode  segment_duration  wait route
+0        1       14:00:00            23.4        1  WALK              23.4   0.0      
+1        2       14:04:18            10.8        1  WALK               3.6   0.0      
+2        2       14:04:18            10.8        2   BUS               3.6   1.1   255
+3        2       14:04:18            10.8        3  WALK               2.6   0.0      
+4        3       14:05:51            11.0        1  WALK               3.6   0.0      
+5        3       14:05:51            11.0        2   BUS               4.0   1.6  2441
+6        3       14:05:51            11.0        3  WALK               1.9   0.0      
+7        4       14:02:02            12.0        1  WALK               3.6   0.0      
+8        4       14:02:02            12.0        2   BUS               4.0   1.9   346
+9        4       14:02:02            12.0        3  WALK               2.6   0.0      
+10       5       14:09:26            12.2        1  WALK               3.6   0.0      
+11       5       14:09:26            12.2        2   BUS               4.3   2.7  2821
+12       5       14:09:26            12.2        3  WALK               1.6   0.0      
+13       6       14:00:43            13.1        1  WALK               3.6   0.0      
+14       6       14:00:43            13.1        2   BUS               3.5   1.2   397
+15       6       14:00:43            13.1        3  WALK               4.8   0.0      
+16       7       14:06:46            13.5        1  WALK               3.6   0.0      
+17       7       14:06:46            13.5        2   BUS               3.4   2.2   525
+18       7       14:06:46            13.5        3  WALK               4.2   0.0
+```
+
+With a fare structure, the alternatives come with the fare of each trip
+(`total_fare`) and the fare paid by the end of each leg
+(`cumulative_fare`); see [Fares](fares.md#alternative-itineraries-and-their-fares).
+
+## Pairs
+
+Origins and destinations are paired row by row, and a single origin or
+destination is repeated to match the other, with a warning; with
+`all_to_all=True` every origin is routed to every destination. The street
+examples below use the sample network of Sao Paulo, which is quicker to
+build:
+
+```python
+import warnings
+
+spo = peabiru.build_network(peabiru.sample_data_path(), n_threads=2)
+spo_points = peabiru.sample_points()
+pairs = peabiru.detailed_itineraries(
+    spo, spo_points.iloc[:3], spo_points.iloc[3:6], mode="WALK",
+    drop_geometry=True, n_threads=2,
+)
+every = peabiru.detailed_itineraries(
+    spo, spo_points.iloc[:3], spo_points.iloc[3:6], mode="WALK",
+    all_to_all=True, drop_geometry=True, n_threads=2,
+)
+with warnings.catch_warnings(record=True) as caught:
+    warnings.simplefilter("always")
+    one = peabiru.detailed_itineraries(
+        spo, spo_points.iloc[:1], spo_points.iloc[3:6], mode="WALK",
+        drop_geometry=True, n_threads=2,
+    )
+def n_pairs(trips):
+    return len(trips[["from_id", "to_id"]].drop_duplicates())
+
+
+print(n_pairs(pairs), "pairs;", n_pairs(every), "with all_to_all;", n_pairs(one), "from one origin")
+print(caught[0].message)
+```
+
+```text
+3 pairs; 9 with all_to_all; 3 from one origin
+'origins' was expanded to match the number of destinations.
+```
+
+## The streets of each leg
+
+With `osm_link_ids=True` (which needs the geometry, so not with
+`drop_geometry=True`), each street leg also lists the OpenStreetMap ways
+(`osm_id_list`) and the edges of the street network (`edge_id_list`, as
+[`street_network_to_sf()`][peabiru.street_network_to_sf] numbers them) it
+goes along, and each ride its board and alight stops (`board_stop_id`,
+`alight_stop_id`, as `"<feed>:<stop_id>"`). Consecutive edges on a
+roundabout give only their first ids, and connectors none, as in r5r:
+
+```python
+bike = peabiru.detailed_itineraries(
+    spo, spo_points.iloc[[0]], spo_points.iloc[[5]], mode="BICYCLE",
+    osm_link_ids=True, n_threads=2,
+)
+print(bike[["mode", "distance", "osm_id_list"]].to_string())
+```
+
+```text
+      mode  distance                                                                                                                                                                                                     osm_id_list
+0  BICYCLE      1268  [424630871, 424630809, 8579169, 779662527, 16975352, 565942870, 565942869, 211060855, 841434976, 231281385, 231281386, 153916352, 153916347, 153916351, 153878962, 436639672, 431397815, 431397814, 368723480]
+```
+
+## Car egress and turn restrictions
 
 With `mode_egress="CAR"`, R5 reverses the via edges of turn restrictions
 with two or more via ways in place each time its backward egress search
@@ -84,4 +196,11 @@ restriction can depend on the searches that ran before (in the same call,
 on other threads, or in earlier calls). peabiru plans such a pair for every
 order those via edges can be in: when the itineraries are the same in all
 of them, they are returned (they are r5r's whatever ran before); otherwise
-the call raises an error naming the pair.
+the call raises a `ValueError` that starts with `not supported:` and names
+the pair.
+
+The other pair peabiru refuses is one with a ride along a GTFS shape cut by
+`shape_dist_traveled`, whose line it does not reproduce. Networks whose
+GTFS has frequency-based trips cannot be used with public transport here,
+as in r5r: convert the frequencies to stop times first (with gtfstools'
+`frequencies_to_stop_times()` in R, for instance).

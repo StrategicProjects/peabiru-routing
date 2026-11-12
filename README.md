@@ -19,11 +19,12 @@
 </p>
 
 A multimodal routing engine written in Rust, for R, Python, JavaScript, Rust
-and the shell. It builds a network in memory from an OpenStreetMap extract and GTFS
-feeds and computes travel-time matrices and accessibility by walking,
-cycling, driving and public transport. It needs no Java runtime, keeps
-nothing on disk, and the network is built once and shared by every query
-and thread.
+and the shell. It builds a network in memory from an OpenStreetMap extract,
+GTFS feeds and, optionally, an elevation raster, and computes travel-time
+matrices, accessibility, isochrones, detailed itineraries and fares by
+walking, cycling, driving and public transport. It needs no Java runtime,
+keeps nothing on disk, and the network is built once and shared by every
+query and thread.
 
 | Package | For | Directory | Registry |
 |---|---|---|---|
@@ -55,21 +56,31 @@ crossed South America from the Atlantic to the Andes.
 - **Arrival-time matrices**: the latest trips that arrive by a given time.
 - **Isochrones**: the area reached within each cutoff, as polygons traced
   from a travel-time surface or as the street segments reached.
+- **Detailed itineraries**: the legs of the fastest trip, or of the
+  alternatives (`shortest_path = FALSE`), with their lines, durations,
+  waits, distances and routes.
+- **Fares**: fare structures (`setup_fare_structure()`,
+  `read_fare_structure()`, `write_fare_structure()`) in the matrices,
+  accessibility and itineraries, travel times within a budget
+  (`max_fare`), and the trade-off between time and money
+  (`pareto_frontier()`).
 
 Public transport can be any subset of the transit modes (`"BUS"`,
 `"RAIL"`, ...), reached by walking, bicycle or car and left the same ways.
+Walking and cycling times can follow the slope of the streets, from an
+elevation raster (Tobler or Minetti). Scenarios change the car speeds
+(`new_carspeeds`, `carspeed_scale`) and the cyclists' levels of traffic
+stress (`new_lts`) for one call, without rebuilding the network. The
+network can be inspected: where points snap to the streets, its bounding
+box, its streets, stops and routes, the dates with service, and the GTFS
+errors of each feed; feeds with errors of priority `HIGH` are refused, as
+in r5r. Results can be written to CSV files, one per origin
+(`output_dir`, in R and Python).
 
-Detailed itineraries give the legs of the fastest trip, or of the
-alternatives (`shortest_path = FALSE`), with their lines. Fares follow r5r's
-fare structures (`setup_fare_structure()`, `read_fare_structure()`,
-`write_fare_structure()`) in the matrices, accessibility, itineraries and
-`pareto_frontier()`.
+R5's own fare calculators (a fare structure with a `type`) are not ported.
+Asking for them is an error; nothing is silently ignored.
 
-Not implemented yet: R5's own fare calculators (a fare structure with a
-`type`). Asking for them is an error; nothing is silently ignored.
-
-**Status:** version 0.0.1, early development. The interfaces may still
-change.
+**Status:** early development. The interfaces may still change.
 
 ## How it works
 
@@ -182,9 +193,18 @@ Python packages. More in the README of each package ([R](r/README.md),
 [Rust](crates/peabiru-core/README.md)) and in the documentation sites, built
 by [`site/build.sh`](site/README.md).
 
-## Installing from source
+## Installing
 
-Nothing is published yet. From a clone, with Rust (rustc 1.81 or later):
+The Python, JavaScript and Rust packages are on their registries:
+
+```sh
+pip install peabiru
+npm install peabiru
+cargo add peabiru-core
+```
+
+The R package is not on CRAN yet. From a clone, with Rust (rustc 1.81 or
+later):
 
 ```sh
 R CMD INSTALL r                                     # R package
@@ -195,10 +215,13 @@ cargo build --release -p peabiru-cli                # command-line tool
 
 ## Compatibility with r5r
 
-The functions of the R and Python packages have the names, arguments and
-defaults of [r5r](https://github.com/ipea/r5r) 2.5.0 (in camelCase in the
-JavaScript package), so code written for
-r5r needs few changes, and they return the same values: the engine is a port
+The R package exports every one of the 22 functions of
+[r5r](https://github.com/ipea/r5r) 2.5.0, with their names, arguments and
+defaults; the ones that only manage r5r's Java side (`setup_r5()`,
+`stop_r5()`, `download_r5()`, `r5r_cache()`, `r5r_sitrep()`) are kept so that
+scripts written for r5r run unchanged. The Python package has the same
+routing and network functions, and so has the JavaScript package (in
+camelCase, without `output_dir`). They return the same values as r5r: the engine is a port
 of Conveyal's [R5](https://github.com/conveyal/r5) 7.6, the engine r5r
 drives. [`bench/`](bench) runs the same requests on both and compares the
 outputs pair by pair on r5r's sample networks of Porto Alegre and São Paulo;
@@ -245,8 +268,11 @@ peabiru is distributed under the MIT licence ([`LICENSE-MIT`](LICENSE-MIT)).
 To cite it, see [`CITATION.cff`](CITATION.cff).
 
 Its routing logic is ported from R5 (MIT, © Conveyal) and its interface comes
-from r5r, developed at Ipea. Two source files are translations of parts of
-Apache Commons Math 3 (Apache-2.0). The notices and licence texts of these
+from r5r, developed at Ipea; the fare calculator, the fare structure and the
+multi-criteria branch of the trip planner are translations of r5r's Java
+code (MIT). Polygon isochrones port the algorithm of isoband (MIT), and
+parts of Apache Commons Math 3 (Apache-2.0) and fdlibm 5.3 are translated
+so that the numbers are R5's. The notices and licence texts of these
 works are in [`LICENSE-THIRD-PARTY`](LICENSE-THIRD-PARTY), which is
 distributed with every package. The sample network in the R and Python
 packages contains map data © OpenStreetMap contributors, under the

@@ -1,37 +1,42 @@
 ---
 title: "Coming from r5r"
+description: >
+  What is the same as in r5r 2.5.0, and every difference: what peabiru
+  does without Java, where its results do not depend on the machine, the
+  warnings and errors it adds, and the few inputs it refuses.
 ---
 
 ```{r setup, include = FALSE}
 source("setup.R")
 ```
 
-peabiru is meant as a drop-in for the routing functions of r5r 2.5.0. This
-page lists what is the same, what is different on purpose, and what is not
-there yet.
+peabiru is a drop-in for r5r 2.5.0: it exports the same 22 functions, and a
+script written for r5r runs unchanged once the package is swapped. This
+page lists what is the same and every difference, on purpose, between the
+two. The same list, in the terms of each language, is on the Python and
+JavaScript sites.
 
 ## The same
 
-- **Function names, arguments and defaults** of `build_network()`,
-  `travel_time_matrix()`, `accessibility()`, `expanded_travel_time_matrix()`
-  and `arrival_travel_time_matrix()`. The first argument is still called
-  `r5r_network`; the older name `r5r_core`, deprecated in r5r 2.3.0, is
-  still accepted with a warning, as r5r does.
-- **Argument checks** follow r5r's, in the same order and with the same
-  bounds and conversions (a factor `mode`, a POSIXlt `arrival_datetime`), so
-  an argument r5r rejects is rejected here too. The messages say the same
-  thing but are not word for word r5r's (which come from cli and checkmate).
-  A few calls that r5r accepts are errors here; they are listed
-  [below](#differences).
-- **Results**: the same rows, in the same order, with the same column names,
-  types and values. For a frequency-based feed this needs the same `seed`
-  (without one, both packages draw from the clock and every run differs).
+- **Function names, arguments, their order and defaults.** The 22 functions
+  r5r 2.5.0 exports have r5r's formals, down to the defaults as expressions
+  (`r5r_core = deprecated()`); the one addition is `n_threads` in
+  `build_network()`. A test of the package compares them with a snapshot of
+  r5r's, so they cannot drift.
+- **Argument checks** follow r5r's, in the same order, with the same bounds
+  and conversions (a factor `mode`, a POSIXlt `arrival_datetime`) and the
+  same messages, word for word (r5r's come from 'checkmate' and 'cli';
+  peabiru has ported them without the dependencies).
+  `bench/compare/error_parity.R` in the repository calls every function
+  with invalid values of every argument in both packages and compares the
+  errors.
+- **Results**: the same rows, in the same order, with the same column
+  names, types and values. For a frequency-based feed this needs the same
+  `seed` (without one, both packages draw from the clock and every run
+  differs).
 
-A call written for r5r runs unchanged once the package is swapped, as long as
-it passes a network built by `peabiru::build_network()`, uses only what is
-supported, and does not rely on the result being a `data.table`. Here both
-packages compute the same matrix on the sample network, and the results are
-compared with `identical()`:
+Here both packages compute the same matrix on the sample network, and the
+results are compared with `identical()`:
 
 ```{r, include = FALSE}
 # r5r needs a JDK 21; site/build.sh points JAVA_HOME to one when it can.
@@ -69,131 +74,219 @@ cat("*(This chunk was not run when the page was built: it needs r5r and a JDK 21
 fig("parity.svg")
 ```
 
-The `identical()` comparison above is how parity is tested:
-`bench/compare/r_parity.R` in the repository runs dozens of such comparisons
-on r5r's Porto Alegre and São Paulo samples (street and transit matrices,
-accessibility, expanded and arrival matrices, edge cases) and fails on any
+The `identical()` comparison above is how parity is tested: the package's
+tests and the scripts in `bench/compare/` in the repository run hundreds of
+such comparisons on r5r's Porto Alegre and São Paulo samples (matrices,
+accessibility, expanded and arrival matrices, isochrones, itineraries,
+fares, elevation, scenarios, network exports, edge cases) and fail on any
 difference.
 
-"The same results" is meant literally: every travel time, every accessibility
-value (as a double, to the last bit) and every row of the expanded and arrival
-matrices, in the same order. The comparisons run on r5r's two sample cities,
-Porto Alegre (timetables) and São Paulo (frequencies), with parameters chosen
-to exercise the edge cases: short time windows, walking limits, every
-percentile and decay function, origins that cannot be linked, trips across
-midnight. The scripts are in `bench/compare/` in the repository.
+"The same results" is meant literally: every travel time, every
+accessibility value (as a double, to the last bit), every row of the
+expanded and arrival matrices and of the itineraries, every vertex of the
+isochrones, in the same order. This works because the engine is a port of
+R5 7.6, the engine r5r drives, and follows its rules down to details that
+only matter on ties: the order in which ways, feeds and stops are read,
+which of two equal paths is kept, how lengths and speeds are rounded, the
+random number generator behind the Monte Carlo draws (a Mersenne Twister
+seeded from `seed` and the origin's coordinates, as in R5), and the
+exponential of the decay functions (Apache Commons Math's `FastMath.exp`,
+which R5 calls, instead of the C library's). Limits are R5's too, such as
+the 5,000 destinations accepted by the expanded and arrival matrices.
 
-This works because the engine is a port of R5 7.6, the engine r5r drives, and
-follows its rules down to details that only matter on ties: the order in
-which ways, feeds and stops are read, which of two equal paths is kept, how
-lengths and speeds are rounded, the random number generator behind the
-Monte Carlo draws (a Mersenne Twister seeded from `seed` and the origin's
-coordinates, as in R5), and the exponential of the decay functions
-(Apache Commons Math's `FastMath.exp`, which R5 calls, instead of the C
-library's). Limits are R5's too, such as the 5,000 destinations accepted by
-the expanded and arrival matrices.
+Two things depend on the platform, in r5r as in peabiru, which follows the
+platform it runs on:
 
-Results can differ between machines when a network has more than one GTFS
-feed. R5 loads the feeds in the order in which the operating system lists the
-directory, and peabiru does the same; that order depends on the file system.
-On r5r's Porto Alegre sample (two feeds), r5r on macOS and r5r on Linux give
-the same travel-time matrices and accessibility, but 227 of the 605,460 rows
-of the expanded matrix differ: another stop or route, and a total time up to
-0.2 minutes apart. peabiru matches r5r row for row on each platform, so
-reference outputs are only valid for the machine that produced them.
+<!-- diff:platform-order -->
+- **The order of the GTFS feeds.** R5 loads the feeds in the order in which
+  the operating system lists the directory, and that order depends on the
+  file system. On r5r's Porto Alegre sample (two feeds), r5r on macOS and
+  r5r on Linux give the same travel-time matrices and accessibility, but
+  227 of the 605,460 rows of the expanded matrix differ (another stop or
+  route, a total time up to 0.2 minutes apart). peabiru matches r5r row for
+  row on each platform.
+- **The rings of isochrone polygons.** 'isoband', which r5r calls, walks a
+  C++ hash table whose order decides where each ring starts and in which
+  order the rings come; that order depends on the C++ library 'isoband'
+  was built with (libc++ on macOS, libstdc++ on Linux and Windows).
+  peabiru reproduces both.
 
-## Different on purpose
+## Differences
 
-- **No Java.** There is no JVM to start, no `java.parameters` to set and no R5
-  jar to download. r5r's housekeeping functions are there so that scripts run:
-  `setup_r5()` warns and calls `build_network()`, `stop_r5()` removes the
-  networks and frees their memory, `download_r5()` and `r5r_cache()` say there
-  is nothing to download or cache, and `r5r_sitrep()` reports peabiru's
-  versions.
+Everything below is deliberate. Nothing that r5r accepts is silently
+ignored or computed differently: where peabiru cannot give r5r's result,
+it stops with an error that says so.
+
+### General
+
+<!-- diff:no-java -->
+- **No Java.** There is no JVM to start, no `java.parameters` to set and no
+  R5 jar to download. r5r's functions for Java are kept so that scripts
+  run: `setup_r5()` warns (r5r's deprecation warning) and calls
+  `build_network()`; `stop_r5()` removes the given networks (or every
+  network in the calling environment) and runs R's garbage collector, with
+  r5r's messages; `download_r5()` downloads nothing and returns `NULL`
+  invisibly (r5r returns the path of the jar); `r5r_cache()` lists and
+  deletes nothing; `r5r_sitrep()` returns `peabiru_package_version`,
+  `core_version`, `r5_version`, `r5r_version`, `r_version` and `platform`
+  (r5r's has `r5r_package_version`, `r5_jar_version`, `java_version`,
+  `set_memory` and `session_info`).
+
+<!-- diff:result-type -->
+- **Results are `data.frame`s**, not `data.table`s (also the tables inside
+  a fare structure, and the `edges` and `routes` of
+  `street_network_to_sf()` and `transit_network_to_sf()`), so the package
+  imports nothing. `data.table::setDT()` converts them if you prefer. The
+  columns, their order and types and the values are r5r's.
+
+<!-- diff:network-in-memory -->
+- **The network lives in memory only.** Nothing is written to the data
+  directory (no `network.dat`, no `gtfs_errors.csv`), and the network
+  object cannot be saved with `saveRDS()`: build it again in a new
+  session, which is quick. `overwrite` and `temp_dir` are checked as r5r
+  checks them and have no effect. A network built by `r5r::build_network()`
+  is not accepted: build it with `peabiru::build_network()`.
+
+<!-- diff:n-threads-build -->
+- **`build_network()` has `n_threads`**, the threads used to read the
+  `.pbf` file.
+
+<!-- diff:verbose-progress -->
+- **`verbose` and `progress` are checked but print no progress counter**;
+  `verbose = TRUE` in `build_network()` reports the build in messages.
+
+<!-- diff:error-classes -->
+- **Errors**: where the network's class is named, it is `peabiru_network`;
+  r5r's errors from 'cli' are 'rlang' conditions, and peabiru's are plain
+  errors with the same text.
+
+<!-- diff:deprecated-args -->
+- **Deprecated arguments** (`r5r_core` everywhere, `sample_size` in
+  `isochrone()`) are accepted with r5r's warnings, as in r5r.
+
+### Where peabiru's result does not depend on the run or the machine
+
+<!-- diff:gtfs-errors-order -->
 - **`get_gtfs_errors()` reads the feeds again** (r5r reads the
   `gtfs_errors.csv` its `build_network()` wrote) and lists the rows feed by
   feed in the order gtfs-lib finds them; r5r's order is that of a Java
-  `HashSet` and changes from run to run.
-- **Results are `data.frame`s**, not `data.table`s, so the package imports
-  nothing. `data.table::setDT()` converts them if you prefer.
-- **The network lives in memory only.** Nothing is written to the data
-  directory (no `network.dat`), and the network object cannot be saved with
-  `saveRDS()`: build it again in a new session, which is quick.
-  `overwrite` and `temp_dir` are accepted and have no effect.
-- **`build_network()` has `n_threads`**, used to read the `.pbf` file.
-- **Where r5r's result depends on the machine, peabiru's does not.** In an
-  elevation raster that is not in EPSG:4326, r5r reads one pixel or the other
-  for a street point within nanometres of a pixel boundary, depending on the
-  last bits of the JVM's sines and cosines; peabiru reads the one Java's
-  `StrictMath` gives, on every machine, and warns with the number of such
-  points. Voids and values beyond +/-3276.7 m, which r5r stores wrapped
-  around in silence, are stored the same way, with a warning.
-- **`verbose` and `progress` are checked but print nothing.**
-- **Argument errors have r5r's messages**, word for word (checkmate's and
-  cli's, without depending on either; `bench/compare/error_parity.R` checks
-  them against r5r). They differ where peabiru's network class is named
-  (`peabiru_network`), where r5r's errors from cli are `rlang` conditions
-  (peabiru's are plain errors with the same text), and where r5r lets a value
-  through and then fails in Java or with an internal R error (an empty
-  `percentiles`, a missing destination id, an `arrival_datetime` that is not
-  a date-time, a `polygon_output` of `NA`): peabiru stops with an error of its
-  own that says what is wrong.
+  `HashSet` and changes from run to run. The rows and columns are the same.
 
-```{r}
-network
-```
+<!-- diff:elevation-strictmath -->
+- **Elevation in projected rasters.** In an elevation raster that is not in
+  EPSG:4326, r5r reads one pixel or the other for a street point within
+  nanometres (5e-8 m, or 2e-13 degrees) of a pixel boundary or of the
+  raster's edge, depending on the last bits of the JVM's sines and cosines;
+  peabiru reads the one Java's `StrictMath` gives, on every machine, and
+  warns once with the number of such points.
 
-## Not supported yet {#differences}
+<!-- diff:street-expanded -->
+- **Expanded and arrival matrices with a street mode alone.** r5r accepts
+  them, but then reports the same trip for every minute of a departure
+  time taken from the computer's clock (`Sys.time()`), not from
+  `departure_datetime`. peabiru stops with an error; use
+  `travel_time_matrix()` for street modes.
 
-Anything below stops with an error that says so; nothing is silently ignored.
-These are the calls that r5r accepts and peabiru does not, except the last
-row, which goes the other way.
+Without a `seed`, frequency-based feeds give different results on every run
+in both packages; with the same `seed` they give the same.
 
-| r5r feature | In peabiru |
-|---|---|
-| R5's own fare calculators (a `fare_structure` with a `type`) | error |
-| Scenarios whose car speeds R5 keeps as 16-bit cm/s that wrap around or reach 0 or less (a negative factor or speed in `new_carspeeds`, a `scale` of `Inf` or 0 in its polygons, `carspeed_scale` far above 1); r5r then routes on the wrapped speeds, or fails dividing by zero | error |
-| `carspeed_scale` above the 32-bit float range (r5r hands R5 `Infinity`) | error |
-| `carspeed_scale` of `NA`, `NaN` or a length other than 1, which r5r's check lets through and then fails on with an internal R error | an error of peabiru's own that says so |
-| An elevation raster other than a one-band GeoTIFF, uncompressed or compressed with LZW, Deflate or PackBits, in EPSG:4326 or a system whose GeoTools transform peabiru reproduces (SIRGAS 2000, SAD69, Corrego Alegre and their UTM zones used in Brazil, SIRGAS 2000 / Brazil Polyconic, WGS 84 / UTM, Pseudo-Mercator); a `.prj` file next to it | error |
-| A street point that `StrictMath` puts on a projected raster's outer edge (inside its envelope, past the last pixel; r5r fails there too) | error |
-| An elevation raster named `.tiff`, or more than one raster in the data directory (r5r fails on the first and reads the last one listed of the second) | error |
-| More than one `.pbf` in the data directory | error |
-| Expanded and arrival matrices with a street mode alone | error |
-| A network built by `r5r::build_network()` | error (build it with `peabiru::build_network()`) |
-| `build_network()` writes the GTFS errors to `gtfs_errors.csv` in the data folder | nothing is written; as in r5r, feeds with errors of priority `"HIGH"` are refused, and `get_gtfs_errors()` checks the feeds again |
+### Warnings peabiru adds
+
+<!-- diff:elevation-wrapped -->
+- **Voids and out-of-range elevations.** R5 keeps elevations in decimetres
+  in 16-bit integers, so values beyond +/-3276.7 m wrap around: SRTM's
+  -32768 voids become 0 m, a no-data value of -9999 becomes 3108.2 m, a
+  `NaN` no-data value 0 m. peabiru stores them as r5r does, so the slope
+  costs are r5r's, and warns, counting them and the samples equal to the
+  raster's no-data value; r5r is silent.
+
+(The elevation warning above, about points on a pixel boundary, is
+peabiru's too.)
+
+### Errors where r5r fails later or routes on wrong values
+
+<!-- diff:errors-instead-of-failures -->
+- **Values r5r lets through and then fails on.** peabiru stops with an
+  error of its own that says what is wrong for: an empty `percentiles`
+  (r5r fails in Java, or in R for isochrones); a missing destination id
+  (a `NullPointerException` in Java); an `arrival_datetime` that is not a
+  date-time (an internal R error); in `isochrone()`, a `polygon_output` of
+  `NA` (r5r takes it as `FALSE` and fails), `origins` without rows (an
+  internal R error) and a fractional `zoom` (which r5r passes to R5); in
+  `find_snap()`, a `radius` of `NA` or of length 0 (r5r fails in Java); a
+  `carspeed_scale` of `NA`, `NaN` or of a length other than 1 (an internal
+  R error); in `write_fare_structure()`, something that is not a fare
+  structure, settings of the wrong length (r5r checks nothing there and
+  fails in `data.table::fwrite()`, or writes tables recycled to the wrong
+  length) and a `NULL` `file_path` (r5r fails in `zip::zip()`); in
+  `read_fare_structure()`, several files (r5r fails in `zip::unzip()`); a
+  fare structure whose fare type is missing from `fares_per_type`, or that
+  leaves out a route of the network (r5r fails in Java); in
+  `get_gtfs_errors()`, a folder that does not exist.
+
+<!-- diff:scenario-wrap -->
+- **Scenarios R5 would corrupt.** R5 keeps car speeds as 16-bit
+  centimetres per second. A scenario whose speeds would wrap around or
+  reach 0 or less (a negative factor or speed in `new_carspeeds`, a
+  polygon `scale` of `Inf` or 0, a `carspeed_scale` far above 1) and a
+  `carspeed_scale` beyond the 32-bit float range are errors; r5r routes on
+  the wrapped speeds, hands R5 `Infinity`, or fails dividing by zero.
+  Polygons that are not valid, and ties between polygons that cannot be
+  settled exactly as R5 settles them, are errors too.
+
+### What peabiru refuses
+
+These are the inputs r5r accepts and peabiru does not; each stops with an
+error that says so.
+
+<!-- diff:refuse-fare-calculators -->
+- **R5's own fare calculators** (a `fare_structure` with a `type`). The
+  fare structures of `setup_fare_structure()`, `read_fare_structure()` and
+  `write_fare_structure()` are r5r's, and so are the fares computed with
+  them.
+
+<!-- diff:refuse-elevation-formats -->
+- **Elevation rasters outside what is reproduced exactly**: anything but a
+  one-band GeoTIFF, north up, uncompressed or compressed with LZW, Deflate
+  or PackBits, in EPSG:4326 or a system whose GeoTools transform peabiru
+  reproduces (SIRGAS 2000, SAD69, Córrego Alegre and their UTM zones used
+  in Brazil, SIRGAS 2000 / Brazil Polyconic, WGS 84 / UTM, Pseudo-Mercator;
+  the list is in `?build_network`), given by its EPSG code; a `.prj` file
+  next to the raster; a raster named `.tiff` (r5r fails to read it); more
+  than one raster in the directory (r5r reads the last one listed); a
+  street point that `StrictMath` puts on a projected raster's outer edge
+  (r5r fails there too).
+
+<!-- diff:refuse-multiple-pbf -->
+- **More than one `.pbf` file** in the data directory.
+
+<!-- diff:refuse-pareto-output-dir -->
+- **`pareto_frontier()` with `output_dir`** (r5r writes the frontier to CSV
+  files).
+
+<!-- diff:refuse-itinerary-cases -->
+- **A few itineraries that depend on more than the pair.** In
+  `detailed_itineraries()` with `mode_egress = "CAR"`, R5 reverses the via
+  edges of turn restrictions with two or more via ways in place during its
+  egress search, so r5r's itineraries for a pair whose car searches cross
+  one can depend on the searches that ran before; peabiru returns such a
+  pair when its itineraries are the same in every order those edges can be
+  in, and otherwise stops with an error naming the pair. A ride along a
+  GTFS shape that the feed cuts by `shape_dist_traveled` is an error too
+  (its geometry is not reproduced yet).
 
 ```{r, error = TRUE}
-travel_time_matrix(network, points, points, mode = c("WALK", "BUS"),
-                   departure_datetime = departure)
+fares <- setup_fare_structure(network, base_fare = 4.4)
+fares$type <- "burlington"
+travel_time_matrix(network, points, points, mode = c("WALK", "TRANSIT"),
+                   departure_datetime = departure, fare_structure = fares)
 ```
 
-`isochrone()` returns r5r's polygons and lines, coordinate for coordinate.
-'isoband', which r5r calls, walks a C++ hash table whose order decides where
-each ring starts and in which order the rings come, and that order depends on
-the C++ library 'isoband' was built with: libc++ on macOS, libstdc++ on Linux
-and Windows. peabiru reproduces both and follows the platform it runs on, so
-its polygons equal r5r's on the same platform (from one platform to another,
-r5r's own polygons differ in that order and in the last bits of some
-latitudes).
+### Files
 
-`detailed_itineraries()` returns r5r's itineraries, the fastest trip
-(`shortest_path = TRUE`) and the alternatives (`shortest_path = FALSE`), with
-and without fares.
-
-Fares are r5r's: the fare structure functions (`setup_fare_structure()`,
-`read_fare_structure()`, `write_fare_structure()`, whose files each package
-reads from the other), `fare_structure` and `max_fare` in the routing
-functions, and `pareto_frontier()`. `write_fare_structure()` writes the same
-CSV files as r5r into an uncompressed `.zip`, so the archive's bytes differ
-from r5r's (which also holds the files' dates). r5r's `debug_path` and
-`debug_info` are kept in the structure, and, as in r5r 2.5.0, no debug file
-is written.
-
-## Expanded matrices with a street mode
-
-r5r accepts `expanded_travel_time_matrix()` with a street mode alone, but
-then reports the same trip for every minute of a departure time taken from
-the computer's clock (`Sys.time()`), not from `departure_datetime`. peabiru
-does not reproduce that and stops with an error; use `travel_time_matrix()`
-for street modes.
+<!-- diff:write-fare-zip -->
+- **`write_fare_structure()`** writes the same CSV files as r5r into an
+  uncompressed `.zip`, so the archive's bytes differ from r5r's (which also
+  holds the files' dates); each package reads the other's files. As in
+  r5r 2.5.0, `debug_path` and `debug_info` are kept in the structure and no
+  debug file is written.
