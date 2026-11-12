@@ -1,5 +1,8 @@
 //! Cancelling the long computations through their parameters' token.
 
+#[path = "../src/sample_data.rs"]
+mod sample_data;
+
 use peabiru_core::{
     arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix, street_accessibility,
     street_travel_time_matrix, transit_accessibility, transit_travel_time_matrix,
@@ -9,19 +12,18 @@ use peabiru_core::{
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
-const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
 struct Sample {
     net: Network,
     points: Vec<(f64, f64)>,
     jobs: Vec<Vec<f64>>,
 }
 
-fn sample() -> &'static Sample {
+fn sample() -> Option<&'static Sample> {
+    let spo = sample_data::spo()?;
     static SAMPLE: OnceLock<Sample> = OnceLock::new();
-    SAMPLE.get_or_init(|| {
-        let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
-        let text = std::fs::read_to_string(format!("{SPO}/spo_points.csv")).unwrap();
+    Some(SAMPLE.get_or_init(|| {
+        let net = build_from_dir(spo, &BuildOptions::default()).unwrap();
+        let text = std::fs::read_to_string(format!("{spo}/spo_points.csv")).unwrap();
         let (mut points, mut jobs) = (Vec::new(), Vec::new());
         for line in text.lines().skip(1) {
             let f: Vec<&str> = line.split(',').collect();
@@ -33,7 +35,7 @@ fn sample() -> &'static Sample {
             points,
             jobs: vec![jobs],
         }
-    })
+    }))
 }
 
 fn transit_params(time_window: i32, draws_per_minute: i32, cancel: &CancelToken) -> TransitParams {
@@ -54,8 +56,7 @@ type Call = Box<dyn Fn(&CancelToken) -> Result<(), RouteError>>;
 
 /// Every long computation, with `cancel` in its parameters, mapped to
 /// `Ok(())` or its error. `heavy` makes each take seconds.
-fn calls(heavy: bool) -> Vec<(&'static str, Call)> {
-    let s = sample();
+fn calls(s: &'static Sample, heavy: bool) -> Vec<(&'static str, Call)> {
     let (tw, dpm) = if heavy { (1440, 20) } else { (10, 1) };
     let reps = if heavy { 5000 } else { 1 };
     let many: Vec<(f64, f64)> = s.points.repeat(reps);
@@ -137,7 +138,10 @@ fn cancel_after(
 
 #[test]
 fn a_cancelled_token_stops_every_computation() {
-    for (name, f) in calls(false) {
+    let Some(s) = sample() else {
+        return;
+    };
+    for (name, f) in calls(s, false) {
         assert_eq!(f(&CancelToken::new()), Ok(()), "{name}");
         let cancelled = CancelToken::new();
         cancelled.cancel();
@@ -147,7 +151,10 @@ fn a_cancelled_token_stops_every_computation() {
 
 #[test]
 fn a_running_computation_stops_soon_after_the_cancel() {
-    for (name, f) in calls(true) {
+    let Some(s) = sample() else {
+        return;
+    };
+    for (name, f) in calls(s, true) {
         let (r, late) = cancel_after(Duration::from_millis(200), f);
         assert_eq!(r, Err(RouteError::Cancelled), "{name}");
         assert!(late < Duration::from_millis(500), "{name}: {late:?}");
@@ -157,7 +164,9 @@ fn a_running_computation_stops_soon_after_the_cancel() {
 /// One origin whose search alone takes seconds: the search itself checks.
 #[test]
 fn a_single_slow_origin_stops_soon_after_the_cancel() {
-    let s = sample();
+    let Some(s) = sample() else {
+        return;
+    };
     let one = &s.points[..1];
     let (r, late) = cancel_after(Duration::from_millis(200), |c| {
         let p = transit_params(1440, 100, c);
@@ -175,7 +184,9 @@ fn a_single_slow_origin_stops_soon_after_the_cancel() {
 
 #[test]
 fn invalid_parameters_are_not_a_cancellation() {
-    let s = sample();
+    let Some(s) = sample() else {
+        return;
+    };
     let mut p = TransitParams::default();
     p.date = 20190230;
     let e = transit_travel_time_matrix(&s.net, &s.points, &s.points, &p).unwrap_err();

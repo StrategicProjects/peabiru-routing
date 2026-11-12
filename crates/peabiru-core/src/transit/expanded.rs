@@ -351,7 +351,7 @@ impl<'a> Context<'a> {
         let active = layer.active_services(p.date, weekday(p.date));
         let filtered =
             Filtered::new(layer, &active, &p.transit_modes).map_err(RouteError::Invalid)?;
-        let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
+        let walk_speed = (p.walk_speed * 5.0 / 18.0) as f32;
         let walk_mms = (walk_speed * 1000.0f32) as i32;
         let link = |mode| {
             link_points(
@@ -389,16 +389,13 @@ impl<'a> Context<'a> {
             )
         }
         .ok_or(RouteError::Cancelled)?;
-        let dest_splits = if p.access_mode == p.egress_mode {
+        let dest_splits = if p.mode == p.egress_mode {
             egress_splits
         } else {
-            link(p.access_mode)?
+            link(p.mode)?
         };
-        let scen = crate::street::scenario::scenario_network(
-            net,
-            &p.scenario,
-            p.access_mode == Mode::Car,
-        )?;
+        let scen =
+            crate::street::scenario::scenario_network(net, &p.scenario, p.mode == Mode::Car)?;
         let access = Access::new(scen.as_ref().unwrap_or(net), p);
         let seconds = egress_seconds(p);
         let mut retain = vec![false; layer.stop_ids.len()];

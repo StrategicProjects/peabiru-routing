@@ -36,14 +36,14 @@ p.date = 20190513;`):
 | `percentiles` | `[50]` | 1 to 5 values in 1..=99 |
 | `max_walk_time` | 120 | minutes, for each walk |
 | `max_trip_duration` | 120 | minutes |
-| `walk_speed_kmh` | 3.6 | |
+| `walk_speed` | 3.6 | |
 | `max_rides` | 3 | vehicles per trip |
 | `draws_per_minute` | 5 | Monte Carlo draws, frequency-based trips only |
 | `seed` | `None` | `Some(n)` makes the draws reproducible |
-| `access_mode` | `Mode::Walk` | street mode to public transport, and of the trip without it |
+| `mode` | `Mode::Walk` | street mode to public transport, and of the trip without it |
 | `egress_mode` | `Mode::Walk` | street mode from public transport to the destination |
 | `transit_modes` | all | the public transport modes to ride (`TransitMode::Bus`, `Rail`, `Subway`, ...) |
-| `bike_speed_kmh` | 12 | for bicycle access and egress |
+| `bike_speed` | 12 | for bicycle access and egress |
 | `max_lts` | 2 | highest level of traffic stress for bicycle access |
 | `max_bike_time`, `max_car_time` | 120 | minutes, for bicycle and car access and egress |
 | `fare_structure`, `max_fare` | `None`, infinity | see [Fares](fares.md) |

@@ -110,15 +110,15 @@ pub(crate) fn pareto_frontier(
             crate::transit::matrix::check_percentiles(&p.percentiles)
                 .map_err(RouteError::Invalid)?;
             let rp = RouteParams {
-                walk_speed_kmh: p.walk_speed_kmh,
-                bike_speed_kmh: p.bike_speed_kmh,
+                walk_speed: p.walk_speed,
+                bike_speed: p.bike_speed,
                 max_lts: p.max_lts,
-                max_trip_duration_min: p.max_trip_duration,
+                max_trip_duration: p.max_trip_duration,
                 n_threads: p.n_threads,
                 cancel: p.cancel.clone(),
                 ..RouteParams::default()
             };
-            let mode: Mode = p.access_mode;
+            let mode: Mode = p.mode;
             let m = crate::street::router::street_travel_time_matrix(
                 net,
                 origins,

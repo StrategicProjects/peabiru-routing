@@ -414,7 +414,7 @@ fn transit_params(
 ) -> TransitParams {
     let mut p = TransitParams::default();
     p.transit_modes = modes;
-    p.access_mode = access_mode;
+    p.mode = access_mode;
     p.egress_mode = egress_mode;
     p.date = date;
     p.departure_time = departure_time;
@@ -424,8 +424,8 @@ fn transit_params(
     p.max_bike_time = max_bike_time;
     p.max_car_time = max_car_time;
     p.max_trip_duration = max_trip_duration;
-    p.walk_speed_kmh = walk_speed;
-    p.bike_speed_kmh = bike_speed;
+    p.walk_speed = walk_speed;
+    p.bike_speed = bike_speed;
     p.max_lts = max_lts;
     p.max_rides = max_rides;
     p.draws_per_minute = draws_per_minute;
@@ -444,10 +444,10 @@ fn route_params(
     n_threads: usize,
 ) -> RouteParams {
     let mut p = RouteParams::default();
-    p.walk_speed_kmh = walk_speed;
-    p.bike_speed_kmh = bike_speed;
+    p.walk_speed = walk_speed;
+    p.bike_speed = bike_speed;
     p.max_lts = max_lts;
-    p.max_trip_duration_min = max_trip_duration;
+    p.max_trip_duration = max_trip_duration;
     p.n_threads = n_threads;
     p.cancel = CancelToken::new();
     p

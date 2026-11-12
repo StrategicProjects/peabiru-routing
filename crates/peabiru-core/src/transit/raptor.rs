@@ -40,7 +40,7 @@ pub enum TransitMode {
 impl TransitMode {
     /// Every mode, in R5's order: r5r's `"TRANSIT"`, the default of
     /// [`TransitParams::transit_modes`](crate::TransitParams::transit_modes).
-    pub const ALL: [TransitMode; 8] = [
+    pub const ALL: &'static [TransitMode] = &[
         TransitMode::Tram,
         TransitMode::Subway,
         TransitMode::Rail,
@@ -68,7 +68,7 @@ impl TransitMode {
     /// The mode r5r names `name` (upper case, as [`TransitMode::name`]
     /// gives it), or `None`.
     pub fn from_name(name: &str) -> Option<TransitMode> {
-        TransitMode::ALL.into_iter().find(|m| m.name() == name)
+        TransitMode::ALL.iter().copied().find(|m| m.name() == name)
     }
 }
 
@@ -1576,7 +1576,7 @@ mod tests {
         for bad in [8, 9, 10, 13, 99, 1500, 1600, -1] {
             assert_eq!(route_type_mode(bad), None, "{bad}");
         }
-        for m in TransitMode::ALL {
+        for &m in TransitMode::ALL {
             assert_eq!(TransitMode::from_name(m.name()), Some(m));
         }
         assert_eq!(TransitMode::from_name("TRANSIT"), None);
@@ -1610,7 +1610,7 @@ mod tests {
         // stops reached by a ride: 1 by bus (A), 3 by rail (B) after a
         // transfer to stop 2; the air route C is never ridden
         assert_eq!(
-            reached(&layer, &TransitMode::ALL),
+            reached(&layer, TransitMode::ALL),
             [false, true, false, true]
         );
         assert_eq!(
@@ -1665,7 +1665,7 @@ mod tests {
             has_frequencies: true,
             ..TransitLayer::default()
         };
-        let filtered = Filtered::new(&layer, &[true], &TransitMode::ALL).unwrap();
+        let filtered = Filtered::new(&layer, &[true], TransitMode::ALL).unwrap();
         let req = RaptorRequest {
             from_time: 0,
             time_window: 1,
@@ -1686,7 +1686,7 @@ mod tests {
     fn paths_follow_rides_and_transfers() {
         let layer = layer();
         let transfers = vec![vec![], vec![(2, 50_000)], vec![], vec![]];
-        let filtered = Filtered::new(&layer, &[true], &TransitMode::ALL).unwrap();
+        let filtered = Filtered::new(&layer, &[true], TransitMode::ALL).unwrap();
         let req = RaptorRequest {
             from_time: 0,
             time_window: 2,
@@ -1728,7 +1728,7 @@ mod tests {
     fn retained_stops_only() {
         let layer = layer();
         let transfers = vec![vec![], vec![(2, 50_000)], vec![], vec![]];
-        let filtered = Filtered::new(&layer, &[true], &TransitMode::ALL).unwrap();
+        let filtered = Filtered::new(&layer, &[true], TransitMode::ALL).unwrap();
         let req = RaptorRequest {
             from_time: 0,
             time_window: 1,
@@ -1776,7 +1776,7 @@ mod tests {
             has_schedules: true,
             ..TransitLayer::default()
         };
-        let filtered = Filtered::new(&layer, &[true], &TransitMode::ALL).unwrap();
+        let filtered = Filtered::new(&layer, &[true], TransitMode::ALL).unwrap();
         let req = RaptorRequest {
             from_time: 0,
             time_window: 1,
