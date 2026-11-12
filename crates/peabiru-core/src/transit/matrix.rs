@@ -1,5 +1,5 @@
-//! Public-transport travel-time matrices, as r5r's `travel_time_matrix()`
-//! with public transport in `mode`: access by the street mode (carried on
+//! Public-transport travel-time matrices (`travel_time_matrix()` with
+//! public transport in `mode`): access by the street mode (carried on
 //! on foot after a bicycle or car), RAPTOR over the departure window on the
 //! patterns of the chosen transit modes, egress by `mode_egress`,
 //! percentiles over the iterations (R5 `TravelTimeComputer`,
@@ -22,8 +22,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 /// Public transport routing parameters (modes, access, egress and transfers),
-/// with r5r's defaults but for the date and departure time, which have
-/// none. Fill it in by changing the fields of [`TransitParams::default()`]:
+/// with a default for everything but the date and departure time, which
+/// have none. Fill it in by changing the fields of [`TransitParams::default()`]:
 ///
 /// ```
 /// let mut p = peabiru_core::TransitParams::default();
@@ -37,7 +37,7 @@ use std::sync::Arc;
 pub struct TransitParams {
     /// Service date `yyyymmdd`; it must be a real calendar date. The
     /// default, 0, is a placeholder that [`TransitParams::validate`]
-    /// rejects: there is no default date, as r5r has no default departure.
+    /// rejects: there is no default date.
     pub date: u32,
     /// Departure, seconds after midnight of `date` (up to 7 days; the
     /// default 0 is midnight).
@@ -48,28 +48,28 @@ pub struct TransitParams {
     /// Travel-time percentiles: 1 to 5 values in 1..=99 (see
     /// [`validate_percentiles`]). Any order and repeats are accepted; the
     /// results list them in ascending order, a repeated value once per
-    /// occurrence. r5r sorts them and rejects repeats before calling R5,
-    /// which wants them ascending. The expanded and arrival matrices do not
+    /// occurrence (R5 wants them ascending, so they are sorted before the
+    /// search). The expanded and arrival matrices do not
     /// use them but check them all the same, so keep the default there.
     pub percentiles: Vec<i32>,
     /// Longest walk in minutes at each end of a trip and in each transfer
-    /// (default 120); r5r's `max_walk_time`, where its `Inf` is
-    /// `max_trip_duration`.
+    /// (default 120). The packages' `max_walk_time`, whose `Inf` is
+    /// `max_trip_duration` here.
     pub max_walk_time: i32,
     /// Trip limit in whole minutes (default 120).
     pub max_trip_duration: i32,
     /// Walking speed, km/h (default 3.6).
     pub walk_speed: f64,
     /// The street mode that reaches public transport, which is also the
-    /// mode of the trip without it: r5r's street mode next to the transit
-    /// modes in `mode` (default [`Mode::Walk`]). By bicycle or car the
+    /// mode of the trip without it: the street mode next to the transit
+    /// modes in the packages' `mode` (default [`Mode::Walk`]). By bicycle or car the
     /// search goes on on foot from wherever the vehicle got, within the
     /// same time limit, as R5 does (`keepRoutingOnFoot`), so that stops in
     /// pedestrian-only areas are reached too; the trip without public
     /// transport keeps those walking ends as well.
     pub mode: Mode,
-    /// The street mode from public transport to the destinations, r5r's
-    /// `mode_egress` (default [`Mode::Walk`]). By bicycle or car R5 links
+    /// The street mode from public transport to the destinations, the
+    /// packages' `mode_egress` (default [`Mode::Walk`]). By bicycle or car R5 links
     /// every stop again by that mode and searches up to 5 km by bicycle,
     /// or below 30 minutes by car, with its default request (any level of
     /// traffic stress); the egress then must stay below `max_bike_time` or
@@ -82,24 +82,24 @@ pub struct TransitParams {
     /// `egress_mode`).
     pub max_lts: i32,
     /// Longest bicycle access in minutes, the walk after it included, and
-    /// longest bicycle egress (default 120); r5r's `max_bike_time`, where
-    /// its `Inf` is `max_trip_duration`.
+    /// longest bicycle egress (default 120). The packages' `max_bike_time`,
+    /// whose `Inf` is `max_trip_duration` here.
     pub max_bike_time: i32,
     /// Longest car access in minutes, the walk after it included, and
-    /// longest car egress (default 120); r5r's `max_car_time`, where its
-    /// `Inf` is `max_trip_duration`.
+    /// longest car egress (default 120). The packages' `max_car_time`, whose
+    /// `Inf` is `max_trip_duration` here.
     pub max_car_time: i32,
     /// Most vehicles boarded in one trip (default 3).
     pub max_rides: usize,
-    /// The public transport modes to ride, r5r's transit modes in `mode`
-    /// (default: all of them, r5r's `"TRANSIT"`). Routes of other modes
+    /// The public transport modes to ride, the transit modes in the
+    /// packages' `mode` (default: all of them, `"TRANSIT"`). Routes of other modes
     /// are left out of the search; it must not be empty.
     pub transit_modes: Vec<TransitMode>,
     /// Monte Carlo draws per departure minute for frequency-based routes
     /// (default 5).
     pub draws_per_minute: i32,
-    /// Seed of the Monte Carlo draws, r5r's `seed`: with the same seed the
-    /// results are those of r5r with that seed. `None` (the default) seeds
+    /// Seed of the Monte Carlo draws: with the same seed the results are
+    /// the same, those of R5 seeded with it. `None` (the default) seeds
     /// from the clock, as R5 does, so frequency-based results vary from
     /// call to call (on WebAssembly, which has no clock, from a counter:
     /// they vary from call to call but repeat from one run of the program
@@ -112,29 +112,28 @@ pub struct TransitParams {
     /// clone of it (see [`CancelToken`]); the default is a fresh token,
     /// which nothing cancels unless a clone of it is kept.
     pub cancel: CancelToken,
-    /// r5r's `fare_structure` (default `None`): with one, public transport
-    /// is routed as r5r routes it then, with R5's multi-criteria router
+    /// The fare structure (default `None`): with one, public transport
+    /// is routed with R5's multi-criteria router
     /// (McRAPTOR) over `time_window x draws_per_minute` sampled departure
     /// times instead of RAPTOR at every minute, keeping per stop the
     /// fastest trip within `max_fare`. The structure must cover every
     /// route of the network ([`FareStructure::validate_for`]).
     pub fare_structure: Option<Arc<FareStructure>>,
-    /// r5r's `max_fare` (default infinity: no limit), in the currency of
+    /// The highest fare of a trip (default infinity: no limit), in the currency of
     /// the fare structure, read as a Java `float`; a finite value needs a
     /// `fare_structure`.
     pub max_fare: f64,
     /// Car speeds and levels of traffic stress changed for this call
-    /// (r5r's `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
+    /// (the packages' `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
     /// changes nothing. As in R5, it changes the street search from the
     /// origins (access and direct trips) but not the egress from the stops.
     pub scenario: crate::Scenario,
 }
 
 impl TransitParams {
-    /// Check the parameters before routing. The bounds are those of R5 and
-    /// r5r 2.5.0 (percentiles: `AnalysisWorkerTask.validatePercentiles`;
-    /// counts: r5r's `checkmate::assert_count(positive = TRUE)` and R5's
-    /// `int` fields; walk speed: at least 1 mm/s, as
+    /// Check the parameters before routing. The bounds are those of R5
+    /// (percentiles: `AnalysisWorkerTask.validatePercentiles`; counts:
+    /// positive, within R5's `int` fields; walk speed: at least 1 mm/s, as
     /// `TravelTimeComputer` requires), plus what keeps the arithmetic in
     /// R5's `int` seconds: minutes times 60 must fit, and so must the
     /// departure plus the window plus `max_trip_duration`, the latest clock
@@ -174,7 +173,7 @@ impl TransitParams {
             " minutes",
         )?;
         check("draws_per_minute", self.draws_per_minute.into(), 1, int_max)?;
-        // r5r hands R5 `as.integer(time_window * draws_per_minute)`
+        // R5 receives `time_window * draws_per_minute` as an `int`
         let draws = i64::from(self.time_window) * i64::from(self.draws_per_minute);
         if draws > int_max {
             return Err(format!(
@@ -183,8 +182,8 @@ impl TransitParams {
                 self.time_window, self.draws_per_minute
             ));
         }
-        // max_trip_duration first: r5r passes max_walk_time = Inf as
-        // max_trip_duration, so a value too large is reported under the
+        // max_trip_duration first: the packages pass max_walk_time = Inf
+        // as max_trip_duration, so a value too large is reported under the
         // name the user set
         let mins = " minutes";
         check_in(
@@ -233,7 +232,7 @@ impl TransitParams {
         )?;
         check_speed("walk_speed", self.walk_speed)?;
         check_speed("bike_speed", self.bike_speed)?;
-        // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
+        // 1 to 4 (R5 treats anything else as 4)
         if !(1..=4).contains(&self.max_lts) {
             return Err(format!(
                 "max_lts must be from 1 to 4 (the highest level of traffic stress), got {}",
@@ -248,8 +247,7 @@ impl TransitParams {
     }
 }
 
-/// r5r's `set_max_fare()`: a number >= 0, finite only with a fare
-/// structure.
+/// `max_fare` must be a number >= 0, finite only with a fare structure.
 pub(crate) fn check_max_fare(max_fare: f64, fares: bool) -> Result<(), String> {
     if max_fare.is_nan() || max_fare < 0.0 {
         return Err(format!("max_fare must be a number >= 0, got {max_fare}"));
@@ -263,8 +261,8 @@ pub(crate) fn check_max_fare(max_fare: f64, fares: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// r5r's `request.maxFare`: `Math.round(maxFare * 100.0f)` of the float
-/// r5r sets, `Integer.MAX_VALUE` for an infinite `max_fare`.
+/// R5's `request.maxFare`: `Math.round(maxFare * 100.0f)` of `max_fare` as
+/// a Java `float`, `Integer.MAX_VALUE` for an infinite `max_fare`.
 pub(crate) fn max_fare_cents(max_fare: f64) -> i32 {
     let f = if max_fare.is_finite() {
         max_fare as f32
@@ -789,7 +787,7 @@ impl<'a> Query<'a> {
     }
 
     /// [`Query::route_origin`] with `request.maxFare` set to `max_fare`
-    /// cents (r5r's `pareto_frontier()` routes once per fare cutoff).
+    /// cents (`pareto_frontier()` routes once per fare cutoff).
     /// Errors are McRAPTOR's exceptions.
     pub(crate) fn route_origin_fare(
         &self,
@@ -958,7 +956,7 @@ pub(crate) fn par_origins<T: Send>(
 }
 
 /// A public transport travel-time matrix: for each origin and destination,
-/// whole minutes at each requested percentile, `None` where r5r reports NA.
+/// whole minutes at each requested percentile, `None` where there is none.
 /// A pair is reported (its lowest percentile is `Some`) when that
 /// percentile is within `max_trip_duration`.
 ///
@@ -1199,7 +1197,7 @@ mod tests {
         }
     }
 
-    /// Values r5r 2.5.0 accepts that earlier caps rejected, and the
+    /// Values R5 accepts that earlier caps rejected, and the
     /// messages of what remains bounded.
     #[test]
     fn bounds_are_r5s_and_the_int_clock() {
@@ -1235,7 +1233,7 @@ mod tests {
             assert_eq!(fine.check(), Ok(()), "{fine:?}");
         }
         let err = |p: TransitParams| p.check().unwrap_err();
-        // max_walk_time = Inf in r5r is max_trip_duration: the message
+        // max_walk_time = Inf is max_trip_duration: the message
         // names max_trip_duration
         let huge = err(TransitParams {
             max_trip_duration: i32::MAX,

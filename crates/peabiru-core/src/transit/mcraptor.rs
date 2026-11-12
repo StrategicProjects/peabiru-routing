@@ -1,12 +1,12 @@
 //! R5 7.6's multi-criteria router, `McRaptorSuboptimalPathProfileRouter`,
 //! ported literally (tie-breaking and iteration orders included), with the
-//! dominating lists r5r uses with it: R5's `FareDominatingList` (time and
-//! fare, with r5r's fare calculator) and r5r's `TripPlanner` wrapper of
-//! `SuboptimalDominatingList` (time, with `suboptimal_minutes`).
+//! dominating lists used with it: R5's `FareDominatingList` (time and
+//! fare, with the rule-based fare calculator) and the ported `TripPlanner`
+//! wrapper of `SuboptimalDominatingList` (time, with `suboptimal_minutes`).
 //!
 //! It is not range RAPTOR: it samples `monte_carlo_draws` departure times
 //! in the window by a constrained random walk (R5's
-//! `generateDepartureTimesToSample`, with r5r's seeding of the generator),
+//! `generateDepartureTimesToSample`, with the generator seeded as below),
 //! and runs a full search from each. Every state is kept as an object with
 //! a back pointer, as R5 does; the states of a draw live in an arena that
 //! the next draw reuses.
@@ -54,9 +54,9 @@ pub(crate) struct McState {
 
 /// Which dominating list the state bags use.
 pub(crate) enum Dominance<'a> {
-    /// R5's `FareDominatingList` with r5r's calculator.
+    /// R5's `FareDominatingList` with the rule-based fare calculator.
     Fare(&'a FareCalculator),
-    /// r5r `TripPlanner`'s `SuboptimalDominatingList` wrapper: states more
+    /// The ported `TripPlanner`'s `SuboptimalDominatingList` wrapper: states more
     /// than `max_duration` after their draw's departure are dropped and,
     /// with `shortest`, the limit shrinks to the best arrival at the
     /// destination found so far (shared by every list, across draws).
@@ -76,10 +76,10 @@ pub(crate) struct McRequest {
     pub(crate) monte_carlo_draws: i32,
     /// `(double) (request.walkSpeed * 1000)`, mm/s.
     pub(crate) walk_mms: f64,
-    /// r5r's `seed` for the frequency offsets (`None`: from the clock).
+    /// The seed of the frequency offsets (`None`: from the clock).
     pub(crate) seed: Option<i32>,
-    /// `seed` used for the departure-time sample too (r5r's
-    /// `seedOffsets(router, seed, ...)`): the matrices pass r5r's seed,
+    /// `seed` used for the departure-time sample too
+    /// (`seedOffsets(router, seed, ...)`): the matrices pass their seed,
     /// `TripPlanner` passes `null` for both.
     pub(crate) origin: (f64, f64),
 }
@@ -562,7 +562,7 @@ impl<'a> McRaptor<'a> {
         }
     }
 
-    /// r5r's seed of the departure-time sample
+    /// The seed of the departure-time sample
     /// (`R5TravelTimeComputer.seedOffsets`): `Objects.hash(fromLat,
     /// fromLon)` without a seed, `Objects.hash(seed, fromLat, fromLon, 1)`
     /// with one.
@@ -659,7 +659,7 @@ impl<'a> McRaptor<'a> {
             self.progress.clear();
             self.touched_patterns.clear();
             self.touched_stops.clear();
-            // r5r's TripPlanner.AccessTimes: target pruning per draw
+            // TripPlanner.AccessTimes: target pruning per draw
             self.best_at_target = i32::MAX;
             self.round = 0;
             for &(stop, t) in access {

@@ -65,7 +65,7 @@ pub struct WebMercatorGrid {
 }
 
 impl WebMercatorGrid {
-    /// The grid r5r's `isochrone()` interpolates polygons from: the pixels
+    /// The grid polygon isochrones are interpolated from: the pixels
     /// covering the street network's envelope (R5
     /// `WebMercatorExtents.forWgsEnvelope(streetLayer.envelope, zoom)`; the
     /// envelope holds every OpenStreetMap node of the ways streets were

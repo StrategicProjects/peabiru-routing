@@ -1,4 +1,4 @@
-//! r5r's fare rules ([`FareCalculator::fare`]) one ride at a time, with
+//! The fare rules ([`FareCalculator::fare`]) one ride at a time, with
 //! what a multi-criteria search needs to compare partial trips soundly.
 //!
 //! [`FareCalculator::fare`] walks the rides of a trip in order, keeping the
@@ -22,7 +22,7 @@
 //!   ([`FareModel::slack`]).
 //!
 //! R5's `FareDominatingList` compares the fare paid and the transfer
-//! allowance (its value, number and expiration). With r5r's calculator that
+//! allowance (its value, number and expiration). With these fare rules that
 //! is not always sound: a discounted transfer can cost more than two full
 //! fares (nothing in the structure forbids it), the discount is taken at the
 //! first transfer that qualifies (so holding a later deadline can lose a

@@ -6,7 +6,7 @@ use std::fmt;
 
 /// Why a network could not be built: a file or directory that cannot be
 /// read, a malformed or empty `.pbf` file, a malformed GTFS feed or one
-/// with errors that make r5r refuse it, or a directory without a `.pbf`
+/// with errors of priority `HIGH`, or a directory without a `.pbf`
 /// file. The message names the file at fault.
 #[derive(Debug)]
 pub struct NetworkError(Repr);
@@ -46,7 +46,7 @@ impl NetworkError {
     }
 
     /// When the build failed because GTFS feeds have errors of priority
-    /// `HIGH` (as r5r's `build_network()` fails): each such feed, as named
+    /// `HIGH`: each such feed, as named
     /// in the build, with its number of `HIGH` errors, in loading order.
     /// [`gtfs_errors`](crate::gtfs_errors) lists the errors. `None` for any
     /// other error.

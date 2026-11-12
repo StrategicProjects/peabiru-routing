@@ -73,9 +73,9 @@ elevation raster (Tobler or Minetti). Scenarios change the car speeds
 stress (`new_lts`) for one call, without rebuilding the network. The
 network can be inspected: where points snap to the streets, its bounding
 box, its streets, stops and routes, the dates with service, and the GTFS
-errors of each feed; feeds with errors of priority `HIGH` are refused, as
-in r5r. Results can be written to CSV files, one per origin
-(`output_dir`, in R and Python).
+errors of each feed; feeds with errors of priority `HIGH` are refused.
+Results can be written to CSV files, one per origin (`output_dir`, in R and
+Python).
 
 R5's own fare calculators (a fare structure with a `type`) are not ported.
 Asking for them is an error; nothing is silently ignored.
@@ -213,19 +213,18 @@ cd js && sh build.sh                                # JavaScript package (needs 
 cargo build --release -p peabiru-cli                # command-line tool
 ```
 
-## Compatibility with r5r
+## Correctness
 
-The R package exports every one of the 22 functions of
-[r5r](https://github.com/ipea/r5r) 2.5.0, with their names, arguments and
-defaults; the ones that only manage r5r's Java side (`setup_r5()`,
-`stop_r5()`, `download_r5()`, `r5r_cache()`, `r5r_sitrep()`) are kept so that
-scripts written for r5r run unchanged. The Python package has the same
-routing and network functions, and so has the JavaScript package (in
-camelCase, without `output_dir`). They return the same values as r5r: the engine is a port
-of Conveyal's [R5](https://github.com/conveyal/r5) 7.6, the engine r5r
-drives. [`bench/`](bench) runs the same requests on both and compares the
-outputs pair by pair on r5r's sample networks of Porto Alegre and São Paulo;
-the comparisons are exact.
+The routing model is that of Conveyal's [R5](https://github.com/conveyal/r5)
+7.6, ported to Rust. The repository keeps reference results for every
+function on the sample networks of Porto Alegre and São Paulo, and
+[`bench/compare`](bench/compare) checks peabiru against them value by value,
+on Linux, macOS and Windows, on every push to `main`. Each package has one
+page comparing it with r5r:
+[R](https://strategicprojects.github.io/peabiru-routing/r/articles/coming-from-r5r.html),
+[Python](https://strategicprojects.github.io/peabiru-routing/python/coming-from-r5/),
+[JavaScript](https://strategicprojects.github.io/peabiru-routing/js/differences.html),
+[Rust](https://strategicprojects.github.io/peabiru-routing/rust/parity.html).
 
 ## Development
 
@@ -242,23 +241,15 @@ site/build.sh                                       # documentation sites, into 
 
 - [`ci.yml`](.github/workflows/ci.yml), on every push and pull request: the
   Rust core and command-line tool on Linux, macOS and Windows, the oldest
-  supported Rust, the R package, the Python wheel and the npm package. Its R
-  job does not install r5r, so the parity tests are skipped there.
+  supported Rust, the R package, the Python wheel and the npm package.
 - [`r5r-parity.yml`](.github/workflows/r5r-parity.yml), on every push to
-  `main` (and by hand): the R package's tests against r5r 2.5.0, Java 21 and
-  the R5 jar on the same runner, on Linux, Windows and macOS. Linux and
-  Windows matter most: there isoband is built with libstdc++, which orders
-  the isochrone rings differently from macOS, and the file system lists the
-  GTFS feeds of a directory in another order (R5 and peabiru both load them
-  in that order). With `PEABIRU_REQUIRE_R5R=true` the test helpers turn a
-  missing r5r, Java or jar into an error instead of a skip, and
-  [`tools/r5r_parity.R`](tools/r5r_parity.R) fails if any parity test was
-  skipped. To run the same locally, with peabiru, r5r 2.5.0 and a JDK 21
-  installed:
-
-  ```sh
-  NOT_CRAN=true PEABIRU_REQUIRE_R5R=true Rscript tools/r5r_parity.R
-  ```
+  `main` (and by hand): the comparisons of [`bench/compare`](bench/compare),
+  which run r5r 2.5.0 (Java 21 and the R5 jar) next to peabiru on the same
+  runner, on Linux, Windows and macOS, and fail when a comparison differs or
+  is skipped. Linux and Windows matter most: there the isochrone rings are
+  ordered as libstdc++ orders them, differently from macOS, and the file
+  system lists the GTFS feeds of a directory in another order (the feeds
+  load in that order).
 - `python-release.yml` and `npm-release.yml` build, test and publish the
   releases.
 
@@ -267,13 +258,11 @@ site/build.sh                                       # documentation sites, into 
 peabiru is distributed under the MIT licence ([`LICENSE-MIT`](LICENSE-MIT)).
 To cite it, see [`CITATION.cff`](CITATION.cff).
 
-Its routing logic is ported from R5 (MIT, © Conveyal) and its interface comes
-from r5r, developed at Ipea; the fare calculator, the fare structure and the
-multi-criteria branch of the trip planner are translations of r5r's Java
-code (MIT). Polygon isochrones port the algorithm of isoband (MIT), and
-parts of Apache Commons Math 3 (Apache-2.0) and fdlibm 5.3 are translated
-so that the numbers are R5's. The notices and licence texts of these
-works are in [`LICENSE-THIRD-PARTY`](LICENSE-THIRD-PARTY), which is
+Its routing logic is ported from R5 (MIT, © Conveyal). Polygon isochrones
+port the algorithm of isoband (MIT), and parts of Apache Commons Math 3
+(Apache-2.0) and fdlibm 5.3 are translated so that the numbers are R5's.
+The notices and licence texts of these and of the other works peabiru
+derives from are in [`LICENSE-THIRD-PARTY`](LICENSE-THIRD-PARTY), which is
 distributed with every package. The sample network in the R and Python
 packages contains map data © OpenStreetMap contributors, under the
 [Open Database License](https://www.openstreetmap.org/copyright).

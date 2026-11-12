@@ -1,8 +1,8 @@
-//! Per-departure travel times with the routes ridden, as r5r 2.5.0's
+//! Per-departure travel times with the routes ridden:
 //! `expanded_travel_time_matrix()` and `arrival_travel_time_matrix()` with
 //! public transport in `mode` (the modes, access and egress of
 //! [`TransitParams`]). A record without public transport has the access
-//! mode as its routes (`[WALK]`, `[BICYCLE]`, `[CAR]`: r5r's
+//! mode as its routes (`[WALK]`, `[BICYCLE]`, `[CAR]`: Java's
 //! `directModes.toString()`).
 //!
 //! Both are one R5 regional task per origin with `includePathResults`:
@@ -10,8 +10,9 @@
 //! (`FastRaptorWorker.retainPaths`), propagation keeps the path and egress
 //! behind each destination's best time per iteration
 //! (`PerTargetPropagater.propagateTransit`), and `TravelTimeReducer
-//! .recordPathsForTarget` turns them into one record per iteration. r5r's
-//! `TravelTimeMatrixComputer` (bytecode of the r5r 2.5.0 jar; offsets below)
+//! .recordPathsForTarget` turns them into one record per iteration. The
+//! ported `TravelTimeMatrixComputer` (see LICENSE-THIRD-PARTY; the offsets
+//! below are those of its bytecode)
 //! then breaks each record down into minutes (`extractPathResults`), sorts
 //! the records of each departure minute (`PATH_ORDER`) and numbers them as
 //! draws (`populateTravelTimesBreakdown`), or for arrival keeps the latest
@@ -45,7 +46,7 @@ pub const MAX_PATH_DESTINATIONS: usize = 5_000;
 /// exhausting memory.
 const MAX_ITERATION_STOPS: u64 = 1 << 28;
 
-/// One trip as r5r reports it, every time in minutes with one decimal.
+/// One trip, every time in minutes with one decimal.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct Breakdown {
@@ -64,7 +65,7 @@ pub struct Breakdown {
     pub routes: String,
     /// Vehicles boarded.
     pub n_rides: u32,
-    /// Total travel time: as r5r computes it, the sum of the five times
+    /// Total travel time: the sum of the five times
     /// above rounded to one decimal (when that sum is 0, the trip's own
     /// total, rounded).
     pub total_time: f64,
@@ -82,12 +83,12 @@ pub struct ExpandedRow {
     pub departure: i32,
     /// 1-based rank of the trip among the departure minute's draws.
     pub draw: u32,
-    /// `None` where r5r reports NA (no trip within `max_trip_duration`).
+    /// `None` when there is no trip within `max_trip_duration`.
     pub trip: Option<Breakdown>,
 }
 
 /// The rows of an expanded or arrival matrix, origin by origin, each
-/// origin's rows in r5r's order (see [`expanded_travel_time_matrix`](crate::expanded_travel_time_matrix) and
+/// origin's rows in a fixed order (see [`expanded_travel_time_matrix`](crate::expanded_travel_time_matrix) and
 /// [`arrival_travel_time_matrix`](crate::arrival_travel_time_matrix)).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExpandedMatrix(Vec<Vec<ExpandedRow>>);
@@ -142,8 +143,8 @@ fn minutes_f32(seconds: i32) -> f64 {
     f64::from(seconds as f32 / 60.0f32)
 }
 
-/// r5r's `TravelTimeMatrixComputer$PathBreakdown` with its raw (unrounded)
-/// minute fields.
+/// The ported `TravelTimeMatrixComputer$PathBreakdown` with its raw
+/// (unrounded) minute fields.
 #[derive(Debug, Clone)]
 struct PathBreakdown {
     access: f64,
@@ -178,10 +179,10 @@ impl PathBreakdown {
         Self::walk(walk_routes, f64::from(i32::MAX))
     }
 
-    /// The row r5r writes (`addPathToDataframe`): `total_time` is the
+    /// The row of the result (`addPathToDataframe`): `total_time` is the
     /// rounded sum of the rounded components when positive
-    /// (`getCombinedTravelTime`), else the rounded total; the R wrapper then
-    /// sets the row to NA when `total_time > max_trip_duration`.
+    /// (`getCombinedTravelTime`), else the rounded total; the caller then
+    /// sets the row to `None` when `total_time > max_trip_duration`.
     fn report(&self, max_trip_min: i32) -> Option<Breakdown> {
         let (a, w, r, t, e) = (
             round1(self.access),
@@ -332,9 +333,9 @@ struct Context<'a> {
     /// The access and direct street search.
     access: Access,
     /// `[WALK]` (`[BICYCLE]`, `[CAR]`), the routes of a record without
-    /// public transport: r5r's `directModes.toString()`.
+    /// public transport: Java's `directModes.toString()`.
     walk_routes: Arc<str>,
-    /// r5r's draws per minute (`populateExpandedResults` offs 13-46):
+    /// The draws per minute (`populateExpandedResults` offs 13-46):
     /// `numberOfMonteCarloDraws / timeWindowSize` with frequencies, else 1.
     draws_per_minute: usize,
 }
@@ -480,8 +481,8 @@ impl<'a> Context<'a> {
         };
         if access.is_empty() {
             // No stop reached: R5 records the direct time as every percentile
-            // and no path result (`TravelTimeComputer.java:304-315`); r5r then
-            // emits a walk record of `percentile minutes` when <= M
+            // and no path result (`TravelTimeComputer.java:304-315`); the result then
+            // has a walk record of `percentile minutes` when <= M
             // (`extractPathResults` offs 528-604; totalTime is `(double)
             // minutes`).
             for (j, &d) in direct.iter().enumerate() {
@@ -659,7 +660,7 @@ fn propagate(
     }
 }
 
-/// The routes of a path joined by `|`, as r5r reports them.
+/// The routes of a path joined by `|`.
 fn route_list(layer: &TransitLayer, path: &[Leg]) -> Arc<str> {
     path.iter()
         .map(|l| layer.patterns[l.pattern as usize].route_id.as_str())
@@ -817,9 +818,9 @@ pub(crate) fn expanded_travel_time_matrix(
     .map(ExpandedMatrix)
 }
 
-/// The service date and departure of an arrival search: r5r subtracts
-/// `max_trip_duration` from `arrival_datetime` and searches the window
-/// `[departure, arrival)` minute by minute (`arrival_travel_time_matrix.R`).
+/// The service date and departure of an arrival search: the departure is
+/// `max_trip_duration` before the arrival time, and the search covers the
+/// window `[departure, arrival)` minute by minute.
 /// Returns `(yyyymmdd, seconds after midnight)`; an earlier day when the
 /// window starts before midnight. Daylight-saving shifts are not modelled.
 /// An error when `date` is not a calendar date (see

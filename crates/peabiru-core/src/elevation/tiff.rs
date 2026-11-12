@@ -400,15 +400,14 @@ fn crs_of(key: &impl Fn(u16) -> Option<u64>) -> TiffResult<Crs> {
         Some(2) => (key(KEY_GEOGRAPHIC_TYPE), false),
         Some(3) => {
             return Err(
-                "the raster is in geocentric coordinates (model type 3), which r5r \
-                        cannot sample"
+                "the raster is in geocentric coordinates (model type 3), which \
+                        cannot be sampled as elevations"
                     .into(),
             )
         }
         m => {
             return Err(format!(
-                "the raster has no coordinate reference system (GeoTIFF model type {}); r5r \
-                 fails on such a raster too",
+                "the raster has no coordinate reference system (GeoTIFF model type {})",
                 m.map_or("missing".into(), |v| v.to_string())
             ))
         }
@@ -432,7 +431,7 @@ fn crs_of(key: &impl Fn(u16) -> Option<u64>) -> TiffResult<Crs> {
         .ok_or_else(|| {
             format!(
                 "the raster is in EPSG:{code}, a coordinate reference system whose transform \
-                 peabiru has not matched with r5r's (GeoTools'); supported: {}; {HOW}",
+                 peabiru does not implement; supported: {}; {HOW}",
                 crs::SUPPORTED
             )
         })?;
@@ -562,37 +561,34 @@ impl<'a> Raster<'a> {
         let samples = int1(TAG_SAMPLES, Some(1))?;
         if samples != 1 {
             return Err(format!(
-                "{samples} bands (samples per pixel); an elevation raster must have one band \
-                 (r5r fails on such a raster too)"
+                "{samples} bands (samples per pixel); an elevation raster must have one band"
             ));
         }
         let bits = int1(TAG_BITS, Some(1))?;
         let format = int1(TAG_SAMPLE_FORMAT, Some(1))?;
-        let kind = match (format, bits) {
-            (1, 8 | 16 | 32) => Kind::Uint,
-            (2, 16 | 32) => Kind::Int,
-            (3, 32 | 64) => Kind::Float,
-            (1 | 2, 64) => {
-                return Err(
-                    "64-bit integer samples are not supported (r5r fails on such a \
-                            raster too); use 16 or 32-bit integers or floats"
+        let kind =
+            match (format, bits) {
+                (1, 8 | 16 | 32) => Kind::Uint,
+                (2, 16 | 32) => Kind::Int,
+                (3, 32 | 64) => Kind::Float,
+                (1 | 2, 64) => return Err(
+                    "64-bit integer samples are not supported; use 16 or 32-bit integers or floats"
                         .into(),
-                )
-            }
-            (2, 8) => {
-                return Err(
-                    "signed 8-bit samples are not supported; use 16-bit integers \
+                ),
+                (2, 8) => {
+                    return Err(
+                        "signed 8-bit samples are not supported; use 16-bit integers \
                             or floats"
-                        .into(),
-                )
-            }
-            (f, b) => {
-                return Err(format!(
+                            .into(),
+                    )
+                }
+                (f, b) => {
+                    return Err(format!(
                     "samples of {b} bits with sample format {f} are not supported (only 8, 16, \
                      32 or 64-bit integers and 32 or 64-bit floats)"
                 ))
-            }
-        };
+                }
+            };
         let photometric = int1(TAG_PHOTOMETRIC, Some(1))?;
         if photometric > 1 {
             return Err(format!(
@@ -615,11 +611,7 @@ impl<'a> Raster<'a> {
                         .into(),
                 )
             }
-            50000 => {
-                return Err(
-                    "ZSTD compression is not supported (r5r fails on such a raster too)".into(),
-                )
-            }
+            50000 => return Err("ZSTD compression is not supported".into()),
             c => {
                 return Err(format!(
                     "compression {c} is not supported (only none, LZW, Deflate and PackBits)"
@@ -631,16 +623,15 @@ impl<'a> Raster<'a> {
             (1, _, _) => {}
             (2, _, _) if bits == 64 => {
                 return Err(
-                    "the horizontal predictor on 64-bit samples is not supported \
-                            (r5r fails on such a raster too); use the floating-point predictor \
-                            (3) or none"
+                    "the horizontal predictor on 64-bit samples is not supported; \
+                            use the floating-point predictor (3) or none"
                         .into(),
                 )
             }
             (2, _, _) => {}
             (3, Kind::Float, Compression::Lzw) => {
                 return Err("LZW compression with the floating-point predictor is not \
-                            supported (r5r fails on such a raster too); use Deflate"
+                            supported; use Deflate"
                     .into())
             }
             (3, Kind::Float, _) => {}
@@ -733,7 +724,7 @@ impl<'a> Raster<'a> {
             _ => {
                 return Err(
                     "the raster has no georeferencing (GeoTIFF tie point and pixel \
-                            scale); r5r fails on such a raster too"
+                            scale)"
                         .into(),
                 )
             }
@@ -768,9 +759,7 @@ impl<'a> Raster<'a> {
             Some(e) => r.ints(e, TAG_GEO_KEYS)?,
             None => {
                 return Err(
-                    "the raster has no GeoTIFF keys (no coordinate reference system); \
-                            r5r fails on such a raster too"
-                        .into(),
+                    "the raster has no GeoTIFF keys (no coordinate reference system)".into(),
                 )
             }
         };
@@ -1591,7 +1580,7 @@ mod tests {
     #[test]
     fn strictmath_on_the_outer_edge_is_still_an_error() {
         // in WGS 84, the envelope's east edge itself is inside the envelope
-        // but rounds past the last pixel: GeoTools throws, r5r fails
+        // but rounds past the last pixel: GeoTools throws, R5 fails
         let b = tiny(5, 4, &[]);
         let east = (5.0 - 0.5) * 0.001 + (-46.65 + 0.5 * 0.001);
         let r = crate::elevation::read_points(&b, &[(east, -23.5215)]).unwrap();

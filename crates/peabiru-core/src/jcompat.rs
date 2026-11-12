@@ -1,7 +1,7 @@
 //! Bit-exact stand-ins for the Java library behaviour R5 results depend on:
 //! the commons-math3 3.0 Mersenne Twister and `BitsStreamGenerator.nextInt`,
 //! `java.util.Objects.hash`, and the slot layout (hence iteration order) of
-//! Trove 3 open-addressing int hash maps. Checked against the r5r R5 jar.
+//! Trove 3 open-addressing int hash maps. Checked against the R5 7.6 jar.
 //!
 //! [`MersenneTwister`] is a translation to Rust, by the peabiru authors, of
 //! parts of `org.apache.commons.math3.random.MersenneTwister` and
@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn mersenne_twister_matches_r5_jar() {
-        // Values from running commons-math3 3.0 in r5r's R5 jar.
+        // Values from running commons-math3 3.0 in the R5 7.6 jar.
         let h = objects_hash_int_double_double(42, -30.0346, -51.2177);
         assert_eq!(h, 2_122_154_921);
         let mut mt = MersenneTwister::from_long(i64::from(h));

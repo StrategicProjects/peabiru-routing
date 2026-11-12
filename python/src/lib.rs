@@ -215,7 +215,7 @@ impl Network {
         let d = PyDict::new(py);
         d.set_item("vertices", self.net.street().n_vertices())?;
         d.set_item("edges", self.net.street().n_edges())?;
-        d.set_item("elevation", self.net.street().elevation().r5r_name())?;
+        d.set_item("elevation", self.net.street().elevation().name())?;
         match self.net.transit() {
             Some(t) => {
                 d.set_item("feeds", t.feed_ids().to_vec())?;
@@ -276,7 +276,7 @@ fn build_network(
     n_threads: usize,
     elevation: String,
 ) -> PyResult<Network> {
-    let elevation = peabiru_core::Elevation::from_r5r_name(&elevation)
+    let elevation = peabiru_core::Elevation::from_name(&elevation)
         .ok_or_else(|| value_err(format!("unknown elevation model {elevation:?}")))?;
     py.detach(move || {
         let mut opts = BuildOptions::default();

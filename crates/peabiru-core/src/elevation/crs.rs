@@ -17,7 +17,7 @@
 //! matched, by trying the algebraically equal forms, to what GeoTools
 //! returns, double for double, on hundreds of thousands of points per
 //! system (`bench/compare/crs/crs_parity.sh`, whose Java harness calls
-//! GeoTools from r5r's jar). Sines, cosines, tangents, arc tangents and
+//! GeoTools from the R5 jar). Sines, cosines, tangents, arc tangents and
 //! logarithms are fdlibm's ([`crate::fdlibm`]), the values of
 //! `java.lang.StrictMath`.
 //!
@@ -25,7 +25,7 @@
 //! (and on x86_64 tangent and logarithm) the JVM computes with its own
 //! code, which differs from `StrictMath` in the last bit for a few per cent
 //! of arguments (measured on arm64: Java 21 gives another sine for 6% of
-//! them). r5r's own result then depends on the machine it runs on, by a few
+//! them). R5's own result then depends on the machine it runs on, by a few
 //! nanometres. The sampled pixel is `Math.round` of the grid coordinate, so
 //! such a difference only matters when a point falls within a few
 //! nanometres of the boundary between two pixels or of the raster's edge.
@@ -511,7 +511,7 @@ impl Crs {
 mod tests {
     use super::*;
 
-    /// Points transformed by GeoTools 25.2 (r5r 2.5.0's R5 jar) on a JVM
+    /// Points transformed by GeoTools 25.2 (the R5 7.6 jar) on a JVM
     /// whose sines and cosines are `StrictMath`'s: `(code, lon, lat, x, y)`
     /// as bits (Brazil, Porto Alegre's streets, the equator).
     #[rustfmt::skip]

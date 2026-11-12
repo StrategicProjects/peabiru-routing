@@ -33,7 +33,7 @@ empty when no trip is found.
   `max_car_time`, `max_trip_duration`), speeds, `max_rides`, `max_lts` and
   a [scenario](scenarios.md) are set as for the matrices.
 - Networks with frequency-based trips (`frequencies.txt`) are refused with
-  public transport, as r5r refuses them; convert the feed to timetables
+  public transport; convert the feed to timetables
   first (in R, `gtfstools::frequencies_to_stop_times()`).
 
 An `Itinerary` has its `option` number, departure (`departure_time` as
@@ -68,10 +68,10 @@ with public transport: None of the GTFS feeds used to create the transit network
 ```
 
 Its feed is frequency-based, so both public transport calls are refused
-(the example prints the first refusal and skips the alternatives). On r5r's
+(the example prints the first refusal and skips the alternatives). On the
 Porto Alegre sample, whose feeds are timetables (a directory with
 `poa_osm.pbf`, `poa_eptc.zip`, `poa_trensurb.zip` and
-`poa_points_of_interest.csv`, copied from r5r's `extdata/poa`), the public
+`poa_points_of_interest.csv`, sample data from the r5r project), the public
 transport part prints:
 
 ```text

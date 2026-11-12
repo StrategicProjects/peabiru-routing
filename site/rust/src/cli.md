@@ -16,12 +16,11 @@ peabiru matrix --help                # a command's options, with examples
 ## Inputs and outputs
 
 - **Network**: a directory with one OpenStreetMap `.pbf` file, any number of
-  GTFS `.zip` feeds and an optional `.tif` elevation raster (read as r5r's
-  `build_network()` reads it), or a `.pbf` file with `--gtfs feed.zip`
+  GTFS `.zip` feeds and an optional `.tif` elevation raster, or a `.pbf` file with `--gtfs feed.zip`
   (repeatable) and `--tif raster.tif`. With a raster, walking and cycling
   have slope costs (`--elevation TOBLER`, the default, `MINETTI` or
-  `NONE`). Feeds with GTFS errors of priority `HIGH` are refused, as r5r
-  refuses them (`--ignore-gtfs-errors` builds anyway, with a warning per
+  `NONE`). Feeds with GTFS errors of priority `HIGH` are refused
+  (`--ignore-gtfs-errors` builds anyway, with a warning per
   feed). `--threads N` (0, the default, uses every core).
 - **Points**: CSV with a header and the columns `id`, `lon`, `lat` (WGS 84),
   RFC 4180 quoting; `--origins` and `--destinations` (by default the
@@ -30,7 +29,7 @@ peabiru matrix --help                # a command's options, with examples
 - **Results**: CSV on standard output or in `-o FILE`, with the columns of
   the R package's tables; missing values are empty fields. Geometries as
   GeoJSON (`--format geojson`) or as WKT in a CSV column. `--output-dir`
-  writes one CSV file per origin (or pair), byte for byte as r5r's
+  writes one CSV file per origin (or pair), as the packages'
   `output_dir`. Progress and warnings on standard error (`-q` silences
   the progress).
 - **Exit status**: 0 done, 1 a file or network that cannot be read or
@@ -52,7 +51,7 @@ peabiru matrix --help                # a command's options, with examples
 | `options` | `trip_options()` | `--criteria`, `--max-options`, `--walk-resolution`; the options to `-o`, `--legs FILE`, `--departures FILE` |
 | `snap` | `find_snap()` | `--points`, `--radius`, `--mode` |
 | `network` | `street_network_to_sf()`, `transit_network_to_sf()`, `street_network_bbox()` | `--layer edges\|vertices\|stops\|routes\|bbox` |
-| `fares setup\|read\|write` | `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` | `.zip` files in r5r's format; `read --output-dir` writes its CSV files, `write` makes the `.zip` from them |
+| `fares setup\|read\|write` | `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` | `.zip` files of five CSV tables; `read --output-dir` writes its CSV files, `write` makes the `.zip` from them |
 | `completions SHELL` | | bash, zsh, fish, elvish, powershell |
 
 Dates and times are `YYYY-MM-DDTHH:MM[:SS]`, the network's local time.
@@ -86,13 +85,13 @@ peabiru matrix data/poa --origins points.csv --mode CAR \
 
 ## Compared with the R package
 
-`bench/compare/cli_parity.R` runs every command on r5r's Porto Alegre
+`bench/compare/cli_parity.R` runs every command on the Porto Alegre
 sample (timetables, fares, an elevation raster, scenarios) and on the São
 Paulo sample (frequency-based routes) and compares each table with the R
 function's, value for value (doubles bit for bit), lines and polygons by
 their coordinates, and `--output-dir` files byte for byte. The deliberate
 differences: without `--departure`, street-only commands take the current
-time in UTC (r5r the local time; only the itineraries' `departure_time`
+time in UTC (the R package the local time; only the itineraries' `departure_time`
 shows it), and polygons and lines are written as built, without the
 `sf::st_make_valid()` of the R package (as Python and JavaScript return
 them; a route through a single linked stop is a point). With

@@ -1,5 +1,5 @@
 //! Street network for walk, bike and car routing, built from OpenStreetMap
-//! with the semantics of Conveyal R5 7.6, so travel times match r5r.
+//! with the semantics of Conveyal R5 7.6, so travel times are R5's.
 //!
 //! The network stores edge *pairs*: pair `k` has the forward edge `2k`
 //! (along the OSM way) and the backward edge `2k + 1`. Coordinates are
@@ -41,8 +41,8 @@ pub mod flags {
     /// A connector (park-and-ride, later transit stops): every mode may use
     /// it, points never link to it, and two in a row are not allowed.
     pub const LINK: u32 = 1 << 13;
-    /// A `junction=roundabout` way (R5's `ROUNDABOUT`; only r5r's
-    /// `osm_link_ids` reads it).
+    /// A `junction=roundabout` way (R5's `ROUNDABOUT`; only the
+    /// `osm_link_ids` of itineraries read it).
     pub const ROUNDABOUT: u32 = 1 << 14;
 
     pub const ALL_ALLOWS: u32 = ALLOWS_PEDESTRIAN | ALLOWS_BIKE | ALLOWS_CAR;
@@ -178,10 +178,10 @@ impl StreetNetwork {
     /// (empty without one): samples whose value R5 stores wrapped around
     /// (beyond +/-3276.7 m, such as SRTM's -32768 voids, which become 0 m,
     /// and a no-data value of -9999, which becomes 3108.2 m) or equal to
-    /// the raster's declared no-data value. peabiru stores them as r5r
-    /// does, so the slope costs are r5r's; r5r says nothing about them.
+    /// the raster's declared no-data value. peabiru stores them as R5
+    /// does, so the slope costs are R5's; R5 says nothing about them.
     /// And, in a raster not in EPSG:4326, the samples within nanometres of
-    /// a boundary between pixels of different values, where r5r's pixel
+    /// a boundary between pixels of different values, where R5's pixel
     /// depends on the machine and peabiru reads `StrictMath`'s.
     /// The core never prints them; the packages turn them into warnings.
     pub fn elevation_warnings(&self) -> &[String] {

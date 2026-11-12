@@ -1,8 +1,8 @@
 # Inspecting a network
 
-These functions report what the network holds, as r5r's network functions
-do (`find_snap()`, `street_network_bbox()`, `street_network_to_sf()`,
-`transit_network_to_sf()`, `check_transit_availability()`):
+These functions report what the network holds (the packages'
+`find_snap()`, `street_network_bbox()`, `street_network_to_sf()`,
+`transit_network_to_sf()` and `check_transit_availability()`):
 
 | Function | What it gives |
 |---|---|
@@ -15,31 +15,30 @@ do (`find_snap()`, `street_network_bbox()`, `street_network_to_sf()`,
 | `transit_service_dates(network)` | the dates on which some service runs |
 | `network.transit()?.n_services_active_on(date)` | how many services run on a date |
 
-The rows come in r5r's order, which for the street vertices is that of a
+The rows come in R5's order, which for the street vertices is that of a
 Java `HashSet`, reproduced.
 
 ## GTFS errors
 
 `gtfs_errors(name, zip_bytes)` lists the errors conveyal's gtfs-lib records
-while loading a feed, as r5r writes them to `gtfs_errors.csv`: per error its
+while loading a feed: per error its
 table (`file()`), `line()`, `error_type()`, `field()`, `id()` and
 `priority()` (`High`, `Medium`, `Low` or `Unknown`). Every check of
 gtfs-lib's table loaders and post-load validation is made; the rows are
-listed by table, in gtfs-lib's loading order, then by line (r5r lists them
-in the order of a Java `HashSet`, which changes from run to run).
+listed by table, in gtfs-lib's loading order, then by line.
 `gtfs_files_in_dir` gives the feeds of a directory in the order they are
 loaded.
 
 ## Feeds with errors of priority HIGH
 
-As r5r's `build_network()` does, `build_from_dir` and `build_from_bytes`
+`build_from_dir` and `build_from_bytes`
 fail when a feed has an error of priority `HIGH`, or is one gtfs-lib cannot
 load at all. `NetworkError::high_priority_gtfs_errors()` then gives each
 such feed with its number of `HIGH` errors. With
 `BuildOptions::ignore_gtfs_errors = true` the feeds are not checked: the
 network is built from what can be read, leaving out trips that refer to
 stops or routes that do not exist, and `Network::build_warnings()` says
-which feeds r5r would refuse.
+which feeds had such errors.
 
 ## Example
 
@@ -65,8 +64,8 @@ example builds it again with `ignore_gtfs_errors` (the directory's path is
 shortened to `<dir>` here):
 
 ```text
-refused: high priority GTFS errors found in <dir>/spo_gtfs.zip (20 errors); network build failed (as in r5r)
-built anyway: GTFS feed 'spo_gtfs.zip': it has no agency.txt. r5r refuses to build a network from this feed.
+refused: high priority GTFS errors found in <dir>/spo_gtfs.zip (20 errors); network build failed
+built anyway: GTFS feed 'spo_gtfs.zip': it has no agency.txt. A network is built from this feed only because GTFS errors are ignored.
 ...
 spo_gtfs.zip: {("HIGH", "NoAgencyInFeedError"): 19, ("HIGH", "ReferentialIntegrityError"): 1, ("MEDIUM", "DuplicateKeyError"): 6, ("MEDIUM", "MissingTableError"): 1}
 ```

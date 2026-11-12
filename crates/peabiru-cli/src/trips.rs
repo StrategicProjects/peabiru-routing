@@ -8,7 +8,7 @@ use peabiru_core::{
 };
 use std::path::Path;
 
-/// r5r's pairing of origins and destinations: origin `i` to destination
+/// The pairing of origins and destinations: origin `i` to destination
 /// `i`, one point to all the others, or every origin to every destination.
 fn pairs(ctx: &Ctx, o: &Points, d: &Points, all_to_all: bool) -> Res<(Points, Points)> {
     let (no, nd) = (o.len(), d.len());
@@ -156,7 +156,7 @@ pub fn itineraries(a: ItinerariesArgs) -> Res<()> {
         if built.net.transit().is_some_and(|t| t.has_frequencies()) {
             return Err(usage(
                 "detailed itineraries are not computed on networks with frequency-based GTFS \
-                 (a frequencies table), as in r5r: convert the feed to timetables first",
+                 (a frequencies table): convert the feed to timetables first",
             ));
         }
     }
@@ -596,7 +596,7 @@ pub fn pareto(a: ParetoArgs) -> Res<()> {
     let street = street(&a.street, &m, mtd)?;
     let mut call = transit_call(&a.transit, None, when)?;
     call.seed = a.seed.as_deref().map(|s| int("seed", s)).transpose()?;
-    // r5r samples time_window departures (one draw a minute)
+    // McRAPTOR samples time_window departures (one draw a minute)
     call.draws = 1;
     let pcts = percentiles(&a.percentiles)?;
     check_draws(1, call.time_window, m.has_transit())?;

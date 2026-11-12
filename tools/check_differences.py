@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Check that the three "coming from r5r" pages list the same differences.
+"""Check that the three comparison pages list the same differences.
 
-The deliberate differences between peabiru and r5r 2.5.0 are listed once per
-package, in the terms of each language:
+Each package has one page comparing it with r5r 2.5.0 (the only page of the
+package that names r5r); the differences are listed there, in the terms of
+each language:
 
 - R:          r/vignettes/articles/coming-from-r5r.Rmd
 - Python:     python/docs/coming-from-r5.md

@@ -1,4 +1,4 @@
-//! `peabiru accessibility`: r5r's `accessibility()` from the command line.
+//! `peabiru accessibility`: `accessibility()` from the command line.
 //!
 //! ```text
 //! peabiru accessibility <network dir | file.osm.pbf> <points.csv> <out.csv>
@@ -12,17 +12,17 @@
 //!
 //! Points are CSV with `id`, `lon`, `lat` and the opportunity columns; they
 //! are the origins and, unless `--destinations` is given, the destinations.
-//! Arguments are checked as r5r checks them, and the trip limits derived as
-//! r5r derives them (`step` caps `max_trip_duration` at the largest cutoff).
-//! The output has r5r's columns `id,opportunity,percentile,cutoff,accessibility`
+//! Arguments are checked and the trip limits derived as the packages do
+//! (`step` caps `max_trip_duration` at the largest cutoff).
+//! The output has the columns `id,opportunity,percentile,cutoff,accessibility`
 //! (no `cutoff` with `fixed_exponential`), one row per origin, opportunity,
 //! percentile and cutoff in that order, with every double written in full.
 
 use super::cli::{self, runtime_error, usage_error};
 use peabiru_core::{
-    build_network, r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
-    AccessibilityParams, BuildOptions, DecayFunction, Destinations, Mode, RouteParams,
-    TransitParams,
+    accessibility_trip_limits, build_network, street_accessibility, transit_accessibility,
+    Accessibility, AccessibilityParams, BuildOptions, DecayFunction, Destinations, Mode,
+    RouteParams, TransitParams,
 };
 use std::time::Instant;
 
@@ -79,7 +79,7 @@ fn read_points(path: &str, columns: &[String]) -> Points {
                 .copied()
                 .unwrap_or_else(|| fail_io(format!("{path}:{line_no}: line is short")))
         };
-        // NA / empty -> NaN; the core treats a NaN count as 0, like r5r
+        // NA / empty -> NaN; the core treats a NaN count as 0
         let num = |i: usize| match get(i) {
             "" | "NA" => f64::NAN,
             s => s
@@ -95,7 +95,7 @@ fn read_points(path: &str, columns: &[String]) -> Points {
     p
 }
 
-/// r5r `assign_decay_function` and `set_cutoffs` checks.
+/// The checks of the decay function, its value and the cutoffs.
 fn decay_function(name: &str, value: Option<f64>, cutoffs: &Option<Vec<i32>>) -> DecayFunction {
     if let Some(v) = value {
         if !v.is_finite() {
@@ -184,7 +184,7 @@ pub fn run(args: &[String]) {
         let name = args[i].as_str();
         let v = cli::value(CMD, args, i);
         // decay_value may be given as Inf; decay_function rejects it with
-        // r5r's message
+        // its message
         let num = || -> f64 {
             v.trim()
                 .parse()
@@ -237,7 +237,7 @@ pub fn run(args: &[String]) {
     if opportunities.is_empty() {
         fail("--opportunities is required");
     }
-    // r5r set_percentiles: 1..=99, at most 5, distinct
+    // percentiles: 1..=99, at most 5, distinct
     let mut sorted = percentiles.clone();
     sorted.sort_unstable();
     sorted.dedup();
@@ -259,7 +259,7 @@ pub fn run(args: &[String]) {
         fail("--date and --time are required with TRANSIT");
     }
     let f = decay_function(&decay, decay_value, &cutoffs);
-    let (m, w) = r5r_trip_limits(
+    let (m, w) = accessibility_trip_limits(
         &f,
         cutoffs.as_deref(),
         max_trip,
@@ -269,7 +269,7 @@ pub fn run(args: &[String]) {
     .unwrap_or_else(|e| fail(e));
     let fixed = matches!(f, DecayFunction::FixedExponential { .. });
     let mut a = AccessibilityParams::default();
-    // r5r passes the placeholder 0 when cutoffs is NULL
+    // the placeholder 0 when no cutoffs are given (fixed_exponential)
     a.cutoffs = cutoffs.unwrap_or_else(|| vec![0]);
     a.decay = f;
 

@@ -1,14 +1,13 @@
-//! The street edges of line-based isochrones: r5r's
-//! `street_network_to_sf()$edges` (r5r's Java `StreetNetwork`) and the
-//! centroid of each edge that r5r routes to (`sf::st_centroid()`, which is
+//! The street edges of line-based isochrones: the edges table of
+//! `street_network_to_sf()` (the ported `StreetNetwork`) and the centroid
+//! of each edge to route to (as `sf::st_centroid()` computes it, which is
 //! `s2::s2_centroid()` for longitude/latitude data).
 
 use crate::street::flags::*;
 use crate::street::geom::FIXED_FACTOR;
 use crate::street::StreetNetwork;
 
-/// The street edges of a network as r5r's `street_network_to_sf()` lists
-/// them: every directed edge but the connectors of transit stops and
+/// The street edges of a network: every directed edge but the connectors of transit stops and
 /// park-and-rides, in edge order, with their attributes, geometry and
 /// centroid. Made by [`street_edges`](crate::street_edges).
 #[derive(Debug, Clone, PartialEq)]
@@ -164,7 +163,7 @@ impl StreetEdges {
         &self.geometry[self.geom_offsets[i] as usize..self.geom_offsets[i + 1] as usize]
     }
 
-    /// `(lat, lon)` degrees of the point r5r routes to for the edge: the
+    /// `(lat, lon)` degrees of the point to route to for the edge: the
     /// centroid of its line on the sphere (`sf::st_centroid()` with s2),
     /// `None` when the line has no length.
     pub fn centroid(&self, i: usize) -> Option<(f64, f64)> {
@@ -273,17 +272,16 @@ pub struct IsochroneLine {
 }
 
 /// Line-based isochrones from a travel-time matrix to the edges'
-/// centroids, as r5r's `isochrone(polygon_output = FALSE)` makes them from
-/// `travel_time_matrix()`: `minutes` holds one row per origin and one value
+/// centroids: `minutes` holds one row per origin and one value
 /// per row of the [`StreetEdges`] (the median travel time, `None` where
-/// unreached or beyond the trip limit), and `cutoffs` are r5r's (see
-/// [`isochrone_cutoffs`](crate::isochrone_cutoffs)).
+/// unreached or beyond the trip limit), and `cutoffs` are checked by
+/// [`isochrone_cutoffs`](crate::isochrone_cutoffs).
 ///
 /// Times of 0 are left out; each other edge gets the band `(a, b]` of
 /// consecutive cutoffs (starting from 0) holding its time, and edges beyond
 /// the last cutoff are left out. The result is ordered by origin, then by
-/// band and travel time, both descending, ties in edge order, as r5r
-/// orders it. [`RouteError::Invalid`](crate::RouteError::Invalid) for bad
+/// band and travel time, both descending, ties in edge order.
+/// [`RouteError::Invalid`](crate::RouteError::Invalid) for bad
 /// cutoffs or a matrix of the wrong size.
 pub fn isochrone_lines(
     n_origins: usize,
@@ -345,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn lines_are_banded_and_ordered_as_r5r() {
+    fn lines_are_banded_and_ordered() {
         let m = [
             Some(3),
             Some(0),

@@ -1,8 +1,8 @@
 //! Isobands by marching squares, a port of the `isobander` of the R package
-//! isoband 0.3.0 (Claus O. Wilke, MIT; `src/isoband.cpp`), which r5r's
-//! `isochrone()` calls through `isoband::isobands()`.
+//! isoband 0.3.0 (Claus O. Wilke, MIT; `src/isoband.cpp`), the code behind
+//! `isoband::isobands()`.
 //!
-//! Only the bands r5r asks for are supported: from 0 up to a cutoff, over
+//! Only the bands of isochrones are supported: from 0 up to a cutoff, over
 //! values that are never negative, so a grid value is either inside the
 //! band (`0 <= z < high`) or above it, and the 16 cell configurations of
 //! those two states are the only ones that occur.

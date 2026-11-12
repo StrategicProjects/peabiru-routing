@@ -1,5 +1,5 @@
 //! Helpers shared by the examples: where the sample data is, and a minimal
-//! reader for r5r-style point files (`id,lon,lat,...` with a header).
+//! reader for point files (`id,lon,lat,...` with a header).
 
 use std::path::PathBuf;
 

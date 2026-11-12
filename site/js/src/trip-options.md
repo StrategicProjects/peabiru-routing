@@ -1,6 +1,6 @@
 # Trip options
 
-`tripOptions()` is peabiru's own trip planner, with no counterpart in r5r:
+`tripOptions()` is a multi-criteria trip planner:
 for each origin and destination it gives every trip worth considering, the
 ones that no other trip beats on all the chosen criteria at once. Where
 `detailedItineraries()` answers "what is the fastest way there?",
@@ -37,12 +37,12 @@ values reported stay exact. Rounding cannot make a trip look better than
 one that beats it to the second, so the result is the same as comparing
 every trip at that resolution.
 
-The trips are those of r5r's network semantics (the same access and egress
+The trips follow the rules of the other functions (the same access and egress
 searches, transfers between stops and boarding rules as
 `detailedItineraries()`), so the times agree with the other functions.
 
-The example downloads r5r's sample of Porto Alegre and its fare structure
-once into the temporary directory:
+The example downloads the sample data of Porto Alegre from the r5r
+project, and its fare structure, once into the temporary directory:
 
 ```js
 {{#include ../examples/trip-options.mjs:setup}}
@@ -107,15 +107,15 @@ criterion the slowest one.
 
 ## Frequency-based routes
 
-GTFS `frequencies.txt` gives a headway, not departure times. r5r draws
-random departures (Monte Carlo); `tripOptions()` does not: a
+GTFS `frequencies.txt` gives a headway, not departure times. The other
+functions draw random departures (Monte Carlo); `tripOptions()` does not: a
 frequency-based vehicle is boarded at its expected time, half a headway
 after the traveller is ready to board (or after the period starts), within
 the period, and with `exact_times = 1` at the first scheduled departure.
 The results do not change from call to call, there is no `seed`, and they
-differ on purpose from r5r's draws.
+differ on purpose from the results of the draws.
 
-## Compared with the functions of r5r
+## Compared with the other functions
 
 - `paretoFrontier()` gives, for each fare cutoff, the percentiles of the
   travel time over Monte Carlo draws of departure times: a summary of time

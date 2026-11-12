@@ -16,7 +16,7 @@
 - [Scenarios](scenarios.md)
 - [Inspecting a network](inspect.md)
 - [The command line](cli.md)
-- [Parity with r5r](parity.md)
+- [Compared with r5r](parity.md)
 
 ---
 

@@ -5,9 +5,7 @@ again: car speeds by way or by area (`newCarspeeds`), a factor for every
 other car speed (`carspeedScale`), and the cyclists' levels of traffic
 stress (`newLts`). They are taken by `travelTimeMatrix()`,
 `accessibility()`, `expandedTravelTimeMatrix()`,
-`arrivalTravelTimeMatrix()` and `detailedItineraries()`, and give the
-results of r5r 2.5.0's arguments of the same names (`new_carspeeds`,
-`carspeed_scale`, `new_lts`).
+`arrivalTravelTimeMatrix()` and `detailedItineraries()`.
 
 The examples compare the mean travel time between the 27 points of the São
 Paulo sample under each scenario:

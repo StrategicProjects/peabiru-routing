@@ -1,5 +1,5 @@
-// Scenarios: newCarspeeds, carspeedScale and newLts (parity with r5r is in
-// bench/compare/js_parity.mjs).
+// Scenarios: newCarspeeds, carspeedScale and newLts (the values are compared
+// with the native tool's in bench/compare/js_parity.mjs).
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -41,7 +41,7 @@ test("car speed and LTS scenarios change the times as asked", async () => {
   assert.notDeepEqual(await ttm(net, pts, { mode: "BICYCLE", newLts: stressful }), await ttm(net, pts, { mode: "BICYCLE" }));
 });
 
-test("GeoJSON scenarios, and r5r's checks", async () => {
+test("GeoJSON scenarios, and the checks", async () => {
   const net = await sampleNetwork();
   const pts = samplePoints();
   const [x0, x1] = [Math.min(...pts.lon), Math.max(...pts.lon)];
@@ -64,7 +64,7 @@ test("GeoJSON scenarios, and r5r's checks", async () => {
   };
   await assert.rejects(() => ttm(net, pts, { mode: "BICYCLE", newLts: line }), /Element 1 is not <= 4/);
   await assert.rejects(() => ttm(net, pts, { mode: "CAR", carspeedScale: -1 }), /Element 1 is not >= 0/);
-  // r5r's check lets NaN through, then fails with an internal R error
+  // NaN has an error of its own
   await assert.rejects(() => ttm(net, pts, { mode: "CAR", carspeedScale: NaN }), /must be a number that is not NaN/);
   await assert.rejects(() => ttm(net, pts, { mode: "CAR", carspeedScale: "1" }), /Must be of type 'numeric', not 'string'/);
   await assert.rejects(() => ttm(net, pts, { mode: "CAR", carspeedScale: 1e300 }), /32-bit float/);

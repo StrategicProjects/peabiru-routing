@@ -1,7 +1,7 @@
-//! The public transport trips of r5r's `TripPlanner` with McRAPTOR: with
+//! The public transport trips of the ported `TripPlanner` with McRAPTOR: with
 //! `shortest_path = FALSE` (the alternatives, with `suboptimal_minutes`),
 //! with a fare structure, and when FastRaptor's path cannot be read back
-//! (r5r then routes the pair again with McRAPTOR). The search is R5's
+//! (the pair is then routed again with McRAPTOR). The search is R5's
 //! `McRaptorSuboptimalPathProfileRouter` from the stops of the access
 //! search to those of the egress search; every state at the destination of
 //! every draw becomes a trip (`Trip(state, departureTime, ...)`), one per
@@ -330,8 +330,8 @@ impl Planner<'_> {
     }
 
     /// `Trip.augment` of a McRAPTOR trip: the rides drawn, the walks between
-    /// stops routed, the access and egress legs added. `None` when r5r skips
-    /// the trip (`EgressPath.InvalidOriginException`).
+    /// stops routed, the access and egress legs added. `None` when the trip is
+    /// skipped (`EgressPath.InvalidOriginException`).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn augment(
         &self,

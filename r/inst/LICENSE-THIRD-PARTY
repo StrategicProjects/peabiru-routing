@@ -34,7 +34,7 @@ Contents
 1. R5: Rapid Realistic Routing on Real-world and Reimagined networks
 ==============================================================================
 
-https://github.com/conveyal/r5 (version 7.6, the one r5r 2.5.0 runs)
+https://github.com/conveyal/r5 (version 7.6)
 
 The routing logic of peabiru is a port of R5 to Rust: the construction of
 the street network from OpenStreetMap (osm/, street/), the loading of GTFS
@@ -384,15 +384,15 @@ and that carries this notice:
 
 https://github.com/ipea/r5r (version 2.5.0)
 
-The functions of the R and Python packages take their names, arguments,
-defaults and result layouts from r5r, the R interface to R5 developed at the
-Institute for Applied Economic Research (Ipea), and the engine reproduces
-what r5r's own Java layer does between those functions and R5 (how requests
-are assembled, how results are laid out and ordered); the fare calculator
-(RuleBasedInRoutingFareCalculator), the fare structure and its builder, and
-the McRAPTOR branch of r5r's TripPlanner are translations of r5r's Java code
-to Rust. The results of r5r are the reference of every test. r5r is distributed under "GPL (>= 3) | MIT +
-file LICENSE"; peabiru uses it under the MIT licence:
+r5r is the R interface to R5 developed at the Institute for Applied Economic
+Research (Ipea). The fare calculator (RuleBasedInRoutingFareCalculator), the
+fare structure and its builder, and the McRAPTOR branch of the trip planner
+(TripPlanner) are translations of r5r's Java code to Rust, and the engine
+follows what that Java layer does between a request and R5 (how requests are
+assembled, how results are laid out and ordered). Many functions of the
+packages share their names, arguments and result layouts with r5r's. r5r is
+distributed under "GPL (>= 3) | MIT + file LICENSE"; peabiru uses it under
+the MIT licence:
 
     Copyright (c) 2020 r5r contributors
 
@@ -419,12 +419,11 @@ file LICENSE"; peabiru uses it under the MIT licence:
 5. isoband
 ==============================================================================
 
-https://github.com/r-lib/isoband (version 0.3.0, the one r5r's isochrone()
-calls)
+https://github.com/r-lib/isoband (version 0.3.0)
 
 isochrone/isoband.rs is a translation to Rust of the isoband algorithm of
 isoband's src/isoband.cpp (marching squares and the merging of elementary
-polygons into rings), reduced to the bands r5r asks for, and
+polygons into rings), reduced to the bands the isochrones need, and
 isochrone/separate.rs a translation of src/separate-polygons.cpp (rings to
 polygons with holes). isoband is distributed under the MIT licence:
 
@@ -485,7 +484,7 @@ named here for transparency.
       street/scenario/jts.rs: the STRtree spatial index (its query order),
       DiscreteHausdorffDistance between two lines and the predicate
       Polygon.intersects(LineString), which R5's RoadCongestion and
-      ShapefileMatcher use for r5r's scenarios.
+      ShapefileMatcher use for scenarios.
   java.text.DecimalFormat, java.text.DigitList and
   jdk.internal.math.FloatingDecimal (OpenJDK 21)
       itinerary/wkt.rs: the digits DecimalFormat writes for a double (the

@@ -82,8 +82,8 @@ pub peabiru_core::Elevation::Minetti
 pub peabiru_core::Elevation::None
 pub peabiru_core::Elevation::Tobler
 impl peabiru_core::Elevation
-pub fn peabiru_core::Elevation::from_r5r_name(&str) -> core::option::Option<Self>
-pub fn peabiru_core::Elevation::r5r_name(self) -> &'static str
+pub fn peabiru_core::Elevation::from_name(&str) -> core::option::Option<Self>
+pub fn peabiru_core::Elevation::name(self) -> &'static str
 impl core::clone::Clone for peabiru_core::Elevation
 pub fn peabiru_core::Elevation::clone(&self) -> Self
 impl core::cmp::Eq for peabiru_core::Elevation
@@ -569,9 +569,9 @@ pub peabiru_core::FeedReport::path: std::path::PathBuf
 pub peabiru_core::FeedReport::tables_in_subfolder: alloc::vec::Vec<alloc::string::String>
 impl peabiru_core::FeedReport
 pub fn peabiru_core::FeedReport::file_name(&self) -> alloc::string::String
-pub fn peabiru_core::FeedReport::r5r_refusals(&self) -> alloc::vec::Vec<alloc::string::String>
-pub fn peabiru_core::FeedReport::r5r_warning(&self) -> core::option::Option<alloc::string::String>
-pub fn peabiru_core::FeedReport::r5r_warnings_per_case(&self) -> alloc::vec::Vec<alloc::string::String>
+pub fn peabiru_core::FeedReport::high_priority_cases(&self) -> alloc::vec::Vec<alloc::string::String>
+pub fn peabiru_core::FeedReport::warning(&self) -> core::option::Option<alloc::string::String>
+pub fn peabiru_core::FeedReport::warnings_per_case(&self) -> alloc::vec::Vec<alloc::string::String>
 impl core::clone::Clone for peabiru_core::FeedReport
 pub fn peabiru_core::FeedReport::clone(&self) -> Self
 impl core::cmp::Eq for peabiru_core::FeedReport
@@ -1063,13 +1063,13 @@ impl peabiru_core::TransitLayer
 pub fn peabiru_core::TransitLayer::dropped_trips(&self) -> peabiru_core::DroppedTrips
 pub fn peabiru_core::TransitLayer::feed_ids(&self) -> &[alloc::string::String]
 pub fn peabiru_core::TransitLayer::feed_reports(&self) -> &[peabiru_core::FeedReport]
+pub fn peabiru_core::TransitLayer::feed_warnings(&self) -> alloc::vec::Vec<alloc::string::String>
 pub fn peabiru_core::TransitLayer::has_frequencies(&self) -> bool
 pub fn peabiru_core::TransitLayer::n_linked_stops(&self) -> usize
 pub fn peabiru_core::TransitLayer::n_patterns(&self) -> usize
 pub fn peabiru_core::TransitLayer::n_services(&self) -> usize
 pub fn peabiru_core::TransitLayer::n_services_active_on(&self, u32) -> core::result::Result<usize, peabiru_core::RouteError>
 pub fn peabiru_core::TransitLayer::n_stops(&self) -> usize
-pub fn peabiru_core::TransitLayer::r5r_warnings(&self) -> alloc::vec::Vec<alloc::string::String>
 impl core::clone::Clone for peabiru_core::TransitLayer
 pub fn peabiru_core::TransitLayer::clone(&self) -> Self
 impl core::default::Default for peabiru_core::TransitLayer
@@ -1327,6 +1327,7 @@ impl core::marker::UnsafeUnpin for peabiru_core::WebMercatorGrid
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::WebMercatorGrid
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::WebMercatorGrid
 pub const peabiru_core::VERSION: &str
+pub fn peabiru_core::accessibility_trip_limits(&peabiru_core::DecayFunction, core::option::Option<&[i32]>, i32, core::option::Option<i32>, bool) -> core::result::Result<(i32, i32), peabiru_core::RouteError>
 pub fn peabiru_core::arrival_departure(u32, i32, i32) -> core::result::Result<(u32, i32), peabiru_core::RouteError>
 pub fn peabiru_core::arrival_travel_time_matrix(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams) -> core::result::Result<peabiru_core::ExpandedMatrix, peabiru_core::RouteError>
 pub fn peabiru_core::build_from_bytes(&[u8], &[(&str, &[u8])], &peabiru_core::BuildOptions) -> core::result::Result<peabiru_core::Network, peabiru_core::NetworkError>
@@ -1344,7 +1345,6 @@ pub fn peabiru_core::isochrone_lines(usize, usize, &[core::option::Option<u32>],
 pub fn peabiru_core::isochrone_polygons(&peabiru_core::TravelTimeSurface, &[f64]) -> core::result::Result<alloc::vec::Vec<peabiru_core::IsochronePolygon>, peabiru_core::RouteError>
 pub fn peabiru_core::isochrone_trip_limit(&[f64]) -> core::result::Result<i32, peabiru_core::RouteError>
 pub fn peabiru_core::pareto_frontier(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams, &[f64]) -> core::result::Result<peabiru_core::ParetoFrontier, peabiru_core::RouteError>
-pub fn peabiru_core::r5r_trip_limits(&peabiru_core::DecayFunction, core::option::Option<&[i32]>, i32, core::option::Option<i32>, bool) -> core::result::Result<(i32, i32), peabiru_core::RouteError>
 pub fn peabiru_core::read_fare_structure(&[u8], &str) -> core::result::Result<peabiru_core::FareStructure, peabiru_core::RouteError>
 pub fn peabiru_core::setup_fare_structure(&peabiru_core::Network, f64, &str) -> core::result::Result<peabiru_core::FareStructure, peabiru_core::RouteError>
 pub fn peabiru_core::street_accessibility(&peabiru_core::Network, &[(f64, f64)], &peabiru_core::Destinations<'_>, peabiru_core::Mode, &peabiru_core::RouteParams, &[i32], &peabiru_core::AccessibilityParams) -> core::result::Result<peabiru_core::Accessibility, peabiru_core::RouteError>

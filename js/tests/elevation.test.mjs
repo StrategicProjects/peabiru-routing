@@ -37,12 +37,12 @@ test("a raster gives walking and cycling slope costs", async () => {
     assert.notDeepEqual(t1, await times(minetti, mode));
   }
   assert.deepEqual(await times(tobler, "CAR"), await times(flat, "CAR"));
-  // a scenario routes without the slope costs, as in r5r
+  // a scenario routes without the slope costs
   const warnings = [];
   const onWarning = (w) => warnings.push(w);
   assert.deepEqual(await times(tobler, "WALK", { carspeedScale: 0.9, onWarning }), await times(flat, "WALK"));
   assert.equal(warnings.length, 1);
-  assert.match(warnings[0], /due to missing elevation\. See issue #555\./);
+  assert.match(warnings[0], /due to missing elevation\.$/);
   await times(flat, "WALK", { carspeedScale: 0.9, onWarning });
   assert.equal(warnings.length, 1);
   for (const n of [tobler, minetti, none]) n.free();

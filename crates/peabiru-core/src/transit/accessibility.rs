@@ -1,15 +1,15 @@
-//! Accessibility to opportunities, as r5r's `accessibility()`: for each
+//! Accessibility to opportunities (`accessibility()`): for each
 //! origin, the sum over destinations of `opportunities * weight(t)`, where
 //! `t` is a travel-time percentile in seconds and `weight` a decay function
 //! of `t` and a cutoff (R5 `TravelTimeReducer.recordTravelTimePercentilesForTarget`,
-//! `AccessibilityResult`, r5r `AccessibilityEstimator`).
+//! `AccessibilityResult`, and the ported `AccessibilityEstimator`).
 //!
 //! Travel times come from the same computation as the travel-time
 //! matrices: [`super::matrix`] for walk + transit and
 //! [`crate::street::router`] for street-only modes. Unlike the matrices,
 //! nothing is rounded to minutes: the decay is applied to the percentile in
-//! whole seconds (`TravelTimeReducer.java:217-226`), and the sum is r5r's
-//! raw double (no rounding on the R side either).
+//! whole seconds (`TravelTimeReducer.java:217-226`), and the sum is the
+//! raw double, unrounded.
 
 use super::decay::{Decay, DecayFunction};
 use super::matrix::{
@@ -24,16 +24,15 @@ use crate::RouteError;
 /// `AnalysisWorkerTask.MAX_REGIONAL_CUTOFFS`.
 const MAX_CUTOFFS: usize = 12;
 
-/// How to weight the opportunities, with r5r's defaults (`cutoffs = 30`,
+/// How to weight the opportunities; the defaults are `cutoffs = 30` and
 /// `decay_function = "step"`). Fill it in by changing the fields of
 /// [`AccessibilityParams::default()`].
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct AccessibilityParams {
     /// Cutoffs in whole minutes: 1 to 12 values in 0..=120, in any order
-    /// (they are sorted ascending, as r5r does). r5r passes the single
-    /// placeholder `0` with [`DecayFunction::FixedExponential`], which
-    /// ignores it.
+    /// (they are sorted ascending). Pass the single placeholder `0` with
+    /// [`DecayFunction::FixedExponential`], which ignores it.
     pub cutoffs: Vec<i32>,
     /// The decay function and its parameter.
     pub decay: DecayFunction,
@@ -49,7 +48,7 @@ impl Default for AccessibilityParams {
 }
 
 /// Accessibility per origin, opportunity column, percentile and cutoff:
-/// r5r's raw double, unrounded.
+/// the raw double, unrounded.
 ///
 /// The values are held in one buffer, origin by origin, then opportunity
 /// column, percentile and cutoff (the cutoff varies fastest), which
@@ -87,7 +86,7 @@ impl Accessibility {
 
     /// The cutoffs in minutes, in output order (ascending). With
     /// [`DecayFunction::FixedExponential`], which ignores cutoffs, whatever
-    /// [`AccessibilityParams::cutoffs`] held (r5r passes the placeholder
+    /// [`AccessibilityParams::cutoffs`] held (usually the placeholder
     /// `0`).
     pub fn cutoffs(&self) -> &[i32] {
         &self.cutoffs
@@ -130,7 +129,7 @@ impl Accessibility {
 
 /// Destination points with their opportunity counts: `opportunities[k][j]`
 /// is the count of opportunity kind `k` at `points[j]` (one column per
-/// r5r `opportunities_colnames` entry). Made with
+/// `opportunities_colnames` entry of the packages). Made with
 /// [`Destinations::new`].
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
@@ -176,11 +175,11 @@ impl Reducer {
         opportunities: &[Vec<f64>],
         n_destinations: usize,
     ) -> Result<Self, String> {
-        // AnalysisWorkerTask.validatePercentiles (r5r sorts them first)
+        // AnalysisWorkerTask.validatePercentiles (sorted first)
         check_percentiles(percentiles)?;
         let mut percentiles = percentiles.to_vec();
         percentiles.sort_unstable();
-        // AnalysisWorkerTask.validateCutoffsMinutes (r5r sorts them first)
+        // AnalysisWorkerTask.validateCutoffsMinutes (sorted first)
         let mut cutoffs = a.cutoffs.clone();
         cutoffs.sort_unstable();
         if cutoffs.is_empty() || cutoffs.len() > MAX_CUTOFFS {
@@ -208,9 +207,8 @@ impl Reducer {
                     "opportunity column {k} has a non-finite value ({v})"
                 ));
             }
-            // r5r turns NA (and NaN, which R counts as NA) into 0
-            // (R/assign.R `assign_opportunities`); R5 would skip a NaN
-            // anyway (`!(count > 0)`).
+            // a missing count (NaN) is 0; R5 would skip a NaN anyway
+            // (`!(count > 0)`).
             cols.push(
                 col.iter()
                     .map(|&v| if v.is_nan() { 0.0 } else { v })
@@ -368,8 +366,7 @@ pub(crate) fn street_accessibility(
     Ok(r.finish(origins.len(), rows.concat()))
 }
 
-/// r5r's trip limits for `accessibility()` (`R/accessibility.R:201-231`,
-/// `R/assign.R` `assign_max_street_time` / `assign_max_trip_duration`).
+/// The trip limits of `accessibility()`, derived from what the user asked.
 /// Given the user's `max_trip_duration` and `max_walk_time` (`None` = `Inf`)
 /// in minutes, returns `(max_trip_duration, max_walk_time)` as R5 receives
 /// them:
@@ -378,8 +375,8 @@ pub(crate) fn street_accessibility(
 /// - `max_walk_time = Inf` then becomes that `max_trip_duration`;
 /// - for walking alone (`walk_only`, no transit) `max_trip_duration` is
 ///   reduced to `max_walk_time`. (Bicycle and car alone have their own
-///   limits, which r5r also defaults to `max_trip_duration`.)
-pub fn r5r_trip_limits(
+///   limits, which also default to `max_trip_duration`.)
+pub fn accessibility_trip_limits(
     decay: &DecayFunction,
     cutoffs: Option<&[i32]>,
     max_trip_duration: i32,
@@ -498,29 +495,32 @@ mod tests {
     }
 
     #[test]
-    fn trip_limits_follow_r5r() {
+    fn trip_limits_are_derived() {
         let step = DecayFunction::Step;
         let exp = DecayFunction::Exponential;
         assert_eq!(
-            r5r_trip_limits(&step, Some(&[30, 60]), 120, None, false),
+            accessibility_trip_limits(&step, Some(&[30, 60]), 120, None, false),
             Ok((60, 60))
         );
         assert_eq!(
-            r5r_trip_limits(&exp, Some(&[30, 60]), 120, None, false),
+            accessibility_trip_limits(&exp, Some(&[30, 60]), 120, None, false),
             Ok((120, 120))
         );
         assert_eq!(
-            r5r_trip_limits(&exp, Some(&[30, 60]), 120, Some(15), false),
+            accessibility_trip_limits(&exp, Some(&[30, 60]), 120, Some(15), false),
             Ok((120, 15))
         );
         assert_eq!(
-            r5r_trip_limits(&exp, Some(&[30, 60]), 120, Some(15), true),
+            accessibility_trip_limits(&exp, Some(&[30, 60]), 120, Some(15), true),
             Ok((15, 15))
         );
-        assert!(r5r_trip_limits(&exp, Some(&[30, 60]), 45, None, false).is_err());
+        assert!(accessibility_trip_limits(&exp, Some(&[30, 60]), 45, None, false).is_err());
         let fixed = DecayFunction::FixedExponential {
             decay_constant: 0.01,
         };
-        assert_eq!(r5r_trip_limits(&fixed, None, 90, None, false), Ok((90, 90)));
+        assert_eq!(
+            accessibility_trip_limits(&fixed, None, 90, None, false),
+            Ok((90, 90))
+        );
     }
 }

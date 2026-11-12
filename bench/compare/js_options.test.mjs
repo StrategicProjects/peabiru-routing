@@ -1,19 +1,30 @@
-// Each function takes the options of r5r's function (its arguments after the
-// positional ones, in camelCase), plus `onWarning` and `signal`, and
-// refuses any other: nothing is silently ignored. The arguments come from
-// the R package's snapshot of r5r 2.5.0's formals.
+// Each function of the npm package takes the options of r5r's function of
+// the same name (its arguments after the positional ones, in camelCase),
+// plus `onWarning` and `signal`, and refuses any other: nothing is silently
+// ignored. The arguments come from the snapshot of r5r 2.5.0's formals
+// (r5r-formals.csv, written by tools/r5r_formals.R).
+//
+//   node --test bench/compare/js_options.test.mjs
+//
+// Needs the WebAssembly package built (js/build.sh). Env: R5R_FORMALS, the
+// snapshot (default: bench/compare/r5r-formals.csv, else the R package's
+// test fixture).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import * as peabiru from "../lib/index.js";
-import { sampleNetwork, samplePoints } from "./helpers.mjs";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import * as peabiru from "../../js/lib/index.js";
+import { sampleNetwork, samplePoints } from "../../js/tests/helpers.mjs";
 
-const FORMALS = new URL("../../r/tests/testthat/fixtures/r5r-formals.csv", import.meta.url);
+const FORMALS = [
+  process.env.R5R_FORMALS,
+  fileURLToPath(new URL("./r5r-formals.csv", import.meta.url)),
+  fileURLToPath(new URL("../../r/tests/testthat/fixtures/r5r-formals.csv", import.meta.url)),
+].find((p) => p && existsSync(p));
 const camel = (s) => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
 
-// r5r function -> [JS function, the positional arguments, arguments with
-// no JS option (and why)]
+// r5r function -> [JS function, the positional arguments]
 const FUNCTIONS = {
   travel_time_matrix: ["travelTimeMatrix", ["r5r_network", "origins", "destinations"]],
   expanded_travel_time_matrix: ["expandedTravelTimeMatrix", ["r5r_network", "origins", "destinations"]],
@@ -26,8 +37,8 @@ const FUNCTIONS = {
   setup_fare_structure: ["setupFareStructure", ["r5r_network", "base_fare"]],
   check_transit_availability: ["checkTransitAvailability", ["r5r_network"]],
 };
-// not options anywhere: r5r's deprecated alias of the network
-const NEVER = new Set(["r5r_core"]);
+// not options anywhere: r5r's deprecated arguments
+const NEVER = new Set(["r5r_core", "sample_size"]);
 
 function formals() {
   const [, ...lines] = readFileSync(FORMALS, "utf8").trim().split(/\r?\n/);
@@ -40,6 +51,10 @@ function formals() {
 }
 
 const unknown = (e) => e instanceof TypeError && /^unknown option /.test(e.message);
+
+test("the snapshot of r5r's formals is there", () => {
+  assert.ok(FORMALS, "r5r-formals.csv not found: set R5R_FORMALS");
+});
 
 test("every function takes r5r's options and no others", async () => {
   const network = await sampleNetwork();

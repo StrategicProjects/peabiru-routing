@@ -23,26 +23,24 @@ pub fn runtime_error(cmd: &str, msg: impl Display) -> ! {
 /// The elevation model of the environment variable `PEABIRU_ELEVATION`
 /// (`TOBLER`, `MINETTI` or `NONE`, in any case), `None` without it. The
 /// command-line tool builds networks without elevation by default, even
-/// from a directory with a `.tif` raster (r5r's default is `TOBLER`).
+/// from a directory with a `.tif` raster (the packages' default is `TOBLER`).
 pub fn elevation(cmd: &str) -> Option<peabiru_core::Elevation> {
     let v = std::env::var("PEABIRU_ELEVATION").ok()?;
-    Some(
-        peabiru_core::Elevation::from_r5r_name(&v).unwrap_or_else(|| {
-            usage_error(
-                cmd,
-                format!("PEABIRU_ELEVATION is '{v}', expected TOBLER, MINETTI or NONE"),
-            )
-        }),
-    )
+    Some(peabiru_core::Elevation::from_name(&v).unwrap_or_else(|| {
+        usage_error(
+            cmd,
+            format!("PEABIRU_ELEVATION is '{v}', expected TOBLER, MINETTI or NONE"),
+        )
+    }))
 }
 
 /// Build the network of a data directory, as
-/// [`peabiru_core::build_from_dir`]. As r5r, the build fails when a GTFS
+/// [`peabiru_core::build_from_dir`]. The build fails when a GTFS
 /// feed has errors of priority `HIGH`; with the environment variable
 /// `PEABIRU_IGNORE_GTFS_ERRORS=1` such feeds are built anyway
 /// ([`peabiru_core::BuildOptions::ignore_gtfs_errors`]), with one
-/// `peabiru <cmd>: warning: ...` line on stderr per feed and case that r5r
-/// refuses to build a network from, and one per warning about the
+/// `peabiru <cmd>: warning: ...` line on stderr per feed and case of such
+/// errors, and one per warning about the
 /// elevation raster. `PEABIRU_ELEVATION` sets the elevation model
 /// ([`elevation`]).
 pub fn build_from_dir(
@@ -57,7 +55,7 @@ pub fn build_from_dir(
     }
     let built = peabiru_core::build_from_dir(dir, &opts)?;
     for report in built.transit().map_or(&[][..], |t| t.feed_reports()) {
-        for w in report.r5r_warnings_per_case() {
+        for w in report.warnings_per_case() {
             eprintln!("peabiru {cmd}: warning: {w}");
         }
     }
@@ -70,7 +68,7 @@ pub fn build_from_dir(
 /// The scenario of the environment variable `PEABIRU_SCENARIO`, a text
 /// file of lines `carspeed_scale <x>`, `car scale|km/h`, `way <osm id>
 /// <value>` (car speeds by way) and `lts <osm id> <level>` (levels of
-/// traffic stress by way), the values written as r5r hands them to R5;
+/// traffic stress by way), the values written as R5 reads them;
 /// the default scenario (no change) without the variable. Polygons and
 /// lines are not read here (the packages take them).
 pub fn scenario(cmd: &str) -> peabiru_core::Scenario {

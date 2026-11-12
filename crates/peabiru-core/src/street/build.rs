@@ -26,24 +26,22 @@ pub struct BuildOptions {
     pub n_threads: usize,
     /// Build the transit layer even from GTFS feeds with errors of
     /// priority `HIGH`. By default (`false`) each feed is first checked as
-    /// [`gtfs_errors`](crate::gtfs_errors) checks it and, as r5r's
-    /// `build_network()` does, the build fails when any feed has an error
+    /// [`gtfs_errors`](crate::gtfs_errors) checks it, and
+    /// the build fails when any feed has an error
     /// of priority `HIGH`, or is one gtfs-lib fails to load at all (see
     /// [`NetworkError::high_priority_gtfs_errors`](crate::NetworkError::high_priority_gtfs_errors)).
     /// With `true` the feeds are not checked: peabiru builds what it can
     /// read, leaving out trips that refer to stops or routes that do not
-    /// exist, and [`TransitLayer::r5r_warnings`](crate::TransitLayer::r5r_warnings)
-    /// says which feeds r5r would refuse.
+    /// exist, and [`TransitLayer::feed_warnings`](crate::TransitLayer::feed_warnings)
+    /// says which feeds would have been refused, and why.
     pub ignore_gtfs_errors: bool,
     /// The slope cost function for walking and cycling, applied from an
-    /// elevation raster as r5r applies it with `build_network(elevation =
-    /// ...)`: [`build_from_dir`](crate::build_from_dir) reads the
+    /// elevation raster: [`build_from_dir`](crate::build_from_dir) reads the
     /// directory's `.tif` file, and
     /// [`build_from_bytes_with_elevation`](crate::build_from_bytes_with_elevation)
     /// takes its bytes. [`Elevation::None`](crate::Elevation::None) (the
     /// default) ignores any raster; so does a build with no raster, and so
-    /// does [`build_network`](crate::build_network), which reads a `.pbf` file only. Unlike r5r,
-    /// whose default is `"TOBLER"`, the default here is no elevation.
+    /// does [`build_network`](crate::build_network), which reads a `.pbf` file only.
     pub elevation: crate::Elevation,
 }
 

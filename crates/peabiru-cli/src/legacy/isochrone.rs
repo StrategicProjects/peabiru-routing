@@ -1,5 +1,5 @@
-//! `peabiru isochrone`: polygon or line isochrones, as r5r's `isochrone()`,
-//! for testing the core against r5r.
+//! `peabiru isochrone`: polygon or line isochrones (`isochrone()`),
+//! for testing the core against reference results.
 
 use super::cli::{self, runtime_error, usage_error};
 use peabiru_core::unstable::{isochrone_polygons_in, CxxLibrary};
@@ -116,12 +116,12 @@ pub fn run(args: &[String]) {
         usage_error(CMD, "Percentiles not supported for line-based isochrones");
     }
     let percentiles = percentiles.unwrap_or_else(|| vec![50]);
-    // r5r: max_trip_duration = as.integer(max(cutoffs)), plus 10 for polygons
+    // max_trip_duration is the largest cutoff in whole minutes, plus 10 for polygons
     let mut limit = isochrone_trip_limit(&cutoffs).unwrap_or_else(|e| usage_error(CMD, e));
     if !lines {
         limit += 10;
     }
-    // r5r assign_max_street_time / assign_max_trip_duration
+    // the street limits default to the trip limit; a street mode alone is capped by its own
     let walk_limit = max_walk.unwrap_or(limit);
     if street_mode == Some(Mode::Walk) && walk_limit < limit {
         limit = walk_limit;

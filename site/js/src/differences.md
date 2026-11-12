@@ -1,86 +1,63 @@
-# Coming from R or Python
+# Compared with r5r
 
-The JavaScript package has the functions, arguments, defaults, checks and
-result columns of the R and Python packages, which have r5r's, and gives
-the same values: the engine is the same Rust core, compiled to
-WebAssembly. `bench/compare/js_parity.mjs` in the repository compares its
-results with those of the native command-line tool cell by cell on r5r's
-sample data, on the calling thread and on a pool of workers. What differs
-is what JavaScript makes different. `tripOptions()`, peabiru's own planner
-(see [Trip options](trip-options.md)), is the same in the three packages too.
+[r5r](https://github.com/ipea/r5r) is the R package of Ipea that runs
+Conveyal's R5 routing engine on a Java virtual machine. This page is for
+those who know it: what peabiru shares with r5r, what differs, and how to
+move a script over. It compares the JavaScript package with r5r 2.5.0
+(R5 7.6).
 
-## The calls
+## What is shared
 
-| R and Python | JavaScript |
+- **The routing model is R5's.** peabiru's engine is a port of R5 to Rust:
+  the same street network built from OpenStreetMap, the same linking of
+  stops and points, the same public transport search with percentiles and
+  Monte Carlo draws, the same fare rules, slope costs and scenarios.
+- **The results are the same.** The repository compares peabiru with r5r
+  on its test networks (Porto Alegre and São Paulo, and the whole city of
+  Porto Alegre) on every push: travel-time matrices, accessibility,
+  expanded and arrival matrices, isochrones, detailed itineraries, fares
+  and Pareto frontiers come out identical, row for row and value for
+  value, with the exceptions listed below. The JavaScript package is
+  compared cell by cell with peabiru's native tool
+  (`bench/compare/js_parity.mjs`). With frequency-based feeds the results
+  are random without a `seed`, in both; with the same `seed` they are
+  equal.
+- **The functions have the same shape**: one function per kind of result,
+  with the same arguments (here options in camelCase), defaults and result
+  columns.
+
+`tripOptions()` (see [Trip options](trip-options.md)) is peabiru's own
+planner and has no counterpart in r5r.
+
+## Moving a script over
+
+| r5r | peabiru in JavaScript |
 |---|---|
-| `build_network(data_path)`: a directory with one `.pbf` and the GTFS `.zip` files | `await buildNetwork({ pbf, gtfs: [{ name, data }] })`: the bytes of the files |
-| `travel_time_matrix(network, origins, destinations, mode = ..., ...)` | `await travelTimeMatrix(network, origins, destinations, { mode, ... })` |
-| arguments in snake_case: `departure_datetime`, `max_trip_duration` | options in camelCase: `departureDatetime`, `maxTripDuration` |
-| `NULL` / `None` | `null` |
-| `Inf` / `math.inf` | `Infinity` |
-| points as a `data.frame`, `sf`, pandas `DataFrame` or `GeoDataFrame` | columns `{ id, lon, lat }` or an array of `{ id, lon, lat }` objects |
-| `POSIXct` / `datetime` | a string `"YYYY-MM-DD HH:MM:SS"` (or a `Date`, read in local time) |
-| a result `data.frame` / pandas `DataFrame` | an object of columns: arrays of strings and typed arrays |
-| `NA` in integer columns | [`NA_INT32`](api.md#NA_INT32) (-2147483648) |
-| `NA` in double columns | `NaN` |
-| `NA` in character columns | `null` |
-| warnings (`warning()`, `warnings.warn`) | `onWarning` (default `console.warn`) |
-| `n_threads` threads sharing one network | `nThreads` workers, each with its own copy of the network |
-| interrupting with Ctrl-C (or `setTimeLimit()` in R) | an `AbortSignal` in `signal` |
-| the network is freed by the garbage collector | `network.free()` (the garbage collector does not see WebAssembly memory) |
-| `sample_data_path()`, `sample_points()` (Python) | no bundled sample: the examples read the Python package's |
-| `read_fare_structure(file_path)`, `write_fare_structure(fs, file_path)` | `readFareStructure(bytes)`; `writeFareStructure(fs)` returns the bytes |
-| `get_gtfs_errors(network)` | `await getGtfsErrors([{ name, data }])`: the feeds' bytes |
-| the `Date` column `date` of `check_transit_availability()` | strings `"YYYY-MM-DD"` |
+| `options(java.parameters = "-Xmx4G")`, `library(r5r)` | `import * as peabiru from "peabiru"`: no Java, no memory setting |
+| `r5r_network <- build_network(data_path)` | `const network = await peabiru.buildNetwork({ pbf, gtfs: [{ name, data }], tif })`: the bytes of the files |
+| `travel_time_matrix(r5r_network, origins, destinations, mode = ..., ...)` | `await peabiru.travelTimeMatrix(network, origins, destinations, { mode, ... })` |
+| arguments in snake_case | options in camelCase (`departureDatetime`, `maxTripDuration`) |
+| `data.frame` or `sf` points | columns `{ id, lon, lat }` or an array of `{ id, lon, lat }` objects, in WGS 84 |
+| `POSIXct` | a string `"YYYY-MM-DD HH:MM:SS"` or a `Date` |
+| a `data.table` result | an object of columns (arrays of strings and typed arrays) |
+| an `sf` result | a GeoJSON `FeatureCollection` |
+| `NA` | [`NA_INT32`](api.md#NA_INT32) in integer columns, `NaN` in double columns, `null` in strings |
+| warnings | `onWarning` (default `console.warn`); those of the build also in `network.buildWarnings()` |
+| `n_threads` | `nThreads` in `buildNetwork()`: workers, each with a copy of the network |
+| `stop_r5()`, `rJava::.jgc()` | `network.free()` |
+| `setup_r5()`, `download_r5()`, `r5r_cache()`, `r5r_sitrep()` | nothing to set up |
+| `read_fare_structure(path)`, `write_fare_structure(fs, path)` | `readFareStructure(bytes)`, `writeFareStructure(fs)`: bytes, in the same file format |
+| `get_gtfs_errors(r5r_network)` | `await getGtfsErrors([{ name, data }])` |
+| `output_dir` | not available (no file system) |
 
-An option that is not one of the package's options is an error, as an
-unknown argument is in R and Python.
+Every call that reads or routes on a network is asynchronous: `await` it.
+See [Coming from R or Python](r-python.md) for what JavaScript makes
+different from peabiru's other packages, which applies here too.
 
-## Every call is asynchronous
+## Differences
 
-Every function that reads or routes on a network returns a Promise, also
-on a network without workers: `await` it. On the calling thread the
-computation itself still blocks the thread while it runs (see
-[Threads and workers](threads.md)). `readFareStructure()`,
-`writeFareStructure()`, `coreVersion()`, `initSync()` and `network.info()`
-are synchronous.
-
-## Threads
-
-In R and Python `n_threads` threads share one network in memory. In
-JavaScript a thread is a worker, and workers do not share WebAssembly
-memory, so each worker builds and holds its own copy of the network: the
-memory grows with the number of workers (about 75 MiB per worker on the
-Porto Alegre sample), and the default is one thread with no workers. The
-results do not depend on the number of workers. See
-[Threads and workers](threads.md).
-
-## Feed order
-
-r5r, and the R and Python packages, load the GTFS feeds of a directory in
-the order the operating system lists it; with more than one feed that
-order can change a few results of expanded and arrival matrices (another
-stop or route for some trips). Here the feeds load in the order of the
-`gtfs` array. To reproduce a network built from a directory, pass the
-feeds in the order that directory lists them: on macOS the r5r sample of
-Porto Alegre lists `poa_trensurb.zip` before `poa_eptc.zip`, and Linux
-lists them the other way round. `network.info().feeds` gives the feed ids
-in loading order.
-
-A feed's `name` stands for its file name: it names the feed in messages
-and, when the feed has no `feed_info.feed_id`, gives the feed id (the name
-without `.zip`), which prefixes its stop ids.
-
-## Differences from r5r
-
-The three packages differ from r5r 2.5.0 in the same deliberate ways,
-listed here as they apply to JavaScript. Results are otherwise r5r's: the
-same rows, in the same order, with the same column names and values.
-Missing coordinates, ids that are not strings and duplicated ids are
-treated as in r5r, with the same warnings and errors. Without a `seed`,
-frequency-based feeds give random results in r5r and in peabiru alike (a
-new seed for each call); with the same `seed`, peabiru's results are
-r5r's.
+The differences from r5r 2.5.0 are deliberate, and the same in peabiru's
+three packages; they are listed here as they apply to JavaScript.
 
 ### General
 
@@ -88,23 +65,22 @@ r5r's.
 - **No Java**: no JVM, no memory setting, no R5 jar. r5r's five functions
   that manage Java and its files (`setup_r5()`, `stop_r5()`,
   `download_r5()`, `r5r_cache()`, `r5r_sitrep()`) have nothing to manage
-  here and do not exist (the R package keeps them so that r5r scripts
-  run). `version` and `coreVersion()` give the versions of the package and
-  of its Rust core.
+  here and do not exist. `version` and `coreVersion()` give the versions
+  of the package and of its Rust core.
 
 <!-- diff:result-type -->
 - **Results** are objects of columns (arrays of strings, typed arrays) and
   GeoJSON `FeatureCollection`s where r5r returns `data.table`s and `sf`
   tables; the tables of a fare structure are objects of columns too.
-  Column names, order and values are r5r's (see the table above for
+  Column names, order and values are the same (see the table above for
   missing values).
 
 <!-- diff:sf-any-crs -->
 - **Geometries in another coordinate reference system** (R only). The R
-  package reprojects an `sf` input in any CRS to WGS 84, with a message,
-  where r5r stops with an error. In JavaScript points are longitudes and
-  latitudes, and scenario polygons and lines GeoJSON, in WGS 84 as GeoJSON
-  requires: there is no CRS to reproject from.
+  package of peabiru reprojects an `sf` input in any CRS to WGS 84, with a
+  message, where r5r stops with an error. In JavaScript points are
+  longitudes and latitudes, and scenario polygons and lines GeoJSON, in
+  WGS 84 as GeoJSON requires: there is no CRS to reproject from.
 
 <!-- diff:network-in-memory -->
 - **The network lives in memory only**, built from the bytes of the files
@@ -120,38 +96,22 @@ r5r's.
   copy of the network (see [Threads and workers](threads.md)).
 
 <!-- diff:verbose-progress -->
-- `verbose` and `progress` are checked as r5r checks them, but nothing is
-  printed: no progress counter, no report of the build.
+- `verbose` and `progress` are checked, but nothing is printed: no
+  progress counter, no report of the build.
 
 <!-- diff:error-classes -->
-- **Errors**: argument errors give the messages of r5r's checks in
-  JavaScript's terms (`null`, `boolean`, `string`, `number`, `Date`,
-  `Array`; positions counted from 1 as in R; cli's bullets and line breaks
-  dropped), with the option names in camelCase, except in a few cases
-  worded differently on purpose:
-  r5r turns numbers and logical values given as a mode (`mode`, `modeEgress`,
-  `by`) into text and reports the text as not a mode, where JavaScript reports
-  the value's type; `arrivalDatetime` is checked itself (R and r5r check
-  the departure, `arrival_datetime - max_trip_duration`); `allToAll` is
-  named as such (R names the internal `unique_ids`); and a missing
-  `fareCutoffs` is the default, and `departureDatetime` also takes a string
-  `"YYYY-MM-DD HH:MM:SS"`, so a string that is not one says what it must
-  be. Every other argument error is
-  r5r's text in JavaScript's terms: the test suite checks 1,367 cases, shared by
-  the three packages (`bench/compare/argument_errors.json`, written from
-  the R package by `bench/compare/argument_errors.R`), and lists these
-  exceptions there.
-  Errors are a `TypeError` (a value of the wrong type)
-  or a `RangeError` (a value out of range); what peabiru does not do is an
-  [`UnsupportedError`](api.md#UnsupportedError); what the engine finds
-  wrong in the data (a fare structure, a scenario, a GTFS feed, a raster)
-  is an `Error`. Errors raised in a worker reach the caller with the same
-  class and message.
+- **Errors**: most argument errors read as r5r's (both word them as
+  checkmate does) in JavaScript's terms, with the option names in
+  camelCase; see [Coming from R or Python](r-python.md#errors) for the
+  terms, the error classes and the few cases worded differently. Messages
+  never name r5r or its network argument: `detailedItineraries()` on a
+  network with frequencies fails with `Assertion on 'network' failed`.
 
 <!-- diff:deprecated-args -->
-- **Deprecated arguments**: there is no `r5rCore` (r5r's old name for the
-  network argument). `isochrone()` takes r5r's deprecated `sampleSize`,
-  which only warns, as in r5r.
+- **Deprecated arguments**: r5r's deprecated arguments do not exist here:
+  there is no `r5rCore` (its old name for the network argument) and
+  `isochrone()` has no `sampleSize`. Giving one is an error, as any
+  unknown option is.
 
 ### Where peabiru is deterministic and r5r is not
 
@@ -183,9 +143,9 @@ r5r's.
 - Elevation voids and values beyond +/-3276.7 m are stored wrapped around,
   as R5 stores them (16-bit integers of decimetres: SRTM's -32768 becomes
   0 m, -9999 becomes 3108.2 m; a NaN no-data value is stored as 0 m), so
-  the slope costs are r5r's; peabiru warns, counting them and the samples
-  equal to the raster's no-data value, where r5r is silent. The pixel read
-  with `StrictMath` (above) also warns.
+  the slope costs are the same as r5r's; peabiru warns, counting them and
+  the samples equal to the raster's no-data value, where r5r is silent.
+  The pixel read with `StrictMath` (above) also warns.
 
 ### Errors where r5r fails later or routes on corrupted values
 
@@ -193,10 +153,12 @@ r5r's.
 - peabiru throws an error of its own that says what is wrong where r5r
   lets a value through and then fails, in Java or in R: empty
   `percentiles`; an `arrivalDatetime` that is not a date and time; a
-  fractional `zoom` in `isochrone()`; a `carspeedScale` of `NaN`;
-  `writeFareStructure()` with something that is not a fare structure; a
-  fare structure whose fare type is not in `fares_per_type` or that leaves
-  out a route of the network.
+  fractional `zoom` in `isochrone()`; a `carspeedScale` of `NaN`; a
+  missing destination id; `isochrone()` with no origins; a scenario value
+  that is not a number; `writeFareStructure()` with something that is not
+  a fare structure; a fare structure with a column that is not one of its
+  table's, whose fare type is not in `fares_per_type`, or that leaves out
+  a route of the network.
 
 <!-- diff:scenario-wrap -->
 - [Scenarios](scenarios.md) whose car speeds R5's 16-bit centimetres per
@@ -206,7 +168,8 @@ r5r's.
   a 32-bit float, are errors; r5r routes on the wrapped speeds, hands R5
   `Infinity`, or fails dividing by zero. Polygons that are not valid, and
   ties between polygons that peabiru cannot settle exactly as R5 does, are
-  errors too.
+  errors too. r5r warns that a scenario drops the slope costs of elevation
+  on every network; peabiru only on a network that has elevation.
 
 ### What peabiru refuses
 
@@ -252,18 +215,17 @@ These are errors that say so, where r5r computes something:
 - `isochrone()` returns the polygons r5r hands to `sf::st_make_valid()`,
   without that last rebuild with s2: they cover the same areas but their
   vertices are not snapped to 1e-7 degrees, the rings of one polygon may
-  touch at a vertex, and they are always `MultiPolygon`s. (The R package
-  returns r5r's `sf` exactly.)
+  touch at a vertex, and they are always `MultiPolygon`s.
 
 <!-- diff:platform-order -->
 - r5r loads the GTFS feeds of its directory in the order the operating
-  system lists it (see [Feed order](#feed-order)); here the order is that
-  of the `gtfs` array. r5r's isochrone rings start where isoband, built
-  with the platform's C++ library, puts them (libc++ on macOS, libstdc++
-  on Linux and Windows); the JavaScript package gives the macOS order on
-  every platform, and its polygon coordinates can differ from the native
-  packages' in the last digits (about 1e-14 degrees), because WebAssembly
-  has its own `sinh` and `atan`. The line isochrones are identical.
+  system lists it (see [Feed order](r-python.md#feed-order)); here the
+  order is that of the `gtfs` array. r5r's isochrone rings start where
+  isoband, built with the platform's C++ library, puts them (libc++ on
+  macOS, libstdc++ on Linux and Windows); the JavaScript package gives the
+  macOS order on every platform, and its polygon coordinates can differ in
+  the last digits (about 1e-14 degrees), because WebAssembly has its own
+  `sinh` and `atan`. The line isochrones are identical.
 
 ### What only JavaScript does differently
 
@@ -273,9 +235,14 @@ These are errors that say so, where r5r computes something:
   since a network does not keep them; `readFareStructure()` takes the
   bytes of a `.zip` file and `writeFareStructure()` returns them.
 - `nThreads` is a number of workers, each with its own copy of the
-  network; an `AbortSignal` in `signal` stops a call, where R and Python
-  stop on Ctrl-C.
+  network; an `AbortSignal` in `signal` stops a call.
 - Dates and times can be `Date`s, read in the runtime's local time zone;
   strings `"YYYY-MM-DD HH:MM:SS"` are read as they are written.
-- An option that is not one of the function's options is an error, as an
-  unknown argument is in R and Python.
+- An option that is not one of the function's options is an error.
+
+## Citing r5r
+
+Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V., & Conway,
+M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport
+Networks with R5 in R. *Findings*, 21262.
+<https://doi.org/10.32866/001c.21262>

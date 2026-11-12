@@ -1,9 +1,9 @@
 // peabiru: multimodal routing on OpenStreetMap and GTFS networks, in
 // WebAssembly.
 //
-// The functions mirror the Python and R packages of peabiru, which mirror
-// r5r 2.5.0: the same arguments (in camelCase), the same defaults, the
-// same checks and the same results. The argument checks, the trip limits
+// The functions mirror the Python and R packages of peabiru: the same
+// arguments (in camelCase), the same defaults, the same checks and the
+// same results. The argument checks, the trip limits
 // and the assembly of the result columns live here; the routing runs in
 // the Rust core, compiled to WebAssembly (pkg/peabiru_bg.wasm), on the
 // calling thread or in a pool of workers (lib/worker.js), each with its
@@ -161,10 +161,10 @@ export function coreVersion() {
 }
 
 // ---------------------------------------------------------------------------
-// Errors and checks (r5r uses checkmate; these are its few assertions)
+// Errors and checks
 
 /**
- * An option of r5r that peabiru does not support yet. peabiru never
+ * An option that peabiru does not support. peabiru never
  * ignores an argument it cannot honour: requesting it throws this error.
  */
 export class UnsupportedError extends Error {
@@ -184,8 +184,8 @@ function fail(name, msg, Kind = RangeError) {
 
 // ---------------------------------------------------------------------------
 // A port of the R package's port of checkmate (r/R/checkmate.R), so that the
-// same values are accepted and rejected, with r5r's messages in JavaScript's
-// terms: values are read as R vectors (null and undefined are NULL; a
+// same values are accepted and rejected, with the same messages in
+// JavaScript's terms: values are read as R vectors (null and undefined are NULL; a
 // boolean, number, string or Date is a vector of one; an array or typed
 // array is a vector of its elements, with NaN, null and invalid Dates
 // missing; an empty array is R's numeric(0); a mix of kinds is a list), and
@@ -420,7 +420,7 @@ const cm = {
     return true;
   },
   /**
-   * r5r's toupper(unique(x)) on a mode: strings upper-cased, repeats dropped
+   * R's toupper(unique(x)) on a mode: strings upper-cased, repeats dropped
    * first; null and [] are character(0); anything else as given (R turns
    * numbers and booleans into text, JavaScript reports their type).
    */
@@ -524,7 +524,7 @@ function column(points, key) {
 }
 
 /**
- * r5r assign_points_input(): columns `id`, `lon`, `lat` (an object of
+ * The points of a call: columns `id`, `lon`, `lat` (an object of
  * arrays), or an array of `{id, lon, lat}` objects.
  */
 function pointsInput(points, name, warn, uniqueIds = true) {
@@ -585,10 +585,10 @@ function pointsInput(points, name, warn, uniqueIds = true) {
 const TRANSIT_MODES = ["TRANSIT", "TRAM", "SUBWAY", "RAIL", "BUS", "FERRY", "CABLE_CAR", "GONDOLA", "FUNICULAR"];
 const DIRECT_MODES = ["WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK"];
 
-/** r5r assign_mode(). */
+/** The modes of a call: one street mode, the transit modes and the egress mode. */
 function assignMode(mode, modeEgress) {
   const all = [...TRANSIT_MODES, ...DIRECT_MODES];
-  // as in r5r, unique() and toupper() come before the checks
+  // repeats are dropped and the names upper-cased before the checks
   const m = cm.upperUnique(mode);
   cm.assertAnd("mode", cm.checkCharacter(m, { minLen: 1, anyMissing: false }), () => cm.checkNames(m, { subsetOf: all }));
   const modes = new Vec(m).values;
@@ -601,7 +601,7 @@ function assignMode(mode, modeEgress) {
   const transit = modes.filter((m) => TRANSIT_MODES.includes(m));
   if (direct.length > 1) throw new RangeError(`Please use only 1 of {${direct.map((m) => `'${m}'`).join(",")}} when routing.`);
   if (direct.includes("CAR_PARK") || direct.includes("BICYCLE_RENT")) {
-    throw new RangeError("CAR_PARK and BICYCLE_RENT are currently unsupported by r5r.");
+    throw new RangeError("CAR_PARK and BICYCLE_RENT are not supported.");
   }
   let access = [...direct];
   let transitModes = [""];
@@ -654,7 +654,7 @@ function departureOf(p) {
   };
 }
 
-/** r5r assign_departure(). */
+/** The date and time of departure, required with public transport. */
 function assignDeparture(datetime, modeList, name = "departureDatetime") {
   if (datetime === null || datetime === undefined) {
     if (!modeList.transit) datetime = new Date();
@@ -695,7 +695,7 @@ function minusMinutes(datetime, minutes, name) {
   return `${pad(t.getUTCFullYear(), 4)}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())} ${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`;
 }
 
-/** r5r assign_max_street_time(). */
+/** The limit of a street mode in minutes: its own, or the trip's when infinite. */
 function maxStreetTime(maxTime, speed, maxTripDuration, mode) {
   const v = `max${mode[0].toUpperCase()}${mode.slice(1)}Time`;
   assertNumber(maxTime, v, { lower: 1 });
@@ -708,7 +708,7 @@ function maxStreetTime(maxTime, speed, maxTripDuration, mode) {
   return Math.round(Number.isFinite(maxTime) ? maxTime : maxTripDuration);
 }
 
-/** r5r assign_max_trip_duration(): a street mode alone is capped by its own limit. */
+/** The trip limit: a street mode alone is capped by its own limit. */
 function streetLimits(o, modeList) {
   const walk = maxStreetTime(o.maxWalkTime, o.walkSpeed, o.maxTripDuration, "walk");
   const bike = maxStreetTime(o.maxBikeTime, o.bikeSpeed, o.maxTripDuration, "bike");
@@ -728,7 +728,7 @@ function assignPercentiles(percentiles) {
   return v.sort((a, b) => a - b);
 }
 
-/** r5r set_n_threads(): null or Infinity mean all cores. */
+/** nThreads: null or Infinity mean all cores. */
 function checkThreads(nThreads) {
   if (nThreads === null || nThreads === undefined) return;
   assertNumber(nThreads, "nThreads", { lower: 1 });
@@ -749,14 +749,13 @@ function checkMaxLts(maxLts) {
 }
 
 
-// r5r set_new_congestion() and set_new_lts(), with the checks of
-// congestion_poly2geojson(), dt_to_speed_map(), lts_lines2shp() and
-// dt_to_lts_map(). A table is an object of columns or an array of row
-// objects (as the points); r5r's sf frames are GeoJSON FeatureCollections
-// in WGS 84 with the attributes as properties. The object returned is what
-// the engine reads (src/scenario.rs): the columns as text, as r5r hands
-// them to R5 with as.character() (Java parses them), the geometries
-// flattened; null when the scenario changes nothing.
+// Scenarios: newCarspeeds and newLts, with their checks. A table is an
+// object of columns or an array of row objects (as the points); polygons
+// and lines are GeoJSON FeatureCollections in WGS 84 with the attributes as
+// properties. The object returned is what the engine reads
+// (src/scenario.rs): the columns as text (the engine parses them as Java
+// does, R5's rule), the geometries flattened; null when the scenario
+// changes nothing.
 function quoted(v) {
   return `{${v.map((x) => `'${x}'`).join(",")}}`;
 }
@@ -842,25 +841,23 @@ function geometryTypes(features, choices, name) {
   if (extra.length) fail(name, `Must be a subset of ${want}, but has additional elements ${quoted(extra.map(upper))}`);
 }
 
-// r5r's warning when a scenario is used: R5's scenario copy of the network
-// has no slope costs (r5r issue #555). r5r gives it for every scenario; here
-// only on a network with elevation, where it is true.
+// The warning when a scenario is used on a network with elevation: R5's
+// scenario copy of the network has no slope costs.
 function elevationWarning(network, warn) {
   if (network && network.info().elevation !== "NONE") {
-    warn("A scenario was used for this calculation. This may affect results for WALK or BICYCLE due to missing elevation. See issue #555.");
+    warn("A scenario was used for this calculation. This may affect results for WALK or BICYCLE due to missing elevation.");
   }
 }
 
 function scenarioSpec(o, network, warn) {
-  // r5r's check (checkmate::assert_numeric(lower = 0, finite = TRUE)), then
-  // a clear error for NaN, which r5r lets through and then fails on
+  // a number >= 0 and finite, then a clear error for NaN
   if (!isNumber(o.carspeedScale)) {
     fail("carspeedScale", `Must be of type 'numeric', not '${o.carspeedScale === null ? "null" : typeof o.carspeedScale}'`, TypeError);
   }
   if (o.carspeedScale < 0) fail("carspeedScale", "Element 1 is not >= 0");
   if (o.carspeedScale === Infinity) fail("carspeedScale", "Must be finite");
   if (Number.isNaN(o.carspeedScale)) {
-    throw new RangeError("'carspeedScale' must be a number that is not NaN (r5r 2.5.0 fails on this value with an internal R error)");
+    throw new RangeError("'carspeedScale' must be a number that is not NaN");
   }
   const spec = { car: "none", carspeed_scale: o.carspeedScale, lts: "none" };
   let changed = false;
@@ -974,22 +971,22 @@ function commonChecks(o) {
   checkThreads(o.nThreads);
   assertFlag(o.verbose, "verbose");
   assertFlag(o.progress, "progress");
-  // Without a seed the draws differ from call to call, as in r5r (which
-  // seeds them from the clock): a seed drawn at random here.
+  // Without a seed the draws differ from call to call: a seed drawn at
+  // random here.
   if (o.seed === null || o.seed === undefined) return (Math.random() * 4294967296) | 0;
   return Math.round(o.seed);
 }
 
 /**
  * The seed handed to the core: with a fare structure and no `seed`, none
- * (R5's McRAPTOR then samples its departure times from the origin alone, as
- * in r5r with `seed = NULL`); otherwise commonChecks()'s.
+ * (R5's McRAPTOR then samples its departure times from the origin alone);
+ * otherwise commonChecks()'s.
  */
 function mcSeed(seed, opt, fares) {
   return fares !== null && (opt.seed === null || opt.seed === undefined) ? null : seed;
 }
 
-/** r5r check_transit_availability_on_date(). */
+/** Refuses a date without public transport service; warns when few services run. */
 async function checkTransitAvailabilityOnDate(network, departure, warn, signal) {
   const [total, active] = await network._availability(departure.yyyymmdd, signal);
   const pct = total === 0 ? 0 : active / total;
@@ -1070,10 +1067,10 @@ function revive({ name, message }) {
   return e;
 }
 
-/** r5r's Java side fails on a missing destination id: an error here, as in R. */
+/** A missing destination id is an error. */
 function destinationIds(d) {
   if (d.ids.some((i) => i === null || i === undefined)) {
-    throw new RangeError("'destinations.id' cannot be missing (r5r 2.5.0 fails on a missing destination id in Java).");
+    throw new RangeError("'destinations.id' cannot be missing.");
   }
 }
 
@@ -1081,7 +1078,7 @@ const snakeCase = (s) => s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 /**
  * An error of the engine in the terms of the options: its parameter names,
- * which are r5r's (snake_case), in camelCase; its refusals ("not
+ * which are in snake_case, in camelCase; its refusals ("not
  * supported: ...") as UnsupportedError.
  */
 function engineError(e) {
@@ -1466,7 +1463,7 @@ export class Network {
 
   /**
    * Services in the network and services running on a date (a Date, or a
-   * string "YYYY-MM-DD"), as r5r counts them before routing.
+   * string "YYYY-MM-DD"), as they are counted before routing.
    */
   async transitAvailability(date) {
     let p;
@@ -1478,23 +1475,15 @@ export class Network {
 
   /**
    * Warnings about the build, which buildNetwork() also hands to
-   * `onWarning`: those about the elevation raster (samples r5r stores
+   * `onWarning`: those about the elevation raster (samples stored
    * wrapped around, beyond +/-3276.7 m, such as SRTM's -32768 voids, or
    * equal to the raster's no-data value; street points near a pixel
-   * boundary of a projected raster). GTFS feeds that r5r refuses to build a
-   * network from are an error instead, as in r5r.
+   * boundary of a projected raster). GTFS feeds with errors of priority HIGH
+   * are an error instead.
    */
   buildWarnings() {
     this.#alive();
     return [...this.#warnings];
-  }
-
-  /**
-   * @deprecated The former name of buildWarnings(), which it returns; kept
-   * so that code written for 0.0.1 still runs.
-   */
-  r5rWarnings() {
-    return this.buildWarnings();
   }
 
   /** @internal `[services, active]` on a yyyymmdd date. */
@@ -1581,8 +1570,7 @@ async function buildThreads(o) {
 
 /**
  * Build a transport network from an OpenStreetMap extract (`pbf`), zero
- * or more GTFS feeds and an optional elevation raster (`tif`), as r5r's
- * build_network() does from a directory.
+ * or more GTFS feeds and an optional elevation raster (`tif`).
  */
 export async function buildNetwork(input) {
   if (input === null || typeof input !== "object") fail("input", "Must be an object {pbf, gtfs}", TypeError);
@@ -1602,7 +1590,7 @@ export async function buildNetwork(input) {
   const names = feeds.map((f) => f[0]);
   if (new Set(names).size < names.length) fail("gtfs", "Feed names must be distinct");
   const tif = o.tif === undefined || o.tif === null ? undefined : bytesOf(o.tif, "tif");
-  // r5r set_elevation(); without a raster, "NONE" as r5r uses
+  // the elevation model; without a raster, "NONE"
   let elevation = o.elevation === undefined ? "TOBLER" : o.elevation;
   assertString(elevation, "elevation");
   elevation = elevation.toUpperCase();
@@ -1701,8 +1689,7 @@ function mergeExpanded(parts) {
 }
 
 /**
- * Travel-time matrix between origins and destinations, as r5r's
- * travel_time_matrix().
+ * Travel-time matrix between origins and destinations.
  */
 export async function travelTimeMatrix(network, origins, destinations, options) {
   const opt = withDefaults(options, {}, [...COMMON, "departureDatetime", "timeWindow", "percentiles", "fareStructure", "maxFare"]);
@@ -1714,7 +1701,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
   const departure = assignDeparture(opt.departureDatetime, modeList);
   assertNetwork(network);
   if (modeList.transit) await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
-  // r5r reverse_if_direct_mode(): walking alone with more origins than
+  // walking alone with more origins than
   // destinations routes from the destinations, unless the network was
   // built with an elevation raster (given, whatever the elevation model)
   const swapped = !modeList.transit && modeList.directModes === "WALK" && o.length > d.length && !network._hasTif;
@@ -1757,7 +1744,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
     : { from_id: ids(from, o.ids), to_id: ids(to, d.ids) };
   pcts.forEach((p, k) => {
     const t = cols[2 + k];
-    // r5r: travel times of non-viable trips become NA
+    // travel times beyond the trip limit become NA
     for (let i = 0; i < t.length; i++) if (t[i] > lim.trip) t[i] = NA_INT32;
     out[`travel_time_p${pad(p)}`] = t;
   });
@@ -1765,7 +1752,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
 }
 
 // ---------------------------------------------------------------------------
-// Fare structures (r5r R/fare_structure.R)
+// Fare structures
 
 const FARE_TYPE_COLS = ["type", "unlimited_transfers", "allow_same_route_transfer", "use_route_fare", "fare"];
 const FARE_TRANSFER_COLS = ["first_leg", "second_leg", "fare"];
@@ -1774,7 +1761,7 @@ const FARE_ELEMENTS = [
   "max_discounted_transfers", "transfer_time_allowance", "fare_cap", "fares_per_type", "fares_per_transfer", "fares_per_route", "debug_settings",
 ];
 
-/** The core's flat object as r5r's fare structure (tables as objects of columns). */
+/** The core's flat object as a fare structure (tables as objects of columns). */
 function fareFromCore(c) {
   return {
     max_discounted_transfers: c.max_discounted_transfers,
@@ -1794,7 +1781,7 @@ function fareColumn(table, key) {
   return Array.from(v, (x) => (x === undefined || (typeof x === "number" && Number.isNaN(x)) ? null : x));
 }
 
-/** r5r's fare structure as the core's flat object. */
+/** A fare structure as the core's flat object. */
 function fareToCore(fs) {
   const t = fs.fares_per_type, tr = fs.fares_per_transfer, r = fs.fares_per_route;
   const num = (x) => (x === null || x === undefined ? NaN : Number(x));
@@ -1812,7 +1799,7 @@ function fareToCore(fs) {
   };
 }
 
-/** r5r's assert_fare_structure(): the element names here, the values and tables in the core. */
+/** The checks of a fare structure: the element names here, the values and tables in the core. */
 function assertFareStructure(fs) {
   if (fs === null || typeof fs !== "object" || Array.isArray(fs)) fail("fareStructure", "Must be of type 'list'", TypeError);
   if ("type" in fs) unsupported("A fare calculator of R5 (a fare structure with a 'type')");
@@ -1826,9 +1813,9 @@ function assertFareStructure(fs) {
   const known = { fares_per_type: FARE_TYPE_COLS, fares_per_transfer: FARE_TRANSFER_COLS, fares_per_route: FARE_ROUTE_COLS };
   for (const [n, cols] of Object.entries(known)) {
     if (fs[n] === null || typeof fs[n] !== "object") fail(`fareStructure$${n}`, "Must be an object of columns", TypeError);
-    // r5r hands the columns to Java, which fails on a column it does not know
+    // a column that is not one of the table's is an error
     const extra = Object.keys(fs[n]).filter((k) => !cols.includes(k));
-    if (extra.length) throw new RangeError(`fareStructure$${n} has column(s) r5r cannot read: ${extra.join(", ")} (r5r fails reading the structure in Java).`);
+    if (extra.length) throw new RangeError(`fareStructure$${n} has column(s) peabiru cannot read: ${extra.join(", ")}.`);
   }
   const ds = fs.debug_settings;
   if (ds === null || typeof ds !== "object" || Object.keys(ds).sort().join() !== "output_file,trip_info") {
@@ -1839,8 +1826,8 @@ function assertFareStructure(fs) {
 }
 
 /**
- * r5r's set_fare_structure() and set_max_fare(): the structure checked and,
- * as in r5r, read in for the network's routes whatever the modes; a finite
+ * fareStructure and maxFare: the structure checked and read in for the
+ * network's routes whatever the modes; a finite
  * maxFare needs a structure. Resolves to the core's flat object, or null.
  */
 async function fareArg(fareStructure, maxFare, network, signal) {
@@ -1860,9 +1847,9 @@ async function fareArg(fareStructure, maxFare, network, signal) {
 }
 
 /**
- * r5r set_monte_carlo_draws(): with McRAPTOR (a fare structure, or the
+ * The Monte Carlo draws: with McRAPTOR (a fare structure, or the
  * alternatives of detailedItineraries()), the draws R5 cannot sample are
- * rejected as r5r rejects them.
+ * rejected.
  */
 function checkMcDraws(drawsPerMinute, timeWindow, mcraptor) {
   if (!mcraptor) return;
@@ -1870,7 +1857,7 @@ function checkMcDraws(drawsPerMinute, timeWindow, mcraptor) {
   const draws = Math.trunc(timeWindow * dpm);
   if (draws === 200) {
     throw new RangeError(
-      `A 'timeWindow' of ${timeWindow} minutes with ${dpm} draw(s) per minute gives exactly 200 Monte Carlo draws, which R5's McRaptor algorithm does not accept. Use a slightly different 'timeWindow', e.g. ${timeWindow + 1}. See https://github.com/ipea/r5r/issues/602.`,
+      `A 'timeWindow' of ${timeWindow} minutes with ${dpm} draw(s) per minute gives exactly 200 Monte Carlo draws, which R5's McRaptor algorithm does not accept. Use a slightly different 'timeWindow', e.g. ${timeWindow + 1}.`,
     );
   }
   const m = Math.floor(60 / dpm);
@@ -1884,15 +1871,15 @@ function checkMcDraws(drawsPerMinute, timeWindow, mcraptor) {
   }
   if (p < 5e-5) {
     throw new RangeError(
-      `'drawsPerMinute' = ${dpm} with a 'timeWindow' of ${timeWindow} minutes is not supported with a 'fareStructure'. R5's McRaptor algorithm cannot sample this many departure times and could run indefinitely. Use a lower 'drawsPerMinute' or a shorter 'timeWindow'. See https://github.com/ipea/r5r/issues/602.`,
+      `'drawsPerMinute' = ${dpm} with a 'timeWindow' of ${timeWindow} minutes is not supported with a 'fareStructure'. R5's McRaptor algorithm cannot sample this many departure times and could run indefinitely. Use a lower 'drawsPerMinute' or a shorter 'timeWindow'.`,
     );
   }
 }
 
 /**
- * A fare structure as r5r's setup_fare_structure(): every route, fare type
- * and transfer between two types costs `baseFare` (read as a Java float, as
- * in r5r), with one fare type per mode (`by: "MODE"`), per agency
+ * A fare structure to start from: every route, fare type and transfer
+ * between two types costs `baseFare` (read as a Java float, R5's number
+ * type for fares), with one fare type per mode (`by: "MODE"`), per agency
  * (`"AGENCY_ID"`, `"AGENCY_NAME"`) or one for all routes (`"GENERIC"`).
  */
 export async function setupFareStructure(network, baseFare, options = {}) {
@@ -1931,8 +1918,7 @@ export async function setupFareStructure(network, baseFare, options = {}) {
 }
 
 /**
- * A fare structure read from the bytes of a `.zip` file, as r5r's
- * read_fare_structure() (encoding "UTF-8", "unknown" or "Latin-1").
+ * A fare structure read from the bytes of a `.zip` file (encoding "UTF-8", "unknown" or "Latin-1").
  */
 export function readFareStructure(bytes, encoding = "UTF-8") {
   needInit();
@@ -1944,8 +1930,7 @@ export function readFareStructure(bytes, encoding = "UTF-8") {
 }
 
 /**
- * The bytes of a fare structure `.zip` file, as r5r's write_fare_structure()
- * writes it: the same five CSV files, deflated, in the same order.
+ * The bytes of a fare structure `.zip` file: five CSV files, deflated.
  */
 export function writeFareStructure(fareStructure) {
   needInit();
@@ -1955,12 +1940,12 @@ export function writeFareStructure(fareStructure) {
 
 /**
  * The Pareto frontier of travel time and fare between origins and
- * destinations, as r5r's pareto_frontier().
+ * destinations.
  */
 export async function paretoFrontier(network, origins, destinations, options) {
   const opt = withDefaults(
     options,
-    // r5r's pareto_frontier() routes on foot and by public transport by default
+    // on foot and by public transport by default
     { mode: ["WALK", "TRANSIT"], fareStructure: null, fareCutoffs: null },
     [...COMMON.filter((k) => !["mode", "drawsPerMinute", "newCarspeeds", "carspeedScale", "newLts"].includes(k)), "departureDatetime", "timeWindow", "percentiles"],
   );
@@ -2004,7 +1989,7 @@ export async function paretoFrontier(network, origins, destinations, options) {
 
 const DECAY_FUNCTIONS = ["step", "exponential", "fixed_exponential", "linear", "logistic"];
 
-/** r5r assign_decay_function(). */
+/** The decay function and its value, checked. */
 function assignDecay(fun, value) {
   assertString(fun, "decayFunction");
   if (!DECAY_FUNCTIONS.includes(fun)) fail("decayFunction", `Names must be a subset of {${DECAY_FUNCTIONS.map((f) => `'${f}'`).join(",")}}, but has additional elements {'${fun}'}`);
@@ -2024,11 +2009,11 @@ function assignDecay(fun, value) {
   }
   // R5 takes the linear width as whole minutes, under one hour
   if (fun === "linear") assertIntegerish(value, "decayValue", { lower: 1, upper: 59 });
-  // r5r passes the placeholder 0 when decay_value is NULL (R5 ignores it)
+  // the placeholder 0 when there is no decay value (R5 ignores it)
   return none ? 0 : value;
 }
 
-/** r5r set_cutoffs(): ascending, or the placeholder 0 for fixed_exponential. */
+/** The cutoffs: ascending, or the placeholder 0 for fixed_exponential. */
 function assignCutoffs(cutoffs, fun) {
   const v = assertIntegerish(cutoffs, "cutoffs", { lower: 1, upper: 120, minLen: 1, maxLen: 12, unique: true, nullOk: true });
   if (v !== null && fun === "fixed_exponential") {
@@ -2040,7 +2025,7 @@ function assignCutoffs(cutoffs, fun) {
   return v === null ? [0] : v.sort((a, b) => a - b);
 }
 
-/** r5r assign_opportunities(): numeric columns, NA counted as 0. */
+/** The opportunity columns: numeric, NA counted as 0. */
 function opportunityColumns(d, colnames, warn) {
   cm.assert(cm.checkCharacter(colnames, { minLen: 1, unique: true, anyMissing: false }), "opportunitiesColnames");
   const names = new Vec(colnames).values;
@@ -2069,7 +2054,7 @@ function opportunityColumns(d, colnames, warn) {
   return { names, flat };
 }
 
-/** Access to opportunities, as r5r's accessibility(). */
+/** Access to opportunities. */
 export async function accessibility(network, origins, destinations, options) {
   const opt = withDefaults(
     options,
@@ -2152,7 +2137,7 @@ function checkExpandedMode(modeList) {
 
 const BREAKDOWN = ["access_time", "wait_time", "ride_time", "transfer_time", "egress_time"];
 
-/** Column assembly of r5r's expanded and arrival matrices. */
+/** Column assembly of the expanded and arrival matrices. */
 function expandedResult(res, o, d, breakdown, maxTripDuration) {
   const [from, to, departure, draw, access, wait, ride, transfer, egress, total, nRides, codes, levels] = res;
   const times = { access_time: access, wait_time: wait, ride_time: ride, transfer_time: transfer, egress_time: egress, total_time: total };
@@ -2161,7 +2146,7 @@ function expandedResult(res, o, d, breakdown, maxTripDuration) {
   const hhmmss = new Map();
   const departureTime = new Array(n);
   for (let i = 0; i < n; i++) {
-    // r5r: replace travel times of non-viable trips with NAs
+    // travel times beyond the trip limit become NA
     const over = total[i] > maxTripDuration;
     if (over) {
       for (const k in times) times[k][i] = NaN;
@@ -2184,7 +2169,7 @@ function expandedResult(res, o, d, breakdown, maxTripDuration) {
   return out;
 }
 
-/** Minute-by-minute travel times, as r5r's expanded_travel_time_matrix(). */
+/** Minute-by-minute travel times. */
 export async function expandedTravelTimeMatrix(network, origins, destinations, options) {
   const opt = withDefaults(options, { breakdown: false }, [...COMMON, "departureDatetime", "timeWindow"]);
   const warn = warner(opt);
@@ -2216,7 +2201,7 @@ export async function expandedTravelTimeMatrix(network, origins, destinations, o
   return expandedResult(res, o, d, opt.breakdown, lim.trip);
 }
 
-/** Travel-time matrix for a time of arrival, as r5r's arrival_travel_time_matrix(). */
+/** Travel-time matrix for a time of arrival. */
 export async function arrivalTravelTimeMatrix(network, origins, destinations, options) {
   const opt = withDefaults(options, { arrivalDatetime: null, breakdown: false }, COMMON);
   const warn = warner(opt);
@@ -2233,7 +2218,7 @@ export async function arrivalTravelTimeMatrix(network, origins, destinations, op
   const modeList = assignMode(opt.mode, opt.modeEgress);
   checkExpandedMode(modeList);
   const lim = streetLimits(opt, modeList);
-  // the departure is arrival - max_trip_duration, as r5r computes it
+  // the departure is arrival - max_trip_duration
   const departure = assignDeparture(minusMinutes(opt.arrivalDatetime, lim.trip, "arrivalDatetime"), modeList, "arrivalDatetime");
   await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
   const seed = commonChecks(opt);
@@ -2257,7 +2242,7 @@ export async function arrivalTravelTimeMatrix(network, origins, destinations, op
 // ---------------------------------------------------------------------------
 // Detailed itineraries
 
-/** r5r expand_od_pairs(): the pairs routed, as indices into the origins and destinations. */
+/** The pairs routed, as indices into the origins and destinations. */
 function expandOdPairs(no, nd, allToAll, warn) {
   assertFlag(allToAll, "allToAll");
   const oi = [];
@@ -2288,15 +2273,14 @@ function pick(p, idx) {
 }
 
 /**
- * Detailed itineraries between origin-destination pairs, as r5r's
- * detailed_itineraries() without fares. Rows (one per leg) as objects, or
+ * Detailed itineraries between origin-destination pairs. Rows (one per leg) as objects, or
  * GeoJSON features with `dropGeometry: false` (the default).
  */
 export async function detailedItineraries(network, origins, destinations, options) {
   const opt = withDefaults(
     options,
     { suboptimalMinutes: 0, shortestPath: true, allToAll: false, fareStructure: null, maxFare: Infinity, dropGeometry: false, osmLinkIds: false },
-    // r5r's detailed_itineraries() has no draws_per_minute or seed
+    // no drawsPerMinute or seed here
     [...COMMON.filter((k) => k !== "drawsPerMinute" && k !== "seed"), "departureDatetime", "timeWindow"],
   );
   const warn = warner(opt);
@@ -2313,7 +2297,7 @@ export async function detailedItineraries(network, origins, destinations, option
     await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
     if (network.info().frequencies) {
       throw new RangeError(
-        "Assertion on 'r5r_network' failed: None of the GTFS feeds used to create the transit network can contain a 'frequencies' table. Try using gtfstools::frequencies_to_stop_times() to create a suitable feed.",
+        "Assertion on 'network' failed: None of the GTFS feeds used to create the transit network can contain a 'frequencies' table. Try using gtfstools::frequencies_to_stop_times() to create a suitable feed.",
       );
     }
   }
@@ -2556,7 +2540,7 @@ const ISOCHRONE = [
   "drawsPerMinute", "seed", "nThreads", "verbose", "progress", "departureDatetime", "timeWindow",
 ];
 
-/** r5r's checks of the cutoffs: the cutoffs with 0, sorted and distinct, and the trip limit. */
+/** The checks of the cutoffs: the cutoffs with 0, sorted and distinct, and the trip limit. */
 function isochroneCutoffs(cutoffs) {
   cm.assert(cm.checkNumeric(cutoffs, { lower: 0, finite: true, anyMissing: false, minLen: 1 }), "cutoffs");
   const values = new Vec(cutoffs).values;
@@ -2592,20 +2576,17 @@ function multipolygons(nPolygons, nRings, nPoints, x, y) {
 }
 
 /**
- * Isochrones, as r5r's isochrone(): the areas (`polygonOutput: true`) or
+ * Isochrones: the areas (`polygonOutput: true`) or
  * the street segments (`polygonOutput: false`) reached from each origin
  * within each cutoff, as a GeoJSON FeatureCollection.
  */
 export async function isochrone(network, origins, options) {
-  const given = optionsObject(options);
   const opt = withDefaults(
     options,
-    { mode: "transit", modeEgress: "walk", cutoffs: [0, 15, 30], zoom: 10, polygonOutput: true, percentiles: null, sampleSize: undefined },
+    { mode: "transit", modeEgress: "walk", cutoffs: [0, 15, 30], zoom: 10, polygonOutput: true, percentiles: null },
     ISOCHRONE,
   );
   const warn = warner(opt);
-  // r5r's sample_size is deprecated: any value warns
-  if ("sampleSize" in given) warn("The `sample_size` argument is no longer used and has no effect.");
   assertNetwork(network);
   const { cuts, limit } = isochroneCutoffs(opt.cutoffs);
   assertFlag(opt.polygonOutput, "polygonOutput");
@@ -2615,13 +2596,13 @@ export async function isochrone(network, origins, options) {
 async function isochronePolygons(network, origins, opt, cuts, limit, warn) {
   const percentiles = opt.percentiles === null || opt.percentiles === undefined ? 50 : opt.percentiles;
   cm.assert(cm.checkNumeric(opt.zoom, { lower: 9, upper: 12, len: 1 }), "zoom");
-  // r5r lets a fractional or missing zoom through to R5
+  // a whole number
   assertInt(opt.zoom, "zoom");
   opt.zoom = scalar(opt.zoom);
-  // r5r's travel_time_surface(), routed past max(cutoffs) so the outer band
+  // the travel-time surface is routed past max(cutoffs) so the outer band
   // is interpolated like the inner ones
   const o = pointsInput(origins, "origins", warn);
-  // r5r fails on origins without rows (an internal R error); an error here, as in R
+  // origins without rows are an error
   if (o.length === 0) throw new RangeError("'origins' has no rows.");
   const modeList = assignMode(opt.mode, opt.modeEgress);
   const departure = assignDeparture(opt.departureDatetime, modeList);
@@ -2714,12 +2695,12 @@ async function isochroneLines(network, origins, opt, cuts, limit, warn) {
 }
 
 // ---------------------------------------------------------------------------
-// Inspecting a network: r5r's find_snap(), street_network_bbox(),
-// street_network_to_sf(), transit_network_to_sf(),
-// check_transit_availability() and get_gtfs_errors()
+// Inspecting a network: findSnap(), streetNetworkBbox(),
+// streetNetworkToSf(), transitNetworkToSf(),
+// checkTransitAvailability() and getGtfsErrors()
 
 /**
- * Where points snap to the street network, as r5r's find_snap(): the
+ * Where points snap to the street network: the
  * nearest point of a street the mode may use, first within 300 metres and
  * then within `radius`. Columns `point_id`, `lat`, `lon`, `snap_lat`,
  * `snap_lon`, `distance` (metres; NaN where the point does not snap) and
@@ -2737,7 +2718,7 @@ export async function findSnap(network, points, options) {
   cm.assert(cm.checkNumeric(radius, { lower: 0, finite: true, maxLen: 1 }), "radius");
   const modes = ["WALK", "BICYCLE", "CAR"];
   cm.assertAnd("mode", cm.checkString(mode), () => cm.checkNames(mode, { subsetOf: modes }));
-  // r5r hands Java a zero-length radius; it fails there
+  // a zero-length radius is an error
   if (new Vec(radius).length === 0) throw new RangeError("'radius' must be a single number.");
   radius = scalar(radius);
   // checkmate lets NA through and R5 then snaps nothing
@@ -2756,7 +2737,7 @@ export async function findSnap(network, points, options) {
 }
 
 /**
- * The bounding box of the street network, as r5r's street_network_bbox():
+ * The bounding box of the street network:
  * R5's envelope of the street layer. `output` is "polygon" (a GeoJSON
  * Polygon, the default), "bbox" (`[xmin, ymin, xmax, ymax]`, a GeoJSON
  * bbox) or "vector" (`{xmin, ymin, xmax, ymax}`).
@@ -2784,11 +2765,11 @@ function lineCoordinates(nPoints, x, y) {
 }
 
 /**
- * The street network as GeoJSON, as r5r's street_network_to_sf():
+ * The street network as GeoJSON:
  * `vertices` (Points with `index`, `park_and_ride`, `bike_sharing`) and
  * `edges` (LineStrings with `edge_index`, `osm_id`, `from_vertex`,
  * `to_vertex`, `street_class`, `length` in metres, `walk`, `car`,
- * `car_speed` in km/h, `bicycle`, `bicycle_lts`), in r5r's order.
+ * `car_speed` in km/h, `bicycle`, `bicycle_lts`), in R5's order.
  */
 export async function streetNetworkToSf(network, options) {
   const opt = optionsObject(options);
@@ -2832,8 +2813,7 @@ export async function streetNetworkToSf(network, options) {
 }
 
 /**
- * The public transport network as GeoJSON, as r5r's
- * transit_network_to_sf(): `stops` (Points with `stop_index`, `stop_id`,
+ * The public transport network as GeoJSON: `stops` (Points with `stop_index`, `stop_id`,
  * `stop_name`, `linked_to_street`; a stop not linked to the streets has a
  * null geometry) and `routes` (one LineString per trip pattern, with
  * `agency_id`, `agency_name`, `route_id`, `long_name`, `short_name` and
@@ -2878,7 +2858,7 @@ export async function transitNetworkToSf(network, options) {
   };
 }
 
-/** r5r parse_date_input(): "YYYY-MM-DD" strings or Dates (their local date). */
+/** Dates: "YYYY-MM-DD" strings or Dates (their local date). */
 function parseDates(x, arg) {
   const vec = new Vec(x);
   // strings and Dates, mixed as arrays may mix them
@@ -2905,7 +2885,7 @@ function parseDates(x, arg) {
 }
 
 /**
- * Services active on dates, as r5r's check_transit_availability(): with
+ * Services active on dates: with
  * no `dates`, `startDate` or `endDate`, the dates with an active service
  * used by some trip are discovered from the network. Columns `date`
  * ("YYYY-MM-DD"), `total_services`, `active_services` and `pct_active`.
@@ -2961,14 +2941,12 @@ export async function checkTransitAvailability(network, options) {
 }
 
 /**
- * The errors gtfs-lib (R5's GTFS library) reports in GTFS feeds, as r5r's
- * get_gtfs_errors() (which reads them from the gtfs_errors.csv its
- * build_network() writes). A Network does not keep its feeds, so pass
+ * The errors gtfs-lib (R5's GTFS library) reports in GTFS feeds. A Network does not keep its feeds, so pass
  * them as buildNetwork() takes them: an array of `{name, data}`, or an
  * object with a `gtfs` array. Columns `file`, `line`, `type`, `field`,
  * `id` and `priority`, feed by feed in the order gtfs-lib finds them.
  * Throws an Error naming the cause for a feed on which gtfs-lib fails
- * instead of listing errors (r5r's build_network() fails then too).
+ * instead of listing errors.
  */
 export async function getGtfsErrors(feeds) {
   if (feeds instanceof Network) {

@@ -1,6 +1,6 @@
-//! The public transport trip of r5r's `TripPlanner` with `fastRaptor`
+//! The public transport trip of the ported `TripPlanner` with `fastRaptor`
 //! (`shortest_path = TRUE`, no fares): an access stop search, an egress
-//! stop search backwards from the destination (`R5REgressRouter`),
+//! stop search backwards from the destination,
 //! `FastRaptorWorker` over the departure window keeping the paths to the
 //! egress stops (`searchFastRaptorOrigin`, `addFastRaptorTrip`), the trip
 //! read from the best path (`Trip(Path, ...)`), and its legs rebuilt
@@ -57,7 +57,7 @@ impl<'a> Planner<'a> {
 
     /// [`Planner::new`], or with `frequencies` a planner that accepts a
     /// network with frequency-based trips (for `trip_options()`, whose
-    /// router handles them; the FastRaptor and McRAPTOR paths of r5r's
+    /// router handles them; the FastRaptor and McRAPTOR paths of the
     /// planner are not used then).
     pub(crate) fn with_frequencies(
         net: &'a StreetNetwork,
@@ -164,10 +164,10 @@ impl<'a> Planner<'a> {
         if access_times.is_empty() {
             return Ok(None);
         }
-        // r5r's test switch fails in addFastRaptorTrip, once an origin
+        // the test switch fails in addFastRaptorTrip, once an origin
         // search exists
         if p.fail_fast_raptor {
-            return Err(fallback("r5r.failFastRaptor is set"));
+            return Err(fallback("fail_fast_raptor is set"));
         }
         // FastRaptorWorker over the window, paths kept to the egress stops
         let n_stops = layer.stop_ids.len();
@@ -359,7 +359,7 @@ impl<'a> Planner<'a> {
                         links,
                     });
                 }
-                // EgressPath.InvalidOriginException: r5r skips the trip
+                // EgressPath.InvalidOriginException: the trip is skipped
                 None => return Ok(None),
             }
         }
@@ -445,13 +445,13 @@ impl<'a> Planner<'a> {
     }
 }
 
-/// The error for a pair r5r routes with McRAPTOR after FastRaptor fails.
+/// The error for a pair routed with McRAPTOR after FastRaptor fails.
 pub(super) fn fallback(why: &str) -> RouteError {
     RouteError::Invalid(format!("{FALLBACK}({why})"))
 }
 
 const FALLBACK: &str =
-    "not supported: r5r routes this trip with McRAPTOR because FastRaptor's path fails ";
+    "not supported: this trip is routed with McRAPTOR because FastRaptor's path fails ";
 
 /// Whether `e` is [`fallback`]'s.
 pub(super) fn is_fallback(e: &RouteError) -> bool {
@@ -492,7 +492,7 @@ fn stop_positions(
     best
 }
 
-/// r5r's `EgressPath.build`: the edges from the stop's state back to the
+/// `EgressPath.build`: the edges from the stop's state back to the
 /// seed at the destination's split, the part of the split edge up to the
 /// split point, and the destination itself; consecutive equal points
 /// once. With the line, the edges of its `streetEdges` (the partial edge

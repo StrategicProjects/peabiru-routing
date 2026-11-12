@@ -1,4 +1,4 @@
-//! Detailed itineraries, as r5r's `detailed_itineraries()`: the trip
+//! Detailed itineraries: the trip
 //! between each origin and the destination of the same index, leg by leg.
 //!
 //! ```sh
@@ -42,8 +42,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // With public transport and a date. r5r refuses networks with
-    // frequency-based trips here, and so does peabiru: on the São Paulo
+    // With public transport and a date. Networks with frequency-based
+    // trips are refused here: on the São Paulo
     // sample (a frequency-based feed) this prints the error; on a
     // timetable-based network it prints the legs.
     let mut p = ItineraryParams::default();

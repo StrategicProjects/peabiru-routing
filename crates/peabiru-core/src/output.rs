@@ -1,4 +1,4 @@
-//! Results written to CSV files as r5r 2.5.0 writes them with `output_dir`.
+//! Results written to CSV files, one per origin (`output_dir`).
 
 use crate::{Accessibility, ExpandedMatrix, StreetMatrix, TransitMatrix};
 use std::fmt::Write as _;
@@ -15,8 +15,7 @@ pub(crate) const LINE_END: &str = if cfg!(windows) { "\r\n" } else { "\n" };
 /// `\`) and NUL, which would name a file elsewhere or none; on Windows also
 /// the characters it does not allow in file names (`< > : " | ? *` and the
 /// control characters). The prefix (`from_`) keeps the name from being
-/// `.`, `..` or a reserved device name, and an empty id gives `from_.csv`,
-/// as in r5r.
+/// `.`, `..` or a reserved device name, and an empty id gives `from_.csv`.
 pub(crate) fn id_file_name_problem(id: &str) -> Option<&'static str> {
     if id.contains(['/', '\\']) {
         return Some("a path separator");
@@ -82,12 +81,11 @@ const CHUNK_VALUES: usize = 1 << 23;
 /// workers stay busy when there are many destinations.
 const MIN_CHUNK_ORIGINS: usize = 64;
 
-/// Writes routing results to a directory, one CSV file per origin, in the
-/// format of r5r's `output_dir`.
+/// Writes routing results to a directory, one CSV file per origin.
 ///
-/// With `output_dir`, r5r's Java side (`R5DataFrameProcess.tryRunProcess`,
-/// `RDataFrame.saveToCsv`) saves each origin's table to a file of its own
-/// as soon as the origin is routed, and keeps nothing in memory:
+/// Each origin's table is saved to a file of its own as soon as the origin
+/// is routed, and nothing is kept in memory (the ported
+/// `R5DataFrameProcess.tryRunProcess` and `RDataFrame.saveToCsv`):
 ///
 /// - the file is `<output_dir>/from_<origin id>.csv` (plain concatenation,
 ///   the id is not sanitized), written only when the origin has at least
@@ -99,8 +97,8 @@ const MIN_CHUNK_ORIGINS: usize = 64;
 /// - integers are written in decimal, doubles as Java's
 ///   `Double.toString` writes them (`0.0`, `2.1`, `1.0E-4`).
 ///
-/// The values are the tables r5r's Java side builds, before the R wrapper
-/// touches them: the WALK origin/destination swap is not made, and the
+/// The values are the tables as routed, with nothing done to them
+/// afterwards: the WALK origin/destination swap is not made, and the
 /// accessibility `cutoff` column is kept with `fixed_exponential` (the
 /// placeholder `0`).
 ///
@@ -129,8 +127,7 @@ impl<'a> CsvOutput<'a> {
     /// part of a file name in `dir` (one holding a path separator `/` or
     /// `\`, or NUL; on Windows also `< > : " | ? *` or a control
     /// character) is [`RouteError::Invalid`](crate::RouteError::Invalid),
-    /// before anything is routed or written. With such an id r5r fails with
-    /// a Java `FileNotFoundException`, or writes a file of another name.
+    /// before anything is routed or written.
     pub fn new(
         dir: &str,
         origin_ids: &'a [String],
@@ -163,7 +160,7 @@ impl<'a> CsvOutput<'a> {
     }
 
     /// A street travel-time matrix: `from_id`, `to_id` and one
-    /// `travel_time_pXX` column per percentile (r5r repeats the street time
+    /// `travel_time_pXX` column per percentile (the street time repeated
     /// in each), one row per destination reached. `percentiles` are the
     /// column names' numbers, in order.
     pub fn write_street_matrix(
@@ -188,7 +185,7 @@ impl<'a> CsvOutput<'a> {
 
     /// A walk + transit travel-time matrix: `from_id`, `to_id` and one
     /// `travel_time_pXX` column per percentile, one row per destination
-    /// whose lowest percentile is reported, empty where r5r gives NA.
+    /// whose lowest percentile is reported, empty where there is no time.
     pub fn write_transit_matrix(&self, first_origin: usize, m: &TransitMatrix) -> io::Result<()> {
         let np = m.percentiles().len();
         let header = ttm_header(m.percentiles());
@@ -213,7 +210,7 @@ impl<'a> CsvOutput<'a> {
     /// An expanded or arrival matrix: `from_id`, `to_id`, `departure_time`
     /// (`HH:MM:SS`), `draw_number`, with `breakdown` the five partial times,
     /// then `routes`, with `breakdown` `n_rides`, and `total_time`; the
-    /// trip's fields are empty where r5r gives NA.
+    /// trip's fields are empty where there is no trip.
     pub fn write_expanded(
         &self,
         first_origin: usize,
@@ -455,7 +452,7 @@ mod tests {
     #[test]
     fn ids_that_cannot_name_a_file_in_the_directory_are_refused() {
         let ids = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        // r5r's names for these, byte for byte
+        // ids that name a file, as they are
         for ok in ["", "a b", "a,b", "ação", "..", ".", "CON", "x."] {
             assert!(id_file_name_problem(ok).is_none(), "{ok:?}");
         }
@@ -551,7 +548,7 @@ mod tests {
     }
 
     #[test]
-    fn fields_are_quoted_as_r5r_quotes_them() {
+    fn fields_are_quoted_as_fwrite_quotes_them() {
         let q = |s: &str| {
             let mut o = String::new();
             csv_field(s, &mut o);

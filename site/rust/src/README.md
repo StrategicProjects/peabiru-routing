@@ -60,11 +60,11 @@ follows the repository. Implemented:
 - network inspection (snapping, the street and transit networks, service
   dates) and the GTFS errors of each feed, with the refusal of feeds with
   errors of priority `HIGH`;
-- CSV output, one file per origin, as r5r writes with `output_dir`.
+- CSV output, one file per origin.
 
-Not ported: R5's own fare calculators (only r5r's rule-based fare
-structure). The results are checked against r5r's on every scenario in the
-repository; see [Parity with r5r](parity.md).
+Not ported: R5's own fare calculators (only the rule-based fare
+structure). For how the results are checked, see the
+[comparison with r5r](parity.md).
 
 The API is a small set of functions and types at the root of the crate;
 the engine's internals are private, and the parameter structs are
@@ -75,11 +75,7 @@ breaking your code. It may still change before 1.0. The
 ## Credits
 
 The routing logic is a port of Conveyal's [R5](https://github.com/conveyal/r5)
-(MIT, © Conveyal). The fare calculator, the fare structure and the
-multi-criteria branch of the trip planner are translations of the Java code
-of [r5r](https://github.com/ipea/r5r) (Ipea, used under its MIT licence),
-whose interface the R, Python and JavaScript packages follow and whose
-results are the reference for the tests. Polygon isochrones port the
+(MIT, © Conveyal). Polygon isochrones port the
 algorithm of the R package isoband (MIT); the exponential of the decay
 functions and other numerics reproduce Apache Commons Math 3 (Apache-2.0),
 and the trigonometry of the raster projections fdlibm, as R5 uses them. The

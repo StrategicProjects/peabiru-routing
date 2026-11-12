@@ -3,9 +3,6 @@
 These functions read a network without routing on it: where points snap to
 the streets, the area the streets cover, the street and public transport
 networks as GeoJSON, and the dates with service. Each returns a Promise.
-They give the results of r5r 2.5.0's functions of the same names in
-snake_case (`find_snap()`, `street_network_bbox()`, ...), with GeoJSON
-where r5r gives `sf` tables.
 
 ```js
 {{#include ../examples/inspect.mjs:setup}}
@@ -29,8 +26,7 @@ slope cost function (see [Elevation](elevation.md)); `feeds` the GTFS feed
 ids, in loading order; `stops`, `patterns` (trip patterns) and `services`
 the sizes of the public transport network; `frequencies` whether any trip
 is frequency-based. `network.buildWarnings()` lists the warnings of the
-build (about the elevation raster; `r5rWarnings()`, its name in version
-0.0.1, is kept as a deprecated alias that returns the same list), and
+build (about the elevation raster), and
 `network.workers` the number of [workers](threads.md).
 
 ## Where points snap
@@ -150,8 +146,7 @@ suspect stop locations) and `priority` (`"HIGH"`, `"MEDIUM"`, `"LOW"` or
 {{#include ../examples/output/gtfs-errors.txt:1:5}}
 ```
 
-`buildNetwork()` refuses feeds with errors of priority `HIGH`, as r5r's
-`build_network()` does: it rejects with an `Error` that names each feed and
+`buildNetwork()` refuses feeds with errors of priority `HIGH`: it rejects with an `Error` that names each feed and
 its number of such errors, and `getGtfsErrors()` on the same feeds tells
 which they are. Errors of lower priority do not stop the build.
 
@@ -163,8 +158,8 @@ which they are. Errors of lower priority do not stop the build.
 {{#include ../examples/output/gtfs-errors.txt:6:}}
 ```
 
-When gtfs-lib fails on a feed instead of listing errors (r5r's
-`build_network()` fails then too), `getGtfsErrors()` rejects with an
+When gtfs-lib fails on a feed instead of listing errors,
+`getGtfsErrors()` rejects with an
 `Error` naming the cause. GTFS-Flex zones (`locations.geojson`) and
 location groups are read as gtfs-lib reads them, for its errors; on-demand
-trips are not routed, as in r5r.
+trips are not routed.

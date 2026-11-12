@@ -1,5 +1,5 @@
 //! Slope costs for walking and cycling from an elevation raster, as R5 7.6
-//! adds them for r5r's `build_network(elevation = "TOBLER" | "MINETTI")`
+//! adds them with Tobler's or Minetti's cost function
 //! (`RasterCost`, `ElevationLoader`, `RasterDataSourceSampler`,
 //! `ElevationCostField`, `ToblerCalculator`, `MinettiCalculator`,
 //! `MultistageTraversalTimeCalculator`).
@@ -31,23 +31,22 @@ use crate::fastmath_trig;
 use crate::street::StreetNetwork;
 use tiff::{Near, Raster};
 
-/// The slope cost function of a network (r5r's `elevation` argument).
+/// The slope cost function of a network.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Elevation {
     /// No slope costs (`"NONE"`).
     #[default]
     None,
-    /// Tobler's hiking function (`"TOBLER"`, r5r's default when the data
-    /// directory has a raster).
+    /// Tobler's hiking function (`"TOBLER"`).
     Tobler,
     /// Minetti's energy cost of walking (`"MINETTI"`).
     Minetti,
 }
 
 impl Elevation {
-    /// The name r5r gives it: `"NONE"`, `"TOBLER"` or `"MINETTI"`.
-    pub fn r5r_name(self) -> &'static str {
+    /// Its name: `"NONE"`, `"TOBLER"` or `"MINETTI"`.
+    pub fn name(self) -> &'static str {
         match self {
             Elevation::None => "NONE",
             Elevation::Tobler => "TOBLER",
@@ -55,9 +54,9 @@ impl Elevation {
         }
     }
 
-    /// The model of an r5r name, in any case (r5r upper-cases it); `None`
+    /// The model of a name, in upper or lower case; `None`
     /// for any other text.
-    pub fn from_r5r_name(name: &str) -> Option<Self> {
+    pub fn from_name(name: &str) -> Option<Self> {
         match name.to_ascii_uppercase().as_str() {
             "NONE" => Some(Elevation::None),
             "TOBLER" => Some(Elevation::Tobler),
@@ -116,7 +115,7 @@ pub(crate) struct Samples {
 
 /// `RasterDataSourceSampler.readElevation`: the raster value at the pixel
 /// nearest `(lon, lat)` once in the raster's coordinate reference system,
-/// 0 outside the raster. A sample where r5r's own result depends on the
+/// 0 outside the raster. A sample where R5's own result depends on the
 /// machine (see below) is read as Java's `StrictMath` reads it and counted
 /// in `s.ambiguous`.
 fn read_elevation(r: &Raster<'_>, lon: f64, lat: f64, s: &mut Suspect) -> ElevResult<f64> {
@@ -124,24 +123,24 @@ fn read_elevation(r: &Raster<'_>, lon: f64, lat: f64, s: &mut Suspect) -> ElevRe
     let m = match read_at(r, x, y) {
         Ok(m) => m,
         // StrictMath's own point is inside the envelope but past the last
-        // pixel: GeoTools throws there and r5r fails, even on a JVM whose
+        // pixel: GeoTools throws there and R5 fails, even on a JVM whose
         // sines are StrictMath's; there is no pixel to read
         Err(None) => {
             return Err(format!(
-                "the point ({lon}, {lat}) lies on the outer edge of the raster, where GeoTools \
-                 finds no pixel and r5r fails to build the network; extend the raster by a pixel"
+                "the point ({lon}, {lat}) lies on the outer edge of the raster, where there is \
+                 no pixel to read; extend the raster by a pixel"
             ))
         }
         Err(Some(e)) => return Err(e),
     };
     if let Some(margin) = r.crs.margin() {
         // Where the JVM's sine or cosine could put the point in another
-        // pixel than StrictMath's (see `crs`), r5r's own result depends on
+        // pixel than StrictMath's (see `crs`), R5's own result depends on
         // the machine. Within `margin` of the point, the pixels it may
         // fall in are those at the corners of a square of side `2 margin`
         // (much smaller than a pixel): if they all give the elevation R5
         // stores (in decimetres), the answer is the same on every machine.
-        // Near the envelope's edge r5r elsewhere may also read 0 m outside
+        // Near the envelope's edge R5 elsewhere may also read 0 m outside
         // or fail on the sliver past the last pixel: always ambiguous.
         // peabiru keeps StrictMath's pixel, the same on every machine.
         let near = r.georef.near_boundary(x, y, margin);
@@ -180,7 +179,7 @@ pub(crate) struct Suspect {
     /// Equal to the raster's declared no-data value.
     pub(crate) nodata: usize,
     /// Within nanometres of a boundary between pixels of different values
-    /// (or of the raster's edge), where r5r reads one or the other
+    /// (or of the raster's edge), where R5 reads one or the other
     /// depending on the machine it runs on.
     pub(crate) ambiguous: usize,
 }
@@ -317,7 +316,7 @@ fn suspect_warnings(s: Suspect, n: usize, nodata: Option<f64>, crs: &str) -> Vec
     let mut parts = Vec::new();
     if s.wrapped > 0 {
         parts.push(format!(
-            "{} with a value beyond +/-3276.7 m, which r5r stores wrapped around as 16-bit \
+            "{} with a value beyond +/-3276.7 m, which is stored wrapped around as 16-bit \
              decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m \
              becomes -3053.6 m)",
             s.wrapped
@@ -325,20 +324,20 @@ fn suspect_warnings(s: Suspect, n: usize, nodata: Option<f64>, crs: &str) -> Vec
     }
     if s.nodata > 0 {
         parts.push(format!(
-            "{} equal to the raster's no-data value ({}), which r5r {}",
+            "{} equal to the raster's no-data value ({}), which is {}",
             s.nodata,
             nodata.map_or_else(String::new, |v| v.to_string()),
             if nodata.is_some_and(f64::is_nan) {
-                "stores as 0 m"
+                "stored as 0 m"
             } else {
-                "reads as an elevation"
+                "read as an elevation"
             }
         ));
     }
     if !parts.is_empty() {
         out.push(format!(
-            "of the {n} elevation samples on the network, {}; the slope costs are r5r's, but \
-             probably not what you want there: fill the voids or crop the raster",
+            "of the {n} elevation samples on the network, {}; the slope costs follow from \
+             these values, and are probably not what you want there: fill the voids or crop the raster",
             parts.join(", and ")
         ));
     }
@@ -346,7 +345,7 @@ fn suspect_warnings(s: Suspect, n: usize, nodata: Option<f64>, crs: &str) -> Vec
         out.push(format!(
             "{} of the {n} elevation samples on the network lie within nanometres of a \
              boundary between pixels of different values (or of the raster's edge) once in \
-             {crs}: r5r reads one pixel or the other there depending on the machine it runs on \
+             {crs}: which pixel R5 reads there depends on the machine it runs on \
              (the last bits of Java's sines and cosines); peabiru reads the one Java's \
              StrictMath gives, on every machine. Reprojecting the raster to EPSG:4326 \
              (gdalwarp -t_srs EPSG:4326) removes the ambiguity",
@@ -442,7 +441,7 @@ pub(crate) fn apply(
 
 /// [`read_elevation`] at each point of `points`, for comparing with R5's:
 /// the value and whether the point is ambiguous (its pixel depends on the
-/// machine r5r runs on).
+/// machine R5 runs on).
 pub(crate) fn read_points(
     raster: &[u8],
     points: &[(f64, f64)],
@@ -517,7 +516,9 @@ mod tests {
         let w = suspect_warnings(a, 100, None, "EPSG:31982 (SIRGAS 2000 / UTM zone 22S)");
         assert_eq!(w.len(), 1);
         assert!(w[0].starts_with("3 of the 100 elevation samples on the network lie within"));
-        assert!(w[0].contains("once in EPSG:31982 (SIRGAS 2000 / UTM zone 22S): r5r reads"));
+        assert!(
+            w[0].contains("once in EPSG:31982 (SIRGAS 2000 / UTM zone 22S): which pixel R5 reads")
+        );
         assert!(w[0].contains("StrictMath"));
         // both kinds: two warnings
         let both = Suspect {
@@ -550,13 +551,10 @@ mod tests {
 
     #[test]
     fn names() {
-        assert_eq!(Elevation::from_r5r_name("tobler"), Some(Elevation::Tobler));
-        assert_eq!(
-            Elevation::from_r5r_name("Minetti"),
-            Some(Elevation::Minetti)
-        );
-        assert_eq!(Elevation::from_r5r_name("none"), Some(Elevation::None));
-        assert_eq!(Elevation::from_r5r_name("hills"), None);
-        assert_eq!(Elevation::Tobler.r5r_name(), "TOBLER");
+        assert_eq!(Elevation::from_name("tobler"), Some(Elevation::Tobler));
+        assert_eq!(Elevation::from_name("Minetti"), Some(Elevation::Minetti));
+        assert_eq!(Elevation::from_name("none"), Some(Elevation::None));
+        assert_eq!(Elevation::from_name("hills"), None);
+        assert_eq!(Elevation::Tobler.name(), "TOBLER");
     }
 }

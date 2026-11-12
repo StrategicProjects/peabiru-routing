@@ -1,7 +1,7 @@
-//! Bindings of r5r's network functions (`find_snap()`,
-//! `street_network_bbox()`, `street_network_to_sf()`,
-//! `transit_network_to_sf()`, `check_transit_availability()`,
-//! `get_gtfs_errors()`): as in the rest of the module, `js/lib/index.js`
+//! Bindings of the network functions (`findSnap()`,
+//! `streetNetworkBbox()`, `streetNetworkToSf()`,
+//! `transitNetworkToSf()`, `checkTransitAvailability()`,
+//! `getGtfsErrors()`): as in the rest of the module, `js/lib/index.js`
 //! checks the arguments and builds the results; these hand back columns.
 
 use super::{err, f64_array, i32_array, points, route_err, street_mode, Network};
@@ -36,7 +36,7 @@ fn str_array<S: AsRef<str>>(v: &[S]) -> JsValue {
         .into()
 }
 
-/// Snaps of r5r's `find_snap()`: `[snap_lat, snap_lon, distance]`
+/// Snaps of `findSnap()`: `[snap_lat, snap_lon, distance]`
 /// (Float64Array, NaN where not found) and `found` (Uint8Array, 0/1).
 #[wasm_bindgen]
 pub fn find_snap(
@@ -73,7 +73,7 @@ pub fn street_bbox(network: &Network) -> Vec<f64> {
     network.net.street().bbox().to_vec()
 }
 
-/// The vertices of r5r's `street_network_to_sf()`: `[index (Int32Array),
+/// The vertices of `streetNetworkToSf()`: `[index (Int32Array),
 /// lat, lon (Float64Array), park_and_ride, bike_sharing (Uint8Array)]`.
 #[wasm_bindgen]
 pub fn street_vertices(network: &Network) -> Array {
@@ -90,7 +90,7 @@ pub fn street_vertices(network: &Network) -> Array {
     .collect()
 }
 
-/// The stops of r5r's `transit_network_to_sf()`: `[stop_index
+/// The stops of `transitNetworkToSf()`: `[stop_index
 /// (Int32Array), stop_id, stop_name (arrays, null where blank), lat, lon
 /// (Float64Array, NaN for stops not linked to the streets),
 /// linked_to_street (Uint8Array)]`.
@@ -114,7 +114,7 @@ pub fn transit_stops(network: &Network) -> Array {
     .collect()
 }
 
-/// The routes of r5r's `transit_network_to_sf()`: `[agency_id,
+/// The routes of `transitNetworkToSf()`: `[agency_id,
 /// agency_name, route_id, long_name, short_name, mode]` (arrays, null where
 /// blank) and the line of each row as `n_points` (Int32Array) and flat `x`,
 /// `y` (Float64Array).
@@ -150,7 +150,7 @@ pub fn transit_routes(network: &Network) -> Result<Array, JsError> {
 }
 
 /// The operating dates of the network's services (`yyyymmdd`, ascending),
-/// as r5r's `check_transit_availability()` discovers them.
+/// as `checkTransitAvailability()` discovers them.
 #[wasm_bindgen]
 pub fn transit_service_dates(network: &Network) -> Result<Vec<u32>, JsError> {
     match network.net.transit() {
@@ -160,7 +160,7 @@ pub fn transit_service_dates(network: &Network) -> Result<Vec<u32>, JsError> {
 }
 
 /// The errors gtfs-lib reports for one feed (its name and the bytes of
-/// its `.zip`), as the columns of r5r's `gtfs_errors.csv`: `[file, line
+/// its `.zip`), as the columns of `getGtfsErrors()`: `[file, line
 /// (Int32Array), type, field, id, priority]` (arrays, null where missing).
 #[wasm_bindgen]
 pub fn gtfs_errors(name: &str, zip: &[u8]) -> Result<Array, JsError> {

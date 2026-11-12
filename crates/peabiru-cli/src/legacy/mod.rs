@@ -53,7 +53,7 @@ fn usage_text() -> String {
          peabiru ttm <file.osm.pbf> <points.csv> <WALK|BICYCLE|CAR> <out.csv> [n_threads] [repeats]\n       \
          peabiru transit <dir> <points.csv> <out.csv> --date YYYY-MM-DD --time HH:MM:SS [--tw 10] [--percentiles 50] [--max-walk 120] [--max-trip 120] [--max-rides 3] [--draws 5] [--seed N] [--threads 0] [--repeats 1]\n       \
          peabiru accessibility <dir|file.osm.pbf> <points.csv> <out.csv> --opportunities a,b [options]\n       \
-         peabiru dump-edges <file.osm.pbf | dir>   (CSV like r5r::street_network_to_sf edges;\n                                             a directory links its GTFS stops)\n       \
+         peabiru dump-edges <file.osm.pbf | dir>   (CSV of the directed street edges;\n                                             a directory links its GTFS stops)\n       \
          peabiru dump-elevation <dir> <out prefix>   (elevation samples and slope factors)\n       \
          peabiru sample-raster <file.tif> <points> <out>   (R5's readElevation at points)\n       \
          peabiru crs-transform <epsg code> <points> <out>   (GeoTools' transform of a raster CRS)\n       \
@@ -311,7 +311,7 @@ fn dump_elevation(dir: &str, out: &str) {
         net.n_vertices(),
         profiles.len(),
         net.n_edges(),
-        net.elevation().r5r_name()
+        net.elevation().name()
     );
 }
 
@@ -344,7 +344,7 @@ fn sample_raster(tif: &str, points: &str, out: &str) {
     for v in values {
         match v {
             Ok((x, false)) => csv.push_str(&format!("{:x}\n", x.to_bits())),
-            // within nanometres of a pixel boundary: r5r's value depends on the machine
+            // within nanometres of a pixel boundary: R5's value depends on the machine
             Ok((x, true)) => csv.push_str(&format!("{:x} AMBIGUOUS\n", x.to_bits())),
             Err(_) => csv.push_str("ERR\n"),
         }
@@ -387,7 +387,7 @@ fn crs_transform(code: &str, points: &str, out: &str) {
     cli::write_file(cmd, out, csv);
 }
 
-/// Every directed edge with the attributes r5r's `street_network_to_sf()`
+/// Every directed edge with the attributes `street_network_to_sf()`
 /// reports, for comparing networks edge by edge (bench/compare/edges.py).
 fn dump_edges(pbf: &str) {
     use peabiru_core::unstable::flags::*;
@@ -395,7 +395,7 @@ fn dump_edges(pbf: &str) {
     use peabiru_core::{build_network, BuildOptions};
     use std::io::Write;
     let cmd = "dump-edges";
-    // a directory: the network with its GTFS stops linked, as r5r builds it
+    // a directory: the network with its GTFS stops linked
     let net = if std::path::Path::new(pbf).is_dir() {
         cli::build_from_dir(cmd, pbf, &BuildOptions::default())
             .unwrap_or_else(|e| runtime_error(cmd, e))
@@ -491,7 +491,7 @@ pub(super) fn read_points(cmd: &str, path: &str) -> (Vec<String>, Vec<(f64, f64)
 
 fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats: usize) {
     let cmd = "ttm";
-    // A directory is a network folder like r5r's: one .pbf plus GTFS zips.
+    // A directory is a network folder: one .pbf plus GTFS zips.
     let is_dir = std::path::Path::new(pbf).is_dir();
     use peabiru_core::{
         build_network, street_travel_time_matrix, BuildOptions, Mode, RouteParams, StreetEngine,

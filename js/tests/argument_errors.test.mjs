@@ -1,9 +1,8 @@
-// Argument errors worded as r5r's (and the R package's): every case of
+// Argument errors worded as the R package's: every case of
 // bench/compare/argument_errors.json, R's message turned into JavaScript's
 // terms by the file's "js" rules and with the arguments in camelCase,
 // unless the case is listed there as worded differently on purpose. The
-// file is written by bench/compare/argument_errors.R from the R package,
-// whose messages bench/compare/error_parity.R holds equal to r5r's.
+// file is written by bench/compare/argument_errors.R from the R package.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -63,7 +62,7 @@ function jsText(spec, msg, argNames) {
   return msg.replace(/[a-z]+(?:_[a-z0-9]+)+/g, (w) => (argNames.has(w) ? camel(w) : w));
 }
 
-test("argument errors are worded as r5r's", { skip: !existsSync(CASES) }, async () => {
+test("argument errors are worded as the R package's", { skip: !existsSync(CASES) }, async () => {
   const spec = JSON.parse(readFileSync(CASES, "utf8"));
   const network = await sampleNetwork();
   const fs = await peabiru.setupFareStructure(network, 4.4);

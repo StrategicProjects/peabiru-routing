@@ -1,5 +1,4 @@
-//! Walk + public transport travel-time matrix, as r5r's
-//! `travel_time_matrix(mode = c("WALK", "TRANSIT"))`.
+//! Walk + public transport travel-time matrix over a departure window.
 //!
 //! ```sh
 //! cargo run --release -p peabiru-core --example transit_matrix [network_dir]
@@ -13,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dir = common::data_dir();
     let points = common::read_points(&dir, &[]);
 
-    // One .pbf plus every GTFS .zip of the directory, as r5r's build_network().
+    // One .pbf plus every GTFS .zip of the directory.
     let mut opts = BuildOptions::default();
     opts.n_threads = 2;
     // The stops are linked to the streets, and the transfers between them
@@ -24,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Monday 2019-05-13, departures from 14:00 (seconds after midnight)
     // over 10 minutes; a seed fixes the draws of the frequency-based feed;
-    // r5r's defaults for everything else.
+    // the defaults for everything else.
     let mut params = TransitParams::default();
     params.date = 20190513;
     params.departure_time = 14 * 3600;

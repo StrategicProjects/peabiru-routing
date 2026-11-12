@@ -19,7 +19,7 @@
 // differs. The feeds are given to the WebAssembly build in the order the
 // CLI read them on this machine (it prints them), as the order matters.
 //
-// The JavaScript functions apply r5r's last step, which the CLI leaves
+// The JavaScript functions apply a last step that the CLI leaves
 // out: travel times above max_trip_duration become NA (and, in expanded
 // and arrival matrices, the whole breakdown). The CLI's values are compared
 // after the same step. Street matrices and street accessibility use the

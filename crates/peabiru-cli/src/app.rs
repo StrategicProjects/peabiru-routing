@@ -10,10 +10,10 @@ use std::path::PathBuf;
 
 const AFTER_HELP: &str = "\
 Networks: a directory with one OpenStreetMap .pbf file, any number of GTFS
-.zip feeds and an optional .tif elevation raster (as r5r's build_network()
-reads it), or a .pbf file with --gtfs and --tif. Points: CSV files with a
-header and the columns id, lon and lat (WGS 84). Results: CSV (or GeoJSON)
-on standard output or in --output; progress and warnings on standard error.
+.zip feeds and an optional .tif elevation raster, or a .pbf file with --gtfs and --tif.
+Points: CSV files with a header and the columns id, lon and lat (WGS 84).
+Results: CSV (or GeoJSON) on standard output or in --output; progress and
+warnings on standard error.
 
 Exit status: 0 done, 1 a file or network that cannot be read or written, 2 a
 bad argument, 130 interrupted (Ctrl-C).
@@ -167,7 +167,7 @@ pub struct NetworkArgs {
     #[arg(long, value_enum, ignore_case = true, help_heading = "Network")]
     pub elevation: Option<ElevationArg>,
     /// Build the network from feeds with GTFS errors of priority HIGH,
-    /// which r5r refuses (a warning per feed)
+    /// which are refused otherwise (a warning per feed)
     #[arg(long, help_heading = "Network")]
     pub ignore_gtfs_errors: bool,
     /// Worker threads; 0 uses every core
@@ -316,7 +316,7 @@ pub struct DrawArgs {
 /// Fares.
 #[derive(Args, Clone)]
 pub struct FareArgs {
-    /// A fare structure (.zip, as `peabiru fares setup` or r5r's
+    /// A fare structure (.zip, as `peabiru fares setup` or the packages'
     /// write_fare_structure() write it): routes with fares
     #[arg(long, value_name = "FILE.zip", help_heading = "Fares")]
     pub fare_structure: Option<PathBuf>,
@@ -358,8 +358,8 @@ pub struct OutputArgs {
 /// One CSV file per origin instead of one table.
 #[derive(Args, Clone)]
 pub struct OutputDirArgs {
-    /// Write one CSV file per origin to this existing directory, as r5r's
-    /// output_dir (origins routed a slice at a time)
+    /// Write one CSV file per origin to this existing directory
+    /// (origins routed a slice at a time)
     #[arg(
         long,
         value_name = "DIR",
@@ -636,7 +636,7 @@ pub struct IsochroneArgs {
     #[arg(long, value_enum, default_value = "geojson", help_heading = "Output")]
     pub format: Format,
     /// Order the rings of the polygons as isoband built with this C++
-    /// library does (r5r on another platform)
+    /// library does (the result of another platform)
     #[arg(long, value_name = "LIB", hide = true)]
     pub cxx_library: Option<String>,
     #[command(flatten)]
@@ -687,8 +687,7 @@ pub struct ItinerariesArgs {
     pub format: Format,
     #[command(flatten)]
     pub out: OutputArgs,
-    /// Write one CSV file per pair to this existing directory, as r5r's
-    /// output_dir
+    /// Write one CSV file per pair to this existing directory
     #[arg(
         long,
         value_name = "DIR",
@@ -830,8 +829,7 @@ pub struct OptionsArgs {
     pub format: Format,
     #[command(flatten)]
     pub out: OutputArgs,
-    /// Write one CSV file per pair to this existing directory, as r5r's
-    /// output_dir
+    /// Write one CSV file per pair to this existing directory
     #[arg(long, value_name = "DIR", help_heading = "Output", conflicts_with_all = ["output", "legs", "departures"])]
     pub output_dir: Option<PathBuf>,
 }
@@ -899,7 +897,7 @@ pub enum FaresCommand {
     )]
     Read(FaresReadArgs),
     /// Make a fare structure (.zip) from a directory of its CSV files,
-    /// checked and written as r5r writes it (write_fare_structure())
+    /// checked and written as the packages' write_fare_structure() writes it
     #[command(
         after_help = "Example:\n  peabiru fares write fares/ -o fares.zip --network data/poa"
     )]

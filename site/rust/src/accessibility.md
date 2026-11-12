@@ -13,7 +13,7 @@ destination times a decay weight of the travel time.
 - `AccessibilityParams` holds the cutoffs (minutes, up to 12) and the
   `DecayFunction`: `Step`, `Exponential`, `FixedExponential { decay_constant }`,
   `Linear { width_minutes }` or `Logistic { standard_deviation_minutes }`.
-  Its default is r5r's: one cutoff of 30 minutes, `Step`.
+  Its default: one cutoff of 30 minutes, `Step`.
 - The result, `Accessibility`, has one value per origin, opportunity column,
   percentile and cutoff; `get(origin, opportunity, percentile, cutoff)` reads
   one, and `values()` gives them all in that order (the cutoff varying
@@ -26,10 +26,9 @@ depend on the C library.
 
 The packages adjust the trip limits before routing: with
 `Step`, `max_trip_duration` becomes the largest cutoff, and an unlimited
-`max_walk_time` becomes `max_trip_duration`. `r5r_trip_limits` applies the
-same rules, so the crate gives the packages' numbers for their arguments
-(the name records that the rules are r5r's; see
-[Parity with r5r](parity.md)).
+`max_walk_time` becomes `max_trip_duration`. `accessibility_trip_limits`
+applies the same rules, so the crate gives the packages' numbers for their
+arguments.
 
 ## Example
 

@@ -3,12 +3,11 @@
 [`detailedItineraries()`](api.md#detailedItineraries) gives the legs of
 each trip between pairs of origins and destinations: each walk, ride by
 bicycle or car, and each public transport ride, with its duration, waiting
-time, distance, route and line. The results are those of r5r 2.5.0's
-`detailed_itineraries()`, row for row.
+time, distance, route and line.
 
-The examples on this page use r5r's sample data of Porto Alegre, whose GTFS
-feeds have timetables (itineraries by public transport need them: a network
-with frequency-based trips is an error here, as in r5r) and only have
+The examples on this page use the sample data of Porto Alegre from the r5r
+project, whose GTFS feeds have timetables (itineraries by public transport
+need them: a network with frequency-based trips is an error) and only have
 service in the afternoon, hence the 14:00 departure. The files are
 downloaded once into the temporary directory (about 2 MB) by a small
 helper:
@@ -88,7 +87,7 @@ duration at the best plus `suboptimalMinutes`, since each departure minute
 of the window is searched on its own. It must be 0 with
 `shortestPath: true` and with a `fareStructure`.
 
-The options are numbered in r5r's order: the trip by the street mode
+The options are numbered in this order: the trip by the street mode
 alone first, then by the number of legs, then by duration. The first option
 is then not the fastest when a trip with fewer legs is slower (on Porto
 Alegre with `suboptimalMinutes: 10`, a pair had 102 options, the first of
@@ -144,17 +143,17 @@ up to `maxFare`, `Infinity` by default) and the rows get `total_fare` and
 
 With `modeEgress: "CAR"`, R5 reverses the via edges of turn restrictions
 with two or more via ways in place each time its backward egress search
-checks one, so what r5r returns for a pair whose car searches cross such a
+checks one, so what R5 returns for a pair whose car searches cross such a
 restriction can depend on the searches that ran before it (in the same
 call, on other threads, or in earlier calls). peabiru returns, for every
-pair, what r5r gives on a freshly built network for that pair alone with
+pair, the itineraries of a freshly built network for that pair alone with
 one thread, and warns once per call (`onWarning`), naming the pairs whose
 itineraries some other order of those via edges would change (on Porto
 Alegre, about 1 pair in 200). Rides along GTFS shapes cut by
 `shape_dist_traveled` follow R5's cut.
 
-The trips for which R5's fastest-path search cannot rebuild a path (r5r
-then routes the pair again with McRAPTOR) are routed the same way here.
+The trips for which R5's fastest-path search cannot rebuild a path are
+routed again with McRAPTOR.
 
 ## Trip options
 

@@ -1,15 +1,16 @@
-//! Transit fares as r5r 2.5.0 computes them: its fare structure (the
-//! object of `setup_fare_structure()`, `read_fare_structure()` and
-//! `write_fare_structure()`) and its `RuleBasedInRoutingFareCalculator`,
-//! which R5's multi-criteria router (McRAPTOR) calls for every state.
+//! Transit fares: the fare structure (the object of
+//! `setup_fare_structure()`, `read_fare_structure()` and
+//! `write_fare_structure()`) and the rule-based fare calculator
+//! (`RuleBasedInRoutingFareCalculator`), which R5's multi-criteria router
+//! (McRAPTOR) calls for every state.
 //!
-//! A [`FareStructure`] holds the values as r5r's R object holds them
-//! (doubles, `Inf` included). r5r hands the object to Java as JSON
-//! (`jsonlite::toJSON`, four decimal places), where Jackson reads the
+//! A [`FareStructure`] holds the values as doubles, `Inf` included. The
+//! calculator was written to receive them as JSON (`jsonlite::toJSON`,
+//! four decimal places), from which Jackson reads the
 //! fares into `float`s and the counts into `int`s, and the calculator works
 //! in integer cents (`Math.round(fare * 100.0f)`); [`FareStructure`] goes
-//! through the same conversions before routing, so that the same object
-//! gives the same fares as in r5r.
+//! through the same conversions before routing, so that the same values
+//! give the same fares.
 //!
 //! The calculator, the structure and its builder are translations to Rust,
 //! by the peabiru authors, of r5r's Java classes `FareStructure`,
@@ -26,11 +27,11 @@ use crate::jcompat::{string_hash, JavaHashMap};
 use crate::transit::raptor::route_type_mode;
 use crate::{RouteError, TransitLayer};
 
-/// One fare type of a [`FareStructure`] (r5r's `fares_per_type` row).
+/// One fare type of a [`FareStructure`] (a `fares_per_type` row).
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct FarePerType {
-    /// The name of the type (r5r's `type`); `None` is R's `NA`.
+    /// The name of the type (the column `type`); `None` is R's `NA`.
     pub fare_type: Option<String>,
     /// Rides of this type after one of the same type are free and do not
     /// use up a discounted transfer.
@@ -45,7 +46,7 @@ pub struct FarePerType {
     pub fare: f64,
 }
 
-/// A discounted transfer between two fare types (r5r's
+/// A discounted transfer between two fare types (a
 /// `fares_per_transfer` row): both rides together cost `fare`.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -58,7 +59,7 @@ pub struct FarePerTransfer {
     pub fare: f64,
 }
 
-/// The fare type and fare of one GTFS route (r5r's `fares_per_route` row).
+/// The fare type and fare of one GTFS route (a `fares_per_route` row).
 /// A route is matched by `agency_id` and `route_id`; the other names are
 /// for the reader.
 #[derive(Debug, Clone, PartialEq)]
@@ -77,13 +78,12 @@ pub struct FarePerRoute {
     pub fare_type: Option<String>,
 }
 
-/// r5r's fare structure: how much each ride costs and which transfers are
-/// discounted. The values are those of r5r's R object (`setup_fare_structure()`,
-/// `read_fare_structure()`): counts and minutes as doubles, `Inf` for no
-/// limit. Start from [`setup_fare_structure`](crate::setup_fare_structure) or [`read_fare_structure`]
-/// and change the fields.
+/// A fare structure: how much each ride costs and which transfers are
+/// discounted. Counts and minutes are doubles, `Inf` for no limit. Start
+/// from [`setup_fare_structure`](crate::setup_fare_structure) or
+/// [`read_fare_structure`] and change the fields.
 ///
-/// The rules, as r5r's `RuleBasedInRoutingFareCalculator` applies them:
+/// The rules, as the fare calculator applies them:
 /// the first ride costs its route's fare; each later ride costs the
 /// transfer fare between the two types minus the fare of the previous ride
 /// when a discounted transfer applies (a row of `fares_per_transfer` for
@@ -95,10 +95,10 @@ pub struct FarePerRoute {
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct FareStructure {
-    /// Most transfers with a discount (r5r default 1; `Inf` becomes -1 in
+    /// Most transfers with a discount (default 1; `Inf` becomes -1 in
     /// Java, where no transfer is ever discounted).
     pub max_discounted_transfers: f64,
-    /// Minutes between the boardings of a discounted transfer (r5r default
+    /// Minutes between the boardings of a discounted transfer (default
     /// 120; `Inf` becomes -1 in Java, where no transfer is ever discounted).
     pub transfer_time_allowance: f64,
     /// Highest total fare of a trip (`Inf`, the default, or 0: no cap).
@@ -109,15 +109,15 @@ pub struct FareStructure {
     pub fares_per_transfer: Vec<FarePerTransfer>,
     #[allow(missing_docs)]
     pub fares_per_route: Vec<FarePerRoute>,
-    /// r5r's `debug_settings$output_file` (r5r 2.5.0 writes no debug file,
-    /// whatever it says, and neither does peabiru).
+    /// The `output_file` of the debug settings, kept for the file format
+    /// (no debug file is written, whatever it says).
     pub debug_output_file: String,
-    /// r5r's `debug_settings$trip_info`.
+    /// The `trip_info` of the debug settings, kept for the file format.
     pub debug_trip_info: String,
 }
 
 impl Default for FareStructure {
-    /// An empty structure with r5r's global defaults.
+    /// An empty structure with the default global settings.
     fn default() -> Self {
         FareStructure {
             max_discounted_transfers: 1.0,
@@ -278,7 +278,7 @@ fn cents(f: f32) -> i32 {
     java_round(f * 100.0f32)
 }
 
-/// A number of the structure as Java reads it from r5r's JSON.
+/// A number of the structure as Java reads it from the JSON.
 fn as_float(x: f64) -> f32 {
     jackson_float(&jsonlite_number(x))
 }
@@ -348,8 +348,8 @@ pub(crate) fn setup_fare_structure(
         let legs = java_split_amp(transfers.key(i));
         if legs.len() < 2 {
             return Err(RouteError::Invalid(format!(
-                "r5r cannot build this fare structure: the transfer {:?} does not split into \
-                 two fare types (Java ArrayIndexOutOfBoundsException)",
+                "this fare structure cannot be built: the transfer {:?} does not split into \
+                 two fare types",
                 transfers.key(i)
             )));
         }
@@ -384,7 +384,7 @@ fn java_split_amp(s: &str) -> Vec<String> {
 }
 
 impl FareStructure {
-    /// The checks of r5r's `assert_fare_structure()` on the values: counts,
+    /// The checks on the values of a fare structure: counts,
     /// minutes and cap not negative (nor `NA`), fare types present and
     /// unique, fares finite and not negative, every transfer and route
     /// naming one of the types, and no missing value in the route table.
@@ -392,8 +392,8 @@ impl FareStructure {
         self.check().map_err(RouteError::Invalid)
     }
 
-    /// [`FareStructure::validate`], then the checks r5r makes as soon as it
-    /// is given the structure for a network (`setFareCalculator`, even for
+    /// [`FareStructure::validate`], then the checks made as soon as a
+    /// structure is given for a network (`setFareCalculator`, even for
     /// a street-only trip): its numbers as Java reads them, and a row of
     /// `fares_per_route` for the `agency_id` and `route_id` of every
     /// route the network's trip patterns run on. For a network without
@@ -497,7 +497,7 @@ struct TransferRule {
     second_full: i32,
 }
 
-/// r5r's `RuleBasedInRoutingFareCalculator` set up for a network: per
+/// The `RuleBasedInRoutingFareCalculator` set up for a network: per
 /// pattern its route's fare type, fare in cents and `route_id`.
 #[derive(Debug, Clone)]
 pub(crate) struct FareCalculator {
@@ -557,8 +557,8 @@ impl Default for FareProgress {
 }
 
 /// What a state has paid and the transfer allowance it holds (R5's
-/// `FareBounds` with r5r's `R5RTransferAllowance`). R5 compares
-/// allowances by value, number and expiration only: r5r's overload that
+/// `FareBounds` with the calculator's transfer allowance). R5 compares
+/// allowances by value, number and expiration only: the overload that
 /// also compares the fare type is never called.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct FareBounds {
@@ -603,8 +603,7 @@ impl FareCalculator {
         let lookup = |t: &Option<String>| -> Result<u32, RouteError> {
             type_index.get(t).copied().ok_or_else(|| {
                 RouteError::Invalid(format!(
-                    "fare type {:?} is not in fares_per_type (r5r fails with a Java \
-                     NullPointerException)",
+                    "fare type {:?} is not in fares_per_type",
                     t.as_deref().unwrap_or("NA")
                 ))
             })
@@ -633,7 +632,7 @@ impl FareCalculator {
             let Some(&k) = by_route.get(&key) else {
                 return Err(RouteError::Invalid(format!(
                     "fare_structure$fares_per_route has no row for agency_id {:?} and \
-                     route_id {:?} of the network (r5r fails with a Java NullPointerException)",
+                     route_id {:?} of the network",
                     ri.agency_id.as_deref().unwrap_or("NA"),
                     ri.route_id
                 )));
@@ -967,8 +966,8 @@ mod tests {
     }
 
     #[test]
-    fn java_hash_set_order_of_r5r_types() {
-        // r5r 2.5.0 setup_fare_structure(by = "MODE") on Porto Alegre:
+    fn java_hash_set_order_of_fare_types() {
+        // setup_fare_structure(by = "MODE") on Porto Alegre, recorded order:
         // types BUS, RAIL; transfers BUS&BUS, RAIL&BUS, BUS&RAIL, RAIL&RAIL
         let mut types: JavaHashMap<Option<String>> = JavaHashMap::new();
         for t in ["RAIL", "BUS"] {

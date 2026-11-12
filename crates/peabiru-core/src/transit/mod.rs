@@ -1,5 +1,5 @@
 //! Public transport: the transit layer built from GTFS, stop linking,
-//! transfers and RAPTOR, following R5 7.6 as used by r5r.
+//! transfers and RAPTOR, following R5 7.6.
 
 pub(crate) mod accessibility;
 pub(crate) mod decay;
@@ -36,7 +36,7 @@ pub(crate) fn build_from_dir(
             format!("{}: {e}", dir.display()),
         ))
     };
-    // r5r's NetworkBuilder.loadDirectory keeps the last `.pbf` listed, and
+    // Of the files of the directory, the last `.pbf` listed is kept, and
     // the last file whose name ends in `.tif` or `.tiff` as the raster.
     let mut pbf = None;
     let mut rasters = Vec::new();
@@ -76,10 +76,10 @@ pub(crate) fn build_from_dir(
 type Named = (PathBuf, Cow<'static, [u8]>);
 
 /// The elevation raster of a data directory, read, from the files whose
-/// names end in `.tif` or `.tiff` (in lower case, as r5r matches them):
-/// none, or exactly one `.tif` file. r5r reads the last one listed, which
-/// depends on the file system, so more than one is an error here; and
-/// for a `.tiff` file r5r looks for the same name ending in `.tif` and
+/// names end in `.tif` or `.tiff` (in lower case): none, or exactly one
+/// `.tif` file. Which of several rasters would be read depends on the
+/// order the file system lists them in, so more than one is an error; and
+/// for a `.tiff` file R5 looks for the same name ending in `.tif` and
 /// fails, which is an error here too, as is a `.prj` file of the same
 /// name (see below).
 fn raster_in_dir(dir: &Path, mut rasters: Vec<PathBuf>) -> Result<Option<Named>, NetworkError> {
@@ -90,8 +90,8 @@ fn raster_in_dir(dir: &Path, mut rasters: Vec<PathBuf>) -> Result<Option<Named>,
             if layer::has_suffix(one.as_os_str(), ".tiff") {
                 return Err(NetworkError::elevation(
                     one,
-                    "r5r cannot read a raster whose name ends in .tiff (R5 looks for the same \
-                     name ending in .tif and fails): rename it to .tif"
+                    "the name of an elevation raster must end in .tif, not .tiff: rename it to \
+                     .tif"
                         .into(),
                 ));
             }
@@ -103,9 +103,9 @@ fn raster_in_dir(dir: &Path, mut rasters: Vec<PathBuf>) -> Result<Option<Named>,
                     one,
                     format!(
                         "the raster has a {} file next to it, whose coordinate reference \
-                         system r5r (GeoTools) uses instead of the GeoTIFF's, and which peabiru \
-                         does not read; remove it (peabiru and r5r then both use the GeoTIFF's \
-                         own system)",
+                         system would take the place of the GeoTIFF's (as in GeoTools), and which \
+                         peabiru does not read; remove it (the GeoTIFF's own system is then \
+                         used)",
                         prj.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned())
                     ),
                 ));
@@ -118,7 +118,7 @@ fn raster_in_dir(dir: &Path, mut rasters: Vec<PathBuf>) -> Result<Option<Named>,
         many => Err(NetworkError::elevation(
             dir,
             format!(
-                "the directory has {} elevation rasters ({}); r5r uses only the last one the                  file system lists, so keep exactly one",
+                "the directory has {} elevation rasters ({}); only one can be used, so keep exactly one",
                 many.len(),
                 many.iter()
                     .map(|p| p.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned()))
@@ -196,7 +196,7 @@ where
     // The only change to a network after it is built, and before anyone
     // can route on it (see `StreetNetwork`).
     layer.link_stops(&mut net);
-    // R5 adds the slope costs last (r5r's NetworkBuilder.createNetwork),
+    // The slope costs are added last, as in R5,
     // when every edge (stop connectors and park-and-rides included) exists.
     if let Some((name, bytes)) = raster {
         if opts.elevation != crate::Elevation::None {
@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn feeds_with_high_priority_errors_are_refused_as_in_r5r() {
+    fn feeds_with_high_priority_errors_are_refused() {
         let Some(spo) = crate::sample_data::spo() else {
             return;
         };
@@ -323,7 +323,7 @@ mod tests {
             assert_eq!(
                 e.to_string(),
                 "high priority GTFS errors found in a.zip (1 error), c.zip (2 errors), \
-                 d.zip (1 error); network build failed (as in r5r)"
+                 d.zip (1 error); network build failed"
             );
             for f in [&no_agency, &unknown_stop] {
                 assert_eq!(build(spo, &[("a.zip", f)], true, threads).unwrap(), 1);
@@ -363,10 +363,10 @@ mod tests {
         }
     }
 
-    /// Feeds whose errors are only of priority MEDIUM or LOW, that r5r
-    /// builds: values gtfs-lib cannot read take its defaults.
+    /// Feeds whose errors are only of priority MEDIUM or LOW are built:
+    /// values gtfs-lib cannot read take its defaults.
     #[test]
-    fn feeds_r5r_builds_are_read() {
+    fn feeds_with_lower_priority_errors_are_read() {
         let Some(spo) = crate::sample_data::spo() else {
             return;
         };
@@ -405,7 +405,7 @@ mod tests {
         assert_eq!(
             e.to_string(),
             "a.zip: trip 'T1' has no route_id, and R5 fails building its transit layer from the \
-             feed (NullPointerException), as does r5r's build_network()"
+             feed (NullPointerException)"
         );
     }
 }

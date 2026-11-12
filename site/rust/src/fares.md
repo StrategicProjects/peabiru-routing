@@ -1,7 +1,7 @@
 # Fares and Pareto frontiers
 
-A `FareStructure` is r5r 2.5.0's fare structure, with the values as r5r's R
-object holds them (doubles, `Inf` included): the global settings
+A `FareStructure` is a rule-based fare structure, with its values as
+doubles (`Inf` included): the global settings
 (`max_discounted_transfers`, `transfer_time_allowance` in minutes,
 `fare_cap`), one `FarePerType` per fare type, one `FarePerTransfer` per pair
 of types with a discounted transfer, and one `FarePerRoute` per GTFS route
@@ -18,10 +18,9 @@ pub fn write_fare_structure(s: &FareStructure) -> Result<Vec<u8>, RouteError>;
 transfer costs `base_fare`, with one fare type per mode (`by = "MODE"`), per
 agency (`"AGENCY_ID"`, `"AGENCY_NAME"`) or a single `GENERIC` type; change
 its fields to follow a city's rules. `read_fare_structure` and
-`write_fare_structure` read and write the bytes of r5r's `.zip` file: five
-CSV files in `data.table::fwrite()`'s format, the same text as r5r's (the
-archive stores them uncompressed, so its bytes differ). A structure written
-by r5r is read here, and the other way round.
+`write_fare_structure` read and write the bytes of a fare structure `.zip` file: five
+CSV files in `data.table::fwrite()`'s format, the file format of the R,
+Python and JavaScript packages.
 
 ## Routing with fares
 
@@ -38,24 +37,24 @@ p.max_fare = 4.8;
 let m = peabiru_core::transit_travel_time_matrix(&network, &o, &d, &p)?;
 ```
 
-With a fare structure, public transport is routed as r5r routes it then:
+With a fare structure, public transport is routed by
 R5's multi-criteria router (`McRaptorSuboptimalPathProfileRouter`, ported
 with its tie-breaking and iteration orders) with R5's `FareDominatingList`
-and r5r's `RuleBasedInRoutingFareCalculator`, over `time_window x
+and the `RuleBasedInRoutingFareCalculator`, over `time_window x
 draws_per_minute` departure times sampled in the window (seeded from the
-origin as r5r seeds them), instead of RAPTOR at every minute. The numbers
-go through the conversions r5r's Java side makes: `jsonlite` writes them
-with four decimals, Jackson reads fares into `float`s and counts into
+origin), instead of RAPTOR at every minute. The numbers
+are read as the calculator reads them: written
+with four decimals, fares read into `float`s and counts into
 `int`s, and the calculator works in integer cents.
 
-`pareto_frontier` is r5r's `pareto_frontier()`: the matrix once per fare
+`pareto_frontier` routes the matrix once per fare
 cutoff, and per destination and percentile a row at each cutoff where the
 travel time changes. `detailed_itineraries` takes the same structure in
 `ItineraryParams::fare_structure` (and routes with McRAPTOR then, as it
 does with `shortest_path = false`); its itineraries get `total_fare` and
 each leg `cumulative_fare` (see [Detailed itineraries](itineraries.md)).
 
-The fare structure is r5r's rule-based one. R5's own fare calculators for other cities (a JSON structure with a `type`)
+The fare structure is the rule-based one. R5's own fare calculators for other cities (a JSON structure with a `type`)
 are not ported.
 
 ## Example
@@ -77,9 +76,9 @@ max_fare    5: 27 destinations, median 25 min
 max_fare  inf: 27 destinations, median 25 min
 ```
 
-On r5r's Porto Alegre sample (the directory of the
-[itineraries example](itineraries.md#example)), with the fare structure r5r
-ships for it as the second argument (`extdata/poa/fares/fares_poa.zip`),
+On the Porto Alegre sample (the directory of the
+[itineraries example](itineraries.md#example)), with the fare structure
+that comes with it as the second argument (`fares/fares_poa.zip`),
 one fare buys most of the time saved, and a second one more for some
 destinations:
 

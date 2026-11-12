@@ -8,8 +8,7 @@ optionally, an elevation raster, and writes travel-time matrices,
 accessibility, isochrones, detailed itineraries, fares and network exports
 as CSV or GeoJSON. The engine is the crate
 [`peabiru-core`](https://crates.io/crates/peabiru-core), the same as behind
-the R, Python and JavaScript packages, so the numbers are theirs (and
-r5r 2.5.0's): the options take those packages' argument names in
+the R, Python and JavaScript packages, so the numbers are theirs: the options take those packages' argument names in
 kebab-case, with the same defaults and checks.
 
 ## Install
@@ -24,13 +23,12 @@ From a checkout of the repository: `cargo build --release -p peabiru-cli`
 ## Inputs and outputs
 
 - **Network**: a directory with one OpenStreetMap `.pbf` file, any number of
-  GTFS `.zip` feeds and an optional `.tif` elevation raster, read as r5r's
-  `build_network()` reads it (lower-case extensions; the feeds in the order
+  GTFS `.zip` feeds and an optional `.tif` elevation raster (lower-case extensions; the feeds in the order
   the file system lists them); or a `.pbf` file with `--gtfs feed.zip`
   (repeatable, loaded in the order given) and `--tif raster.tif`. With a
   raster, walking and cycling have slope costs (`--elevation TOBLER`, the
   default, `MINETTI` or `NONE`). A feed with GTFS errors of priority HIGH
-  is refused, as r5r refuses it (`peabiru info DIR --gtfs-errors` lists
+  is refused (`peabiru info DIR --gtfs-errors` lists
   them; `--ignore-gtfs-errors` builds anyway). The network is built in
   memory for each command, in about a second for a city of the size of
   Porto Alegre.
@@ -39,7 +37,7 @@ From a checkout of the repository: `cargo build --release -p peabiru-cli`
   reads its opportunity columns from the destinations.
 - **Results**: CSV on standard output, or in `-o FILE`; geometries as
   GeoJSON (`--format geojson`) or as WKT in a CSV column; `--output-dir`
-  writes one file per origin (or pair) as r5r's `output_dir`. Missing
+  writes one CSV file per origin (or pair). Missing
   values are empty fields. Progress and warnings go to standard error
   (`-q` silences the progress).
 - **Exit status**: 0 done, 1 a file or network that cannot be read or
@@ -49,7 +47,7 @@ From a checkout of the repository: `cargo build --release -p peabiru-cli`
 ## A tour
 
 The examples use the São Paulo sample of the repository,
-`r/inst/extdata/spo` (cut from r5r's sample data; map data © OpenStreetMap
+`r/inst/extdata/spo` (cut from the sample data of the r5r project; map data © OpenStreetMap
 contributors, under the Open Database License, see `LICENSE-THIRD-PARTY`),
 with 27 points in `spo_points.csv`.
 
@@ -121,7 +119,7 @@ The other commands:
 | `options` | the trips not dominated on time, fare, transfers and walking (`--legs`, `--departures`) | `trip_options()` |
 | `snap` | where points meet the streets | `find_snap()` |
 | `network` | `--layer edges`, `vertices`, `stops`, `routes` or `bbox` | `street_network_to_sf()`, `transit_network_to_sf()`, `street_network_bbox()` |
-| `fares setup`, `fares read`, `fares write` | fare structures (`.zip`, the format of r5r's `write_fare_structure()`) | `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` |
+| `fares setup`, `fares read`, `fares write` | fare structures (`.zip` files of five CSV tables) | `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` |
 | `completions` | shell completions (bash, zsh, fish, elvish, PowerShell) | |
 
 Every command has `--help` with its options and an example, for instance:
@@ -136,12 +134,11 @@ $ peabiru matrix data/poa --origins points.csv --mode CAR \
 
 Scenarios (`--new-carspeeds`, `--carspeed-scale`, `--new-lts`) take CSV
 tables (`osm_id,max_speed,speed_type`; `osm_id,lts`) or GeoJSON polygons
-(`poly_id`, `scale`, `priority`) and lines (`line_id`, `lts`, `priority`),
-as r5r's arguments of the same names.
+(`poly_id`, `scale`, `priority`) and lines (`line_id`, `lts`, `priority`).
 
 Differences from the R package: the departure is a date and clock time
 without a time zone, read as the network's local time; without
-`--departure`, street-only commands use the current time in UTC (r5r uses
+`--departure`, street-only commands use the current time in UTC (the R package uses
 the current local time; it only shows in the itineraries'
 `departure_time`); polygons and lines are written as built, without the
 `sf::st_make_valid()` the R package applies (as the Python and JavaScript

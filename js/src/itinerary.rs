@@ -18,7 +18,7 @@ use wasm_bindgen::prelude::*;
 /// arrays of strings: `osm_id_list`, `edge_id_list`, `board_stop_id`,
 /// `alight_stop_id` (empty without), then `total_fare` and
 /// `cumulative_fare` (Float64Array), and last the pairs (0-based,
-/// Int32Array) whose itineraries in r5r depend on what ran before (see
+/// Int32Array) whose itineraries in R5 depend on what ran before (see
 /// [`itinerary_warnings`]).
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
@@ -137,7 +137,7 @@ pub fn itineraries(
 }
 
 /// The warnings of a call of `n_pairs` pairs, given the pairs (0-based,
-/// ascending, over the whole call) whose itineraries in r5r depend on what
+/// ascending, over the whole call) whose itineraries in R5 depend on what
 /// ran before (`ItineraryNotes::warnings` of the core).
 #[wasm_bindgen]
 pub fn itinerary_warnings(history_dependent: &[i32], n_pairs: usize) -> JsValue {

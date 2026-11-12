@@ -1,7 +1,6 @@
 # Elevation
 
-With an elevation raster, walking and cycling times get slope costs: the
-same numbers r5r 2.5.0 gives when its data directory holds a `.tif` file.
+With an elevation raster, walking and cycling times get slope costs.
 Pass the bytes of the GeoTIFF file as `tif` to
 [`buildNetwork()`](api.md#buildNetwork), and choose the cost function with
 `elevation`:
@@ -72,20 +71,19 @@ source usable.
 In a projected raster, a street point within nanometres (5e-8 m, or
 2e-13 degrees) of the boundary between two pixels, or of the raster's
 edge, falls on one side or the other depending on the last bits of a
-sine or cosine. r5r's result there depends on the machine it runs on;
+sine or cosine. R5's result there depends on the machine it runs on;
 peabiru reads the pixel that Java's `StrictMath` gives, the same on every
 machine, and warns once with the number of such points (about one in a
 hundred million for 30 m pixels). A point that `StrictMath` itself puts on
 the raster's outer edge (inside its envelope, past the last pixel) is an
-error, since r5r fails there on every machine and there is no pixel to
-read.
+error, since there is no pixel to read.
 
 ## Voids and large values
 
 R5 keeps elevations as 16-bit integers of decimetres, so values beyond
 +/-3276.7 m wrap around: an SRTM void of -32768 becomes 0 m, -9999 becomes
 3108.2 m, and a NaN no-data value is stored as 0 m. peabiru stores them as
-R5 does, so the slope costs are r5r's, and warns (r5r is silent), counting
+R5 does, and warns, counting
 those samples and the ones equal to the raster's no-data value. The
 warning goes to `onWarning` (by default `console.warn`) and stays with the
 network, in `network.buildWarnings()`:

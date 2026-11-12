@@ -1,6 +1,6 @@
 //! commons-math3 3.0 `FastMath.toRadians`, `sin`, `cos`, `asin` and `pow`,
-//! bit for bit, as bundled in the R5 jar r5r runs (`r5-v7.6-all.jar`), for
-//! R5's haversine distance (`GeometryUtils.distance`, which r5r's
+//! bit for bit, as bundled in the R5 7.6 jar (`r5-v7.6-all.jar`), for
+//! R5's haversine distance (`GeometryUtils.distance`, which
 //! `find_snap()` reports). They are not correctly rounded, so the platform
 //! libm differs from them in the last bit for some arguments, and the
 //! haversine formula, which subtracts nearby angles, turns that into
@@ -1727,10 +1727,10 @@ mod tests {
         }
     }
 
-    /// Points of r5r's Porto Alegre grid, where r5r's find_snap() put them
-    /// and the distances it reports (R5's GeometryUtils.distance).
+    /// Points of the Porto Alegre sample grid, where R5 snaps them and the
+    /// distances it reports (R5's GeometryUtils.distance).
     #[test]
-    fn haversine_of_r5r_snaps() {
+    fn haversine_of_recorded_snaps() {
         for (lat0, lon0, lat1, lon1, d) in [
             (
                 -30.053_846_028_087_9,

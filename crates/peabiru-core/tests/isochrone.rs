@@ -1,6 +1,6 @@
 //! Isochrones on the São Paulo sample: the surfaces agree with the
 //! travel-time matrices, the polygons are nested, the lines are banded.
-//! Parity with r5r is checked by bench/compare/isochrone_parity.R.
+//! The comparison with reference results is bench/compare/isochrone_parity.R.
 
 #[path = "../src/sample_data.rs"]
 mod sample_data;

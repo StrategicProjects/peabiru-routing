@@ -1,6 +1,6 @@
-//! r5r's scenarios (`newCarspeeds`, `carspeedScale`, `newLts`) from the
+//! Scenarios (`newCarspeeds`, `carspeedScale`, `newLts`) from the
 //! object `scenarioSpec()` of `lib/index.js` builds: the columns of the
-//! tables as text, written as r5r hands them to R5 (Java parses them here),
+//! tables as text, parsed here as Java parses them in R5,
 //! and the geometries flattened.
 
 use js_sys::{Array, Float64Array, Int32Array, Reflect};
@@ -51,12 +51,8 @@ fn sizes(spec: &JsValue, key: &str) -> Result<Vec<usize>, JsError> {
 fn ids(arg: &str, text: &[String]) -> Result<Vec<i64>, JsError> {
     text.iter()
         .map(|s| {
-            java_parse_long(s).ok_or_else(|| {
-                err(format!(
-                    "'{arg}': osm_id '{s}' is not an integer (r5r fails too: \
-                     java.lang.NumberFormatException: For input string: \"{s}\")"
-                ))
-            })
+            java_parse_long(s)
+                .ok_or_else(|| err(format!("'{arg}': osm_id '{s}' is not an integer")))
         })
         .collect()
 }
@@ -81,9 +77,7 @@ pub(crate) fn scenario_of(spec: &JsValue) -> Result<Scenario, JsError> {
                 .map(|v| {
                     java_parse_float(v).ok_or_else(|| {
                         err(format!(
-                            "'newCarspeeds': max_speed '{v}' is not a number as Java reads it \
-                             (r5r fails too: java.lang.NumberFormatException: For input \
-                             string: \"{v}\")"
+                            "'newCarspeeds': max_speed '{v}' is not a number as Java reads it"
                         ))
                     })
                 })
@@ -96,7 +90,7 @@ pub(crate) fn scenario_of(spec: &JsValue) -> Result<Scenario, JsError> {
             };
         }
         "polygon" => {
-            // r5r hands the polygons to R5 through GeoJSON written by GDAL
+            // R5 reads the polygons from GeoJSON as GDAL writes it
             let gdal = |v: Vec<f64>| -> Vec<f64> {
                 v.into_iter()
                     .map(peabiru_core::unstable::gdal_geojson_coordinate)
@@ -138,12 +132,8 @@ pub(crate) fn scenario_of(spec: &JsValue) -> Result<Scenario, JsError> {
             let values = strings(spec, "lts_values")?
                 .iter()
                 .map(|v| {
-                    java_parse_int(v).ok_or_else(|| {
-                        err(format!(
-                            "'newLts': lts '{v}' is not an integer (r5r fails too: \
-                             java.lang.NumberFormatException: For input string: \"{v}\")"
-                        ))
-                    })
+                    java_parse_int(v)
+                        .ok_or_else(|| err(format!("'newLts': lts '{v}' is not an integer")))
                 })
                 .collect::<Result<Vec<i32>, JsError>>()?;
             s.lts = LtsChange::ByWay(ids.into_iter().zip(values).collect());

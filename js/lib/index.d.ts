@@ -229,12 +229,6 @@ export declare class Network {
    * projected raster).
    */
   buildWarnings(): string[];
-  /**
-   * The same as `buildWarnings()`, its name before version 0.1.0.
-   *
-   * @deprecated Use `buildWarnings()`; this alias returns the same list.
-   */
-  r5rWarnings(): string[];
 }
 
 /**
@@ -249,11 +243,7 @@ export declare class Network {
  * net.free();
  * ```
  *
- * Compatibility with r5r: `build_network()` with `elevation`, from bytes
- * rather than a directory (the feeds load in array order, where r5r uses
- * the order the operating system lists its directory; no `verbose`,
- * `temp_dir` or `overwrite`; nothing is written to disk); `nThreads` is
- * peabiru's own.
+ * The feeds load in array order, and nothing is written to disk.
  */
 export declare function buildNetwork(input: BuildNetworkInput): Promise<Network>;
 
@@ -427,9 +417,6 @@ export interface TravelTimeMatrix {
  * });
  * console.log(ttm.from_id[1], ttm.to_id[1], ttm.travel_time_p50[1]);
  * ```
- *
- * Compatibility with r5r: `travel_time_matrix()`, the same options in
- * camelCase, defaults and result columns; `outputDir` is not supported.
  */
 export declare function travelTimeMatrix(
   network: Network,
@@ -486,10 +473,6 @@ export interface AccessibilityTable {
  * });
  * console.log(access.id, access.cutoff, access.accessibility);
  * ```
- *
- * Compatibility with r5r: `accessibility()`, the same options in
- * camelCase, defaults, decay functions and result columns (R5's exponential
- * as Apache Commons Math computes it); `outputDir` is not supported.
  */
 export declare function accessibility(
   network: Network,
@@ -559,10 +542,7 @@ export interface ExpandedMatrix {
  * console.log(etm.departure_time[0], etm.routes[0], etm.total_time[0]);
  * ```
  *
- * Compatibility with r5r: `expanded_travel_time_matrix()`, the same
- * options in camelCase, defaults and result columns; with a street mode
- * alone r5r answers with one trip from a departure time taken from the
- * clock, where peabiru throws; `outputDir` is not supported.
+ * Throws with a street mode alone.
  */
 export declare function expandedTravelTimeMatrix(
   network: Network,
@@ -589,9 +569,7 @@ export declare function expandedTravelTimeMatrix(
  * console.log(atm.from_id[0], atm.to_id[0], atm.departure_time[0], atm.total_time[0]);
  * ```
  *
- * Compatibility with r5r: `arrival_travel_time_matrix()`, the same
- * options in camelCase, defaults and result columns; peabiru throws with a
- * street mode alone; `outputDir` is not supported.
+ * Throws with a street mode alone.
  */
 export declare function arrivalTravelTimeMatrix(
   network: Network,
@@ -694,9 +672,10 @@ export interface ItineraryFeature {
  * none. Every option is in `DetailedItinerariesOptions` and
  * `RoutingOptions`. Public transport needs feeds with timetables: a
  * network with frequency-based trips is an error. With `modeEgress:
- * "CAR"`, a pair whose itinerary in r5r may depend on the searches that ran
+ * "CAR"`, a pair whose itinerary in R5 may depend on the searches that ran
  * before (a car search through a turn restriction with two or more via
- * ways) gets r5r's itinerary on a fresh network, with a warning.
+ * ways) always gets the itinerary of a freshly built network, with a
+ * warning.
  *
  * ```js
  * const back = { id: [...points.id].reverse(), lon: [...points.lon].reverse(), lat: [...points.lat].reverse() };
@@ -707,10 +686,6 @@ export interface ItineraryFeature {
  * });
  * console.log(legs.map((r) => `${r.from_id} > ${r.to_id}: ${r.total_duration} min, ${r.total_distance} m`));
  * ```
- *
- * Compatibility with r5r: `detailed_itineraries()`, the same options in
- * camelCase, defaults, rows and lines (GeoJSON for r5r's `sf`), with the
- * refusals above; `outputDir` is not supported.
  */
 export declare function detailedItineraries(
   network: Network,
@@ -755,7 +730,7 @@ export interface TripOptionsOptions extends RoutingOptions {
   maxFare?: number;
   /** Plain rows for the legs instead of GeoJSON features (default false). */
   dropGeometry?: boolean;
-  /** Add r5r's `osm_link_ids` properties to each leg (default false), as in `detailedItineraries()`. */
+  /** Add the `osm_link_ids` properties to each leg (default false), as in `detailedItineraries()`. */
   osmLinkIds?: boolean;
 }
 
@@ -830,7 +805,7 @@ export interface TripOptions {
 }
 
 /**
- * peabiru's own multi-criteria trip planner (r5r has no counterpart): for
+ * A multi-criteria trip planner: for
  * each origin-destination pair, the trips that no other trip beats on all
  * the chosen criteria at once, at each departure minute of the window,
  * merged into options. Frequency-based routes are boarded at their expected
@@ -912,9 +887,6 @@ export interface SetupFareStructureOptions {
  * const fares = await peabiru.setupFareStructure(network, 4.4);
  * console.log(fares.fares_per_type.type, fares.fares_per_route.route_id.length, "routes");
  * ```
- *
- * Compatibility with r5r: `setup_fare_structure()`, the same structure
- * (with objects of columns for r5r's `data.table`s).
  */
 export declare function setupFareStructure(
   network: Network,
@@ -933,9 +905,6 @@ export declare function setupFareStructure(
  * const fares = peabiru.readFareStructure(bytes);
  * console.log(fares.fare_cap, fares.fares_per_type.fare);
  * ```
- *
- * Compatibility with r5r: `read_fare_structure()`, from the file's bytes
- * rather than a path; it reads r5r's files.
  */
 export declare function readFareStructure(
   bytes: Uint8Array | ArrayBuffer | ArrayBufferView,
@@ -944,17 +913,13 @@ export declare function readFareStructure(
 
 /**
  * The bytes of a fare structure `.zip` file: one CSV file for the global
- * settings and one per table, deflated as r5r's are. Synchronous; needs the
+ * settings and one per table, deflated. Synchronous; needs the
  * module loaded. Throws when the structure is not one.
  *
  * ```js
  * const bytes = peabiru.writeFareStructure(await peabiru.setupFareStructure(network, 4.4));
  * console.log(bytes.length, "bytes"); // in Node: await writeFile("fares.zip", bytes)
  * ```
- *
- * Compatibility with r5r: `write_fare_structure()`, the same CSV files
- * (r5r reads them), returned as bytes rather than written to a path; the
- * archive's bytes differ, since r5r's also holds file dates.
  */
 export declare function writeFareStructure(fareStructure: FareStructure): Uint8Array;
 
@@ -1005,9 +970,6 @@ export interface ParetoFrontierTable {
  * });
  * console.log(frontier.from_id.length, "rows", frontier.monetary_cost[0]);
  * ```
- *
- * Compatibility with r5r: `pareto_frontier()`, the same options in
- * camelCase, defaults and result columns; `outputDir` is not supported.
  */
 export declare function paretoFrontier(
   network: Network,
@@ -1047,8 +1009,6 @@ export interface IsochroneOptions
   percentiles?: number | number[] | null;
   /** Accepted and not used: the trip limit comes from the cutoffs. */
   maxTripDuration?: number;
-  /** Deprecated and not used: giving it only warns. */
-  sampleSize?: unknown;
 }
 
 /** Properties of a polygon isochrone. */
@@ -1126,11 +1086,9 @@ export interface FeatureCollection<G, P> {
  * console.log(iso.features.map((f) => `${f.properties.id} ${f.properties.isochrone} min`));
  * ```
  *
- * Compatibility with r5r: `isochrone()`, the same options in camelCase,
- * defaults and properties; the polygons are those r5r makes before
- * `sf::st_make_valid()`, which is not applied (the same areas, not snapped
- * to 1e-7 degrees, always MultiPolygons), with their rings in the order
- * isoband gives on macOS on every platform.
+ * The polygons are always MultiPolygons, as the contouring (a port of
+ * isoband) gives them: not repaired and not snapped to 1e-7 degrees, with
+ * the same rings on every platform.
  */
 export declare function isochrone(
   network: Network,
@@ -1177,9 +1135,6 @@ export interface SnapTable {
  * const snap = await peabiru.findSnap(network, points, { mode: "CAR" });
  * console.log(snap.point_id, snap.distance, snap.found);
  * ```
- *
- * Compatibility with r5r: `find_snap()`, the same options, defaults and
- * columns.
  */
 export declare function findSnap(network: Network, points: Points, options?: FindSnapOptions): Promise<SnapTable>;
 
@@ -1205,9 +1160,6 @@ export interface Point {
  * ```js
  * console.log(await peabiru.streetNetworkBbox(network, "vector"));
  * ```
- *
- * Compatibility with r5r: `street_network_bbox()`, the same three outputs
- * (GeoJSON for r5r's `sfc` and `bbox`, an object for its named vector).
  */
 export declare function streetNetworkBbox(network: Network, output: "vector"): Promise<{ xmin: number; ymin: number; xmax: number; ymax: number }>;
 export declare function streetNetworkBbox(network: Network, output: "bbox"): Promise<[number, number, number, number]>;
@@ -1261,9 +1213,6 @@ export interface InspectOptions {
  * const { vertices, edges } = await peabiru.streetNetworkToSf(network);
  * console.log(vertices.features.length, edges.features.length, edges.features[0].properties);
  * ```
- *
- * Compatibility with r5r: `street_network_to_sf()`, the same features,
- * properties and order (GeoJSON for r5r's two `sf` tables).
  */
 export declare function streetNetworkToSf(network: Network, options?: InspectOptions): Promise<{
   vertices: FeatureCollection<Point, StreetVertexProperties>;
@@ -1303,9 +1252,6 @@ export interface TransitRouteProperties {
  * const { stops, routes } = await peabiru.transitNetworkToSf(network);
  * console.log(stops.features.length, "stops,", routes.features.length, "routes", routes.features[0].properties);
  * ```
- *
- * Compatibility with r5r: `transit_network_to_sf()`, the same features,
- * properties and order (a null geometry for r5r's `POINT EMPTY`).
  */
 export declare function transitNetworkToSf(network: Network, options?: InspectOptions): Promise<{
   stops: FeatureCollection<Point | null, TransitStopProperties>;
@@ -1344,9 +1290,6 @@ export interface TransitAvailabilityTable {
  * const week = await peabiru.checkTransitAvailability(network, { startDate: "2019-05-12", endDate: "2019-05-18" });
  * console.log(week.date, week.active_services);
  * ```
- *
- * Compatibility with r5r: `check_transit_availability()`, the same
- * options and columns, with the dates as strings.
  */
 export declare function checkTransitAvailability(network: Network, options?: TransitAvailabilityOptions): Promise<TransitAvailabilityTable>;
 
@@ -1381,8 +1324,6 @@ export interface GtfsErrorsTable {
  * console.log(errors.type.length, "errors:", [...new Set(errors.type)]);
  * ```
  *
- * Compatibility with r5r: `get_gtfs_errors()`, the same rows and columns,
- * in a fixed order (r5r's changes from run to run), from the feeds' bytes
- * rather than the network.
+ * The rows come in a fixed order.
  */
 export declare function getGtfsErrors(feeds: GtfsFeed[] | { gtfs: GtfsFeed[] }): Promise<GtfsErrorsTable>;

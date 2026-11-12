@@ -1,5 +1,5 @@
-// isochrone(): r5r's rows and properties as GeoJSON, the same through the
-// pool of workers as on the calling thread, and r5r's checks.
+// isochrone(): the rows and properties as GeoJSON, the same through the
+// pool of workers as on the calling thread, and the checks.
 
 import assert from "node:assert/strict";
 import { test, after } from "node:test";
@@ -25,7 +25,7 @@ const area = (ring) => {
 };
 const polygonArea = (coords) => coords.reduce((s, poly) => s + area(poly[0]) - poly.slice(1).reduce((h, r) => h + area(r), 0), 0);
 
-test("polygons: r5r's rows and properties, nested bands", async () => {
+test("polygons: rows and properties, nested bands", async () => {
   const x = await peabiru.isochrone(net, two, { mode: "WALK", cutoffs: [20, 0, 10, 10], percentiles: [50, 25], departureDatetime: DEPARTURE });
   assert.equal(x.type, "FeatureCollection");
   assert.equal(x.features.length, 8);
@@ -42,7 +42,7 @@ test("polygons: r5r's rows and properties, nested bands", async () => {
   }
 });
 
-test("lines: r5r's properties and order", async () => {
+test("lines: properties and order", async () => {
   const x = await peabiru.isochrone(net, two, { mode: "WALK", cutoffs: [0, 5, 10], polygonOutput: false });
   assert.ok(x.features.length > 0);
   assert.deepEqual(Object.keys(x.features[0].properties), [
@@ -120,7 +120,7 @@ test("an origin far from the streets: empty polygons, no lines", async () => {
   assert.equal(l.features.length, 0);
 });
 
-test("arguments are checked as r5r checks them", async () => {
+test("arguments are checked", async () => {
   const one = take([0]);
   const iso = (opts) => peabiru.isochrone(net, one, { mode: "WALK", ...opts });
   const bad = [
@@ -141,9 +141,8 @@ test("arguments are checked as r5r checks them", async () => {
   for (const [opts, kind, msg] of bad) {
     await assert.rejects(() => iso(opts), (e) => e instanceof kind && msg.test(e.message), JSON.stringify(opts));
   }
-  const warnings = [];
-  await iso({ cutoffs: [0, 5], sampleSize: 0.5, onWarning: (w) => warnings.push(w) });
-  assert.match(warnings[0], /sample_size/);
+  // there is no sampleSize
+  await assert.rejects(() => iso({ cutoffs: [0, 5], sampleSize: 0.5 }), /unknown option 'sampleSize'/);
   // maxTripDuration is ignored
   assert.deepEqual(await iso({ cutoffs: [0, 5], maxTripDuration: 1 }), await iso({ cutoffs: [0, 5] }));
 });

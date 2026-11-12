@@ -233,7 +233,7 @@ fn transit_commands_need_a_real_date() {
     fails(&run(&args), 2, "date must be a calendar date");
 }
 
-/// r5r 2.5.0 answers a 2000-minute window and 200 rides; so does peabiru.
+/// A 2000-minute window and 200 rides are answered.
 /// What stays bounded is the int clock, with a message naming the
 /// parameters the user set.
 #[test]
@@ -293,11 +293,11 @@ fn stored_zip(files: &[(&str, &str)]) -> Vec<u8> {
     out
 }
 
-/// A feed that r5r refuses to build (here: no agency.txt) is refused; with
+/// A feed with a GTFS error of priority HIGH (here: no agency.txt) is refused; with
 /// `PEABIRU_IGNORE_GTFS_ERRORS=1` it is built, with one warning line naming
 /// the file; the sample feed gives none.
 #[test]
-fn feeds_r5r_refuses_are_refused_or_warned_about() {
+fn feeds_with_high_priority_errors_are_refused_or_warned_about() {
     let dir = tmp("no-agency-net");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::copy(format!("{SPO}/spo_osm.pbf"), dir.join("spo_osm.pbf")).unwrap();
@@ -331,7 +331,7 @@ start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n",
         err.trim_end(),
         format!(
             "peabiru transit: high priority GTFS errors found in {} (1 error); network build \
-             failed (as in r5r)",
+             failed",
             dir.join("bus.zip").display()
         )
     );
@@ -347,7 +347,7 @@ start_date,end_date\nS,1,1,1,1,1,1,1,20190101,20191231\n",
         warnings,
         [
             "peabiru transit: warning: GTFS feed 'bus.zip': it has no agency.txt. \
-r5r refuses to build a network from this feed."
+A network is built from this feed only because GTFS errors are ignored."
         ],
         "{err}"
     );

@@ -134,6 +134,8 @@ jobs:
         run: |
           node --version
           node --test tests/*.test.mjs
+      - name: Options compared with the recorded reference (bench/compare)
+        run: node --test bench/compare/js_options.test.mjs
       - name: Examples and API reference of the JavaScript guide
         # the examples in Node and in the runner's Chrome (plain ES modules;
         # the Vite run needs VITE, not set here); the reference page must

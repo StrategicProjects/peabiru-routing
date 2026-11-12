@@ -8,7 +8,7 @@ const net = await sampleNetwork();
 const pts = samplePoints();
 const head = (k) => ({ id: pts.id.slice(0, k), lon: pts.lon.slice(0, k), lat: pts.lat.slice(0, k) });
 
-test("setupFareStructure() builds r5r's object", async () => {
+test("setupFareStructure() builds the structure", async () => {
   const fs = await peabiru.setupFareStructure(net, 4.4);
   assert.deepEqual(Object.keys(fs), [
     "max_discounted_transfers", "transfer_time_allowance", "fare_cap", "fares_per_type",
@@ -35,13 +35,13 @@ test("writeFareStructure() and readFareStructure() round-trip", async () => {
   fs.fare_cap = 7.5;
   const bytes = peabiru.writeFareStructure(fs);
   assert.ok(bytes instanceof Uint8Array);
-  // deflated entries (method 8), as r5r's zip::zip() writes them
+  // deflated entries (method 8)
   assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
   assert.equal(bytes[8] | (bytes[9] << 8), 8);
   assert.deepEqual(peabiru.readFareStructure(bytes), fs);
 });
 
-test("fare structures are checked as r5r checks them", async () => {
+test("fare structures are checked", async () => {
   const fs = await peabiru.setupFareStructure(net, 4.4);
   const ttm = (f, extra = {}) => peabiru.travelTimeMatrix(net, pts, pts, {
     mode: ["WALK", "TRANSIT"], departureDatetime: DEPARTURE, fareStructure: f, seed: 1, ...extra,
@@ -76,7 +76,7 @@ test("fares limit trips; the Pareto frontier lists the times at each fare", asyn
   await assert.rejects(() => peabiru.paretoFrontier(net, pts, pts, { departureDatetime: DEPARTURE, fareCutoffs: [1] }), /required/);
   await assert.rejects(() => peabiru.paretoFrontier(net, pts, pts, { departureDatetime: DEPARTURE, fareStructure: fs, fareCutoffs: [1, 1] }), /duplicated/);
   await assert.rejects(() => peabiru.paretoFrontier(net, pts, pts, { departureDatetime: DEPARTURE, fareStructure: fs, fareCutoffs: [1], drawsPerMinute: 2 }), /unknown option/);
-  // r5r's default mode is c("WALK", "TRANSIT"): public transport needs a departure time
+  // the default mode is ["WALK", "TRANSIT"]: public transport needs a departure time
   await assert.rejects(() => peabiru.paretoFrontier(net, head(1), pts, { fareStructure: fs, fareCutoffs: [1] }), /departureDatetime/);
   const walk = await peabiru.paretoFrontier(net, head(1), pts, { mode: "WALK", fareStructure: fs, fareCutoffs: [1], departureDatetime: DEPARTURE });
   const both = await peabiru.paretoFrontier(net, head(1), pts, { mode: ["WALK", "TRANSIT"], fareStructure: fs, fareCutoffs: [1], departureDatetime: DEPARTURE, seed: 1 });

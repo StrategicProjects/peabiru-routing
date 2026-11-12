@@ -1,6 +1,6 @@
 //! WebAssembly bindings of the peabiru routing core, for the npm package.
 //!
-//! As in the Python package, everything that mirrors r5r's R wrapper
+//! As in the Python package, everything around the routing itself
 //! (argument checks, defaults, dates, trip limits, column assembly) lives
 //! in the JavaScript code of the package (`js/lib/index.js`); these
 //! functions take already validated values, run the core and hand back
@@ -53,7 +53,7 @@ fn err(msg: impl std::fmt::Display) -> JsError {
 }
 
 /// The error of a failed build; for feeds with errors of priority `HIGH`,
-/// r5r's message, pointing to `lister` to see them.
+/// a message pointing to `lister` to see them.
 fn build_error(e: &peabiru_core::NetworkError, lister: &str) -> String {
     match e.high_priority_gtfs_errors() {
         None => e.to_string(),
@@ -126,7 +126,7 @@ impl Network {
         elevation: &str,
     ) -> Result<Network, JsError> {
         let mut opts = BuildOptions::default();
-        opts.elevation = peabiru_core::Elevation::from_r5r_name(elevation)
+        opts.elevation = peabiru_core::Elevation::from_name(elevation)
             .ok_or_else(|| err(format!("unknown elevation model {elevation:?}")))?;
         let mut owned: Vec<(String, Vec<u8>)> = Vec::with_capacity(feeds.length() as usize);
         for f in feeds.iter() {
@@ -166,7 +166,7 @@ impl Network {
 
     /// The slope cost function in use: `"TOBLER"`, `"MINETTI"` or `"NONE"`.
     pub fn elevation(&self) -> String {
-        self.net.street().elevation().r5r_name().to_string()
+        self.net.street().elevation().name().to_string()
     }
 
     /// The feed ids, in loading order.
@@ -188,15 +188,15 @@ impl Network {
         }
     }
 
-    /// Warnings about the network build: one per feed that r5r refuses to
-    /// build a network from, then those about the elevation raster.
+    /// Warnings about the network build: one per feed built from although
+    /// it has GTFS errors of priority `HIGH` (never from JavaScript, where
+    /// such feeds are refused), then those about the elevation raster.
     pub fn build_warnings(&self) -> Array {
         let w = self.net.build_warnings();
         w.iter().map(|s| JsValue::from_str(s)).collect()
     }
 
-    /// `[services, services active on date]` (`date` as `yyyymmdd`), as
-    /// r5r's `getTransitServiceAvailability`.
+    /// `[services, services active on date]` (`date` as `yyyymmdd`).
     pub fn transit_availability(&self, date: u32) -> Result<Vec<u32>, JsError> {
         validate_date(date).map_err(route_err)?;
         let Some(t) = self.net.transit() else {
@@ -228,7 +228,7 @@ fn street_mode(mode: &str) -> Result<Mode, JsError> {
     }
 }
 
-/// The transit modes of r5r's `transit_mode` string (`"BUS;RAIL"`, or
+/// The transit modes of a `transit_mode` string (`"BUS;RAIL"`, or
 /// every mode and `TRANSIT` for `"TRANSIT"`); `TRANSIT` itself selects no
 /// route.
 fn parse_transit_modes(modes: &str) -> Result<Vec<TransitMode>, JsError> {
@@ -329,8 +329,8 @@ pub fn street_ttm(
 }
 
 /// Public transport travel-time matrix: the reported pairs as `from`, `to`
-/// and one Int32Array per percentile (ascending), with `NA_I32` where r5r
-/// gives NA; origin-major.
+/// and one Int32Array per percentile (ascending), with `NA_I32` where
+/// there is no time; origin-major.
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn transit_ttm(
@@ -519,12 +519,12 @@ pub fn accessibility(
 /// of columns: `from`, `to` (0-based Int32Array), `departure` (Int32Array,
 /// seconds after midnight), `draw` (Int32Array), the times `access_time`,
 /// `wait_time`, `ride_time`, `transfer_time`, `egress_time`, `total_time`
-/// (Float64Array, NaN where r5r gives NA), `n_rides` (Int32Array, `NA_I32`
+/// (Float64Array, NaN for NA), `n_rides` (Int32Array, `NA_I32`
 /// for NA), and `routes` dictionary-encoded as `route_codes` (Int32Array,
 /// -1 for NA) into the array of strings `route_levels`. For an arrival
 /// search the parameters must already be the departure side (date and
 /// time of `arrival - max_trip_duration`, `time_window =
-/// max_trip_duration`), as r5r's R wrapper sets them.
+/// max_trip_duration`), as `lib/index.js` sets them.
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn expanded(
@@ -597,13 +597,13 @@ pub fn expanded(
 }
 
 /// Polygon isochrones as an array of columns the JavaScript side assembles
-/// into GeoJSON: per row (origin, percentile, cutoff; r5r's order)
+/// into GeoJSON: per row (origin, percentile, cutoff, in this order)
 /// `origin` (0-based Int32Array), `isochrone` (Float64Array), `percentile`
 /// and `n_polygons` (Int32Array); per polygon `n_rings`; per ring
 /// `n_points` (Int32Array); per point `x` (longitude) and `y` (latitude),
 /// Float64Array. `mode` is the street mode (of the access to public
 /// transport when `transit_modes` is not empty); `max_trip_duration` is
-/// the search limit (r5r: the largest cutoff plus 10).
+/// the search limit (the largest cutoff plus 10).
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn isochrone_polygons(
@@ -694,12 +694,12 @@ pub fn isochrone_polygons(
     .collect())
 }
 
-/// The street edges of r5r's `street_network_to_sf()$edges` as an array of
+/// The street edges (the `edges` of `streetNetworkToSf()`) as an array of
 /// columns: `edge_index`, `from_vertex`, `to_vertex` (Int32Array),
 /// `osm_id` (Float64Array), `street_class` (Int32Array codes: 0 MOTORWAY,
 /// 1 PRIMARY, 2 SECONDARY, 3 TERTIARY, 4 OTHER), `length` (Float64Array),
 /// `walk`, `car` (Int32Array 0/1), `car_speed` (Float64Array), `bicycle`
-/// (0/1), `bicycle_lts` (Int32Array), the centroid r5r routes to as `lat`,
+/// (0/1), `bicycle_lts` (Int32Array), the centroid routed to as `lat`,
 /// `lon` (Float64Array, NaN without one), and the line of each edge as
 /// `n_points` (Int32Array) and flat `x`, `y` (Float64Array).
 #[wasm_bindgen]
@@ -755,7 +755,7 @@ pub fn street_edges(network: &Network) -> Array {
 
 /// Line isochrones from a matrix of median minutes (`NA_I32` where not
 /// reported), `n_origins` rows of `n_edges` values, origin-major: the rows
-/// in r5r's order as `[origin, edge, travel_time]` (0-based Int32Arrays)
+/// in order as `[origin, edge, travel_time]` (0-based Int32Arrays)
 /// and `isochrone` (Float64Array).
 #[wasm_bindgen]
 pub fn isochrone_lines(

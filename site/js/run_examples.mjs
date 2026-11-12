@@ -14,7 +14,7 @@
 // node_modules/peabiru, a link to js/, so that they read "spo_osm.pbf" and
 // import "peabiru" as a user's script would (the examples are copied there:
 // Node resolves imports from a script's real path). sample*.mjs are helpers
-// the examples import, not examples; the itinerary example downloads r5r's
+// the examples import, not examples; the itinerary example downloads the
 // Porto Alegre sample once into the temporary directory (sample-poa.mjs).
 //
 // Browser examples (browser-*.mjs) run in headless Chrome or Chromium, in

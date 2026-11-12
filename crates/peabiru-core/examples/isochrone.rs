@@ -1,4 +1,4 @@
-//! Isochrones by mode from one point, as r5r's `isochrone()`: a travel-time
+//! Isochrones by mode from one point: a travel-time
 //! surface on a Web Mercator grid, then polygons for each cutoff.
 //!
 //! ```sh
@@ -41,7 +41,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cutoffs = [5.0, 10.0, 15.0];
     // the Web Mercator zoom of the grid, 9 to 12
     let zoom = 12;
-    // As r5r: polygons route up to the largest cutoff plus 10 minutes.
+    // Polygons route up to the largest cutoff plus 10 minutes, so that the
+    // outer band is interpolated from both sides.
     let limit = isochrone_trip_limit(&cutoffs)? + 10;
 
     // Streets: one surface per mode, percentiles [50] (all the same here).
@@ -74,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn report(mode: &str, isochrones: &[peabiru_core::IsochronePolygon]) {
     let areas: Vec<String> = isochrones
         .iter()
-        .rev() // largest cutoff first, as r5r
+        .rev() // largest cutoff first
         .map(|i| format!("{} min {:.2}", i.isochrone, area_km2(&i.polygons)))
         .collect();
     println!("{mode:<8} {} km²", areas.join(" · "));

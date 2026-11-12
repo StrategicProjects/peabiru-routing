@@ -1,4 +1,4 @@
-// Warnings and errors: what r5r would warn about, unknown options, and
+// Warnings and errors: the warnings of a call, unknown options, and
 // options that peabiru does not support.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";

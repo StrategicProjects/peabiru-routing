@@ -11,8 +11,7 @@ traffic stress.
 The routing engine is the Rust core of the peabiru packages for R and
 Python, compiled to WebAssembly. It runs in browsers, in bundlers and in
 Node (18 or later), with no server and no Java, and gives the same numbers
-as the native packages, which give the numbers of
-[r5r](https://github.com/ipea/r5r) 2.5.0.
+as the native packages.
 
 **Status**: early development; the interfaces may still change.
 
@@ -85,17 +84,17 @@ The full types are in `lib/index.d.ts`.
 
 ## Arguments
 
-The functions have the arguments and defaults of r5r and of the Python and
-R packages, in camelCase and in an options object: `departure_datetime`
+The functions have the arguments and defaults of the Python and R
+packages, in camelCase and in an options object: `departure_datetime`
 is `departureDatetime`, `max_trip_duration` is `maxTripDuration`, and so on
 (`timeWindow`, `percentiles`, `maxWalkTime`, `maxBikeTime`, `maxCarTime`,
 `walkSpeed`, `bikeSpeed`, `maxRides`, `maxLts`, `drawsPerMinute`, `seed`,
 `opportunitiesColnames`, `decayFunction`, `cutoffs`, `decayValue`,
 `breakdown`, `arrivalDatetime`, `fareStructure`, `newCarspeeds`, ...;
-`paretoFrontier()` routes on foot and by public transport by default, as
-r5r's does). An option name that is not one of
-them is an error. Each options object also takes `onWarning`, a function
-that receives the warnings r5r would give (by default `console.warn`).
+`paretoFrontier()` routes on foot and by public transport by default).
+An option name that is not one of them is an error. Each options object
+also takes `onWarning`, a function that receives the warnings of the call
+(by default `console.warn`).
 
 - **Points** are columns `{ id, lon, lat }` (arrays or typed arrays) or an
   array of `{ id, lon, lat }` objects. For `accessibility()` the
@@ -107,19 +106,18 @@ that receives the warnings r5r would give (by default `console.warn`).
   A `Date` also works, and is read in the local time zone of the
   JavaScript runtime, which is rarely the feeds' time zone: prefer strings.
 - **Frequency-based GTFS** (`frequencies.txt`) is routed with Monte Carlo
-  draws: results are reproducible, and equal to r5r's, only with a `seed`.
+  draws: results are reproducible only with a `seed`.
   Without one, a random seed is drawn for each call.
 - `nThreads` of a routing call is the number of the network's workers it
   uses (null, the default, or `Infinity`: all of them; more than the
-  network has: all it has; a network without workers ignores it). It is
-  checked as r5r checks it, so 0 is an error there.
+  network has: all it has; a network without workers ignores it). It must
+  be 1 or more: 0 is an error.
 - `signal` takes an `AbortSignal` to stop a call (see [Threads](#threads)).
-- `verbose` and `progress` are checked as r5r checks them; peabiru prints
-  nothing.
+- `verbose` and `progress` are checked; peabiru prints nothing.
 
 ## Results
 
-Results are objects of columns named as r5r names them, never arrays of
+Results are objects of columns, never arrays of
 row objects (a matrix can have millions of rows):
 
 - `travelTimeMatrix()`: `from_id`, `to_id` (arrays of strings) and one
@@ -136,31 +134,29 @@ row objects (a matrix can have millions of rows):
   (strings), `n_rides` (with `breakdown`) and `total_time`;
 - `paretoFrontier()`: `from_id`, `to_id`, `percentile`, `travel_time`
   (`Int32Array`) and `monetary_cost` (`Float64Array`);
-- `findSnap()`, `checkTransitAvailability()` and `getGtfsErrors()`: r5r's
+- `findSnap()`, `checkTransitAvailability()` and `getGtfsErrors()`: their
   columns, in the same way.
 
 `detailedItineraries()` returns a GeoJSON `FeatureCollection` of
-`LineString`s, one per leg, with r5r's columns as properties (or, with
+`LineString`s, one per leg, with the columns as properties (or, with
 `dropGeometry: true`, an array of those rows), and `streetNetworkToSf()`
-and `transitNetworkToSf()` GeoJSON `FeatureCollection`s of r5r's two
+and `transitNetworkToSf()` GeoJSON `FeatureCollection`s of their two
 tables.
 
 `isochrone()` returns a GeoJSON `FeatureCollection` (coordinates
-`[lon, lat]`, WGS 84), as r5r's `isochrone()` returns an `sf` table. With
+`[lon, lat]`, WGS 84). With
 `polygonOutput: true` (the default): one feature per origin, percentile
 and cutoff, with properties `id`, `isochrone` (the cutoff) and
 `percentile` (`"p50"`) and a `MultiPolygon` (empty when nothing is
 reached). With `polygonOutput: false`: one feature per street segment
-reached, with r5r's columns as properties (`id`, `edge_index`, `osm_id`,
+reached, with properties (`id`, `edge_index`, `osm_id`,
 `isochrone`, `travel_time_p50`, `from_vertex`, `to_vertex`,
 `street_class`, `length`, `walk`, `car`, `car_speed`, `bicycle`,
-`bicycle_lts`) and a `LineString`. The polygons are the rings r5r makes
-with isoband, before its `sf::st_make_valid()` (an s2 rebuild in R that
-snaps vertices to 1e-7 degrees), which is not reproduced: they cover the
-same areas, and the rings of one polygon may touch at a vertex. The order
-of the rings and the vertex each starts at are those isoband gives on macOS
-(where it is built with libc++) wherever the package runs; the native
-packages follow their platform (libstdc++ order on Linux and Windows). Their
+`bicycle_lts`) and a `LineString`. The polygons are the rings the contouring gives (a port of isoband), not
+repaired and not snapped to a grid: the rings of one polygon may touch at
+a vertex. The order of the rings and the vertex each starts at are the
+same wherever the package runs; the native packages follow their platform
+(another order on Linux and Windows). Their
 coordinates can differ from the native packages' in the last digits
 (about 1e-14 degrees), because WebAssembly has its own `sinh` and `atan`;
 the line isochrones are identical.
@@ -168,7 +164,7 @@ the line isochrones are identical.
 Missing values are `peabiru.NA_INT32` (-2147483648) in the `Int32Array`
 columns, `NaN` in the `Float64Array` columns and `null` in the string
 columns. Rows are origin-major, in the order of the inputs; pairs that are
-not reached are left out, as in r5r.
+not reached are left out.
 
 To walk through the rows of a result:
 
@@ -185,12 +181,12 @@ What peabiru does not do throws `peabiru.UnsupportedError`; it is never
 silently ignored: `outputDir` (there is no file system to write to),
 expanded and arrival matrices by a street mode alone, and R5's own fare
 calculators (a `fareStructure` with a `type`). A GTFS feed with errors of
-priority `HIGH` is refused by `buildNetwork()`, as r5r refuses it
+priority `HIGH` is refused by `buildNetwork()`
 (`getGtfsErrors()` lists them).
 
 ## Elevation
 
-As r5r does with a `.tif` file in its data directory, `buildNetwork({pbf,
+`buildNetwork({pbf,
 gtfs, tif})` gives walking and cycling times slope costs from an elevation
 raster: `elevation: "TOBLER"` (the default), `"MINETTI"` or `"NONE"`.
 The raster is a GeoTIFF of one band in WGS 84 longitude and latitude
@@ -200,8 +196,9 @@ reproduces exactly: SIRGAS 2000 (4674), SAD69 (4618), Corrego Alegre 1970-72
 29168-29172, 29187-29195; 22521-22525), SIRGAS 2000 / Brazil Polyconic
 (5880), WGS 84 / UTM (32601-32660, 32701-32760) and WGS 84 / Pseudo-Mercator
 (3857), north up, uncompressed or compressed with LZW, Deflate or PackBits;
-other rasters are an error. Where r5r's result depends on the machine,
-peabiru's does not: in a system other than EPSG:4326, r5r's own result depends on the machine it
+other rasters are an error. peabiru's result does not depend on the
+machine: in a system other than EPSG:4326, what R5 (the Java engine
+peabiru's model comes from) reads depends on the machine it
 runs on for a street point within nanometres (5e-8 m, or 2e-13 degrees) of
 the boundary between two pixels of different values, or of the raster's
 edge: the last bits of Java's sines and cosines decide which pixel it reads.
@@ -210,22 +207,22 @@ and warns once (`onWarning`) with the number of such points (about one in a
 hundred million for 30 m pixels; reprojecting the raster to EPSG:4326
 removes the ambiguity). A point that StrictMath itself puts on the raster's
 outer edge (inside its envelope, past the last pixel) remains an error,
-since there r5r fails on every machine and there is no pixel to read.
+since there is no pixel to read there.
 Voids and values beyond +/-3276.7 m wrap around as in
-r5r (SRTM's -32768 becomes 0 m, -9999 becomes 3108.2 m), with a warning to
-`onWarning` that r5r does not give. As in r5r, a raster also stops
+R5 (SRTM's -32768 becomes 0 m, -9999 becomes 3108.2 m), with a warning to
+`onWarning`. A raster also stops
 `travelTimeMatrix()` from swapping origins and destinations for walking, and
 a call with a scenario routes without the slope costs.
 
 ## Feed order
 
-r5r loads the GTFS feeds of its data directory in the order the operating
-system lists the directory, and with more than one feed that order can
-change a few results (another stop or route for some trips, in expanded and
-arrival matrices). Here the feeds load in the order of the `gtfs` array. To
-reproduce a network that r5r, or peabiru in R or Python, built from a
-directory, pass the feeds in the order that directory lists them (on macOS
-the r5r sample of Porto Alegre lists `poa_trensurb.zip` before
+The feeds load in the order of the `gtfs` array, and with more than one
+feed that order can change a few results (another stop or route for some
+trips, in expanded and arrival matrices). The R and Python packages load
+the feeds of a directory in the order the operating system lists it: to
+reproduce a network built from a directory, pass the feeds in the order
+that directory lists them (on macOS the sample directory of Porto Alegre
+lists `poa_trensurb.zip` before
 `poa_eptc.zip`; Linux lists them the other way round). `network.info().feeds`
 gives the feed ids in loading order.
 
@@ -297,7 +294,7 @@ at the same zoom and mode (40 bytes a cell, 6.2 MiB for Porto Alegre at
 zoom 12; at most 9 grids and modes and 64 MiB per network), and a call
 with one origin goes to the worker that last ran its zoom and mode when
 that worker is idle.
-Measured on the r5r sample of Porto Alegre (`.pbf` 0.9 MB, two GTFS feeds
+Measured on the sample data of Porto Alegre from the r5r project (`.pbf` 0.9 MB, two GTFS feeds
 1.1 MB, 1227 points), in Node 24 on an Apple M2 Pro, peak resident memory
 of the whole process (build and one transit matrix):
 
@@ -357,7 +354,7 @@ workspace of the repository, with its own `Cargo.lock`, like the R
 package's crate.
 
 `bench/compare/js_parity.mjs` compares the results with those of the
-native command-line tool, cell by cell, on r5r's sample data
+native command-line tool, cell by cell
 (`node bench/compare/js_parity.mjs poa spo sample`; add `--threads 4` to
 route on four workers, and the command-line tool on four threads).
 `tests/threads.test.mjs` checks every routing function on a pool of
@@ -369,6 +366,8 @@ MIT (`LICENSE`) for peabiru's own code; the authors are listed in
 `package.json`. The routing logic is ported from Conveyal's
 [R5](https://github.com/conveyal/r5) 7.6 (MIT), and parts from Apache
 Commons Math (Apache-2.0; its Mersenne Twister is BSD-3-Clause) and other
-works; their notices are in `LICENSE-THIRD-PARTY`. The WebAssembly module
+works; their notices are in `LICENSE-THIRD-PARTY`. See the
+[comparison with r5r](https://strategicprojects.github.io/peabiru-routing/js/differences.html)
+for what the package shares with it and what differs. The WebAssembly module
 also contains the Rust crates listed, with their licences, in
 `LICENSE-RUST-CRATES`.

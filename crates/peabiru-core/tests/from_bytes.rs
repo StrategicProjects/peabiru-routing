@@ -44,7 +44,7 @@ fn bytes_build_the_network_of_the_directory() {
     assert_eq!(layer_b.dropped_trips(), layer_d.dropped_trips());
     let (rb, rd) = (&layer_b.feed_reports()[0], &layer_d.feed_reports()[0]);
     assert_eq!(rb.file_name(), rd.file_name());
-    assert_eq!(rb.r5r_refusals(), rd.r5r_refusals());
+    assert_eq!(rb.high_priority_cases(), rd.high_priority_cases());
 
     let pts = points(spo);
     for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {

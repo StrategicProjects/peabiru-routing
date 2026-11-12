@@ -1,13 +1,13 @@
 # Elevation
 
 With an elevation raster, walking and cycling times depend on the slope of
-each street, as in r5r's `build_network(elevation = "TOBLER" | "MINETTI")`.
+each street.
 Driving times do not change.
 
 `BuildOptions::elevation` picks the slope cost function:
 
-- `Elevation::None` (the default here; r5r's default is `"TOBLER"` when its
-  data directory has a raster);
+- `Elevation::None` (the default here; the packages' default is `"TOBLER"`
+  when the data directory has a raster);
 - `Elevation::Tobler`: Tobler's hiking function;
 - `Elevation::Minetti`: Minetti's energy cost of walking.
 
@@ -34,7 +34,7 @@ The raster is a GeoTIFF of one band of 8, 16 or 32-bit integers or 32 or
 64-bit floats, uncompressed or compressed with LZW, Deflate or PackBits,
 north up, georeferenced by a tie point and a pixel scale (what GDAL
 writes). Its coordinate system can be WGS 84 longitude and latitude
-(EPSG:4326) or one of those r5r reads through GeoTools and peabiru
+(EPSG:4326) or one of those whose GeoTools transform peabiru
 reproduces: SIRGAS 2000 (4674), SAD69 (4618), Córrego Alegre 1970-72
 (4225), their UTM zones used in Brazil, SIRGAS 2000 / Brazil Polyconic
 (5880), WGS 84 / UTM (326xx, 327xx) and WGS 84 / Pseudo-Mercator (3857).
@@ -51,19 +51,19 @@ into warnings.
 - **Voids and values out of range.** A sample beyond +/-3276.7 m does not fit
   in 16-bit decimetres, and R5 stores it wrapped around: an SRTM void of
   -32768 becomes 0 m, a no-data value of -9999 becomes 3108.2 m. peabiru
-  stores the same values, so the slope costs are r5r's, and says how many
+  stores the same values, as the routing model does, and says how many
   samples were affected; samples equal to the raster's declared no-data
   value are counted too. Fill the voids or crop the raster.
 - **Samples on a pixel boundary.** In a raster that is not in EPSG:4326,
   the point is projected before the pixel is found. For a sample within
   nanometres of the boundary between two pixels of different values (or of
-  the raster's edge), r5r reads one pixel or the other depending on the
+  the raster's edge), R5 reads one pixel or the other depending on the
   machine it runs on (Java's `Math` functions may differ in the last bit
   from one machine to another). peabiru reads the pixel Java's
   `StrictMath` gives, on every machine, and counts such samples in the
   warnings, so its results do not depend on the machine. A sample that
   `StrictMath` itself puts on the raster's outer edge (inside its envelope,
-  past the last pixel) is an error, as it is in r5r.
+  past the last pixel) is an error.
 
 ## Example
 
@@ -95,9 +95,9 @@ warning:
 
 ```text
 NONE      Walk  648 min  Bicycle  354 min  Car  179 min   (sum of the times from the first point)
-warning: of the 21899 elevation samples on the network, 6298 with a value beyond +/-3276.7 m, which r5r stores wrapped around as 16-bit decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m becomes -3053.6 m); the slope costs are r5r's, but probably not what you want there: fill the voids or crop the raster
+warning: of the 21899 elevation samples on the network, 6298 with a value beyond +/-3276.7 m, which is stored wrapped around as 16-bit decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m becomes -3053.6 m); the slope costs follow from these values, and are probably not what you want there: fill the voids or crop the raster
 TOBLER    Walk  664 min  Bicycle  361 min  Car  179 min   (sum of the times from the first point)
-warning: of the 21899 elevation samples on the network, 6298 with a value beyond +/-3276.7 m, which r5r stores wrapped around as 16-bit decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m becomes -3053.6 m); the slope costs are r5r's, but probably not what you want there: fill the voids or crop the raster
+warning: of the 21899 elevation samples on the network, 6298 with a value beyond +/-3276.7 m, which is stored wrapped around as 16-bit decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m becomes -3053.6 m); the slope costs follow from these values, and are probably not what you want there: fill the voids or crop the raster
 MINETTI   Walk  656 min  Bicycle  364 min  Car  179 min   (sum of the times from the first point)
 ```
 

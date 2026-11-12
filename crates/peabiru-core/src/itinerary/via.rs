@@ -6,17 +6,17 @@
 //! restriction with two or more of them. The array belongs to the network
 //! that every search shares, so the order a check sees, in a reverse search
 //! or a forward one, depends on how many checks of that restriction came
-//! before it: in the same search, in the other pairs of the call (which r5r
-//! routes in parallel, in an order that is not fixed) and in earlier calls
-//! of the session. In r5r's `detailed_itineraries()` this happens with
+//! before it: in the same search, in the other pairs of the call (which R5's
+//! callers route in parallel, in an order that is not fixed) and in earlier calls
+//! of the session. In `detailed_itineraries()` this happens with
 //! `mode_egress = "CAR"`, whose egress search runs backwards; the car
 //! searches of such a call (egress, and car access and direct trips) may
 //! then see either order.
 //!
-//! peabiru plans each pair as r5r does on a network on which no reverse car
+//! peabiru plans each pair as R5 does on a network on which no reverse car
 //! search has run before it (a freshly built network, the pair alone, one
 //! thread): every array as built, reversed by each check of the pair's own
-//! reverse searches, in the order its searches run. To say when r5r could
+//! reverse searches, in the order its searches run. To say when R5 could
 //! give something else, a pair whose searches meet an "ambiguous" check
 //! (one whose outcome changes with the order: the edge taken is the via
 //! edge expected in one order and not in the other) is planned again for
@@ -43,7 +43,7 @@ pub(crate) struct ViaOrders {
     /// (see `Router::via_fresh`).
     fresh: Option<HashMap<u64, bool>>,
     used: Vec<bool>,
-    /// Set by the plan when r5r would plan the pair again with McRAPTOR.
+    /// Set by the plan when the pair is to be planned again with McRAPTOR.
     pub(crate) mcraptor_fallback: bool,
 }
 

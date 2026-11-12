@@ -1,5 +1,4 @@
-//! Access to jobs by walking and public transport, as r5r's
-//! `accessibility(decay_function = "logistic")`.
+//! Access to jobs by walking and public transport, with a logistic decay.
 //!
 //! ```sh
 //! cargo run --release -p peabiru-core --example accessibility [network_dir]
@@ -8,8 +7,8 @@
 mod common;
 
 use peabiru_core::{
-    build_from_dir, r5r_trip_limits, transit_accessibility, AccessibilityParams, BuildOptions,
-    DecayFunction, Destinations, TransitParams,
+    accessibility_trip_limits, build_from_dir, transit_accessibility, AccessibilityParams,
+    BuildOptions, DecayFunction, Destinations, TransitParams,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,8 +23,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         standard_deviation_minutes: 5.0,
     };
     let cutoffs = vec![15, 30];
-    // The limits r5r derives from max_trip_duration = 120, max_walk_time = Inf.
-    let (max_trip, max_walk) = r5r_trip_limits(&decay, Some(&cutoffs), 120, None, false)?;
+    // The limits that follow from max_trip_duration = 120, max_walk_time = Inf.
+    let (max_trip, max_walk) = accessibility_trip_limits(&decay, Some(&cutoffs), 120, None, false)?;
     let mut params = TransitParams::default();
     params.date = 20190513;
     params.departure_time = 14 * 3600;

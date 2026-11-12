@@ -226,7 +226,7 @@
   area, a closed avenue a speed of zero, a fare rule an edited table. And nothing is particular
   to Brazil: the Helsinki capital region, from OpenStreetMap, HSL's timetables and HSY's 250 m
   grids of residents and jobs. Map data © OpenStreetMap contributors (ODbL); Porto Alegre: the
-  sample data of r5r 2.5.0; Helsinki: timetables © HSL 2026 (CC BY 4.0), residents and jobs ©
+  sample network credited above; Helsinki: timetables © HSL 2026 (CC BY 4.0), residents and jobs ©
   HSY (CC BY 4.0).</p>
   <div class="gallery">
     <figure class="shot">
@@ -269,7 +269,8 @@
   <p class="muted">The figures are drawn by <code>site/figures/figures.R</code> and
   <code>site/figures/pernambuco.R</code> from the results of the R package; the examples in the
   other languages print the same numbers. Map data © OpenStreetMap contributors (ODbL); GTFS:
-  EPTC and Trensurb (Porto Alegre), SPTrans (São Paulo), as cut for the sample data of r5r.
+  EPTC and Trensurb (Porto Alegre), SPTrans (São Paulo); the sample networks of Porto Alegre and
+  São Paulo, here and below, come from the r5r project.
   Recife and Caruaru: boundaries and population © IBGE (Censo 2022); schools: INEP (Catálogo de
   Escolas 2023, via geobr); health units: CNES, Ministério da Saúde.</p>
   <h3 id="gallery-capitals">Brazilian capitals with open GTFS</h3>
@@ -277,8 +278,8 @@
   on the grid of Ipea's Access to Opportunities Project (residents and income of the Censo 2010,
   jobs of 2019): the jobs within an hour of every inhabited cell at the morning peak, by income.
   Rio de Janeiro's feed has buses and BRT only, Belo Horizonte's buses only; Fortaleza's
-  feed ends in July 2026 and no official one was found for Curitiba. Then, on r5r's Porto Alegre sample and its fare
-  structure, what a fare budget leaves of that access.</p>
+  feed ends in July 2026 and no official one was found for Curitiba. Then, on the Porto Alegre
+  sample with a fare by mode, what a fare budget leaves of that access.</p>
   <div class="gallery">
     <figure class="shot">
       <a href="r/articles/capitals.html#by-income"><img src="assets/figures/access-income-capitals.svg" width="576" height="315" loading="lazy" alt="Three panels of box plots, one per city, of the share of the city's formal jobs reached within 60 minutes by public transport from the cells of each income decile: in all three the boxes rise from the poorest decile to the richest."></a>
@@ -324,8 +325,8 @@
   <p class="muted">Drawn by <code>site/figures/capitals.R</code>. Map data © OpenStreetMap
   contributors (ODbL). GTFS: SPTrans (São Paulo; public data, as redistributed by the
   Mobility Database), Secretaria Municipal de Transportes do Rio de Janeiro (CC BY 4.0),
-  Superintendência de Mobilidade de Belo Horizonte (CC BY); EPTC and Trensurb as cut for r5r's
-  sample. Cells, population, income, jobs, schools and health facilities: Ipea, Access to
+  Superintendência de Mobilidade de Belo Horizonte (CC BY); EPTC and Trensurb (the Porto Alegre
+  sample credited above). Cells, population, income, jobs, schools and health facilities: Ipea, Access to
   Opportunities Project (aopdata; Pereira et al., 2022).</p>
 </section>
 
@@ -453,7 +454,7 @@ Measured 2026-11-12; <a href="benchmarks.html">methodology, all tasks and how th
         <li><code>expanded_travel_time_matrix()</code> and <code>arrival_travel_time_matrix()</code></li>
         <li><code>isochrone()</code>: polygons from a travel-time surface, or the street segments reached</li>
         <li><code>detailed_itineraries()</code>: the fastest trip or the alternatives, leg by leg</li>
-        <li><code>trip_options()</code> (peabiru's own, no r5r counterpart): the trips not dominated on time, fare, transfers and walking, over the departure window</li>
+        <li><code>trip_options()</code>: the trips not dominated on time, fare, transfers and walking, over the departure window</li>
         <li>Fares: <code>setup_fare_structure()</code>, <code>read_fare_structure()</code>, <code>write_fare_structure()</code>, <code>max_fare</code> and <code>pareto_frontier()</code></li>
         <li>Slope costs from elevation (Tobler, Minetti); car speed and traffic stress scenarios</li>
         <li><code>find_snap()</code>, <code>street_network_bbox()</code>, <code>street_network_to_sf()</code>, <code>transit_network_to_sf()</code>, <code>check_transit_availability()</code>, <code>get_gtfs_errors()</code></li>
@@ -463,30 +464,27 @@ Measured 2026-11-12; <a href="benchmarks.html">methodology, all tasks and how th
     <div>
       <h3>Not ported</h3>
       <ul class="todo">
-        <li>R5's own fare calculators (fares follow r5r's rule-based fare structure)</li>
+        <li>R5's own fare calculators (fares follow a rule-based fare structure: a fare per route type, discounted transfers)</li>
       </ul>
     </div>
   </div>
 </section>
 
 <section aria-labelledby="compat">
-  <h2 id="compat">Compatibility with r5r</h2>
-  <p>The R package exports all 22 functions of <a href="https://github.com/ipea/r5r">r5r</a>
-  2.5.0 with their names, arguments and defaults, including the ones that only manage r5r's
-  Java side (<code>setup_r5()</code>, <code>stop_r5()</code>, <code>download_r5()</code>,
-  <code>r5r_cache()</code>, <code>r5r_sitrep()</code>), kept so that scripts written for r5r run
-  unchanged. The Python and JavaScript packages have the same routing and network functions
-  (in camelCase in JavaScript, which has no <code>output_dir</code>). The results are checked
-  against r5r's value by value (<a href="r/articles/coming-from-r5r.html">coming from r5r</a>).</p>
+  <h2 id="compat">Checked results</h2>
+  <p>The R, Python and JavaScript packages have the same routing and network functions (in
+  camelCase in JavaScript, which has no <code>output_dir</code>), over one engine. The
+  repository keeps reference results for every function on the sample networks, and each push
+  is checked against them value by value on Linux, macOS and Windows. Each package has one page
+  comparing it with r5r: <a href="r/articles/coming-from-r5r.html">R</a>,
+  <a href="python/coming-from-r5/">Python</a>, <a href="js/differences.html">JavaScript</a>,
+  <a href="rust/parity.html">Rust</a>.</p>
 </section>
 
 <section aria-labelledby="credits">
   <h2 id="credits">Credits</h2>
   <p>The routing logic is a port of <a href="https://github.com/conveyal/r5">Conveyal's R5</a>
-  (MIT licence), and the interface follows <a href="https://github.com/ipea/r5r">r5r</a>
-  (Ipea), whose results are the reference for the tests; the fare calculator, the fare
-  structure and the multi-criteria branch of the trip planner are translations of r5r's Java
-  code (MIT). Polygon isochrones port the algorithm of
+  (MIT licence). Polygon isochrones port the algorithm of
   <a href="https://github.com/r-lib/isoband">isoband</a> (MIT), and parts of
   <a href="https://commons.apache.org/proper/commons-math/">Apache Commons Math</a> 3
   (Apache-2.0) and fdlibm are translated so that the numbers are R5's. The name comes from the Peabiru, the pre-Columbian network of

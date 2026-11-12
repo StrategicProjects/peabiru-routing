@@ -1,8 +1,8 @@
 //! Range RAPTOR over a departure window, a literal port of R5 7.6
-//! `FastRaptorWorker` + `RaptorState` + `FrequencyRandomOffsets` (the path
-//! r5r takes without fares): scheduled search carried from minute to minute,
+//! `FastRaptorWorker` + `RaptorState` + `FrequencyRandomOffsets` (the router
+//! used without fares): scheduled search carried from minute to minute,
 //! frequency upper bounds, and Monte Carlo copies with random offsets drawn
-//! in R5's order so results are reproducible with r5r's `seed`.
+//! in R5's order so results are reproducible with a seed.
 
 use super::layer::{Pattern, TransitLayer};
 use crate::jcompat::{objects_hash_int_double_double, MersenneTwister, TroveIntKeys};
@@ -12,9 +12,9 @@ pub const UNREACHED: i32 = i32::MAX;
 const DEPARTURE_STEP_SEC: i32 = 60;
 const MINIMUM_BOARD_WAIT_SEC: i32 = 60;
 
-/// A public transport mode, as r5r's `mode` names them: R5's
-/// `TransitModes` without `AIR`, which r5r does not offer (and leaves out
-/// of `"TRANSIT"`). A route's mode follows from its GTFS `route_type`, as
+/// A public transport mode, as the packages' `mode` names them: R5's
+/// `TransitModes` without `AIR`, which is not offered (nor part of
+/// `"TRANSIT"`). A route's mode follows from its GTFS `route_type`, as
 /// R5's `TransitLayer.getTransitModes` maps it (basic and extended types).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -38,7 +38,7 @@ pub enum TransitMode {
 }
 
 impl TransitMode {
-    /// Every mode, in R5's order: r5r's `"TRANSIT"`, the default of
+    /// Every mode, in R5's order: the packages' `"TRANSIT"`, the default of
     /// [`TransitParams::transit_modes`](crate::TransitParams::transit_modes).
     pub const ALL: &'static [TransitMode] = &[
         TransitMode::Tram,
@@ -51,7 +51,7 @@ impl TransitMode {
         TransitMode::Funicular,
     ];
 
-    /// The name r5r gives the mode (`"BUS"`, `"CABLE_CAR"`, ...).
+    /// The name of the mode (`"BUS"`, `"CABLE_CAR"`, ...).
     pub fn name(self) -> &'static str {
         match self {
             TransitMode::Tram => "TRAM",
@@ -65,7 +65,7 @@ impl TransitMode {
         }
     }
 
-    /// The mode r5r names `name` (upper case, as [`TransitMode::name`]
+    /// The mode named `name` (upper case, as [`TransitMode::name`]
     /// gives it), or `None`.
     pub fn from_name(name: &str) -> Option<TransitMode> {
         TransitMode::ALL.iter().copied().find(|m| m.name() == name)
@@ -73,7 +73,7 @@ impl TransitMode {
 }
 
 /// What R5 makes of a GTFS route type (`TransitLayer.getTransitModes`):
-/// `Some(Some(mode))`, `Some(None)` for AIR (1100-1199, which no r5r mode
+/// `Some(Some(mode))`, `Some(None)` for AIR (1100-1199, which no mode
 /// selects), `None` for a type R5 rejects.
 pub(crate) fn route_type_mode(route_type: i32) -> Option<Option<TransitMode>> {
     use TransitMode::*;
@@ -414,7 +414,7 @@ impl Filtered {
             return Err(format!(
                 "trip '{trip}' runs by frequency with a headway_secs of {h}; R5 fails the \
                  public transport search of any network with such an entry (commons-math \
-                 NotStrictlyPositiveException), and so does r5r"
+                 NotStrictlyPositiveException)"
             ));
         }
         let mut f = Filtered {
@@ -555,7 +555,7 @@ pub struct RaptorRequest {
     pub max_walk_min: i32,
     /// `time_window * draws_per_minute`.
     pub monte_carlo_draws: i32,
-    /// r5r `seed`; `None` draws from the clock as R5 does.
+    /// The seed; `None` draws from the clock as R5 does.
     pub seed: Option<i32>,
     /// Origin coordinates (they seed the per-origin generator).
     pub origin: (f64, f64),
@@ -1330,7 +1330,7 @@ pub(crate) fn route_stop_major(
 
 #[cfg(test)]
 /// [`route`] that also keeps, at every iteration, the path to each stop
-/// flagged in `retain` (R5 with `retainPaths`). r5r reconstructs paths to
+/// flagged in `retain` (R5 with `retainPaths`). R5 can reconstruct paths to
 /// all stops; a path depends only on its own stop, so restricting the set
 /// to the stops that matter changes nothing. The times are the same as
 /// [`route`]'s, and so are the errors.

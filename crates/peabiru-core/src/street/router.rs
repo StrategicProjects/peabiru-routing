@@ -11,7 +11,7 @@ use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-/// Street mode, as r5r's `mode` for street-only routing. Non-exhaustive:
+/// Street mode, for street-only routing. Non-exhaustive:
 /// R5 has further street modes (bike or car rental and parking) that a
 /// later version may add.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,7 +28,7 @@ pub enum Mode {
 }
 
 impl Mode {
-    /// The name R5 and r5r give the mode (`WALK`, `BICYCLE`, `CAR`).
+    /// The name R5 gives the mode (`WALK`, `BICYCLE`, `CAR`).
     pub(crate) fn r5_name(self) -> &'static str {
         match self {
             Mode::Walk => "WALK",
@@ -64,7 +64,7 @@ pub enum StreetEngine {
     Hierarchy,
 }
 
-/// Street routing parameters, with r5r's defaults. Fill it in by changing
+/// Street routing parameters. Fill it in by changing
 /// the fields of [`RouteParams::default()`]:
 ///
 /// ```
@@ -97,8 +97,7 @@ pub struct RouteParams {
     /// A call with a [`Scenario`](crate::Scenario) always takes the search.
     pub engine: StreetEngine,
     /// Car speeds and levels of traffic stress changed for this call
-    /// (r5r's `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
-    /// changes nothing.
+    /// (see [`Scenario`](crate::Scenario)); the default changes nothing.
     pub scenario: crate::Scenario,
 }
 
@@ -128,14 +127,14 @@ pub(crate) fn check_speed(name: &str, v: f64) -> Result<(), String> {
 
 impl RouteParams {
     /// Check the parameters: speeds must give at least 1 mm/s (R5's
-    /// bound), `max_lts` must be 1 to 4 (r5r's bound), the trip limit must
+    /// bound), `max_lts` must be 1 to 4, the trip limit must
     /// be a positive number of minutes that fits R5's `int` seconds. Every
     /// street routing function calls it first; [`RouteError::Invalid`]
     /// says what is wrong.
     pub fn validate(&self) -> Result<(), RouteError> {
         check_speed("walk_speed", self.walk_speed).map_err(RouteError::Invalid)?;
         check_speed("bike_speed", self.bike_speed).map_err(RouteError::Invalid)?;
-        // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
+        // 1 to 4 (R5 treats anything else as 4)
         if !(1..=4).contains(&self.max_lts) {
             return Err(RouteError::Invalid(format!(
                 "max_lts must be from 1 to 4 (the highest level of traffic stress), got {}",
@@ -959,7 +958,7 @@ pub(super) fn time_to_point(
 }
 
 #[cfg(test)]
-/// Seconds by street from one point to another with r5r's defaults, before
+/// Seconds by street from one point to another with the defaults, before
 /// rounding to minutes; `None` if either point is unlinked or the
 /// destination is unreachable. For tests and diagnostics.
 pub(crate) fn street_seconds(
@@ -1015,7 +1014,7 @@ pub(crate) fn street_vertex_times(
 
 #[cfg(test)]
 impl ModeGraph {
-    /// The graph [`street_vertex_times`] searches: r5r's defaults but for
+    /// The graph [`street_vertex_times`] searches: the defaults but for
     /// the walking speed.
     pub(crate) fn with_walk_speed(net: &StreetNetwork, mode: Mode, walk_speed: f64) -> Self {
         let params = RouteParams {
@@ -1028,7 +1027,7 @@ impl ModeGraph {
 
 impl ModeGraph {
     /// The graph of `mode` at these speeds (km/h) and highest level of
-    /// traffic stress, as a street search of r5r with them reads it.
+    /// traffic stress, as a street search with them reads it.
     pub(crate) fn with_speeds(
         net: &StreetNetwork,
         mode: Mode,
@@ -1119,7 +1118,7 @@ pub(crate) fn search_from(
 }
 
 /// A street travel-time matrix: whole minutes from each origin to each
-/// destination, `None` where r5r reports no time (an origin or destination
+/// destination, `None` where there is no time (an origin or destination
 /// that cannot be linked to the streets, an unreachable destination, or a
 /// time beyond `max_trip_duration`).
 ///

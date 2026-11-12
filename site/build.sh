@@ -77,7 +77,7 @@ if [ "$skip_r" = 0 ]; then
   fi
   [ -n "$lib" ] && lib="$(cd "$lib" && pwd)"
   export R_LIBS="${lib:+$lib:}${R_LIBS:-}"
-  # The "Coming from r5r" article runs r5r next to peabiru when a JDK 21 is there.
+  # The comparison article runs r5r next to peabiru when a JDK 21 is there.
   jdk21="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
   if [ -z "${JAVA_HOME:-}" ] && [ -d "$jdk21" ]; then export JAVA_HOME="$jdk21"; fi
   (cd "$root/r" && PB_DEST="$out/r" Rscript -e '

@@ -1,8 +1,8 @@
 # Scenarios: car speeds and traffic stress
 
 A `Scenario` changes the car speeds and the levels of traffic stress of the
-streets for one call, as r5r's `new_carspeeds`, `carspeed_scale` and
-`new_lts` do. The network itself is left as it is, so one network serves
+streets for one call (the packages' `new_carspeeds`, `carspeed_scale` and
+`new_lts`). The network itself is left as it is, so one network serves
 every scenario. It goes in the `scenario` field of `RouteParams`,
 `TransitParams` and `ItineraryParams`; the default changes nothing.
 
@@ -15,7 +15,7 @@ let mut p = RouteParams::default();
 p.scenario = s;
 ```
 
-- `car_speeds` (r5r's `new_carspeeds`):
+- `car_speeds` (`new_carspeeds` in the packages):
   - `CarSpeeds::ScaleByWay(vec![(osm_way_id, factor)])` scales the car
     speed of the way's edges; 0 forbids cars on them;
   - `CarSpeeds::KmhByWay(vec![(osm_way_id, kmh)])` sets the speed in km/h;
@@ -23,9 +23,9 @@ p.scenario = s;
   - `CarSpeeds::ByPolygon(vec![SpeedPolygon::new(polygons, factor, priority)])`
     scales the edges a polygon meets; where polygons overlap, the highest
     priority wins (ties: the longest overlap).
-- `car_speed_scale` (r5r's `carspeed_scale`, default 1) scales every edge
+- `car_speed_scale` (`carspeed_scale`, default 1) scales every edge
   that `car_speeds` does not change.
-- `lts` (r5r's `new_lts`): `LtsChange::ByWay(vec![(osm_way_id, level)])`, or
+- `lts` (`new_lts`): `LtsChange::ByWay(vec![(osm_way_id, level)])`, or
   `LtsChange::ByLine(vec![LtsLine::new(points, level)])`, where each street
   segment takes the level of the closest line.
 
@@ -35,7 +35,7 @@ degrees; a polygon is a shell then its holes, every ring closed. Invalid
 values (a negative or non-finite factor, open rings, self-crossing
 polygons) are rejected with `RouteError::Invalid`.
 
-As in r5r, the scenario applies to the street searches from the origins
+The scenario applies to the street searches from the origins
 (direct trips and the access to public transport); the egress from the
 stops and the walking transfers use the network as built, because R5 copies
 them from it. Detailed itineraries route every street leg on the scenario.

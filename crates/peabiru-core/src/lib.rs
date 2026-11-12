@@ -47,7 +47,7 @@
 //! }
 //! let points = [(-23.5563, -46.6290), (-23.5577, -46.6321)]; // (lat, lon)
 //!
-//! // walking, r5r's defaults
+//! // walking, with the default parameters
 //! let walk = street_travel_time_matrix(&network, &points, &points, Mode::Walk, &RouteParams::default())?;
 //! println!("walk: {:?} min", walk.get(0, 1));
 //!
@@ -81,9 +81,8 @@
 //!
 //! Every parameter struct ([`BuildOptions`], [`RouteParams`],
 //! [`TransitParams`], [`AccessibilityParams`], [`ItineraryParams`]) starts
-//! from `Default`, which holds the defaults of r5r (but for
-//! [`BuildOptions::elevation`], off by default), and is filled in by
-//! setting its public fields:
+//! from `Default` ([`BuildOptions::elevation`] is off by default) and is
+//! filled in by setting its public fields:
 //!
 //! ```
 //! let mut p = peabiru_core::RouteParams::default();
@@ -103,12 +102,12 @@
 //! a Web Mercator grid ([`street_travel_time_surface`],
 //! [`transit_travel_time_surface`]), then [`isochrone_polygons`] on it.
 //! Line isochrones route a matrix to the centroids of [`street_edges`] and
-//! band it with [`isochrone_lines`]. See the functions for what is r5r's
-//! exactly and what r5r adds afterwards.
+//! band it with [`isochrone_lines`]. The functions say what they return and
+//! what is left to the caller (repairing and clipping the polygons).
 //!
 //! # Inspecting a network
 //!
-//! What r5r's network functions report: where points snap to the streets
+//! What a network holds: where points snap to the streets
 //! ([`find_snap`]), the box of the street network
 //! ([`Network::street`], [`StreetNetwork::bbox`]), its vertices and edges ([`street_vertices`],
 //! [`street_edges`]), the transit stops and the routes of each trip
@@ -159,15 +158,14 @@
 //! [`TransitMatrix`], [`ExpandedMatrix`], [`Accessibility`]), which gives
 //! its dimensions, single values, rows, and its whole buffer without
 //! copying (`into_vec`, `into_values`). [`CsvOutput`] writes them to one
-//! CSV file per origin, byte for byte as r5r does with `output_dir`.
+//! CSV file per origin, formatted as `data.table::fwrite` formats them.
 //!
 //! # Scenarios
 //!
 //! [`RouteParams::scenario`], [`TransitParams::scenario`] and
 //! [`ItineraryParams::scenario`] change the car speeds and the levels of
-//! traffic stress of the streets for one call, as r5r's `new_carspeeds`,
-//! `carspeed_scale` and `new_lts` do (see [`Scenario`]); the network itself
-//! is left as it is.
+//! traffic stress of the streets for one call (see [`Scenario`]); the
+//! network itself is left as it is.
 //!
 //! # Cancellation
 //!
@@ -175,25 +173,20 @@
 //! of it from another thread and the computation returns
 //! [`RouteError::Cancelled`].
 //!
-//! # Compatibility with r5r
+//! # Routing model and credits
 //!
-//! The functions follow [r5r](https://github.com/ipea/r5r) 2.5.0, which
-//! runs R5 7.6: the parameter structs hold r5r's defaults and checks, and
-//! the results are r5r's, value for value, as the repository's parity
-//! suites check on r5r's sample data. The few places where results depend
-//! on the platform (the order in which the operating system lists GTFS
-//! feeds, the C++ library isoband was built with) are documented with the
-//! functions concerned.
+//! The routing model is that of Conveyal's
+//! [R5](https://github.com/conveyal/r5) 7.6 (MIT), ported to Rust: the
+//! results are R5's, value for value, which the repository checks against
+//! reference outputs. The few places where results depend on the platform
+//! (the order in which the operating system lists GTFS feeds, the C++
+//! library isoband was built with) are documented with the functions
+//! concerned.
 //!
-//! # Credits
-//!
-//! The routing logic is a port of Conveyal's
-//! [R5](https://github.com/conveyal/r5) 7.6 (MIT). The fare calculator, the
-//! fare structure and the multi-criteria branch of the trip planner are
-//! translations of r5r's Java code (MIT), and polygon isochrones of the
-//! isoband algorithm (MIT); parts of Apache Commons Math 3.0 (Apache-2.0)
-//! and fdlibm 5.3 are translated so that the numbers are R5's. The notices
-//! are in `LICENSE-THIRD-PARTY`.
+//! Polygon isochrones are a translation of the isoband algorithm (MIT);
+//! parts of Apache Commons Math 3.0 (Apache-2.0) and fdlibm 5.3 are
+//! translated so that the numbers are R5's. The notices of these and of
+//! the other works the crate derives from are in `LICENSE-THIRD-PARTY`.
 
 #![warn(missing_docs)]
 
@@ -254,7 +247,7 @@ pub use street::{
     StreetEngine, StreetMatrix, StreetNetwork,
 };
 pub use transit::accessibility::{
-    r5r_trip_limits, Accessibility, AccessibilityParams, Destinations,
+    accessibility_trip_limits, Accessibility, AccessibilityParams, Destinations,
 };
 pub use transit::decay::DecayFunction;
 pub use transit::expanded::{arrival_departure, Breakdown, ExpandedMatrix, ExpandedRow};
@@ -299,7 +292,7 @@ pub mod unstable {
     pub use crate::isochrone::CxxLibrary;
     /// [`isochrone_polygons`](crate::isochrone_polygons) with the rings in
     /// the order isoband gives them when built with `lib`, whatever the
-    /// platform (for comparing with r5r on another one).
+    /// platform (for comparing results across platforms).
     pub fn isochrone_polygons_in(
         surface: &crate::TravelTimeSurface,
         cutoffs: &[f64],
@@ -350,7 +343,7 @@ pub mod unstable {
     }
 
     /// A sample of [`raster_samples`]: the value read and whether the point
-    /// is ambiguous (within nanometres of a pixel boundary, where r5r's
+    /// is ambiguous (within nanometres of a pixel boundary, where R5's
     /// pixel depends on the machine), or why R5 fails there.
     pub type RasterSample = Result<(f64, bool), String>;
 
