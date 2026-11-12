@@ -212,6 +212,12 @@ pub(crate) fn trip_options_impl(
     let ip = itinerary_params(p);
     ip.check().map_err(RouteError::Invalid)?;
     let criteria = Criteria::of(&p.resolved_criteria()?);
+    if p.walk_resolution_s < 1 {
+        return Err(RouteError::Invalid(format!(
+            "walk_resolution must be at least 1 second, got {}",
+            p.walk_resolution_s
+        )));
+    }
     if origins.len() != destinations.len() {
         return Err(RouteError::Invalid(format!(
             "origins and destinations must pair up: {} origins, {} destinations",
@@ -513,6 +519,11 @@ fn plan_pair(
                     direct_values,
                     &bounds,
                     &p.cancel,
+                );
+                let arrivals = sn.coarse_frontier(
+                    &arrivals,
+                    p.walk_resolution_s,
+                    crate::options::TIME_RESOLUTION_S,
                 );
                 for a in arrivals {
                     if a.label == NONE {

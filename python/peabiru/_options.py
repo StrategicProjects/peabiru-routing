@@ -95,6 +95,7 @@ def trip_options(
     fare_structure: Any = None,
     max_fare: Number = math.inf,
     max_options: Number = math.inf,
+    walk_resolution: Number = 60,
     all_to_all: bool = False,
     itineraries: bool = True,
     by_departure: bool = False,
@@ -122,7 +123,10 @@ def trip_options(
     criterion and better on at least one. At each departure minute of the
     window the options are the exact set of trips not dominated (one per
     combination of values; of trips equal on the chosen criteria, the one
-    with the least total time, then transfers, minutes on foot and fare).
+    with the least total time, then transfers, minutes on foot and fare),
+    compared with total time to a tenth of a minute and walking to the
+    minute (``walk_resolution``), so that trips a few seconds apart are not
+    all returned; the search is exact and the values returned are exact.
     The minutes are merged into options: trips with the same street modes,
     the same routes between the same stops and the same fare, transfers and
     minutes on foot are one option, reported at its best minute (the least
@@ -153,6 +157,12 @@ def trip_options(
     max_options : int or math.inf, default math.inf
         At most this many options per pair, the first in the order of
         ``option``.
+    walk_resolution : int, default 60
+        Seconds to which minutes on foot are compared: by default walking is
+        compared to the whole minute (rounded), so that of two trips a few
+        seconds of walking apart and otherwise no better, only one is
+        returned; 1 compares the exact seconds. The search is exact, and the
+        values returned are exact.
     itineraries : bool, default True
         Whether to build the legs of each option.
     by_departure : bool, default False
@@ -230,6 +240,7 @@ def trip_options(
     assert_number(max_options, "max_options", lower=1)
     if math.isfinite(float(max_options)):
         assert_count(max_options, "max_options", positive=True)
+    assert_count(walk_resolution, "walk_resolution", positive=True)
     for name, v in [("itineraries", itineraries), ("by_departure", by_departure),
                     ("drop_geometry", drop_geometry), ("osm_link_ids", osm_link_ids)]:
         assert_flag(v, name)
@@ -266,6 +277,7 @@ def trip_options(
             int(max_options) if math.isfinite(float(max_options)) else 0,
             bool(itineraries), bool(drop_geometry), bool(osm_link_ids),
             None if out_dir is None else (out_dir, [str(i) for i in o.ids], [str(i) for i in d.ids]),
+            int(walk_resolution),
         )
     if r is None:
         return output_dir

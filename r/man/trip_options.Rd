@@ -24,6 +24,7 @@ trip_options(
   fare_structure = NULL,
   max_fare = Inf,
   max_options = Inf,
+  walk_resolution = 60L,
   all_to_all = FALSE,
   itineraries = TRUE,
   by_departure = FALSE,
@@ -42,42 +43,52 @@ trip_options(
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
-\code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84.}
+\code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84. Ids that are not
+character are converted, with a warning; points with missing
+coordinates are not routed, with a warning; duplicated ids are an
+error.}
 
 \item{mode}{A character vector, the modes as in \code{\link[=detailed_itineraries]{detailed_itineraries()}};
 defaults to \code{c("WALK", "TRANSIT")}. Without a public transport mode the
 only option is the direct street trip.}
 
 \item{mode_egress}{A string, the mode from the last stop to the
-destination: \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}.}
+destination: \code{"WALK"} (the default), \code{"BICYCLE"} or \code{"CAR"}. Ignored
+without public transport.}
 
-\item{departure_datetime}{A POSIXct, the departure date and time. Its
-clock time and date are taken in its own time zone. Required with
-transit.}
+\item{departure_datetime}{A POSIXct, the departure date and time (see
+the section "Date and time"). Required with public transport.}
 
-\item{time_window}{An integer, the window of departure minutes, starting
-at \code{departure_datetime}, over which travel times are computed.}
+\item{time_window}{An integer, the number of departure minutes, from
+\code{departure_datetime} on, over which travel times are computed.
+Defaults to 10.}
 
 \item{criteria}{A character vector, some of \code{"TIME"}, \code{"FARE"},
 \code{"TRANSFERS"} and \code{"WALK"}, or \code{NULL} (the default): all four with a
 \code{fare_structure}, all but \code{"FARE"} without one.}
 
 \item{max_walk_time, max_bike_time, max_car_time}{The maximum time in
-minutes for each street mode (\code{Inf}, the default, means the trip limit).}
+minutes on foot, by bicycle and by car. Each limit applies to each leg
+on its own (15 minutes to reach the first stop and another 15 from the
+last), and to the whole trip when that mode is the only one. \code{Inf}, the
+default, leaves only \code{max_trip_duration}.}
 
-\item{max_trip_duration}{An integer, the maximum trip duration in minutes.}
+\item{max_trip_duration}{An integer, the maximum trip duration in
+minutes. Defaults to 120.}
 
-\item{walk_speed, bike_speed}{Speeds in km/h.}
+\item{walk_speed, bike_speed}{Average speeds in km/h, 3.6 and 12 by
+default.}
 
-\item{max_rides}{An integer, the maximum number of public transport rides.}
+\item{max_rides}{An integer, the maximum number of public transport rides
+in a trip. Defaults to 3.}
 
 \item{max_lts}{An integer from 1 to 4, the highest level of traffic stress
-a cyclist will ride on.}
+a cyclist rides on (see the section "Level of traffic stress").
+Defaults to 2.}
 
 \item{fare_structure}{A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}) or
 \code{NULL} (the default): no fares. It must have a row for every route of
-the network, as in r5r; R5's own fare calculators (a structure with a
-\code{type}) are not supported.}
+the network.}
 
 \item{max_fare}{A number, the highest fare of a trip (\code{Inf}, the default:
 no limit), in the currency of the fare structure; a finite value needs
@@ -85,6 +96,12 @@ a \code{fare_structure}.}
 
 \item{max_options}{A number: at most this many options per pair, the
 first in the order of \code{option}; \code{Inf} (the default) for all of them.}
+
+\item{walk_resolution}{A number of seconds, 60 (the default): the step
+to which minutes on foot are compared. By default walking is compared to
+the whole minute (rounded), so that of two trips a few seconds of walking
+apart and otherwise no better only one is returned; \code{1} compares the
+exact seconds. See "Not dominated".}
 
 \item{all_to_all}{A logical. Whether to route from every origin to
 every destination (\code{TRUE}) or pair them row by row (\code{FALSE}, the
@@ -97,45 +114,47 @@ other).}
 \item{by_departure}{A logical. Whether to add the options of every
 departure minute (\code{FALSE}, the default).}
 
-\item{new_carspeeds}{A scenario of car speeds, as in r5r: \code{NULL}, a data
-frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type} (\code{"scale"}, a
-factor for the car speed of the way's edges, or \code{"km/h"}, a speed; 0
-closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s or
-\code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+\item{new_carspeeds}{A scenario of car speeds: \code{NULL} (the default), a
+data frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type}
+(\code{"scale"}, a factor for the car speed of the way's edges, or \code{"km/h"},
+a speed; 0 closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s
+or \code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
-overlaps most).}
+overlaps most). Polygons that are not valid are an error, and so are
+ties that cannot be settled exactly as R5 settles them.}
 
 \item{carspeed_scale}{A number of at least 0, the factor for the car
 speeds of the edges \code{new_carspeeds} leaves out (all of them when it is
-\code{NULL}).}
+\code{NULL}). Defaults to 1. R5 keeps car speeds as 16-bit centimetres per
+second: a factor or speed that would bring a speed to 0 or less, or
+past that range, is an error.}
 
-\item{new_lts}{A scenario of levels of traffic stress, as in r5r: \code{NULL},
-a data frame with columns \code{osm_id} and \code{lts} (integer), or an \code{sf} data
-frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts} (1 to 4)
-and \code{priority}: each street edge takes the level of the line closest to
-it among those whose bounding box meets its own. As in r5r, the
-scenario changes the street search from the origins (the trip without
-public transport, and access by bicycle or car) but not the egress
-from the stops, and \code{priority} is not used. A car speed that R5's
-16-bit cm/s would turn into 0 or less (a factor too small or too
-large) is an error, as are polygons that are not valid and ties
-between polygons that peabiru cannot settle exactly as R5 does.}
+\item{new_lts}{A scenario of levels of traffic stress: \code{NULL} (the
+default), a data frame with columns \code{osm_id} and \code{lts} (integer), or an
+\code{sf} data frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts}
+(1 to 4) and \code{priority}: each street edge takes the level of the line
+closest to it among those whose bounding box meets its own (\code{priority}
+is not used). A scenario (of car speeds or of levels of traffic stress)
+changes the street search from the origins (the trip without public
+transport, and access by bicycle or car) but not the egress from the
+stops, and turns off slope costs, with a warning, on a network built
+with an elevation raster.}
 
 \item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores.}
 
-\item{verbose, progress}{Logicals, checked as in r5r; peabiru prints no
-progress counter.}
+\item{verbose, progress}{Logicals, checked but without effect: no progress
+counter or routing log is printed.}
 
 \item{drop_geometry}{A logical. Whether to leave the geometry of the legs
 out (and return them as a \code{data.frame}).}
 
-\item{osm_link_ids}{A logical. Whether to add r5r's columns
+\item{osm_link_ids}{A logical. Whether to add the columns
 \code{osm_id_list} (the OpenStreetMap way ids of a street leg's edges),
 \code{edge_id_list} (the indices of the street network's edges, as
 \code{\link[=street_network_to_sf]{street_network_to_sf()}} numbers them), both as \code{"[id1, id2, ...]"} and
 \code{"[]"} for rides, and \code{board_stop_id}, \code{alight_stop_id} (a ride's stops,
-\code{"<feed>:<stop_id>"}; empty for street legs). As in r5r, consecutive
+\code{"<feed>:<stop_id>"}; empty for street legs). Consecutive
 edges on a roundabout give only their first ids, and connectors none.
 Needs \code{drop_geometry = FALSE}. Defaults to \code{FALSE}.}
 
@@ -200,6 +219,17 @@ trips that reach a stop of the access search, ride and walk between
 stops (as R5's transfer tables allow), and leave a stop of the egress
 search; each ride boards at least a minute after its stop is reached,
 on the vehicle that gets to the alighting stop first.
+
+The search is exact; what is returned is then compared at the
+resolution the values are read at: total time to a tenth of a minute (as
+it is reported), and minutes on foot to the whole minute (rounded,
+\code{walk_resolution} seconds). Of the trips of a minute's exact set, one is
+left out when another is no worse on every criterion in those terms and
+better on one, or equal on all and better in exact terms (least total
+time, then transfers, walking, fare); two trips a few seconds of walking
+apart are not both returned. The values returned are exact. Rounding
+cannot make a trip look better than one that beats it, so this is the
+same as comparing every trip at that resolution.
 
 The minutes are then merged into options: trips with the same street
 modes, the same routes between the same stops (whichever vehicles), and

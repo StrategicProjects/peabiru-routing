@@ -21,6 +21,15 @@ use crate::transit::raptor::TransitMode;
 use crate::{CancelToken, FareStructure, Itinerary, RouteError, TransitData, TransitLayer};
 use std::sync::Arc;
 
+/// Seconds to which [`trip_options`] compares total times when it decides
+/// which trips of a minute's exact frontier to return: a tenth of a minute,
+/// the resolution the times are reported in, so that no option of a minute
+/// looks dominated by another in the reported values. (Compared to the
+/// second, two trips whose reported total times are equal and whose other
+/// values make one look better would both be returned; on 200 pairs of
+/// Porto Alegre with all four criteria that was 2% of the minutes.)
+pub(crate) const TIME_RESOLUTION_S: i32 = 6;
+
 /// A criterion [`trip_options`] compares trips on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Criterion {
@@ -136,6 +145,15 @@ pub struct TripOptionsParams {
     /// Most options per pair (default 0: no limit); the first ones in the
     /// order of [`TripOption::option`] are kept.
     pub max_options: usize,
+    /// Seconds to which time on foot is compared (default 60: whole
+    /// minutes, rounded half up; 1: exact). The search is exact; of the
+    /// trips of each minute's exact frontier, those that another trip beats
+    /// once walking is rounded to this step (and total time to a tenth of a
+    /// minute, the resolution it is reported in) are left out, so that two
+    /// trips a few seconds apart are not both returned. Of trips equal in
+    /// those terms the one with the least exact total time, then transfers,
+    /// walking and fare is kept. The values returned are exact.
+    pub walk_resolution_s: i32,
     /// Build each option's legs ([`TripOption::itinerary`], default true).
     pub itineraries: bool,
     /// Fill in the street edges, OpenStreetMap ids and stops of the legs,
@@ -172,6 +190,7 @@ impl Default for TripOptionsParams {
             fare_structure: None,
             max_fare: f64::INFINITY,
             max_options: 0,
+            walk_resolution_s: 60,
             itineraries: true,
             osm_link_ids: false,
             scenario: crate::Scenario::default(),
@@ -280,7 +299,10 @@ impl TripOption {
 /// per vector of values: a trip is dominated when another is no worse on
 /// every chosen criterion and better on one; of trips with the same values
 /// on the chosen criteria, the one with the least total time, then
-/// transfers, time on foot and fare is kept. There are no random draws:
+/// transfers, time on foot and fare is kept. Of that exact set, the trips
+/// are then compared with total time to a tenth of a minute and walking to
+/// [`TripOptionsParams::walk_resolution_s`] (a minute by default), and those
+/// beaten in those terms are left out; the values returned are exact. There are no random draws:
 /// frequency-based trips are boarded at their expected times (half a
 /// headway of waiting; the scheduled departures with `exact_times = 1`),
 /// so the result does not change from call to call and differs on purpose

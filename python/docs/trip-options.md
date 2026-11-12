@@ -22,7 +22,21 @@ better on at least one. The criteria are
 
 By default all four are used with a fare structure, all but `"FARE"`
 without one. At each departure minute of the window the options are the
-exact set of trips not dominated, with one trip per combination of values.
+set of trips not dominated, with one trip per combination of values.
+
+The search is exact, to the second. What is returned is then compared at
+the resolution the values are read at: total time to a tenth of a minute,
+as it is reported, and walking to the whole minute (rounded half up;
+`walk_resolution` sets the step in seconds, and 1 compares the exact seconds). Of the
+trips of a minute, one is left out when another is no worse on every
+criterion in those terms and better on one, or equal on all of them and
+better in exact terms (less total time, then fewer transfers, less walking,
+a lower fare). Without this, a trip that is slower, dearer and with more
+transfers would be returned only because it walks a few seconds less. The
+values reported stay exact. Rounding cannot make a trip look better than
+one that beats it to the second, so the result is the same as comparing
+every trip at that resolution.
+
 The trips are those of r5r's network semantics (the same access and egress
 searches, transfers between stops and boarding rules as
 `detailed_itineraries()`), so the times agree with the other functions.
@@ -135,7 +149,7 @@ print(legs[legs["option"] == 1][["segment", "mode", "cumulative_fare", "segment_
 ```
 
 ```text
-5 options
+4 options
  segment mode  cumulative_fare  segment_duration  wait  distance route
        1 WALK              0.0              10.9   0.0       694      
        2  BUS              4.8               7.4   1.2      2113    T4
@@ -186,9 +200,8 @@ print(res.options[["option", "total_time", "transfers", "walk_time", "n_departur
       2        33.5          0       24.7             5                         WALK > SUBWAY METRÔ L3 > WALK
       3        35.1          1       18.8             5           WALK > SUBWAY METRÔ L1 > BUS 2002-10 > WALK
       4        37.5          0       22.7             5                             WALK > BUS 2002-10 > WALK
-      5        53.1          2       18.5             5 WALK > BUS 5290-10 > BUS 2002-10 > BUS 2002-10 > WALK
-      6        54.9          1       17.7             5               WALK > BUS 5290-10 > BUS 2002-10 > WALK
-      7        60.0          2       15.7             5 WALK > BUS 5290-10 > BUS 5290-10 > BUS 2002-10 > WALK
+      5        54.9          1       17.7             5               WALK > BUS 5290-10 > BUS 2002-10 > WALK
+      6        60.0          2       15.7             5 WALK > BUS 5290-10 > BUS 5290-10 > BUS 2002-10 > WALK
 ```
 
 ## Compared with r5r's functions

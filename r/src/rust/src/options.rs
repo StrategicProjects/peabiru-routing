@@ -57,6 +57,7 @@ fn rs_trip_options(
     drop_geometry: bool,
     osm_link_ids: bool,
     output: Robj,
+    walk_resolution: i32,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
@@ -85,6 +86,7 @@ fn rs_trip_options(
     p.fare_structure = super::fares::fare_args(&fare_structure)?;
     p.max_fare = max_fare;
     p.max_options = max_options.max(0) as usize;
+    p.walk_resolution_s = walk_resolution;
     p.itineraries = itineraries;
     p.osm_link_ids = osm_link_ids;
     p.n_threads = n_threads.max(0) as usize;
