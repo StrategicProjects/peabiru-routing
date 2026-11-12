@@ -182,3 +182,52 @@ jobs:
               "errors:", sum(r$error), "skipped:", sum(r$skipped), "\n")
           if (sum(r$failed) > 0 || any(r$error)) quit(status = 1)
         shell: Rscript {0}
+
+  r-cran:
+    # The path of a CRAN submission, rehearsed: the source tarball of
+    # tools/build_r_release.sh with the core of this commit in the place of
+    # the published one (--local-core; never a tarball to submit), built
+    # offline from the vendored crates, and R CMD check --as-cran on it.
+    name: R package, CRAN tarball (rehearsal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          use-public-rspm: true
+      # the vignette is built by R CMD build
+      - uses: r-lib/actions/setup-pandoc@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+      - name: Install what the build and the check need
+        # rextendr vendors the crates; sf, data.table and r5r (Suggests) are
+        # left out, as in the r job: examples and tests must do without them
+        run: install.packages(c("rextendr", "tibble", "testthat", "knitr", "rmarkdown"))
+        shell: Rscript {0}
+      - name: Build the tarball
+        run: bash tools/build_r_release.sh "$RUNNER_TEMP/cran" --local-core
+      - name: R CMD check --as-cran
+        # no LaTeX on the runner (--no-manual); the incoming checks that ask
+        # CRAN's servers are left out so that the job does not depend on them
+        env:
+          _R_CHECK_FORCE_SUGGESTS_: "false"
+          _R_CHECK_CRAN_INCOMING_REMOTE_: "false"
+        run: |
+          cd "$RUNNER_TEMP/cran"
+          R CMD check --as-cran --no-manual peabiru_*-LOCAL-CORE-NOT-FOR-CRAN.tar.gz
+          log=peabiru.Rcheck/00check.log
+          grep -n "offline\|^Using " peabiru.Rcheck/00install.out
+          grep -q "cargo build -j 2 --offline" peabiru.Rcheck/00install.out ||
+            { echo "the package was not built offline with two jobs"; exit 1; }
+          grep "^Status: " "$log"
+          if grep -Eq "^Status: .*(WARNING|ERROR)" "$log"; then
+            echo "R CMD check gave a WARNING or an ERROR"; exit 1
+          fi
+      - name: The vendored sources build with the minimum supported Rust
+        # the msrv job checks the core and the command-line tool; this is
+        # what CRAN compiles (the R bindings, extendr, the vendored versions)
+        run: |
+          rustup toolchain install 1.81 --profile minimal
+          bash tools/r_release_msrv.sh "$RUNNER_TEMP/cran/peabiru" "$RUNNER_TEMP/cran-msrv"
+      - name: Check log
+        if: always()
+        run: cat "$RUNNER_TEMP/cran/peabiru.Rcheck/00check.log" || true

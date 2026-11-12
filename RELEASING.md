@@ -43,3 +43,36 @@ Then, as for 0.0.1: the GitHub release (tag `vX.Y.Z`, which runs
 environment), Zenodo (from the release), and the R package for CRAN with
 `bash tools/build_r_release.sh <new dir>` (it pins the core to the
 published version and vendors the crates, so it needs step 1 done).
+
+## 3. The R package for CRAN
+
+Before step 1, at any time, the whole path can be rehearsed with the core of
+the working tree in the place of the published one:
+
+```sh
+bash tools/build_r_release.sh <new dir> --local-core
+(cd <new dir> && R CMD check --as-cran peabiru_*-LOCAL-CORE-NOT-FOR-CRAN.tar.gz)
+bash tools/r_release_msrv.sh <new dir>/peabiru <another new dir>
+```
+
+That tarball is never the one to submit (its name and the field
+`Config/peabiru/local-core` of its DESCRIPTION say so): the core in it is
+not a published crate. The CI job `r-cran` runs the first two lines on
+every push.
+
+The release, once the core of the same version is on crates.io:
+
+```sh
+# the same version in r/DESCRIPTION, r/src/rust/Cargo.toml and the heading
+# of r/NEWS.md; r/cran-comments.md without its maintainer notes
+bash tools/build_r_release.sh <new dir>
+(cd <new dir> && R CMD check --as-cran peabiru_<version>.tar.gz)
+bash tools/r_release_msrv.sh <new dir>/peabiru <another new dir>
+Rscript -e 'urlchecker::url_check("r")' -e 'spelling::spell_check_package("r")'
+```
+
+Then win-builder (R-devel and R-release) and a Linux check (R-hub) with
+that tarball, the sentences marked `[RE-VERIFY]` in `r/cran-comments.md`
+checked against its logs, and the upload of that same file. In the
+installation log (`00install.out`) look for the versions of cargo and rustc,
+`=== Using offline vendor tarball ===` and `cargo build -j 2 --offline`.
