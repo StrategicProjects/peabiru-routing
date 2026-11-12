@@ -46,3 +46,13 @@ it is compiled for, so its polygons equal r5r's on the same platform. Across
 platforms r5r's own polygons also differ in the last bits of some latitudes,
 which come from the system's `sinh` and `atan`. The WebAssembly build always
 uses the libc++ order.
+
+Elevation is the one place where peabiru is deliberately more stable than
+r5r. With a raster that is not in WGS 84 longitude and latitude, a sample
+within nanometres of the boundary between two pixels falls on one side or
+the other in r5r depending on the machine (Java's `Math` functions may
+differ in the last bit between machines). peabiru always takes the pixel
+Java's `StrictMath` gives and counts such samples in the network's
+elevation warnings, so its slope costs are the same on every machine and
+equal r5r's wherever r5r's own result does not depend on the machine (see
+[Elevation](elevation.md#warnings)).
