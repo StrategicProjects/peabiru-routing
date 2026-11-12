@@ -307,8 +307,9 @@ save_svg <- function(plot, name, width, height, title, desc) {
                             light("panel"), "; stroke: ", light("border"), "; stroke-width: 1;'/>"),
                      vb[3] - 1, vb[4] - 1),
              svg, fixed = TRUE)
-  # fewer bytes: svglite writes two decimals everywhere
-  svg <- gsub("([0-9]+\\.[0-9])[0-9]\\b", "\\1", svg, perl = TRUE)
+  # fewer bytes: svglite writes two decimals everywhere (coordinates only: a
+  # number in a label, the title or the description keeps its digits)
+  svg <- gsub("([0-9]+\\.[0-9])[0-9]\\b(?![^<>]*</(text|title|desc)>)", "\\1", svg, perl = TRUE)
   writeLines(merge_polylines(strsplit(svg, "\n", fixed = TRUE)[[1]]), path)
   message(sprintf("%-28s %6.1f kB", basename(path), file.size(path) / 1024))
   invisible(path)

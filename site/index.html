@@ -189,6 +189,61 @@
   EPTC and Trensurb (Porto Alegre), SPTrans (São Paulo), as cut for the sample data of r5r.
   Recife and Caruaru: boundaries and population © IBGE (Censo 2022); schools: INEP (Catálogo de
   Escolas 2023, via geobr); health units: CNES, Ministério da Saúde.</p>
+  <h3 id="gallery-capitals">Brazilian capitals with open GTFS</h3>
+  <p>São Paulo, Rio de Janeiro and Belo Horizonte from the official GTFS feeds of November 2026,
+  on the grid of Ipea's Access to Opportunities Project (residents and income of the Censo 2010,
+  jobs of 2019): the jobs within an hour of every inhabited cell at the morning peak, by income.
+  Rio de Janeiro's feed has buses and BRT only, Belo Horizonte's buses only; Fortaleza's
+  feed ends in July 2026 and no official one was found for Curitiba. Then, on r5r's Porto Alegre sample and its fare
+  structure, what a fare budget leaves of that access.</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/capitals.html#by-income"><img src="assets/figures/access-income-capitals.svg" width="576" height="315" loading="lazy" alt="Three panels of box plots, one per city, of the share of the city's formal jobs reached within 60 minutes by public transport from the cells of each income decile: in all three the boxes rise from the poorest decile to the richest."></a>
+      <figcaption><strong>Who reaches the jobs.</strong> In São Paulo the richest tenth reaches 7.9 times as many jobs within an hour as the poorest four tenths; in Rio de Janeiro, by bus and BRT, 2.3 times; in Belo Horizonte 2.0.
+      <span class="ex"><a href="r/articles/capitals.html#by-income">R</a> · <a href="python/example-capitals/#by-income">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#access-at-the-morning-peak"><img src="assets/figures/jobs-60min-spo.svg" width="576" height="708" loading="lazy" alt="A map of the municipality of São Paulo with cells coloured by the share of the city's formal jobs reached within 60 minutes by public transport at the morning peak: highest in the centre, lowest in the far south, east and north."></a>
+      <figcaption><strong>São Paulo.</strong> Half the residents reach 8.1% of the city's 3.46 million formal jobs or less within an hour, from 9,704 cells to 8,482.
+      <span class="ex"><a href="r/articles/capitals.html#access-at-the-morning-peak">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#access-at-the-morning-peak"><img src="assets/figures/jobs-60min-rio.svg" width="576" height="432" loading="lazy" alt="A map of the municipality of Rio de Janeiro with cells coloured by the share of the city's formal jobs reached within 60 minutes by bus and BRT at the morning peak: highest in the centre and the north zone next to it, lowest in the west zone."></a>
+      <figcaption><strong>Rio de Janeiro, by bus and BRT.</strong> Half the residents reach 20.9% of the city's jobs or less within an hour; the feed has no metro, train, light rail or ferry.
+      <span class="ex"><a href="r/articles/capitals.html#access-at-the-morning-peak">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#access-at-the-morning-peak"><img src="assets/figures/jobs-60min-bho.svg" width="576" height="730" loading="lazy" alt="A map of the municipality of Belo Horizonte with cells coloured by the share of the city's formal jobs reached within 60 minutes by bus at the morning peak: highest in and around the centre, lowest at the northern and south-western edges."></a>
+      <figcaption><strong>Belo Horizonte, by bus.</strong> A compact city: half the residents reach 71.2% of its jobs or less within an hour.
+      <span class="ex"><a href="r/articles/capitals.html#access-at-the-morning-peak">R</a> · <a href="python/example-capitals/#access-at-the-morning-peak">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#by-income"><img src="assets/figures/access-compare-capitals.svg" width="576" height="288" loading="lazy" alt="Three panels, for jobs within 60 minutes and public schools and health facilities within 30 minutes, each with one line per city of the mean share of the city's opportunities reached by public transport, by income decile."></a>
+      <figcaption><strong>Jobs, schools, health.</strong> Access to jobs rises with income in the three cities; public schools do not follow: in São Paulo the richest tenth has 0.59 times the schools within half an hour of the poorest four tenths.
+      <span class="ex"><a href="r/articles/capitals.html#by-income">R</a> · <a href="python/example-capitals/#by-income">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#what-a-budget-leaves"><img src="assets/figures/fare-budget-poa.svg" width="576" height="349" loading="lazy" alt="Grouped bars, one group per income quintile, of the mean share of jobs reached within 60 minutes by public transport in the Porto Alegre sample at any fare, with at most two bus fares, and with at most one."></a>
+      <figcaption><strong>What a fare budget leaves.</strong> In the Porto Alegre sample one bus fare keeps 84% of the jobs within an hour, 74% in the poorest fifth and 89% in the richest; two fares keep 98%.
+      <span class="ex"><a href="r/articles/capitals.html#what-a-budget-leaves">R</a> · <a href="python/example-capitals/#what-a-budget-leaves">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#the-frontier-of-a-trip"><img src="assets/figures/pareto-poa.svg" width="576" height="288" loading="lazy" alt="Three step charts of the median travel time of the fastest trip within a fare budget, for three pairs of places in Porto Alegre."></a>
+      <figcaption><strong>Time against fare.</strong> Across town, the R$ 7.20 of two buses with the transfer discount turns a trip of 89 minutes into one of 48; along a corridor a second ride saves one minute.
+      <span class="ex"><a href="r/articles/capitals.html#the-frontier-of-a-trip">R</a> · <a href="python/example-capitals/#the-frontier-of-a-trip">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#the-trips-themselves"><img src="assets/figures/trip-options-poa.svg" width="576" height="315" loading="lazy" alt="A map of Porto Alegre with three trips from Jardim Carvalho to Praia de Belas, and beside it their time, fare and transfers."></a>
+      <figcaption><strong>The choices of one trip.</strong> 53 minutes for R$ 12.00, 57 for R$ 7.20, or 86 for R$ 4.80 with 65 of them on foot: the trips no other beats on time, fare and transfers.
+      <span class="ex"><a href="r/articles/capitals.html#the-trips-themselves">R</a> · <a href="python/example-capitals/#the-trips-themselves">Python</a></span></figcaption>
+    </figure>
+  </div>
+  <p class="muted">Drawn by <code>site/figures/capitals.R</code>. Map data © OpenStreetMap
+  contributors (ODbL). GTFS: SPTrans (São Paulo; no licence stated, as redistributed by the
+  Mobility Database), Secretaria Municipal de Transportes do Rio de Janeiro (CC BY 4.0),
+  Superintendência de Mobilidade de Belo Horizonte (CC BY); EPTC and Trensurb as cut for r5r's
+  sample. Cells, population, income, jobs, schools and health facilities: Ipea, Access to
+  Opportunities Project (aopdata; Pereira et al., 2022).</p>
 </section>
 
 <section aria-labelledby="arch">
