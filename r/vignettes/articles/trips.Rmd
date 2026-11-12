@@ -71,7 +71,8 @@ ggplot(ttm, aes(y = destination)) +
 draw, on a frequency-based network) instead of percentiles. With
 `breakdown = TRUE`, each trip is split into its parts, and the routes taken
 are listed. Here, from Farroupilha Park to the PUCRS university campus in
-Porto Alegre, whose sample (from r5r 2.5.0) has bus timetables:
+Porto Alegre, whose sample data (from the r5r project, version 2.5.0) has
+bus timetables:
 
 ```{r poa}
 poa <- file.path(tempdir(), "poa")

@@ -16,8 +16,7 @@ from an [OpenStreetMap](https://www.openstreetmap.org) extract and
 [GTFS](https://gtfs.org) public transport feeds, by walking, cycling, driving
 and public transport. The routing engine is written in Rust and runs inside
 the R session: no Java is needed, and the network is built once, in memory.
-If you know r5r, the functions and arguments will look familiar; the article
-"Coming from r5r" on the package website lists what carries over.
+
 
 This vignette runs on the small network that ships with the package: the
 streets around Avenida Paulista in São Paulo, the city's frequency-based bus
@@ -71,8 +70,8 @@ sapply(list(walk = walk, bike = bike, car = car),
 
 The results are tibbles. `options(peabiru.output = "data.frame")` makes
 every function return base data frames instead, and
-`options(peabiru.output = "data.table")` `data.table`s, exactly as r5r
-returns them; the rows, columns and values are the same whatever the class.
+`options(peabiru.output = "data.table")` `data.table`s; the rows, columns
+and values are the same whatever the class.
 The article
 ["peabiru with sf and the tidyverse"](https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/sf-tidyverse.Rmd)
 goes from points to maps with sf, dplyr and ggplot2.
@@ -170,9 +169,9 @@ the latest departure that still arrives by a given time.
 ## Writing results to files
 
 For matrices too large to hold in memory, `output_dir` (an existing
-directory) makes each of these functions write its result there, as r5r
-does, instead of returning it: one CSV file per origin, `from_<id>.csv`,
-byte for byte the file r5r writes for the same call. The origins are routed
+directory) makes each of these functions write its result there instead of
+returning it: one CSV file per origin, `from_<id>.csv`. The origins are
+routed
 a slice at a time, and the function returns `output_dir`.
 
 ```{r}

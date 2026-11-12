@@ -7,8 +7,8 @@
 #' window (`shortest_path = TRUE`) or, with `shortest_path = FALSE`, the
 #' alternatives R5's multi-criteria router (McRAPTOR) finds over
 #' `time_window` sampled departure times, one per sequence of routes (the
-#' fastest of each), up to `suboptimal_minutes` slower than the best. As in
-#' r5r, a pair's options are ordered by the trip by the street mode alone
+#' fastest of each), up to `suboptimal_minutes` slower than the best. A
+#' pair's options are ordered by the trip by the street mode alone
 #' first, then by the number of legs, then by duration, so the first option
 #' is not the fastest when a trip with fewer legs (or the street trip) is
 #' slower: on Porto Alegre with `suboptimal_minutes = 10`, a pair had 102
@@ -21,19 +21,15 @@
 #' public transport (the itineraries of a Monte Carlo draw are not trips
 #' that run).
 #'
-#' @section Compatibility with r5r:
-#' The arguments, their defaults and checks, the columns, the rows and the
-#' geometries are those of `r5r::detailed_itineraries()` in r5r 2.5.0, and
-#' with `options(peabiru.output = "data.table")` the result is identical to r5r's, its class
-#' included. With `mode_egress = "CAR"`, R5 reverses the via edges of
-#' turn restrictions with two or more via ways in place each time its
-#' backward egress search checks one, so what r5r returns for a pair whose
-#' car searches cross such a restriction can depend on the searches that
-#' ran before (in the same call, on other threads, or in earlier calls).
-#' peabiru returns, for every pair, what r5r gives on a freshly built
-#' network for that pair alone with one thread, and warns once per call,
-#' naming the pairs whose itineraries some other order of those via edges
-#' would change (on Porto Alegre, about 1 pair in 200).
+#' @section Egress by car and turn restrictions:
+#' With `mode_egress = "CAR"`, the backward egress search of R5 (the engine
+#' the routing is ported from) reads the via ways of a turn restriction with
+#' two or more of them in an order that depends on the searches that ran
+#' before. peabiru fixes that order: every pair gets the itinerary of a
+#' freshly built network routing that pair alone, whatever the other pairs,
+#' the threads or the earlier calls, and a warning, once per call, names
+#' the pairs whose itineraries another order of those via ways would change
+#' (on Porto Alegre, about 1 pair in 200).
 #'
 #' @inheritParams travel_time_matrix
 #' @param suboptimal_minutes An integer, 0 (the default): with
@@ -68,11 +64,10 @@
 #'   `cumulative_fare` (after `mode`), the fare paid up to the end of the
 #'   leg. Pairs without an itinerary have no rows. With `output_dir`,
 #'   one CSV file per pair with itineraries is written,
-#'   `from_<origin id>_to_<destination id>.csv` (the geometry as WKT text,
-#'   byte for byte the files r5r writes), and `output_dir` is returned.
+#'   `from_<origin id>_to_<destination id>.csv` (the geometry as WKT text), and `output_dir` is returned.
 #'
 #'   `r doc_output_class(sf = TRUE)` With "data.table", both are
-#'   `data.table`s, as r5r's.
+#'   `data.table`s.
 #' @family routing functions
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
@@ -88,7 +83,7 @@
 #'   n_threads = 2
 #' )
 #' head(trips)
-detailed_itineraries <- function(r5r_network,
+detailed_itineraries <- function(network,
                                  origins,
                                  destinations,
                                  mode = "WALK",
@@ -116,15 +111,9 @@ detailed_itineraries <- function(r5r_network,
                                  progress = TRUE,
                                  drop_geometry = FALSE,
                                  osm_link_ids = FALSE,
-                                 output_dir = NULL,
-                                 r5r_core = deprecated()) {
-  # mirrors r5r R/detailed_itineraries.R
+                                 output_dir = NULL) {
   kind <- output_class()
-  if (is_present(r5r_core)) {
-    warn_r5r_core()
-    r5r_network <- r5r_core
-  }
-  assert_network(r5r_network)
+  assert_network(network)
   origins <- assign_points_input(origins, "origins", unique_ids = all_to_all)
   destinations <- assign_points_input(destinations, "destinations", unique_ids = all_to_all)
   od <- expand_od_pairs(origins, destinations, all_to_all)
@@ -148,9 +137,9 @@ detailed_itineraries <- function(r5r_network,
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)
   if (mode_list$transit) {
-    check_transit_availability_on_date(r5r_network, departure)
-    if (isTRUE(rs_network_info(r5r_network$ptr)$frequencies)) {
-      stop("Assertion on 'r5r_network' failed: None of the GTFS feeds used to create ",
+    check_transit_availability_on_date(network, departure)
+    if (isTRUE(rs_network_info(network$ptr)$frequencies)) {
+      stop("Assertion on 'network' failed: None of the GTFS feeds used to create ",
            "the transit network can contain a 'frequencies' table. Try using ",
            "gtfstools::frequencies_to_stop_times() to create a suitable feed.",
            call. = FALSE)
@@ -179,7 +168,7 @@ detailed_itineraries <- function(r5r_network,
   check_max_lts(max_lts)
   threads <- assign_n_threads(n_threads)
   check_messages(verbose, progress)
-  check_fares(fare_structure, max_fare, r5r_network)
+  check_fares(fare_structure, max_fare, network)
   check_output_dir(output_dir)
   assert_count(suboptimal_minutes, "suboptimal_minutes")
   if (!is.null(fare_structure) && suboptimal_minutes > 0) {
@@ -190,7 +179,7 @@ detailed_itineraries <- function(r5r_network,
     stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when ",
          "'shortest_path' is TRUE.", call. = FALSE)
   }
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
   if (is.null(output_dir) && !drop_geometry && !requireNamespace("sf", quietly = TRUE)) {
     stop("Package 'sf' is needed for the geometry of detailed itineraries; ",
          "install it or use 'drop_geometry = TRUE'.", call. = FALSE)
@@ -200,14 +189,14 @@ detailed_itineraries <- function(r5r_network,
     list(dir = path.expand(output_dir), from_ids = origins$id, to_ids = destinations$id)
   }
   res <- raise_if_stopped(rs_detailed_itineraries(
-    r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     mode_list$direct_modes, mode_list$transit_mode, mode_list$egress_mode,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_bike_time, max_car_time, max_trip_duration,
     as.double(walk_speed), as.double(bike_speed), as.integer(max_rides),
     as.integer(max_lts), shortest_path, threads, drop_geometry, scenario, osm_link_ids, output,
     as.integer(suboptimal_minutes), fare_structure, as.double(max_fare),
-    # for tests, as r5r's Java system property r5r.failFastRaptor
+    # for tests: make the first router fail, so that the fallback runs
     isTRUE(getOption("peabiru.fail_fast_raptor"))
   ))
   for (w in res$warnings) warning(w, call. = FALSE)
@@ -232,7 +221,7 @@ detailed_itineraries <- function(r5r_network,
     out$alight_stop_id <- res$alight_stop_id
   }
   if (drop_geometry) return(as_output(out, kind))
-  # as r5r builds it: WKT read by sf, then an sf in EPSG:4326
+  # WKT read by sf, then an sf in EPSG:4326
   out$geometry <- if (nrow(out) > 0) {
     sf::st_as_sfc(res$geometry)
   } else {
@@ -241,7 +230,7 @@ detailed_itineraries <- function(r5r_network,
   as_output_sf(sf::st_sf(out, crs = 4326), kind, data_table = TRUE)
 }
 
-# r5r expand_od_pairs()
+# The pairs to route: every origin with every destination, or row by row.
 expand_od_pairs <- function(origins, destinations, all_to_all) {
   assert_flag(all_to_all, "all_to_all")
   n_origs <- nrow(origins)

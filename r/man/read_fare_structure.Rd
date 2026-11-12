@@ -15,22 +15,14 @@ read_fare_structure(file_path, encoding = "UTF-8")
 \value{
 A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}).
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
 \description{
 Reads a fare structure from a \code{.zip} file written by
-\code{\link[=write_fare_structure]{write_fare_structure()}} (or by r5r's): the five \code{.csv} files are read
+\code{\link[=write_fare_structure]{write_fare_structure()}}: the five \code{.csv} files are read
 with the columns and types of the structure (see
 \code{\link[=setup_fare_structure]{setup_fare_structure()}}), the way \code{data.table::fread()} reads them.
 }
-\section{Compatibility with r5r}{
-
-The arguments and the result are those of \code{r5r::read_fare_structure()}
-in r5r 2.5.0 (identical, tables included, with \code{options(peabiru.output = "data.table")}). A
-\code{file_path} that names several files is an error (r5r's check lets it
-through and then fails unzipping them).
-}
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

@@ -86,8 +86,8 @@ For these, the search also keeps, for every stop and iteration, the path that
 led there (which vehicles, boarded where and when), so each trip can be
 broken down into access, waiting, riding, transfers and egress.
 
-How the results are checked against r5r's is described in
-[Coming from r5r](coming-from-r5r.html#parity).
+How the results are checked is described in the
+[comparison with r5r](coming-from-r5r.html#parity).
 
 ## Credits
 
@@ -95,5 +95,3 @@ The algorithms and their fine print are ported from Conveyal's
 [R5](https://github.com/conveyal/r5) 7.6 (MIT licence, © Conveyal), including
 RAPTOR as implemented in R5's `FastRaptorWorker`; the decay functions'
 exponential reproduces Apache Commons Math 3's `FastMath.exp` (Apache-2.0).
-r5r, by Ipea, defined the interface this package follows and supplies the
-reference results.

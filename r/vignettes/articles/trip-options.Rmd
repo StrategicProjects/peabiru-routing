@@ -9,8 +9,7 @@ description: >
 source("setup.R")
 ```
 
-`trip_options()` is peabiru's own trip planner, with no counterpart in r5r:
-for each origin and destination it gives every trip worth considering, the
+`trip_options()` is peabiru's own trip planner: for each origin and destination it gives every trip worth considering, the
 ones that no other trip beats on all the chosen criteria at once. Where
 `detailed_itineraries()` answers "what is the fastest way there?",
 `trip_options()` answers "what are my choices?": faster but dearer, cheaper
@@ -45,16 +44,16 @@ values reported stay exact. Rounding cannot make a trip look better than
 one that beats it to the second, so the result is the same as comparing
 every trip at that resolution.
 
-The trips are those of r5r's network semantics (the same access and egress
-searches, transfers between stops and boarding rules as
-`detailed_itineraries()`), so the times agree with the other functions.
+The trips follow the same network rules as `detailed_itineraries()` (the
+same access and egress searches, transfers between stops and boarding
+rules), so the times agree with the other functions.
 
-The example uses r5r's sample data of Porto Alegre, whose GTFS has
-timetables, and the fare structure r5r ships for it, downloaded once into
-the temporary directory.
+The example uses the sample data of Porto Alegre from the r5r project,
+whose GTFS has timetables, and the fare structure that comes with it,
+downloaded once into the temporary directory.
 
 ```{r data}
-poa <- r5r_sample()
+poa <- poa_sample()
 poa_network <- build_network(poa, n_threads = 2)
 fares_zip <- file.path(tempdir(), "fares_poa.zip")
 if (!file.exists(fares_zip)) {
@@ -133,14 +132,14 @@ the slowest one.
 
 ## Frequency-based routes
 
-GTFS `frequencies.txt` gives a headway, not departure times. r5r draws
-random departures (Monte Carlo); `trip_options()` does not: a
+GTFS `frequencies.txt` gives a headway, not departure times. The matrix
+functions draw random departures (Monte Carlo); `trip_options()` does not: a
 frequency-based vehicle is boarded at its expected time, half a headway
 after the traveller is ready to board (or after the period starts), within
 the period, and with `exact_times = 1` at the first scheduled departure.
 The results do not change from call to call, and differ on purpose from
-r5r's draws. The Sao Paulo sample shipped with the package runs by
-frequency:
+those of the Monte Carlo draws. The Sao Paulo sample shipped with the
+package runs by frequency:
 
 ```{r frequencies}
 res <- trip_options(network, points[1, ], points[27, ],
@@ -150,12 +149,12 @@ res$options[, c("option", "total_time", "transfers", "walk_time",
                 "n_departures", "description")]
 ```
 
-## Compared with r5r's functions
+## Compared with the other functions
 
-- `pareto_frontier()` (r5r's) gives, for each fare cutoff, the percentiles
+- `pareto_frontier()` gives, for each fare cutoff, the percentiles
   of the travel time over Monte Carlo draws of departure times: a summary of
   time against budget, without the trips.
-- `detailed_itineraries()` (r5r's) gives the fastest trip, or with
+- `detailed_itineraries()` gives the fastest trip, or with
   `shortest_path = FALSE` R5's alternatives (one per sequence of routes,
   the fastest of each).
 - `trip_options()` gives the trade-offs themselves, trip by trip, with their

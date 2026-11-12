@@ -180,7 +180,7 @@ cycling |> select(mode, segment_duration, distance)
 ```
 
 The bundled feed is frequency-based, so `detailed_itineraries()` routes
-street modes only (as r5r does); the public transport trip comes from
+street modes only; the public transport trip comes from
 `trip_options()` below.
 
 ## trip_options() with dplyr
@@ -239,10 +239,9 @@ script:
 
 - `"data.frame"` gives base data frames (and plain `sf`), for code written
   for them;
-- `"data.table"` gives `data.table`s, exactly as r5r returns them (`sf`
-  `data.table`s for isochrones and itineraries): the better choice for large
-  matrices, where data.table's grouping by reference saves time and memory,
-  and for scripts written for r5r.
+- `"data.table"` gives `data.table`s (`sf` `data.table`s for isochrone
+  polygons and itineraries): the better choice for large matrices, where
+  data.table's grouping by reference saves time and memory.
 
 ```{r data-table, message = FALSE, eval = requireNamespace("data.table", quietly = TRUE)}
 library(data.table)

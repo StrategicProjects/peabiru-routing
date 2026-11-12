@@ -40,7 +40,7 @@ test_that("a network takes slope costs from a .tif raster", {
                    travel_time_matrix(flat, pts, pts, mode = "CAR", n_threads = 2))
 })
 
-test_that("a scenario routes without the slope costs, with r5r's warning", {
+test_that("a scenario routes without the slope costs, with a warning", {
   dir <- elevation_dir()
   on.exit(unlink(dir, recursive = TRUE))
   pts <- fixture_points()
@@ -48,7 +48,7 @@ test_that("a scenario routes without the slope costs, with r5r's warning", {
   expect_warning(
     s <- travel_time_matrix(tobler, pts, pts, mode = "WALK", carspeed_scale = 0.9,
                             n_threads = 2),
-    "This may affect results for WALK or BICYCLE due to missing elevation. See issue #555."
+    "WALK and BICYCLE are routed without the slope costs of the elevation raster"
   )
   expect_identical(s, travel_time_matrix(fixture_network(), pts, pts, mode = "WALK",
                                          n_threads = 2))
@@ -57,7 +57,7 @@ test_that("a scenario routes without the slope costs, with r5r's warning", {
                                        carspeed_scale = 0.9, n_threads = 2))
 })
 
-test_that("rasters peabiru cannot read as r5r does are errors", {
+test_that("rasters peabiru cannot read are errors", {
   bad <- tempfile(fileext = ".tif")
   writeBin(raw(10), bad)
   dir <- elevation_dir(c("elevation.tif" = bad))
@@ -75,7 +75,7 @@ test_that("rasters peabiru cannot read as r5r does are errors", {
   expect_error(build_network(dir3, n_threads = 2), "2 elevation rasters \\(a.tif, b.tif\\)")
 })
 
-test_that("a raster file in upper case is not one, as in r5r", {
+test_that("a raster file in upper case is not one", {
   dir <- elevation_dir(c("HILLS.TIF" = hills()))
   on.exit(unlink(dir, recursive = TRUE))
   network <- build_network(dir, n_threads = 2)
@@ -96,7 +96,7 @@ test_that("rasters in other coordinate reference systems are read", {
   }
 })
 
-test_that("voids and values beyond +/-3276.7 m wrap around as in r5r, with a warning", {
+test_that("voids and values beyond +/-3276.7 m wrap around, with a warning", {
   dir <- elevation_dir(c("voids.tif" = test_path("fixtures", "spo_voids.tif")))
   on.exit(unlink(dir, recursive = TRUE))
   expect_warning(n <- build_network(dir, n_threads = 2),

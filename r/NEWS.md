@@ -1,16 +1,21 @@
 # peabiru (development version)
 
-The package now exports all 22 functions of r5r 2.5.0, with r5r's formals
-(names, order and defaults), and gives r5r's results.
+## Breaking changes
+
+* The first argument of every function that takes a network is now
+  `network` (it was `r5r_network`). Calls that pass the network by position
+  are not affected.
+* The arguments `r5r_core` (every function) and `sample_size`
+  (`isochrone()`), which were accepted with a warning and ignored, are
+  gone.
 
 ## New functions
 
-* `trip_options()`, peabiru's own multi-criteria trip planner (r5r has no
-  counterpart): for each pair, the trips not dominated on total time, fare,
-  transfers and minutes on foot (any subset) at each departure minute of the
-  window, merged into options, with their legs in the format of
-  `detailed_itineraries()`. Exact on its trip definition (r5r's network
-  semantics), fares compared soundly for any fare structure, and
+* `trip_options()`, a multi-criteria trip planner: for each pair, the trips
+  not dominated on total time, fare, transfers and minutes on foot (any
+  subset) at each departure minute of the window, merged into options, with
+  their legs in the format of `detailed_itineraries()`. Exact on its trip
+  definition, fares compared soundly for any fare structure, and
   frequency-based routes boarded at their expected times (no random draws).
 * `detailed_itineraries()`: the legs of each
   trip with their geometry, the fastest trip or the alternatives
@@ -23,17 +28,15 @@ The package now exports all 22 functions of r5r 2.5.0, with r5r's formals
 * Network inspection: `find_snap()`, `street_network_bbox()`,
   `street_network_to_sf()`, `transit_network_to_sf()`,
   `check_transit_availability()` and `get_gtfs_errors()`.
-* r5r's functions for Java, kept so that r5r scripts run: `setup_r5()`,
-  `stop_r5()`, `download_r5()`, `r5r_cache()` and `r5r_sitrep()`.
 
 ## New arguments and inputs
 
 * Public transport by specific modes (`"BUS"`, `"RAIL"`, ...), and
   bicycle or car access and egress (`mode`, `mode_egress`, `max_bike_time`,
   `max_car_time`).
-* `output_dir` in every function that has it in r5r except
-  `pareto_frontier()`: one CSV file per origin (or pair), byte for byte the
-  files r5r writes, routed and written a slice at a time.
+* `output_dir` in the matrix functions, `accessibility()` and
+  `detailed_itineraries()`: one CSV file per origin (or pair), routed and
+  written a slice at a time.
 * Scenarios: `new_carspeeds` (by 'OpenStreetMap' way or by polygon),
   `carspeed_scale` and `new_lts` (by way or by line).
 * Elevation: a `.tif` raster in the data directory gives walking and
@@ -41,63 +44,63 @@ The package now exports all 22 functions of r5r 2.5.0, with r5r's formals
   EPSG:4326 or the coordinate systems used for Brazil and worldwide whose
   transform is reproduced exactly (SIRGAS 2000, SAD69, Corrego Alegre and
   their UTM zones, SIRGAS 2000 / Brazil Polyconic, WGS 84 / UTM,
-  Pseudo-Mercator). Where r5r's pixel depends on the machine, peabiru reads
-  the one Java's `StrictMath` gives, with a warning; voids and values beyond
-  +/-3276.7 m are stored wrapped around as r5r stores them, with a warning.
-* 'GTFS' feeds are read as gtfs-lib reads them, including the feeds it
+  Pseudo-Mercator). Where the pixel a street point falls in depends on the
+  last bits of the projection, peabiru reads the one Java's `StrictMath`
+  gives, the same on every machine, with a warning; voids and values beyond
+  +/-3276.7 m are stored wrapped around, as R5 stores them, with a warning.
+* 'GTFS' feeds are read as R5's gtfs-lib reads them, including the feeds it
   loads with missing columns, short times or empty dates, and GTFS-Flex
-  `locations.geojson`; feeds with errors of priority `"HIGH"` are refused,
-  as r5r refuses them (and `get_gtfs_errors()` lists the errors).
+  `locations.geojson`; feeds with errors of priority `"HIGH"` are refused
+  (and `get_gtfs_errors()` lists the errors).
 
 ## Changes
 
 * `isochrone()`: when `sf::st_make_valid()` with spherical geometry (s2)
   changes the area of a polygon by more than one part in 10,000 (it can,
-  by several per cent, in polygons of many parts and holes, and r5r returns
-  those), the polygons of that origin are repaired on the plane instead,
-  with a warning of class `peabiru_isochrone_repair`.
-  `options(peabiru.isochrone_repair = "r5r")` returns r5r's polygons.
-
+  by several per cent, in polygons of many parts and holes), the polygons
+  of that origin are repaired on the plane instead, with a warning of class
+  `peabiru_isochrone_repair`.
+  `options(peabiru.isochrone_repair = "spherical")` keeps the spherical
+  repair.
 * The class of the tables returned is chosen by
   `options(peabiru.output = )`, read at each call: `"tibble"` (the default),
-  `"data.frame"` (what every function returned before) or `"data.table"`,
-  with which results are identical to r5r's, class and attributes included
-  (`sf` `data.table`s where r5r's are, `find_snap()`'s index on `found`).
-  It applies to every table, `sf` results and the tables of fare structures
-  and of `trip_options()` included. 'tibble' is now imported; 'data.table'
-  stays suggested.
+  `"data.frame"` (what every function returned before) or `"data.table"`
+  (`sf` `data.table`s for isochrone polygons, itineraries, street edges and
+  transit routes; an index on `found` in `find_snap()`). It applies to
+  every table, `sf` results and the tables of fare structures and of
+  `trip_options()` included. 'tibble' is now imported; 'data.table' stays
+  suggested.
 * An `sf` of points (`origins`, `destinations`, `points`) or of scenario
   polygons or lines (`new_carspeeds`, `new_lts`) in another coordinate
   reference system than WGS 84 is reprojected with `sf::st_transform()`,
   with a message of class `peabiru_reprojected` naming the argument and the
-  CRS (r5r, and peabiru so far, stopped with an error). An `sf` without a
-  CRS is an error that says how to set it. Results stay in EPSG:4326.
-* `read_fare_structure()` keeps the columns of a table without rows
-  in the file, as r5r's `fread()` does (it returned a table without columns).
-* Deprecated arguments (`r5r_core`, and `sample_size` in `isochrone()`)
-  have r5r's default, `deprecated()`; passing `deprecated()` counts as not
-  giving the argument, as in r5r.
-* Argument errors have r5r's messages, word for word.
+  CRS (it was an error). An `sf` without a CRS is an error that says how to
+  set it. Results stay in EPSG:4326.
+* `read_fare_structure()` keeps the columns of a table without rows in the
+  file (it returned a table without columns).
+* Arguments are checked with the checks and messages of 'checkmate' and
+  'cli' (ported, without the dependencies).
+* The error for exactly 200 Monte Carlo draws with fares has class
+  `peabiru_200_draws`.
 * Isochrone polygons follow the C++ library 'isoband' is built with on each
-  platform, so they equal r5r's on Linux and Windows too.
+  platform, so that on each system they are the polygons 'isoband' gives
+  there.
 * Street edge lengths are computed with Apache Commons Math's `FastMath`, as
   R5 computes them.
 * Park-and-ride areas link to the street as R5 links them.
 * `detailed_itineraries()` follows rides along GTFS shapes cut by
   `shape_dist_traveled` as R5 cuts them, and plans car egress through turn
-  restrictions with two or more via ways as r5r does on a freshly built
-  network, with a warning naming the pairs whose result in r5r depends on
-  what ran before (both were errors).
-* `write_fare_structure()` deflates the archive, as r5r's does.
+  restrictions with two or more via ways in a fixed order (that of a
+  freshly built network), with a warning naming the pairs whose itinerary
+  another order would change (both were errors).
+* `write_fare_structure()` deflates the archive.
 * What peabiru does not do "is not supported by peabiru" (no "yet").
 * Under `R CMD check` with its limit on cores (`_R_CHECK_LIMIT_CORES_`), the
   default `n_threads = Inf` uses two threads instead of all cores.
-* The reference documentation describes each function on its own terms,
-  with a "Compatibility with r5r" section; new articles on itineraries,
-  elevation, scenarios and inspecting a network, and "Coming from r5r" lists
-  every deliberate difference.
-* A test compares the formals of every function with a snapshot of r5r
-  2.5.0's (`tests/testthat/fixtures/r5r-formals.csv`).
+* The reference documentation describes each function on its own terms; new
+  articles on itineraries, elevation, scenarios and inspecting a network.
+  The article "Compared with r5r" says what the package shares with r5r,
+  what differs and how to move a script over.
 
 # peabiru 0.0.1
 

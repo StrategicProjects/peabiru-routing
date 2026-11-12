@@ -7,9 +7,12 @@ NULL
 
 #' Version of the Rust core this package was built against.
 #' @noRd
-rs_check_output_ids <- function(ids) .Call(wrap__rs_check_output_ids, ids)
-
 rs_core_version <- function() .Call(wrap__rs_core_version)
+
+#' The core's check of the ids that `output_dir`'s file names are built
+#' from (missing ids are checked by the R code).
+#' @noRd
+rs_check_output_ids <- function(ids) .Call(wrap__rs_check_output_ids, ids)
 
 #' Build a network from a directory with one `.pbf`, any GTFS zips and an
 #' optional `.tif` elevation raster (used unless `elevation` is `"NONE"`).
@@ -20,17 +23,18 @@ rs_build_network <- function(data_path, n_threads, elevation) .Call(wrap__rs_bui
 #' @noRd
 rs_network_valid <- function(ptr) .Call(wrap__rs_network_valid, ptr)
 
-#' Warnings about the network build: one per GTFS feed that r5r refuses
-#' to build a network from, then those about the elevation raster.
+#' Warnings about the network build: one per GTFS feed with errors of
+#' priority `HIGH` (when the build goes on despite them), then those about
+#' the elevation raster.
 #' @noRd
-rs_network_r5r_warnings <- function(ptr) .Call(wrap__rs_network_r5r_warnings, ptr)
+rs_network_build_warnings <- function(ptr) .Call(wrap__rs_network_build_warnings, ptr)
 
 #' Sizes of the network, for `print()`.
 #' @noRd
 rs_network_info <- function(ptr) .Call(wrap__rs_network_info, ptr)
 
 #' Number of services in the network and of those active on `date`
-#' (`yyyymmdd`), as r5r's `getTransitServiceAvailability`.
+#' (`yyyymmdd`).
 #' @noRd
 rs_transit_availability <- function(ptr, date) .Call(wrap__rs_transit_availability, ptr, date)
 
@@ -41,15 +45,15 @@ rs_transit_availability <- function(ptr, date) .Call(wrap__rs_transit_availabili
 rs_street_ttm <- function(ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads, scenario, output) .Call(wrap__rs_street_ttm, ptr, olat, olon, dlat, dlon, mode, walk_speed, bike_speed, max_lts, max_trip_duration, n_threads, scenario, output)
 
 #' Public transport travel-time matrix: the reported pairs as
-#' `list(from, to, p1, ..., pk)` (percentiles ascending, NA where r5r
-#' gives NA), origin-major. With `output` (see [`Output`]), the files are
+#' `list(from, to, p1, ..., pk)` (percentiles ascending, NA beyond
+#' the trip limit), origin-major. With `output` (see [`Output`]), the files are
 #' written instead and `NULL` returned.
 #' @noRd
 rs_transit_ttm <- function(ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output, fare_structure, max_fare) .Call(wrap__rs_transit_ttm, ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, date, departure_time, time_window, percentiles, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output, fare_structure, max_fare)
 
 #' Accessibility values `[origin][opportunity][percentile][cutoff]`,
 #' flattened. `mode` is the street mode (of the access to public
-#' transport when `transit_modes`, r5r's `transit_mode`, is not empty);
+#' transport when `transit_modes` is not empty);
 #' `opportunities` is a list of double vectors, one per column. With
 #' `output` (see [`Output`], with the `opportunities` names), the files are
 #' written instead and `NULL` returned.
@@ -58,44 +62,44 @@ rs_accessibility <- function(ptr, olat, olon, dlat, dlon, opportunities, mode, t
 
 #' Expanded (or, with `arrival`, arrival) travel-time matrix as columns:
 #' `from`, `to` (1-based), `departure` (seconds after midnight), `draw`,
-#' the breakdown times (NA where r5r gives NA), `routes`, `n_rides` and
+#' the breakdown times (NA for a trip without rides), `routes`, `n_rides` and
 #' `total_time`. For an arrival search the parameters must already be the
 #' departure side (date and time of `arrival - max_trip_duration`,
-#' `time_window = max_trip_duration`), as r5r's R wrapper sets them. With
+#' `time_window = max_trip_duration`), as the R code sets them. With
 #' `output` (see [`Output`], with `breakdown`), the files are written
 #' instead and `NULL` returned.
 #' @noRd
 rs_expanded <- function(ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output) .Call(wrap__rs_expanded, ptr, olat, olon, dlat, dlon, transit_modes, access_mode, egress_mode, bike_speed, max_lts, max_bike_time, max_car_time, arrival, date, departure_time, time_window, max_walk_time, max_trip_duration, walk_speed, max_rides, draws_per_minute, has_seed, seed, n_threads, scenario, output)
 
 #' Polygon isochrones, as flat columns the R code assembles into `sf`:
-#' per row (origin, percentile, cutoff; r5r's order) `origin` (1-based),
+#' per row (by origin, percentile and cutoff) `origin` (1-based),
 #' `isochrone`, `percentile` and `n_polygons`; per polygon `n_rings`; per
 #' ring `n_points`; per point `x` (longitude) and `y` (latitude). `mode` is
 #' the street mode (of the access to public transport when
-#' `transit_modes`, r5r's `transit_mode`, is not empty); `max_trip_duration`
-#' is the search limit (r5r: the largest cutoff plus 10).
+#' `transit_modes` is not empty); `max_trip_duration` is the search limit
+#' (the R code passes the largest cutoff plus 10).
 #' @noRd
 rs_isochrone_polygons <- function(ptr, olat, olon, mode, transit_modes, egress_mode, cutoffs, zoom, percentiles, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads) .Call(wrap__rs_isochrone_polygons, ptr, olat, olon, mode, transit_modes, egress_mode, cutoffs, zoom, percentiles, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_lts, max_rides, draws_per_minute, has_seed, seed, n_threads)
 
-#' The street edges of r5r's `street_network_to_sf()$edges`, as columns,
-#' with the centroid r5r routes to (`lat`, `lon`; NaN without one) and the
+#' The street edges of `street_network_to_sf()$edges`, as columns, with
+#' the centroid line isochrones route to (`lat`, `lon`; NaN without one) and the
 #' line of each edge as `n_points` and flat `x`, `y`.
 #' @noRd
 rs_street_edges <- function(ptr) .Call(wrap__rs_street_edges, ptr)
 
 #' The street edges of the network a scenario makes (as `rs_street_edges`),
-#' for comparing it with r5r's; `NULL` when the scenario changes nothing.
+#' for inspecting it; `NULL` when the scenario changes nothing.
 #' @noRd
 rs_scenario_street_edges <- function(ptr, scenario) .Call(wrap__rs_scenario_street_edges, ptr, scenario)
 
 #' Line isochrones from an integer matrix of median minutes (`NA` where not
 #' reported), `n_origins` rows of `n_edges` values, origin-major: the rows
-#' in r5r's order as `origin`, `edge` (1-based), `travel_time` and
+#' by origin, then band and travel time, as `origin`, `edge` (1-based), `travel_time` and
 #' `isochrone`.
 #' @noRd
 rs_isochrone_lines <- function(n_origins, n_edges, minutes, cutoffs) .Call(wrap__rs_isochrone_lines, n_origins, n_edges, minutes, cutoffs)
 
-#' Snapped points of r5r's `find_snap()`: `snap_lat`, `snap_lon`,
+#' Snapped points of `find_snap()`: `snap_lat`, `snap_lon`,
 #' `distance` (NA where not found) and `found`, one per point.
 #' @noRd
 rs_find_snap <- function(ptr, lat, lon, radius, mode) .Call(wrap__rs_find_snap, ptr, lat, lon, radius, mode)
@@ -104,22 +108,22 @@ rs_find_snap <- function(ptr, lat, lon, radius, mode) .Call(wrap__rs_find_snap, 
 #' @noRd
 rs_street_bbox <- function(ptr) .Call(wrap__rs_street_bbox, ptr)
 
-#' The vertices of r5r's `street_network_to_sf()`, as columns.
+#' The vertices of `street_network_to_sf()`, as columns.
 #' @noRd
 rs_street_vertices <- function(ptr) .Call(wrap__rs_street_vertices, ptr)
 
-#' The stops of r5r's `transit_network_to_sf()`, as columns (NA
+#' The stops of `transit_network_to_sf()`, as columns (NA
 #' coordinates for stops not linked to the streets).
 #' @noRd
 rs_transit_stops <- function(ptr) .Call(wrap__rs_transit_stops, ptr)
 
-#' The routes of r5r's `transit_network_to_sf()`, as columns, with the line
+#' The routes of `transit_network_to_sf()`, as columns, with the line
 #' of each row as `n_points` and flat `x`, `y`.
 #' @noRd
 rs_transit_routes <- function(ptr) .Call(wrap__rs_transit_routes, ptr)
 
 #' The operating dates of the network's services (`yyyymmdd`, ascending),
-#' as r5r's `check_transit_availability()` discovers them.
+#' as `check_transit_availability()` lists them.
 #' @noRd
 rs_transit_service_dates <- function(ptr) .Call(wrap__rs_transit_service_dates, ptr)
 
@@ -132,20 +136,20 @@ rs_feed_paths <- function(ptr) .Call(wrap__rs_feed_paths, ptr)
 rs_gtfs_files <- function(dir) .Call(wrap__rs_gtfs_files, dir)
 
 #' The errors gtfs-lib reports for the feeds at `paths`, read in this
-#' order, as the columns of r5r's `gtfs_errors.csv` (`line` NA never).
+#' order, as the columns of `get_gtfs_errors()` (`line` NA never).
 #' @noRd
 rs_gtfs_errors <- function(paths) .Call(wrap__rs_gtfs_errors, paths)
 
-#' Check a fare structure as r5r does when it is set, against the
+#' Check a fare structure against the
 #' network's routes (`NULL` passes).
 #' @noRd
 rs_check_fare_structure <- function(ptr, fare_structure) .Call(wrap__rs_check_fare_structure, ptr, fare_structure)
 
-#' r5r's `setup_fare_structure()` as a list (columns of the tables).
+#' `setup_fare_structure()` as a list (columns of the tables).
 #' @noRd
 rs_setup_fare_structure <- function(ptr, base_fare, by) .Call(wrap__rs_setup_fare_structure, ptr, base_fare, by)
 
-#' r5r's `read_fare_structure()` of the bytes of the `.zip` file.
+#' `read_fare_structure()` of the bytes of the `.zip` file.
 #' @noRd
 rs_read_fare_structure <- function(bytes, encoding) .Call(wrap__rs_read_fare_structure, bytes, encoding)
 
@@ -158,7 +162,7 @@ rs_fwrite <- function(df) .Call(wrap__rs_fwrite, df)
 #' @noRd
 rs_zip_texts <- function(names, texts) .Call(wrap__rs_zip_texts, names, texts)
 
-#' r5r's `pareto_frontier()`: `list(from, to, percentile, travel_time,
+#' `pareto_frontier()`: `list(from, to, percentile, travel_time,
 #' monetary_cost)`, `from`/`to` 1-based. `transit_modes` empty routes by
 #' `mode` alone.
 #' @noRd
@@ -172,8 +176,8 @@ rs_pareto_frontier <- function(ptr, olat, olon, dlat, dlon, mode, transit_modes,
 #' with `drop_geometry`). With `output`
 #' (`list(dir, from_ids, to_ids)`) the files are written instead and
 #' only `list(warnings)` returned. `warnings`: the texts R shows as
-#' warnings. `fail_fast_raptor`: r5r's test switch `r5r.failFastRaptor`
-#' (option `peabiru.fail_fast_raptor`).
+#' warnings. `fail_fast_raptor`: a test switch that makes the first router
+#' fail, so that the fallback runs (option `peabiru.fail_fast_raptor`).
 #' @noRd
 rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output, suboptimal_minutes, fare_structure, max_fare, fail_fast_raptor) .Call(wrap__rs_detailed_itineraries, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output, suboptimal_minutes, fare_structure, max_fare, fail_fast_raptor)
 

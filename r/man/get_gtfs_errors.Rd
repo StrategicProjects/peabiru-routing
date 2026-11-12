@@ -4,10 +4,10 @@
 \alias{get_gtfs_errors}
 \title{Get GTFS errors encountered in network building}
 \usage{
-get_gtfs_errors(r5r_network)
+get_gtfs_errors(network)
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}, or the path
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}, or the path
 of a directory with 'GTFS' feeds (\code{.zip}), for instance one a network
 could not be built from.}
 }
@@ -17,6 +17,8 @@ A table with columns \code{file} (the table, without
 table), \code{type} (gtfs-lib's error class), \code{field}, \code{id} (the key
 concerned, for duplicate keys and suspect stop locations) and
 \code{priority} (\code{"HIGH"}, \code{"MEDIUM"}, \code{"LOW"} or \code{"UNKNOWN"}).
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
 \description{
 The errors that the 'GTFS' library of 'R5' (Conveyal's gtfs-lib) reports
@@ -41,21 +43,12 @@ without an id) is an error naming the cause, as is a \code{locations.geojson}
 (of GTFS-Flex zones) that is not in UTF-8. GTFS-Flex zones and location
 groups are read as gtfs-lib reads them, for its errors; on-demand trips
 are not routed.
-}
-\section{Compatibility with r5r}{
 
-The argument and the columns are those of \code{r5r::get_gtfs_errors()} in
-r5r 2.5.0, with the same rows, and the column types \code{data.table::fread()}
-gives r5r (exactly, when 'data.table' is installed); with \code{options(peabiru.output = "data.table")}
-the result is a \code{data.table}, as r5r's. r5r writes the errors to
-\code{gtfs_errors.csv} in the data folder when it builds the network and
-reads that file back, listing them in the order of a Java \code{HashSet},
-which changes from one run to the next; peabiru writes nothing, reads
-the feeds again and lists the rows in a fixed order. On a feed where
-gtfs-lib fails, r5r's \code{build_network()} fails without writing the file.
-A folder that does not exist is an error of peabiru's own.
+Nothing is written to the data folder. The types of the columns are
+those \code{data.table::fread()} would give a file of these rows: a column
+with no value at all (often \code{field} or \code{id}) is logical, \code{line} is an
+integer.
 }
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

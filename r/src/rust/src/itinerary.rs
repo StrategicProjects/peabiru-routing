@@ -1,5 +1,5 @@
 //! `detailed_itineraries()`: the core's itineraries as plain vectors, one
-//! element per leg, with the geometry as the WKT text r5r gives
+//! element per leg, with the geometry as WKT text for
 //! `sf::st_as_sfc()`.
 
 use super::{err, interruptible, network, points, street_mode, transit_modes, Outcome};
@@ -17,8 +17,8 @@ use peabiru_core::{
 /// with `drop_geometry`). With `output`
 /// (`list(dir, from_ids, to_ids)`) the files are written instead and
 /// only `list(warnings)` returned. `warnings`: the texts R shows as
-/// warnings. `fail_fast_raptor`: r5r's test switch `r5r.failFastRaptor`
-/// (option `peabiru.fail_fast_raptor`).
+/// warnings. `fail_fast_raptor`: a test switch that makes the first router
+/// fail, so that the fallback runs (option `peabiru.fail_fast_raptor`).
 /// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]

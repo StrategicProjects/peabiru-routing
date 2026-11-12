@@ -39,8 +39,8 @@ new_df <- function(cols) {
 }
 
 # A table built by the package (a data.frame that nothing else refers to)
-# in the class `kind`: a tibble, the data.frame itself, or a data.table as
-# r5r returns it (data.table::setDT(), as r5r's java_to_dt()).
+# in the class `kind`: a tibble, the data.frame itself, or a data.table
+# (data.table::setDT(), which converts in place).
 as_output <- function(df, kind) {
   switch(kind,
     "data.frame" = df,
@@ -65,8 +65,10 @@ as_output_list <- function(x, kind, tables, sf_data_table = character()) {
 # An sf built by the package (class c("sf", "data.frame")) with the data
 # frame class of `kind`: c("sf", "tbl_df", "tbl", "data.frame"), as
 # sf::st_as_sf() makes of a tibble; c("sf", "data.frame"); or, for
-# "data.table", what r5r returns: c("sf", "data.table", "data.frame") where
-# r5r's sf is also a data.table (`data_table = TRUE`), a plain sf elsewhere.
+# "data.table", c("sf", "data.table", "data.frame") for the results that
+# are tables of trips or of network elements with attributes to work on
+# (`data_table = TRUE`: isochrone polygons, itineraries, street edges,
+# transit routes), a plain sf for the others.
 # The attributes of the sf (sf_column, agr, row names) are kept as they are.
 as_output_sf <- function(x, kind, data_table) {
   class(x) <- switch(kind,
@@ -90,11 +92,12 @@ doc_output_class <- function(sf = FALSE) {
   paste0(
     "Tables are tibbles by default; `options(peabiru.output = \"data.frame\")` ",
     "gives base `data.frame`s and `options(peabiru.output = \"data.table\")` ",
-    "gives `data.table`s, as r5r returns them (see [peabiru-package]).",
+    "gives `data.table`s (see [peabiru-package]).",
     if (sf) paste0(
       " An `sf` result keeps its geometry column and EPSG:4326 and takes the ",
       "same data frame class: an `sf` tibble, a plain `sf` data frame, or, with ",
-      "\"data.table\", the class r5r gives it."
+      "\"data.table\", an `sf` `data.table` where the section \"Class of the ",
+      "results\" of [peabiru-package] says so."
     ) else ""
   )
 }

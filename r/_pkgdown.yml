@@ -95,8 +95,8 @@ reference:
   - detailed_itineraries
 - title: Trip options
   desc: >
-    peabiru's own multi-criteria trip planner, with no r5r counterpart: every
-    trip worth considering on time, fare, transfers and walking.
+    A multi-criteria trip planner: every trip worth considering on time,
+    fare, transfers and walking.
   contents:
   - trip_options
 - title: Inspecting a network
@@ -110,16 +110,6 @@ reference:
   - transit_network_to_sf
   - check_transit_availability
   - get_gtfs_errors
-- title: Compatibility with r5r
-  desc: >
-    r5r's functions for Java and the R5 jar, kept so that r5r scripts run;
-    peabiru needs neither.
-  contents:
-  - setup_r5
-  - stop_r5
-  - download_r5
-  - r5r_cache
-  - r5r_sitrep
 - title: The package
   contents:
   - peabiru-package

@@ -5,7 +5,7 @@
 \title{Calculate travel time and monetary cost Pareto frontier}
 \usage{
 pareto_frontier(
-  r5r_network,
+  network,
   origins,
   destinations,
   mode = c("WALK", "TRANSIT"),
@@ -27,12 +27,11 @@ pareto_frontier(
   n_threads = Inf,
   verbose = FALSE,
   progress = TRUE,
-  output_dir = NULL,
-  r5r_core = deprecated()
+  output_dir = NULL
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
 \code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
@@ -97,15 +96,12 @@ counter or routing log is printed.}
 
 \item{output_dir}{Must be \code{NULL} (the default): writing the frontier to
 files is not available.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 A table with \code{from_id}, \code{to_id} (character), \code{percentile},
 \code{travel_time} and \code{monetary_cost}.
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
 \description{
 Fits the Pareto frontier of travel time and fare between each origin and
@@ -118,16 +114,6 @@ cutoff as the router reads it, a 32-bit float (\code{4.8} is
 \code{4.800000190734863}). Routes given by frequencies are routed with Monte
 Carlo draws: pass \code{seed} for reproducible results.
 }
-\section{Compatibility with r5r}{
-
-The arguments, their defaults and checks, the columns and the rows of the
-result are those of \code{r5r::pareto_frontier()} in r5r 2.5.0, with the same
-values (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
-the result is identical to r5r's, its class included. \code{output_dir}, with which r5r
-writes the result to CSV files, is not available: anything but \code{NULL}
-is an error.
-}
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

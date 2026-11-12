@@ -55,8 +55,10 @@ build_args <- list(opt("dir"), verbose = FALSE)
 if (engine == "r5r") build_args$overwrite <- TRUE else build_args$n_threads <- threads
 build_s <- elapsed(network <- do.call(f("build_network"), build_args))
 
+# the network goes first, unnamed: the argument is `r5r_network` in r5r and
+# `network` in peabiru
 common <- list(
-  r5r_network = network, origins = points, destinations = points,
+  network, origins = points, destinations = points,
   departure_datetime = departure, max_trip_duration = P$max_trip_duration,
   walk_speed = P$walk_speed, bike_speed = P$bike_speed, max_lts = P$max_lts,
   n_threads = threads, progress = FALSE, verbose = FALSE

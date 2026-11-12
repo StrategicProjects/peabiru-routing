@@ -55,9 +55,7 @@ Description: Builds multimodal transport networks from 'OpenStreetMap'
     <doi:10.5198/jtlu.2018.1074>, the fare-constrained routing of Conway
     and Stewart (2019) <doi:10.1080/13658816.2019.1605075> and the
     contraction hierarchies of Geisberger, Sanders, Schultes and Vetter
-    (2012) <doi:10.1287/trsc.1110.0401>. Function names, arguments and
-    results are compatible with the 'r5r' package, Pereira, Saraiva,
-    Herszenhut, Braga and Conway (2021) <doi:10.32866/001c.21262>.
+    (2012) <doi:10.1287/trsc.1110.0401>.
 License: MIT + file LICENSE
 Copyright: The peabiru authors. The package includes code derived from
     other works; their copyright notices and licences are in the file
@@ -79,7 +77,6 @@ Imports:
 Suggests:
     data.table,
     knitr,
-    r5r,
     rmarkdown,
     sf,
     testthat (>= 3.0.0)

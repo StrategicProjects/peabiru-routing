@@ -1,11 +1,15 @@
 name: r5r parity
 
-# The R package's tests against r5r 2.5.0 (R5 7.6) running on the same
-# runner, on Linux, Windows and macOS. The parity tests compare peabiru's
-# results with r5r's with identical(); they are skipped wherever r5r cannot
-# start, so here PEABIRU_REQUIRE_R5R=true turns a missing r5r, Java or R5 jar
-# into an error (r/tests/testthat/helper-r5r.R) and tools/r5r_parity.R fails
-# if any test of the parity files was skipped. Of note on Linux and Windows:
+# The R package against r5r 2.5.0 (R5 7.6) running on the same runner, on
+# Linux, Windows and macOS. The comparisons are repository tooling, not part
+# of the package: the testthat directory bench/compare/testthat, run by
+# tools/r5r_parity.R against the installed package, compares peabiru's
+# results with r5r's with identical() and peabiru's formals with a snapshot
+# of r5r's. A comparison is skipped wherever r5r cannot start, so here
+# PEABIRU_REQUIRE_R5R=true turns a missing r5r, Java or R5 jar into an error
+# (bench/compare/testthat/helper-r5r.R) and tools/r5r_parity.R fails if any
+# comparison was skipped. The same step runs the package's own tests with sf
+# and data.table installed. Of note on Linux and Windows:
 # isoband (through r5r) is built with libstdc++ there, so the ring order of
 # the isochrones follows libstdc++'s hash table, and the GTFS feeds load in
 # the order the file system lists them, on both sides.
@@ -46,7 +50,8 @@ jobs:
         with:
           use-public-rspm: true
       # the packages the tests use, with their system libraries on Linux;
-      # r5r at exactly 2.5.0 (checked below)
+      # r5r (not a dependency of the package) at exactly 2.5.0 (checked
+      # below)
       - uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
         with:
           working-directory: r
@@ -103,10 +108,10 @@ jobs:
         # bash: in PowerShell, R is an alias of Invoke-History
         shell: bash
         run: R CMD INSTALL r
-      - name: Test against r5r
+      - name: Compare with r5r
         # Java heap for R5 (runners: 7 GB on Linux and macOS, 16 GB on
         # Windows); the script fails on any failure, error or skipped
-        # parity test
+        # comparison
         shell: Rscript {0}
         run: |
           options(java.parameters = "-Xmx4G")

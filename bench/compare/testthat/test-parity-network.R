@@ -1,6 +1,6 @@
 # Parity of the network functions with r5r, on r5r's Sao Paulo sample (the
-# .pbf and the GTFS only, no elevation). Needs r5r, a JDK 21 and the R5 jar;
-# skipped otherwise, as test-parity.R.
+# .pbf and the GTFS only, no elevation). Needs r5r, a JDK 21 and the R5 jar,
+# as test-parity.R.
 
 r5r_spo <- local({
   net <- NULL

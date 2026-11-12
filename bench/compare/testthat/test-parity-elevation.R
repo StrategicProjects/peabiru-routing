@@ -1,13 +1,14 @@
 # Parity with r5r on networks built with an elevation raster: r5r's Porto
 # Alegre sample with its poa_elevation.tif, and the Sao Paulo fixture with
-# the synthetic fixtures/spo_hills.tif, also warped by GDAL to SIRGAS 2000 /
+# the synthetic spo_hills.tif, also warped by GDAL to SIRGAS 2000 /
 # UTM zone 23S (spo_hills_31983.tif, 50 m, bilinear) and to SIRGAS 2000
 # longitude and latitude (spo_hills_4674.tif, Float32), which r5r reads
 # through GeoTools' coordinate transforms; and spo_voids.tif, spo_hills.tif
 # with voids of -32768 and patches of -9999, which r5r stores wrapped
-# around as 16-bit decimetres. Needs r5r, a JDK 21 and the R5 jar,
-# so it is skipped on CRAN and wherever r5r cannot start (see helper-r5r.R).
-# bench/compare/elevation_parity.R runs the full comparison.
+# around as 16-bit decimetres. Needs r5r, a JDK 21 and the R5 jar (see
+# helper-r5r.R). The rasters are those of the package's tests
+# (r/tests/testthat/fixtures). bench/compare/elevation_parity.R runs the
+# full comparison.
 
 elevation_networks <- local({
   nets <- list()
@@ -29,7 +30,7 @@ elevation_networks <- local({
       file.copy(file.path(fixture_path(), c("spo_osm.pbf", "spo_gtfs.zip")), dir)
       tif <- switch(city, spo = "spo_hills.tif", spovoids = "spo_voids.tif",
                     paste0("spo_hills_", sub("spo", "", city), ".tif"))
-      file.copy(test_path("fixtures", tif), dir)
+      file.copy(package_fixture(tif), dir)
       points <- fixture_points()
     }
     if (is.null(getOption("java.parameters"))) options(java.parameters = "-Xmx2G")
@@ -86,7 +87,7 @@ test_that("transit access and accessibility with elevation equal r5r's", {
                           cutoffs = c(20L, 40L), departure_datetime = departure, seed = 1L)
 })
 
-test_that("a scenario on a network with elevation equals r5r's, with its warning", {
+test_that("a scenario on a network with elevation equals r5r's, with a warning", {
   key <- "spo-tobler"
   n <- elevation_networks(key)
   pts <- n$points
@@ -94,7 +95,7 @@ test_that("a scenario on a network with elevation equals r5r's, with its warning
   expect_warning(
     pb <- travel_time_matrix(n$pb, pts, pts, mode = "WALK", carspeed_scale = 0.9,
                              n_threads = 2),
-    "missing elevation"
+    "without the slope costs"
   )
   r5 <- suppressMessages(suppressWarnings(
     r5r::travel_time_matrix(n$r5, pts, pts, mode = "WALK", carspeed_scale = 0.9,

@@ -2,9 +2,8 @@
 #'
 #' For each pair of origin and destination, every trip worth considering:
 #' the trips that no other trip beats on all the chosen criteria at once.
-#' This is peabiru's own multi-criteria trip planner; r5r has no
-#' counterpart (see "Not dominated" and "Compared with r5r's functions"
-#' below).
+#' This is a multi-criteria trip planner (see "Not dominated" and "Compared
+#' with the other functions" below).
 #'
 #' @section Not dominated:
 #' A trip *dominates* another when it is no worse on every chosen
@@ -23,8 +22,8 @@
 #' set of trips not dominated, one trip per combination of values: of
 #' trips with the same values on the chosen criteria, the one with the
 #' least total time, then transfers, minutes on foot and fare is kept.
-#' Trips are those of r5r's network semantics, so that their times agree
-#' with [detailed_itineraries()]: a direct trip by the street mode, and
+#' Trips are built as in the other routing functions, so that their times
+#' agree with [detailed_itineraries()]: a direct trip by the street mode, and
 #' trips that reach a stop of the access search, ride and walk between
 #' stops (as R5's transfer tables allow), and leave a stop of the egress
 #' search; each ride boards at least a minute after its stop is reached,
@@ -54,11 +53,12 @@
 #' expected times: half a headway after the boarding wait (or after the
 #' start of the period), within the period; with `exact_times = 1` at the
 #' first scheduled departure. There are no random draws and no `seed`, and
-#' the results differ on purpose from r5r's Monte Carlo draws.
+#' the results differ on purpose from the Monte Carlo draws of the other
+#' routing functions.
 #'
 #' @section Fares:
 #' Fares follow `fare_structure` exactly as [pareto_frontier()] and
-#' [detailed_itineraries()] compute them (r5r's calculator, in cents). A
+#' [detailed_itineraries()] compute them (in cents). A
 #' fare is not the sum of its rides (discounted transfers within a time
 #' allowance, unlimited transfers, a cap), so two partial trips are only
 #' compared on fare when one is at least as cheap for every way both can
@@ -66,9 +66,9 @@
 #' is what makes fare criteria slower than the others: trips waiting for a
 #' discount are kept apart until they cannot get one any more.
 #'
-#' @section Compared with r5r's functions:
+#' @section Compared with the other functions:
 #' [pareto_frontier()] gives, for each fare cutoff, the percentiles of the
-#' travel time over Monte Carlo draws of departure times (r5r's function);
+#' travel time over Monte Carlo draws of departure times;
 #' [detailed_itineraries()] gives the fastest trip, or with
 #' `shortest_path = FALSE` R5's alternatives, one per sequence of routes.
 #' `trip_options()` gives the trade-offs themselves: the trips that are
@@ -137,7 +137,7 @@
 #'   n_threads = 2
 #' )
 #' trips$options
-trip_options <- function(r5r_network,
+trip_options <- function(network,
                          origins,
                          destinations,
                          mode = c("WALK", "TRANSIT"),
@@ -170,7 +170,7 @@ trip_options <- function(r5r_network,
                          osm_link_ids = FALSE,
                          output_dir = NULL) {
   kind <- output_class()
-  assert_network(r5r_network)
+  assert_network(network)
   origins <- assign_points_input(origins, "origins", unique_ids = all_to_all)
   destinations <- assign_points_input(destinations, "destinations", unique_ids = all_to_all)
   od <- expand_od_pairs(origins, destinations, all_to_all)
@@ -192,7 +192,7 @@ trip_options <- function(r5r_network,
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)
   if (mode_list$transit) {
-    check_transit_availability_on_date(r5r_network, departure)
+    check_transit_availability_on_date(network, departure)
   }
   criteria <- assign_criteria(criteria, fare_structure)
 
@@ -220,9 +220,9 @@ trip_options <- function(r5r_network,
   }
   threads <- assign_n_threads(n_threads)
   check_messages(verbose, progress)
-  check_fares(fare_structure, max_fare, r5r_network)
+  check_fares(fare_structure, max_fare, network)
   check_output_dir(output_dir)
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
   needs_sf <- itineraries && !drop_geometry && is.null(output_dir)
   if (needs_sf && !requireNamespace("sf", quietly = TRUE)) {
     stop("Package 'sf' is needed for the geometry of the itineraries; ",
@@ -234,7 +234,7 @@ trip_options <- function(r5r_network,
     list(dir = path.expand(output_dir), from_ids = origins$id, to_ids = destinations$id)
   }
   res <- raise_if_stopped(rs_trip_options(
-    r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     mode_list$direct_modes, mode_list$transit_mode, mode_list$egress_mode,
     departure$yyyymmdd, departure$seconds, as.integer(time_window), criteria,
     max_walk_time, max_bike_time, max_car_time, max_trip_duration,

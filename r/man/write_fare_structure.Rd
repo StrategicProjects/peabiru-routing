@@ -20,18 +20,10 @@ Writes a fare structure to a \code{.zip} file holding five \code{.csv} files
 \code{fares_per_route.csv} and \code{debug_settings.csv}, in the format of
 \code{data.table::fwrite()}), which \code{\link[=read_fare_structure]{read_fare_structure()}} reads back.
 }
-\section{Compatibility with r5r}{
-
-The arguments are those of \code{r5r::write_fare_structure()} in r5r 2.5.0,
-and the CSV files are those r5r writes, byte for byte, deflated in the
-same order; the archive's bytes differ from r5r's (whose archive also
-holds the files' modification times). A file written
-by either package reads back in the other. A \code{fare_structure} that is not
-a fare structure, or whose settings have the wrong length, and a \code{NULL}
-\code{file_path} are errors that say so (r5r checks nothing there and fails
-while writing, or writes tables recycled to the wrong length).
+\details{
+The files are deflated and carry no modification times, so the same
+structure always gives the same archive, byte for byte.
 }
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

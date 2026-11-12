@@ -1,7 +1,6 @@
-# Argument checks. r5r validates its arguments with 'checkmate'; these call
-# the port of it in checkmate.R with the arguments r5r passes, so that the
-# same inputs are accepted and rejected, with the same messages, without
-# adding a dependency.
+# Argument checks: thin wrappers over the checks in checkmate.R (a port of
+# the parts of 'checkmate' the package needs, so that there is no
+# dependency on it).
 
 fail_assert <- function(name, msg) {
   stop("Assertion on '", name, "' failed: ", msg, ".", call. = FALSE)
@@ -30,7 +29,7 @@ assert_int <- function(x, name, null_ok = FALSE) {
   invisible(x)
 }
 
-# checkmate::assert_integerish(any.missing = FALSE, ...), as r5r calls it
+# checkmate::assert_integerish(any.missing = FALSE, ...)
 assert_integerish <- function(x, name, lower = -Inf, upper = Inf,
                               min_len = NULL, max_len = NULL, unique = FALSE,
                               null_ok = FALSE) {
@@ -53,8 +52,8 @@ assert_string <- function(x, name, null_ok = FALSE) {
 }
 
 assert_network <- function(x) {
-  # checkmate::assert_class(r5r_network, "r5r_network"), with peabiru's class
-  cm_assert(check_class(x, "peabiru_network"), "r5r_network")
+  # checkmate::assert_class(network, "peabiru_network")
+  cm_assert(check_class(x, "peabiru_network"), "network")
   if (!rs_network_valid(x$ptr)) {
     stop(
       "This network is no longer valid (networks cannot be saved and ",
@@ -68,18 +67,4 @@ assert_network <- function(x) {
 # An argument peabiru does not support yet: always an error, never ignored.
 unsupported <- function(what, instead = "") {
   stop(what, " is not supported by peabiru", instead, ".", call. = FALSE)
-}
-
-# lifecycle::deprecated() and lifecycle::is_present(), without depending on
-# 'lifecycle': the default of a deprecated argument is the missing argument,
-# so `r5r_core = deprecated()` in a call counts as not given, and the usage
-# shown in the documentation is the same as r5r's.
-deprecated <- function() quote(expr = )
-
-is_present <- function(arg) !identical(arg, quote(expr = ))
-
-# r5r >= 2.3.0 still accepts the network as `r5r_core`, with this warning
-warn_r5r_core <- function() {
-  warning("The `r5r_core` argument is deprecated as of r5r v2.3.0. ",
-          "Please use the `r5r_network` argument instead.", call. = FALSE)
 }

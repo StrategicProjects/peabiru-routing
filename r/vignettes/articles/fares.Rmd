@@ -2,17 +2,17 @@
 title: "Fares and Pareto frontiers"
 description: >
   Fare structures, travel times within a budget, the trade-off between time
-  and fare, and alternative itineraries with their fares, as in r5r.
+  and fare, and alternative itineraries with their fares.
 ---
 
 ```{r setup, include = FALSE}
 source("setup.R")
 ```
 
-peabiru computes transit fares as r5r 2.5.0 does. A *fare structure*
-describes how much each ride costs and which transfers are discounted; the
-routing functions take it as `fare_structure`, and the results are r5r's,
-number for number. With one, public transport is routed with R5's
+peabiru computes the fare of each public transport trip from a *fare
+structure*, which describes how much each ride costs and which transfers
+are discounted; the routing functions take it as `fare_structure`. With
+one, public transport is routed with R5's
 multi-criteria router (McRAPTOR), which keeps at each stop the trips that are
 faster or cheaper than the others, over `time_window * draws_per_minute`
 departure times sampled in the window.
@@ -28,7 +28,7 @@ fares$fares_per_type
 head(fares$fares_per_transfer, 3)
 ```
 
-The rules, as r5r's `RuleBasedInRoutingFareCalculator` applies them: the
+The rules (those of R5's rule-based in-routing fare calculator): the
 first ride costs its route's fare (the type's `fare`, or the route's own
 `route_fare` when the type has `use_route_fare`); a ride of the same type as
 the one before is free when the type has `unlimited_transfers`; otherwise,
@@ -44,9 +44,9 @@ fares$fares_per_transfer$fare <- 6.6   # two rides together
 fares$transfer_time_allowance <- 60L   # within an hour
 ```
 
-`write_fare_structure()` and `read_fare_structure()` write and read r5r's
-`.zip` file: the same CSV files, so a structure goes from one package to
-the other.
+`write_fare_structure()` and `read_fare_structure()` write and read a
+structure as a `.zip` file of five CSV files (the settings and the three
+tables), to keep it or share it.
 
 ```{r files}
 path <- tempfile(fileext = ".zip")
@@ -72,7 +72,7 @@ head(ttm)
 
 `pareto_frontier()` gives, for each pair, the travel time at each fare
 cutoff where it changes. `monetary_cost` is the cutoff as R5 reads it, a
-Java `float`, as r5r reports it.
+32-bit float.
 
 ```{r pareto}
 pf <- pareto_frontier(
@@ -83,19 +83,21 @@ pf <- pareto_frontier(
 head(pf)
 ```
 
-In this sample, whose GTFS is frequency-based, r5r's fare router finds no
-trip faster than walking: with fares its travel times are the walking times,
-and peabiru's are the same. With scheduled feeds, such as r5r's Porto
-Alegre sample, the frontier lists the faster trips that cost more.
+In this sample, whose GTFS is frequency-based, the multi-criteria router
+finds no trip faster than walking (it does not ride lines given by
+frequency): with fares the travel times are the walking times. With
+scheduled feeds, such as those of Porto Alegre in the
+[trip options](trip-options.html) article, the frontier lists the faster
+trips that cost more.
 
 ## Alternative itineraries
 
 `detailed_itineraries(shortest_path = FALSE)` lists the alternatives McRAPTOR
 finds, one per sequence of routes, up to `suboptimal_minutes` slower than
 the best; with a fare structure, each with its fare (`total_fare`) and the
-fare paid by the end of each leg (`cumulative_fare`). As in r5r, networks
-whose GTFS has frequency-based trips cannot be used with public transport
-there, so this sample's itineraries are by street:
+fare paid by the end of each leg (`cumulative_fare`). Networks whose GTFS
+has frequency-based trips cannot be used with public transport there, so
+this sample's itineraries are by street:
 
 ```{r itineraries}
 trips <- detailed_itineraries(

@@ -6,7 +6,7 @@
 departure time}
 \usage{
 travel_time_matrix(
-  r5r_network,
+  network,
   origins,
   destinations,
   mode = "WALK",
@@ -32,12 +32,11 @@ travel_time_matrix(
   n_threads = Inf,
   verbose = FALSE,
   progress = TRUE,
-  output_dir = NULL,
-  r5r_core = deprecated()
+  output_dir = NULL
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
 \code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
@@ -146,15 +145,12 @@ each slice is written before the next one is routed, so the whole
 result is never held in memory. The files have the columns of the
 result (with \code{cutoff} also under \code{"fixed_exponential"}, as the
 placeholder \code{0}), fields with \verb{,} or \verb{"} quoted, \code{NA} as an empty
-field, and doubles as Java writes them (\code{2.0}, \code{1.0E-4}), byte for byte
-the files r5r writes; an origin with no row has no file, except in
+field, and doubles in the shortest form that reads back the same, with
+a decimal point (\code{2.0}, \code{1.0E-4}); an origin with no row has no file, except in
 \code{\link[=accessibility]{accessibility()}}. With \code{output_dir}, \code{"WALK"} is routed from the
 origins even when there are fewer destinations, ids must not be
 missing, and trips over \code{max_trip_duration} are not blanked out as in
 the returned result.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 A table with \code{from_id}, \code{to_id} (character) and one
@@ -163,7 +159,7 @@ cannot be completed within \code{max_trip_duration}, or whose points are
 too far from the street network, are not returned; a higher percentile
 beyond the limit is \code{NA}. With \code{output_dir}, \code{output_dir}.
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
 \description{
 Travel times between every origin and every destination, by one street
@@ -233,20 +229,15 @@ over a long window (such as 8 per minute in a 10-minute window, or 5 in a
 window of 150 minutes or more): those combinations are an error.
 }
 
-\section{Compatibility with r5r}{
+\section{Walking with more origins than destinations}{
 
-The arguments, their defaults and checks, the columns and the rows of the
-result are those of \code{r5r::travel_time_matrix()} in r5r 2.5.0, and the
-travel times are equal pair by pair (with frequencies, for the same
-\code{seed}): the engine is a port of R5 7.6, the engine r5r drives. With
-\code{options(peabiru.output = "data.table")} the result is identical to
-r5r's, its class included. For a walking trip with more origins than
-destinations the search runs from the destinations, as r5r runs it, and
-the columns are swapped back. An \code{sf} of points (or of scenario
-polygons or lines) in another CRS than WGS 84 is reprojected, where r5r
-stops with an error. A
-missing destination id is an error (r5r fails on it in Java). See
-the article "Coming from r5r" on the package website for every difference.
+With \code{"WALK"} alone, more origins than destinations and a network built
+without an elevation raster, the search runs from the destinations
+(fewer searches) and the columns are swapped back, taking the walk as
+the same in both directions. Where it is not (one-way links for
+pedestrians are rare, but exist) the times are those of the reverse
+walk. With an elevation raster, or with \code{output_dir}, the search always
+runs from the origins.
 }
 
 \examples{

@@ -1,7 +1,9 @@
 # Argument errors of peabiru against r5r 2.5.0: every exported function the
 # two packages share, called with invalid values of each argument; the
-# condition class and message must be the same. Exit status 1 on any
-# difference not declared in `deliberate` below.
+# condition class and message must be the same, but for r5r's name in a
+# message (see `neutral()`). Exit status 1 on any difference not declared in
+# `deliberate` below. peabiru's network argument is `network`, r5r's
+# `r5r_network`: the cases are named after r5r's arguments.
 #
 #   JAVA_HOME=<JDK 21> Rscript bench/compare/error_parity.R [function regex] [report.csv]
 #
@@ -121,7 +123,8 @@ specific <- list(
 )
 # Arguments not tried, with why.
 untried <- c(
-  r5r_core = "deprecated alias of r5r_network",
+  r5r_core = "deprecated alias of r5r_network; not in peabiru",
+  sample_size = "deprecated and ignored in r5r; not in peabiru",
   new_carspeeds = "checked by the scenario battery", carspeed_scale = "checked by the scenario battery",
   new_lts = "checked by the scenario battery", output_dir = "writes files",
   temp_dir = "rebuilds the network", overwrite = "rebuilds the network",
@@ -192,6 +195,27 @@ deliberate <- c(
   ".*:(origins|destinations|points):sf_nocrs" =
     "an sf without a CRS: peabiru's error says how to set it (r5r's asks for WGS 84)"
 )
+# r5r's message as peabiru words it: the argument `network`, and without
+# r5r's name or the link to its issue tracker. Messages that are equal only
+# after this (compared word by word, since cli wraps the shorter text at
+# other places) are counted as deliberate differences, with this reason.
+neutral <- function(msg) {
+  msg <- gsub("r5r_network", "network", msg, fixed = TRUE)
+  msg <- gsub("\\s*See\\s+<https://github.com/ipea/r5r/issues/602>\\.", "", msg)
+  msg <- gsub("unsupported by r5r.", "unsupported.", msg, fixed = TRUE)
+  msg
+}
+words <- function(msg) gsub("\\s+", " ", msg)
+same_but_name <- function(p, r) {
+  !p$ok && !r$ok && !identical(p$msg, r$msg) && identical(words(p$msg), words(neutral(r$msg)))
+}
+why_name <- "the same message but for r5r's name, its argument 'r5r_network' or its link"
+# the argument list of a call for peabiru: r5r's, with the network as `network`
+for_peabiru <- function(a) {
+  names(a)[names(a) == "r5r_network"] <- "network"
+  a
+}
+
 # r5r raises its cli::cli_abort() errors as 'rlang' conditions; peabiru,
 # which imports nothing, raises the same message as a simpleError
 cli_class <- function(r) grepl("rlang_error", r)
@@ -216,7 +240,7 @@ run <- function(pkg, fun, a) {
 rows <- list()
 res_p <- NULL
 for (fun in grep(only, names(base(NULL)), value = TRUE)) {
-  b <- list(r5r = base(nets$r5r)[[fun]], peabiru = base(nets$peabiru)[[fun]])
+  b <- list(r5r = base(nets$r5r)[[fun]], peabiru = for_peabiru(base(nets$peabiru)[[fun]]))
   argn <- setdiff(names(formals(getExportedValue("r5r", fun))), names(untried))
   for (an in argn) {
     vals <- c(generic, specific[[an]])
@@ -224,9 +248,8 @@ for (fun in grep(only, names(base(NULL)), value = TRUE)) {
       key <- paste(fun, an, vn, sep = ":")
       res <- lapply(c("peabiru", "r5r"), function(pkg) {
         a <- b[[pkg]]
-        if (an == "r5r_network" && vn == "NULL_") a["r5r_network"] <- list(NULL)
-        else if (an == "r5r_network") a$r5r_network <- vals[[vn]]
-        else a[an] <- list(vals[[vn]])
+        arg <- if (an == "r5r_network" && pkg == "peabiru") "network" else an
+        a[arg] <- list(vals[[vn]])
         if (pkg == "r5r" && key %in% skip_valid && isTRUE(res_p$ok)) return(list(ok = TRUE, skipped = TRUE))
         r <- run(pkg, fun, a)
         if (pkg == "peabiru") res_p <<- r
@@ -240,6 +263,7 @@ for (fun in grep(only, names(base(NULL)), value = TRUE)) {
       } else if (p$ok) "r5r-error-only" else "peabiru-error-only"
       why <- names(deliberate)[vapply(names(deliberate), function(d) grepl(paste0("^", d, "$"), key), TRUE)]
       why <- if (length(why)) deliberate[[why[1]]] else ""
+      if (!nzchar(why) && same_but_name(p, r)) why <- why_name
       if (!nzchar(why) && same == "class-differs" && cli_class(r$cls)) {
         why <- "same message; r5r's is an rlang condition (cli), peabiru's a simpleError"
       }
@@ -296,6 +320,7 @@ for (key in grep(only, names(combos), value = TRUE)) {
   cmb <- combos[[key]]
   res <- lapply(c("peabiru", "r5r"), function(pkg) {
     a <- base(nets[[pkg]])[[cmb$fun]]
+    if (pkg == "peabiru") a <- for_peabiru(a)
     for (n in names(cmb$args)) a[n] <- list(cmb$args[[n]])
     if (identical(cmb$drop, TRUE)) a[names(cmb$args)] <- NULL
     run(pkg, cmb$fun, a)
@@ -308,6 +333,7 @@ for (key in grep(only, names(combos), value = TRUE)) {
   why <- names(deliberate)[vapply(names(deliberate), function(d)
     grepl(paste0("^", d, "$"), paste0(key, ":combination")), TRUE)]
   why <- if (length(why) && !same %in% c("same", "both-ok")) deliberate[[why[1]]] else ""
+  if (!nzchar(why) && same_but_name(p, r)) why <- why_name
   if (!nzchar(why) && same == "class-differs" && cli_class(r$cls)) {
     why <- "same message; r5r's is an rlang condition (cli), peabiru's a simpleError"
   }

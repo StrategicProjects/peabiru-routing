@@ -1,15 +1,14 @@
-# Input handling mirrored from r5r 2.5.0 (R/assign.R, R/set.R, R/utils.R):
-# the same checks, defaults and conversions, so that a call gives what r5r
-# gives for the same arguments.
+# Input handling shared by the routing functions: the checks, defaults and
+# conversions of their arguments.
 
-r5r_transit_modes <- c(
+all_transit_modes <- c(
   "TRANSIT", "TRAM", "SUBWAY", "RAIL", "BUS", "FERRY", "CABLE_CAR",
   "GONDOLA", "FUNICULAR"
 )
-r5r_direct_modes <- c("WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK")
+all_direct_modes <- c("WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK")
 
-# r5r assign_points_input(): a data.frame or POINT sf with id, lon, lat. An
-# sf in another CRS is reprojected to WGS 84 (r5r refuses it).
+# Points: a data.frame or POINT sf with id, lon, lat. An sf in another CRS
+# is reprojected to WGS 84.
 assign_points_input <- function(df, name, unique_ids = TRUE) {
   if (!inherits(df, "data.frame")) {
     stop("'", name, "' must be either a 'data.frame' or a 'POINT sf'.",
@@ -25,7 +24,7 @@ assign_points_input <- function(df, name, unique_ids = TRUE) {
       stop("'", name, "' must be either a 'data.frame' or a 'POINT sf'.",
            call. = FALSE)
     }
-    # r5r requires WGS 84; peabiru reprojects any other CRS, with a message
+    # any CRS other than WGS 84 is reprojected, with a message
     df <- as_wgs84(df, name)
     # coordinates come from the geometry, never from attribute columns
     coords <- sf::st_coordinates(df)
@@ -72,11 +71,11 @@ assign_points_input <- function(df, name, unique_ids = TRUE) {
   df
 }
 
-# r5r assign_mode().
+# The modes of a call: `mode` and `mode_egress` as the lists the core takes.
 assign_mode <- function(mode, mode_egress) {
-  all_modes <- c(r5r_transit_modes, r5r_direct_modes)
+  all_modes <- c(all_transit_modes, all_direct_modes)
 
-  # as in r5r, unique() and toupper() come before the checks, so a factor or
+  # unique() and toupper() come before the checks, so a factor or
   # a repeated mode is accepted
   mode <- toupper(unique(mode))
   cm_assert_and("mode", check_character(mode, min.len = 1, any.missing = FALSE),
@@ -86,8 +85,8 @@ assign_mode <- function(mode, mode_egress) {
   cm_assert(check_string(mode_egress), "mode_egress")
   cm_assert(check_names(mode_egress, subset.of = c("WALK", "BICYCLE", "CAR")), "mode_egress")
 
-  direct_modes <- mode[mode %in% r5r_direct_modes]
-  transit_modes <- mode[mode %in% r5r_transit_modes]
+  direct_modes <- mode[mode %in% all_direct_modes]
+  transit_modes <- mode[mode %in% all_transit_modes]
 
   if (length(direct_modes) > 1) {
     stop(
@@ -98,7 +97,7 @@ assign_mode <- function(mode, mode_egress) {
     )
   }
   if (any(c("CAR_PARK", "BICYCLE_RENT") %in% direct_modes)) {
-    stop("CAR_PARK and BICYCLE_RENT are currently unsupported by r5r.",
+    stop("CAR_PARK and BICYCLE_RENT are currently unsupported.",
          call. = FALSE)
   }
 
@@ -107,7 +106,7 @@ assign_mode <- function(mode, mode_egress) {
     transit_modes <- ""
     egress_mode <- ""
   } else {
-    if ("TRANSIT" %in% transit_modes) transit_modes <- r5r_transit_modes
+    if ("TRANSIT" %in% transit_modes) transit_modes <- all_transit_modes
     if (length(direct_modes) == 0) access_mode <- direct_modes <- "WALK"
     egress_mode <- mode_egress
   }
@@ -123,7 +122,7 @@ assign_mode <- function(mode, mode_egress) {
   mode_list
 }
 
-# r5r assign_departure(): date and time strings in the POSIXct's own
+# The departure: date and time strings in the POSIXct's own
 # time zone, no conversion.
 assign_departure <- function(datetime, mode_list, name = "departure_datetime") {
   if (is.null(datetime)) {
@@ -154,7 +153,7 @@ assign_departure <- function(datetime, mode_list, name = "departure_datetime") {
   )
 }
 
-# r5r assign_max_street_time()
+# max_walk_time, max_bike_time and max_car_time: Inf is the trip's limit.
 assign_max_street_time <- function(max_time, speed, max_trip_duration, mode) {
   cm_assert_and("mode", check_string(mode),
                 check_names(mode, subset.of = c("bike", "walk", "car")))
@@ -170,7 +169,7 @@ assign_max_street_time <- function(max_time, speed, max_trip_duration, mode) {
   if (is.infinite(max_time)) as.integer(max_trip_duration) else as.integer(max_time)
 }
 
-# r5r assign_max_trip_duration(): with a street mode alone, the mode's own
+# max_trip_duration: with a street mode alone, the mode's own
 # limit caps the trip.
 assign_max_trip_duration <- function(max_trip_duration, modes, max_walk_time,
                                      max_bike_time, max_car_time) {
@@ -190,7 +189,7 @@ assign_max_trip_duration <- function(max_trip_duration, modes, max_walk_time,
   max_trip_duration
 }
 
-# r5r assign_opportunities(): numeric columns, NA counted as 0.
+# The opportunity columns: numeric columns, NA counted as 0.
 assign_opportunities <- function(destinations, opportunities_colnames) {
   cm_assert(check_character(opportunities_colnames, min.len = 1, unique = TRUE,
                             any.missing = FALSE), "opportunities_colnames")
@@ -211,7 +210,7 @@ assign_opportunities <- function(destinations, opportunities_colnames) {
   })
 }
 
-# r5r assign_decay_function()
+# decay_function and decay_value, checked together.
 assign_decay_function <- function(decay_function, decay_value) {
   all_functions <- c("step", "exponential", "fixed_exponential", "linear", "logistic")
   cm_assert_and("decay_function", check_string(decay_function),
@@ -239,12 +238,12 @@ assign_decay_function <- function(decay_function, decay_value) {
     assert_integerish(decay_value, "decay_value", lower = 1, upper = 59)
   }
 
-  # r5r passes the placeholder 0 when decay_value is NULL (R5 ignores it)
+  # the placeholder 0 when decay_value is NULL (the engine ignores it)
   list(fun = decay_function,
        value = if (is.null(decay_value)) 0 else as.double(decay_value))
 }
 
-# r5r set_cutoffs(): returns the cutoffs R5 receives (ascending, or the
+# The cutoffs the engine receives (ascending, or the
 # placeholder 0 for fixed_exponential).
 assign_cutoffs <- function(cutoffs, decay_function) {
   assert_integerish(cutoffs, "cutoffs", lower = 1, upper = 120, min_len = 1,
@@ -259,16 +258,16 @@ assign_cutoffs <- function(cutoffs, decay_function) {
   if (is.null(cutoffs)) 0L else sort(as.integer(cutoffs))
 }
 
-# r5r set_percentiles(): ascending, as the output columns. An empty vector is
-# an error for every mode (R5 fails on it too; without the check a street
-# matrix would come back with no travel time column).
+# The percentiles: ascending, as the output columns. An empty vector is an
+# error for every mode (without the check a street matrix would come back
+# with no travel time column).
 assign_percentiles <- function(percentiles) {
   assert_integerish(percentiles, "percentiles", lower = 1, upper = 99,
                     min_len = 1, max_len = 5, unique = TRUE)
   sort(as.integer(percentiles))
 }
 
-# r5r set_n_threads(): Inf means all cores (0 for the core). Under R CMD
+# n_threads: Inf means all cores (0 for the core). Under R CMD
 # check with the limit on cores (_R_CHECK_LIMIT_CORES_, set by --as-cran and
 # in CRAN's incoming checks) "all cores" is two, the most CRAN allows; a
 # number given by the caller is used as it is.
@@ -290,7 +289,7 @@ check_limits_cores <- function() {
   nzchar(limit) && !limit %in% c("false", "f", "no", "n", "0")
 }
 
-# r5r set_speed()
+# walk_speed and bike_speed: a finite number above 0.
 check_speed <- function(speed, mode) {
   name <- paste0(mode, "_speed")
   assert_number(speed, name, finite = TRUE)
@@ -301,7 +300,7 @@ check_speed <- function(speed, mode) {
   invisible(TRUE)
 }
 
-# r5r set_max_lts()
+# max_lts: 1 to 4.
 check_max_lts <- function(max_lts) {
   assert_count(max_lts, "max_lts", positive = TRUE)
   if (max_lts < 1 || max_lts > 4) {
@@ -311,8 +310,8 @@ check_max_lts <- function(max_lts) {
   invisible(TRUE)
 }
 
-# r5r set_output_dir(): checkmate::assert_string() and
-# checkmate::assert_directory_exists()
+# output_dir: NULL or an existing directory (checkmate::assert_string() and
+# checkmate::assert_directory_exists())
 check_output_dir <- function(output_dir) {
   assert_string(output_dir, "output_dir", null_ok = TRUE)
   if (!is.null(output_dir)) cm_assert(check_directory_exists(output_dir), "output_dir")
@@ -320,10 +319,9 @@ check_output_dir <- function(output_dir) {
 }
 
 # The 'output' argument of the rs_* routing functions: NULL to return the
-# result, or where to write r5r's CSV files (one per origin, named after its
-# id) and with which ids. r5r's Java side fails on a missing id; so does this.
-# The directory is expanded as R's file functions (and r5r's check of it)
-# expand it.
+# result, or where to write the CSV files (one per origin, named after its
+# id) and with which ids; a missing id is an error, since it names no file.
+# The directory is expanded as R's file functions expand it.
 csv_output <- function(output_dir, origins, destinations, ...) {
   if (is.null(output_dir)) return(NULL)
   if (anyNA(origins$id) || anyNA(destinations$id)) {
@@ -334,24 +332,22 @@ csv_output <- function(output_dir, origins, destinations, ...) {
        to_ids = destinations$id, ...)
 }
 
-# r5r set_monte_carlo_draws(): with McRAPTOR (a fare structure, or the
-# alternatives of detailed_itineraries()), the draws R5 cannot sample are
-# rejected as r5r rejects them
+# draws_per_minute: with McRAPTOR (a fare structure, or the alternatives of
+# detailed_itineraries()), the numbers of draws that R5's sampling of
+# departure times cannot produce are rejected
 check_draws <- function(draws_per_minute, time_window = 1L, mcraptor = FALSE) {
   assert_count(draws_per_minute, "draws_per_minute", positive = TRUE)
   if (mcraptor) {
     draws <- as.integer(time_window * draws_per_minute)
     if (draws == 200L) {
-      # r5r's cli_abort(class = "r5r_200_draws")
-      stop(structure(class = c("r5r_200_draws", "error", "condition"), list(
+      stop(structure(class = c("peabiru_200_draws", "error", "condition"), list(
         message = cli_text(paste0(
           "A `time_window` of ", time_window, " minutes with ", draws_per_minute,
           if (draws_per_minute == 1) " draw" else " draws",
           " per minute gives exactly 200 Monte Carlo draws, which R5's McRaptor ",
           "algorithm does not accept."
         ), c(i = paste0(
-          "Use a slightly different `time_window`, e.g. ", time_window + 1,
-          ". See <https://github.com/ipea/r5r/issues/602>."
+          "Use a slightly different `time_window`, e.g. ", time_window + 1, "."
         ))),
         call = NULL
       )))
@@ -369,18 +365,17 @@ check_draws <- function(draws_per_minute, time_window = 1L, mcraptor = FALSE) {
       ), c(
         i = paste0("R5's McRaptor algorithm cannot sample this many departure times ",
                    "and could run indefinitely."),
-        i = paste0("Use a lower `draws_per_minute` or a shorter `time_window`. See ",
-                   "<https://github.com/ipea/r5r/issues/602>.")
+        i = "Use a lower `draws_per_minute` or a shorter `time_window`."
       ))
     }
   }
   invisible(TRUE)
 }
 
-# r5r check_transit_availability_on_date() (R/utils.R): R5 counts the
-# services active on the date (Service.activeOn) over all services.
-check_transit_availability_on_date <- function(r5r_network, departure) {
-  counts <- rs_transit_availability(r5r_network$ptr, departure$yyyymmdd)
+# Public transport needs services on the departure date: the share of the
+# services active on it (R5's Service.activeOn) over all services.
+check_transit_availability_on_date <- function(network, departure) {
+  counts <- rs_transit_availability(network$ptr, departure$yyyymmdd)
   pct <- if (counts[1] == 0) 0 else counts[2] / counts[1]
   if (pct == 0 || is.na(pct)) {
     stop("There are no transit services available on the selected departure ",
@@ -395,15 +390,16 @@ check_transit_availability_on_date <- function(r5r_network, departure) {
   invisible(TRUE)
 }
 
-# r5r reverse_if_direct_mode() (R/set.R): with WALK alone, more origins than
-# destinations and no elevation raster in the data directory, r5r routes
-# from the destinations and swaps the columns back afterwards. The two
-# directions can differ, so the swap is reproduced.
-swap_od <- function(origins, destinations, mode_list, r5r_network) {
+# With WALK alone, more origins than destinations and no elevation raster
+# in the data directory, the search runs from the destinations (fewer
+# searches) and the columns are swapped back afterwards. Walking times are
+# taken as the same in both directions for this; with slope costs they are
+# not, so a raster turns the swap off.
+swap_od <- function(origins, destinations, mode_list, network) {
   !mode_list$transit &&
     mode_list$direct_modes == "WALK" &&
     nrow(origins) > nrow(destinations) &&
-    !r5r_network$has_tif
+    !network$has_tif
 }
 
 seed_args <- function(seed) {
@@ -411,15 +407,15 @@ seed_args <- function(seed) {
   if (is.null(seed)) list(has = FALSE, value = 0L) else list(has = TRUE, value = as.integer(seed))
 }
 
-# 'progress' and 'verbose' are checked as r5r does; peabiru prints no
-# progress counter and has no Java log to make verbose.
+# 'progress' and 'verbose' are checked; peabiru prints no progress counter
+# and has no log to make verbose.
 check_messages <- function(verbose, progress) {
   assert_flag(verbose, "verbose")
   assert_flag(progress, "progress")
   invisible(TRUE)
 }
 
-# Utils.getTimeFromSeconds in r5r's Java: HH:MM:SS, hours not wrapped at 24.
+# HH:MM:SS, hours not wrapped at 24.
 seconds_to_hhmmss <- function(s) {
   sprintf("%02d:%02d:%02d", s %/% 3600L, (s %/% 60L) %% 60L, s %% 60L)
 }

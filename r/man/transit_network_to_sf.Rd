@@ -4,13 +4,10 @@
 \alias{transit_network_to_sf}
 \title{Extract transit network in sf format}
 \usage{
-transit_network_to_sf(r5r_network, r5r_core = deprecated())
+transit_network_to_sf(network)
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 }
 \value{
 A list with two \code{sf} data frames in WGS 84: \code{stops} (\code{POINT}),
@@ -25,20 +22,15 @@ stops. A stop not linked to the street network (outside the area of the
 \code{.pbf}, for instance) has an empty geometry (\verb{POINT EMPTY}), and a
 pattern with no line is left out. Positions of stops are those of
 their vertices in the street network (the coordinates rounded down to
-1e-7 degrees). Package 'sf' is needed.
+1e-7 degrees). Package 'sf' is needed. With
+\code{options(peabiru.output = "data.table")}, \code{routes} is an \code{sf}
+\code{data.table} and \code{stops} a plain \code{sf} data frame (see
+\link{peabiru-package}).
 }
 \description{
 The public transport network in \code{sf} format: the stops of the 'GTFS'
 feeds, and the line of every trip pattern of each route.
 }
-\section{Compatibility with r5r}{
-
-The arguments and the result are those of \code{r5r::transit_network_to_sf()}
-in r5r 2.5.0: the same rows in the same order, columns and values;
-with \code{options(peabiru.output = "data.table")} both tables have r5r's class too (\code{stops} a plain
-\code{sf} data frame, \code{routes} an \code{sf} \code{data.table}).
-}
-
 \examples{
 \dontshow{if (requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 data_path <- system.file("extdata/spo", package = "peabiru")

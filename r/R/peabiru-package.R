@@ -16,14 +16,9 @@
 #' inside the R session; no 'Java' is needed. What the engine cannot do
 #' exactly is an error, never silently ignored.
 #'
-#' @section Compatibility with r5r:
-#' The engine is a port of Conveyal's 'R5' 7.6, the engine the 'r5r'
-#' package drives, and the package exports the 22 functions of r5r 2.5.0
-#' with their arguments and defaults, so the results are r5r's (compared
-#' with `identical()` in the tests). r5r's functions that manage 'Java' and
-#' the R5 jar ([setup_r5()], [stop_r5()], [download_r5()], [r5r_cache()],
-#' [r5r_sitrep()]) are kept so that r5r scripts run. See
-#' the article "Coming from r5r" on the package website for the differences.
+#' The routing model is that of Conveyal's 'R5' engine (version 7.6), ported
+#' to 'Rust'; see the references. The article "Compared with r5r" on the
+#' package website says how the package relates to that R interface of R5.
 #'
 #' @section Class of the results:
 #' The tables the functions return are tibbles by default. The option
@@ -36,12 +31,11 @@
 #' * `options(peabiru.output = "data.frame")`: base `data.frame`s, and plain
 #'   `sf` data frames;
 #' * `options(peabiru.output = "data.table")` (needs 'data.table'):
-#'   `data.table`s, with the class r5r 2.5.0 gives each result, so that the
-#'   result is identical to r5r's: `sf` `data.table`s for isochrone
-#'   polygons, itineraries, the street edges and the transit routes, plain
-#'   `sf` data frames for isochrone lines, street vertices and transit
-#'   stops, and the index r5r's [find_snap()] leaves on `found`. A good
-#'   choice for large matrices handled with 'data.table'.
+#'   `data.table`s: `sf` `data.table`s for isochrone polygons,
+#'   itineraries, the street edges and the transit routes, plain `sf` data
+#'   frames for isochrone lines, street vertices and transit stops, and an
+#'   index on the column `found` of [find_snap()]. A good choice for large
+#'   matrices handled with 'data.table'.
 #'
 #' Any other value is an error. The option applies to every table: the
 #' matrices, accessibility, Pareto frontiers, [find_snap()],
@@ -75,20 +69,15 @@
 #' routing in large road networks using contraction hierarchies.
 #' *Transportation Science*, 46(3), 388-404. \doi{10.1287/trsc.1110.0401}
 #'
-#' Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V. and
-#' Conway, M. W. (2021). r5r: Rapid Realistic Routing on Multimodal
-#' Transport Networks with R5 in R. *Findings*.
-#' \doi{10.32866/001c.21262}
-#'
 #' @section Sample data:
 #' `system.file("extdata/spo", package = "peabiru")` holds a small network
-#' for examples and tests, cut from the Sao Paulo sample data of the 'r5r'
-#' package: `spo_osm.pbf`, the streets around Avenida Paulista (data
+#' for examples and tests, cut from the Sao Paulo sample data of the r5r
+#' project: `spo_osm.pbf`, the streets around Avenida Paulista (data
 #' (c) OpenStreetMap contributors, available under the Open Database
 #' License, <https://www.openstreetmap.org/copyright>); `spo_gtfs.zip`, the
-#' SPTrans frequency-based 'GTFS' feed shipped with r5r, without
-#' `shapes.txt`; and `spo_points.csv`, 27 points of r5r's hexagonal grid
-#' with their population and opportunity counts.
+#' SPTrans frequency-based 'GTFS' feed of that sample, without
+#' `shapes.txt`; and `spo_points.csv`, 27 points of its hexagonal grid with
+#' their population and opportunity counts.
 #'
 #' @keywords internal
 #' @useDynLib peabiru, .registration = TRUE

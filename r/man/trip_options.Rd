@@ -5,7 +5,7 @@
 \title{Trip options between origin-destination pairs}
 \usage{
 trip_options(
-  r5r_network,
+  network,
   origins,
   destinations,
   mode = c("WALK", "TRANSIT"),
@@ -40,7 +40,7 @@ trip_options(
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
 \code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
@@ -192,15 +192,14 @@ departure minute, the options on its frontier (\code{from_id}, \code{to_id},
 \code{option}, \code{departure_time}, \code{arrival_time}, \code{total_time}).
 }
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", the class r5r gives it. With "data.table", the itineraries are
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", an \code{sf} \code{data.table} where the section "Class of the results" of \link{peabiru-package} says so. With "data.table", the itineraries are
 an \code{sf} \code{data.table}, as those of \code{\link[=detailed_itineraries]{detailed_itineraries()}}.
 }
 \description{
 For each pair of origin and destination, every trip worth considering:
 the trips that no other trip beats on all the chosen criteria at once.
-This is peabiru's own multi-criteria trip planner; r5r has no
-counterpart (see "Not dominated" and "Compared with r5r's functions"
-below).
+This is a multi-criteria trip planner (see "Not dominated" and "Compared
+with the other functions" below).
 }
 \section{Not dominated}{
 
@@ -222,8 +221,8 @@ minute at a time for \code{time_window} minutes) the options are the exact
 set of trips not dominated, one trip per combination of values: of
 trips with the same values on the chosen criteria, the one with the
 least total time, then transfers, minutes on foot and fare is kept.
-Trips are those of r5r's network semantics, so that their times agree
-with \code{\link[=detailed_itineraries]{detailed_itineraries()}}: a direct trip by the street mode, and
+Trips are built as in the other routing functions, so that their times
+agree with \code{\link[=detailed_itineraries]{detailed_itineraries()}}: a direct trip by the street mode, and
 trips that reach a stop of the access search, ride and walk between
 stops (as R5's transfer tables allow), and leave a stop of the egress
 search; each ride boards at least a minute after its stop is reached,
@@ -253,13 +252,14 @@ Frequency-based routes (GTFS \code{frequencies.txt}) are boarded at their
 expected times: half a headway after the boarding wait (or after the
 start of the period), within the period; with \code{exact_times = 1} at the
 first scheduled departure. There are no random draws and no \code{seed}, and
-the results differ on purpose from r5r's Monte Carlo draws.
+the results differ on purpose from the Monte Carlo draws of the other
+routing functions.
 }
 
 \section{Fares}{
 
 Fares follow \code{fare_structure} exactly as \code{\link[=pareto_frontier]{pareto_frontier()}} and
-\code{\link[=detailed_itineraries]{detailed_itineraries()}} compute them (r5r's calculator, in cents). A
+\code{\link[=detailed_itineraries]{detailed_itineraries()}} compute them (in cents). A
 fare is not the sum of its rides (discounted transfers within a time
 allowance, unlimited transfers, a cap), so two partial trips are only
 compared on fare when one is at least as cheap for every way both can
@@ -268,10 +268,10 @@ is what makes fare criteria slower than the others: trips waiting for a
 discount are kept apart until they cannot get one any more.
 }
 
-\section{Compared with r5r's functions}{
+\section{Compared with the other functions}{
 
 \code{\link[=pareto_frontier]{pareto_frontier()}} gives, for each fare cutoff, the percentiles of the
-travel time over Monte Carlo draws of departure times (r5r's function);
+travel time over Monte Carlo draws of departure times;
 \code{\link[=detailed_itineraries]{detailed_itineraries()}} gives the fastest trip, or with
 \code{shortest_path = FALSE} R5's alternatives, one per sequence of routes.
 \code{trip_options()} gives the trade-offs themselves: the trips that are

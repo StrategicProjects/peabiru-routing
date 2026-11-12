@@ -15,15 +15,15 @@ source("setup.R")
 A transport plan is a list of changes: a cycle path here, a lane taken from
 cars there, a new clinic, a fare rule. Each one asks the same question
 twice, before and after. In peabiru the street network is built once, and
-the changes that r5r calls *scenarios* are arguments of each routing call:
+the changes, called *scenarios*, are arguments of each routing call:
 `new_lts` changes the level of traffic stress cyclists meet on chosen
 streets, `new_carspeeds` and `carspeed_scale` change car speeds by street
 or by area, and a fare structure is a list of tables that can be edited
 before the call. A new school or clinic is not even a change to the
 network: it is one more row among the destinations.
 
-This example asks four such questions of Porto Alegre, on the sample data
-that comes with r5r, and times each one: a what-if is one routing call
+This example asks four such questions of Porto Alegre, on a small sample
+of the city, and times each one: a what-if is one routing call
 on the network as built, with nothing to edit and rebuild. It was computed on 2026-11-12 with
 peabiru 0.0.1; the output shown is what the code
 printed. The same steps in Python are in the [Python
@@ -33,15 +33,17 @@ example](../../python/example-scenarios/).
 
 | Data | Source | Licence |
 |---|---|---|
-| Streets | OpenStreetMap extract of Porto Alegre in r5r 2.5.0's sample data (`poa_osm.pbf`) | ODbL 1.0, © OpenStreetMap contributors |
-| Public transport | The EPTC bus and Trensurb train GTFS feeds of r5r's sample (`poa_eptc.zip`, `poa_trensurb.zip`), cut for the sample: the buses run from 11:20 to 17:50 only, so the analyses below leave at 14:00 on Monday 13 May 2019 | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
-| Grid | `poa_hexgrid.csv`: 1,227 H3 cells (resolution 9) with population, jobs, schools and health facilities; r5r does not document its sources | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
-| Fares | `fares/fares_poa.zip`, r5r's fare structure of the sample | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
+| Streets | OpenStreetMap extract of Porto Alegre in the sample data (`poa_osm.pbf`) | ODbL 1.0, © OpenStreetMap contributors |
+| Public transport | The EPTC bus and Trensurb train GTFS feeds of the sample (`poa_eptc.zip`, `poa_trensurb.zip`), cut for it: the buses run from 11:20 to 17:50 only, so the analyses below leave at 14:00 on Monday 13 May 2019 | as distributed (see below) |
+| Grid | `poa_hexgrid.csv`: 1,227 H3 cells (resolution 9) with population, jobs, schools and health facilities; its sources are not documented | as distributed (see below) |
+| Fares | `fares/fares_poa.zip`, the fare structure of the sample | as distributed (see below) |
 
-All files come from r5r's repository at the tag of version 2.5.0
-(`https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/`).
+All files are the Porto Alegre sample data of the r5r project, from its
+repository at the tag of version 2.5.0 (the `url` in the code below), where
+they are distributed under the licence line `GPL (>= 3) | MIT + file
+LICENSE`.
 The sample also has an elevation raster, left out here: a call with a
-scenario routes without slope costs (as r5r does, with a warning), so
+scenario routes without slope costs (with a warning), so
 the before and the after would not be comparable.
 
 
@@ -255,7 +257,7 @@ legs(new_carspeeds = slow_centre)
 
 So the car-access legs do not change here; on a network where they are
 used, a scenario changes them too (it changes every street search from the
-origin), but not the egress from the last stop, as in r5r (see the
+origin), but not the egress from the last stop (see the
 [scenarios guide](scenarios.html)).
 
 ## One more health facility
@@ -351,9 +353,9 @@ R5's multi-criteria router, which is far slower than the one-criterion
 router used without fares (compare the first timing with the others). The
 two are different algorithms and their travel times differ a little, in
 both directions, so the reference for the budgets is the second row: the
-multi-criteria router with a budget that never binds. (The difference is
-R5's: on 103 of these origins r5r 2.5.0 gives the same access as peabiru,
-origin by origin, with the structure and without it.)
+multi-criteria router with a budget that never binds. (The difference
+belongs to the routing model, R5's, not to this example; see the
+[comparison with r5r](coming-from-r5r.html).)
 
 
 ``` r
@@ -397,9 +399,7 @@ sample rules (R\$ 7.20) and in reach when transfers are free, which is
 where the difference is. With R\$ 7.20, the sample's discount covers one
 transfer, and only the structure without discounts falls behind. (The
 structure with free transfers is also the slowest to route, several times
-slower than the other two in this run, and in r5r too: on 103 of these
-origins it took r5r 2.5.0 about 35 seconds against 6 to 10 with the sample
-structure, and peabiru 14 to 15 against 2 to 4, for the same results.)
+slower than the other two in this run.)
 
 For one trip, `trip_options()` lists the options worth considering, here
 by travel time and fare; the best option within one fare changes with
@@ -490,10 +490,10 @@ seconds to build, and a what-if on it is still one call.
   the table leaves out.
 - **Planned routes.** `new_lts` as lines (`line_id`, `lts`, `priority`)
   takes a cycle network drawn in a GIS, before it exists in
-  OpenStreetMap; r5r's sample has one, `poa_ls_lts.rds` (see the
+  OpenStreetMap; the sample has one, `poa_ls_lts.rds` (see the
   [scenarios guide](scenarios.html)).
 - **Many sites.** The facility search above works for any number of new
   sites at once: add the best cell, recompute `covered`, and repeat.
 
 Map data © OpenStreetMap contributors, under the ODbL; GTFS feeds, grid and
-fare structure as distributed with r5r 2.5.0.
+fare structure: the sample data described above.

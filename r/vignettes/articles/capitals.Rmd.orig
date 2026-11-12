@@ -178,7 +178,7 @@ networks$bho
 ```
 
 Before routing, two checks that cost nothing. `build_network()` refuses a
-feed with errors of high priority, as r5r does, and `get_gtfs_errors()`
+feed with errors of high priority, and `get_gtfs_errors()`
 lists the others; `check_transit_availability()` says how much of each feed
 runs on the day chosen, Tuesday 17 November 2026 (the Friday of that week
 is a holiday).
@@ -226,7 +226,7 @@ t(sapply(grids, function(g) c(cells = nrow(g), inhabited = sum(g$population > 0)
 
 For every inhabited cell, the jobs, schools and health facilities of the
 municipality reached within 30 and within 60 minutes, door to door, walking
-and riding (`mode = c("WALK", "TRANSIT")`; walking at 3.6 km/h, r5r's
+and riding (`mode = c("WALK", "TRANSIT")`; walking at 3.6 km/h, the
 default), leaving at each minute from 07:00 to 07:59; the travel time to
 each destination is the median of those 60 departures (`percentiles = 50`).
 São Paulo's feed and nearly all of Rio de Janeiro's give headways instead
@@ -356,9 +356,10 @@ live('fig("access-compare-capitals.svg")', 'echo = FALSE, fig.alt = "Three panel
 
 The Access to Opportunities Project published, for the same cells and the
 same jobs, the access by public transport at the morning peak of 2019,
-computed with r5r from the feeds of that year. This is not a check of
-peabiru (for that, see the [benchmarks](benchmarks.html), where the two
-engines give identical matrices from identical inputs): the feeds are seven
+computed with the r5r package from the feeds of that year. This is not a
+check of peabiru (for that, see the [benchmarks](benchmarks.html), where
+the two engines give identical matrices from identical inputs): the feeds
+are seven
 years apart, the street data differs, their window is 06:00 to 08:00, and
 for Rio de Janeiro their network had the rail systems this one lacks. It
 shows how far the picture of 2019 still holds.
@@ -427,7 +428,7 @@ feeds of 2019 are not public, so the speeds are fitted, not read from them.
   within 5% at every distance from the centre (as published here, the
   ratio went from 1.1 in the centre to 2.1 between 7.5 and 10 km). Of the
   1.37, the settings account for +1%, the relief for -3% and the speed for
-  the rest. r5r gives the same numbers on the slowed network.
+  the rest.
 - **São Paulo.** The feed changed the other way. On the 88 bus trips it
   shares with a sample of SPTrans's feed of about 2019, run times are 12%
   longer and morning headways 25% longer. Undoing both on every bus line
@@ -450,15 +451,15 @@ changes in the service.
 ## Time against fare
 
 A fare is a limit of its own: the fastest trip is of little use to someone
-who cannot pay for its transfers. peabiru routes with fares as r5r does: a
+who cannot pay for its transfers. peabiru routes with fares: a
 *fare structure* says what each ride costs and which transfers are
 discounted, `max_fare` keeps the fastest trip within a budget, and
 `pareto_frontier()` gives the travel time at each budget.
 
 **Why not in the three cities above.** With fares, public transport is
 routed by R5's multi-criteria router, which does not handle lines given by
-frequency (r5r refuses them in `detailed_itineraries()`, and with a fare
-structure its travel times fall back to walking; peabiru does the same):
+frequency (`detailed_itineraries()` refuses them, and with a fare
+structure the travel times fall back to walking):
 that excludes São Paulo and Rio de Janeiro, whose feeds do carry the fares
 (`fare_attributes.txt`: R$ 5.30 the bus and R$ 5.40 the metro and the train
 in São Paulo, R$ 9.38 the two together; in Rio de Janeiro R$ 5.00 on the
@@ -467,15 +468,16 @@ to 24.85 on the executive lines). Belo Horizonte's feed has timetables and
 fares by line (R$ 6.25 or 6.00 on all but two lines, which cost R$ 5.00 and
 3.00), but its
 [rules](https://prefeitura.pbh.gov.br/sumob/onibus/tipos-de-linha-e-servicos)
-(page updated on 2026-09-04) cannot be written faithfully in r5r's format:
+(page updated on 2026-09-04) cannot be written faithfully as a fare
+structure:
 a second ride within 90 minutes costs half the cheaper fare with the BHBUS
 card, a transfer inside a MOVE station costs nothing, and the supplementary
 lines have no integration; a structure without the free transfers at
 stations would overstate the cost of the trunk-and-feeder trips the network
-is built around. So this part uses **Porto Alegre**: the sample data of r5r
-2.5.0 (the centre and the neighbourhoods around it, the buses of EPTC and
-the trains of Trensurb as of May 2019) and the fare structure r5r ships for
-it. The feeds only have service in the afternoon, so the departures are
+is built around. So this part uses **Porto Alegre**: the sample data of
+the r5r project, version 2.5.0 (the centre and the neighbourhoods around
+it, the buses of EPTC and the trains of Trensurb as of May 2019) and the
+fare structure that comes with it. The feeds only have service in the afternoon, so the departures are
 from 14:00 to 14:59 of Monday 13 May 2019.
 
 ```{r poa}
@@ -501,7 +503,7 @@ transfer per trip. For a city of your own, `setup_fare_structure(network,
 base_fare, by = "MODE")` starts a structure from the feed, to be edited
 into the city's rules (see [Fares](fares.html)).
 
-The cells are r5r's sample grid (the same H3 cells as Ipea's; 1,227 of the
+The cells are the sample's grid (the same H3 cells as Ipea's; 1,227 of the
 5,781 of the municipality), with the income quintile of each cell in the
 whole city, from the same release as above (`R002`).
 
@@ -646,10 +648,9 @@ One thing to know when reading the two side by side: `trip_options()` and
 planner does, and `pareto_frontier()` and the matrices as R5's matrix
 router does. For the trip across town above, the one-fare trip of the
 frontier starts with a walk of 70 minutes to a direct line; neither
-`detailed_itineraries()` nor `trip_options()` lists it, in peabiru and in
-r5r 2.5.0 alike (checked for the 14:05 departure: r5r's
-`travel_time_matrix()` gives 89 minutes with `max_rides = 1`, and its
-`detailed_itineraries()` no trip).
+`detailed_itineraries()` nor `trip_options()` lists it (for the 14:05
+departure, `travel_time_matrix()` gives 89 minutes with `max_rides = 1`,
+and `detailed_itineraries()` no trip).
 
 ## What is measured, and what is not
 
@@ -663,8 +664,8 @@ r5r 2.5.0 alike (checked for the 14:05 departure: r5r's
 - **Old people, old jobs, new buses.** Residents and income from the Censo
   2010, opportunities from 2019, public transport from 2026.
 - **Cells, not addresses.** Every trip starts and ends at the centre of an
-  H3 cell (about 350 m apart), linked to the nearest street as r5r does.
-- **Fares.** Porto Alegre's are r5r's sample structure for its 2019 sample
+  H3 cell (about 350 m apart), linked to the nearest street.
+- **Fares.** Porto Alegre's are the sample structure for the 2019 sample
   network, not checked here against the tariff decrees of that year, on a
   part of the city and an afternoon hour.
 
@@ -674,7 +675,7 @@ r5r 2.5.0 alike (checked for the 14:05 departure: r5r's
   shows how much the access depends on the minute one leaves.
 - **Gradual access.** `decay_function = "logistic"` instead of a hard limit.
 - **Your own fares.** `setup_fare_structure()`, edited, then
-  `write_fare_structure()` to share it with r5r.
+  `write_fare_structure()` to keep or share it.
 - **Large matrices on disk.** `output_dir` writes one CSV file per origin.
 
 ## Sources and citation
@@ -682,7 +683,7 @@ r5r 2.5.0 alike (checked for the 14:05 departure: r5r's
 Map data © OpenStreetMap contributors, under the ODbL. GTFS: SPTrans (São
 Paulo), Secretaria Municipal de Transportes do Rio de Janeiro (CC BY 4.0),
 Superintendência de Mobilidade de Belo Horizonte (CC BY); EPTC and
-Trensurb, as cut for the sample data of r5r. Boundaries © IBGE. Cells,
+Trensurb, as cut for the Porto Alegre sample described above. Boundaries © IBGE. Cells,
 population, income, jobs, schools and health facilities:
 
 - Pereira, R. H. M. et al. (2022). *Distribuição espacial de características

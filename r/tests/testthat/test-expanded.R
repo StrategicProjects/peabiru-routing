@@ -1,4 +1,4 @@
-test_that("expanded matrices have r5r's columns and types", {
+test_that("expanded matrices have their columns and types", {
   network <- fixture_network()
   pts <- fixture_points()
   e <- expanded_travel_time_matrix(network, pts[1:3, ], pts, mode = "TRANSIT",
@@ -18,7 +18,7 @@ test_that("expanded matrices have r5r's columns and types", {
   expect_setequal(unique(e$departure_time), c("14:00:00", "14:01:00", "14:02:00"))
   # 5 draws per minute for frequency-based GTFS
   expect_true(all(e$draw_number %in% 1:5))
-  # as in r5r, walk-only trips ("[WALK]") have no breakdown, only a total
+  # walk-only trips ("[WALK]") have no breakdown, only a total
   expect_true(all(e$access_time[e$routes %in% "[WALK]"] == 0))
   ok <- !is.na(e$total_time) & e$n_rides > 0
   expect_true(any(ok))
@@ -64,8 +64,8 @@ test_that("arrival matrices keep the latest departure arriving in time", {
   expect_true(all(dep + round(a$total_time * 60) <= arrival))
 })
 
-test_that("arrival_datetime may be a POSIXlt, as in r5r", {
-  # r5r computes arrival_datetime - difftime, which turns a POSIXlt into a
+test_that("arrival_datetime may be a POSIXlt", {
+  # arrival_datetime - difftime turns a POSIXlt into a
   # POSIXct
   network <- fixture_network()
   pts <- fixture_points()
@@ -108,7 +108,7 @@ test_that("street modes alone and other unsupported options are errors", {
     arrival_travel_time_matrix(network, pts, pts, mode = "TRANSIT"),
     "`arrival_datetime` is required"
   )
-  # by car, a record without public transport has r5r's routes "[CAR]"
+  # by car, a record without public transport has the routes "[CAR]"
   car <- expanded_travel_time_matrix(network, pts, pts, mode = c("CAR", "TRANSIT"),
                                      departure_datetime = departure, max_car_time = 5L,
                                      seed = 1L, n_threads = 2)

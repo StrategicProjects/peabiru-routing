@@ -5,7 +5,7 @@
 \title{Estimate isochrones from a given location}
 \usage{
 isochrone(
-  r5r_network,
+  network,
   origins,
   mode = "transit",
   mode_egress = "walk",
@@ -27,13 +27,11 @@ isochrone(
   percentiles = NULL,
   n_threads = Inf,
   verbose = FALSE,
-  progress = TRUE,
-  sample_size = deprecated(),
-  r5r_core = deprecated()
+  progress = TRUE
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat} (WGS
 84), or a \verb{POINT sf} with an \code{id} column, in any coordinate reference
@@ -104,12 +102,6 @@ travel time percentiles to make polygons for (one set per percentile).
 
 \item{verbose, progress}{Logicals, checked but without effect: no progress
 counter or routing log is printed.}
-
-\item{sample_size}{Deprecated and ignored (a warning when
-given).}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 An \code{sf} table in WGS 84 (EPSG:4326). With \code{polygon_output = TRUE},
@@ -125,8 +117,8 @@ segment's attributes from \code{\link[=street_network_to_sf]{street_network_to_s
 \code{car_speed}, \code{bicycle}, \code{bicycle_lts}) and \code{geometry}; rows by origin,
 then by band and travel time, both descending.
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", the class r5r gives it. With "data.table", r5r's polygons are an
-\code{sf} \code{data.table} and its lines a plain \code{sf} data frame; so are these.
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", an \code{sf} \code{data.table} where the section "Class of the results" of \link{peabiru-package} says so. With "data.table", the polygons are an
+\code{sf} \code{data.table} and the lines a plain \code{sf} data frame.
 }
 \description{
 The areas (\code{polygon_output = TRUE}) or the street segments
@@ -141,10 +133,11 @@ the centres of a regular grid of Web Mercator pixels covering the network
 (see \code{zoom}): the bands from 0 to each cutoff are traced over that grid
 by marching squares (the algorithm of \code{isoband::isobands()}), grouped
 into polygons with holes (as \code{isoband::iso_to_sfg()} groups them) and
-passed to \code{sf::st_make_valid()} (see the section on r5r for the case in
-which spherical geometry changes their area). The order of the rings and the vertex
-each one starts at follow the C++ library 'isoband' is built with on
-each platform (libc++ on macOS, libstdc++ on Linux and Windows); between
+passed to \code{sf::st_make_valid()} (see the section "Repair of the
+polygons" for the case in which spherical geometry changes their area).
+The order of the rings and the vertex each one starts at are those
+'isoband' gives on each platform, which follow the C++ library it is
+built with (libc++ on macOS, libstdc++ on Linux and Windows); between
 platforms the polygons differ in that order and, by the system's
 \code{sinh()} and \code{atan()}, in the last bits of some latitudes.
 
@@ -157,29 +150,19 @@ cutoff at or above its travel time.
 (plus 10 minutes for polygons, so that the outer band is interpolated
 like the inner ones).
 }
-\section{Compatibility with r5r}{
+\section{Repair of the polygons}{
 
-The arguments, their defaults and checks and the result are those of
-\code{r5r::isochrone()} in r5r 2.5.0. The travel times are r5r's, and so are
-the polygons before \code{sf::st_make_valid()}, ring for ring and vertex for
-vertex on the same platform, so the \code{sf} returned is r5r's, coordinate
-for coordinate (compared with \code{identical()}), with one exception. With
-spherical geometry on (\code{sf::sf_use_s2()}, sf's default),
-\code{sf::st_make_valid()} snaps the vertices and, in a polygon of many parts
-and holes, can return an area that is not the traced one: of 438
-isochrones of Porto Alegre and Helsinki, 17 came out between 0.1\% and
-9.5\% larger or smaller. r5r returns those. Here, when the s2 repair
-changes the area of a polygon by more than one part in 10,000, the
-polygons of that origin are repaired on the plane instead (which leaves
-the area as traced) and a warning of class \code{peabiru_isochrone_repair}
-names them; \code{options(peabiru.isochrone_repair = "r5r")} returns r5r's
-polygons in every case. The centroids of the line
-isochrones agree with r5r's to within a few units in the last place
-(about 1e-14 degrees), which has not changed a travel time in any
-comparison made. The deprecated \code{sample_size} is accepted with r5r's
-warning and ignored. An empty \code{percentiles}, a \code{polygon_output} of \code{NA},
-\code{origins} without rows and a fractional \code{zoom} are errors that say so
-(r5r lets them through and then fails, or passes the fraction to R5).
+The traced polygons go through \code{sf::st_make_valid()}. With spherical
+geometry on (\code{sf::sf_use_s2()}, sf's default), that repair snaps the
+vertices and, in a polygon of many parts and holes, can return an area
+that is not the traced one: of 438 isochrones of Porto Alegre and
+Helsinki, 17 came out between 0.1\% and 9.5\% larger or smaller. When the
+spherical repair changes the area of a polygon by more than one part in
+10,000, the polygons of that origin are repaired on the plane instead
+(which leaves the area as traced) and a warning of class
+\code{peabiru_isochrone_repair} names them.
+\code{options(peabiru.isochrone_repair = "spherical")} keeps the spherical
+repair in every case, without the warning.
 }
 
 \examples{

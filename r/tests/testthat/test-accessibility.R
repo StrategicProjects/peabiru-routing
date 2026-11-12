@@ -3,7 +3,7 @@ acc <- function(...) {
   accessibility(fixture_network(), pts, pts, n_threads = 2, ...)
 }
 
-test_that("accessibility has r5r's columns, types and row order", {
+test_that("accessibility has its columns, types and row order", {
   pts <- fixture_points()
   a <- acc(opportunities_colnames = c("schools", "jobs"), mode = "TRANSIT",
            departure_datetime = departure, cutoffs = c(30, 15),
@@ -39,7 +39,7 @@ test_that("every decay function runs, fixed_exponential without cutoffs", {
   }
 })
 
-test_that("decay arguments are checked as r5r checks them", {
+test_that("decay arguments are checked", {
   base <- list(opportunities_colnames = "jobs", mode = "WALK")
   call <- function(...) do.call(acc, c(base, list(...)))
   expect_error(call(cutoffs = NULL), "must not be NULL")
@@ -60,7 +60,7 @@ test_that("decay arguments are checked as r5r checks them", {
 })
 
 test_that("the step function ignores trips beyond the largest cutoff", {
-  # r5r sets max_trip_duration to max(cutoffs) with the step function, so
+  # max_trip_duration is max(cutoffs) with the step function, so
   # the result does not depend on max_trip_duration
   a <- acc(opportunities_colnames = "jobs", mode = "WALK", cutoffs = 20,
            max_trip_duration = 120)

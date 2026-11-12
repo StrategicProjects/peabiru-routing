@@ -1,7 +1,9 @@
 # Writes the formals of every function r5r exports (names, order and
-# defaults, deparsed) to r/tests/testthat/fixtures/r5r-formals.csv, the
-# snapshot test-formals.R compares peabiru's functions with. Run from the
-# repository's root with the r5r version peabiru follows installed:
+# defaults, deparsed) to bench/compare/testthat/fixtures/r5r-formals.csv,
+# the snapshot bench/compare/testthat/test-formals.R compares peabiru's
+# functions with (but for the renames and removals declared there). Run
+# from the repository's root with the r5r version peabiru is compared with
+# installed:
 #
 #   Rscript tools/r5r_formals.R
 #
@@ -9,7 +11,7 @@
 
 if (!requireNamespace("r5r", quietly = TRUE)) stop("r5r is not installed")
 version <- as.character(utils::packageVersion("r5r"))
-if (!identical(version, "2.5.0")) stop("peabiru follows r5r 2.5.0, not ", version)
+if (!identical(version, "2.5.0")) stop("peabiru is compared with r5r 2.5.0, not ", version)
 
 deparse_default <- function(x) {
   if (identical(x, quote(expr = ))) return("")
@@ -37,7 +39,7 @@ for (fun in sort(getNamespaceExports("r5r"))) {
   )
 }
 out <- do.call(rbind, rows)
-path <- file.path("r", "tests", "testthat", "fixtures", "r5r-formals.csv")
+path <- file.path("bench", "compare", "testthat", "fixtures", "r5r-formals.csv")
 utils::write.csv(out, path, row.names = FALSE)
 cat("wrote", nrow(out), "arguments of", length(unique(out$fun)), "functions of r5r", version,
     "to", path, "\n")

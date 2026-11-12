@@ -13,17 +13,10 @@
 #' travel times do not depend on the departure minute. At most 5,000
 #' destinations are accepted (R5's limit).
 #'
-#' @section Compatibility with r5r:
-#' The arguments, their defaults and checks, the columns, the rows and their
-#' order are those of `r5r::expanded_travel_time_matrix()` in r5r 2.5.0,
-#' with the same values (with frequencies, for the same `seed`); with `options(peabiru.output = "data.table")`
-#' the result is identical to r5r's, its class included. With a street mode alone
-#' r5r reports the same trip for every minute of a departure time taken
-#' from the computer's clock (`Sys.time()`) rather than from
-#' `departure_datetime`; peabiru stops with an error instead. With more
-#' than one 'GTFS' feed, a few trips can differ between operating systems
-#' (the feeds are loaded in the order the file system lists them), as
-#' r5r's do.
+#' With more than one 'GTFS' feed, a few trips can differ between operating
+#' systems (another stop or route with the same travel time): the feeds are
+#' loaded in the order the file system lists them (see [build_network()]).
+#' On one machine the results are always the same.
 #'
 #' @inheritParams travel_time_matrix
 #' @param breakdown A logical. Whether to break each trip down into access,
@@ -56,7 +49,7 @@
 #'   n_threads = 2
 #' )
 #' head(ettm)
-expanded_travel_time_matrix <- function(r5r_network,
+expanded_travel_time_matrix <- function(network,
                                         origins,
                                         destinations,
                                         mode = "WALK",
@@ -80,27 +73,20 @@ expanded_travel_time_matrix <- function(r5r_network,
                                         n_threads = Inf,
                                         verbose = FALSE,
                                         progress = TRUE,
-                                        output_dir = NULL,
-                                        r5r_core = deprecated()) {
-  # mirrors r5r R/expanded_travel_time_matrix.R
+                                        output_dir = NULL) {
   kind <- output_class()
-  if (is_present(r5r_core)) {
-    warn_r5r_core()
-    r5r_network <- r5r_core
-  }
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
-  # r5r's Java side fails on a missing destination id (NullPointerException)
+  # a destination without an id could not be named in the result
   if (anyNA(destinations$id)) {
-    stop("'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing ",
-         "destination id in Java).", call. = FALSE)
+    stop("'destinations$id' cannot be missing.", call. = FALSE)
   }
   mode_list <- assign_mode(mode, mode_egress)
   check_expanded_mode(mode_list)
   departure <- assign_departure(departure_datetime, mode_list)
 
-  assert_network(r5r_network)
-  check_transit_availability_on_date(r5r_network, departure)
+  assert_network(network)
+  check_transit_availability_on_date(network, departure)
 
   max_walk_time <- assign_max_street_time(max_walk_time, walk_speed, max_trip_duration, "walk")
   max_bike_time <- assign_max_street_time(max_bike_time, bike_speed, max_trip_duration, "bike")
@@ -120,10 +106,10 @@ expanded_travel_time_matrix <- function(r5r_network,
   check_messages(verbose, progress)
   check_output_dir(output_dir)
   assert_flag(breakdown, "breakdown")
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
 
   res <- raise_if_stopped(rs_expanded(
-    r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     mode_list$transit_mode, mode_list$access_mode, mode_list$egress_mode,
     as.double(bike_speed),
     as.integer(max_lts), max_bike_time, max_car_time,
@@ -149,15 +135,6 @@ expanded_travel_time_matrix <- function(r5r_network,
 #'
 #' As in [expanded_travel_time_matrix()], a street mode alone is an error
 #' and at most 5,000 destinations are accepted.
-#'
-#' @section Compatibility with r5r:
-#' The arguments, their defaults and checks, the columns, the rows and their
-#' order are those of `r5r::arrival_travel_time_matrix()` in r5r 2.5.0,
-#' with the same values (with frequencies, for the same `seed`); with `options(peabiru.output = "data.table")`
-#' the result is identical to r5r's, its class included. An `arrival_datetime` that
-#' is not a date-time is an error that says so (r5r fails on it with an
-#' internal R error); a street mode alone is an error, as in
-#' [expanded_travel_time_matrix()].
 #'
 #' @inheritParams expanded_travel_time_matrix
 #' @param arrival_datetime A POSIXct (or a POSIXlt, which is converted), the
@@ -186,7 +163,7 @@ expanded_travel_time_matrix <- function(r5r_network,
 #'   n_threads = 2
 #' )
 #' head(attm)
-arrival_travel_time_matrix <- function(r5r_network,
+arrival_travel_time_matrix <- function(network,
                                        origins,
                                        destinations,
                                        mode = "WALK",
@@ -209,14 +186,8 @@ arrival_travel_time_matrix <- function(r5r_network,
                                        n_threads = Inf,
                                        verbose = FALSE,
                                        progress = TRUE,
-                                       output_dir = NULL,
-                                       r5r_core = deprecated()) {
-  # mirrors r5r R/arrival_travel_time_matrix.R
+                                       output_dir = NULL) {
   kind <- output_class()
-  if (is_present(r5r_core)) {
-    warn_r5r_core()
-    r5r_network <- r5r_core
-  }
   if (missing(arrival_datetime) || is.null(arrival_datetime)) {
     cli_abort_text(paste(
       "`arrival_datetime` is required. Supply a POSIXct value specifying when",
@@ -225,14 +196,13 @@ arrival_travel_time_matrix <- function(r5r_network,
     ))
   }
   assert_number(n_threads, "n_threads", lower = 1)
-  assert_network(r5r_network)
+  assert_network(network)
 
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
-  # r5r's Java side fails on a missing destination id (NullPointerException)
+  # a destination without an id could not be named in the result
   if (anyNA(destinations$id)) {
-    stop("'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing ",
-         "destination id in Java).", call. = FALSE)
+    stop("'destinations$id' cannot be missing.", call. = FALSE)
   }
   mode_list <- assign_mode(mode, mode_egress)
   check_expanded_mode(mode_list)
@@ -246,20 +216,18 @@ arrival_travel_time_matrix <- function(r5r_network,
     max_trip_duration, mode_list, max_walk_time, max_bike_time, max_car_time
   )
 
-  # calculate departure datetime, exactly as r5r does: the subtraction turns
-  # a POSIXlt into a POSIXct, then the date and clock time are taken in its
-  # time zone, and r5r checks the result (a number gives a difftime, which
-  # its message names, under 'departure_datetime'). A value the subtraction
-  # fails on, where r5r stops with an internal R error, is an error of
-  # peabiru's own.
+  # the departure datetime: the subtraction turns a POSIXlt into a POSIXct,
+  # then the date and clock time are taken in its time zone and the result
+  # is checked (a number gives a difftime, which the message names, under
+  # 'departure_datetime'). A value the subtraction would fail on is an
+  # error that names the argument.
   if (!(is.numeric(arrival_datetime) || is.logical(arrival_datetime) ||
         inherits(arrival_datetime, c("POSIXt", "Date")))) {
-    cm_assert(paste(cm_type_msg(arrival_datetime, "POSIXct"),
-                    "(r5r 2.5.0 fails on it with an internal R error)"), "arrival_datetime")
+    cm_assert(cm_type_msg(arrival_datetime, "POSIXct"), "arrival_datetime")
   }
   departure_datetime <- arrival_datetime - as.difftime(max_trip_duration, units = "mins")
   departure <- assign_departure(departure_datetime, mode_list)
-  check_transit_availability_on_date(r5r_network, departure)
+  check_transit_availability_on_date(network, departure)
 
   # the time window is max_trip_duration
   check_draws(draws_per_minute)
@@ -272,10 +240,10 @@ arrival_travel_time_matrix <- function(r5r_network,
   check_messages(verbose, progress)
   check_output_dir(output_dir)
   assert_flag(breakdown, "breakdown")
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
 
   res <- raise_if_stopped(rs_expanded(
-    r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     mode_list$transit_mode, mode_list$access_mode, mode_list$egress_mode,
     as.double(bike_speed),
     as.integer(max_lts), max_bike_time, max_car_time,
@@ -299,7 +267,7 @@ check_expanded_mode <- function(mode_list) {
   invisible(TRUE)
 }
 
-# Column assembly of r5r's expanded and arrival matrices.
+# Column assembly of the expanded and arrival matrices.
 expanded_result <- function(res, origins, destinations, breakdown, max_trip_duration) {
   cols <- list(
     from_id = origins$id[res$from],
@@ -316,7 +284,7 @@ expanded_result <- function(res, origins, destinations, breakdown, max_trip_dura
   }
   travel_times <- new_df(cols)
 
-  # r5r: replace travel times of non-viable trips with NAs
+  # trips beyond the limit: NA times and routes
   over <- which(travel_times$total_time > max_trip_duration)
   if (length(over) > 0) {
     na_cols <- if (breakdown) {

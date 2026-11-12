@@ -63,32 +63,25 @@
 #' to [get_gtfs_errors()], which lists the errors. A feed that the 'GTFS'
 #' library of R5 fails to load at all is an error too.
 #'
-#' @section Compatibility with r5r:
-#' The arguments and their checks are those of `r5r::build_network()` in
-#' r5r 2.5.0, with one more, `n_threads`; a network is built from the same
-#' files, refuses the same feeds and routes as r5r's does. Differences:
-#' there is no Java and no `network.dat` cache (the network cannot be saved
-#' with `saveRDS()`: build it again in a new session); `temp_dir` and
-#' `overwrite` have no effect; nothing is written to `data_path` (r5r
-#' writes the 'GTFS' errors to `gtfs_errors.csv`); more than one `.pbf`
-#' file is an error. Where r5r's elevations depend on the machine (see the
-#' section "Elevation"), peabiru's do not, with a warning; the warning
-#' about wrapped elevations is peabiru's (r5r is silent). A `.prj` file
-#' (which r5r would follow), a `.tiff` raster (which r5r fails to read)
-#' and more than one raster (r5r reads the last one listed) are errors.
+#' @section The network object:
+#' The network is held in memory by the 'Rust' engine and is always built
+#' anew: there is no cache on disk, and a network cannot be saved with
+#' `saveRDS()` or carried to another session (a reloaded one is refused
+#' with an error; build it again). More than one `.pbf` file in `data_path`
+#' is an error.
 #'
 #' @param data_path A string, the directory with the `.pbf` file, the
 #'   'GTFS' feeds and the elevation raster.
 #' @param verbose A logical. Whether to report the build of the network in
 #'   messages. Defaults to `FALSE`.
-#' @param temp_dir A logical. Accepted for compatibility with r5r, which uses
-#'   it to choose where to keep the R5 jar; it has no effect.
+#' @param temp_dir A logical, checked but without effect: nothing is
+#'   downloaded or cached.
 #' @param elevation A string, the slope cost function for walking and
 #'   cycling when `data_path` has a `.tif` elevation raster: `"TOBLER"` (the
 #'   default; Tobler's hiking function), `"MINETTI"` (Minetti's energy cost
 #'   of walking) or `"NONE"` (no slope costs).
-#' @param overwrite A logical. Accepted for compatibility with r5r, which uses
-#'   it to rebuild a cached `network.dat`; the network is always built anew.
+#' @param overwrite A logical, checked but without effect: the network is
+#'   always built anew.
 #' @param n_threads The number of threads used to read the `.pbf` file.
 #'   Defaults to `Inf`, all cores (two under `R CMD check` when it limits
 #'   the cores).
@@ -112,11 +105,10 @@ build_network <- function(data_path,
   cm_assert(check_logical(temp_dir), "temp_dir")
   cm_assert(check_character(elevation), "elevation")
   cm_assert(check_logical(overwrite), "overwrite")
-  # r5r lets vectors and NA through these checks; one value of each here
+  # one value, not NA
   assert_flag(verbose, "verbose")
   threads <- assign_n_threads(n_threads)
 
-  # r5r set_elevation()
   elevation <- toupper(elevation)
   valid_elev <- c("TOBLER", "MINETTI", "NONE")
   if (!elevation %in% valid_elev) {
@@ -124,16 +116,16 @@ build_network <- function(data_path,
                    c(x = paste0("Must be one of: ", cli_val(valid_elev))))
   }
 
-  shown_path <- path.expand(data_path) # as r5r's messages name it
+  shown_path <- path.expand(data_path) # as the messages name it
   data_path <- normalizePath(path.expand(data_path), mustWork = TRUE)
   files <- list.files(data_path)
-  # r5r build_network() looks for its inputs with these patterns. They are
-  # regular expressions, so ".tif" also matches a name such as
-  # "identificacao.csv"; any_tif keeps that loose match because r5r uses it
-  # to turn off the swap of origins and destinations (see swap_od()).
+  # The inputs are looked for with these patterns. They are regular
+  # expressions, so ".tif" also matches a name such as "identificacao.csv";
+  # any_tif keeps that loose match (it turns off the swap of origins and
+  # destinations, see swap_od()), so that one rule decides both.
   any_pbf <- length(grep(".pbf", files)) > 0
   any_tif <- length(grep(".tif", files)) > 0
-  # lower case only, as r5r and the engine match the extension
+  # lower case only, as the engine matches the extension
   pbf <- files[grepl("\\.pbf$", files)]
   if (!any_pbf || length(pbf) == 0) {
     cli_abort_text(paste0("An OSM '.pbf' file is required in '", shown_path,
@@ -160,7 +152,7 @@ build_network <- function(data_path,
          elevation = rs_network_info(ptr)$elevation, has_tif = any_tif),
     class = "peabiru_network"
   )
-  for (w in rs_network_r5r_warnings(ptr)) {
+  for (w in rs_network_build_warnings(ptr)) {
     warning(w, call. = FALSE)
   }
   if (verbose) {

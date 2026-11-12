@@ -1,12 +1,11 @@
-# Fare structures, as r5r's R/fare_structure.R. The object is r5r's: a list
-# with the global settings, three tables and the debug settings. r5r's
-# tables are data.tables; these are built as data.frames and returned in the
-# class of options(peabiru.output = ) (fare_tables below).
+# Fare structures. The object is a list with the global settings, three
+# tables and the debug settings; the tables are built as data.frames and
+# returned in the class of options(peabiru.output = ) (fare_tables below).
 
 # A table of the core (a list of columns) as a data.frame. With no rows,
-# from setup_fare_structure(), r5r's setDT() of jsonlite's empty list: a
-# data.frame without columns; from read_fare_structure(), what fread() reads
-# from a file with only the header: the columns, empty.
+# from setup_fare_structure(), a data.frame without columns (what
+# data.table::setDT() makes of an empty list); from read_fare_structure(),
+# what fread() reads from a file with only the header: the columns, empty.
 fare_table <- function(cols, keep_empty_columns) {
   if (!keep_empty_columns && length(cols[[1]]) == 0L) return(new_df(list()))
   new_df(cols)
@@ -54,17 +53,11 @@ fare_tables <- c("fares_per_type", "fares_per_transfer", "fares_per_route")
 #' the type has `allow_same_route_transfer`) brings the two rides to that
 #' row's `fare`; any other ride costs its full fare. The total is capped at
 #' `fare_cap`. These are the rules of R5's `RuleBasedInRoutingFareCalculator`,
-#' written for r5r and ported to the 'Rust' core.
+#' ported to the 'Rust' core. R5's other fare calculators (a structure
+#' with an element `type`) are not available: the routing functions stop
+#' with an error on one.
 #'
-#' @section Compatibility with r5r:
-#' The arguments, their defaults and checks and the structure are those of
-#' `r5r::setup_fare_structure()` in r5r 2.5.0; with `options(peabiru.output = "data.table")`
-#' its tables are `data.table`s, and the structure is identical to r5r's. Structures move between the two packages
-#' through [write_fare_structure()] and [read_fare_structure()]. R5's own
-#' fare calculators (a structure with a `type`, which r5r passes to R5) are
-#' not available: the routing functions stop with an error on one.
-#'
-#' @param r5r_network A network built with [build_network()].
+#' @param network A network built with [build_network()].
 #' @param base_fare A number, at least 0: the fare of every route, type and
 #'   transfer.
 #' @param by A string: one fare type per mode (`"MODE"`, the default), per
@@ -73,9 +66,7 @@ fare_tables <- c("fares_per_type", "fares_per_transfer", "fares_per_route")
 #' @param debug_path,debug_info A `.csv` path (or `NULL`) and one of
 #'   `"MODE"`, `"ROUTE"` and `"MODE_ROUTE"` (or `NULL`), stored in the
 #'   structure's `debug_settings`. No debug file is written whatever they
-#'   say (nor does r5r 2.5.0 write one).
-#' @param r5r_core Deprecated: the network under its name before r5r 2.3.0,
-#'   accepted with a warning.
+#'   say.
 #'
 #' @return A fare structure (a list, see Details).
 #'
@@ -87,19 +78,13 @@ fare_tables <- c("fares_per_type", "fares_per_transfer", "fares_per_route")
 #' fare_structure <- setup_fare_structure(network, base_fare = 4.4)
 #' fare_structure$fares_per_type
 #' @export
-setup_fare_structure <- function(r5r_network,
+setup_fare_structure <- function(network,
                                  base_fare,
                                  by = "MODE",
                                  debug_path = NULL,
-                                 debug_info = NULL,
-                                 r5r_core = deprecated()) {
-  if (is_present(r5r_core)) {
-    warn_r5r_core()
-    r5r_network <- r5r_core
-  }
+                                 debug_info = NULL) {
   kind <- output_class()
-  # r5r's checks, in its order (R/fare_structure.R)
-  assert_network(r5r_network)
+  assert_network(network)
   cm_assert(check_numeric(base_fare, lower = 0, len = 1, any.missing = FALSE), "base_fare")
   by_options <- c("MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC")
   by <- toupper(by)
@@ -117,9 +102,10 @@ setup_fare_structure <- function(r5r_network,
               "debug_info")
   }
   # R5 reads base_fare as a Java float: past the float range it is
-  # Infinity, which r5r's JSON round trip hands back as the text "Infinity"
+  # Infinity, which the structure holds as the text "Infinity" (what a JSON
+  # round trip makes of it)
   infinite <- base_fare >= 3.4028235677973366e38
-  fs <- fare_object(rs_setup_fare_structure(r5r_network$ptr,
+  fs <- fare_object(rs_setup_fare_structure(network$ptr,
                                             if (infinite) 0 else as.double(base_fare), by))
   if (infinite) {
     text <- function(df, col) {
@@ -145,15 +131,8 @@ setup_fare_structure <- function(r5r_network,
 #' `fares_per_route.csv` and `debug_settings.csv`, in the format of
 #' `data.table::fwrite()`), which [read_fare_structure()] reads back.
 #'
-#' @section Compatibility with r5r:
-#' The arguments are those of `r5r::write_fare_structure()` in r5r 2.5.0,
-#' and the CSV files are those r5r writes, byte for byte, deflated in the
-#' same order; the archive's bytes differ from r5r's (whose archive also
-#' holds the files' modification times). A file written
-#' by either package reads back in the other. A `fare_structure` that is not
-#' a fare structure, or whose settings have the wrong length, and a `NULL`
-#' `file_path` are errors that say so (r5r checks nothing there and fails
-#' while writing, or writes tables recycled to the wrong length).
+#' The files are deflated and carry no modification times, so the same
+#' structure always gives the same archive, byte for byte.
 #'
 #' @param fare_structure A fare structure (see [setup_fare_structure()]).
 #' @param file_path A path to a `.zip` file.
@@ -190,15 +169,9 @@ write_fare_structure <- function(fare_structure, file_path) {
 #' Read a fare structure object from a file
 #'
 #' Reads a fare structure from a `.zip` file written by
-#' [write_fare_structure()] (or by r5r's): the five `.csv` files are read
+#' [write_fare_structure()]: the five `.csv` files are read
 #' with the columns and types of the structure (see
 #' [setup_fare_structure()]), the way `data.table::fread()` reads them.
-#'
-#' @section Compatibility with r5r:
-#' The arguments and the result are those of `r5r::read_fare_structure()`
-#' in r5r 2.5.0 (identical, tables included, with `options(peabiru.output = "data.table")`). A
-#' `file_path` that names several files is an error (r5r's check lets it
-#' through and then fails unzipping them).
 #'
 #' @param file_path A path to a fare structure `.zip` file.
 #' @param encoding A string, `"UTF-8"` (the default), `"unknown"` or
@@ -221,7 +194,7 @@ read_fare_structure <- function(file_path, encoding = "UTF-8") {
   cm_assert_and("encoding", check_string(encoding),
                 check_names(encoding, subset.of = c("unknown", "UTF-8", "Latin-1")))
   if (length(file_path) > 1L) {
-    stop("'file_path' names more than one file (r5r fails unzipping them).", call. = FALSE)
+    stop("'file_path' names more than one file.", call. = FALSE)
   }
   bytes <- readBin(file_path, "raw", file.info(file_path)$size)
   fs <- fare_object(rs_read_fare_structure(bytes, encoding), keep_empty_columns = TRUE)
@@ -239,9 +212,9 @@ read_fare_structure <- function(file_path, encoding = "UTF-8") {
   as_output_list(fs, kind, fare_tables)
 }
 
-# r5r's assert_fare_structure() (R/fare_structure.R), check by check and in
-# its order. r5r checks the tables with checkmate's expect_*(), which raise
-# testthat's "expectation_failure" condition outside a test.
+# The checks of a fare structure. The tables are checked with the port of
+# checkmate's expect_*() (cm_expect()), whose condition outside a test is
+# testthat's "expectation_failure".
 assert_fare_structure <- function(fare_structure) {
   fs <- fare_structure
   cm_assert(check_list_cm(fs, any.missing = FALSE), "fare_structure")
@@ -299,8 +272,8 @@ assert_fare_structure <- function(fare_structure) {
   cm_assert(check_string(fs$debug_settings$trip_info),
             "fare_structure$debug_settings$trip_info")
 
-  # past r5r's checks, R5 reads the structure in Java (Jackson), which fails
-  # on a column it does not know
+  # the engine reads the tables by column name: one it does not know is an
+  # error
   columns <- list(
     fares_per_type = c("type", "unlimited_transfers", "allow_same_route_transfer",
                        "use_route_fare", "fare"),
@@ -311,9 +284,8 @@ assert_fare_structure <- function(fare_structure) {
   for (n in names(columns)) {
     extra <- setdiff(names(fs[[n]]), columns[[n]])
     if (length(extra) > 0) {
-      stop("fare_structure$", n, " has column(s) r5r cannot read: ",
-           paste0("'", extra, "'", collapse = ", "),
-           " (r5r fails reading the structure in Java).", call. = FALSE)
+      stop("fare_structure$", n, " has column(s) that are not part of a fare ",
+           "structure: ", paste0("'", extra, "'", collapse = ", "), ".", call. = FALSE)
     }
   }
   invisible(TRUE)
@@ -373,13 +345,13 @@ check_file_exists <- function(x, extension = NULL) {
   TRUE
 }
 
-# r5r's set_fare_structure() and set_max_fare(): the structure is checked
-# and, as in r5r, read in for the network's routes (whatever the modes); a
-# finite max_fare needs a structure.
-check_fares <- function(fare_structure, max_fare, r5r_network) {
+# fare_structure and max_fare of a routing call: the structure is checked
+# and read in for the network's routes (whatever the modes); a finite
+# max_fare needs a structure.
+check_fares <- function(fare_structure, max_fare, network) {
   if (!is.null(fare_structure)) {
     assert_fare_structure(fare_structure)
-    rs_check_fare_structure(r5r_network$ptr, fare_structure)
+    rs_check_fare_structure(network$ptr, fare_structure)
   }
   assert_number(max_fare, "max_fare", lower = 0)
   if (is.finite(max_fare) && is.null(fare_structure)) {
@@ -404,14 +376,6 @@ check_fares <- function(fare_structure, max_fare, r5r_network) {
 #' cutoff as the router reads it, a 32-bit float (`4.8` is
 #' `4.800000190734863`). Routes given by frequencies are routed with Monte
 #' Carlo draws: pass `seed` for reproducible results.
-#'
-#' @section Compatibility with r5r:
-#' The arguments, their defaults and checks, the columns and the rows of the
-#' result are those of `r5r::pareto_frontier()` in r5r 2.5.0, with the same
-#' values (with frequencies, for the same `seed`); with `options(peabiru.output = "data.table")`
-#' the result is identical to r5r's, its class included. `output_dir`, with which r5r
-#' writes the result to CSV files, is not available: anything but `NULL`
-#' is an error.
 #'
 #' @inheritParams travel_time_matrix
 #' @param fare_structure A fare structure (see [setup_fare_structure()]);
@@ -443,7 +407,7 @@ check_fares <- function(fare_structure, max_fare, r5r_network) {
 #' )
 #' head(pf)
 #' @export
-pareto_frontier <- function(r5r_network,
+pareto_frontier <- function(network,
                             origins,
                             destinations,
                             mode = c("WALK", "TRANSIT"),
@@ -465,14 +429,8 @@ pareto_frontier <- function(r5r_network,
                             n_threads = Inf,
                             verbose = FALSE,
                             progress = TRUE,
-                            output_dir = NULL,
-                            r5r_core = deprecated()) {
-  # mirrors r5r R/pareto_frontier.R
+                            output_dir = NULL) {
   kind <- output_class()
-  if (is_present(r5r_core)) {
-    warn_r5r_core()
-    r5r_network <- r5r_core
-  }
   if (missing(fare_structure) || is.null(fare_structure)) {
     cli_abort_text("`fare_structure` is required.", c(
       i = "Create one with `setup_fare_structure()` or `read_fare_structure()`."
@@ -486,15 +444,14 @@ pareto_frontier <- function(r5r_network,
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
   if (anyNA(destinations$id)) {
-    stop("'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing ",
-         "destination id in Java).", call. = FALSE)
+    stop("'destinations$id' cannot be missing.", call. = FALSE)
   }
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)
 
-  assert_network(r5r_network)
+  assert_network(network)
   if (mode_list$transit) {
-    check_transit_availability_on_date(r5r_network, departure)
+    check_transit_availability_on_date(network, departure)
   }
 
   max_walk_time <- assign_max_street_time(max_walk_time, walk_speed, max_trip_duration, "walk")
@@ -505,7 +462,7 @@ pareto_frontier <- function(r5r_network,
   )
 
   assert_count(time_window, "time_window", positive = TRUE)
-  # r5r's set_percentiles(): no shortest length (an empty frontier then)
+  # no shortest length: without percentiles the frontier is empty
   assert_integerish(percentiles, "percentiles", lower = 1, upper = 99, max_len = 5,
                     unique = TRUE)
   percentiles <- sort(as.integer(percentiles))
@@ -517,7 +474,7 @@ pareto_frontier <- function(r5r_network,
   check_max_lts(max_lts)
   threads <- assign_n_threads(n_threads)
   check_messages(verbose, progress)
-  check_fares(fare_structure, Inf, r5r_network)
+  check_fares(fare_structure, Inf, network)
   check_output_dir(output_dir)
   if (!is.null(output_dir)) unsupported("'output_dir' in pareto_frontier()")
   check_fare_cutoffs(fare_cutoffs)
@@ -528,7 +485,7 @@ pareto_frontier <- function(r5r_network,
   }
 
   res <- raise_if_stopped(rs_pareto_frontier(
-    r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     mode_list$access_mode, if (mode_list$transit) mode_list$transit_mode else "",
     if (mode_list$transit) mode_list$egress_mode else mode_list$access_mode,
     departure$yyyymmdd, departure$seconds,
@@ -547,7 +504,7 @@ pareto_frontier <- function(r5r_network,
   as_output(out, kind)
 }
 
-# r5r set_fare_cutoffs(): checkmate::assert_numeric(lower = 0, any.missing =
+# fare_cutoffs: checkmate::assert_numeric(lower = 0, any.missing =
 # FALSE, min.len = 1, unique = TRUE)
 check_fare_cutoffs <- function(fare_cutoffs) {
   cm_assert(check_numeric(fare_cutoffs, lower = 0, any.missing = FALSE, min.len = 1,

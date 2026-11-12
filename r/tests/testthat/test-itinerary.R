@@ -1,4 +1,4 @@
-test_that("street itineraries have r5r's columns, types and order", {
+test_that("street itineraries have their columns, types and order", {
   skip_if_not_installed("sf")
   pts <- fixture_points()
   it <- detailed_itineraries(fixture_network(), pts[1:5, ], pts[6:10, ], mode = "WALK",
@@ -67,7 +67,7 @@ test_that("all_to_all, single points and output_dir", {
   }
 })
 
-test_that("osm_link_ids adds r5r's id columns", {
+test_that("osm_link_ids adds the id columns", {
   skip_if_not_installed("sf")
   pts <- fixture_points()
   it <- detailed_itineraries(fixture_network(), pts[1:5, ], pts[6:10, ], mode = "CAR",
@@ -89,9 +89,9 @@ test_that("unsupported options are errors", {
   expect_error(di(mode = "WALK", osm_link_ids = TRUE, drop_geometry = TRUE), "drop_geometry")
   expect_error(di(mode = "WALK", suboptimal_minutes = 5), "Must be 0")
   expect_error(di(mode = "WALK", fare_structure = list(type = "boston")), "not supported")
-  # an empty data frame is not a valid new_lts, as in r5r
+  # an empty data frame is not a valid new_lts
   expect_error(di(mode = "WALK", new_lts = data.frame()), "Names must include")
-  # the fixture's GTFS is frequency-based, which r5r refuses here
+  # the fixture's GTFS is frequency-based, which is refused here
   expect_error(di(mode = c("WALK", "TRANSIT")), "frequencies")
 })
 

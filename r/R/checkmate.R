@@ -1,6 +1,6 @@
-# A port of the parts of 'checkmate' (2.3.4) that r5r uses to check its
-# arguments, so that peabiru accepts and rejects the same values with the
-# same messages without depending on it. Each check_*() returns TRUE or the
+# A port of the parts of 'checkmate' (2.3.4) the package checks its
+# arguments with, so that the checks and their messages are checkmate's
+# without a dependency on it. Each check_*() returns TRUE or the
 # message checkmate would give; cm_assert() turns a message into checkmate's
 # error ("Assertion on '<name>' failed: <message>.").
 
@@ -381,7 +381,7 @@ check_directory_exists <- function(x) {
   TRUE
 }
 
-# The text of an error r5r raises with cli::cli_abort(), as
+# The text of an error raised with cli::cli_abort(), as
 # conditionMessage() gives it: `header` (or none) and bullets named "x",
 # "i", "!", "*", " " or "v", the inline markup already rendered, wrapped as
 # cli wraps them (the first line within the console width less 8, the

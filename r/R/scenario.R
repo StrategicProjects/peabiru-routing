@@ -1,8 +1,7 @@
-# Scenarios: r5r's set_new_congestion() and set_new_lts(), with the checks of
-# congestion_poly2geojson(), dt_to_speed_map(), lts_lines2shp() and
-# dt_to_lts_map(). The result is the list the engine reads
-# (src/rust/src/scenario.rs): the data frame columns as text, as r5r hands
-# them to R5 with as.character(), and the sf geometries flattened.
+# Scenarios: the checks of new_carspeeds, carspeed_scale and new_lts. The
+# result is the list the engine reads (src/rust/src/scenario.rs): the data
+# frame columns as text (as.character(), which is how R5 is handed them)
+# and the sf geometries flattened.
 
 # checkmate's name of the type of `x` in its messages
 cm_type <- function(x) {
@@ -25,10 +24,9 @@ cm_data_frame <- function(x, name) {
   }
 }
 
-# checkmate::assert_numeric(x, lower = 0, finite = TRUE, null.ok = FALSE),
-# r5r's check of carspeed_scale; then a clear error for what that check lets
-# through and r5r fails on with an internal R error (`carspeed_scale != 1`
-# of NA, or of a length other than 1).
+# carspeed_scale: checkmate::assert_numeric(x, lower = 0, finite = TRUE,
+# null.ok = FALSE), then an error for what that check lets through (NA, or
+# a length other than 1).
 cm_scale <- function(x, name = "carspeed_scale") {
   # checkmate takes a logical vector of NAs as numeric
   if (!is.numeric(x) && !(is.logical(x) && all(is.na(x)))) {
@@ -38,8 +36,7 @@ cm_scale <- function(x, name = "carspeed_scale") {
   if (length(low)) cm_fail(name, paste0("Element ", low[1L], " is not >= 0"))
   if (any(is.infinite(x))) cm_fail(name, "Must be finite")
   if (length(x) != 1L || is.na(x)) {
-    stop("'", name, "' must be a single number that is not NA (r5r 2.5.0 fails ",
-         "on this value with an internal R error)", call. = FALSE)
+    stop("'", name, "' must be a single number that is not NA.", call. = FALSE)
   }
 }
 
@@ -121,21 +118,19 @@ flatten_lines <- function(geometry) {
        line_len = vapply(m, nrow, integer(1)))
 }
 
-# r5r's warning when a scenario is used: R5's scenario copy of the network
-# has no slope costs (r5r issue #555). r5r gives it for every scenario; here
-# only on a network with elevation, where it is true.
-scenario_elevation_warning <- function(r5r_network) {
-  if (!is.null(r5r_network) && !identical(r5r_network$elevation, "NONE")) {
-    warning("A scenario was used for this calculation. This may affect results ",
-            "for WALK or BICYCLE due to missing elevation. See issue #555.",
+# A scenario is routed on a copy of the network that, as in R5, has no slope
+# costs: a warning on a network with elevation.
+scenario_elevation_warning <- function(network) {
+  if (!is.null(network) && !identical(network$elevation, "NONE")) {
+    warning("A scenario was used for this calculation: WALK and BICYCLE are ",
+            "routed without the slope costs of the elevation raster.",
             call. = FALSE)
   }
 }
 
-# r5r set_new_congestion() and set_new_lts(): the scenario of a routing call,
-# NULL when it changes nothing.
+# The scenario of a routing call, NULL when it changes nothing.
 scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts,
-                          r5r_network = NULL) {
+                          network = NULL) {
   cm_data_frame(new_carspeeds, "new_carspeeds")
   cm_scale(carspeed_scale)
   spec <- list(car = "none", carspeed_scale = as.double(carspeed_scale),
@@ -143,9 +138,9 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts,
   changed <- FALSE
   if (!is.null(new_carspeeds) || carspeed_scale != 1) {
     changed <- TRUE
-    scenario_elevation_warning(r5r_network)
+    scenario_elevation_warning(network)
     if (inherits(new_carspeeds, "sf")) {
-      # congestion_poly2geojson()
+      # polygons with a speed factor
       x <- new_carspeeds
       cm_names(names(x), c("poly_id", "scale", "priority", "geometry"),
                "names(new_speeds_poly)")
@@ -156,11 +151,11 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts,
                "new_speeds_poly$priority")
       cm_geometry_types(x, c("POLYGON", "MULTIPOLYGON"),
                         "unique(as.character(sf::st_geometry_type(new_speeds_poly)))")
-      # r5r requires WGS 84; any other CRS is reprojected, with a message
+      # any CRS other than WGS 84 is reprojected, with a message
       x <- as_wgs84(x, "new_carspeeds")
-      # r5r writes the polygons to GeoJSON for R5, where GDAL keeps 15
+      # R5 reads scenario polygons from GeoJSON, where GDAL keeps 15
       # decimals of each coordinate (and trims what looks like round-off):
-      # the same round trip gives R5's coordinates
+      # the same round trip gives the coordinates R5 would use
       geojson <- tempfile(fileext = ".geojson")
       on.exit(unlink(geojson), add = TRUE)
       sf::st_write(x, geojson, quiet = TRUE)
@@ -169,7 +164,7 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts,
       spec <- c(spec, flatten_polygons(sf::st_geometry(written)),
                 list(scale = as.double(x$scale), priority = as.double(x$priority)))
     } else if (!is.null(new_carspeeds)) {
-      # dt_to_speed_map()
+      # speeds by OpenStreetMap way
       dt <- new_carspeeds
       cm_names(names(dt), c("osm_id", "max_speed", "speed_type"), "names(dt)")
       cm_typed(dt$osm_id, is.numeric(dt$osm_id), "numeric", "dt$osm_id",
@@ -186,13 +181,13 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts,
       spec$car_values <- as.character(dt$max_speed)
     }
   }
-  # set_new_lts(), after set_new_congestion()
+  # new_lts, after new_carspeeds
   cm_data_frame(new_lts, "new_lts")
   if (!is.null(new_lts)) {
     changed <- TRUE
-    scenario_elevation_warning(r5r_network)
+    scenario_elevation_warning(network)
     if (inherits(new_lts, "sf")) {
-      # lts_lines2shp()
+      # lines with a level of traffic stress
       x <- new_lts
       cm_names(names(x), c("line_id", "lts", "priority", "geometry"),
                "names(new_lts_lines)")
@@ -209,7 +204,7 @@ scenario_spec <- function(new_carspeeds, carspeed_scale, new_lts,
       spec <- c(spec, flatten_lines(sf::st_geometry(x)),
                 list(line_lts = as.integer(x$lts)))
     } else {
-      # dt_to_lts_map()
+      # levels of traffic stress by OpenStreetMap way
       dt <- new_lts
       cm_names(names(dt), c("osm_id", "lts"), "names(dt)")
       cm_typed(dt$osm_id, is.numeric(dt$osm_id), "numeric", "dt$osm_id",

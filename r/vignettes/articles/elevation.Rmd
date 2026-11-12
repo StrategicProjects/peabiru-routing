@@ -21,7 +21,7 @@ the city (`poa_elevation.tif`, SRTM data at about 90 m).
 
 ```{r data, message = FALSE}
 library(peabiru)
-poa <- r5r_sample(c("poa_osm.pbf", "poa_elevation.tif", "poa_hexgrid.csv"),
+poa <- poa_sample(c("poa_osm.pbf", "poa_elevation.tif", "poa_hexgrid.csv"),
                   dir = file.path(tempdir(), "poa_elevation"))
 hexes <- read.csv(file.path(poa, "poa_hexgrid.csv"))
 pts <- hexes[seq(1, nrow(hexes), by = 40), ]

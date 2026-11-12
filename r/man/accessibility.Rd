@@ -5,7 +5,7 @@
 \title{Calculate access to opportunities}
 \usage{
 accessibility(
-  r5r_network,
+  network,
   origins,
   destinations,
   opportunities_colnames = "opportunities",
@@ -35,12 +35,11 @@ accessibility(
   n_threads = Inf,
   verbose = FALSE,
   progress = TRUE,
-  output_dir = NULL,
-  r5r_core = deprecated()
+  output_dir = NULL
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat} (WGS
 84), or a \verb{POINT sf} with an \code{id} column, in any coordinate reference
@@ -163,15 +162,12 @@ each slice is written before the next one is routed, so the whole
 result is never held in memory. The files have the columns of the
 result (with \code{cutoff} also under \code{"fixed_exponential"}, as the
 placeholder \code{0}), fields with \verb{,} or \verb{"} quoted, \code{NA} as an empty
-field, and doubles as Java writes them (\code{2.0}, \code{1.0E-4}), byte for byte
-the files r5r writes; an origin with no row has no file, except in
+field, and doubles in the shortest form that reads back the same, with
+a decimal point (\code{2.0}, \code{1.0E-4}); an origin with no row has no file, except in
 \code{\link[=accessibility]{accessibility()}}. With \code{output_dir}, \code{"WALK"} is routed from the
 origins even when there are fewer destinations, ids must not be
 missing, and trips over \code{max_trip_duration} are not blanked out as in
 the returned result.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 A table with \code{id}, \code{opportunity}, \code{percentile}, \code{cutoff}
@@ -179,7 +175,7 @@ A table with \code{id}, \code{opportunity}, \code{percentile}, \code{cutoff}
 origin, opportunity, percentile and cutoff, in that order. With
 \code{output_dir}, \code{output_dir}.
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
 \description{
 Cumulative or decay-weighted access to the opportunities at the
@@ -215,15 +211,6 @@ than the largest cutoff.
 With a \code{fare_structure}, public transport is routed with fares as in
 \code{\link[=travel_time_matrix]{travel_time_matrix()}} (see its section "Departures and Monte Carlo
 draws").
-}
-
-\section{Compatibility with r5r}{
-
-The arguments, their defaults and checks, the columns and the rows of the
-result are those of \code{r5r::accessibility()} in r5r 2.5.0, and the values
-are equal to the last bit (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
-the result is identical to r5r's, its class included. An empty
-\code{percentiles} is an error that says so (r5r fails on it in Java).
 }
 
 \examples{

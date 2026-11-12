@@ -60,21 +60,16 @@
 #' over a long window (such as 8 per minute in a 10-minute window, or 5 in a
 #' window of 150 minutes or more): those combinations are an error.
 #'
-#' @section Compatibility with r5r:
-#' The arguments, their defaults and checks, the columns and the rows of the
-#' result are those of `r5r::travel_time_matrix()` in r5r 2.5.0, and the
-#' travel times are equal pair by pair (with frequencies, for the same
-#' `seed`): the engine is a port of R5 7.6, the engine r5r drives. With
-#' `options(peabiru.output = "data.table")` the result is identical to
-#' r5r's, its class included. For a walking trip with more origins than
-#' destinations the search runs from the destinations, as r5r runs it, and
-#' the columns are swapped back. An `sf` of points (or of scenario
-#' polygons or lines) in another CRS than WGS 84 is reprojected, where r5r
-#' stops with an error. A
-#' missing destination id is an error (r5r fails on it in Java). See
-#' the article "Coming from r5r" on the package website for every difference.
+#' @section Walking with more origins than destinations:
+#' With `"WALK"` alone, more origins than destinations and a network built
+#' without an elevation raster, the search runs from the destinations
+#' (fewer searches) and the columns are swapped back, taking the walk as
+#' the same in both directions. Where it is not (one-way links for
+#' pedestrians are rare, but exist) the times are those of the reverse
+#' walk. With an elevation raster, or with `output_dir`, the search always
+#' runs from the origins.
 #'
-#' @param r5r_network A network built with [build_network()].
+#' @param network A network built with [build_network()].
 #' @param origins,destinations A `data.frame` with columns `id`, `lon` and
 #'   `lat` (WGS 84 longitude and latitude), or a `POINT sf` with an `id`
 #'   column, in any coordinate reference system (CRS): an `sf` in another
@@ -162,14 +157,12 @@
 #'   result is never held in memory. The files have the columns of the
 #'   result (with `cutoff` also under `"fixed_exponential"`, as the
 #'   placeholder `0`), fields with `,` or `"` quoted, `NA` as an empty
-#'   field, and doubles as Java writes them (`2.0`, `1.0E-4`), byte for byte
-#'   the files r5r writes; an origin with no row has no file, except in
+#'   field, and doubles in the shortest form that reads back the same, with
+#'   a decimal point (`2.0`, `1.0E-4`); an origin with no row has no file, except in
 #'   [accessibility()]. With `output_dir`, `"WALK"` is routed from the
 #'   origins even when there are fewer destinations, ids must not be
 #'   missing, and trips over `max_trip_duration` are not blanked out as in
 #'   the returned result.
-#' @param r5r_core Deprecated: the network under its name before r5r 2.3.0,
-#'   accepted with a warning and used as `r5r_network`.
 #'
 #' @return A table with `from_id`, `to_id` (character) and one
 #'   integer column `travel_time_pXX` per percentile (minutes). Pairs that
@@ -201,7 +194,7 @@
 #'   n_threads = 2
 #' )
 #' head(ttm)
-travel_time_matrix <- function(r5r_network,
+travel_time_matrix <- function(network,
                                origins,
                                destinations,
                                mode = "WALK",
@@ -227,32 +220,24 @@ travel_time_matrix <- function(r5r_network,
                                n_threads = Inf,
                                verbose = FALSE,
                                progress = TRUE,
-                               output_dir = NULL,
-                               r5r_core = deprecated()) {
-  # mirrors r5r R/travel_time_matrix.R
+                               output_dir = NULL) {
   kind <- output_class()
-  if (is_present(r5r_core)) {
-    warn_r5r_core()
-    r5r_network <- r5r_core
-  }
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
-  # r5r's Java side fails on a missing destination id (NullPointerException)
+  # a destination without an id could not be named in the result
   if (anyNA(destinations$id)) {
-    stop("'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing ",
-         "destination id in Java).", call. = FALSE)
+    stop("'destinations$id' cannot be missing.", call. = FALSE)
   }
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)
 
-  assert_network(r5r_network)
+  assert_network(network)
   if (mode_list$transit) {
-    check_transit_availability_on_date(r5r_network, departure)
+    check_transit_availability_on_date(network, departure)
   }
 
-  # as in r5r, not with output_dir: the files are named after the origins
-  # routed from
-  swapped <- is.null(output_dir) && swap_od(origins, destinations, mode_list, r5r_network)
+  # not with output_dir: the files are named after the origins routed from
+  swapped <- is.null(output_dir) && swap_od(origins, destinations, mode_list, network)
   if (swapped) {
     temp <- origins
     origins <- destinations
@@ -276,16 +261,16 @@ travel_time_matrix <- function(r5r_network,
   check_max_lts(max_lts)
   threads <- assign_n_threads(n_threads)
   check_messages(verbose, progress)
-  check_fares(fare_structure, max_fare, r5r_network)
+  check_fares(fare_structure, max_fare, network)
   check_output_dir(output_dir)
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
 
   pct_names <- sprintf("travel_time_p%02d", percentiles)
   output <- csv_output(output_dir, origins, destinations,
                        percentiles = as.integer(percentiles))
   if (mode_list$transit) {
     res <- raise_if_stopped(rs_transit_ttm(
-      r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+      network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
       mode_list$transit_mode, mode_list$access_mode, mode_list$egress_mode,
       as.double(bike_speed),
       as.integer(max_lts), max_bike_time, max_car_time,
@@ -298,7 +283,7 @@ travel_time_matrix <- function(r5r_network,
     times <- res[-(1:2)]
   } else {
     res <- raise_if_stopped(rs_street_ttm(
-      r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+      network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
       mode_list$direct_modes, as.double(walk_speed), as.double(bike_speed),
       as.integer(max_lts), max_trip_duration, threads, scenario, output
     ))
@@ -309,16 +294,14 @@ travel_time_matrix <- function(r5r_network,
   names(times) <- pct_names
 
   if (swapped) {
-    # r5r reverse_back_if_direct_mode(): the routed destinations are the
-    # caller's origins
+    # the routed destinations are the caller's origins
     ids <- list(from_id = destinations$id[res[[2]]], to_id = origins$id[res[[1]]])
   } else {
     ids <- list(from_id = origins$id[res[[1]]], to_id = destinations$id[res[[2]]])
   }
   travel_times <- new_df(c(ids, times))
 
-  # r5r: travel times of non-viable trips become NA, in every percentile
-  # column
+  # travel times beyond the limit become NA, in every percentile column
   for (j in pct_names) {
     over <- which(travel_times[[j]] > max_trip_duration)
     travel_times[[j]][over] <- NA_integer_

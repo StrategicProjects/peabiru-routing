@@ -31,13 +31,6 @@
 #' [travel_time_matrix()] (see its section "Departures and Monte Carlo
 #' draws").
 #'
-#' @section Compatibility with r5r:
-#' The arguments, their defaults and checks, the columns and the rows of the
-#' result are those of `r5r::accessibility()` in r5r 2.5.0, and the values
-#' are equal to the last bit (with frequencies, for the same `seed`); with `options(peabiru.output = "data.table")`
-#' the result is identical to r5r's, its class included. An empty
-#' `percentiles` is an error that says so (r5r fails on it in Java).
-#'
 #' @inheritParams travel_time_matrix
 #' @param origins A `data.frame` with columns `id`, `lon` and `lat` (WGS
 #'   84), or a `POINT sf` with an `id` column, in any coordinate reference
@@ -83,7 +76,7 @@
 #'   n_threads = 2
 #' )
 #' head(access)
-accessibility <- function(r5r_network,
+accessibility <- function(network,
                           origins,
                           destinations,
                           opportunities_colnames = "opportunities",
@@ -113,27 +106,20 @@ accessibility <- function(r5r_network,
                           n_threads = Inf,
                           verbose = FALSE,
                           progress = TRUE,
-                          output_dir = NULL,
-                          r5r_core = deprecated()) {
-  # mirrors r5r R/accessibility.R
+                          output_dir = NULL) {
   kind <- output_class()
-  if (is_present(r5r_core)) {
-    warn_r5r_core()
-    r5r_network <- r5r_core
-  }
-  assert_network(r5r_network)
+  assert_network(network)
   origins <- assign_points_input(origins, "origins")
   destinations <- assign_points_input(destinations, "destinations")
-  # r5r's Java side fails on a missing destination id (NullPointerException)
+  # a destination without an id could not be named in the result
   if (anyNA(destinations$id)) {
-    stop("'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing ",
-         "destination id in Java).", call. = FALSE)
+    stop("'destinations$id' cannot be missing.", call. = FALSE)
   }
   opportunities <- assign_opportunities(destinations, opportunities_colnames)
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)
   if (mode_list$transit) {
-    check_transit_availability_on_date(r5r_network, departure)
+    check_transit_availability_on_date(network, departure)
   }
 
   decay_list <- assign_decay_function(decay_function, decay_value)
@@ -167,12 +153,12 @@ accessibility <- function(r5r_network,
   check_max_lts(max_lts)
   threads <- assign_n_threads(n_threads)
   check_messages(verbose, progress)
-  check_fares(fare_structure, max_fare, r5r_network)
+  check_fares(fare_structure, max_fare, network)
   check_output_dir(output_dir)
-  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
+  scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, network)
 
   values <- raise_if_stopped(rs_accessibility(
-    r5r_network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
+    network$ptr, origins$lat, origins$lon, destinations$lat, destinations$lon,
     opportunities,
     mode_list$direct_modes, mode_list$transit_mode, mode_list$egress_mode,
     decay_list$fun, decay_list$value, cutoffs_r5, percentiles,
