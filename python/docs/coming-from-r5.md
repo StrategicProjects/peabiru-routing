@@ -20,7 +20,7 @@ move a script over.
 - **The results.** For the same call, peabiru and r5r 2.5.0 return the same
   rows, in the same order, with the same values, including the last bit of
   the accessibility values. This is checked in peabiru's repository, not
-  assumed: `bench/compare/py_parity.py` runs 90 calls through both packages
+  assumed: `bench/compare/py_parity.py` runs 130 calls through both packages
   on r5r's two sample cities (Porto Alegre and Sao Paulo) and compares
   every value; `bench/compare/py_output_dir.py` compares the files written
   with `output_dir` byte for byte (151 files); `bench/compare/py_formals.py`
