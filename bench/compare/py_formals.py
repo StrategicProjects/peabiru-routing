@@ -27,7 +27,7 @@ HERE = Path(__file__).resolve().parent
 CANDIDATES = [
     HERE / "r5r-formals.csv",
     HERE / "fixtures" / "r5r-formals.csv",
-    HERE.parents[1] / "r" / "tests" / "testthat" / "fixtures" / "r5r-formals.csv",
+    HERE / "testthat" / "fixtures" / "r5r-formals.csv",
 ]
 
 # r5r's functions that manage Java: nothing to manage without it

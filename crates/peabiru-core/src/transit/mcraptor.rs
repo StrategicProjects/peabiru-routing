@@ -209,10 +209,10 @@ fn list_add(list: &mut Vec<Entry>, new: Entry, dominates: impl Fn(&Entry, &Entry
     true
 }
 
-/// `add` of r5r `TripPlanner`'s wrapper of `SuboptimalDominatingList`: a
+/// `add` of the `TripPlanner` wrapper of `SuboptimalDominatingList`: a
 /// state more than `max_duration` after the draw's `departure` is refused;
 /// one that the list accepts shrinks `max_duration` to its own duration
-/// when `shrink` (r5r: the shortest path is asked for and the state is at
+/// when `shrink` (the shortest path is asked for and the state is at
 /// the destination).
 fn suboptimal_add(
     list: &mut Vec<Entry>,

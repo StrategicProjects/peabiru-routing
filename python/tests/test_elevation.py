@@ -62,7 +62,7 @@ def test_a_scenario_drops_the_slope_costs_with_a_warning(tmp_path, network, poin
 def test_rasters_that_cannot_be_read_are_errors(tmp_path):
     a = tmp_path / "a"
     a.mkdir()
-    with pytest.raises(RuntimeError, match="ends in .tiff"):
+    with pytest.raises(RuntimeError, match="must end in .tif, not .tiff"):
         peabiru.build_network(_dir(a, {"hills.tiff": HILLS}), n_threads=2)
     b = tmp_path / "b"
     b.mkdir()

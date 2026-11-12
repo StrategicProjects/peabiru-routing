@@ -68,7 +68,7 @@ test_that("rasters peabiru cannot read are errors", {
 
   dir2 <- elevation_dir(c("hills.tiff" = hills()))
   on.exit(unlink(dir2, recursive = TRUE), add = TRUE)
-  expect_error(build_network(dir2, n_threads = 2), "ends in .tiff")
+  expect_error(build_network(dir2, n_threads = 2), "must end in .tif, not .tiff")
 
   dir3 <- elevation_dir(c("a.tif" = hills(), "b.tif" = hills()))
   on.exit(unlink(dir3, recursive = TRUE), add = TRUE)

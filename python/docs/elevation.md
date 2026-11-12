@@ -160,7 +160,7 @@ for w in caught:
 ```
 
 ```text
-UserWarning of the 21899 elevation samples on the network, 6298 with a value beyond +/-3276.7 m, which r5r stores wrapped around as 16-bit decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m becomes -3053.6 m); the slope costs are r5r's, but probably not what you want there: fill the voids or crop the raster
+UserWarning of the 21899 elevation samples on the network, 6298 with a value beyond +/-3276.7 m, which is stored wrapped around as 16-bit decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m becomes -3053.6 m); the slope costs follow from these values, and are probably not what you want there: fill the voids or crop the raster
 ```
 
 Fill the voids (with `gdal_fillnodata`, for instance) or crop the raster to

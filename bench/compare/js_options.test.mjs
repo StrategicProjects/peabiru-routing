@@ -20,7 +20,7 @@ import { sampleNetwork, samplePoints } from "../../js/tests/helpers.mjs";
 const FORMALS = [
   process.env.R5R_FORMALS,
   fileURLToPath(new URL("./r5r-formals.csv", import.meta.url)),
-  fileURLToPath(new URL("../../r/tests/testthat/fixtures/r5r-formals.csv", import.meta.url)),
+  fileURLToPath(new URL("./testthat/fixtures/r5r-formals.csv", import.meta.url)),
 ].find((p) => p && existsSync(p));
 const camel = (s) => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
 

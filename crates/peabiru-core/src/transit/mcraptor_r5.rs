@@ -1,7 +1,7 @@
 //! The first port of R5 7.6's `McRaptorSuboptimalPathProfileRouter` in this
 //! crate, statement by statement as R5 has it (every state made and kept,
 //! the fare of a state from all its rides, each list a list of states, a
-//! copy of every bag per round): the one validated against r5r 2.5.0 before
+//! copy of every bag per round): the one whose results were validated before
 //! [`super::mcraptor`] was made faster. Kept, for the tests only, as what
 //! the faster router must reproduce: `mcraptor`'s tests run both on random
 //! networks and compare everything a search hands back.
@@ -190,7 +190,7 @@ impl<'a> McRaptor<'a> {
         }
     }
 
-    /// r5r's seed of the departure-time sample
+    /// the seed of the departure-time sample
     /// (`R5TravelTimeComputer.seedOffsets`): `Objects.hash(fromLat,
     /// fromLon)` without a seed, `Objects.hash(seed, fromLat, fromLon, 1)`
     /// with one.
@@ -282,7 +282,7 @@ impl<'a> McRaptor<'a> {
             self.arena.clear();
             self.touched_patterns.clear();
             self.touched_stops.clear();
-            // r5r's TripPlanner.AccessTimes: target pruning per draw
+            // TripPlanner.AccessTimes (the trip planner ported with the router): target pruning per draw
             self.best_at_target = i32::MAX;
             self.round = 0;
             for &(stop, t) in access {
