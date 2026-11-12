@@ -5,16 +5,15 @@
 \title{Setup a fare structure to calculate the monetary costs of trips}
 \usage{
 setup_fare_structure(
-  r5r_network,
+  network,
   base_fare,
   by = "MODE",
   debug_path = NULL,
-  debug_info = NULL,
-  r5r_core = deprecated()
+  debug_info = NULL
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{base_fare}{A number, at least 0: the fare of every route, type and
 transfer.}
@@ -26,15 +25,12 @@ agency (\code{"AGENCY_ID"}, or \code{"AGENCY_NAME"}), or one type for all routes
 \item{debug_path, debug_info}{A \code{.csv} path (or \code{NULL}) and one of
 \code{"MODE"}, \code{"ROUTE"} and \code{"MODE_ROUTE"} (or \code{NULL}), stored in the
 structure's \code{debug_settings}. No debug file is written whatever they
-say (nor does r5r 2.5.0 write one).}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning.}
+say.}
 }
 \value{
 A fare structure (a list, see Details).
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
 \description{
 Creates a basic fare structure that describes how transit fares should be
@@ -71,18 +67,10 @@ free when the type has \code{unlimited_transfers}; otherwise, while fewer than
 the type has \code{allow_same_route_transfer}) brings the two rides to that
 row's \code{fare}; any other ride costs its full fare. The total is capped at
 \code{fare_cap}. These are the rules of R5's \code{RuleBasedInRoutingFareCalculator},
-written for r5r and ported to the 'Rust' core.
+ported to the 'Rust' core. R5's other fare calculators (a structure
+with an element \code{type}) are not available: the routing functions stop
+with an error on one.
 }
-\section{Compatibility with r5r}{
-
-The arguments, their defaults and checks and the structure are those of
-\code{r5r::setup_fare_structure()} in r5r 2.5.0; with \code{options(peabiru.output = "data.table")}
-its tables are \code{data.table}s, and the structure is identical to r5r's. Structures move between the two packages
-through \code{\link[=write_fare_structure]{write_fare_structure()}} and \code{\link[=read_fare_structure]{read_fare_structure()}}. R5's own
-fare calculators (a structure with a \code{type}, which r5r passes to R5) are
-not available: the routing functions stop with an error on one.
-}
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

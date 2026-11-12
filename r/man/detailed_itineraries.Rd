@@ -5,7 +5,7 @@
 \title{Detailed itineraries between origin-destination pairs}
 \usage{
 detailed_itineraries(
-  r5r_network,
+  network,
   origins,
   destinations,
   mode = "WALK",
@@ -33,12 +33,11 @@ detailed_itineraries(
   progress = TRUE,
   drop_geometry = FALSE,
   osm_link_ids = FALSE,
-  output_dir = NULL,
-  r5r_core = deprecated()
+  output_dir = NULL
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
 \code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
@@ -160,15 +159,12 @@ each slice is written before the next one is routed, so the whole
 result is never held in memory. The files have the columns of the
 result (with \code{cutoff} also under \code{"fixed_exponential"}, as the
 placeholder \code{0}), fields with \verb{,} or \verb{"} quoted, \code{NA} as an empty
-field, and doubles as Java writes them (\code{2.0}, \code{1.0E-4}), byte for byte
-the files r5r writes; an origin with no row has no file, except in
+field, and doubles in the shortest form that reads back the same, with
+a decimal point (\code{2.0}, \code{1.0E-4}); an origin with no row has no file, except in
 \code{\link[=accessibility]{accessibility()}}. With \code{output_dir}, \code{"WALK"} is routed from the
 origins even when there are fewer destinations, ids must not be
 missing, and trips over \code{max_trip_duration} are not blanked out as in
 the returned result.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 With \code{drop_geometry = FALSE}, an \code{sf} of \code{LINESTRING}s in
@@ -182,11 +178,10 @@ each itinerary (\code{option}), with \code{from_id}, \code{from_lat}, \code{from
 \code{cumulative_fare} (after \code{mode}), the fare paid up to the end of the
 leg. Pairs without an itinerary have no rows. With \code{output_dir},
 one CSV file per pair with itineraries is written,
-\verb{from_<origin id>_to_<destination id>.csv} (the geometry as WKT text,
-byte for byte the files r5r writes), and \code{output_dir} is returned.
+\verb{from_<origin id>_to_<destination id>.csv} (the geometry as WKT text), and \code{output_dir} is returned.
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", the class r5r gives it. With "data.table", both are
-\code{data.table}s, as r5r's.
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", an \code{sf} \code{data.table} where the section "Class of the results" of \link{peabiru-package} says so. With "data.table", both are
+\code{data.table}s.
 }
 \description{
 The itinerary of each trip between pairs of origins and destinations:
@@ -196,8 +191,8 @@ mode and, with public transport, the fastest trip over the departure
 window (\code{shortest_path = TRUE}) or, with \code{shortest_path = FALSE}, the
 alternatives R5's multi-criteria router (McRAPTOR) finds over
 \code{time_window} sampled departure times, one per sequence of routes (the
-fastest of each), up to \code{suboptimal_minutes} slower than the best. As in
-r5r, a pair's options are ordered by the trip by the street mode alone
+fastest of each), up to \code{suboptimal_minutes} slower than the best. A
+pair's options are ordered by the trip by the street mode alone
 first, then by the number of legs, then by duration, so the first option
 is not the fastest when a trip with fewer legs (or the street trip) is
 slower: on Porto Alegre with \code{suboptimal_minutes = 10}, a pair had 102
@@ -211,20 +206,16 @@ Networks whose 'GTFS' has frequency-based trips cannot be used with
 public transport (the itineraries of a Monte Carlo draw are not trips
 that run).
 }
-\section{Compatibility with r5r}{
+\section{Egress by car and turn restrictions}{
 
-The arguments, their defaults and checks, the columns, the rows and the
-geometries are those of \code{r5r::detailed_itineraries()} in r5r 2.5.0, and
-with \code{options(peabiru.output = "data.table")} the result is identical to r5r's, its class
-included. With \code{mode_egress = "CAR"}, R5 reverses the via edges of
-turn restrictions with two or more via ways in place each time its
-backward egress search checks one, so what r5r returns for a pair whose
-car searches cross such a restriction can depend on the searches that
-ran before (in the same call, on other threads, or in earlier calls).
-peabiru returns, for every pair, what r5r gives on a freshly built
-network for that pair alone with one thread, and warns once per call,
-naming the pairs whose itineraries some other order of those via edges
-would change (on Porto Alegre, about 1 pair in 200).
+With \code{mode_egress = "CAR"}, the backward egress search of R5 (the engine
+the routing is ported from) reads the via ways of a turn restriction with
+two or more of them in an order that depends on the searches that ran
+before. peabiru fixes that order: every pair gets the itinerary of a
+freshly built network routing that pair alone, whatever the other pairs,
+the threads or the earlier calls, and a warning, once per call, names
+the pairs whose itineraries another order of those via ways would change
+(on Porto Alegre, about 1 pair in 200).
 }
 
 \examples{

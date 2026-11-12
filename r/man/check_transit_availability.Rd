@@ -5,15 +5,14 @@
 \title{Check transit service availability by date}
 \usage{
 check_transit_availability(
-  r5r_network,
+  network,
   dates = NULL,
   start_date = NULL,
-  end_date = NULL,
-  r5r_core = deprecated()
+  end_date = NULL
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{dates}{A vector of specific dates to be checked. Can be character
 strings in "YYYY-MM-DD" format, or objects of class \code{Date}. This
@@ -28,9 +27,6 @@ be used with \code{end_date}.}
 \item{end_date}{The end date for a continuous date range. Must be a
 single character string in "YYYY-MM-DD" format or a \code{Date} object. Must
 be used with \code{start_date}.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning.}
 }
 \value{
 A table with four columns: \code{date} (\code{Date}),
@@ -63,13 +59,6 @@ trips; counts are of services, not trips. If calendar bounds are
 invalid, automatic discovery fails naming the service; explicit date
 queries remain available.
 }
-\section{Compatibility with r5r}{
-
-The arguments, their defaults and checks, the columns and the values are
-those of \code{r5r::check_transit_availability()} in r5r 2.5.0; with \code{options(peabiru.output = "data.table")}
-the result is identical to r5r's, its class included.
-}
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

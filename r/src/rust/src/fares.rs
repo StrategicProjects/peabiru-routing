@@ -1,5 +1,5 @@
 //! Fare structures (`setup_fare_structure()`, `read_fare_structure()`,
-//! `write_fare_structure()`) and `pareto_frontier()`: r5r's R object
+//! `write_fare_structure()`) and `pareto_frontier()`: the R object
 //! converted to the core's `FareStructure` and back.
 
 use super::{err, interruptible, network, points, threads, Outcome};
@@ -96,7 +96,7 @@ fn one_text(x: &Robj, what: &str) -> Result<String> {
     }
 }
 
-/// r5r's fare structure list as the core's structure (the R code has
+/// The R fare structure list as the core's structure (the R code has
 /// checked its element names).
 pub(crate) fn structure_from_r(x: &Robj) -> Result<FareStructure> {
     let mut s = FareStructure::default();
@@ -216,7 +216,7 @@ fn count(x: f64) -> Robj {
     }
 }
 
-/// The core's structure as r5r's list, the tables as lists of columns
+/// The core's structure as the R list, the tables as lists of columns
 /// (the R code makes them data frames).
 fn structure_to_r(s: &FareStructure) -> Result<Robj> {
     let t = &s.fares_per_type;
@@ -278,7 +278,7 @@ fn structure_to_r(s: &FareStructure) -> Result<Robj> {
     .into())
 }
 
-/// `fare_structure` and `max_fare` of a routing call: `NULL` or r5r's
+/// `fare_structure` and `max_fare` of a routing call: `NULL` or the R
 /// list.
 pub(crate) fn fare_args(fare_structure: &Robj) -> Result<Option<Arc<FareStructure>>> {
     if fare_structure.is_null() {
@@ -287,7 +287,7 @@ pub(crate) fn fare_args(fare_structure: &Robj) -> Result<Option<Arc<FareStructur
     Ok(Some(Arc::new(structure_from_r(fare_structure)?)))
 }
 
-/// Check a fare structure as r5r does when it is set, against the
+/// Check a fare structure against the
 /// network's routes (`NULL` passes).
 /// @noRd
 #[extendr]
@@ -300,7 +300,7 @@ fn rs_check_fare_structure(ptr: Robj, fare_structure: Robj) -> Result<()> {
     s.validate_for(&n.net).map_err(err)
 }
 
-/// r5r's `setup_fare_structure()` as a list (columns of the tables).
+/// `setup_fare_structure()` as a list (columns of the tables).
 /// @noRd
 #[extendr]
 fn rs_setup_fare_structure(ptr: Robj, base_fare: f64, by: &str) -> Result<Robj> {
@@ -309,7 +309,7 @@ fn rs_setup_fare_structure(ptr: Robj, base_fare: f64, by: &str) -> Result<Robj> 
     structure_to_r(&s)
 }
 
-/// r5r's `read_fare_structure()` of the bytes of the `.zip` file.
+/// `read_fare_structure()` of the bytes of the `.zip` file.
 /// @noRd
 #[extendr]
 fn rs_read_fare_structure(bytes: Raw, encoding: &str) -> Result<Robj> {
@@ -360,7 +360,7 @@ fn rs_zip_texts(names: Vec<String>, texts: Vec<String>) -> Raw {
     Raw::from_bytes(&zip_deflated(&files))
 }
 
-/// r5r's `pareto_frontier()`: `list(from, to, percentile, travel_time,
+/// `pareto_frontier()`: `list(from, to, percentile, travel_time,
 /// monetary_cost)`, `from`/`to` 1-based. `transit_modes` empty routes by
 /// `mode` alone.
 /// @noRd

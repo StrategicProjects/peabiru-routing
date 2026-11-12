@@ -3,7 +3,7 @@ iso <- function(...) {
   isochrone(fixture_network(), n_threads = 2, departure_datetime = departure, ...)
 }
 
-test_that("polygon isochrones have r5r's columns, types and row order", {
+test_that("polygon isochrones have their columns, types and row order", {
   pts <- fixture_points()[1:2, ]
   x <- iso(pts, mode = "WALK", cutoffs = c(20, 0, 10, 10), percentiles = c(50, 25))
   expect_identical(class(x), c("sf", "tbl_df", "tbl", "data.frame"))
@@ -22,7 +22,7 @@ test_that("polygon isochrones have r5r's columns, types and row order", {
   expect_gt(as.numeric(sf::st_area(both)) / a[2], 0.999)
 })
 
-test_that("line isochrones have r5r's columns, types and row order", {
+test_that("line isochrones have their columns, types and row order", {
   pts <- fixture_points()[1:2, ]
   x <- iso(pts, mode = "WALK", cutoffs = c(0, 5, 10), polygon_output = FALSE)
   expect_identical(class(x), c("sf", "tbl_df", "tbl", "data.frame"))
@@ -66,7 +66,7 @@ test_that("an origin far from the streets gets empty polygons and no lines", {
   expect_identical(nrow(l), 0L)
 })
 
-test_that("arguments are checked as r5r checks them", {
+test_that("arguments are checked", {
   pts <- fixture_points()[1, ]
   expect_error(iso(pts, mode = "WALK", cutoffs = 0), "at least one value greater than 0")
   expect_error(iso(pts, mode = "WALK", cutoffs = c(-5, 10)), "cutoffs")
@@ -84,15 +84,14 @@ test_that("arguments are checked as r5r checks them", {
   expect_gt(nrow(iso(pts, mode = c("BICYCLE", "TRANSIT"), mode_egress = "BICYCLE",
                      seed = 1L)), 0)
   expect_error(isochrone(fixture_network(), pts, mode = "TRANSIT"), "departure_datetime")
-  expect_warning(iso(pts, mode = "WALK", cutoffs = c(0, 5), sample_size = 0.5),
-                 "sample_size")
+  expect_error(iso(pts, mode = "WALK", cutoffs = c(0, 5), sample_size = 0.5),
+               "unused argument")
   # max_trip_duration is ignored
   expect_identical(iso(pts, mode = "WALK", cutoffs = c(0, 5), max_trip_duration = 1),
                    iso(pts, mode = "WALK", cutoffs = c(0, 5)))
 })
 
 test_that("polygon isochrones of origins without rows are an error that says so", {
-  # r5r fails there on undefined columns (an internal R error)
   expect_error(iso(fixture_points()[0, ], mode = "WALK", cutoffs = 10),
                "'origins' has no rows", fixed = TRUE)
 })
@@ -109,9 +108,9 @@ test_that("a polygon whose area the s2 repair changes is repaired on the plane, 
   expect_warning(x <- car(), class = "peabiru_isochrone_repair")
   expect_true(sf::sf_use_s2())                      # the session's setting is left as it was
   expect_true(all(sf::st_is_valid(x)))
-  # what r5r returns: sf::st_make_valid() with s2
-  r5r <- (function() {
-    local_isochrone_repair("r5r")
+  # the spherical repair kept: sf::st_make_valid() with s2
+  spherical <- (function() {
+    local_isochrone_repair("spherical")
     expect_no_warning(car())
   })()
   # with s2 off there is one repair only, and it is the one returned above
@@ -121,5 +120,5 @@ test_that("a polygon whose area the s2 repair changes is repaired on the plane, 
   })()
   expect_true(sf::sf_use_s2())
   expect_identical(sf::st_as_binary(sf::st_geometry(x)), sf::st_as_binary(sf::st_geometry(planar)))
-  expect_gt(max(abs(area(r5r) - area(planar)) / area(planar)), 1e-4)
+  expect_gt(max(abs(area(spherical) - area(planar)) / area(planar)), 1e-4)
 })

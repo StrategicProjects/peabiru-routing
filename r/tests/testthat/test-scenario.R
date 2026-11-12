@@ -1,6 +1,6 @@
-# Scenarios: new_carspeeds, carspeed_scale and new_lts. Parity with r5r is
-# in test-parity.R; these check the checks and that the scenarios change
-# what they should, and nothing else.
+# Scenarios: new_carspeeds, carspeed_scale and new_lts. These check the
+# checks and that the scenarios change what they should, and nothing else;
+# recorded results are in test-recorded.R.
 
 ways_of <- function(network) {
   skip_if_not_installed("sf")
@@ -49,7 +49,7 @@ test_that("LTS scenarios change cycling times", {
   expect_identical(ttm(new_lts = stressful, max_lts = 4), ttm(max_lts = 4))
 })
 
-test_that("scenario arguments are checked as r5r checks them", {
+test_that("scenario arguments are checked", {
   network <- fixture_network()
   pts <- fixture_points()
   ttm <- function(...) {
@@ -58,8 +58,8 @@ test_that("scenario arguments are checked as r5r checks them", {
   expect_error(ttm(new_carspeeds = 1),
                "Must inherit from class 'data.frame', but has class 'numeric'", fixed = TRUE)
   expect_error(ttm(carspeed_scale = -1), "Element 1 is not >= 0", fixed = TRUE)
-  # checkmate::assert_numeric(), r5r's check, lets NA and vectors through and
-  # r5r then fails with an internal R error: a clear error here
+  # checkmate::assert_numeric() lets NA and vectors through: a clear error
+  # here
   for (bad in list(NA, NaN, numeric(0), c(1, 2))) {
     expect_error(ttm(carspeed_scale = bad), "must be a single number",
                  fixed = TRUE)
@@ -79,7 +79,7 @@ test_that("scenario arguments are checked as r5r checks them", {
   expect_error(ttm(new_carspeeds = data.frame(osm_id = numeric(0), max_speed = numeric(0),
                                               speed_type = character(0))),
                "Assertion on 'dt$osm_id' failed: Contains only missing values.", fixed = TRUE)
-  # r5r hands R5 as.character(osm_id): 1e+05 is not a Java long
+  # the ids go as as.character(osm_id): 1e+05 is not an integer
   expect_error(ttm(new_carspeeds = data.frame(osm_id = 1e5, max_speed = 1,
                                               speed_type = "scale")),
                "osm_id '1e+05' is not an integer", fixed = TRUE)
@@ -88,14 +88,14 @@ test_that("scenario arguments are checked as r5r checks them", {
                fixed = TRUE)
   # a speed that does not fit R5's 16-bit cm/s
   expect_error(ttm(carspeed_scale = 1e9), "speed of 0 or less")
-  # ids not in the network are ignored, as in r5r
+  # ids not in the network are ignored
   expect_identical(
     ttm(new_carspeeds = data.frame(osm_id = 1, max_speed = 0.5, speed_type = "scale")),
     ttm()
   )
 })
 
-test_that("sf scenarios are checked as r5r checks them, and route", {
+test_that("sf scenarios are checked, and route", {
   skip_if_not_installed("sf")
   network <- fixture_network()
   pts <- fixture_points()

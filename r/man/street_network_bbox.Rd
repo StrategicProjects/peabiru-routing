@@ -4,20 +4,13 @@
 \alias{street_network_bbox}
 \title{Extract the geographic bounding box of the transport network}
 \usage{
-street_network_bbox(
-  r5r_network,
-  output = c("polygon", "bbox", "vector"),
-  r5r_core = deprecated()
-)
+street_network_bbox(network, output = c("polygon", "bbox", "vector"))
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{output}{A character string specifying the desired output format.
 One of \code{"polygon"} (the default), \code{"bbox"}, or \code{"vector"}.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning.}
 }
 \value{
 By default (\code{output = "polygon"}), an \code{sfc} with a single
@@ -32,12 +25,6 @@ layer, which covers every 'OpenStreetMap' node of the ways streets were
 made from (it can be a little larger than the box of the edges of
 \code{\link[=street_network_to_sf]{street_network_to_sf()}}).
 }
-\section{Compatibility with r5r}{
-
-The arguments, their defaults and checks and the result are those of
-\code{r5r::street_network_bbox()} in r5r 2.5.0, with the same coordinates.
-}
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

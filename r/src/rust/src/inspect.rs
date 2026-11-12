@@ -1,4 +1,4 @@
-//! Bindings of r5r's network functions: `find_snap()`,
+//! Bindings of the functions that inspect a network: `find_snap()`,
 //! `street_network_bbox()`, `street_network_to_sf()`,
 //! `transit_network_to_sf()`, `check_transit_availability()` and
 //! `get_gtfs_errors()`. As in the rest of the package, the R code checks
@@ -12,7 +12,7 @@ use peabiru_core::{
     transit_service_dates, transit_stops,
 };
 
-/// Snapped points of r5r's `find_snap()`: `snap_lat`, `snap_lon`,
+/// Snapped points of `find_snap()`: `snap_lat`, `snap_lon`,
 /// `distance` (NA where not found) and `found`, one per point.
 /// @noRd
 #[extendr]
@@ -38,7 +38,7 @@ fn rs_street_bbox(ptr: Robj) -> Result<Vec<f64>> {
     Ok(network(&ptr)?.net.street().bbox().to_vec())
 }
 
-/// The vertices of r5r's `street_network_to_sf()`, as columns.
+/// The vertices of `street_network_to_sf()`, as columns.
 /// @noRd
 #[extendr]
 fn rs_street_vertices(ptr: Robj) -> Result<Robj> {
@@ -53,7 +53,7 @@ fn rs_street_vertices(ptr: Robj) -> Result<Robj> {
     .into())
 }
 
-/// The stops of r5r's `transit_network_to_sf()`, as columns (NA
+/// The stops of `transit_network_to_sf()`, as columns (NA
 /// coordinates for stops not linked to the streets).
 /// @noRd
 #[extendr]
@@ -82,7 +82,7 @@ fn rs_transit_stops(ptr: Robj) -> Result<Robj> {
     .into())
 }
 
-/// The routes of r5r's `transit_network_to_sf()`, as columns, with the line
+/// The routes of `transit_network_to_sf()`, as columns, with the line
 /// of each row as `n_points` and flat `x`, `y`.
 /// @noRd
 #[extendr]
@@ -116,7 +116,7 @@ fn rs_transit_routes(ptr: Robj) -> Result<Robj> {
 }
 
 /// The operating dates of the network's services (`yyyymmdd`, ascending),
-/// as r5r's `check_transit_availability()` discovers them.
+/// as `check_transit_availability()` lists them.
 /// @noRd
 #[extendr]
 fn rs_transit_service_dates(ptr: Robj) -> Result<Vec<i32>> {
@@ -153,7 +153,7 @@ fn rs_gtfs_files(dir: &str) -> Result<Vec<String>> {
 }
 
 /// The errors gtfs-lib reports for the feeds at `paths`, read in this
-/// order, as the columns of r5r's `gtfs_errors.csv` (`line` NA never).
+/// order, as the columns of `get_gtfs_errors()` (`line` NA never).
 /// @noRd
 #[extendr]
 fn rs_gtfs_errors(paths: Vec<String>) -> Result<Robj> {

@@ -34,7 +34,7 @@ JavaScript packages and the command-line tool of the same name.
 | `pareto_frontier()` | the trade-off between travel time and fare |
 | `find_snap()`, `street_network_bbox()`, `street_network_to_sf()`, `transit_network_to_sf()` | where points snap, and the street and transit networks as `sf` |
 | `check_transit_availability()`, `get_gtfs_errors()` | the dates with service, and the errors in the GTFS feeds |
-| `setup_r5()`, `stop_r5()`, `download_r5()`, `r5r_cache()`, `r5r_sitrep()` | r5r's functions for Java, kept so that r5r scripts run |
+
 
 The routing functions also take scenarios of car speeds (`new_carspeeds`,
 `carspeed_scale`) and of traffic stress for cyclists (`new_lts`). What the
@@ -70,16 +70,14 @@ ttm <- travel_time_matrix(
 )
 ```
 
-## Coming from r5r
+## Class of the results
 
-The package exports the 22 functions of [r5r](https://github.com/ipea/r5r)
-2.5.0, with their arguments and defaults, and the results are r5r's: with
-the same arguments and `seed`, r5r returns the same rows, columns and
-values. peabiru returns tibbles by default;
-`options(peabiru.output = "data.table")` gives r5r's `data.table`s,
-`identical()` to r5r's results, class included, and
-`options(peabiru.output = "data.frame")` base data frames. The article
-"Coming from r5r" lists what is the same and every difference.
+The functions return tibbles by default (`sf` tibbles for the results with
+a geometry). `options(peabiru.output = "data.frame")` gives base data
+frames and `options(peabiru.output = "data.table")` `data.table`s; the
+rows, columns and values are the same whatever the class. There is also a
+[comparison with r5r](https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/coming-from-r5r.Rmd).
+
 
 ## Documentation
 
@@ -88,8 +86,7 @@ the rest of the project's documentation: run `site/build.sh` at the root of
 the repository and open `_site/r/index.html`. It has a getting-started
 vignette and articles on travel-time matrices, accessibility, expanded and
 arrival matrices, detailed itineraries, fares, elevation, scenarios,
-inspecting a network, coming from r5r, how the engine works, and
-benchmarks. To go from points to maps with sf, dplyr and ggplot2, start with
+inspecting a network, how the engine works, and benchmarks. To go from points to maps with sf, dplyr and ggplot2, start with
 ["peabiru with sf and the tidyverse"](https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/sf-tidyverse.Rmd):
 an sf grid in any coordinate reference system, the routing functions with
 the native pipe, dplyr on the tibbles they return, joins back to the
@@ -97,8 +94,9 @@ geometry and `geom_sf()` maps.
 
 ## Licence and credits
 
-MIT. The routing logic is ported from R5 (MIT, © Conveyal), and r5r (Ipea)
-defined the interface and supplies the reference results for the tests.
+MIT. The routing logic is ported from R5 (MIT, © Conveyal); the sample
+network is cut from the São Paulo sample data of the r5r project (Ipea).
+
 The notices of the works peabiru derives from are in
 `inst/LICENSE-THIRD-PARTY`. The package's compiled code also contains Rust
 crates by other authors (extendr, miniz_oxide and others): they are listed

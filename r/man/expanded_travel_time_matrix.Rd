@@ -5,7 +5,7 @@
 \title{Calculate minute-by-minute travel times between origin destination pairs}
 \usage{
 expanded_travel_time_matrix(
-  r5r_network,
+  network,
   origins,
   destinations,
   mode = "WALK",
@@ -29,12 +29,11 @@ expanded_travel_time_matrix(
   n_threads = Inf,
   verbose = FALSE,
   progress = TRUE,
-  output_dir = NULL,
-  r5r_core = deprecated()
+  output_dir = NULL
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
 \code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
@@ -134,15 +133,12 @@ each slice is written before the next one is routed, so the whole
 result is never held in memory. The files have the columns of the
 result (with \code{cutoff} also under \code{"fixed_exponential"}, as the
 placeholder \code{0}), fields with \verb{,} or \verb{"} quoted, \code{NA} as an empty
-field, and doubles as Java writes them (\code{2.0}, \code{1.0E-4}), byte for byte
-the files r5r writes; an origin with no row has no file, except in
+field, and doubles in the shortest form that reads back the same, with
+a decimal point (\code{2.0}, \code{1.0E-4}); an origin with no row has no file, except in
 \code{\link[=accessibility]{accessibility()}}. With \code{output_dir}, \code{"WALK"} is routed from the
 origins even when there are fewer destinations, ids must not be
 missing, and trips over \code{max_trip_duration} are not blanked out as in
 the returned result.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 A table with \code{from_id}, \code{to_id}, \code{departure_time}
@@ -153,7 +149,7 @@ A table with \code{from_id}, \code{to_id}, \code{departure_time}
 Trips longer than \code{max_trip_duration} have \code{NA} times and routes. With
 \code{output_dir}, \code{output_dir}.
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
 \description{
 The travel time of every trip between each origin and destination, for
@@ -169,21 +165,12 @@ mode as \code{routes} (\code{"[WALK]"}, \code{"[BICYCLE]"} or \code{"[CAR]"}).
 A street mode alone is an error: use \code{\link[=travel_time_matrix]{travel_time_matrix()}}, whose
 travel times do not depend on the departure minute. At most 5,000
 destinations are accepted (R5's limit).
-}
-\section{Compatibility with r5r}{
 
-The arguments, their defaults and checks, the columns, the rows and their
-order are those of \code{r5r::expanded_travel_time_matrix()} in r5r 2.5.0,
-with the same values (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
-the result is identical to r5r's, its class included. With a street mode alone
-r5r reports the same trip for every minute of a departure time taken
-from the computer's clock (\code{Sys.time()}) rather than from
-\code{departure_datetime}; peabiru stops with an error instead. With more
-than one 'GTFS' feed, a few trips can differ between operating systems
-(the feeds are loaded in the order the file system lists them), as
-r5r's do.
+With more than one 'GTFS' feed, a few trips can differ between operating
+systems (another stop or route with the same travel time): the feeds are
+loaded in the order the file system lists them (see \code{\link[=build_network]{build_network()}}).
+On one machine the results are always the same.
 }
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

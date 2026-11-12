@@ -1,6 +1,6 @@
-# The small network shipped with the package: a crop of r5r's Sao Paulo
-# sample (streets around Avenida Paulista and the SPTrans frequency-based
-# GTFS), with 27 points.
+# The small network shipped with the package: a crop of the Sao Paulo
+# sample data of the r5r project (streets around Avenida Paulista and the
+# SPTrans frequency-based GTFS), with 27 points.
 fixture_path <- function() system.file("extdata/spo", package = "peabiru")
 
 fixture_network <- local({

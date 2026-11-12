@@ -6,7 +6,7 @@
 time of arrival}
 \usage{
 arrival_travel_time_matrix(
-  r5r_network,
+  network,
   origins,
   destinations,
   mode = "WALK",
@@ -29,12 +29,11 @@ arrival_travel_time_matrix(
   n_threads = Inf,
   verbose = FALSE,
   progress = TRUE,
-  output_dir = NULL,
-  r5r_core = deprecated()
+  output_dir = NULL
 )
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
 \code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
@@ -131,22 +130,19 @@ each slice is written before the next one is routed, so the whole
 result is never held in memory. The files have the columns of the
 result (with \code{cutoff} also under \code{"fixed_exponential"}, as the
 placeholder \code{0}), fields with \verb{,} or \verb{"} quoted, \code{NA} as an empty
-field, and doubles as Java writes them (\code{2.0}, \code{1.0E-4}), byte for byte
-the files r5r writes; an origin with no row has no file, except in
+field, and doubles in the shortest form that reads back the same, with
+a decimal point (\code{2.0}, \code{1.0E-4}); an origin with no row has no file, except in
 \code{\link[=accessibility]{accessibility()}}. With \code{output_dir}, \code{"WALK"} is routed from the
 origins even when there are fewer destinations, ids must not be
 missing, and trips over \code{max_trip_duration} are not blanked out as in
 the returned result.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 A table with the columns of
 \code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}}: one row per origin and destination
 reached in time. With \code{output_dir}, \code{output_dir}.
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
 \description{
 For each origin and destination, the trip by public transport that
@@ -160,17 +156,6 @@ time, with its routes and, with \code{breakdown}, its components.
 As in \code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}}, a street mode alone is an error
 and at most 5,000 destinations are accepted.
 }
-\section{Compatibility with r5r}{
-
-The arguments, their defaults and checks, the columns, the rows and their
-order are those of \code{r5r::arrival_travel_time_matrix()} in r5r 2.5.0,
-with the same values (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
-the result is identical to r5r's, its class included. An \code{arrival_datetime} that
-is not a date-time is an error that says so (r5r fails on it with an
-internal R error); a street mode alone is an error, as in
-\code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}}.
-}
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

@@ -4,13 +4,10 @@
 \alias{street_network_to_sf}
 \title{Extract OpenStreetMap network in sf format}
 \usage{
-street_network_to_sf(r5r_network, r5r_core = deprecated())
+street_network_to_sf(network)
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 }
 \value{
 A list with two \code{sf} data frames in WGS 84: \code{vertices}
@@ -18,21 +15,16 @@ A list with two \code{sf} data frames in WGS 84: \code{vertices}
 \code{geometry}, and \code{edges} (\code{LINESTRING}), with columns \code{edge_index},
 \code{osm_id}, \code{from_vertex}, \code{to_vertex}, \code{street_class}, \code{length} (meters),
 \code{walk}, \code{car}, \code{car_speed} (km/h), \code{bicycle}, \code{bicycle_lts} and
-\code{geometry}. Package 'sf' is needed.
+\code{geometry}. Package 'sf' is needed. With
+\code{options(peabiru.output = "data.table")}, \code{edges} is an \code{sf}
+\code{data.table} and \code{vertices} a plain \code{sf} data frame (see
+\link{peabiru-package}).
 }
 \description{
 The street network in \code{sf} format: the vertices at the ends of street
 edges and every directed street edge (the connectors of transit stops
 and park-and-rides left out), in the order of the network's edge index.
 }
-\section{Compatibility with r5r}{
-
-The arguments and the result are those of \code{r5r::street_network_to_sf()}
-in r5r 2.5.0: the same rows in the same order, columns and values;
-with \code{options(peabiru.output = "data.table")} both tables have r5r's class too (\code{vertices} a
-plain \code{sf} data frame, \code{edges} an \code{sf} \code{data.table}).
-}
-
 \examples{
 \dontshow{if (requireNamespace("sf", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 data_path <- system.file("extdata/spo", package = "peabiru")

@@ -4,16 +4,10 @@
 \alias{find_snap}
 \title{Find snapped locations of input points on street network}
 \usage{
-find_snap(
-  r5r_network,
-  points,
-  radius = 1600,
-  mode = "WALK",
-  r5r_core = deprecated()
-)
+find_snap(network, points, radius = 1600, mode = "WALK")
 }
 \arguments{
-\item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
+\item{network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{points}{Either a \verb{POINT sf} object with an \code{id} column, in any
 coordinate reference system (reprojected to WGS 84, see
@@ -26,9 +20,6 @@ snap. Defaults to 1600m.}
 \item{mode}{A string. Which mode to consider when trying to snap the
 points to the network. Defaults to \code{WALK}, also allows \code{BICYCLE} and
 \code{CAR}.}
-
-\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
-accepted with a warning.}
 }
 \value{
 A table with the original points (\code{point_id}, \code{lat},
@@ -39,7 +30,8 @@ R5 measures it) and whether the point snapped (\code{found}). Points that
 could not be snapped have \code{NA} coordinates and distance and
 \code{found = FALSE}.
 
-Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}). A \code{data.table} result has an index on \code{found}
+(when \code{options(datatable.auto.index)} is on, as by default).
 }
 \description{
 Finds where points snap to the street network: snapping is how routing
@@ -50,17 +42,6 @@ snap is not routed. The street a point snaps to depends on the mode,
 since some streets cannot be used by some modes (a pedestrian street
 cannot be used to snap car trips).
 }
-\section{Compatibility with r5r}{
-
-The arguments, their defaults and checks, the columns and the values are
-those of \code{r5r::find_snap()} in r5r 2.5.0; with
-\code{options(peabiru.output = "data.table")} the result is identical to r5r's,
-with the index on \code{found} that r5r's update of the points not found leaves
-(when \code{options(datatable.auto.index)} is on, as by default). A \code{radius}
-of \code{NA} or of length 0 is an error
-that says so (r5r lets it through and fails in Java).
-}
-
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)

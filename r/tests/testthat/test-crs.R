@@ -1,7 +1,6 @@
 # sf inputs in any coordinate reference system: reprojected to WGS 84 with
-# sf::st_transform() and a message (r5r stops with an error); an sf without
-# a CRS is an error, and so is a geometry that is not a point where points
-# are needed (as in r5r).
+# sf::st_transform() and a message; an sf without a CRS is an error, and so
+# is a geometry that is not a point where points are needed.
 
 sf_points <- function(epsg = 31983) {
   pts <- fixture_points()
@@ -71,7 +70,7 @@ test_that("an sf without a CRS and geometries that are not points are errors", {
                       "sf::st_set_crs(origins, 4326)"),
                fixed = TRUE)
   expect_error(find_snap(net, s), "sf::st_set_crs(points, 4326)", fixed = TRUE)
-  # as r5r: MULTIPOINT and POLYGON are refused, whatever the CRS
+  # MULTIPOINT and POLYGON are refused, whatever the CRS
   u <- sf_points()
   mp <- sf::st_sf(id = "a", geometry = sf::st_cast(sf::st_combine(u[1:3, ]), "MULTIPOINT"))
   poly <- sf::st_sf(id = "a", geometry = sf::st_as_sfc(sf::st_bbox(u)))

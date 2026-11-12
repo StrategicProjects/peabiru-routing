@@ -1,6 +1,5 @@
 # options(peabiru.output = ): the class of every table returned, under the
-# three settings, and the same contents whatever the class. The comparison
-# of the "data.table" setting with r5r's results is in the parity tests.
+# three settings, and the same contents whatever the class.
 
 # The result of `f()` under each setting.
 under_each <- function(f) {
@@ -113,7 +112,7 @@ test_that("find_snap, check_transit_availability and get_gtfs_errors follow the 
   snaps <- under_each(function() find_snap(net, pts, radius = 30, mode = "CAR"))
   expect_output_classes(snaps)
   if (!is.null(snaps$data.table)) {
-    # the index r5r's update of the points not found leaves
+    # the index on `found`
     expect_false(is.null(attr(attr(snaps$data.table, "index"), "__found")))
   }
   expect_output_classes(under_each(function() check_transit_availability(net)))

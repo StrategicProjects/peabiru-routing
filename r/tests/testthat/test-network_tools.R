@@ -1,4 +1,4 @@
-test_that("find_snap has r5r's columns, and NA where nothing snaps", {
+test_that("find_snap has its columns, and NA where nothing snaps", {
   pts <- fixture_points()
   far <- data.frame(id = "far", lon = -46.0, lat = -23.0)
   x <- find_snap(fixture_network(), rbind(pts[1:3, c("id", "lon", "lat")], far))
@@ -21,7 +21,7 @@ test_that("find_snap has r5r's columns, and NA where nothing snaps", {
   expect_true(all(car$distance[both] >= w$distance[both] - 1e-9))
 })
 
-test_that("find_snap checks its arguments as r5r does", {
+test_that("find_snap checks its arguments", {
   pts <- fixture_points()
   net <- fixture_network()
   expect_error(find_snap(net, pts, radius = -1), "radius")
@@ -30,7 +30,6 @@ test_that("find_snap checks its arguments as r5r does", {
   expect_error(find_snap(net, pts, mode = "walk"), "subset")
   expect_error(find_snap(net, pts, mode = "TRANSIT"), "subset")
   expect_error(find_snap(list(), pts), "peabiru_network")
-  expect_warning(find_snap(r5r_core = net, points = pts[1:2, ]), "deprecated")
 })
 
 test_that("street_network_bbox returns a vector, a bbox or a polygon", {
@@ -48,7 +47,7 @@ test_that("street_network_bbox returns a vector, a bbox or a polygon", {
   expect_error(street_network_bbox(fixture_network(), output = "box"))
 })
 
-test_that("street_network_to_sf has r5r's columns, and every edge end is a vertex", {
+test_that("street_network_to_sf has its columns, and every edge end is a vertex", {
   skip_if_not_installed("sf")
   s <- street_network_to_sf(fixture_network())
   expect_identical(names(s), c("vertices", "edges"))
@@ -74,7 +73,7 @@ test_that("street_network_to_sf has r5r's columns, and every edge end is a verte
   expect_equal(unname(first), unname(xy[at, ]))
 })
 
-test_that("transit_network_to_sf has r5r's columns", {
+test_that("transit_network_to_sf has its columns", {
   skip_if_not_installed("sf")
   tn <- transit_network_to_sf(fixture_network())
   expect_identical(names(tn), c("stops", "routes"))
@@ -115,7 +114,7 @@ test_that("check_transit_availability discovers dates and counts services", {
   expect_identical(z$active_services, 0L)
 })
 
-test_that("check_transit_availability rejects bad dates as r5r does", {
+test_that("check_transit_availability rejects bad dates", {
   net <- fixture_network()
   expect_error(check_transit_availability(net, dates = "2019-05-13", start_date = "2019-05-01"),
                "Incorrect date arguments")
@@ -150,26 +149,3 @@ test_that("get_gtfs_errors lists gtfs-lib's errors, for a network or a directory
   expect_error(get_gtfs_errors(1), "peabiru_network")
 })
 
-test_that("the r5r compatibility functions do the honest equivalent", {
-  expect_warning(net <- setup_r5(fixture_path()), "setup_r5\\(\\)")
-  expect_s3_class(net, "peabiru_network")
-  expect_message(stop_r5(net), "net has been successfully stopped")
-  expect_false(exists("net", inherits = FALSE))
-  a <- fixture_network()
-  b <- a
-  expect_message(stop_r5(), "All peabiru networks")
-  expect_false(exists("a", inherits = FALSE) || exists("b", inherits = FALSE))
-  x <- 1
-  expect_warning(stop_r5(x), "not a peabiru network")
-  expect_message(expect_message(r5r_cache(), "Files currently cached"), "none")
-  expect_message(r5r_cache(list_files = FALSE, delete_file = "r5-v7.6-all.jar"), "not cached")
-  expect_error(r5r_cache(list_files = "yes"), "logical")
-  expect_message(res <- download_r5(), "nothing to download")
-  expect_null(res)
-  expect_silent(download_r5(quiet = TRUE))
-  expect_error(download_r5(quiet = 1), "logical")
-  s <- r5r_sitrep()
-  expect_identical(names(s), c("peabiru_package_version", "core_version", "r5_version",
-                               "r5r_version", "r_version", "platform"))
-  expect_identical(s$core_version, core_version())
-})

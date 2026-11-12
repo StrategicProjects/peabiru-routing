@@ -1,7 +1,7 @@
 # Parity with r5r on its own sample data (Sao Paulo: OSM extract and the
-# SPTrans frequency-based GTFS). Needs r5r, a JDK 21 and the R5 jar, so it is
-# skipped on CRAN and wherever r5r cannot start. bench/compare/r_parity.R
-# runs the full comparison on both sample cities.
+# SPTrans frequency-based GTFS). Needs r5r, a JDK 21 and the R5 jar (see
+# helper-r5r.R). bench/compare/r_parity.R runs the full comparison on both
+# sample cities.
 
 r5r_network <- local({
   net <- NULL
@@ -84,8 +84,9 @@ expect_same_isochrone <- function(...) {
   skip_if_not_installed("sf")
   n <- r5r_network()
   local_output("data.table")
-  # r5r's repair of the polygons, whatever s2 does to their area
-  local_isochrone_repair("r5r")
+  # r5r keeps sf's spherical repair of the polygons, whatever s2 does to
+  # their area
+  local_isochrone_repair("spherical")
   pb <- isochrone(n$pb, ..., n_threads = 2)
   r5 <- r5r::isochrone(n$r5, ..., n_threads = 2, progress = FALSE)
   expect_identical_r5r(pb, r5)
@@ -207,7 +208,7 @@ test_that("detailed itineraries equal r5r's", {
   expect_error(suppressMessages(do.call(r5r::detailed_itineraries, c(list(n$r5), tr))), "frequencies")
 })
 
-# ---- fares (the other fare tests are in test-fares.R) ----------------------
+# ---- fares ------------------------------------------------------------------
 
 test_that("fare structures equal r5r's, and each reads the other's files", {
   n <- r5r_network()

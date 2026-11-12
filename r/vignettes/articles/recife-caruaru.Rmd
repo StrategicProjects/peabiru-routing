@@ -13,7 +13,7 @@ description: >
 source("setup.R")
 ```
 
-The other examples on this site use the small samples that come with r5r.
+The other examples on this site use small sample networks.
 This one starts from nothing, as a study of a real city would: it downloads
 the streets of two cities of Pernambuco, Brazil, from OpenStreetMap, places
 their residents on a grid with the census, takes the public schools and the
@@ -260,8 +260,8 @@ A few things to know about these registers, seen while preparing them:
 - Schools and health units sit close to the streets of the extract: the
   median distance to the nearest street is 7 to 16 m, and a single school
   in each city is more than 300 m from one (418 m in Recife, 574 m in
-  Caruaru), well within the 1.6 km at which peabiru, like r5r, links a
-  point to the street network.
+  Caruaru), well within the 1.6 km at which peabiru links a point to the
+  street network.
 
 ## Travel time to the nearest school and health unit
 
@@ -319,8 +319,8 @@ with free-flowing traffic, nearly everyone is within 15 minutes of both.
 
 Recife's driving shares stop at 99.2% for a reason worth knowing: from 17
 cells of Boa Viagem (about 12 thousand residents on this grid) there is no
-car route to the rest of the network on this extract, in peabiru and in r5r
-2.5.0 alike, although the streets connect on foot and by bicycle. Removing
+car route to the rest of the network on this extract, although the streets
+connect on foot and by bicycle. Removing
 every turn restriction from the extract does not reconnect them; the cause
 is in how the OpenStreetMap data of that area is read for cars, and is not
 identified yet. Checks like this one (cells or units that a mode never
@@ -416,7 +416,7 @@ xtabs(km2 ~ mode + minutes + city, data = iso)
 
 One number here depends on more than routing: the 20-minute driving polygon
 of Caruaru has dozens of holes (pockets of the grid not reached in time) that
-touch each other. `isochrone()` returns its polygons made valid as r5r does,
+touch each other. `isochrone()` returns its polygons made valid
 with `sf::st_make_valid()` on longitude and latitude (s2), which merges many
 of those holes into the polygon: 285.9 km². Repaired with GEOS in metres
 instead, as the [Python example](../../python/example-recife-caruaru/) does,
@@ -436,7 +436,7 @@ fig("isochrones-caruaru.svg")
   buffer, the state of the census tracts (`UF/PE/PE_setores_CD2022.gpkg`)
   and of the CNES rows (`CO_UF`), and the Geofabrik region.
 - **Large matrices on disk.** With `output_dir`, `travel_time_matrix()` and
-  `accessibility()` write one CSV file per origin, as r5r does, instead of
+  `accessibility()` write one CSV file per origin instead of
   returning a data frame: the 4,489 × 216 driving matrix of Caruaru never has
   to fit in memory.
 - **Gradual access.** `decay_function = "logistic"` (or `"exponential"`,

@@ -18,7 +18,7 @@ and the scenario tables that come with it.
 
 ```{r data, message = FALSE}
 library(peabiru)
-poa <- r5r_sample(c("poa_osm.pbf", "poa_hexgrid.csv", "poa_osm_congestion.csv",
+poa <- poa_sample(c("poa_osm.pbf", "poa_hexgrid.csv", "poa_osm_congestion.csv",
                     "poa_poly_congestion.rds", "poa_osm_lts.csv", "poa_ls_lts.rds"))
 poa_network <- build_network(poa, n_threads = 2)
 hexes <- read.csv(file.path(poa, "poa_hexgrid.csv"))

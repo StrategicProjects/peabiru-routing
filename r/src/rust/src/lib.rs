@@ -1,6 +1,6 @@
 //! R bindings of the peabiru routing core.
 //!
-//! Everything that mirrors r5r's R wrapper (argument checks, defaults,
+//! Everything about the R interface (argument checks, defaults,
 //! datetime handling, trip limits, column assembly) lives in the R code of
 //! the package; these functions only take already validated values, run the
 //! core and hand back plain vectors. Points are passed as separate latitude
@@ -42,7 +42,7 @@ fn err(msg: impl std::fmt::Display) -> Error {
 }
 
 /// The error of a failed build; for feeds with errors of priority `HIGH`,
-/// r5r's message, pointing to `lister` to see them.
+/// a message pointing to `lister` to see them.
 fn build_error(e: &peabiru_core::NetworkError, lister: &str) -> String {
     match e.high_priority_gtfs_errors() {
         None => e.to_string(),
@@ -268,7 +268,7 @@ fn points(lat: &[f64], lon: &[f64]) -> Vec<(f64, f64)> {
 }
 
 /// Where and for which ids to write CSV files instead of returning the
-/// result (r5r's `output_dir`), from the `output` argument of a routing
+/// result (`output_dir`), from the `output` argument of a routing
 /// function: `NULL`, or a list with `dir`, `from_ids`, `to_ids` and the
 /// extra element the function needs (`percentiles`, `breakdown` or
 /// `opportunities`).
@@ -361,11 +361,12 @@ fn rs_network_valid(ptr: Robj) -> bool {
     network(&ptr).is_ok()
 }
 
-/// Warnings about the network build: one per GTFS feed that r5r refuses
-/// to build a network from, then those about the elevation raster.
+/// Warnings about the network build: one per GTFS feed with errors of
+/// priority `HIGH` (when the build goes on despite them), then those about
+/// the elevation raster.
 /// @noRd
 #[extendr]
-fn rs_network_r5r_warnings(ptr: Robj) -> Result<Vec<String>> {
+fn rs_network_build_warnings(ptr: Robj) -> Result<Vec<String>> {
     let n = network(&ptr)?;
     Ok(n.net.build_warnings())
 }
@@ -399,7 +400,7 @@ fn rs_network_info(ptr: Robj) -> Result<Robj> {
 }
 
 /// Number of services in the network and of those active on `date`
-/// (`yyyymmdd`), as r5r's `getTransitServiceAvailability`.
+/// (`yyyymmdd`).
 /// @noRd
 #[extendr]
 fn rs_transit_availability(ptr: Robj, date: i32) -> Result<Vec<f64>> {
@@ -422,7 +423,7 @@ fn street_mode(mode: &str) -> Result<Mode> {
     }
 }
 
-/// The transit modes of r5r's `mode_list$transit_mode` (`"BUS;RAIL"`, or
+/// The transit modes of the R code's `mode_list$transit_mode` (`"BUS;RAIL"`, or
 /// every mode and `TRANSIT` for `"TRANSIT"`); `TRANSIT` itself selects no
 /// route.
 fn transit_modes(modes: &str) -> Result<Vec<TransitMode>> {
@@ -565,8 +566,8 @@ fn seed_of(has_seed: bool, seed: i32) -> Option<i32> {
 }
 
 /// Public transport travel-time matrix: the reported pairs as
-/// `list(from, to, p1, ..., pk)` (percentiles ascending, NA where r5r
-/// gives NA), origin-major. With `output` (see [`Output`]), the files are
+/// `list(from, to, p1, ..., pk)` (percentiles ascending, NA beyond
+/// the trip limit), origin-major. With `output` (see [`Output`]), the files are
 /// written instead and `NULL` returned.
 /// @noRd
 #[extendr]
@@ -680,7 +681,7 @@ fn decay(name: &str, value: f64) -> Result<DecayFunction> {
 
 /// Accessibility values `[origin][opportunity][percentile][cutoff]`,
 /// flattened. `mode` is the street mode (of the access to public
-/// transport when `transit_modes`, r5r's `transit_mode`, is not empty);
+/// transport when `transit_modes` is not empty);
 /// `opportunities` is a list of double vectors, one per column. With
 /// `output` (see [`Output`], with the `opportunities` names), the files are
 /// written instead and `NULL` returned.
@@ -832,10 +833,10 @@ fn rs_accessibility(
 
 /// Expanded (or, with `arrival`, arrival) travel-time matrix as columns:
 /// `from`, `to` (1-based), `departure` (seconds after midnight), `draw`,
-/// the breakdown times (NA where r5r gives NA), `routes`, `n_rides` and
+/// the breakdown times (NA for a trip without rides), `routes`, `n_rides` and
 /// `total_time`. For an arrival search the parameters must already be the
 /// departure side (date and time of `arrival - max_trip_duration`,
-/// `time_window = max_trip_duration`), as r5r's R wrapper sets them. With
+/// `time_window = max_trip_duration`), as the R code sets them. With
 /// `output` (see [`Output`], with `breakdown`), the files are written
 /// instead and `NULL` returned.
 /// @noRd
@@ -974,12 +975,12 @@ fn rs_expanded(
 }
 
 /// Polygon isochrones, as flat columns the R code assembles into `sf`:
-/// per row (origin, percentile, cutoff; r5r's order) `origin` (1-based),
+/// per row (by origin, percentile and cutoff) `origin` (1-based),
 /// `isochrone`, `percentile` and `n_polygons`; per polygon `n_rings`; per
 /// ring `n_points`; per point `x` (longitude) and `y` (latitude). `mode` is
 /// the street mode (of the access to public transport when
-/// `transit_modes`, r5r's `transit_mode`, is not empty); `max_trip_duration`
-/// is the search limit (r5r: the largest cutoff plus 10).
+/// `transit_modes` is not empty); `max_trip_duration` is the search limit
+/// (the R code passes the largest cutoff plus 10).
 /// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]
@@ -1084,8 +1085,8 @@ fn rs_isochrone_polygons(
     .into())
 }
 
-/// The street edges of r5r's `street_network_to_sf()$edges`, as columns,
-/// with the centroid r5r routes to (`lat`, `lon`; NaN without one) and the
+/// The street edges of `street_network_to_sf()$edges`, as columns, with
+/// the centroid line isochrones route to (`lat`, `lon`; NaN without one) and the
 /// line of each edge as `n_points` and flat `x`, `y`.
 /// @noRd
 #[extendr]
@@ -1094,7 +1095,7 @@ fn rs_street_edges(ptr: Robj) -> Result<Robj> {
 }
 
 /// The street edges of the network a scenario makes (as `rs_street_edges`),
-/// for comparing it with r5r's; `NULL` when the scenario changes nothing.
+/// for inspecting it; `NULL` when the scenario changes nothing.
 /// @noRd
 #[extendr]
 fn rs_scenario_street_edges(ptr: Robj, scenario: Robj) -> Result<Robj> {
@@ -1104,7 +1105,7 @@ fn rs_scenario_street_edges(ptr: Robj, scenario: Robj) -> Result<Robj> {
     Ok(edges.map_or_else(|| ().into(), edges_list))
 }
 
-/// The columns of r5r's `street_network_to_sf()` edges.
+/// The columns of the edges of `street_network_to_sf()`.
 fn edges_list(e: peabiru_core::StreetEdges) -> Robj {
     let rows = 0..e.len();
     let cen = e.centroid_points();
@@ -1149,7 +1150,7 @@ fn edges_list(e: peabiru_core::StreetEdges) -> Robj {
 
 /// Line isochrones from an integer matrix of median minutes (`NA` where not
 /// reported), `n_origins` rows of `n_edges` values, origin-major: the rows
-/// in r5r's order as `origin`, `edge` (1-based), `travel_time` and
+/// by origin, then band and travel time, as `origin`, `edge` (1-based), `travel_time` and
 /// `isochrone`.
 /// @noRd
 #[extendr]
@@ -1192,7 +1193,7 @@ extendr_module! {
     fn rs_check_output_ids;
     fn rs_build_network;
     fn rs_network_valid;
-    fn rs_network_r5r_warnings;
+    fn rs_network_build_warnings;
     fn rs_network_info;
     fn rs_transit_availability;
     fn rs_street_ttm;

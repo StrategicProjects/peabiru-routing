@@ -1,8 +1,8 @@
 # Fare structures, fares in the routing functions and pareto_frontier().
-# The tests that compare with r5r are in test-parity.R;
+# Recorded results are in test-recorded.R;
 # bench/compare/fares_parity.R runs the full comparison.
 
-test_that("setup_fare_structure() builds r5r's object", {
+test_that("setup_fare_structure() builds the structure", {
   net <- fixture_network()
   fs <- setup_fare_structure(net, base_fare = 4.4)
   expect_named(fs, c("max_discounted_transfers", "transfer_time_allowance", "fare_cap",
@@ -22,7 +22,7 @@ test_that("setup_fare_structure() builds r5r's object", {
   expect_error(setup_fare_structure(net, -1), ">= 0")
   expect_error(setup_fare_structure(net, 1, by = "ROUTE"), "subset")
   expect_error(setup_fare_structure(net, 1, debug_info = "MODE"), "debug_path")
-  # past the float range R5 reads Infinity, and r5r hands back its text
+  # past the float range R5 reads Infinity, kept as its text
   expect_identical(unique(setup_fare_structure(net, Inf)$fares_per_type$fare), "Infinity")
 })
 
@@ -47,7 +47,7 @@ test_that("write_fare_structure() and read_fare_structure() round-trip", {
   expect_error(read_fare_structure(tempfile(fileext = ".zip")), "does not exist")
 })
 
-test_that("fare structures are checked as r5r checks them", {
+test_that("fare structures are checked", {
   net <- fixture_network()
   pts <- fixture_points()
   fs <- setup_fare_structure(net, base_fare = 4.4)
@@ -68,11 +68,11 @@ test_that("fare structures are checked as r5r checks them", {
   expect_error(ttm(fs[-1]), "names")
   extra <- fs
   extra$fares_per_route$note <- "x"
-  expect_error(ttm(extra), "cannot read")
+  expect_error(ttm(extra), "not part of a fare structure")
   expect_error(ttm(list(type = "boston")), "not supported")
-  expect_error(ttm(fs, time_window = 40), class = "r5r_200_draws")
+  expect_error(ttm(fs, time_window = 40), class = "peabiru_200_draws")
   expect_error(ttm(fs, max_fare = -1), ">= 0")
-  # the structure is read in even for a street-only trip, as in r5r
+  # the structure is read in even for a street-only trip
   expect_error(travel_time_matrix(net, pts, pts, mode = "WALK", fare_structure = missing_route),
                "no row for agency_id")
 })

@@ -87,12 +87,11 @@ compare <- function(label, call_pb, call_r5) {
   })
   t_r5 <- proc.time()[["elapsed"]] - t0
   # r5r gives the scenario warning on any network, peabiru with elevation
-  # only (here, always): compare the elevation warnings
-  # (cli wraps r5r's lines: compare the words)
+  # only (here, always), in its own words: both must warn, or neither
   w_r5 <- gsub("\\s+", " ", grep("missing elevation", w_r5, value = TRUE))
-  w_pb <- gsub("\\s+", " ", grep("missing elevation", w_pb, value = TRUE))
+  w_pb <- gsub("\\s+", " ", grep("without the slope costs", w_pb, value = TRUE))
   same <- identical(pb, r5)
-  same_w <- identical(w_pb, w_r5)
+  same_w <- identical(length(w_pb), length(w_r5))
   n_compared <<- n_compared + 1L
   message(sprintf("%-46s rows %8d  peabiru %6.2f s  r5r %6.2f s  identical %s%s",
                   label, nrow(r5), t_pb, t_r5, same,

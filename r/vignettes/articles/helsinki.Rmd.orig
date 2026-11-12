@@ -196,7 +196,7 @@ network
 build_time
 ```
 
-The cut feed passes the GTFS checks peabiru shares with r5r without a
+The cut feed passes peabiru's GTFS checks without a
 single error (the whole feed was not checked). Building the network took
 `r round(build_time)` seconds here, with four threads on a laptop with
 other work running (the timings on this page are indications); the R
@@ -282,16 +282,15 @@ at the morning peak. The 45-minute areas by car and by public transport
 run past the box cut from OpenStreetMap, where the network ends.
 
 Why `sf_use_s2(FALSE)`: `isochrone()` passes each polygon through
-`sf::st_make_valid()`, as r5r does, and that repair depends on whether sf
+`sf::st_make_valid()`, and that repair depends on whether sf
 is using spherical geometry (s2, its default). For eleven of these twelve
 polygons the area is the same either way; the 30-minute driving polygon,
 which has 114 parts and 217 holes, comes out of the s2 repair at 523.8 km²
 instead of 478.3, more than its outer rings enclose. With s2 off, the
 areas are those of the bands as contoured, and those of the Python
-example. r5r returns the 523.8 km² polygon; with s2 on, peabiru notices
-that the repair changed the area, repairs that origin's polygons on the
-plane and warns (see `?isochrone`), so here switching s2 off only avoids
-the warning.
+example. With s2 on, `isochrone()` notices that the repair changed the
+area, repairs that origin's polygons on the plane and warns (see
+`?isochrone`), so here switching s2 off only avoids the warning.
 
 ```{r, echo = FALSE, results = "asis"}
 live('fig("helsinki-isochrones.svg")', 'echo = FALSE, fig.alt = "Four maps of the Helsinki capital region with the areas reached from Helsinki Central Station within 15, 30 and 45 minutes walking, cycling, driving and by public transport."')

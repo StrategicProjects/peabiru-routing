@@ -23,7 +23,7 @@ timetables.
 
 ```{r data, message = FALSE}
 library(peabiru)
-poa <- r5r_sample(c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip",
+poa <- poa_sample(c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip",
                     "poa_points_of_interest.csv"))
 poa_network <- build_network(poa, n_threads = 2)
 poi <- read.csv(file.path(poa, "poa_points_of_interest.csv"))

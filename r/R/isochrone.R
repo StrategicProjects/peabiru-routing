@@ -11,10 +11,11 @@
 #' (see `zoom`): the bands from 0 to each cutoff are traced over that grid
 #' by marching squares (the algorithm of `isoband::isobands()`), grouped
 #' into polygons with holes (as `isoband::iso_to_sfg()` groups them) and
-#' passed to `sf::st_make_valid()` (see the section on r5r for the case in
-#' which spherical geometry changes their area). The order of the rings and the vertex
-#' each one starts at follow the C++ library 'isoband' is built with on
-#' each platform (libc++ on macOS, libstdc++ on Linux and Windows); between
+#' passed to `sf::st_make_valid()` (see the section "Repair of the
+#' polygons" for the case in which spherical geometry changes their area).
+#' The order of the rings and the vertex each one starts at are those
+#' 'isoband' gives on each platform, which follow the C++ library it is
+#' built with (libc++ on macOS, libstdc++ on Linux and Windows); between
 #' platforms the polygons differ in that order and, by the system's
 #' \code{sinh()} and \code{atan()}, in the last bits of some latitudes.
 #'
@@ -27,28 +28,18 @@
 #' (plus 10 minutes for polygons, so that the outer band is interpolated
 #' like the inner ones).
 #'
-#' @section Compatibility with r5r:
-#' The arguments, their defaults and checks and the result are those of
-#' `r5r::isochrone()` in r5r 2.5.0. The travel times are r5r's, and so are
-#' the polygons before `sf::st_make_valid()`, ring for ring and vertex for
-#' vertex on the same platform, so the `sf` returned is r5r's, coordinate
-#' for coordinate (compared with `identical()`), with one exception. With
-#' spherical geometry on (`sf::sf_use_s2()`, sf's default),
-#' `sf::st_make_valid()` snaps the vertices and, in a polygon of many parts
-#' and holes, can return an area that is not the traced one: of 438
-#' isochrones of Porto Alegre and Helsinki, 17 came out between 0.1% and
-#' 9.5% larger or smaller. r5r returns those. Here, when the s2 repair
-#' changes the area of a polygon by more than one part in 10,000, the
-#' polygons of that origin are repaired on the plane instead (which leaves
-#' the area as traced) and a warning of class `peabiru_isochrone_repair`
-#' names them; `options(peabiru.isochrone_repair = "r5r")` returns r5r's
-#' polygons in every case. The centroids of the line
-#' isochrones agree with r5r's to within a few units in the last place
-#' (about 1e-14 degrees), which has not changed a travel time in any
-#' comparison made. The deprecated `sample_size` is accepted with r5r's
-#' warning and ignored. An empty `percentiles`, a `polygon_output` of `NA`,
-#' `origins` without rows and a fractional `zoom` are errors that say so
-#' (r5r lets them through and then fails, or passes the fraction to R5).
+#' @section Repair of the polygons:
+#' The traced polygons go through `sf::st_make_valid()`. With spherical
+#' geometry on (`sf::sf_use_s2()`, sf's default), that repair snaps the
+#' vertices and, in a polygon of many parts and holes, can return an area
+#' that is not the traced one: of 438 isochrones of Porto Alegre and
+#' Helsinki, 17 came out between 0.1% and 9.5% larger or smaller. When the
+#' spherical repair changes the area of a polygon by more than one part in
+#' 10,000, the polygons of that origin are repaired on the plane instead
+#' (which leaves the area as traced) and a warning of class
+#' `peabiru_isochrone_repair` names them.
+#' `options(peabiru.isochrone_repair = "spherical")` keeps the spherical
+#' repair in every case, without the warning.
 #'
 #' @inheritParams travel_time_matrix
 #' @param origins A `data.frame` with columns `id`, `lon` and `lat` (WGS
@@ -73,8 +64,6 @@
 #'   travel time percentiles to make polygons for (one set per percentile).
 #'   `NULL` (the default) means 50. Must be `NULL` with
 #'   `polygon_output = FALSE`.
-#' @param sample_size Deprecated and ignored (a warning when
-#'   given).
 #'
 #' @return An `sf` table in WGS 84 (EPSG:4326). With `polygon_output = TRUE`,
 #'   one `POLYGON` or `MULTIPOLYGON` per origin, percentile and cutoff, with
@@ -89,8 +78,8 @@
 #'   `car_speed`, `bicycle`, `bicycle_lts`) and `geometry`; rows by origin,
 #'   then by band and travel time, both descending.
 #'
-#'   `r doc_output_class(sf = TRUE)` With "data.table", r5r's polygons are an
-#'   `sf` `data.table` and its lines a plain `sf` data frame; so are these.
+#'   `r doc_output_class(sf = TRUE)` With "data.table", the polygons are an
+#'   `sf` `data.table` and the lines a plain `sf` data frame.
 #' @family routing functions
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
@@ -111,7 +100,7 @@
 #'                        departure_datetime = departure, seed = 42,
 #'                        n_threads = 2)
 #' head(iso_lines)
-isochrone <- function(r5r_network,
+isochrone <- function(network,
                       origins,
                       mode = "transit",
                       mode_egress = "walk",
@@ -133,20 +122,9 @@ isochrone <- function(r5r_network,
                       percentiles = NULL,
                       n_threads = Inf,
                       verbose = FALSE,
-                      progress = TRUE,
-                      sample_size = deprecated(),
-                      r5r_core = deprecated()) {
-  # mirrors r5r R/isochrone.R
+                      progress = TRUE) {
   kind <- output_class()
-  if (is_present(r5r_core)) {
-    warn_r5r_core()
-    r5r_network <- r5r_core
-  }
-  if (is_present(sample_size)) {
-    warning("The `sample_size` argument is no longer used and has no effect.",
-            call. = FALSE)
-  }
-  assert_network(r5r_network)
+  assert_network(network)
   if (!requireNamespace("sf", quietly = TRUE)) {
     stop("Package 'sf' is needed for isochrone(); install it with ",
          "install.packages(\"sf\").", call. = FALSE)
@@ -155,8 +133,7 @@ isochrone <- function(r5r_network,
   cm_assert(check_numeric(cutoffs, lower = 0, finite = TRUE, any.missing = FALSE,
                           min.len = 1), "cutoffs")
   cm_assert(check_logical(polygon_output), "polygon_output")
-  # r5r takes anything but TRUE as FALSE and then fails on an undefined
-  # object; an error of peabiru's own here
+  # NA is neither TRUE nor FALSE: an error
   assert_flag(polygon_output, "polygon_output")
 
   # the largest cutoff is the trip limit; the user's max_trip_duration is
@@ -170,10 +147,10 @@ isochrone <- function(r5r_network,
   if (polygon_output) {
     if (is.null(percentiles)) percentiles <- 50L
     cm_assert(check_numeric(zoom, lower = 9, upper = 12, len = 1), "zoom")
-    # r5r lets a fractional or missing zoom through to R5
+    # a fractional or missing zoom is an error, not rounded
     assert_int(zoom, "zoom")
     out <- isochrone_polygons(
-      r5r_network, origins, mode, mode_egress, cutoffs, zoom,
+      network, origins, mode, mode_egress, cutoffs, zoom,
       departure_datetime, time_window, max_walk_time, max_bike_time,
       max_car_time,
       # route past max(cutoffs) so the outer band is interpolated like the
@@ -188,7 +165,7 @@ isochrone <- function(r5r_network,
       stop("Percentiles not supported for line-based isochrones", call. = FALSE)
     }
     out <- isochrone_lines(
-      r5r_network, origins, mode, mode_egress, cutoffs, departure_datetime,
+      network, origins, mode, mode_egress, cutoffs, departure_datetime,
       time_window, max_walk_time, max_bike_time, max_car_time,
       max_trip_duration, walk_speed, bike_speed, max_rides, max_lts,
       draws_per_minute, seed, n_threads, verbose, progress
@@ -197,17 +174,16 @@ isochrone <- function(r5r_network,
   }
 }
 
-# r5r's travel_time_surface() and surface_isochrone(): the argument handling
-# of travel_time_surface(), then the core's surfaces and polygons, and
-# sf::st_make_valid() as in r5r.
-isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
+# Polygon isochrones: the argument handling, then the core's travel-time
+# surfaces and polygons, and sf::st_make_valid().
+isochrone_polygons <- function(network, origins, mode, mode_egress, cutoffs,
                                zoom, departure_datetime, time_window,
                                max_walk_time, max_bike_time, max_car_time,
                                max_trip_duration, walk_speed, bike_speed,
                                max_rides, max_lts, draws_per_minute, seed,
                                percentiles, n_threads, verbose, progress) {
   origins <- assign_points_input(origins, "origins")
-  # r5r fails on origins without rows (undefined columns, an internal R
+  # origins without rows: an error that says so
   # error); without this, sf would fail on an empty result
   if (nrow(origins) == 0L) stop("'origins' has no rows.", call. = FALSE)
   ids <- origins$id
@@ -233,7 +209,7 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
   check_messages(verbose, progress)
 
   res <- raise_if_stopped(rs_isochrone_polygons(
-    r5r_network$ptr, origins$lat, origins$lon,
+    network$ptr, origins$lat, origins$lon,
     mode_list$direct_modes, mode_list$transit_mode, mode_list$egress_mode,
     as.double(cutoffs), as.integer(zoom), percentiles,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
@@ -242,8 +218,8 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
     as.integer(draws_per_minute), seed$has, seed$value, threads
   ))
 
-  # r5r's surface_isochrone() makes one sfc per origin and percentile and
-  # validates it as a whole: st_make_valid() gives a common type within it
+  # one sfc per origin and percentile, validated as a whole:
+  # st_make_valid() gives a common type within it
   # (a POLYGON becomes a MULTIPOLYGON next to one), and combining the
   # groups then keeps each group's type.
   geoms <- multipolygons(res)
@@ -260,8 +236,8 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
         length(at), " isochrone", if (length(at) > 1L) "s", ", of ",
         paste(utils::head(at, 5L), collapse = ", "), if (length(at) > 5L) ", ...",
         ". The polygons of ", if (length(at) > 1L) "their origins" else "that origin",
-        " were repaired on the plane instead and are not r5r's, which keeps the",
-        " s2 result; options(peabiru.isochrone_repair = \"r5r\") gives r5r's."
+        " were repaired on the plane instead, which leaves the area as traced;",
+        " options(peabiru.isochrone_repair = \"spherical\") keeps the s2 result."
       ),
       call = NULL
     )))
@@ -275,19 +251,19 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
   sf::st_as_sf(out, sf_column_name = "polygons")
 }
 
-# sf::st_make_valid() on the polygons of one origin and percentile. r5r calls
-# it with whatever geometry engine the session has; with s2 (sf's default
+# sf::st_make_valid() on the polygons of one origin and percentile, with
+# whatever geometry engine the session has. With s2 (sf's default
 # for longitude and latitude) the repair of a polygon of many parts and holes
 # can fill holes and return more area than its outer rings enclose (seen in a
 # 30-minute car isochrone of Helsinki, 524 km2 for 478). So with s2 on the
-# group is repaired both ways: where the areas agree the s2 result is kept,
-# which is r5r's coordinate for coordinate; where one differs the whole group
-# is the planar repair (GEOS), and `moved` says which polygons differed.
-# options(peabiru.isochrone_repair = "r5r") keeps what r5r returns.
+# group is repaired both ways: where the areas agree the s2 result is
+# kept; where one differs the whole group is the planar repair (GEOS), and
+# `moved` says which polygons differed.
+# options(peabiru.isochrone_repair = "spherical") keeps the s2 result.
 repair_polygons <- function(x) {
   spherical <- sf::st_make_valid(x)
   none <- list(polygons = spherical, moved = logical(length(x)))
-  if (!sf::sf_use_s2() || identical(getOption("peabiru.isochrone_repair"), "r5r")) return(none)
+  if (!sf::sf_use_s2() || identical(getOption("peabiru.isochrone_repair"), "spherical")) return(none)
   old <- suppressMessages(sf::sf_use_s2(FALSE))
   on.exit(suppressMessages(sf::sf_use_s2(old)))
   planar <- sf::st_make_valid(x)
@@ -314,20 +290,20 @@ multipolygons <- function(res) {
   lapply(rows, function(p) structure(p, class = c("XY", "MULTIPOLYGON", "sfg")))
 }
 
-# r5r's line-based isochrones: travel_time_matrix() to the centroids of the
+# Line isochrones: travel_time_matrix() to the centroids of the
 # street edges, banded by the core.
-isochrone_lines <- function(r5r_network, origins, mode, mode_egress, cutoffs,
+isochrone_lines <- function(network, origins, mode, mode_egress, cutoffs,
                             departure_datetime, time_window, max_walk_time,
                             max_bike_time, max_car_time, max_trip_duration,
                             walk_speed, bike_speed, max_rides, max_lts,
                             draws_per_minute, seed, n_threads, verbose,
                             progress) {
-  edges <- rs_street_edges(r5r_network$ptr)
+  edges <- rs_street_edges(network$ptr)
   destinations <- new_df(list(
     id = as.character(edges$edge_index), lon = edges$lon, lat = edges$lat
   ))
   ttm <- travel_time_matrix(
-    r5r_network = r5r_network,
+    network = network,
     origins = origins,
     destinations = destinations,
     mode = mode,

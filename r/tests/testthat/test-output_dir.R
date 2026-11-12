@@ -1,4 +1,4 @@
-# output_dir: results written to one CSV file per origin, as r5r writes them.
+# output_dir: results written to one CSV file per origin.
 
 new_dir <- function() {
   d <- tempfile("peabiru-out-")
@@ -25,8 +25,8 @@ expect_same_rows <- function(disk, mem) {
   for (j in names(mem)) {
     if (is.double(mem[[j]])) {
       # R's own parser is not correctly rounded for every 17-digit number
-      # (off by an ulp at times), hence the tolerance; the Python tests and
-      # the byte comparison with r5r check the digits exactly
+      # (off by an ulp at times), hence the tolerance; the recorded bytes
+      # below check the digits exactly
       x <- disk[[j]]
       expect_equal(ifelse(nzchar(x), as.double(x), NA_real_), mem[[j]],
                    tolerance = 1e-14, label = j)
@@ -92,7 +92,7 @@ test_that("transit, expanded and arrival files hold the in-memory result", {
   expect_same_rows(read_dir(d, o$id), arr())
 })
 
-test_that("accessibility files hold the in-memory result, with r5r's cutoff", {
+test_that("accessibility files hold the in-memory result, with the placeholder cutoff", {
   network <- fixture_network()
   pts <- fixture_points()
   for (decay in c("step", "fixed_exponential")) {
@@ -105,7 +105,7 @@ test_that("accessibility files hold the in-memory result, with r5r's cutoff", {
     do.call(accessibility, c(list(network, pts, pts, output_dir = d), a))
     mem <- do.call(accessibility, c(list(network, pts, pts), a))
     disk <- read_dir(d, pts$id)
-    # one file per origin; the files keep r5r's placeholder cutoff 0
+    # one file per origin; the files keep the placeholder cutoff 0
     expect_length(list.files(d), nrow(pts))
     if (decay == "fixed_exponential") {
       expect_true(all(disk$cutoff == "0"))
@@ -118,7 +118,7 @@ test_that("accessibility files hold the in-memory result, with r5r's cutoff", {
 test_that("WALK is routed from the origins, ids are quoted, files replaced", {
   network <- fixture_network()
   pts <- fixture_points()
-  # more origins than destinations: in memory r5r routes WALK from the
+  # more origins than destinations: in memory WALK is routed from the
   # destinations; the files are routed, and named, from the origins
   d <- new_dir()
   travel_time_matrix(network, pts, pts[1:3, ], n_threads = 2, output_dir = d)
@@ -145,7 +145,7 @@ test_that("WALK is routed from the origins, ids are quoted, files replaced", {
   expect_identical(readLines(file.path(d, "other.txt")), "kept")
 })
 
-test_that("output_dir is checked as r5r checks it", {
+test_that("output_dir is checked", {
   network <- fixture_network()
   pts <- fixture_points()
   call <- function(d) travel_time_matrix(network, pts, pts, n_threads = 2, output_dir = d)
@@ -180,63 +180,8 @@ test_that("output_dir is checked as r5r checks it", {
                                            output_dir = missing_dir), "does not exist")
 })
 
-# r5r on its own sample data writing the same files; skipped on CRAN and
-# wherever r5r cannot start (see test-parity.R)
-test_that("the files are byte-identical to r5r's", {
-  src <- r5r_sample("spo") # helper-r5r.R
-  dir <- file.path(tempdir(), "peabiru-output-parity-spo")
-  unlink(dir, recursive = TRUE)
-  dir.create(dir)
-  file.copy(file.path(src, c("spo_osm.pbf", "spo.zip")), dir)
-  r5 <- r5r_network_or_skip(dir)
-  pb <- build_network(dir, n_threads = 2)
-  pts <- read.csv(file.path(src, "spo_hexgrid.csv"), colClasses = c(id = "character"))
-  pts$jobs <- pts$population
-  pts <- pts[1:120, ]
-
-  same_files <- function(fun, ...) {
-    a <- new_dir()
-    b <- new_dir()
-    expect_identical(getExportedValue("peabiru", fun)(pb, ..., n_threads = 2,
-                                                      output_dir = a), a)
-    expect_identical(getExportedValue("r5r", fun)(r5, ..., n_threads = 2,
-                                                  progress = FALSE, output_dir = b), b)
-    files <- sort(list.files(b))
-    expect_gt(length(files), 0)
-    expect_identical(sort(list.files(a)), files)
-    for (f in files) {
-      x <- readBin(file.path(a, f), "raw", file.size(file.path(a, f)))
-      y <- readBin(file.path(b, f), "raw", file.size(file.path(b, f)))
-      expect_identical(x, y, label = paste(fun, f))
-    }
-  }
-  tr <- c("WALK", "TRANSIT")
-  same_files("travel_time_matrix", origins = pts, destinations = pts, mode = "WALK",
-             percentiles = c(25, 75))
-  same_files("travel_time_matrix", origins = pts, destinations = pts[1:10, ],
-             mode = "WALK")
-  same_files("travel_time_matrix", origins = pts, destinations = pts, mode = "CAR")
-  same_files("travel_time_matrix", origins = pts, destinations = pts, mode = tr,
-             departure_datetime = departure, percentiles = c(5, 50, 95),
-             max_trip_duration = 40, seed = 42)
-  same_files("expanded_travel_time_matrix", origins = pts[1:5, ], destinations = pts,
-             mode = tr, departure_datetime = departure, time_window = 3,
-             breakdown = TRUE, max_trip_duration = 45, seed = 42)
-  same_files("arrival_travel_time_matrix", origins = pts[1:5, ], destinations = pts,
-             mode = tr, arrival_datetime = departure + 3600, max_trip_duration = 45,
-             seed = 42)
-  same_files("accessibility", origins = pts, destinations = pts,
-             opportunities_colnames = c("jobs", "schools"), mode = tr,
-             departure_datetime = departure, decay_function = "logistic",
-             cutoffs = c(20, 40), decay_value = 8, seed = 42)
-  same_files("accessibility", origins = pts, destinations = pts,
-             opportunities_colnames = "jobs", mode = "BICYCLE",
-             decay_function = "fixed_exponential", decay_value = 0.002)
-})
-
 test_that("ids that cannot name a file in the directory are refused", {
-  # the file names are built from the ids: r5r fails on these with Java's
-  # FileNotFoundException, or writes a file of another name
+  # the file names are built from the ids
   network <- fixture_network()
   pts <- fixture_points()[1:3, ]
   for (bad in c("a/b", "../x", "a\\b")) {

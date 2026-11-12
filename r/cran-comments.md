@@ -98,19 +98,8 @@ on the local machine. [RE-VERIFY] There are no `\dontrun{}` or `\donttest{}`
 examples; the examples that return 'sf' objects run only when 'sf' is
 installed.
 
-Tests that compare results with the 'r5r' package (which needs Java and
-downloads the 'R5' jar) are skipped on CRAN, and wherever 'r5r', 'sf',
-'data.table' or Java is not available.
-
-## Relation to the 'r5r' package
-
-The package offers the functions of the CRAN package 'r5r' (same function
-names, arguments and results) on a routing engine of its own, written in
-Rust, that runs inside the R session and needs no Java runtime. It does not
-depend on 'r5r' or on the 'R5' jar; 'r5r' is in `Suggests` only for the
-comparison tests mentioned above. The routing methods are those of
-Conveyal's 'R5' engine (MIT licence), which is credited in `Authors@R`, in
-the `Description` and in `inst/LICENSE-THIRD-PARTY`.
+The tests that need 'sf' or 'data.table' are skipped where those packages
+are not installed.
 
 ## Reverse dependencies
 

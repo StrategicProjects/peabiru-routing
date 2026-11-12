@@ -1,55 +1,60 @@
 ---
-title: "Coming from r5r"
+title: "Compared with r5r"
 description: >
-  What is the same as in r5r 2.5.0, and every difference: what peabiru
-  does without Java, where its results do not depend on the machine, the
-  warnings and errors it adds, and the few inputs it refuses.
+  What peabiru shares with r5r 2.5.0, how the results of the two are
+  checked to be the same, every difference between them, and how to move a
+  script from one to the other.
 ---
 
 ```{r setup, include = FALSE}
 source("setup.R")
 ```
 
-peabiru is a drop-in for r5r 2.5.0: it exports the same 22 functions, and a
-script written for r5r runs unchanged once the package is swapped. This
-page lists what is the same and every difference, on purpose, between the
-two. The same list, in the terms of each language, is on the Python and
-JavaScript sites. Besides r5r's functions, peabiru has one of its own,
-[trip_options()](trip-options.html), which r5r has no counterpart for; it
-is not a difference and is not listed here.
+[r5r](https://github.com/ipea/r5r) (Pereira, Saraiva, Herszenhut, Braga
+and Conway, 2021) is the R package that drives Conveyal's R5 routing engine
+on Java. peabiru is an independent package with an engine of its own,
+written in Rust, that implements the same routing model, R5's. This is the
+one page of the documentation that compares the two: what they share, how
+the results are checked against each other, every difference, and how to
+move a script over. The same comparison, in the terms of each language, is
+on the Python and JavaScript sites.
 
-## The same
+## What the two share
 
-- **Function names, arguments, their order and defaults.** The 22 functions
-  r5r 2.5.0 exports have r5r's formals, down to the defaults as expressions
-  (`r5r_core = deprecated()`); the one addition is `n_threads` in
-  `build_network()`. A test of the package compares them with a snapshot of
-  r5r's, so they cannot drift.
-- **Argument checks** follow r5r's, in the same order, with the same bounds
-  and conversions (a factor `mode`, a POSIXlt `arrival_datetime`) and the
-  same messages, word for word (r5r's come from 'checkmate' and 'cli';
-  peabiru has ported them without the dependencies).
+- **The routing model.** peabiru's engine is a port of R5 7.6, the engine
+  r5r 2.5.0 drives: the same street and public transport model, the same
+  rules for linking points and stops to streets, the same Monte Carlo
+  draws for frequency-based feeds, the same fare calculator.
+- **Function and argument names.** Of the 22 functions r5r 2.5.0 exports,
+  17 exist in peabiru under the same name, with the same arguments in the
+  same order and the same defaults; the other five manage Java and have no
+  place here (see [Moving a script over](#moving-a-script-over)). The
+  differences in the arguments are three: the network argument is called
+  `network`, not `r5r_network`; the deprecated `r5r_core` and
+  `sample_size` are gone; `build_network()` has `n_threads`. A check in
+  the repository compares peabiru's formals with a snapshot of r5r's and
+  fails on any other drift.
+- **Argument checks** accept and reject the same values, in the same order,
+  with the same bounds and conversions (a factor `mode`, a POSIXlt
+  `arrival_datetime`) and messages of the same wording (where a message
+  names the network argument it says `network`).
   `bench/compare/error_parity.R` in the repository calls every function
   with invalid values of every argument in both packages and compares the
   errors.
 - **Results**: the same rows, in the same order, with the same column
   names, types and values. For a frequency-based feed this needs the same
   `seed` (without one, both packages draw from the clock and every run
-  differs). With `options(peabiru.output = "data.table")` the results are
-  r5r's `data.table`s and `sf` objects, class and attributes included (see
-  the class of the results under [Differences](#differences)).
+  differs). With `options(peabiru.output = "data.table")` the results also
+  have the classes r5r gives them (see the class of the results under
+  [Differences](#differences)).
 
-Here both packages compute the same matrix on the sample network, and the
-results are compared with `identical()` (data.table's self-reference
-attribute, a pointer to the table itself, left aside):
+Besides these, peabiru has a function of its own,
+[trip_options()](trip-options.html), which has no counterpart in r5r.
 
-```{r, include = FALSE}
-# r5r needs a JDK 21; site/build.sh points JAVA_HOME to one when it can.
-run_r5r <- requireNamespace("r5r", quietly = TRUE) &&
-  nzchar(Sys.getenv("JAVA_HOME"))
-```
+A comparison of the two on the same inputs looks like this (not run when
+this page is built; r5r needs a JDK 21 and the R5 jar):
 
-```{r, eval = run_r5r, message = FALSE}
+```{r, eval = FALSE}
 options(java.parameters = "-Xmx2G")
 
 # r5r writes its network.dat into the data directory: give it a copy
@@ -67,13 +72,11 @@ args <- list(origins = points, destinations = points,
 from_r5r <- do.call(r5r::travel_time_matrix, c(list(r5r_network), args))
 from_peabiru <- do.call(peabiru::travel_time_matrix, c(list(network), args))
 
+# data.table's self-reference attribute is a pointer to the table itself
 no_selfref <- function(x) `attr<-`(x, ".internal.selfref", NULL)
 identical(no_selfref(from_r5r), no_selfref(from_peabiru))
+#> [1] TRUE
 options(peabiru.output = NULL)
-```
-
-```{r, echo = FALSE, results = "asis", eval = !run_r5r}
-cat("*(This chunk was not run when the page was built: it needs r5r and a JDK 21.)*\n")
 ```
 
 ## How parity is checked {#parity}
@@ -82,12 +85,14 @@ cat("*(This chunk was not run when the page was built: it needs r5r and a JDK 21
 fig("parity.svg")
 ```
 
-The `identical()` comparison above is how parity is tested: the package's
-tests and the scripts in `bench/compare/` in the repository run hundreds of
-such comparisons on r5r's Porto Alegre and São Paulo samples (matrices,
+The `identical()` comparison above is how parity is tested. The comparison
+is not part of the package or of its tests: it lives in the repository
+(`bench/compare/`, run by `tools/r5r_parity.R`), where hundreds of such
+comparisons on r5r's Porto Alegre and São Paulo samples (matrices,
 accessibility, expanded and arrival matrices, isochrones, itineraries,
-fares, elevation, scenarios, network exports, edge cases) and fail on any
-difference.
+fares, elevation, scenarios, network exports, edge cases) run against r5r
+2.5.0 on Linux, Windows and macOS on every push to the main branch, and
+fail on any difference or on any comparison that did not run.
 
 "The same results" is meant literally: every travel time, every
 accessibility value (as a double, to the last bit), every row of the
@@ -122,30 +127,24 @@ platform it runs on:
 ## Differences
 
 Everything below is deliberate. Nothing that r5r accepts is silently
-ignored or computed differently: where peabiru cannot give r5r's result,
-it stops with an error that says so.
+ignored or computed differently: where peabiru does not give r5r's result,
+it says so, with an error or with the warning described in the item.
 
 ### General
 
 <!-- diff:no-java -->
 - **No Java.** There is no JVM to start, no `java.parameters` to set and no
-  R5 jar to download. r5r's functions for Java are kept so that scripts
-  run: `setup_r5()` warns (r5r's deprecation warning) and calls
-  `build_network()`; `stop_r5()` removes the given networks (or every
-  network in the calling environment) and runs R's garbage collector, with
-  r5r's messages; `download_r5()` downloads nothing and returns `NULL`
-  invisibly (r5r returns the path of the jar); `r5r_cache()` lists and
-  deletes nothing; `r5r_sitrep()` returns `peabiru_package_version`,
-  `core_version`, `r5_version`, `r5r_version`, `r_version` and `platform`
-  (r5r's has `r5r_package_version`, `r5_jar_version`, `java_version`,
-  `set_memory` and `session_info`).
+  R5 jar to download, so peabiru has none of r5r's functions for them:
+  `setup_r5()`, `stop_r5()`, `download_r5()`, `r5r_cache()` and
+  `r5r_sitrep()` do not exist (see [Moving a script
+  over](#moving-a-script-over) for what to write instead).
 
 <!-- diff:result-type -->
 - **Results are tibbles by default**, not `data.table`s, and `sf` results
   are `sf` tibbles. The option `peabiru.output` chooses the class, at each
   call: `"tibble"` (the default; 'tibble' is the package's one
   dependency), `"data.frame"` (base data frames, plain `sf`) or
-  `"data.table"`, which gives exactly what r5r returns: `data.table`s,
+  `"data.table"`, which gives the classes r5r returns: `data.table`s,
   `sf` `data.table`s where r5r's `sf` is one (isochrone polygons,
   itineraries, street edges, transit routes) and plain `sf` elsewhere, and
   the index r5r's `find_snap()` leaves on `found`. It applies to every
@@ -153,7 +152,7 @@ it stops with an error that says so.
   their order and types, and the values do not depend on it.
 
   ```r
-  options(peabiru.output = "data.table") # r5r's classes, for r5r scripts
+  options(peabiru.output = "data.table") # r5r's classes
   ```
 
 <!-- diff:sf-any-crs -->
@@ -179,7 +178,8 @@ ttm <- travel_time_matrix(network, pts_utm, pts_utm, mode = "WALK", n_threads = 
   object cannot be saved with `saveRDS()`: build it again in a new
   session, which is quick. `overwrite` and `temp_dir` are checked as r5r
   checks them and have no effect. A network built by `r5r::build_network()`
-  is not accepted: build it with `peabiru::build_network()`.
+  is not accepted: build it with `peabiru::build_network()`. The network
+  argument of every function is `network` (r5r's is `r5r_network`).
 
 <!-- diff:n-threads-build -->
 - **`build_network()` has `n_threads`**, the threads used to read the
@@ -190,13 +190,17 @@ ttm <- travel_time_matrix(network, pts_utm, pts_utm, mode = "WALK", n_threads = 
   `verbose = TRUE` in `build_network()` reports the build in messages.
 
 <!-- diff:error-classes -->
-- **Errors**: where the network's class is named, it is `peabiru_network`;
-  r5r's errors from 'cli' are 'rlang' conditions, and peabiru's are plain
-  errors with the same text.
+- **Errors**: where the network's argument or class is named, they are
+  `network` and `peabiru_network`; r5r's errors from 'cli' are 'rlang'
+  conditions, and peabiru's are plain errors with the same text. The error
+  for a time window with more than 200 Monte Carlo draws under a fare
+  structure has class `peabiru_200_draws` (r5r's is `r5r_200_draws`).
 
 <!-- diff:deprecated-args -->
-- **Deprecated arguments** (`r5r_core` everywhere, `sample_size` in
-  `isochrone()`) are accepted with r5r's warnings, as in r5r.
+- **Deprecated arguments.** The arguments r5r 2.5.0 still accepts with a
+  deprecation warning, `r5r_core` (the network's old name, in every
+  function) and `sample_size` (in `isochrone()`), do not exist in peabiru:
+  passing one is R's "unused argument" error.
 
 ### Where peabiru's result does not depend on the run or the machine
 
@@ -245,7 +249,10 @@ in both packages; with the same `seed` they give the same.
   plane, which leaves the area as traced, and warns (class
   `peabiru_isochrone_repair`), naming them. Everywhere else the polygons
   are r5r's, coordinate for coordinate, and
-  `options(peabiru.isochrone_repair = "r5r")` gives r5r's in every case.
+  `options(peabiru.isochrone_repair = "spherical")` keeps the s2 repair,
+  and so gives r5r's polygons, in every case. (In the [Helsinki
+  example](helsinki.html), the 30-minute driving polygon is the one r5r
+  returns at 523.8 km² and peabiru, by default, at 478.3.)
 
 (The elevation warning above, about points on a pixel boundary, is
 peabiru's too.)
@@ -349,3 +356,61 @@ travel_time_matrix(network, points, points, mode = c("WALK", "TRANSIT"),
   holds the files' dates); each package reads the other's files. As in
   r5r 2.5.0, `debug_path` and `debug_info` are kept in the structure and no
   debug file is written.
+
+## Moving a script over {#moving-a-script-over}
+
+A script written for r5r 2.5.0 runs on peabiru after these changes:
+
+| In the r5r script | In peabiru |
+|---|---|
+| `library(r5r)`, `options(java.parameters = ...)` | `library(peabiru)`; there is no Java to configure |
+| `r5r_network = net` (named) | `network = net`; a network passed by position, as the first argument, needs no change |
+| `r5r_core = net` (deprecated in r5r) | `network = net` |
+| `setup_r5(path)` (deprecated in r5r) | `build_network(path)` |
+| `stop_r5(net)` | `rm(net)`; R's garbage collector then frees the network (`gc()`) |
+| `download_r5()`, `r5r_cache()` | nothing: peabiru downloads and caches nothing |
+| `r5r_sitrep()` | `packageVersion("peabiru")`, `core_version()` and `sessionInfo()` |
+| `isochrone(..., sample_size = )` (deprecated in r5r) | drop the argument |
+| code that relies on `data.table` results (`:=`, `[i, j, by]`) | `options(peabiru.output = "data.table")` once, at the top of the script |
+| isochrone polygons that must equal r5r's where the s2 repair changes an area | `options(peabiru.isochrone_repair = "spherical")` |
+| `tryCatch(..., r5r_200_draws = )` | `tryCatch(..., peabiru_200_draws = )` |
+| a `network.dat` kept between sessions | build the network again in each session |
+
+Everything else (function names, the other arguments, their defaults, the
+columns of the results) is the same. The inputs peabiru refuses are listed
+under [What peabiru refuses](#what-peabiru-refuses), and each stops with
+an error that says so.
+
+## Checks made for the example articles
+
+The longer examples on this site were checked against r5r 2.5.0 where a
+result might be thought to be peabiru's own doing:
+
+- **Fares in Porto Alegre** ([scenarios
+  example](scenarios-porto-alegre.html)). The multi-criteria router used
+  with a fare structure and the one-criterion router used without one give
+  slightly different travel times; that is R5's behaviour: on 103 of the
+  origins of that example, r5r gives the same access as peabiru, origin by
+  origin, with the structure and without it. The structure with free
+  transfers is the slowest to route in both: on those 103 origins it took
+  r5r about 35 seconds against 6 to 10 with the sample structure, and
+  peabiru 14 to 15 against 2 to 4, for the same results.
+- **Bus speeds in Rio de Janeiro** ([capitals example](capitals.html)). On
+  the feed slowed to 16 km/h, r5r gives the same access figures as peabiru.
+- **The 70-minute walk to a direct line** (capitals example, time against
+  fare). For the 14:05 departure, r5r's `travel_time_matrix()` gives 89
+  minutes with `max_rides = 1` and its `detailed_itineraries()` no trip,
+  as peabiru's do: R5's matrix router and its trip planner search the walk
+  to the first stop differently.
+- **Boa Viagem by car** ([Recife and Caruaru](recife-caruaru.html)). The 17
+  cells with no car route to the rest of the network have none in r5r
+  either.
+- **Frequency-based lines with fares.** With a fare structure, the travel
+  times of trips on lines given by frequency fall back to walking in both
+  packages, and both refuse such feeds in `detailed_itineraries()`.
+
+## Reference
+
+Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V. and Conway,
+M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport Networks
+with R5 in R. *Findings*. <https://doi.org/10.32866/001c.21262>

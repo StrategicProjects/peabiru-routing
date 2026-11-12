@@ -22,17 +22,11 @@ speeds and traffic stress. It inspects a network with \code{\link[=find_snap]{fi
 inside the R session; no 'Java' is needed. What the engine cannot do
 exactly is an error, never silently ignored.
 }
-\section{Compatibility with r5r}{
-
-The engine is a port of Conveyal's 'R5' 7.6, the engine the 'r5r'
-package drives, and the package exports the 22 functions of r5r 2.5.0
-with their arguments and defaults, so the results are r5r's (compared
-with \code{identical()} in the tests). r5r's functions that manage 'Java' and
-the R5 jar (\code{\link[=setup_r5]{setup_r5()}}, \code{\link[=stop_r5]{stop_r5()}}, \code{\link[=download_r5]{download_r5()}}, \code{\link[=r5r_cache]{r5r_cache()}},
-\code{\link[=r5r_sitrep]{r5r_sitrep()}}) are kept so that r5r scripts run. See
-the article "Coming from r5r" on the package website for the differences.
+\details{
+The routing model is that of Conveyal's 'R5' engine (version 7.6), ported
+to 'Rust'; see the references. The article "Compared with r5r" on the
+package website says how the package relates to that R interface of R5.
 }
-
 \section{Class of the results}{
 
 The tables the functions return are tibbles by default. The option
@@ -45,12 +39,11 @@ geometry, as \code{sf::st_as_sf()} makes of a tibble;
 \item \code{options(peabiru.output = "data.frame")}: base \code{data.frame}s, and plain
 \code{sf} data frames;
 \item \code{options(peabiru.output = "data.table")} (needs 'data.table'):
-\code{data.table}s, with the class r5r 2.5.0 gives each result, so that the
-result is identical to r5r's: \code{sf} \code{data.table}s for isochrone
-polygons, itineraries, the street edges and the transit routes, plain
-\code{sf} data frames for isochrone lines, street vertices and transit
-stops, and the index r5r's \code{\link[=find_snap]{find_snap()}} leaves on \code{found}. A good
-choice for large matrices handled with 'data.table'.
+\code{data.table}s: \code{sf} \code{data.table}s for isochrone polygons,
+itineraries, the street edges and the transit routes, plain \code{sf} data
+frames for isochrone lines, street vertices and transit stops, and an
+index on the column \code{found} of \code{\link[=find_snap]{find_snap()}}. A good choice for large
+matrices handled with 'data.table'.
 }
 
 Any other value is an error. The option applies to every table: the
@@ -64,13 +57,13 @@ and types, and the row names are the same whatever the class.
 \section{Sample data}{
 
 \code{system.file("extdata/spo", package = "peabiru")} holds a small network
-for examples and tests, cut from the Sao Paulo sample data of the 'r5r'
-package: \code{spo_osm.pbf}, the streets around Avenida Paulista (data
+for examples and tests, cut from the Sao Paulo sample data of the r5r
+project: \code{spo_osm.pbf}, the streets around Avenida Paulista (data
 (c) OpenStreetMap contributors, available under the Open Database
 License, \url{https://www.openstreetmap.org/copyright}); \code{spo_gtfs.zip}, the
-SPTrans frequency-based 'GTFS' feed shipped with r5r, without
-\code{shapes.txt}; and \code{spo_points.csv}, 27 points of r5r's hexagonal grid
-with their population and opportunity counts.
+SPTrans frequency-based 'GTFS' feed of that sample, without
+\code{shapes.txt}; and \code{spo_points.csv}, 27 points of its hexagonal grid with
+their population and opportunity counts.
 }
 
 \references{
@@ -97,11 +90,6 @@ transit routing. \emph{Transportation Science}, 49(3), 591-604.
 Geisberger, R., Sanders, P., Schultes, D. and Vetter, C. (2012). Exact
 routing in large road networks using contraction hierarchies.
 \emph{Transportation Science}, 46(3), 388-404. \doi{10.1287/trsc.1110.0401}
-
-Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V. and
-Conway, M. W. (2021). r5r: Rapid Realistic Routing on Multimodal
-Transport Networks with R5 in R. \emph{Findings}.
-\doi{10.32866/001c.21262}
 }
 \seealso{
 Useful links:

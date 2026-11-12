@@ -48,8 +48,8 @@ test_that("a raster is not read with elevation = 'NONE'", {
 })
 
 test_that("a file whose name merely contains 'tif' does not block the build", {
-  # r5r's grep(".tif") is a regular expression, so 'identificacao.csv'
-  # matches; r5r keeps elevation = "TOBLER" and R5 finds no raster.
+  # the pattern ".tif" is a regular expression, so 'identificacao.csv'
+  # matches; elevation stays "TOBLER" and the engine finds no raster.
   dir <- tempfile("net")
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE))
@@ -58,7 +58,7 @@ test_that("a file whose name merely contains 'tif' does not block the build", {
   network <- build_network(dir, n_threads = 2)
   expect_s3_class(network, "peabiru_network")
   expect_identical(network$elevation, "NONE")
-  # the swap of origins and destinations stays off, as in r5r
+  # the swap of origins and destinations stays off
   expect_true(network$has_tif)
 })
 
@@ -120,7 +120,7 @@ feed_dir <- function(feed) {
   dir
 }
 
-# r5r's build_network() fails on feeds with errors of priority HIGH
+# build_network() fails on feeds with errors of priority HIGH
 # the path is written as an R string (backslashes doubled on Windows)
 refused <- function(dir, feeds) {
   paste0("High priority GTFS errors found; network build failed (", feeds,

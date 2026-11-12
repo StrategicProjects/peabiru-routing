@@ -20,16 +20,16 @@ build_network(
 \item{verbose}{A logical. Whether to report the build of the network in
 messages. Defaults to \code{FALSE}.}
 
-\item{temp_dir}{A logical. Accepted for compatibility with r5r, which uses
-it to choose where to keep the R5 jar; it has no effect.}
+\item{temp_dir}{A logical, checked but without effect: nothing is
+downloaded or cached.}
 
 \item{elevation}{A string, the slope cost function for walking and
 cycling when \code{data_path} has a \code{.tif} elevation raster: \code{"TOBLER"} (the
 default; Tobler's hiking function), \code{"MINETTI"} (Minetti's energy cost
 of walking) or \code{"NONE"} (no slope costs).}
 
-\item{overwrite}{A logical. Accepted for compatibility with r5r, which uses
-it to rebuild a cached \code{network.dat}; the network is always built anew.}
+\item{overwrite}{A logical, checked but without effect: the network is
+always built anew.}
 
 \item{n_threads}{The number of threads used to read the \code{.pbf} file.
 Defaults to \code{Inf}, all cores (two under \verb{R CMD check} when it limits
@@ -107,20 +107,13 @@ to \code{\link[=get_gtfs_errors]{get_gtfs_errors()}}, which lists the errors. A 
 library of R5 fails to load at all is an error too.
 }
 
-\section{Compatibility with r5r}{
+\section{The network object}{
 
-The arguments and their checks are those of \code{r5r::build_network()} in
-r5r 2.5.0, with one more, \code{n_threads}; a network is built from the same
-files, refuses the same feeds and routes as r5r's does. Differences:
-there is no Java and no \code{network.dat} cache (the network cannot be saved
-with \code{saveRDS()}: build it again in a new session); \code{temp_dir} and
-\code{overwrite} have no effect; nothing is written to \code{data_path} (r5r
-writes the 'GTFS' errors to \code{gtfs_errors.csv}); more than one \code{.pbf}
-file is an error. Where r5r's elevations depend on the machine (see the
-section "Elevation"), peabiru's do not, with a warning; the warning
-about wrapped elevations is peabiru's (r5r is silent). A \code{.prj} file
-(which r5r would follow), a \code{.tiff} raster (which r5r fails to read)
-and more than one raster (r5r reads the last one listed) are errors.
+The network is held in memory by the 'Rust' engine and is always built
+anew: there is no cache on disk, and a network cannot be saved with
+\code{saveRDS()} or carried to another session (a reloaded one is refused
+with an error; build it again). More than one \code{.pbf} file in \code{data_path}
+is an error.
 }
 
 \examples{

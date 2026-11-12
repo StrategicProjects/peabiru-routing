@@ -1,4 +1,4 @@
-test_that("street matrices have r5r's columns and types", {
+test_that("street matrices have their columns and types", {
   network <- fixture_network()
   pts <- fixture_points()
   for (m in c("WALK", "BICYCLE", "CAR")) {
@@ -38,7 +38,7 @@ test_that("the trip limit and the mode limit drop pairs", {
 test_that("WALK with more origins than destinations keeps the caller's columns", {
   network <- fixture_network()
   pts <- fixture_points()
-  # r5r routes from the destinations here, then swaps the ids back
+  # routed from the destinations here, then the ids are swapped back
   ttm <- travel_time_matrix(network, pts, pts[1:3, ], mode = "WALK", n_threads = 2)
   expect_identical(names(ttm), c("from_id", "to_id", "travel_time_p50"))
   expect_true(all(ttm$to_id %in% pts$id[1:3]))
@@ -64,11 +64,11 @@ test_that("transit matrices have one column per percentile, ascending", {
   expect_identical(ttm, again)
 })
 
-test_that("values r5r accepts beyond a day are accepted", {
+test_that("values beyond a day are accepted", {
   network <- fixture_network()
   pts <- fixture_points()
   dep <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
-  # r5r 2.5.0 returns a matrix for time_window = 2000
+  # there is no upper limit on time_window
   long <- travel_time_matrix(network, pts[1, ], pts[1:2, ], mode = "TRANSIT",
                              departure_datetime = dep, time_window = 2000,
                              seed = 1, n_threads = 2)
@@ -80,7 +80,7 @@ test_that("values r5r accepts beyond a day are accepted", {
   expect_identical(nrow(arr), 2L)
 })
 
-test_that("points are checked as r5r checks them", {
+test_that("points are checked", {
   network <- fixture_network()
   pts <- fixture_points()
   expect_error(travel_time_matrix(network, as.list(pts), pts), "must be either a 'data.frame'")
@@ -98,13 +98,13 @@ test_that("points are checked as r5r checks them", {
   expect_false(pts$id[2] %in% res$from_id)
 })
 
-test_that("arguments are checked as r5r checks them", {
+test_that("arguments are checked", {
   network <- fixture_network()
   pts <- fixture_points()
   ttm <- function(...) travel_time_matrix(network, pts, pts, n_threads = 2, ...)
   expect_error(ttm(mode = "TRANSIT"), "must pass a `departure_datetime`")
   expect_error(ttm(mode = c("WALK", "CAR")), "Please use only 1 of")
-  expect_error(ttm(mode = "CAR_PARK"), "unsupported by r5r")
+  expect_error(ttm(mode = "CAR_PARK"), "currently unsupported")
   expect_error(ttm(mode = "PLANE"), "Names must be a subset")
   expect_error(ttm(percentiles = 1:6), "length <= 5")
   # R5 fails on an empty vector too; every mode stops before routing
@@ -133,7 +133,7 @@ test_that("what the core does not support is an error, never ignored", {
                        n_threads = 2, ...)
   }
   expect_error(ttm(fare_structure = list(type = "boston")), "R5.*not supported")
-  # TRANSIT with other transit modes is all transit modes, as in r5r
+  # TRANSIT with other transit modes is all transit modes
   expect_identical(
     ttm(mode = c("WALK", "TRANSIT", "BUS"), seed = 1),
     ttm(mode = "TRANSIT", seed = 1)
@@ -169,7 +169,7 @@ test_that("transit mode subsets and bicycle or car access and egress route", {
   }
 })
 
-test_that("mode and mode_egress go through unique() and toupper() first, as in r5r", {
+test_that("mode and mode_egress go through unique() and toupper() first", {
   network <- fixture_network()
   pts <- fixture_points()
   walk <- travel_time_matrix(network, pts, pts, mode = "WALK", n_threads = 2)
@@ -181,7 +181,7 @@ test_that("mode and mode_egress go through unique() and toupper() first, as in r
     travel_time_matrix(network, pts, pts, mode = c("WALK", "WALK"), n_threads = 2),
     walk
   )
-  # unique() runs before toupper(), so these are two modes for r5r too
+  # unique() runs before toupper(), so these are two modes
   expect_error(
     travel_time_matrix(network, pts, pts, mode = c("walk", "WALK"), n_threads = 2),
     "Please use only 1 of"
@@ -196,33 +196,19 @@ test_that("mode and mode_egress go through unique() and toupper() first, as in r
   expect_error(transit(mode_egress = c("WALK", "CAR")), "mode_egress")
 })
 
-test_that("the deprecated r5r_core argument is accepted with a warning, as in r5r", {
+test_that("the network is the first argument, `network`", {
   network <- fixture_network()
   pts <- fixture_points()
   walk <- travel_time_matrix(network, pts, pts, mode = "WALK", n_threads = 2)
-  expect_warning(
-    old <- travel_time_matrix(r5r_core = network, origins = pts,
-                              destinations = pts, mode = "WALK", n_threads = 2),
-    "`r5r_core` argument is deprecated"
-  )
-  expect_identical(old, walk)
-  expect_warning(
-    accessibility(r5r_core = network, origins = pts, destinations = pts,
-                  opportunities_colnames = "jobs", cutoffs = 20, n_threads = 2),
-    "deprecated"
-  )
-  expect_warning(
-    expanded_travel_time_matrix(r5r_core = network, origins = pts[1, ],
-                                destinations = pts, mode = "TRANSIT",
-                                departure_datetime = departure, n_threads = 2),
-    "deprecated"
-  )
-  expect_warning(
-    arrival_travel_time_matrix(r5r_core = network, origins = pts[1, ],
-                               destinations = pts, mode = "TRANSIT",
-                               arrival_datetime = departure, n_threads = 2),
-    "deprecated"
-  )
+  expect_identical(travel_time_matrix(network = network, origins = pts, destinations = pts,
+                                      mode = "WALK", n_threads = 2), walk)
+  for (fun in setdiff(getNamespaceExports("peabiru"),
+                      c("build_network", "core_version", "read_fare_structure",
+                        "write_fare_structure"))) {
+    expect_identical(names(formals(getExportedValue("peabiru", fun)))[1], "network", label = fun)
+  }
+  expect_error(travel_time_matrix(list(), pts, pts, mode = "WALK"),
+               "Assertion on 'network' failed", fixed = TRUE)
 })
 
 test_that("sf and data.table points give the data.frame result", {

@@ -1,7 +1,7 @@
-//! r5r's scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`) from the
+//! Scenarios (`new_carspeeds`, `carspeed_scale`, `new_lts`) from the
 //! list the R code builds (`scenario_spec()` in `R/scenario.R`): the
-//! columns of the data frames as text, as r5r hands them to R5 (Java
-//! parses them here), and the geometries of the `sf` frames flattened.
+//! columns of the data frames as text, as R5 is handed them (parsed here
+//! as Java parses them), and the geometries of the `sf` frames flattened.
 
 use extendr_api::prelude::*;
 use extendr_api::{Error, Result};
@@ -43,16 +43,14 @@ fn string(spec: &Robj, name: &str) -> Result<String> {
         .ok_or_else(|| err(format!("scenario${name} must be a string")))
 }
 
-/// The ids (`Long.parseLong`) of a data frame's `osm_id` column, as r5r's
-/// `RMapBuilder` reads them; the error names the argument as r5r's Java
-/// exception does.
+/// The ids (`Long.parseLong`) of a data frame's `osm_id` column; the error
+/// names the argument and the text that is not an id.
 fn ids(arg: &str, text: &[String]) -> Result<Vec<i64>> {
     text.iter()
         .map(|s| {
             java_parse_long(s).ok_or_else(|| {
                 err(format!(
-                    "'{arg}': osm_id '{s}' is not an integer as R writes it (r5r fails too: \
-                     java.lang.NumberFormatException: For input string: \"{s}\")"
+                    "'{arg}': osm_id '{s}' is not an integer as R writes it"
                 ))
             })
         })
@@ -78,9 +76,7 @@ pub(crate) fn scenario_of(spec: &Robj) -> Result<Scenario> {
                 .map(|v| {
                     java_parse_float(v).ok_or_else(|| {
                         err(format!(
-                            "'new_carspeeds': max_speed '{v}' is not a number as Java reads it \
-                             (r5r fails too: java.lang.NumberFormatException: For input \
-                             string: \"{v}\")"
+                            "'new_carspeeds': max_speed '{v}' is not a number"
                         ))
                     })
                 })
@@ -130,8 +126,7 @@ pub(crate) fn scenario_of(spec: &Robj) -> Result<Scenario> {
                 .map(|v| {
                     java_parse_int(v).ok_or_else(|| {
                         err(format!(
-                            "'new_lts': lts '{v}' is not an integer (r5r fails too: \
-                             java.lang.NumberFormatException: For input string: \"{v}\")"
+                            "'new_lts': lts '{v}' is not an integer"
                         ))
                     })
                 })
