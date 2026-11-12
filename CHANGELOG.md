@@ -78,6 +78,10 @@ routing and network functions (without r5r's functions for Java).
   `TripOptionsParams::walk_resolution_s` is `walk_resolution` (seconds);
   `TransitParams::access_mode` is `mode`, as in `ItineraryParams` and
   `TripOptionsParams`. The engine's error messages use the new names.
+- **Breaking:** `Criterion` is `#[non_exhaustive]` (the criteria of
+  `trip_options` may grow), and `Criterion::ALL` and `TransitMode::ALL`
+  are `&'static [_]` slices instead of arrays of a fixed length, so that a
+  new criterion or mode does not change their type.
 - `output_dir` (R, Python, the CLI's `--output-dir`; the core's
   `CsvOutput::new`, now fallible, `write_itineraries_csv` and
   `write_trip_options_csv`): an id that cannot name a file in the

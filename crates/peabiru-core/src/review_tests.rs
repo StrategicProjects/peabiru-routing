@@ -49,7 +49,7 @@ fn raptor_route_does_not_overflow_on_a_huge_max_duration() {
     let (net, layer) = crate::transit::build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let data = TransitData::new(&net, &layer);
     let active = layer.active_services(20190513, 0);
-    let f = Filtered::new(&layer, &active, &crate::TransitMode::ALL).unwrap();
+    let f = Filtered::new(&layer, &active, crate::TransitMode::ALL).unwrap();
     let access: Vec<(u32, i32)> = (0..20).map(|s| (s, 60)).collect();
     let route = |req: &RaptorRequest, access: &[(u32, i32)]| {
         catch_unwind(|| raptor::route(&layer, &data.transfers, &f, access, req))

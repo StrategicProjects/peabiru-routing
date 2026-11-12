@@ -30,8 +30,10 @@ use std::sync::Arc;
 /// Porto Alegre with all four criteria that was 2% of the minutes.)
 pub(crate) const TIME_RESOLUTION_S: i32 = 6;
 
-/// A criterion [`trip_options`] compares trips on.
+/// A criterion [`trip_options`] compares trips on. More may be added, so a
+/// `match` on it needs a wildcard arm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum Criterion {
     /// Door-to-door time from the departure minute, waits included.
     Time,
@@ -46,7 +48,7 @@ pub enum Criterion {
 
 impl Criterion {
     /// Every criterion, in this order.
-    pub const ALL: [Criterion; 4] = [
+    pub const ALL: &'static [Criterion] = &[
         Criterion::Time,
         Criterion::Fare,
         Criterion::Transfers,
@@ -66,7 +68,7 @@ impl Criterion {
     /// The criterion [`Criterion::name`] gives `name` (upper case), or
     /// `None`.
     pub fn from_name(name: &str) -> Option<Criterion> {
-        Criterion::ALL.into_iter().find(|c| c.name() == name)
+        Criterion::ALL.iter().copied().find(|c| c.name() == name)
     }
 }
 
@@ -206,7 +208,8 @@ impl TripOptionsParams {
     pub fn resolved_criteria(&self) -> Result<Vec<Criterion>, RouteError> {
         let mut c = if self.criteria.is_empty() {
             Criterion::ALL
-                .into_iter()
+                .iter()
+                .copied()
                 .filter(|&c| c != Criterion::Fare || self.fare_structure.is_some())
                 .collect()
         } else {

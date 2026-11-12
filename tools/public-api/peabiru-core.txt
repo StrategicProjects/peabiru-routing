@@ -21,13 +21,13 @@ impl core::marker::Unpin for peabiru_core::CarSpeeds
 impl core::marker::UnsafeUnpin for peabiru_core::CarSpeeds
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::CarSpeeds
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::CarSpeeds
-pub enum peabiru_core::Criterion
+#[non_exhaustive] pub enum peabiru_core::Criterion
 pub peabiru_core::Criterion::Fare
 pub peabiru_core::Criterion::Time
 pub peabiru_core::Criterion::Transfers
 pub peabiru_core::Criterion::Walk
 impl peabiru_core::Criterion
-pub const peabiru_core::Criterion::ALL: [peabiru_core::Criterion; 4]
+pub const peabiru_core::Criterion::ALL: &'static [peabiru_core::Criterion]
 pub fn peabiru_core::Criterion::from_name(&str) -> core::option::Option<peabiru_core::Criterion>
 pub fn peabiru_core::Criterion::name(self) -> &'static str
 impl core::clone::Clone for peabiru_core::Criterion
@@ -228,7 +228,7 @@ pub peabiru_core::TransitMode::Rail
 pub peabiru_core::TransitMode::Subway
 pub peabiru_core::TransitMode::Tram
 impl peabiru_core::TransitMode
-pub const peabiru_core::TransitMode::ALL: [peabiru_core::TransitMode; 8]
+pub const peabiru_core::TransitMode::ALL: &'static [peabiru_core::TransitMode]
 pub fn peabiru_core::TransitMode::from_name(&str) -> core::option::Option<peabiru_core::TransitMode>
 pub fn peabiru_core::TransitMode::name(self) -> &'static str
 impl core::clone::Clone for peabiru_core::TransitMode
