@@ -208,7 +208,11 @@ jobs:
       - name: R CMD check --as-cran
         # no LaTeX on the runner (--no-manual); the incoming checks that ask
         # CRAN's servers are left out so that the job does not depend on them
+        # setup-r exports NOT_CRAN=true, with which the package builds as in
+        # development (online, all jobs) and runs the tests CRAN skips: emptied
+        # here, so that the tarball is built and tested as on CRAN
         env:
+          NOT_CRAN: ""
           _R_CHECK_FORCE_SUGGESTS_: "false"
           _R_CHECK_CRAN_INCOMING_REMOTE_: "false"
         run: |
