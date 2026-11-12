@@ -633,7 +633,7 @@ figures$cap_trip_options <- function() {
     line1 = sprintf("%.0f min  ·  R$ %.2f", opt$total_time, opt$fare),
     line2 = sprintf("%d %s  ·  %.0f min on foot", opt$transfers + 1L,
                     ifelse(opt$transfers == 0, "bus", "buses"), opt$walk_time),
-    line3 = paste("lines", gsub(" > ", ", then ", routes)))
+    line3 = paste(ifelse(opt$transfers == 0, "line", "lines"), gsub(" > ", ", then ", routes)))
   side <- ggplot(tab) +
     geom_segment(aes(x = 0, xend = 0.09, y = y + 0.24, yend = y + 0.24, colour = name), linewidth = 1.6,
                  lineend = "round", show.legend = FALSE) +

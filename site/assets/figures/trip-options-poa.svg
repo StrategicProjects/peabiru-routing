@@ -120,7 +120,7 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
 <text x='384.8' y='265.5' style='font-size: 8.25px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1 bus  ·  65 min on foot</text>
 <text x='384.8' y='130.6' style='font-size: 8.25px;fill: #4A5A5F; font-family: "Helvetica Neue";'>lines 441, then 4924, then 173</text>
 <text x='384.8' y='204.7' style='font-size: 8.25px;fill: #4A5A5F; font-family: "Helvetica Neue";'>lines 441, then 187</text>
-<text x='384.8' y='278.9' style='font-size: 8.25px;fill: #4A5A5F; font-family: "Helvetica Neue";'>lines 375</text>
+<text x='384.8' y='278.9' style='font-size: 8.25px;fill: #4A5A5F; font-family: "Helvetica Neue";'>line 375</text>
 </g>
 <g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMzEuMjA=)'>
 <text x='15.9' y='309.3' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Sample data of r5r 2.5.0 (Ipea): streets © OpenStreetMap contributors (ODbL); GTFS of EPTC and Trensurb, May 2019; fare structure</text>
