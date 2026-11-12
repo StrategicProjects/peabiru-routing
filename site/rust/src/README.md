@@ -12,11 +12,13 @@
 -->
 
 `peabiru-core` is a multimodal routing engine written in Rust: it builds a
-network in memory from an OpenStreetMap extract (`.pbf`) and GTFS public
-transport feeds (`.zip`), and computes travel-time matrices, accessibility,
-and per-trip (expanded and arrival) matrices on it, by walking, cycling,
-driving and public transport. It needs no Java runtime, keeps nothing on
-disk, and spreads the origins of each query over threads.
+network in memory from an OpenStreetMap extract (`.pbf`), GTFS public
+transport feeds (`.zip`) and, optionally, an elevation raster (`.tif`), and
+computes travel-time matrices, accessibility, per-trip (expanded and
+arrival) matrices, isochrones, detailed itineraries, fares and Pareto
+frontiers on it, by walking, cycling, driving and public transport. It
+needs no Java runtime, keeps nothing on disk, and spreads the origins of
+each query over threads.
 
 The crate is the engine behind four front-ends:
 
@@ -39,15 +41,30 @@ cargo run --release -p peabiru-core --example transit_matrix
 
 ## Status
 
-Version 0.0.1, on [crates.io](https://crates.io/crates/peabiru-core). Implemented: street matrices (walk,
-bicycle, car), public transport matrices (any subset of the transit modes,
-reached and left on foot, by bicycle or by car) with percentiles and Monte
-Carlo draws, accessibility with five decay functions, expanded and arrival matrices,
-isochrones, detailed itineraries (the fastest trip or the
-alternatives), fares and Pareto frontiers, with elevation. Not yet: R5's own
-fare calculators. The results
-are checked against r5r's on every scenario in the repository; see
-[Parity with r5r](parity.md).
+Published on [crates.io](https://crates.io/crates/peabiru-core); this guide
+follows the repository. Implemented:
+
+- street matrices (walk, bicycle, car), with car turn costs and turn
+  restrictions, and contraction hierarchies that speed up large matrices
+  without changing them;
+- public transport matrices: any subset of the transit modes, reached and
+  left on foot, by bicycle or by car, with percentiles and Monte Carlo draws
+  for frequency-based feeds;
+- accessibility with five decay functions;
+- expanded and arrival matrices;
+- isochrones (polygons and street lines);
+- detailed itineraries: the fastest trip, or the alternatives;
+- fares, travel times within a budget and Pareto frontiers of time and fare;
+- slope costs from an elevation raster (Tobler, Minetti);
+- scenarios: car speeds and levels of traffic stress changed per call;
+- network inspection (snapping, the street and transit networks, service
+  dates) and the GTFS errors of each feed, with the refusal of feeds with
+  errors of priority `HIGH`;
+- CSV output, one file per origin, as r5r writes with `output_dir`.
+
+Not ported: R5's own fare calculators (only r5r's rule-based fare
+structure). The results are checked against r5r's on every scenario in the
+repository; see [Parity with r5r](parity.md).
 
 The API is a small set of functions and types at the root of the crate;
 the engine's internals are private, and the parameter structs are
@@ -58,7 +75,12 @@ breaking your code. It may still change before 1.0. The
 ## Credits
 
 The routing logic is a port of Conveyal's [R5](https://github.com/conveyal/r5)
-(MIT, © Conveyal); the exponential of the decay functions reproduces Apache
-Commons Math 3 (Apache-2.0), which R5 uses. The interface of the R and Python
-packages follows [r5r](https://github.com/ipea/r5r) (Ipea), whose results
-are the reference for the tests.
+(MIT, © Conveyal). The fare calculator, the fare structure and the
+multi-criteria branch of the trip planner are translations of the Java code
+of [r5r](https://github.com/ipea/r5r) (Ipea, used under its MIT licence),
+whose interface the R, Python and JavaScript packages follow and whose
+results are the reference for the tests. Polygon isochrones port the
+algorithm of the R package isoband (MIT); the exponential of the decay
+functions and other numerics reproduce Apache Commons Math 3 (Apache-2.0),
+and the trigonometry of the raster projections fdlibm, as R5 uses them. The
+notices are in `LICENSE-THIRD-PARTY`.

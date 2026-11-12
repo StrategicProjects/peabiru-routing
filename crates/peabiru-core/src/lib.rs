@@ -1,18 +1,31 @@
-//! Multimodal routing engine behind the `peabiru` packages for R and Python.
+//! Multimodal routing engine behind the `peabiru` packages for R, Python and
+//! JavaScript.
 //!
-//! The engine builds a routable network from an OpenStreetMap PBF extract
-//! (walk, bike, car) and, optionally, GTFS feeds (public transport), and
-//! computes travel-time matrices, accessibility, expanded and
-//! arrival-time matrices, and isochrones over it.
+//! The engine builds a routable network in memory from an OpenStreetMap
+//! PBF extract (walk, bike, car), optionally GTFS feeds (public transport)
+//! and an elevation raster, and computes over it:
 //!
-//! This crate is the shared core: the R package (extendr) and the Python
-//! package (PyO3) are thin bindings over the same functions, so all three
-//! return the same numbers.
+//! - travel-time matrices by street ([`street_travel_time_matrix`]) and by
+//!   public transport ([`transit_travel_time_matrix`]: any subset of the
+//!   transit modes, reached and left on foot, by bicycle or by car), with
+//!   percentiles and Monte Carlo draws for frequency-based feeds;
+//! - accessibility with five decay functions ([`transit_accessibility`],
+//!   [`street_accessibility`]);
+//! - expanded and arrival-time matrices ([`expanded_travel_time_matrix`],
+//!   [`arrival_travel_time_matrix`]);
+//! - isochrones, as polygons or street segments (see [Isochrones](#isochrones));
+//! - detailed itineraries, leg by leg ([`detailed_itineraries`]);
+//! - fares: travel times within a budget, fares of itineraries and the
+//!   Pareto frontier of time and fare (see [Fares](#fares));
+//! - slope costs for walking and cycling from a GeoTIFF raster ([`Elevation`]);
+//! - scenarios of car speeds and levels of traffic stress ([`Scenario`]);
+//! - what a network holds, and the GTFS errors of each feed (see
+//!   [Inspecting a network](#inspecting-a-network)).
 //!
-//! The routing logic is a port of Conveyal's [R5](https://github.com/conveyal/r5)
-//! (MIT), version 7.6, and returns the results of
-//! [r5r](https://github.com/ipea/r5r) 2.5.0. The notices of R5 and of the
-//! other works this crate derives from are in `LICENSE-THIRD-PARTY`.
+//! This crate is the shared core: the R package (extendr), the Python
+//! package (PyO3) and the JavaScript package (wasm-bindgen) are thin
+//! bindings over the same functions, so they all return the same numbers;
+//! the `peabiru` command-line tool runs it on CSV files.
 //!
 //! # Example
 //!
@@ -61,9 +74,10 @@
 //! # Parameters
 //!
 //! Every parameter struct ([`BuildOptions`], [`RouteParams`],
-//! [`TransitParams`], [`AccessibilityParams`]) starts from `Default`, which
-//! holds the defaults of r5r, and is filled in by setting its public
-//! fields:
+//! [`TransitParams`], [`AccessibilityParams`], [`ItineraryParams`]) starts
+//! from `Default`, which holds the defaults of r5r (but for
+//! [`BuildOptions::elevation`], off by default), and is filled in by
+//! setting its public fields:
 //!
 //! ```
 //! let mut p = peabiru_core::RouteParams::default();
@@ -96,6 +110,42 @@
 //! ([`transit_service_dates`], [`TransitLayer::n_services_active_on`]) and
 //! the errors gtfs-lib reports loading a feed ([`gtfs_errors`]).
 //!
+//! A network is not built from a feed with GTFS errors of priority `HIGH`,
+//! or from one gtfs-lib cannot load: the build fails, and
+//! [`NetworkError::high_priority_gtfs_errors`] names the feeds. With
+//! [`BuildOptions::ignore_gtfs_errors`] it is built from what can be read,
+//! and [`TransitLayer::r5r_warnings`] says which feeds those are.
+//!
+//! # Itineraries
+//!
+//! [`detailed_itineraries`] routes each origin to the destination of the
+//! same index and returns the trips leg by leg ([`Itinerary`],
+//! [`ItineraryLeg`]), with their lines: by a street mode, or with public
+//! transport the fastest trip over the departure window or, with
+//! [`ItineraryParams::shortest_path`] `false`, the alternatives of the
+//! multi-criteria router. Networks with frequency-based trips are refused
+//! there. [`write_itineraries_csv`] writes them to CSV files.
+//!
+//! # Fares
+//!
+//! A [`FareStructure`] ([`setup_fare_structure`], [`read_fare_structure`],
+//! [`write_fare_structure`]) in [`TransitParams::fare_structure`] routes
+//! public transport with the multi-criteria router and fares; with
+//! [`TransitParams::max_fare`] the matrices and accessibility keep the
+//! fastest trip within the budget. [`pareto_frontier`] gives, per
+//! destination, the travel time at each fare cutoff where it changes, and
+//! [`ItineraryParams::fare_structure`] the fares of itineraries.
+//!
+//! # Elevation
+//!
+//! With [`BuildOptions::elevation`] set to [`Elevation::Tobler`] or
+//! [`Elevation::Minetti`], walking and cycling times depend on the slope of
+//! each street, from the `.tif` raster of the directory
+//! ([`build_from_dir`]) or from its bytes
+//! ([`build_from_bytes_with_elevation`], which lists the rasters and
+//! coordinate systems supported). [`StreetNetwork::elevation_warnings`]
+//! reports voids, out-of-range values and samples on a pixel boundary.
+//!
 //! # Results
 //!
 //! A matrix is returned in a type of its own ([`StreetMatrix`],
@@ -106,16 +156,37 @@
 //!
 //! # Scenarios
 //!
-//! [`RouteParams::scenario`] and [`TransitParams::scenario`] change the car
-//! speeds and the levels of traffic stress of the streets for one call, as
-//! r5r's `new_carspeeds`, `carspeed_scale` and `new_lts` do (see
-//! [`Scenario`]); the network itself is left as it is.
+//! [`RouteParams::scenario`], [`TransitParams::scenario`] and
+//! [`ItineraryParams::scenario`] change the car speeds and the levels of
+//! traffic stress of the streets for one call, as r5r's `new_carspeeds`,
+//! `carspeed_scale` and `new_lts` do (see [`Scenario`]); the network itself
+//! is left as it is.
 //!
 //! # Cancellation
 //!
 //! Every routing parameter struct holds a [`CancelToken`]: cancel a clone
 //! of it from another thread and the computation returns
 //! [`RouteError::Cancelled`].
+//!
+//! # Compatibility with r5r
+//!
+//! The functions follow [r5r](https://github.com/ipea/r5r) 2.5.0, which
+//! runs R5 7.6: the parameter structs hold r5r's defaults and checks, and
+//! the results are r5r's, value for value, as the repository's parity
+//! suites check on r5r's sample data. The few places where results depend
+//! on the platform (the order in which the operating system lists GTFS
+//! feeds, the C++ library isoband was built with) are documented with the
+//! functions concerned.
+//!
+//! # Credits
+//!
+//! The routing logic is a port of Conveyal's
+//! [R5](https://github.com/conveyal/r5) 7.6 (MIT). The fare calculator, the
+//! fare structure and the multi-criteria branch of the trip planner are
+//! translations of r5r's Java code (MIT), and polygon isochrones of the
+//! isoband algorithm (MIT); parts of Apache Commons Math 3.0 (Apache-2.0)
+//! and fdlibm 5.3 are translated so that the numbers are R5's. The notices
+//! are in `LICENSE-THIRD-PARTY`.
 
 #![warn(missing_docs)]
 

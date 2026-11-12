@@ -57,16 +57,61 @@ peabiru expanded <dir> <points.csv> <out.csv> --date YYYY-MM-DD --time HH:MM:SS 
 With `--arrival`, `--date` and `--time` are the arrival. `--origins N` routes
 only from the first N points.
 
+## Isochrones
+
+```sh
+peabiru isochrone <dir | file.osm.pbf> <points.csv> <out> \
+    [--mode WALK|BICYCLE|CAR|TRANSIT] [--cutoffs 0,15,30] [--zoom 10] [--lines] \
+    [--percentiles 50] [--surface surface.csv] [--edges edges.csv] \
+    [--date YYYY-MM-DD --time HH:MM:SS] [--tw 10] [--max-walk N|inf] [--max-rides 3] \
+    [--draws 5] [--seed N] [--walk-speed 3.6] [--bike-speed 12] [--max-lts 2] \
+    [--threads 0] [--cxx-library libc++|libstdc++]
+```
+
+Writes one tab-separated row per origin, cutoff and percentile with the
+polygons as WKT (`--lines`: the street segments reached instead).
+`--date` and `--time` are required with `TRANSIT`. `--cxx-library` orders
+the rings as isoband built with that C++ library would (see
+[Parity with r5r](parity.md)).
+
+## Detailed itineraries
+
+```sh
+peabiru itineraries <dir> <origins.csv> <destinations.csv> <out.csv> \
+    [--mode WALK|BICYCLE|CAR] [--transit TRANSIT|BUS,RAIL,...] [--egress WALK] \
+    [--date YYYY-MM-DD] [--time HH:MM:SS] [--tw 10] [--max-walk 120] [--max-bike 120] \
+    [--max-car 120] [--max-trip 120] [--walk-speed 3.6] [--bike-speed 12] \
+    [--max-rides 3] [--max-lts 2] [--threads 0]
+```
+
+Routes origin `i` to destination `i` and writes one row per leg, with its
+line as WKT. The command has no options for fares or alternatives; the
+crate's `detailed_itineraries` has them.
+
+## Environment variables
+
+| Variable | Effect |
+|---|---|
+| `PEABIRU_ELEVATION=TOBLER\|MINETTI\|NONE` | slope costs from the directory's `.tif` raster; without it rasters are ignored (r5r's default is `TOBLER`) |
+| `PEABIRU_IGNORE_GTFS_ERRORS=1` | build from feeds with errors of priority `HIGH`, with a warning per feed, instead of failing |
+| `PEABIRU_SCENARIO=<file>` | a scenario file: lines `carspeed_scale <x>`, `car scale` or `car km/h`, `way <osm id> <value>` and `lts <osm id> <level>` (polygons and lines are not read) |
+| `PEABIRU_STREET_MATRIX=dijkstra\|ch\|auto` | the engine of street matrices (`ttm`); the matrix is the same |
+
 ## Diagnostics
 
 ```sh
 peabiru --version
-peabiru osm-stats <file.osm.pbf> [n_threads]   # what the PBF reader sees
-peabiru dump-edges <file.osm.pbf>              # every directed edge, as CSV
+peabiru osm-stats <file.osm.pbf> [n_threads]          # what the PBF reader sees
+peabiru dump-edges <file.osm.pbf | dir>               # every directed edge, as CSV
+peabiru dump-elevation <dir> <out prefix>             # elevation samples and slope factors
+peabiru sample-raster <file.tif> <points> <out>       # R5's elevation reading at points
+peabiru crs-transform <epsg code> <points> <out>      # GeoTools' transform of a raster CRS
 ```
 
 `dump-edges` writes one row per directed edge with its permissions, speeds
 and traffic stress, for comparing two networks edge by edge (see
-[Parity with r5r](parity.md)).
+[Parity with r5r](parity.md)); given a directory, it links the GTFS stops
+first. The last three compare the elevation code with R5 and GeoTools
+value by value; their point files hold the hex bits of the doubles.
 
 Each command prints the build and routing times on standard output.

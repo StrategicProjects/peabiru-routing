@@ -9,7 +9,11 @@
 - [Accessibility](accessibility.md)
 - [Expanded and arrival matrices](expanded.md)
 - [Isochrones](isochrones.md)
+- [Detailed itineraries](itineraries.md)
 - [Fares and Pareto frontiers](fares.md)
+- [Elevation](elevation.md)
+- [Scenarios](scenarios.md)
+- [Inspecting a network](inspect.md)
 - [The command line](cli.md)
 - [Parity with r5r](parity.md)
 
