@@ -92,15 +92,15 @@ test_that("expanded and arrival matrices are the recorded ones", {
   expect_identical(c(tenths(e$total_time), tenths(e$wait_time), sum(e$n_rides)),
                    c(394880L, 18154L, 918L))
   routes <- table(e$routes)
-  expect_identical(as.integer(routes[c("[WALK]", "METRÔ L1", "METRÔ L3",
-                                       "METRÔ L1|METRÔ L3", "2002-10")]),
+  expect_identical(as.integer(routes[c("[WALK]", "METR\u00d4 L1", "METR\u00d4 L3",
+                                       "METR\u00d4 L1|METR\u00d4 L3", "2002-10")]),
                    c(1225L, 414L, 212L, 110L, 38L))
   last <- e[nrow(e), ]
   expect_identical(last$departure_time, "14:02:00")
   expect_identical(last$draw_number, 5L)
   expect_identical(c(last$access_time, last$wait_time, last$ride_time, last$transfer_time,
                      last$egress_time, last$total_time), c(3.4, 5.8, 8.2, 0.6, 5, 23))
-  expect_identical(last$routes, "METRÔ L1|METRÔ L3")
+  expect_identical(last$routes, "METR\u00d4 L1|METR\u00d4 L3")
   a <- routed(arrival_travel_time_matrix, pts[1:5, ], pts, mode = c("WALK", "TRANSIT"),
               arrival_datetime = departure + 3600, max_trip_duration = 45, seed = 42)
   expect_identical(c(nrow(a), tenths(a$total_time)), c(135L, 25628L))
