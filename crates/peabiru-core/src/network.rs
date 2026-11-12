@@ -275,7 +275,7 @@ pub fn street_travel_time_matrix(
 
 /// Public transport travel-time matrix, as r5r's `travel_time_matrix()` with
 /// public transport in `mode` (by default `c("WALK", "TRANSIT")`; see
-/// [`TransitParams::transit_modes`], [`TransitParams::access_mode`] and
+/// [`TransitParams::transit_modes`], [`TransitParams::mode`] and
 /// [`TransitParams::egress_mode`]). Points are `(lat, lon)` degrees.
 /// [`RouteError::Invalid`] when the network has no public transport or the
 /// parameters are invalid (see [`TransitParams::validate`]),
@@ -336,7 +336,7 @@ pub fn transit_accessibility(
 /// one of `WALK`, `BICYCLE`, `CAR`): one unvarying travel time per
 /// destination, so every percentile gets the same value
 /// (`TravelTimeReducer.recordUnvaryingTravelTimeAtTarget`).
-/// `params.max_trip_duration_min` is the search limit r5r passes to R5,
+/// `params.max_trip_duration` is the search limit r5r passes to R5,
 /// and `percentiles` are checked as
 /// [`validate_percentiles`](crate::validate_percentiles) does.
 /// Errors as [`transit_accessibility`].
@@ -421,7 +421,7 @@ pub fn arrival_travel_time_matrix(
 /// `mode` one of `WALK`, `BICYCLE`, `CAR` and `polygon_output = TRUE`): one
 /// travel time per cell, the same at every percentile. The grid is
 /// [`WebMercatorGrid::for_network`](crate::WebMercatorGrid::for_network) at
-/// `zoom` (9 to 12). `params.max_trip_duration_min` is the search limit r5r
+/// `zoom` (9 to 12). `params.max_trip_duration` is the search limit r5r
 /// hands R5 (its `isochrone()` passes the largest cutoff plus 10 minutes).
 /// Points are `(lat, lon)` degrees; an origin that cannot be linked reaches
 /// nothing. [`RouteError::Invalid`] for invalid parameters, percentiles
@@ -529,7 +529,7 @@ pub fn detailed_itineraries_noted(
 /// `p.fare_structure` is required. As in r5r, `draws_per_minute` is 1
 /// whatever `p.draws_per_minute` says, so that `time_window` departure
 /// times are sampled. With `p.transit_modes` empty the trip is by
-/// `p.access_mode` alone (r5r's `mode` without public transport): the
+/// `p.mode` alone (r5r's `mode` without public transport): the
 /// street travel time, the same at every cutoff, with
 /// `p.max_trip_duration` as the limit (r5r lowers it to the mode's own
 /// limit first); otherwise the network must have public transport

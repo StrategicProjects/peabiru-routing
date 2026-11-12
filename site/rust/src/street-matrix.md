@@ -17,12 +17,12 @@ pub fn street_travel_time_matrix(
 The result holds whole minutes, rounded down, for every origin and
 destination; `None` where there is no time: a point that cannot be linked to
 a street open to the mode, an unreachable destination, or a trip longer than
-`max_trip_duration_min`. `get(origin, destination)` reads one value,
+`max_trip_duration`. `get(origin, destination)` reads one value,
 `row(origin)` and `rows()` give the rows, and `into_vec()` hands over the
 whole buffer, row by row, without copying.
 
-`RouteParams::default()` holds the defaults: `walk_speed_kmh = 3.6`,
-`bike_speed_kmh = 12.0`, `max_lts = 2`, `max_trip_duration_min = 120`,
+`RouteParams::default()` holds the defaults: `walk_speed = 3.6`,
+`bike_speed = 12.0`, `max_lts = 2`, `max_trip_duration = 120`,
 `n_threads = 0` (all cores), no [scenario](scenarios.md), and
 `engine = StreetEngine::Auto`. The engine only decides how the times are
 found, never what they are: `Search` runs a search from every origin,

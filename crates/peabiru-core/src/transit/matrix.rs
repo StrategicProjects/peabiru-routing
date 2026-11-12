@@ -59,7 +59,7 @@ pub struct TransitParams {
     /// Trip limit in whole minutes (default 120).
     pub max_trip_duration: i32,
     /// Walking speed, km/h (default 3.6).
-    pub walk_speed_kmh: f64,
+    pub walk_speed: f64,
     /// The street mode that reaches public transport, which is also the
     /// mode of the trip without it: r5r's street mode next to the transit
     /// modes in `mode` (default [`Mode::Walk`]). By bicycle or car the
@@ -67,16 +67,16 @@ pub struct TransitParams {
     /// same time limit, as R5 does (`keepRoutingOnFoot`), so that stops in
     /// pedestrian-only areas are reached too; the trip without public
     /// transport keeps those walking ends as well.
-    pub access_mode: Mode,
+    pub mode: Mode,
     /// The street mode from public transport to the destinations, r5r's
     /// `mode_egress` (default [`Mode::Walk`]). By bicycle or car R5 links
     /// every stop again by that mode and searches up to 5 km by bicycle,
     /// or below 30 minutes by car, with its default request (any level of
     /// traffic stress); the egress then must stay below `max_bike_time` or
-    /// `max_car_time`, at `bike_speed_kmh` by bicycle.
+    /// `max_car_time`, at `bike_speed` by bicycle.
     pub egress_mode: Mode,
     /// Cycling speed, km/h (default 12), for bicycle access and egress.
-    pub bike_speed_kmh: f64,
+    pub bike_speed: f64,
     /// Highest level of traffic stress a cyclist rides on, 1 to 4 (default
     /// 2), for bicycle access (R5's bicycle egress ignores it, see
     /// `egress_mode`).
@@ -231,8 +231,8 @@ impl TransitParams {
             1,
             int_max,
         )?;
-        check_speed("walk_speed_kmh", self.walk_speed_kmh)?;
-        check_speed("bike_speed_kmh", self.bike_speed_kmh)?;
+        check_speed("walk_speed", self.walk_speed)?;
+        check_speed("bike_speed", self.bike_speed)?;
         // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
         if !(1..=4).contains(&self.max_lts) {
             return Err(format!(
@@ -310,10 +310,10 @@ impl Default for TransitParams {
             percentiles: vec![50],
             max_walk_time: 120,
             max_trip_duration: 120,
-            walk_speed_kmh: 3.6,
-            access_mode: Mode::Walk,
+            walk_speed: 3.6,
+            mode: Mode::Walk,
             egress_mode: Mode::Walk,
-            bike_speed_kmh: 12.0,
+            bike_speed: 12.0,
             max_lts: 2,
             max_bike_time: 120,
             max_car_time: 120,
@@ -466,8 +466,8 @@ impl TransitData {
 pub(crate) fn egress_seconds(p: &TransitParams) -> impl Fn(i32) -> Option<i32> + Sync {
     let mms = |kmh: f64| (((kmh * 5.0 / 18.0) as f32) * 1000.0f32) as i32;
     let (speed, limit) = match p.egress_mode {
-        Mode::Walk => (mms(p.walk_speed_kmh), p.max_walk_time),
-        Mode::Bicycle => (mms(p.bike_speed_kmh), p.max_bike_time),
+        Mode::Walk => (mms(p.walk_speed), p.max_walk_time),
+        Mode::Bicycle => (mms(p.bike_speed), p.max_bike_time),
         Mode::Car => (1, p.max_car_time),
     };
     let limit = limit * 60;
@@ -529,16 +529,15 @@ pub(crate) struct Access {
 
 impl Access {
     pub(crate) fn new(net: &StreetNetwork, p: &TransitParams) -> Self {
-        let graph =
-            |mode| ModeGraph::with_speeds(net, mode, p.walk_speed_kmh, p.bike_speed_kmh, p.max_lts);
-        let mode_limit = match p.access_mode {
+        let graph = |mode| ModeGraph::with_speeds(net, mode, p.walk_speed, p.bike_speed, p.max_lts);
+        let mode_limit = match p.mode {
             Mode::Walk => p.max_walk_time,
             Mode::Bicycle => p.max_bike_time,
             Mode::Car => p.max_car_time,
         };
         Access {
-            graph: graph(p.access_mode),
-            foot: (p.access_mode != Mode::Walk).then(|| graph(Mode::Walk)),
+            graph: graph(p.mode),
+            foot: (p.mode != Mode::Walk).then(|| graph(Mode::Walk)),
             limit: p.max_trip_duration.min(mode_limit) * 60,
         }
     }
@@ -660,7 +659,7 @@ impl<'a> Query<'a> {
         let active = layer.active_services(p.date, weekday(p.date));
         let filtered =
             Filtered::new(layer, &active, &p.transit_modes).map_err(RouteError::Invalid)?;
-        let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
+        let walk_speed = (p.walk_speed * 5.0 / 18.0) as f32;
         let link = |mode| -> Result<Links, RouteError> {
             Ok(match destinations {
                 Dests::Points(points) => Arc::new(
@@ -680,10 +679,10 @@ impl<'a> Query<'a> {
         // the destinations by the egress mode (walking) and, for the
         // direct times, by the access mode
         let egress_splits = link(p.egress_mode)?;
-        let dest_splits = if p.access_mode == p.egress_mode {
+        let dest_splits = if p.mode == p.egress_mode {
             egress_splits.clone()
         } else {
-            link(p.access_mode)?
+            link(p.mode)?
         };
         let walk_mms = (walk_speed * 1000.0f32) as i32;
         // PerTargetPropagater: egress seconds from the cost (mm at the
@@ -750,11 +749,8 @@ impl<'a> Query<'a> {
             Some(fs) => Some(FareSetup::new(fs, layer, p.date, &p.transit_modes)?),
             None => None,
         };
-        let scen = crate::street::scenario::scenario_network(
-            net,
-            &p.scenario,
-            p.access_mode == Mode::Car,
-        )?;
+        let scen =
+            crate::street::scenario::scenario_network(net, &p.scenario, p.mode == Mode::Car)?;
         let access = Access::new(scen.as_ref().unwrap_or(net), p);
         Ok(Query {
             net,
@@ -1148,7 +1144,7 @@ mod tests {
                 ..ok.clone()
             },
             TransitParams {
-                walk_speed_kmh: 0.0,
+                walk_speed: 0.0,
                 ..ok.clone()
             },
             TransitParams {
@@ -1160,7 +1156,7 @@ mod tests {
                 ..ok.clone()
             },
             TransitParams {
-                walk_speed_kmh: f64::NAN,
+                walk_speed: f64::NAN,
                 ..ok.clone()
             },
             TransitParams {
@@ -1184,7 +1180,7 @@ mod tests {
                 ..ok.clone()
             },
             TransitParams {
-                bike_speed_kmh: 0.0,
+                bike_speed: 0.0,
                 ..ok.clone()
             },
             TransitParams {
@@ -1229,7 +1225,7 @@ mod tests {
                 ..ok.clone()
             },
             TransitParams {
-                walk_speed_kmh: 5000.0,
+                walk_speed: 5000.0,
                 ..ok.clone()
             },
         ] {
@@ -1257,12 +1253,12 @@ mod tests {
             "{clock}"
         );
         let speed = err(TransitParams {
-            walk_speed_kmh: 1e-300,
+            walk_speed: 1e-300,
             ..ok.clone()
         });
         assert_eq!(
             speed,
-            "walk_speed_kmh must be at least 0.0036 km/h (1 mm/s), got 1e-300"
+            "walk_speed must be at least 0.0036 km/h (1 mm/s), got 1e-300"
         );
     }
 

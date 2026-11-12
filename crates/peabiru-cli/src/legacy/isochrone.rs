@@ -89,10 +89,10 @@ pub fn run(args: &[String]) {
             "--draws" => tp.draws_per_minute = cli::count(CMD, name, v),
             "--seed" => tp.seed = Some(cli::int(CMD, name, v, i32::MIN, i32::MAX)),
             "--walk-speed" => {
-                tp.walk_speed_kmh = cli::float(CMD, name, v);
-                rp.walk_speed_kmh = tp.walk_speed_kmh;
+                tp.walk_speed = cli::float(CMD, name, v);
+                rp.walk_speed = tp.walk_speed;
             }
-            "--bike-speed" => rp.bike_speed_kmh = cli::float(CMD, name, v),
+            "--bike-speed" => rp.bike_speed = cli::float(CMD, name, v),
             "--max-lts" => rp.max_lts = cli::int(CMD, name, v, i32::MIN, i32::MAX),
             "--threads" => {
                 tp.n_threads = cli::size(CMD, name, v);
@@ -139,7 +139,7 @@ pub fn run(args: &[String]) {
         }
         build_network(net_path, &build).unwrap_or_else(|e| fail_io(e))
     };
-    rp.max_trip_duration_min = limit;
+    rp.max_trip_duration = limit;
     tp.max_trip_duration = limit;
     tp.max_walk_time = walk_limit;
     tp.percentiles = percentiles.clone();
