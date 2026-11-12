@@ -94,11 +94,11 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
 <text x='399.4' y='90.8' style='font-size: 8.80px;fill: #1F2A2E; font-family: "Helvetica Neue";'>250k or more</text>
 <text x='83.1' y='39.2' style='font-size: 11.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Walking and HSL's buses, trams, metro, trains and ferries, departures 07:30–08:30 on Tuesday</text>
 <text x='83.1' y='51.1' style='font-size: 11.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>17 November 2026 (median), from 5,825 cells of 250 m with 1,253,793 residents to 486,976 jobs in</text>
-<text x='83.1' y='63.0' style='font-size: 11.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>companies and non-profits. The average resident reaches 151,537 of them (31%); 22% of residents</text>
-<text x='83.1' y='74.9' style='font-size: 11.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>reach at least half. Dot: Helsinki Central Station</text>
+<text x='83.1' y='63.0' style='font-size: 11.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>companies and non-profits. The average resident reaches 151,537 of them (31%); 22% of</text>
+<text x='83.1' y='74.9' style='font-size: 11.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>residents reach at least half. Dot: Helsinki Central Station</text>
 <text x='83.1' y='23.2' style='font-size: 13.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Jobs within 45 minutes by public transport, Helsinki capital region</text>
 <text x='83.1' y='437.2' style='font-size: 9.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Map data © OpenStreetMap contributors (ODbL), Geofabrik extract of 2026-11-11. Timetables © HSL 2026 (CC BY 4.0),</text>
-<text x='83.1' y='446.9' style='font-size: 9.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>feed of 2026-11-12. Residents (2025) and jobs (2024, private and third sector): © HSY (CC BY 4.0), from Statistics Finland.</text>
+<text x='83.1' y='446.9' style='font-size: 9.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>feed of 2026-11-12. Residents (2025) and jobs (2024, companies and non-profits): © HSY (CC BY 4.0).</text>
 </g>
 </g>
 </svg>

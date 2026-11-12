@@ -329,7 +329,11 @@ fare_access <- function() once("fare_access", {
                        time_window = 5, cutoffs = 45, n_threads = threads, seed = 42, ...)
     weighted(a$accessibility, a$id)
   }
-  out <- data.frame(structure = "No fare limit", budget = "none", jobs = acc())
+  # the reference: the same (multi-criteria) router with a budget that never
+  # binds. The router used without a fare structure is another algorithm and
+  # its travel times differ a little, both ways, so it is no upper bound
+  out <- data.frame(structure = "Any budget", budget = "none",
+                    jobs = acc(fare_structure = fs$sample, max_fare = 1000))
   for (budget in c(4.8, 7.2)) {
     for (s in names(fs)) {
       out <- rbind(out, data.frame(structure = s, budget = sprintf("R$ %.2f", budget),
@@ -359,7 +363,7 @@ figures$scen_fares <- function() {
     labs(title = "Jobs within 45 minutes by public transport, under three fare rules",
          subtitle = sprintf(paste0(
            "Average over the residents of the grid, walking and public transport, departures 14:00–14:05 on a Monday.\n",
-           "The dashed line: with no fare limit, %sk jobs. With one fare to spend (R$ 4.80), free transfers bring the\n",
+           "The dashed line: with any budget, %sk jobs. With one fare to spend (R$ 4.80), free transfers bring the\n",
            "average from %sk to %sk jobs"), fmt(top / 1000),
            fmt(x$jobs[x$structure == names_s[["sample"]] & grepl("4.80", x$budget)] / 1000),
            fmt(x$jobs[x$structure == names_s[["free"]] & grepl("4.80", x$budget)] / 1000)),
@@ -372,8 +376,8 @@ figures$scen_fares <- function() {
              "Horizontal bars of the average number of jobs a resident of Porto Alegre reaches within",
              "45 minutes by public transport, under the sample fare structure, with free transfers",
              "within the hour, and with no transfer discount, for a budget of one fare (R$ 4.80) and of",
-             "R$ 7.20. With one fare to spend, only free transfers come close to the access without any",
-             "fare limit; with R$ 7.20, the sample's discount on the second bus does too."))
+             "R$ 7.20. With one fare to spend, only free transfers give the access of an unlimited",
+             "budget; with R$ 7.20, the sample's discount on the second bus comes close to it."))
 }
 
 # ------------------------------------------------------------------ Helsinki
@@ -430,7 +434,7 @@ hel_coords <- function(ext) {
 }
 hel_credit <- paste0(
   "Map data © OpenStreetMap contributors (ODbL), Geofabrik extract of 2026-11-11. Timetables © HSL 2026 (CC BY 4.0),\n",
-  "feed of 2026-11-12. Residents (2025) and jobs (2024, private and third sector): © HSY (CC BY 4.0), from Statistics Finland.")
+  "feed of 2026-11-12. Residents (2025) and jobs (2024, companies and non-profits): © HSY (CC BY 4.0).")
 
 hel_access <- function() once("hel_access", {
   h <- hel()
@@ -470,8 +474,8 @@ figures$hel_jobs <- function() {
          subtitle = sprintf(paste0(
            "Walking and HSL's buses, trams, metro, trains and ferries, departures 07:30–08:30 on Tuesday\n",
            "17 November 2026 (median), from %s cells of 250 m with %s residents to %s jobs in\n",
-           "companies and non-profits. The average resident reaches %s of them (%s); %s of residents\n",
-           "reach at least half. Dot: Helsinki Central Station"),
+           "companies and non-profits. The average resident reaches %s of them (%s); %s of\n",
+           "residents reach at least half. Dot: Helsinki Central Station"),
            fmt(n_cells), fmt(sum(h$points$population)), fmt(total), fmt(avg), pct(avg / total, 0), pct(half, 0)),
          caption = hel_credit) +
     theme_peabiru(map = TRUE) + legend_top
@@ -490,6 +494,10 @@ figures$hel_iso <- function() {
   modes <- list(WALK = "Walking", BICYCLE = "Cycling", CAR = "Driving (free flow)",
                 TRANSIT = "Walking + public transport")
   cutoffs <- c(15, 30, 45)
+  # isochrone() repairs the polygons with st_make_valid(), as r5r does; with
+  # s2 on, that repair enlarges the 30-minute driving polygon by 45 km2
+  s2 <- suppressMessages(sf_use_s2(FALSE))
+  on.exit(suppressMessages(sf_use_s2(s2)))
   polys <- do.call(rbind, lapply(names(modes), function(m) {
     mode <- if (m == "TRANSIT") c("WALK", "TRANSIT") else m
     iso <- isochrone(h$network, hel_station, mode = mode, cutoffs = cutoffs, zoom = 10,
@@ -516,7 +524,7 @@ figures$hel_iso <- function() {
     scale_fill_manual(values = ramp_time$light[c(1, 3, 4)], name = NULL) +
     hel_coords(ext) +
     labs(title = "Isochrones from Helsinki Central Station, by mode",
-         subtitle = "Areas reached within 15, 30 and 45 minutes; by public transport, the median of the departures 07:30–08:30\non Tuesday 17 November 2026. Driving is free flow: no congestion",
+         subtitle = "Areas reached within 15, 30 and 45 minutes; by public transport, the median of the departures\n07:30–08:30 on Tuesday 17 November 2026. Driving is free flow: no congestion",
          caption = hel_credit) +
     theme_peabiru(map = TRUE) + legend_top
   save_svg(p, "helsinki-isochrones", width = 8, height = 7.4,

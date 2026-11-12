@@ -136,10 +136,11 @@ gtfs_one_day <- function(src, date, out) {
     close(con)
     close(outcon)
   }
+  out <- file.path(normalizePath(dirname(out)), basename(out))
   unlink(out)
   old <- setwd(tmp)
   on.exit(setwd(old))
-  utils::zip(normalizePath(out, mustWork = FALSE), intersect(tables, files), flags = "-q9X")
+  stopifnot(utils::zip(out, intersect(tables, files), flags = "-q9X") == 0)
   message(sprintf("%s (%s): %d services, %d trips", date, day, length(active), nrow(trips)))
   invisible(out)
 }
