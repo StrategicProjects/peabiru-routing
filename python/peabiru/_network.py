@@ -33,8 +33,16 @@ class Network:
         The slope cost function in use: ``"TOBLER"``, ``"MINETTI"`` or
         ``"NONE"`` (also when the directory has no ``.tif`` raster).
     has_tif : bool
-        Whether the directory has a ``.tif`` raster (which, as in r5r,
-        disables the swap of origins and destinations for walking).
+        Whether the directory has a ``.tif`` raster. Walking matrices with
+        more origins than destinations are routed from the destinations
+        (and the columns swapped back), except when it has one.
+
+    Examples
+    --------
+    >>> import peabiru
+    >>> network = peabiru.build_network(peabiru.sample_data_path(), n_threads=2)
+    >>> network.elevation, network.has_tif
+    ('NONE', False)
     """
 
     def __init__(self, core: Any, data_path: str, elevation: str, has_tif: bool) -> None:
@@ -54,6 +62,14 @@ class Network:
             GTFS feed ids), ``stops``, ``patterns``, ``services`` and
             ``frequencies`` (whether any trip is frequency-based) of the
             public transport layer.
+
+        Examples
+        --------
+        >>> import peabiru
+        >>> network = peabiru.build_network(peabiru.sample_data_path(), n_threads=2)
+        >>> info = network.info()
+        >>> info["feeds"], info["frequencies"]
+        (['spo_gtfs'], True)
         """
         return dict(self._core.info())
 
@@ -102,88 +118,76 @@ def build_network(
 
     Builds a multimodal transport network from a directory with one
     OpenStreetMap extract (``.pbf``) and zero or more GTFS feeds (``.zip``),
-    as ``r5r::build_network()`` does. The network lives in memory and is
-    reused by every routing function; nothing is written to ``data_path``,
-    and there is no ``network.dat`` cache.
-
-    As in r5r, the files are recognised by their extension in lower case
+    and optionally an elevation raster (``.tif``). The network lives in
+    memory and is reused by every routing function; nothing is written to
+    ``data_path``. The files are recognised by their extension in lower case
     only: a ``map.PBF`` or a ``feed.ZIP`` is ignored.
 
-    As in r5r, a ``.tif`` raster in ``data_path`` gives walking and cycling
-    times slope costs (``elevation="TOBLER"``, the default, or
-    ``"MINETTI"``; never for cars), identical to r5r's: the raster is
-    sampled every 10 m along each street at the nearest pixel, and each
-    street's time is multiplied by the average cost of its slopes. Points
-    outside the raster count as 0 m high, as in r5r. Without a ``.tif``
+    A ``.tif`` raster in ``data_path`` gives walking and cycling times slope
+    costs (``elevation="TOBLER"``, the default, or ``"MINETTI"``; never for
+    cars): the raster is sampled every 10 m along each street at the nearest
+    pixel, and each street's time is multiplied by the average cost of its
+    slopes. Points outside the raster count as 0 m high. Without a ``.tif``
     raster the network is built with ``elevation="NONE"``.
 
-    The raster must be a GeoTIFF with one band in WGS 84 longitude and
-    latitude (EPSG:4326) or another coordinate reference system whose
-    transform peabiru reproduces exactly: SIRGAS 2000 (4674), SAD69 (4618),
+    The raster must be a GeoTIFF with one band, north up, uncompressed or
+    compressed with LZW, Deflate or PackBits (what GDAL writes by default),
+    in WGS 84 longitude and latitude (EPSG:4326) or in another coordinate
+    reference system whose transform peabiru reproduces exactly, given by
+    its EPSG code (what GDAL writes): SIRGAS 2000 (4674), SAD69 (4618),
     Corrego Alegre 1970-72 (4225), their UTM zones used in Brazil
     (31965-31985, 6210, 6211, 5396; 29168-29172, 29187-29195; 22521-22525),
     SIRGAS 2000 / Brazil Polyconic (5880), WGS 84 / UTM (32601-32660,
-    32701-32760) and WGS 84 / Pseudo-Mercator (3857), given by its EPSG code
-    (what GDAL writes), north up, uncompressed or compressed with LZW,
-    Deflate or PackBits (what GDAL writes by default); other rasters are an
-    error that says what to change, and so are a ``.prj`` file next to it
-    (r5r would use its system instead), a raster whose name ends in
-    ``.tiff`` (r5r fails to read it) and more than one raster (r5r reads the
-    last one the file system lists).
-    In a system other than EPSG:4326, r5r's own result depends on the
-    machine it runs on for a street point within nanometres (5e-8 m, or
+    32701-32760) and WGS 84 / Pseudo-Mercator (3857). Other rasters are an
+    error that says what to change, and so are a ``.prj`` file next to the
+    raster, a raster whose name ends in ``.tiff`` and more than one raster.
+
+    In a projected system, a street point within nanometres (5e-8 m, or
     2e-13 degrees) of the boundary between two pixels of different values,
-    or of the raster's edge: the last bits of Java's sines and cosines
-    decide which pixel it reads. peabiru reads the pixel Java's
-    ``StrictMath`` gives, the same on every machine, and warns once
-    (``UserWarning``) with the number of such points (about one in a hundred
-    million for 30 m pixels; reprojecting the raster to EPSG:4326 removes
-    the ambiguity). A point that ``StrictMath`` itself puts on the raster's
-    outer edge (inside its envelope, past the last pixel) remains an error,
-    since there r5r fails on every machine and there is no pixel to read.
-    Voids and values beyond +/-3276.7 m are
-    stored wrapped around as r5r stores them (R5 keeps decimetres in 16-bit
-    integers: SRTM's -32768 voids become 0 m, -9999 becomes 3108.2 m), so
-    the slope costs are r5r's, with a warning (``UserWarning``) that r5r
-    does not give, counting them and the samples equal to the raster's
-    no-data value. As in r5r, a raster also disables the swap of origins and
-    destinations that r5r does for walking, and a routing call with a
-    scenario (``new_carspeeds``, ``carspeed_scale``, ``new_lts``) runs
-    without the slope costs, with r5r's warning.
+    or of the raster's edge, reads the pixel that Java's ``StrictMath``
+    gives, the same on every machine, and a ``UserWarning`` gives the number
+    of such points (about one in a hundred million for 30 m pixels;
+    reprojecting the raster to EPSG:4326 removes the ambiguity). A point
+    that ``StrictMath`` puts on the raster's outer edge (inside its
+    envelope, past the last pixel) is an error: there is no pixel to read.
+    Elevations are kept, as in R5, in decimetres in 16-bit integers, so
+    voids and values beyond +/-3276.7 m wrap around (SRTM's -32768 voids
+    become 0 m, -9999 becomes 3108.2 m, a NaN no-data value becomes 0 m);
+    a ``UserWarning`` counts them and the samples equal to the raster's
+    no-data value. A routing call with a scenario (``new_carspeeds``,
+    ``carspeed_scale``, ``new_lts``) on a network with elevation runs
+    without the slope costs, with a warning. See [Elevation](elevation.md).
 
     The GTFS feeds are loaded in the order in which the operating system
-    lists the directory, as R5 does. With more than one feed that order
-    depends on the file system, so the same directory can give slightly
-    different expanded and arrival matrices on two machines (another stop
-    or route for a few trips); r5r behaves in the same way, and on one
-    machine the results are always the same.
+    lists the directory. With more than one feed that order depends on the
+    file system, so the same directory can give slightly different expanded
+    and arrival matrices on two machines (another stop or route for a few
+    trips); on one machine the results are always the same.
 
-    As in r5r, the network is not built when a GTFS feed has errors of
-    priority ``"HIGH"`` (a reference to a stop, route, trip, service or
-    agency that does not exist, a number that cannot be read, tables in a
-    subfolder of the ``.zip``, routes without any agency): the
-    ``RuntimeError`` names the feeds and points to
-    [`get_gtfs_errors()`][peabiru.get_gtfs_errors], which lists the errors.
-    Unlike r5r, nothing is written to ``data_path`` (r5r writes them to
-    ``gtfs_errors.csv``). A feed that r5r's GTFS library fails to load at
-    all is an error too.
+    The network is not built when a GTFS feed has errors of priority
+    ``"HIGH"`` (a reference to a stop, route, trip, service or agency that
+    does not exist, a number that cannot be read, tables in a subfolder of
+    the ``.zip``, routes without any agency): the ``RuntimeError`` names the
+    feeds and points to [`get_gtfs_errors()`][peabiru.get_gtfs_errors],
+    which lists the errors. A feed that cannot be loaded at all is an error
+    too.
 
     Parameters
     ----------
     data_path : str or os.PathLike
-        The directory with the ``.pbf`` file and the GTFS feeds.
+        The directory with the ``.pbf`` file, the GTFS feeds and the
+        elevation raster.
     verbose : bool, default False
-        Whether to print informative messages (to standard error).
+        Whether to report the build of the network (on standard error).
     temp_dir : bool, default False
-        Accepted for compatibility with r5r, which uses it to choose where
-        to keep the R5 jar; it has no effect.
+        Only checked; it has no effect (see the Notes).
     elevation : {"TOBLER", "MINETTI", "NONE"}, default "TOBLER"
         The slope cost function for walking and cycling when ``data_path``
         has a ``.tif`` elevation raster: Tobler's hiking function,
-        Minetti's energy cost of walking, or no slope costs.
+        Minetti's energy cost of walking, or no slope costs. Case does not
+        matter.
     overwrite : bool, default False
-        Accepted for compatibility with r5r, which uses it to rebuild a
-        cached ``network.dat``; the network is always built anew.
+        Only checked; it has no effect: the network is always built anew.
     n_threads : int or math.inf, default math.inf
         The number of threads used to read the ``.pbf`` file; ``math.inf``
         (or ``None``) uses all cores.
@@ -195,9 +199,32 @@ def build_network(
 
     Raises
     ------
+    ValueError
+        When ``data_path`` has no ``.pbf`` file or more than one, or
+        ``elevation`` is not one of the choices.
     RuntimeError
         When a file cannot be read, a GTFS feed has errors of priority
         ``"HIGH"``, or the elevation raster is not one peabiru reads.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments ``data_path``, ``verbose``,
+    ``temp_dir``, ``elevation`` and ``overwrite``, their defaults and
+    checks, and the network's routing are those of ``build_network()`` in
+    r5r 2.5.0 (the network is R5 7.6's, ported from Conveyal's R5):
+    the slope costs, the refusal of feeds with errors of priority
+    ``"HIGH"`` and the order of the feeds are r5r's. Differences: there is
+    no Java, so ``temp_dir`` (where r5r keeps the R5 jar) and ``overwrite``
+    (which rebuilds r5r's cached ``network.dat``) have no effect; nothing
+    is written to ``data_path`` (no ``network.dat``, no
+    ``gtfs_errors.csv``); ``n_threads`` is added; more than one ``.pbf``
+    file is an error (r5r uses one of them); the rasters r5r reads but
+    peabiru refuses are listed above (r5r uses a ``.prj`` file's system,
+    fails on a ``.tiff`` and reads the last of several rasters). In a
+    projected raster, r5r's own result for the points within nanometres of
+    a pixel boundary depends on the machine (the last bits of the JVM's
+    sines and cosines), and r5r gives no warning for wrapped values. See
+    [Coming from r5py / r5r](coming-from-r5.md).
 
     Examples
     --------

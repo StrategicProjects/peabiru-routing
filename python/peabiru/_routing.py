@@ -165,21 +165,17 @@ def travel_time_matrix(
     Travel times between every origin and every destination, by one street
     mode (``"WALK"``, ``"BICYCLE"`` or ``"CAR"``) or by public transport
     (all of it or some of its modes, reached and left on foot, by bicycle
-    or by car). Arguments,
-    defaults and the result are those of ``r5r::travel_time_matrix()``
-    (r5r 2.5.0), and so are the values: peabiru reproduces R5's routing
-    exactly.
+    or by car). With public transport, the travel time from an origin to a
+    destination is computed for every departure minute of the time window
+    (and every Monte Carlo draw with frequency-based GTFS), and the result
+    reports percentiles of those times.
 
-    As in R5, a bicycle or car trip to public transport goes on on foot
-    from wherever the vehicle got, within the same ``max_bike_time`` or
-    ``max_car_time``, and the trip without public transport keeps those
-    walking ends too. Egress by bicycle or car is searched from every stop
-    with R5's defaults (up to 5 km by bicycle at any level of traffic
-    stress, up to 30 minutes by car) and must stay within
-    ``max_bike_time`` or ``max_car_time``.
-
-    Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]
-    when requested: fares (``fare_structure``, ``max_fare``).
+    A bicycle or car trip to public transport goes on on foot from wherever
+    the vehicle got, within the same ``max_bike_time`` or ``max_car_time``,
+    and the trip without public transport keeps those walking ends too.
+    Egress by bicycle or car is searched from every stop with R5's defaults
+    (up to 5 km by bicycle at any level of traffic stress, up to 30 minutes
+    by car) and must stay within ``max_bike_time`` or ``max_car_time``.
 
     Parameters
     ----------
@@ -231,12 +227,19 @@ def travel_time_matrix(
         The maximum number of public transport rides.
     max_lts : int, default 2
         The highest level of traffic stress (1 to 4) a cyclist will ride on.
-    fare_structure : None
-        Fares are not supported yet; must be ``None``.
+    fare_structure : dict, optional
+        A fare structure (see
+        [`setup_fare_structure()`][peabiru.setup_fare_structure]). With one,
+        public transport is routed with fares by the multi-criteria router
+        (McRAPTOR), over ``time_window * draws_per_minute`` departure times
+        sampled in the window, and ``max_fare`` limits what a trip may
+        cost (see [Fares](fares.md)).
     max_fare : float, default math.inf
-        Fares are not supported yet; must be ``math.inf``.
+        The highest fare a trip may cost; a finite value needs a
+        ``fare_structure``.
     new_carspeeds : pandas.DataFrame or geopandas.GeoDataFrame, optional
-        A scenario of car speeds, as in r5r: a DataFrame with columns
+        A scenario of car speeds (see [Scenarios](scenarios.md)): a
+        DataFrame with columns
         ``osm_id``, ``max_speed`` and ``speed_type`` (``"scale"``, a factor
         for the car speed of the way's edges, or ``"km/h"``, a speed; 0
         closes the way to cars), or a GeoDataFrame of polygons in WGS 84
@@ -247,30 +250,31 @@ def travel_time_matrix(
         The factor for the car speeds of the edges ``new_carspeeds`` leaves
         out (all of them when it is ``None``).
     new_lts : pandas.DataFrame or geopandas.GeoDataFrame, optional
-        A scenario of levels of traffic stress, as in r5r: a DataFrame with
-        columns ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in
-        WGS 84 with columns ``line_id``, ``lts`` (1 to 4) and ``priority``:
-        each street edge takes the level of the line closest to it among
-        those whose bounding box meets its own. As in r5r, a scenario
-        changes the street search from the origins (the trip without public
-        transport, access by bicycle or car) but not the egress from the
-        stops; a car speed R5's 16-bit cm/s would turn into 0 or less, a
-        polygon that is not valid, and ties between polygons peabiru cannot
+        A scenario of levels of traffic stress: a DataFrame with columns
+        ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in WGS 84
+        with columns ``line_id``, ``lts`` (1 to 4) and ``priority``: each
+        street edge takes the level of the line closest to it among those
+        whose bounding box meets its own. A scenario changes the street
+        search from the origins (the trip without public transport, access
+        by bicycle or car) but not the egress from the stops, and a network
+        with elevation is routed without its slope costs, with a warning. A
+        car speed that R5's 16-bit cm/s would turn into 0 or less, a polygon
+        that is not valid, and ties between polygons that peabiru cannot
         settle exactly as R5 does are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
-        are reproducible (and equal to r5r's) only with a seed.
+        are reproducible only with a seed.
     n_threads : int or math.inf, default math.inf
         The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
-        Checked as in r5r; has no effect.
+        Only checked; it has no effect.
     progress : bool, default True
-        Checked as in r5r; peabiru prints no progress counter.
+        Only checked; peabiru prints no progress counter.
     output_dir : str or os.PathLike, optional
         An existing directory: instead of returning the result, write it
-        there as r5r does, one CSV file per origin named
+        there, one CSV file per origin named
         ``from_<origin id>.csv`` (see [Writing results to
         files](travel-time-matrices.md#writing-results-to-files)), and return
         ``output_dir``. Origins are routed a slice at a time, so the whole
@@ -285,6 +289,17 @@ def travel_time_matrix(
         are origin-major, in input order. Pairs that cannot be completed
         within ``max_trip_duration`` are not returned; a higher percentile
         beyond the limit is ``<NA>``.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments (names, order and defaults),
+    their checks and messages, the columns, the row order and the values
+    are those of ``travel_time_matrix()`` in r5r 2.5.0; the routing is a
+    port of Conveyal's R5 7.6, which r5r drives, and with a ``seed`` the
+    Monte Carlo draws of frequency-based GTFS are r5r's too. Differences:
+    no ``r5r_core`` argument, a pandas DataFrame instead of a
+    ``data.table``, and the ones listed in [Coming from r5py /
+    r5r](coming-from-r5.md).
 
     Examples
     --------
@@ -415,17 +430,15 @@ def accessibility(
     Cumulative or decay-weighted access to the opportunities at the
     destinations from each origin, by one street mode (``"WALK"``,
     ``"BICYCLE"`` or ``"CAR"``) or by public transport (see
-    [`travel_time_matrix()`][peabiru.travel_time_matrix]). Arguments, defaults and the result are
-    those of ``r5r::accessibility()`` (r5r 2.5.0); the values are
-    bit-identical.
+    [`travel_time_matrix()`][peabiru.travel_time_matrix]). Each opportunity
+    at a destination counts with the weight the decay function gives its
+    travel time, for each percentile of the travel times over the time
+    window.
 
-    As in r5r, with the ``"step"`` function trips longer than the largest
-    cutoff are not considered (``max_trip_duration`` becomes
-    ``max(cutoffs)``), while the other functions still weight them; and
-    ``max_trip_duration`` may not be shorter than the largest cutoff.
-
-    Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError] when requested:
-    fares.
+    With the ``"step"`` function, trips longer than the largest cutoff are
+    not considered (``max_trip_duration`` becomes ``max(cutoffs)``), while
+    the other functions still weight them; ``max_trip_duration`` may not be
+    shorter than the largest cutoff.
 
     Parameters
     ----------
@@ -492,12 +505,19 @@ def accessibility(
         The maximum number of public transport rides.
     max_lts : int, default 2
         The highest level of traffic stress (1 to 4) a cyclist will ride on.
-    fare_structure : None
-        Fares are not supported yet; must be ``None``.
+    fare_structure : dict, optional
+        A fare structure (see
+        [`setup_fare_structure()`][peabiru.setup_fare_structure]). With one,
+        public transport is routed with fares by the multi-criteria router
+        (McRAPTOR), over ``time_window * draws_per_minute`` departure times
+        sampled in the window, and ``max_fare`` limits what a trip may
+        cost (see [Fares](fares.md)).
     max_fare : float, default math.inf
-        Fares are not supported yet; must be ``math.inf``.
+        The highest fare a trip may cost; a finite value needs a
+        ``fare_structure``.
     new_carspeeds : pandas.DataFrame or geopandas.GeoDataFrame, optional
-        A scenario of car speeds, as in r5r: a DataFrame with columns
+        A scenario of car speeds (see [Scenarios](scenarios.md)): a
+        DataFrame with columns
         ``osm_id``, ``max_speed`` and ``speed_type`` (``"scale"``, a factor
         for the car speed of the way's edges, or ``"km/h"``, a speed; 0
         closes the way to cars), or a GeoDataFrame of polygons in WGS 84
@@ -508,34 +528,36 @@ def accessibility(
         The factor for the car speeds of the edges ``new_carspeeds`` leaves
         out (all of them when it is ``None``).
     new_lts : pandas.DataFrame or geopandas.GeoDataFrame, optional
-        A scenario of levels of traffic stress, as in r5r: a DataFrame with
-        columns ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in
-        WGS 84 with columns ``line_id``, ``lts`` (1 to 4) and ``priority``:
-        each street edge takes the level of the line closest to it among
-        those whose bounding box meets its own. As in r5r, a scenario
-        changes the street search from the origins (the trip without public
-        transport, access by bicycle or car) but not the egress from the
-        stops; a car speed R5's 16-bit cm/s would turn into 0 or less, a
-        polygon that is not valid, and ties between polygons peabiru cannot
+        A scenario of levels of traffic stress: a DataFrame with columns
+        ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in WGS 84
+        with columns ``line_id``, ``lts`` (1 to 4) and ``priority``: each
+        street edge takes the level of the line closest to it among those
+        whose bounding box meets its own. A scenario changes the street
+        search from the origins (the trip without public transport, access
+        by bicycle or car) but not the egress from the stops, and a network
+        with elevation is routed without its slope costs, with a warning. A
+        car speed that R5's 16-bit cm/s would turn into 0 or less, a polygon
+        that is not valid, and ties between polygons that peabiru cannot
         settle exactly as R5 does are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
-        are reproducible (and equal to r5r's) only with a seed.
+        are reproducible only with a seed.
     n_threads : int or math.inf, default math.inf
         The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
-        Checked as in r5r; has no effect.
+        Only checked; it has no effect.
     progress : bool, default True
-        Checked as in r5r; peabiru prints no progress counter.
+        Only checked; peabiru prints no progress counter.
     output_dir : str or os.PathLike, optional
         An existing directory: instead of returning the result, write it
-        there as r5r does, one CSV file per origin named
+        there, one CSV file per origin named
         ``from_<origin id>.csv`` (see [Writing results to
         files](travel-time-matrices.md#writing-results-to-files)), and return
         ``output_dir``. Origins are routed a slice at a time, so the whole
         result is never held in memory.
+
     Returns
     -------
     pandas.DataFrame or str or os.PathLike
@@ -544,6 +566,17 @@ def accessibility(
         (``int32``; ``cutoff`` is absent with ``"fixed_exponential"``) and
         ``accessibility`` (``float64``): one row per origin, opportunity,
         percentile and cutoff, in that order.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments (names, order and defaults),
+    their checks and messages, the columns, the row order and the values
+    are those of ``accessibility()`` in r5r 2.5.0, to the last bit: the
+    decay functions are R5 7.6's, ported from Conveyal's R5, and use the
+    ``FastMath.exp()`` of Apache Commons Math that R5 calls. Differences:
+    no ``r5r_core`` argument, a pandas DataFrame instead of a
+    ``data.table``, and the ones listed in [Coming from r5py /
+    r5r](coming-from-r5.md).
 
     Examples
     --------
@@ -672,16 +705,16 @@ def expanded_travel_time_matrix(
     The travel time of every trip between each origin and destination, for
     every departure minute in the time window (and every Monte Carlo draw
     with frequency-based GTFS), by public transport (see
-    [`travel_time_matrix()`][peabiru.travel_time_matrix] for the modes). Arguments, defaults and the result are
-    those of ``r5r::expanded_travel_time_matrix()`` (r5r 2.5.0), with the
-    same values.
+    [`travel_time_matrix()`][peabiru.travel_time_matrix] for the modes),
+    optionally broken down into access, waiting, in-vehicle, transfer and
+    egress times.
 
-    Only public transport is supported: with a street mode alone r5r
-    reports the same trip for every minute of a departure time taken from
-    the clock, which peabiru does not reproduce; that is an
-    [`UnsupportedError`][peabiru.UnsupportedError]. A trip
-    without public transport has the street mode as ``routes``
-    (``"[WALK]"``, ``"[BICYCLE]"`` or ``"[CAR]"``), as in r5r.
+    The mode must include public transport: a street mode alone raises
+    [`UnsupportedError`][peabiru.UnsupportedError] (use
+    [`travel_time_matrix()`][peabiru.travel_time_matrix] for street modes).
+    A trip without public transport has the street mode as ``routes``
+    (``"[WALK]"``, ``"[BICYCLE]"`` or ``"[CAR]"``). At most 5,000
+    destinations are accepted, R5's limit.
 
     Parameters
     ----------
@@ -732,7 +765,8 @@ def expanded_travel_time_matrix(
     max_lts : int, default 2
         The highest level of traffic stress (1 to 4) a cyclist will ride on.
     new_carspeeds : pandas.DataFrame or geopandas.GeoDataFrame, optional
-        A scenario of car speeds, as in r5r: a DataFrame with columns
+        A scenario of car speeds (see [Scenarios](scenarios.md)): a
+        DataFrame with columns
         ``osm_id``, ``max_speed`` and ``speed_type`` (``"scale"``, a factor
         for the car speed of the way's edges, or ``"km/h"``, a speed; 0
         closes the way to cars), or a GeoDataFrame of polygons in WGS 84
@@ -743,34 +777,36 @@ def expanded_travel_time_matrix(
         The factor for the car speeds of the edges ``new_carspeeds`` leaves
         out (all of them when it is ``None``).
     new_lts : pandas.DataFrame or geopandas.GeoDataFrame, optional
-        A scenario of levels of traffic stress, as in r5r: a DataFrame with
-        columns ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in
-        WGS 84 with columns ``line_id``, ``lts`` (1 to 4) and ``priority``:
-        each street edge takes the level of the line closest to it among
-        those whose bounding box meets its own. As in r5r, a scenario
-        changes the street search from the origins (the trip without public
-        transport, access by bicycle or car) but not the egress from the
-        stops; a car speed R5's 16-bit cm/s would turn into 0 or less, a
-        polygon that is not valid, and ties between polygons peabiru cannot
+        A scenario of levels of traffic stress: a DataFrame with columns
+        ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in WGS 84
+        with columns ``line_id``, ``lts`` (1 to 4) and ``priority``: each
+        street edge takes the level of the line closest to it among those
+        whose bounding box meets its own. A scenario changes the street
+        search from the origins (the trip without public transport, access
+        by bicycle or car) but not the egress from the stops, and a network
+        with elevation is routed without its slope costs, with a warning. A
+        car speed that R5's 16-bit cm/s would turn into 0 or less, a polygon
+        that is not valid, and ties between polygons that peabiru cannot
         settle exactly as R5 does are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
-        are reproducible (and equal to r5r's) only with a seed.
+        are reproducible only with a seed.
     n_threads : int or math.inf, default math.inf
         The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
-        Checked as in r5r; has no effect.
+        Only checked; it has no effect.
     progress : bool, default True
-        Checked as in r5r; peabiru prints no progress counter.
+        Only checked; peabiru prints no progress counter.
     output_dir : str or os.PathLike, optional
         An existing directory: instead of returning the result, write it
-        there as r5r does, one CSV file per origin named
+        there, one CSV file per origin named
         ``from_<origin id>.csv`` (see [Writing results to
         files](travel-time-matrices.md#writing-results-to-files)), and return
         ``output_dir``. Origins are routed a slice at a time, so the whole
         result is never held in memory.
+
     Returns
     -------
     pandas.DataFrame or str or os.PathLike
@@ -784,6 +820,18 @@ def expanded_travel_time_matrix(
         Trips longer than ``max_trip_duration`` have ``NaN`` times,
         ``None`` routes and ``<NA>`` rides. String columns are of object
         dtype.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments (names, order and defaults),
+    their checks and messages, the columns, the row order and the values
+    are those of ``expanded_travel_time_matrix()`` in r5r 2.5.0, whose
+    paths are R5 7.6's (ported from Conveyal's R5). Differences: no
+    ``r5r_core`` argument, a pandas DataFrame instead of a ``data.table``,
+    and a street mode alone is an error: there r5r reports the same trip
+    for every minute of a departure time taken from the computer's clock,
+    not from ``departure_datetime``. See also [Coming from r5py /
+    r5r](coming-from-r5.md).
 
     Examples
     --------
@@ -872,15 +920,13 @@ def arrival_travel_time_matrix(
 
     For each origin and destination, the trip that leaves latest and still
     arrives by ``arrival_datetime``, by public transport (see
-    [`travel_time_matrix()`][peabiru.travel_time_matrix] for the modes). Arguments, defaults and the result
-    are those of ``r5r::arrival_travel_time_matrix()`` (r5r 2.5.0), with the
-    same values: as r5r does, departures are searched minute by minute from
-    ``arrival_datetime - max_trip_duration``, which may fall on the day
-    before.
+    [`travel_time_matrix()`][peabiru.travel_time_matrix] for the modes).
+    Departures are searched minute by minute from ``arrival_datetime -
+    max_trip_duration``, which may fall on the day before.
 
-    Only public transport is supported (see
-    [`expanded_travel_time_matrix()`][peabiru.expanded_travel_time_matrix]); the other unsupported options are
-    errors too.
+    The mode must include public transport, as in
+    [`expanded_travel_time_matrix()`][peabiru.expanded_travel_time_matrix];
+    at most 5,000 destinations are accepted, R5's limit.
 
     Parameters
     ----------
@@ -931,7 +977,8 @@ def arrival_travel_time_matrix(
     max_lts : int, default 2
         The highest level of traffic stress (1 to 4) a cyclist will ride on.
     new_carspeeds : pandas.DataFrame or geopandas.GeoDataFrame, optional
-        A scenario of car speeds, as in r5r: a DataFrame with columns
+        A scenario of car speeds (see [Scenarios](scenarios.md)): a
+        DataFrame with columns
         ``osm_id``, ``max_speed`` and ``speed_type`` (``"scale"``, a factor
         for the car speed of the way's edges, or ``"km/h"``, a speed; 0
         closes the way to cars), or a GeoDataFrame of polygons in WGS 84
@@ -942,40 +989,55 @@ def arrival_travel_time_matrix(
         The factor for the car speeds of the edges ``new_carspeeds`` leaves
         out (all of them when it is ``None``).
     new_lts : pandas.DataFrame or geopandas.GeoDataFrame, optional
-        A scenario of levels of traffic stress, as in r5r: a DataFrame with
-        columns ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in
-        WGS 84 with columns ``line_id``, ``lts`` (1 to 4) and ``priority``:
-        each street edge takes the level of the line closest to it among
-        those whose bounding box meets its own. As in r5r, a scenario
-        changes the street search from the origins (the trip without public
-        transport, access by bicycle or car) but not the egress from the
-        stops; a car speed R5's 16-bit cm/s would turn into 0 or less, a
-        polygon that is not valid, and ties between polygons peabiru cannot
+        A scenario of levels of traffic stress: a DataFrame with columns
+        ``osm_id`` and ``lts`` (int), or a GeoDataFrame of lines in WGS 84
+        with columns ``line_id``, ``lts`` (1 to 4) and ``priority``: each
+        street edge takes the level of the line closest to it among those
+        whose bounding box meets its own. A scenario changes the street
+        search from the origins (the trip without public transport, access
+        by bicycle or car) but not the egress from the stops, and a network
+        with elevation is routed without its slope costs, with a warning. A
+        car speed that R5's 16-bit cm/s would turn into 0 or less, a polygon
+        that is not valid, and ties between polygons that peabiru cannot
         settle exactly as R5 does are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
-        are reproducible (and equal to r5r's) only with a seed.
+        are reproducible only with a seed.
     n_threads : int or math.inf, default math.inf
         The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
-        Checked as in r5r; has no effect.
+        Only checked; it has no effect.
     progress : bool, default True
-        Checked as in r5r; peabiru prints no progress counter.
+        Only checked; peabiru prints no progress counter.
     output_dir : str or os.PathLike, optional
         An existing directory: instead of returning the result, write it
-        there as r5r does, one CSV file per origin named
+        there, one CSV file per origin named
         ``from_<origin id>.csv`` (see [Writing results to
         files](travel-time-matrices.md#writing-results-to-files)), and return
         ``output_dir``. Origins are routed a slice at a time, so the whole
         result is never held in memory.
+
     Returns
     -------
     pandas.DataFrame or str or os.PathLike
         With ``output_dir``, ``output_dir`` itself. Otherwise:
         The columns of [`expanded_travel_time_matrix()`][peabiru.expanded_travel_time_matrix]: one row per
         origin and destination reached in time.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments (names, order and defaults),
+    their checks and messages, the columns, the row order and the values
+    are those of ``arrival_travel_time_matrix()`` in r5r 2.5.0 (paths of
+    R5 7.6, ported from Conveyal's R5). Differences: no ``r5r_core``
+    argument; ``arrival_datetime`` has a default of ``None`` because
+    Python cannot have a required argument after optional ones (leaving it
+    out is the error r5r gives); a pandas DataFrame instead of a
+    ``data.table``; a street mode alone is an error, as in
+    [`expanded_travel_time_matrix()`][peabiru.expanded_travel_time_matrix].
+    See also [Coming from r5py / r5r](coming-from-r5.md).
 
     Examples
     --------

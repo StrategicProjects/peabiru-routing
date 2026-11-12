@@ -45,8 +45,8 @@ def find_snap(
 ) -> pd.DataFrame:
     """Find where points snap to the street network.
 
-    As ``r5r::find_snap()``: snapping is how routing places origins and
-    destinations on the network. The nearest point of a street the mode may
+    Snapping is how routing places origins and destinations on the
+    network. The nearest point of a street the mode may
     use is looked for first within 300 metres of the point and then, if
     there is none, within ``radius``. A point that does not snap is not
     routed. The street a point snaps to depends on the mode, since some
@@ -72,6 +72,13 @@ def find_snap(
         ``snap_lon`` (where they snap), ``distance`` (metres, haversine on
         R5's sphere of radius 6,367,450 m) and ``found``. Points that do not
         snap have NaN coordinates and distance and ``found`` False.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments, defaults, checks, columns
+    and values are those of ``find_snap()`` in r5r 2.5.0 (R5 7.6's
+    snapping, ported from Conveyal's R5). Differences: no ``r5r_core``
+    argument; a pandas DataFrame instead of a ``data.table``.
 
     Examples
     --------
@@ -118,8 +125,7 @@ def find_snap(
 def street_network_bbox(r5r_network: Network, output: str = "polygon") -> Any:
     """The bounding box of the street network.
 
-    As ``r5r::street_network_bbox()``: R5's envelope of the street layer,
-    which covers every OpenStreetMap node of the ways streets were made from
+    R5's envelope of the street layer, which covers every OpenStreetMap node of the ways streets were made from
     (it can be a little larger than the box of the edges of
     [`street_network_to_sf()`][peabiru.street_network_to_sf]).
 
@@ -137,6 +143,14 @@ def street_network_bbox(r5r_network: Network, output: str = "polygon") -> Any:
         EPSG:4326 (needs geopandas). ``"bbox"``: the tuple ``(xmin, ymin,
         xmax, ymax)``, as shapely's ``bounds``. ``"vector"``: a dict with
         the keys ``xmin``, ``ymin``, ``xmax`` and ``ymax``.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments, the choices of ``output``
+    and the coordinates are those of ``street_network_bbox()`` in r5r
+    2.5.0. Differences: no ``r5r_core`` argument; the results are Python
+    objects (a GeoSeries for r5r's ``sfc``, a tuple for its ``bbox``, a
+    dict for its named vector).
 
     Examples
     --------
@@ -164,8 +178,8 @@ def _lines(shapely: Any, n_points: np.ndarray, x: np.ndarray, y: np.ndarray) -> 
     ends = np.cumsum(n_points)
     starts = ends - n_points
     xy = np.column_stack([x, y])
-    # GEOS has no line of one point; the point is what sf::st_make_valid()
-    # makes of such a line in r5r
+    # GEOS (shapely) has no line of one point, which r5r's sf holds as a
+    # one-point LINESTRING: the point keeps its position
     return [
         shapely.LineString(xy[s:e])
         if e - s > 1
@@ -177,9 +191,9 @@ def _lines(shapely: Any, n_points: np.ndarray, x: np.ndarray, y: np.ndarray) -> 
 def street_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
     """The street network as GeoDataFrames.
 
-    As ``r5r::street_network_to_sf()``: the vertices at the ends of street
-    edges and every directed street edge (the connectors of transit stops
-    and park-and-rides left out), in r5r's order.
+    The vertices at the ends of street edges and every directed street edge
+    (the connectors of transit stops and park-and-rides left out), in the
+    order of R5's street layer.
 
     Parameters
     ----------
@@ -196,6 +210,14 @@ def street_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
         (metres), ``walk``, ``car``, ``car_speed`` (km/h), ``bicycle``,
         ``bicycle_lts`` and ``geometry``. Both in EPSG:4326; needs
         geopandas.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The rows, their order, the columns and the
+    geometries are those of ``street_network_to_sf()`` in r5r 2.5.0.
+    Differences: no ``r5r_core`` argument; GeoDataFrames instead of ``sf``
+    data frames, with ``osm_id`` as ``int64`` (r5r's is a double, R having
+    no 64-bit integers).
 
     Examples
     --------
@@ -241,16 +263,16 @@ def street_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
 def transit_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
     """The public transport network as GeoDataFrames.
 
-    As ``r5r::transit_network_to_sf()``. There is one route row per trip
-    pattern (the trips of a route with the same stops), so the same route
-    can appear more than once; its line is the GTFS shape of the first trip
-    of the pattern or, without one, the positions of its stops. A stop not
-    linked to the street network (outside the area of the ``.pbf``, for
-    instance) has an empty point, and a pattern with no line is left out,
-    as in r5r; invalid lines are repaired with ``shapely.make_valid()`` as
-    r5r repairs them with ``sf::st_make_valid()`` (GEOS in both). Positions
-    of stops are those of their vertices in the street network (the
-    coordinates rounded down to 1e-7 degrees).
+    The stops and the routes of the public transport layer. There is one
+    route row per trip pattern (the trips of a route with the same stops),
+    so the same route can appear more than once; its line is the GTFS shape
+    of the first trip of the pattern or, without one, the positions of its
+    stops. A stop not linked to the street network (outside the area of the
+    ``.pbf``, for instance) has an empty point, and a pattern with no line
+    is left out; invalid lines are repaired with ``shapely.make_valid()``,
+    and a line of a single point (a pattern with one linked stop) is a
+    ``Point``. Positions of stops are those of their vertices in the street
+    network (the coordinates rounded down to 1e-7 degrees).
 
     Parameters
     ----------
@@ -266,6 +288,16 @@ def transit_network_to_sf(r5r_network: Network) -> Dict[str, Any]:
         GeoDataFrame of lines with ``agency_id``, ``agency_name``,
         ``route_id``, ``long_name``, ``short_name``, ``mode`` and
         ``geometry``. Both in EPSG:4326; needs geopandas.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The rows, their order, the columns and the
+    geometries are those of ``transit_network_to_sf()`` in r5r 2.5.0, which
+    repairs invalid lines with ``sf::st_make_valid()`` (GEOS, as shapely).
+    Differences: no ``r5r_core`` argument; GeoDataFrames instead of ``sf``
+    data frames; a route line of a single point is a shapely ``Point``,
+    where r5r's ``sf`` holds a one-point ``LINESTRING`` (shapely cannot
+    represent one).
 
     Examples
     --------
@@ -352,8 +384,7 @@ def check_transit_availability(
 ) -> pd.DataFrame:
     """Check public transport service availability by date.
 
-    As ``r5r::check_transit_availability()``: counts the services in the
-    network's GTFS feeds that are active on given dates, and their
+    Counts the services in the network's GTFS feeds that are active on given dates, and their
     proportion of all services. Public transport routing only finds trips on
     dates when services run.
 
@@ -379,6 +410,14 @@ def check_transit_availability(
         ``date`` (datetime64), ``total_services``, ``active_services`` and
         ``pct_active`` (the proportion of active services). Discovered dates
         are ascending; with none, the table has no rows.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments, their checks and messages,
+    the columns and the values are those of ``check_transit_availability()``
+    in r5r 2.5.0. Differences: no ``r5r_core`` argument; a pandas
+    DataFrame instead of a ``data.table``, with ``date`` as
+    ``datetime64`` (r5r's is a ``Date``).
 
     Examples
     --------
@@ -434,29 +473,22 @@ def check_transit_availability(
 def get_gtfs_errors(r5r_network: Union[Network, PathLike]) -> pd.DataFrame:
     """The errors gtfs-lib reports in the network's GTFS feeds.
 
-    As ``r5r::get_gtfs_errors()``: the errors that R5's GTFS library
-    (Conveyal's gtfs-lib) reports when it reads the feeds. r5r refuses to
-    build a network when any has priority ``"HIGH"``; peabiru builds it
-    (warning about the cases that make routing differ), so this is the way
-    to see what r5r would have refused. r5r writes the errors to
-    ``gtfs_errors.csv`` when it builds the network; peabiru writes nothing
-    and reads the feeds again, from the files the network was built from
-    or from the ``.zip`` files of the directory given. Every check of
-    gtfs-lib's table loaders and of its post-load validation is made, with
-    the same ``file``, ``line``, ``type``, ``field``, ``id`` and
-    ``priority``.
+    The errors that R5's GTFS library (Conveyal's gtfs-lib) reports when it
+    reads the feeds, with every check of gtfs-lib's table loaders and of its
+    post-load validation. [`build_network()`][peabiru.build_network] refuses
+    feeds with errors of priority ``"HIGH"``; this function lists them, from
+    the files a network was built from or from the ``.zip`` files of a
+    directory (so it also works on feeds that cannot be built). The feeds
+    are read again on each call; the rows are listed feed by feed, in the
+    order gtfs-lib finds them.
 
-    Differences: the rows are listed feed by feed in the order gtfs-lib
-    finds them (r5r lists them in the order of a Java ``HashSet``, which
-    changes from one run to the next). A feed on which gtfs-lib fails
-    instead of listing errors (a date that is not ``YYYYMMDD``, a frequency
-    of a trip that does not exist, a service or fare without an id, the
-    first or last stop of a trip without a name), on which r5r's
-    ``build_network()`` fails without writing the file, raises
-    ``RuntimeError`` naming the cause (and so does a ``locations.geojson``,
-    of GTFS-Flex zones, that is not in UTF-8). GTFS-Flex zones and location
-    groups are read as gtfs-lib reads them, for its errors; on-demand trips
-    are not routed, as in r5r.
+    A feed on which gtfs-lib fails instead of listing errors (a date that
+    is not ``YYYYMMDD``, a frequency of a trip that does not exist, a
+    service or fare without an id, the first or last stop of a trip without
+    a name) raises ``RuntimeError`` naming the cause, and so does a
+    ``locations.geojson`` of GTFS-Flex zones that is not in UTF-8. GTFS-Flex
+    zones and location groups are read as gtfs-lib reads them, for its
+    errors; on-demand trips are not routed.
 
     Parameters
     ----------
@@ -472,6 +504,17 @@ def get_gtfs_errors(r5r_network: Union[Network, PathLike]) -> pd.DataFrame:
         error class), ``field`` and ``id`` (None when the error has none)
         and ``priority`` (``"HIGH"``, ``"MEDIUM"``, ``"LOW"`` or
         ``"UNKNOWN"``).
+
+    Notes
+    -----
+    **Compatibility with r5r.** The argument, the rows and the columns
+    (``file``, ``line``, ``type``, ``field``, ``id``, ``priority``) are
+    those of ``get_gtfs_errors()`` in r5r 2.5.0. Differences: r5r reads the
+    ``gtfs_errors.csv`` its ``build_network()`` wrote, and lists the rows
+    in the order of a Java ``HashSet``, which changes from one run to the
+    next; on a feed where gtfs-lib fails, r5r's ``build_network()`` fails
+    without writing the file. A pandas DataFrame instead of a
+    ``data.table``; a directory that does not exist is an error.
 
     Examples
     --------
