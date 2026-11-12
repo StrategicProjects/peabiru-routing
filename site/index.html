@@ -183,6 +183,51 @@
       <span class="ex"><a href="r/articles/recife-caruaru.html">R</a> · <a href="python/example-recife-caruaru/">Python</a> · <a href="demo/">demo</a></span></figcaption>
     </figure>
   </div>
+  <h3 id="gallery-scenarios">Scenarios, and a city abroad</h3>
+  <p>What-if questions are arguments of a routing call, on the network as built: a cycle path
+  is a lower level of traffic stress on its streets, congestion a factor on car speeds in an
+  area, a closed avenue a speed of zero, a fare rule an edited table. And nothing is particular
+  to Brazil: the Helsinki capital region, from OpenStreetMap, HSL's timetables and HSY's 250 m
+  grids of residents and jobs. Map data © OpenStreetMap contributors (ODbL); Porto Alegre: the
+  sample data of r5r 2.5.0; Helsinki: timetables © HSL 2026 (CC BY 4.0), residents and jobs ©
+  HSY, from Statistics Finland (CC BY 4.0).</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/scenarios-porto-alegre.html#a-new-cycle-path"><img src="assets/figures/scenario-cycle-path.svg" width="576" height="475" loading="lazy" alt="A map of the east of Porto Alegre with the hexagons that gain access to jobs within 20 minutes by bicycle on low-stress streets if Avenida Protásio Alves had a protected cycle path, and one ride from the east end of the avenue to the centre, today and with the path."></a>
+      <figcaption><strong>A new cycle path.</strong> With a protected path on Avenida Protásio
+      Alves, 31% of residents reach more jobs in 20 minutes on a low-stress ride.
+      <span class="ex"><a href="r/articles/scenarios-porto-alegre.html#a-new-cycle-path">R</a> · <a href="python/example-scenarios/#a-new-cycle-path">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/scenarios-porto-alegre.html#congestion-and-a-closed-avenue"><img src="assets/figures/scenario-car.svg" width="576" height="403" loading="lazy" alt="Two maps of Porto Alegre covered by hexagons coloured by how much longer it takes to drive from each cell to all the others: with half speed in the centre, the centre loses most; with Avenida Ipiranga closed, the cells along the avenue lose most."></a>
+      <figcaption><strong>Congestion and a closed avenue.</strong> Half speed within 2 km of the
+      centre adds 0.3 minutes to the average drive; closing Avenida Ipiranga adds 0.7.
+      <span class="ex"><a href="r/articles/scenarios-porto-alegre.html#congestion-and-a-closed-avenue">R</a> · <a href="python/example-scenarios/#congestion-and-a-closed-avenue">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/scenarios-porto-alegre.html#one-more-health-facility"><img src="assets/figures/scenario-health.svg" width="576" height="446" loading="lazy" alt="Two maps of Porto Alegre: on the left, hexagons coloured by the walking time to the nearest health facility; on the right, the minutes saved around the cell where one more facility brings the most residents within 15 minutes."></a>
+      <figcaption><strong>One more health facility.</strong> The best cell for it brings 17,525
+      more people within 15 minutes' walk of one: from 79.0% to 81.2% of the population.
+      <span class="ex"><a href="r/articles/scenarios-porto-alegre.html#one-more-health-facility">R</a> · <a href="python/example-scenarios/#one-more-health-facility">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/scenarios-porto-alegre.html#a-change-in-the-fare-rules"><img src="assets/figures/scenario-fares.svg" width="576" height="281" loading="lazy" alt="Bars of the average number of jobs reachable within 45 minutes by public transport under the sample fare structure, free transfers and no transfer discount, for budgets of R$ 4.80 and R$ 7.20, against the access with no fare limit."></a>
+      <figcaption><strong>A change in the fare rules.</strong> FARES_CAPTION
+      <span class="ex"><a href="r/articles/scenarios-porto-alegre.html#a-change-in-the-fare-rules">R</a> · <a href="python/example-scenarios/#a-change-in-the-fare-rules">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/helsinki.html"><img src="assets/figures/helsinki-jobs.svg" width="576" height="461" loading="lazy" alt="A map of the Helsinki capital region covered by 250 m cells coloured by the number of jobs reachable within 45 minutes by public transport at the morning peak: the centre of Helsinki and the cells along the metro and railway lines reach the most."></a>
+      <figcaption><strong>Helsinki: jobs within 45 minutes.</strong> By public transport at the
+      morning peak, the average resident reaches 31% of the region's private-sector jobs.
+      <span class="ex"><a href="r/articles/helsinki.html">R</a> · <a href="python/example-helsinki/">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/helsinki.html#isochrones-from-the-central-station"><img src="assets/figures/helsinki-isochrones.svg" width="576" height="533" loading="lazy" alt="Four maps of the Helsinki capital region with the areas reached from Helsinki Central Station within 15, 30 and 45 minutes walking, cycling, driving and by public transport."></a>
+      <figcaption><strong>Helsinki: isochrones by mode.</strong> From the Central Station, public
+      transport reaches 238 km² in 45 minutes at the morning peak, cycling 85.
+      <span class="ex"><a href="r/articles/helsinki.html#isochrones-from-the-central-station">R</a> · <a href="python/example-helsinki/#isochrones-from-the-central-station">Python</a></span></figcaption>
+    </figure>
+  </div>
   <p class="muted">The figures are drawn by <code>site/figures/figures.R</code> and
   <code>site/figures/pernambuco.R</code> from the results of the R package; the examples in the
   other languages print the same numbers. Map data © OpenStreetMap contributors (ODbL); GTFS:

@@ -148,6 +148,8 @@ articles:
   - articles/accessibility-map
   - articles/trips
   - articles/recife-caruaru
+  - articles/scenarios-porto-alegre
+  - articles/helsinki
 - title: Under the hood
   navbar: Under the hood
   contents:
