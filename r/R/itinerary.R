@@ -7,7 +7,12 @@
 #' window (`shortest_path = TRUE`) or, with `shortest_path = FALSE`, the
 #' alternatives R5's multi-criteria router (McRAPTOR) finds over
 #' `time_window` sampled departure times, one per sequence of routes (the
-#' fastest of each), up to `suboptimal_minutes` slower than the best. With a
+#' fastest of each), up to `suboptimal_minutes` slower than the best. As in
+#' r5r, a pair's options are ordered by the trip by the street mode alone
+#' first, then by the number of legs, then by duration, so the first option
+#' is not the fastest when a trip with fewer legs (or the street trip) is
+#' slower: on Porto Alegre with `suboptimal_minutes = 10`, a pair had 102
+#' options, the first of 60.4 minutes and the fastest of 53.3. With a
 #' `fare_structure` the trips are routed with fares (and only those within
 #' `max_fare` kept), and the result gets `total_fare` and `cumulative_fare`
 #' columns.

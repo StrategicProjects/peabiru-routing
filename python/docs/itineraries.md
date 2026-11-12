@@ -76,7 +76,11 @@ mode alone, the alternatives R5's multi-criteria router (McRAPTOR) finds
 over the departure window, one per sequence of routes. `suboptimal_minutes`
 (which must be 0 with `shortest_path=True`) keeps search branches up to
 that many minutes slower than the best one, so higher values return more
-itineraries. The options are numbered by `option`:
+itineraries. The options are numbered by `option` in r5r's order: the trip
+by the street mode alone first, then by the number of legs, then by
+duration, so the first option is not the fastest when a trip with fewer
+legs is slower (on Porto Alegre with `suboptimal_minutes=10`, a pair had 102
+options, the first of 60.4 minutes and the fastest of 53.3):
 
 ```python
 def alternatives(minutes):

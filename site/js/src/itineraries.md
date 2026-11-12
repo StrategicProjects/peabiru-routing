@@ -88,6 +88,12 @@ duration at the best plus `suboptimalMinutes`, since each departure minute
 of the window is searched on its own. It must be 0 with
 `shortestPath: true` and with a `fareStructure`.
 
+The options are numbered in r5r's order: the trip by the street mode
+alone first, then by the number of legs, then by duration. The first option
+is then not the fastest when a trip with fewer legs is slower (on Porto
+Alegre with `suboptimalMinutes: 10`, a pair had 102 options, the first of
+60.4 minutes and the fastest of 53.3).
+
 ## Every origin to every destination
 
 `allToAll: true` routes every origin to every destination instead of

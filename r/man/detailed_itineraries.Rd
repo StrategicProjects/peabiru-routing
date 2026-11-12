@@ -186,7 +186,12 @@ mode and, with public transport, the fastest trip over the departure
 window (\code{shortest_path = TRUE}) or, with \code{shortest_path = FALSE}, the
 alternatives R5's multi-criteria router (McRAPTOR) finds over
 \code{time_window} sampled departure times, one per sequence of routes (the
-fastest of each), up to \code{suboptimal_minutes} slower than the best. With a
+fastest of each), up to \code{suboptimal_minutes} slower than the best. As in
+r5r, a pair's options are ordered by the trip by the street mode alone
+first, then by the number of legs, then by duration, so the first option
+is not the fastest when a trip with fewer legs (or the street trip) is
+slower: on Porto Alegre with \code{suboptimal_minutes = 10}, a pair had 102
+options, the first of 60.4 minutes and the fastest of 53.3. With a
 \code{fare_structure} the trips are routed with fares (and only those within
 \code{max_fare} kept), and the result gets \code{total_fare} and \code{cumulative_fare}
 columns.
