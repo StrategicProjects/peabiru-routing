@@ -4,4 +4,4 @@
 ]
 TypeError: unknown option 'maxTripDurations'
 UnsupportedError: Writing results to 'outputDir' is not supported by peabiru yet.
-  (not supported yet)
+  (an UnsupportedError)

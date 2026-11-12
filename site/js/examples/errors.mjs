@@ -1,5 +1,5 @@
 // Warnings and errors: what r5r would warn about, unknown options, and
-// options that peabiru does not support yet.
+// options that peabiru does not support.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import * as peabiru from "peabiru";
@@ -26,7 +26,7 @@ for (const options of [
     await peabiru.travelTimeMatrix(network, ids, ids, options);
   } catch (e) {
     console.log(`${e.name}: ${e.message}`);
-    if (e instanceof peabiru.UnsupportedError) console.log("  (not supported yet)");
+    if (e instanceof peabiru.UnsupportedError) console.log("  (an UnsupportedError)");
   }
 }
 // ANCHOR_END: errors

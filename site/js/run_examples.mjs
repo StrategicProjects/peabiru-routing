@@ -10,10 +10,12 @@
 //   node site/js/run_examples.mjs threads      only the examples named
 //
 // Node examples (*.mjs) run with `node` in a scratch directory that holds
-// the sample files and node_modules/peabiru, a link to js/, so that they
-// read "spo_osm.pbf" and import "peabiru" as a user's script would (the
-// examples are copied there: Node resolves imports from a script's real
-// path).
+// the sample files, the small elevation rasters of js/tests/data and
+// node_modules/peabiru, a link to js/, so that they read "spo_osm.pbf" and
+// import "peabiru" as a user's script would (the examples are copied there:
+// Node resolves imports from a script's real path). sample*.mjs are helpers
+// the examples import, not examples; the itinerary example downloads r5r's
+// Porto Alegre sample once into the temporary directory (sample-poa.mjs).
 //
 // Browser examples (browser-*.mjs) run in headless Chrome or Chromium, in
 // the page browser.html of the same directory, served over HTTP: as plain
@@ -21,6 +23,10 @@
 // executable, once more bundled by `vite build`. CHROME names the browser
 // (default: the usual install paths). Without a browser they are skipped,
 // with a message, unless --require-browser is given.
+//
+// The examples in the doc comments of js/lib/index.d.ts, shown in the API
+// reference, run after the setup in sample-api.mjs and must exit with
+// status 0 (`node site/js/run_examples.mjs api` runs only those).
 //
 // The JavaScript examples of the home page (site/index.html) and of the
 // README at the root follow a marker <!-- example: FILE:ANCHOR -->; the
@@ -46,6 +52,9 @@ const examples = join(here, "examples");
 const expected = join(examples, "output");
 const sample = join(root, "python/peabiru/data/spo");
 const SAMPLE_FILES = ["spo_osm.pbf", "spo_gtfs.zip", "spo_points.csv"];
+// the small elevation rasters of the tests (synthetic hills over the sample)
+const rasters = join(root, "js/tests/data");
+const RASTER_FILES = ["spo_hills.tif", "spo_hills_31983.tif", "spo_voids.tif"];
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -66,12 +75,13 @@ if (!existsSync(join(root, "js/pkg/peabiru_bg.wasm"))) {
 }
 
 const all = readdirSync(examples)
-  .filter((f) => f.endsWith(".mjs") && f !== "sample.mjs")
+  // sample*.mjs are helpers the examples import
+  .filter((f) => f.endsWith(".mjs") && !f.startsWith("sample"))
   .map((f) => f.slice(0, -4))
   .sort();
 for (const name of only) {
-  if (!all.includes(name)) {
-    console.error(`no example ${name} (have: ${all.join(", ")})`);
+  if (!all.includes(name) && name !== "api") {
+    console.error(`no example ${name} (have: ${all.join(", ")}, and api for the examples of the API reference)`);
     process.exit(2);
   }
 }
@@ -84,6 +94,7 @@ const work = mkdtempSync(join(tmpdir(), "peabiru-examples-"));
 mkdirSync(join(work, "node_modules"));
 symlinkSync(join(root, "js"), join(work, "node_modules/peabiru"), "dir");
 for (const f of SAMPLE_FILES) symlinkSync(join(sample, f), join(work, f));
+for (const f of RASTER_FILES) symlinkSync(join(rasters, f), join(work, f));
 // a copy of the module at a path of its own, for the example of init(url)
 mkdirSync(join(work, "static"));
 copyFileSync(join(root, "js/pkg/peabiru_bg.wasm"), join(work, "static/peabiru_bg.wasm"));
@@ -174,6 +185,39 @@ for (const name of nodeExamples) {
   }
   if (r.stderr) process.stderr.write(r.stderr.replace(/^/gm, `  ${name}: `));
   check(name, r.stdout);
+}
+
+// ---------------------------------------------------------------- API reference
+
+// The examples in the doc comments of js/lib/index.d.ts (```js blocks),
+// which the API reference shows: each runs after the setup of
+// sample-api.mjs and must exit with status 0. Every exported value,
+// function and class needs one.
+if (!only.length || only.includes("api")) {
+  const setup = anchored("site/js/examples/sample-api.mjs", "setup");
+  const dts = readFileSync(join(root, "js/lib/index.d.ts"), "utf8");
+  const documented = /\/\*\*((?:(?!\*\/)[\s\S])*)\*\/\s*\nexport (?:declare )?(const|function|class|type|interface) (\w+)/g;
+  const seen = new Set();
+  for (const [, doc, kind, name] of dts.matchAll(documented)) {
+    const lines = doc.split("\n").map((l) => l.replace(/^\s*\* ?/, ""));
+    const blocks = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim() !== "```js") continue;
+      const end = lines.findIndex((l, k) => k > i && l.trim() === "```");
+      blocks.push(lines.slice(i + 1, end).join("\n"));
+      i = end;
+    }
+    if (blocks.length) seen.add(name);
+    blocks.forEach((code, k) => {
+      const file = `api-${name}${k ? `-${k + 1}` : ""}.mjs`;
+      writeFileSync(join(work, file), `${setup}\n\n${code}\n`);
+      const r = spawnSync(process.execPath, [file], { cwd: work, encoding: "utf8", timeout: 300_000 });
+      ran++;
+      if (r.status !== 0) fail(`api: ${name}`, `exit status ${r.status ?? r.signal}\n${r.stdout}${r.stderr}`);
+      else console.log(`ok     api: ${name}`);
+    });
+    if (["const", "function", "class"].includes(kind) && !seen.has(name)) fail(`api: ${name}`, "no example in its doc comment in js/lib/index.d.ts");
+  }
 }
 
 // ---------------------------------------------------------------- browser

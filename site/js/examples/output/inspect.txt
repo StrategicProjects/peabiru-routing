@@ -1,0 +1,48 @@
+89a8100c00fffff true -46.6296018 -23.5559164 78.4 m
+89a8100c007ffff true -46.6320409 -23.5581859 53.7 m
+89a8100c077ffff true -46.6288723 -23.5532517 0.8 m
+{
+  xmin: -46.6477135,
+  ymin: -23.5653412,
+  xmax: -46.6113004,
+  ymax: -23.5371085
+}
+[ -46.6477135, -23.5653412, -46.6113004, -23.5371085 ]
+Polygon 5 points
+1937 vertices, 5222 directed edges
+{
+  edge_index: 0,
+  osm_id: 4331470,
+  from_vertex: 0,
+  to_vertex: 1,
+  street_class: 'OTHER',
+  length: 178.805,
+  walk: false,
+  car: true,
+  car_speed: 50.00400161743164,
+  bicycle: true,
+  bicycle_lts: 4
+}
+654 stops, 28 routes (one per trip pattern)
+{
+  stop_index: 0,
+  stop_id: 'spo_gtfs:100014307',
+  stop_name: 'R. Silva Teles, 281',
+  linked_to_street: true
+}
+{
+  agency_id: '1',
+  agency_name: 'SPTRANS',
+  route_id: '2002-10',
+  long_name: 'Term. Pq. D. Pedro Ii - Term. Bandeira',
+  short_name: '2002-10',
+  mode: 'BUS'
+} LineString
+2019-05-12 3 of 6 services 0.5
+2019-05-13 3 of 6 services 0.5
+2019-05-14 3 of 6 services 0.5
+2019-05-15 3 of 6 services 0.5
+2019-05-16 3 of 6 services 0.5
+2019-05-17 3 of 6 services 0.5
+2019-05-18 4 of 6 services 0.6666666666666666
+4505 dates, from 2008-01-01 to 2020-05-01

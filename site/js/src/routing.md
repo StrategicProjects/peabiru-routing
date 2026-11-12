@@ -8,7 +8,11 @@
 | [`arrivalTravelTimeMatrix()`](api.md#arrivalTravelTimeMatrix) | the latest trip that arrives by a given time |
 
 Each takes the network, the origins, the destinations and an options
-object, and returns a Promise of an object of columns.
+object, and returns a Promise of an object of columns. The other functions
+have pages of their own: [detailed itineraries](itineraries.md),
+[fares and Pareto frontiers](fares.md), [isochrones](examples.md), and
+[inspecting a network](network.md); [elevation](elevation.md) and
+[scenarios](scenarios.md) change the travel times of all of them.
 
 ## Arguments
 
@@ -174,8 +178,8 @@ Both need public transport; with a street mode alone they throw
 {{#include ../examples/output/errors.txt}}
 ```
 
-What peabiru does not support yet throws
+What peabiru does not do throws
 [`UnsupportedError`](api.md#UnsupportedError): `outputDir`, expanded and
 arrival matrices by a street mode alone, and R5's own fare calculators.
-`verbose` and
-`progress` are checked as r5r checks them; peabiru prints nothing.
+`verbose` and `progress` are checked as r5r checks them; peabiru prints
+nothing.

@@ -1656,8 +1656,9 @@ export function writeFareStructure(fareStructure) {
 export async function paretoFrontier(network, origins, destinations, options) {
   const opt = withDefaults(
     options,
-    { fareStructure: null, fareCutoffs: null },
-    [...COMMON.filter((k) => !["drawsPerMinute", "newCarspeeds", "carspeedScale", "newLts"].includes(k)), "departureDatetime", "timeWindow", "percentiles"],
+    // r5r's pareto_frontier() routes on foot and by public transport by default
+    { mode: ["WALK", "TRANSIT"], fareStructure: null, fareCutoffs: null },
+    [...COMMON.filter((k) => !["mode", "drawsPerMinute", "newCarspeeds", "carspeedScale", "newLts"].includes(k)), "departureDatetime", "timeWindow", "percentiles"],
   );
   if (opt.fareStructure === null || opt.fareStructure === undefined) {
     throw new RangeError("'fareStructure' is required. Create one with setupFareStructure() or readFareStructure().");
@@ -2519,7 +2520,9 @@ export async function getGtfsErrors(feeds) {
     if (f === null || typeof f !== "object") fail(`gtfs[${i}]`, "Must be an object {name, data}", TypeError);
     assertString(f.name, `gtfs[${i}].name`);
     const r = rawGtfsErrors(f.name, bytesOf(f.data, `gtfs[${i}].data`));
-    for (let k = 0; k < 6; k++) cols[k].push(...Array.from(r[k]));
+    // a loop, not push(...column): a feed can have more errors than a
+    // call can take arguments
+    for (let k = 0; k < 6; k++) for (const v of r[k]) cols[k].push(v);
   });
   return {
     file: cols[0],
