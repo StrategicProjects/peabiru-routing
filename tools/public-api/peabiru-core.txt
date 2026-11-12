@@ -1267,6 +1267,7 @@ pub peabiru_core::TripOptionsParams::osm_link_ids: bool
 pub peabiru_core::TripOptionsParams::scenario: peabiru_core::Scenario
 pub peabiru_core::TripOptionsParams::time_window: i32
 pub peabiru_core::TripOptionsParams::transit_modes: alloc::vec::Vec<peabiru_core::TransitMode>
+pub peabiru_core::TripOptionsParams::walk_resolution_s: i32
 pub peabiru_core::TripOptionsParams::walk_speed_kmh: f64
 impl peabiru_core::TripOptionsParams
 pub fn peabiru_core::TripOptionsParams::resolved_criteria(&self) -> core::result::Result<alloc::vec::Vec<peabiru_core::Criterion>, peabiru_core::RouteError>
