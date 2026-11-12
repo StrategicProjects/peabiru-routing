@@ -69,6 +69,13 @@ routing and network functions (without r5r's functions for Java).
   network too.
 - **Breaking:** `RouteError` no longer converts from `String` or `&str`;
   build `RouteError::Invalid` explicitly.
+- `output_dir` (R, Python, the CLI's `--output-dir`; the core's
+  `CsvOutput::new`, now fallible, `write_itineraries_csv` and
+  `write_trip_options_csv`): an id that cannot name a file in the
+  directory (a path separator `/` or `\`, NUL; on Windows also
+  `< > : " | ? *` or a control character) is an error naming it, before
+  anything is routed or written; r5r fails on such ids in Java or writes a
+  file of another name. `trip_options()` uses the same rule.
 - A snapshot of the public API (`tools/public-api/peabiru-core.txt`),
   checked in CI, so that changes to it are deliberate.
 - **The command-line tool, redesigned** to be published as the crate

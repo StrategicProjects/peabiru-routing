@@ -177,8 +177,10 @@ def test_output_dir_is_checked_as_r5r_checks_it(network, points, tmp_path):
 
 def test_a_file_that_cannot_be_written_is_an_oserror(network, points, tmp_path):
     p = points.iloc[:2].copy()
-    p["id"] = ["no/such/dir", "x"]
-    with pytest.raises(FileNotFoundError, match="from_no/such/dir.csv"):
+    p["id"] = ["y", "x"]
+    # a directory where the file would go
+    (tmp_path / "from_y.csv").mkdir()
+    with pytest.raises(OSError, match="from_y.csv"):
         peabiru.travel_time_matrix(network, p, p, n_threads=1, output_dir=tmp_path)
 
 
@@ -276,3 +278,18 @@ def test_files_are_byte_identical_to_r5rs(network, points, departure, tmp_path):
         assert sorted(os.listdir(out)) == files, name
         for f in files:
             assert (out / f).read_bytes() == (theirs / f).read_bytes(), f"{name}/{f}"
+
+
+@pytest.mark.parametrize("bad", ["a/b", "../x", "a\\b"])
+def test_ids_that_cannot_name_a_file_are_refused(network, points, tmp_path, bad):
+    """The file names are built from the ids: an id with a path separator
+    would name a file outside the directory (r5r fails there with Java's
+    FileNotFoundException, or writes another name), so it is refused before
+    anything is routed or written."""
+    pts = points.head(3).copy()
+    pts.loc[pts.index[0], "id"] = bad
+    with pytest.raises(ValueError, match="file names are built from the ids"):
+        peabiru.travel_time_matrix(network, pts, pts, mode="WALK", output_dir=tmp_path)
+    assert list(tmp_path.iterdir()) == []
+    with pytest.raises(ValueError, match="file names are built from the ids"):
+        peabiru.trip_options(network, pts, pts, mode="WALK", output_dir=tmp_path)

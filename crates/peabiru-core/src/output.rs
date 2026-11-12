@@ -10,6 +10,70 @@ use std::sync::Mutex;
 /// `System.lineSeparator()`, which Java's `PrintWriter.println` writes.
 pub(crate) const LINE_END: &str = if cfg!(windows) { "\r\n" } else { "\n" };
 
+/// Why `id` cannot be part of a file name `<prefix><id>...csv` in the
+/// output directory, `None` when it can. Refused: path separators (`/`,
+/// `\`) and NUL, which would name a file elsewhere or none; on Windows also
+/// the characters it does not allow in file names (`< > : " | ? *` and the
+/// control characters). The prefix (`from_`) keeps the name from being
+/// `.`, `..` or a reserved device name, and an empty id gives `from_.csv`,
+/// as in r5r.
+pub(crate) fn id_file_name_problem(id: &str) -> Option<&'static str> {
+    if id.contains(['/', '\\']) {
+        return Some("a path separator");
+    }
+    if id.contains('\0') {
+        return Some("a NUL character");
+    }
+    if cfg!(windows)
+        && id
+            .chars()
+            .any(|c| matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*') || (c as u32) < 32)
+    {
+        return Some("a character Windows does not allow in file names");
+    }
+    None
+}
+
+/// [`RouteError::Invalid`](crate::RouteError::Invalid) naming the ids that
+/// cannot be part of the file names the output directory's files are
+/// named after (see [`id_file_name_problem`]).
+pub(crate) fn check_file_ids<'a>(
+    ids: impl IntoIterator<Item = &'a str>,
+) -> Result<(), crate::RouteError> {
+    let mut bad: Vec<String> = Vec::new();
+    let mut why = "";
+    for id in ids {
+        if let Some(w) = id_file_name_problem(id) {
+            let shown = format!("{id:?}");
+            if !bad.contains(&shown) {
+                if bad.is_empty() {
+                    why = w;
+                }
+                bad.push(shown);
+            }
+        }
+    }
+    if bad.is_empty() {
+        return Ok(());
+    }
+    Err(crate::RouteError::Invalid(format!(
+        "with output_dir the file names are built from the ids (from_<id>.csv), and {} cannot \
+         be part of a file name in the directory ({}{}): {}",
+        if bad.len() == 1 {
+            "this id"
+        } else {
+            "these ids"
+        },
+        why,
+        if bad.len() > 1 {
+            ", or another character not allowed"
+        } else {
+            ""
+        },
+        bad.join(", ")
+    )))
+}
+
 /// Values (matrix cells, or rows of an expanded matrix) routed at a time
 /// by [`CsvOutput::origin_chunks`].
 const CHUNK_VALUES: usize = 1 << 23;
@@ -60,18 +124,26 @@ impl<'a> CsvOutput<'a> {
     /// destinations with these ids (the destination ids are not used by
     /// [`write_accessibility`](CsvOutput::write_accessibility)). Files are
     /// written by `n_threads` threads (0 = all cores).
+    ///
+    /// The files are named after the origin ids, so an id that cannot be
+    /// part of a file name in `dir` (one holding a path separator `/` or
+    /// `\`, or NUL; on Windows also `< > : " | ? *` or a control
+    /// character) is [`RouteError::Invalid`](crate::RouteError::Invalid),
+    /// before anything is routed or written. With such an id r5r fails with
+    /// a Java `FileNotFoundException`, or writes a file of another name.
     pub fn new(
         dir: &str,
         origin_ids: &'a [String],
         destination_ids: &'a [String],
         n_threads: usize,
-    ) -> Self {
-        CsvOutput {
+    ) -> Result<Self, crate::RouteError> {
+        check_file_ids(origin_ids.iter().map(String::as_str))?;
+        Ok(CsvOutput {
             dir: dir.to_owned(),
             origin_ids,
             destination_ids,
             n_threads,
-        }
+        })
     }
 
     /// The path of the file of origin `origin`: `<dir>/from_<id>.csv`.
@@ -380,6 +452,48 @@ fn sci_digits(s: &str) -> (String, i32) {
 mod tests {
     use super::*;
 
+    #[test]
+    fn ids_that_cannot_name_a_file_in_the_directory_are_refused() {
+        let ids = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        // r5r's names for these, byte for byte
+        for ok in ["", "a b", "a,b", "ação", "..", ".", "CON", "x."] {
+            assert!(id_file_name_problem(ok).is_none(), "{ok:?}");
+        }
+        let posix_ok = ["a\"b", "a:b", "a*b", "a?b", "a<b>", "a|b"];
+        for id in posix_ok {
+            assert_eq!(id_file_name_problem(id).is_some(), cfg!(windows), "{id:?}");
+        }
+        for (id, why) in [
+            ("a/b", "a path separator"),
+            ("../x", "a path separator"),
+            ("a\\b", "a path separator"),
+            ("/abs", "a path separator"),
+            ("a\0b", "a NUL character"),
+        ] {
+            assert_eq!(id_file_name_problem(id), Some(why), "{id:?}");
+        }
+        let (o, d) = (ids(&["p", "../x", "q", "../x"]), ids(&["p"]));
+        let e = CsvOutput::new("out", &o, &d, 1).unwrap_err().to_string();
+        assert!(e.contains("\"../x\"") && e.contains("from_<id>.csv"), "{e}");
+        assert_eq!(e.matches("../x").count(), 1, "{e}");
+        assert!(
+            CsvOutput::new("out", &d, &o, 1).is_ok(),
+            "destination ids name no file"
+        );
+        // the writers of pairs check both ids, before writing anything
+        let pairs = vec![
+            ("a".to_string(), "b".to_string()),
+            ("c".into(), "x\\y".into()),
+        ];
+        let e = crate::write_itineraries_csv("/nonexistent", &pairs, &[], &[], true, false)
+            .unwrap_err();
+        assert_eq!(e.kind(), io::ErrorKind::InvalidInput);
+        assert!(e.to_string().contains("\"x\\\\y\""), "{e}");
+        let e = crate::write_trip_options_csv("/nonexistent", &pairs, &[], &[], true, false)
+            .unwrap_err();
+        assert_eq!(e.kind(), io::ErrorKind::InvalidInput);
+    }
+
     fn jd(v: f64) -> String {
         let mut s = String::new();
         java_double(v, &mut s);
@@ -454,13 +568,19 @@ mod tests {
     #[test]
     fn origins_are_routed_in_bounded_slices() {
         let ids: Vec<String> = (0..1000).map(|i| i.to_string()).collect();
-        let out = CsvOutput::new("x", &ids, &ids, 1);
+        let out = CsvOutput::new("x", &ids, &ids, 1).unwrap();
         let all: Vec<_> = out.origin_chunks(1000).collect();
         assert_eq!(all, vec![0..1000]);
         let big: Vec<_> = out.origin_chunks(1 << 20).collect();
         assert_eq!(big.len(), 16);
         assert_eq!(big[0], 0..64);
         assert_eq!(big[15], 960..1000);
-        assert_eq!(CsvOutput::new("x", &[], &[], 1).origin_chunks(5).count(), 0);
+        assert_eq!(
+            CsvOutput::new("x", &[], &[], 1)
+                .unwrap()
+                .origin_chunks(5)
+                .count(),
+            0
+        );
     }
 }

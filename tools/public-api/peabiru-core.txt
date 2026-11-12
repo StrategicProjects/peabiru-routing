@@ -355,7 +355,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::CancelToken
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::CancelToken
 pub struct peabiru_core::CsvOutput<'a>
 impl<'a> peabiru_core::CsvOutput<'a>
-pub fn peabiru_core::CsvOutput<'a>::new(&str, &'a [alloc::string::String], &'a [alloc::string::String], usize) -> Self
+pub fn peabiru_core::CsvOutput<'a>::new(&str, &'a [alloc::string::String], &'a [alloc::string::String], usize) -> core::result::Result<Self, peabiru_core::RouteError>
 pub fn peabiru_core::CsvOutput<'a>::origin_chunks(&self, usize) -> impl core::iter::traits::iterator::Iterator<Item = core::ops::range::Range<usize>>
 pub fn peabiru_core::CsvOutput<'a>::path(&self, usize) -> alloc::string::String
 pub fn peabiru_core::CsvOutput<'a>::write_accessibility(&self, usize, &peabiru_core::Accessibility, &[alloc::string::String]) -> core::io::error::Result<()>

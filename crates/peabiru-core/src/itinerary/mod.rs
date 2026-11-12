@@ -695,6 +695,10 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
 /// `drop_geometry`. `ids`
 /// and `points` are those of the pairs given to [`detailed_itineraries`](crate::detailed_itineraries)
 /// (`(from_id, to_id)` and `((lat, lon), (lat, lon))`).
+///
+/// The file names are built from the ids: an id holding a path separator
+/// (`/`, `\\`) or NUL (on Windows also `< > : " | ? *` or a control
+/// character) is an error of kind `InvalidInput`, before anything is written.
 #[allow(clippy::type_complexity)]
 pub fn write_itineraries_csv(
     dir: &str,
@@ -705,6 +709,8 @@ pub fn write_itineraries_csv(
     osm_link_ids: bool,
 ) -> std::io::Result<()> {
     use crate::output::{csv_field, java_double, LINE_END};
+    crate::output::check_file_ids(ids.iter().flat_map(|(a, b)| [a.as_str(), b.as_str()]))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string()))?;
     for (k, its) in itineraries.iter().enumerate() {
         if its.is_empty() {
             continue;

@@ -1164,10 +1164,12 @@ pub fn scenario(ctx: &Ctx, a: &ScenarioArgs, net: &Network) -> Res<Scenario> {
                         .iter()
                         .map(one)
                         .collect::<Res<_>>()?,
-                    other => return Err(runtime(format!(
+                    other => {
+                        return Err(runtime(format!(
                         "{}: --new-carspeeds polygons must be Polygon or MultiPolygon, got {other}",
                         p.display()
-                    ))),
+                    )))
+                    }
                 };
                 property(p, &f, "poly_id")?;
                 let sc = prop_f64(p, &f, "scale")?;
@@ -1541,22 +1543,12 @@ pub fn output_dir(p: &Path) -> Res<String> {
     Ok(p.to_string_lossy().into_owned())
 }
 
-/// The ids of points for `CsvOutput` file names: none may be missing or
-/// hold characters file names cannot have.
+/// The core's check of the ids file names are built from (with
+/// `--output-dir`), before anything is routed.
 pub fn check_file_ids(ids: &[&String]) -> Res<()> {
-    let bad: Vec<String> = ids
-        .iter()
-        .filter(|i| i.contains(['/', '\\', ':', '*', '?', '"', '<', '>', '|']))
-        .map(|i| format!("\"{i}\""))
-        .collect();
-    if !bad.is_empty() {
-        return Err(usage(format!(
-            "with --output-dir, ids cannot hold characters file names cannot have \
-             (/ \\ : * ? \" < > |): {}",
-            bad.join(", ")
-        )));
-    }
-    Ok(())
+    Ok(peabiru_core::unstable::check_output_ids(
+        ids.iter().map(|s| s.as_str()),
+    )?)
 }
 
 /// `--mode`, or the command's default.

@@ -7,6 +7,8 @@ NULL
 
 #' Version of the Rust core this package was built against.
 #' @noRd
+rs_check_output_ids <- function(ids) .Call(wrap__rs_check_output_ids, ids)
+
 rs_core_version <- function() .Call(wrap__rs_core_version)
 
 #' Build a network from a directory with one `.pbf`, any GTFS zips and an

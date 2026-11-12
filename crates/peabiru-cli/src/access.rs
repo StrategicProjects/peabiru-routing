@@ -168,7 +168,7 @@ pub fn accessibility(a: AccessibilityArgs) -> Res<()> {
         }
     };
     if let Some(dir) = dir {
-        let w = CsvOutput::new(&dir, &o.ids, &[], th);
+        let w = CsvOutput::new(&dir, &o.ids, &[], th)?;
         let per_origin = a.opportunities.len() * pcts.len() * ap.cutoffs.len();
         for r in w.origin_chunks(per_origin) {
             let acc = route(&o.coords[r.clone()])?;

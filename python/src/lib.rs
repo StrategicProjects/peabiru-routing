@@ -150,8 +150,12 @@ fn interruptible<T: Send>(
 type Output = Option<(String, Vec<String>, Vec<String>)>;
 
 /// The writer of an [`Output`].
-fn csv_writer(out: &(String, Vec<String>, Vec<String>), n_threads: usize) -> CsvOutput<'_> {
-    CsvOutput::new(&out.0, &out.1, &out.2, n_threads)
+/// An error for ids the file names cannot be built from.
+fn csv_writer(
+    out: &(String, Vec<String>, Vec<String>),
+    n_threads: usize,
+) -> PyResult<CsvOutput<'_>> {
+    CsvOutput::new(&out.0, &out.1, &out.2, n_threads).map_err(value_err)
 }
 
 /// The outcome of writing the files: a file that could not be written is an
@@ -248,6 +252,13 @@ impl Network {
         let active = t.n_services_active_on(date).map_err(value_err)?;
         Ok((t.n_services(), active))
     }
+}
+
+/// The core's check of the ids that `output_dir`'s file names are built
+/// from.
+#[pyfunction]
+fn check_output_ids(ids: Vec<String>) -> PyResult<()> {
+    peabiru_core::unstable::check_output_ids(ids.iter().map(String::as_str)).map_err(value_err)
 }
 
 /// Version of the Rust core this extension was built against.
@@ -347,7 +358,7 @@ fn street_ttm<'py>(
     );
     params.scenario = scenario.clone();
     if let Some(out) = &output {
-        let w = csv_writer(out, n_threads);
+        let w = csv_writer(out, n_threads)?;
         written(interruptible(py, &params.cancel, || {
             for r in w.origin_chunks(d.len()) {
                 let m = street_travel_time_matrix(&n.net, &o[r.clone()], &d, mode, &params)?;
@@ -510,7 +521,7 @@ fn transit_ttm<'py>(
     p.max_fare = max_fare;
     p.scenario = scenario.clone();
     if let Some(out) = &output {
-        let w = csv_writer(out, n_threads);
+        let w = csv_writer(out, n_threads)?;
         written(interruptible(py, &p.cancel, || {
             for r in w.origin_chunks(d.len() * np) {
                 let m = transit_travel_time_matrix(&n.net, &o[r.clone()], &d, &p)?;
@@ -639,7 +650,9 @@ fn accessibility<'py>(
     let cancel = CancelToken::new();
     let w = output
         .as_ref()
-        .map(|(dir, ids, _)| CsvOutput::new(dir, ids, &[], n_threads));
+        .map(|(dir, ids, _)| CsvOutput::new(dir, ids, &[], n_threads))
+        .transpose()
+        .map_err(value_err)?;
     let names: &[String] = output.as_ref().map_or(&[], |out| &out.2);
     // every origin's values are few: the origins are routed in slices only
     // to bound them
@@ -788,7 +801,7 @@ fn expanded<'py>(
         }
     };
     if let Some(out) = &output {
-        let w = csv_writer(out, n_threads);
+        let w = csv_writer(out, n_threads)?;
         // at most one row per destination, departure minute and draw
         let draws = if t.has_frequencies() {
             draws_per_minute.max(1) as usize
@@ -1125,6 +1138,7 @@ fn _peabiru(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("NA_I32", NA_I32)?;
     m.add_class::<Network>()?;
     m.add_function(wrap_pyfunction!(core_version, m)?)?;
+    m.add_function(wrap_pyfunction!(check_output_ids, m)?)?;
     m.add_function(wrap_pyfunction!(build_network, m)?)?;
     m.add_function(wrap_pyfunction!(street_ttm, m)?)?;
     m.add_function(wrap_pyfunction!(transit_ttm, m)?)?;

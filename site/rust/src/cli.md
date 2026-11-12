@@ -95,7 +95,10 @@ differences: without `--departure`, street-only commands take the current
 time in UTC (r5r the local time; only the itineraries' `departure_time`
 shows it), and polygons and lines are written as built, without the
 `sf::st_make_valid()` of the R package (as Python and JavaScript return
-them).
+them; a route through a single linked stop is a point). With
+`--output-dir`, an id that cannot name a file in the directory (a path
+separator, NUL; on Windows also `< > : " | ? *`) is an error, as in the
+packages.
 
 ## For the repository's scripts
 

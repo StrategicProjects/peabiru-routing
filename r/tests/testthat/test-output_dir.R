@@ -167,9 +167,12 @@ test_that("output_dir is checked as r5r checks it", {
     "cannot be missing"
   )
   # a file that cannot be written is an error naming it
-  p$id <- c("no/such/dir", "x")
-  expect_error(travel_time_matrix(network, p, p, n_threads = 1, output_dir = new_dir()),
-               "from_no/such/dir.csv", fixed = TRUE)
+  # (a directory where the file would go)
+  p$id <- c("y", "x")
+  d <- new_dir()
+  dir.create(file.path(d, "from_y.csv"))
+  expect_error(travel_time_matrix(network, p, p, n_threads = 1, output_dir = d),
+               "from_y.csv", fixed = TRUE)
   expect_error(accessibility(network, pts, pts, opportunities_colnames = "jobs",
                              cutoffs = 30, output_dir = missing_dir), "does not exist")
   expect_error(expanded_travel_time_matrix(network, pts, pts, mode = "TRANSIT",
@@ -229,4 +232,21 @@ test_that("the files are byte-identical to r5r's", {
   same_files("accessibility", origins = pts, destinations = pts,
              opportunities_colnames = "jobs", mode = "BICYCLE",
              decay_function = "fixed_exponential", decay_value = 0.002)
+})
+
+test_that("ids that cannot name a file in the directory are refused", {
+  # the file names are built from the ids: r5r fails on these with Java's
+  # FileNotFoundException, or writes a file of another name
+  network <- fixture_network()
+  pts <- fixture_points()[1:3, ]
+  for (bad in c("a/b", "../x", "a\\b")) {
+    p <- pts
+    p$id[1] <- bad
+    d <- new_dir()
+    expect_error(travel_time_matrix(network, p, p, mode = "WALK", output_dir = d),
+                 "file names are built from the ids")
+    expect_length(list.files(d), 0)
+    expect_error(trip_options(network, p, p, mode = "WALK", output_dir = d),
+                 "file names are built from the ids")
+  }
 })

@@ -279,7 +279,10 @@ def travel_time_matrix(
         ``from_<origin id>.csv`` (see [Writing results to
         files](travel-time-matrices.md#writing-results-to-files)), and return
         ``output_dir``. Origins are routed a slice at a time, so the whole
-        result is never held in memory.
+        result is never held in memory. The file names are built
+        from the ids: an id that cannot name a file there (with a path
+        separator or NUL; on Windows also ``< > : " | ? *``) raises
+        ``ValueError`` before anything is routed.
 
     Returns
     -------
@@ -558,7 +561,10 @@ def accessibility(
         ``from_<origin id>.csv`` (see [Writing results to
         files](travel-time-matrices.md#writing-results-to-files)), and return
         ``output_dir``. Origins are routed a slice at a time, so the whole
-        result is never held in memory.
+        result is never held in memory. The file names are built
+        from the ids: an id that cannot name a file there (with a path
+        separator or NUL; on Windows also ``< > : " | ? *``) raises
+        ``ValueError`` before anything is routed.
 
     Returns
     -------
@@ -808,7 +814,10 @@ def expanded_travel_time_matrix(
         ``from_<origin id>.csv`` (see [Writing results to
         files](travel-time-matrices.md#writing-results-to-files)), and return
         ``output_dir``. Origins are routed a slice at a time, so the whole
-        result is never held in memory.
+        result is never held in memory. The file names are built
+        from the ids: an id that cannot name a file there (with a path
+        separator or NUL; on Windows also ``< > : " | ? *``) raises
+        ``ValueError`` before anything is routed.
 
     Returns
     -------
@@ -1021,7 +1030,10 @@ def arrival_travel_time_matrix(
         ``from_<origin id>.csv`` (see [Writing results to
         files](travel-time-matrices.md#writing-results-to-files)), and return
         ``output_dir``. Origins are routed a slice at a time, so the whole
-        result is never held in memory.
+        result is never held in memory. The file names are built
+        from the ids: an id that cannot name a file there (with a path
+        separator or NUL; on Windows also ``< > : " | ? *``) raises
+        ``ValueError`` before anything is routed.
 
     Returns
     -------

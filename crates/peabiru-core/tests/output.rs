@@ -57,10 +57,10 @@ fn same_in_slices(
     write: impl Fn(&CsvOutput, usize, &[(f64, f64)]),
 ) -> BTreeMap<String, Vec<u8>> {
     let whole = empty_dir(&format!("{name}-whole"));
-    let w = CsvOutput::new(whole.to_str().unwrap(), ids, dest_ids, 2);
+    let w = CsvOutput::new(whole.to_str().unwrap(), ids, dest_ids, 2).unwrap();
     write(&w, 0, pts);
     let sliced = empty_dir(&format!("{name}-sliced"));
-    let w = CsvOutput::new(sliced.to_str().unwrap(), ids, dest_ids, 3);
+    let w = CsvOutput::new(sliced.to_str().unwrap(), ids, dest_ids, 3).unwrap();
     let mut start = 0;
     for size in [1, 4, 2, 7].iter().cycle() {
         if start >= pts.len() {
@@ -149,13 +149,16 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
 fn an_unwritable_file_is_an_error_naming_it() {
     let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let (_, pts) = points();
-    let ids: Vec<String> = (0..pts.len()).map(|i| format!("no/such/dir/{i}")).collect();
+    let ids: Vec<String> = (0..pts.len()).map(|i| format!("p{i}")).collect();
     let dir = empty_dir("unwritable");
-    let w = CsvOutput::new(dir.to_str().unwrap(), &ids, &ids, 2);
+    // a directory that is not there (ids naming one are refused, see the
+    // unit tests of CsvOutput::new)
+    let gone = dir.join("no").join("such");
+    let w = CsvOutput::new(gone.to_str().unwrap(), &ids, &ids, 2).unwrap();
     let m =
         street_travel_time_matrix(&net, &pts, &pts, Mode::Walk, &RouteParams::default()).unwrap();
     let e = w.write_street_matrix(0, &m, &[50]).unwrap_err();
     assert_eq!(e.kind(), std::io::ErrorKind::NotFound);
-    assert!(e.to_string().contains("from_no/such/dir/"), "{e}");
+    assert!(e.to_string().contains("from_p"), "{e}");
     let _ = std::fs::remove_dir_all(&dir);
 }

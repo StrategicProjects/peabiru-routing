@@ -100,7 +100,7 @@ impl Call<'_> {
 
     /// The matrix written as r5r's `output_dir` writes it.
     pub fn write_dir(&self, dir: &str, o: &Points, d: &Points) -> Res<()> {
-        let w = CsvOutput::new(dir, &o.ids, &d.ids, self.threads);
+        let w = CsvOutput::new(dir, &o.ids, &d.ids, self.threads)?;
         let io = |e: std::io::Error| runtime(format!("cannot write {dir}: {e}"));
         if self.modes.has_transit() {
             let p = self.transit_params();
@@ -279,7 +279,7 @@ fn expanded_run(
         }
     };
     if let Some(dir) = dir {
-        let w = CsvOutput::new(&dir, &o.ids, &d.ids, threads);
+        let w = CsvOutput::new(&dir, &o.ids, &d.ids, threads)?;
         let freq = net.transit().is_some_and(|t| t.has_frequencies());
         let draws = if freq {
             p.draws_per_minute.max(1) as usize

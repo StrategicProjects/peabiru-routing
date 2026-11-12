@@ -309,8 +309,9 @@ impl Output {
         }))
     }
 
-    fn writer(&self, n_threads: i32) -> CsvOutput<'_> {
-        CsvOutput::new(&self.dir, &self.from_ids, &self.to_ids, threads(n_threads))
+    /// The writer; an error for ids the file names cannot be built from.
+    fn writer(&self, n_threads: i32) -> Result<CsvOutput<'_>> {
+        CsvOutput::new(&self.dir, &self.from_ids, &self.to_ids, threads(n_threads)).map_err(err)
     }
 
     fn get(&self, name: &str) -> Result<Robj> {
@@ -321,6 +322,14 @@ impl Output {
 /// A file that could not be written, as a routing error.
 fn io_err(e: std::io::Error) -> RouteError {
     RouteError::Invalid(e.to_string())
+}
+
+/// The core's check of the ids that `output_dir`'s file names are built
+/// from (missing ids are checked by the R code).
+/// @noRd
+#[extendr]
+fn rs_check_output_ids(ids: Vec<String>) -> Result<()> {
+    peabiru_core::unstable::check_output_ids(ids.iter().map(String::as_str)).map_err(err)
 }
 
 /// Version of the Rust core this package was built against.
@@ -463,7 +472,7 @@ fn rs_street_ttm(
             .get("percentiles")?
             .as_integer_vector()
             .ok_or_else(|| err("output$percentiles must be an integer vector"))?;
-        let w = out.writer(n_threads);
+        let w = out.writer(n_threads)?;
         done!(interruptible(&params.cancel, || {
             for r in w.origin_chunks(d.len()) {
                 let m = street_travel_time_matrix(&n.net, &o[r.clone()], &d, mode, &params)?;
@@ -619,7 +628,7 @@ fn rs_transit_ttm(
     p.max_fare = max_fare;
     p.scenario = scenario::scenario_of(&scenario)?;
     if let Some(out) = Output::of(&output)? {
-        let w = out.writer(n_threads);
+        let w = out.writer(n_threads)?;
         done!(interruptible(&p.cancel, || {
             for r in w.origin_chunks(d.len() * percentiles.len()) {
                 let m = transit_travel_time_matrix(&n.net, &o[r.clone()], &d, &p)?;
@@ -725,7 +734,7 @@ fn rs_accessibility(
             .collect(),
         None => Vec::new(),
     };
-    let w = out.as_ref().map(|out| out.writer(n_threads));
+    let w = out.as_ref().map(|out| out.writer(n_threads)).transpose()?;
     // every origin's values are few: route the origins in slices only to
     // bound them
     let per_origin = opportunities.len() * percentiles.len() * cutoffs.len();
@@ -896,7 +905,7 @@ fn rs_expanded(
             .get("breakdown")?
             .as_bool()
             .ok_or_else(|| err("output$breakdown must be TRUE or FALSE"))?;
-        let w = out.writer(n_threads);
+        let w = out.writer(n_threads)?;
         // at most one row per destination, departure minute and draw
         let draws = if t.has_frequencies() {
             draws_per_minute.max(1) as usize
@@ -1180,6 +1189,7 @@ fn rs_isochrone_lines(
 extendr_module! {
     mod peabiru;
     fn rs_core_version;
+    fn rs_check_output_ids;
     fn rs_build_network;
     fn rs_network_valid;
     fn rs_network_r5r_warnings;
