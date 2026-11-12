@@ -65,17 +65,18 @@ def _count(x: float) -> Optional[int]:
 def _from_core(d: Dict[str, Any]) -> FareStructure:
     """The core's flat dict as r5r's object."""
     def frame(cols: List[str], keys: List[str]) -> pd.DataFrame:
-        data = {c: d[k] for c, k in zip(cols, keys)}
-        df = pd.DataFrame(data, columns=cols)
-        for c in cols:
-            if df[c].dtype == object or len(df) == 0:
-                if c in ("unlimited_transfers", "allow_same_route_transfer", "use_route_fare"):
-                    df[c] = df[c].astype(bool)
-                elif c in ("fare", "route_fare"):
-                    df[c] = df[c].astype(float)
-                else:
-                    df[c] = df[c].astype(object)
-        return df
+        # explicit dtypes: text columns of object dtype holding str (None
+        # when missing), as in every other result, whatever pandas' default
+        # string dtype is
+        data = {}
+        for c, k in zip(cols, keys):
+            if c in ("unlimited_transfers", "allow_same_route_transfer", "use_route_fare"):
+                data[c] = pd.Series(list(d[k]), dtype=bool)
+            elif c in ("fare", "route_fare"):
+                data[c] = pd.Series(list(d[k]), dtype=float)
+            else:
+                data[c] = pd.Series(list(d[k]), dtype=object)
+        return pd.DataFrame(data, columns=cols)
 
     return {
         "max_discounted_transfers": _count(d["max_discounted_transfers"]),

@@ -155,7 +155,7 @@ def travel_time_matrix(
     new_lts: Optional[Any] = None,
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
-    n_threads: Optional[Number] = None,
+    n_threads: Optional[Number] = math.inf,
     verbose: bool = False,
     progress: bool = True,
     output_dir: Optional[PathArg] = None,
@@ -262,9 +262,8 @@ def travel_time_matrix(
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
         are reproducible (and equal to r5r's) only with a seed.
-    n_threads : int or math.inf, optional
-        The number of threads; ``None`` (the default) or ``math.inf`` use
-        all cores.
+    n_threads : int or math.inf, default math.inf
+        The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
         Checked as in r5r; has no effect.
     progress : bool, default True
@@ -406,7 +405,7 @@ def accessibility(
     new_lts: Optional[Any] = None,
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
-    n_threads: Optional[Number] = None,
+    n_threads: Optional[Number] = math.inf,
     verbose: bool = False,
     progress: bool = True,
     output_dir: Optional[PathArg] = None,
@@ -524,9 +523,8 @@ def accessibility(
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
         are reproducible (and equal to r5r's) only with a seed.
-    n_threads : int or math.inf, optional
-        The number of threads; ``None`` (the default) or ``math.inf`` use
-        all cores.
+    n_threads : int or math.inf, default math.inf
+        The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
         Checked as in r5r; has no effect.
     progress : bool, default True
@@ -664,7 +662,7 @@ def expanded_travel_time_matrix(
     new_lts: Optional[Any] = None,
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
-    n_threads: Optional[Number] = None,
+    n_threads: Optional[Number] = math.inf,
     verbose: bool = False,
     progress: bool = True,
     output_dir: Optional[PathArg] = None,
@@ -760,9 +758,8 @@ def expanded_travel_time_matrix(
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
         are reproducible (and equal to r5r's) only with a seed.
-    n_threads : int or math.inf, optional
-        The number of threads; ``None`` (the default) or ``math.inf`` use
-        all cores.
+    n_threads : int or math.inf, default math.inf
+        The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
         Checked as in r5r; has no effect.
     progress : bool, default True
@@ -866,7 +863,7 @@ def arrival_travel_time_matrix(
     new_lts: Optional[Any] = None,
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
-    n_threads: Optional[Number] = None,
+    n_threads: Optional[Number] = math.inf,
     verbose: bool = False,
     progress: bool = True,
     output_dir: Optional[PathArg] = None,
@@ -960,9 +957,8 @@ def arrival_travel_time_matrix(
     seed : int, optional
         A seed for the Monte Carlo draws. With frequency-based GTFS, results
         are reproducible (and equal to r5r's) only with a seed.
-    n_threads : int or math.inf, optional
-        The number of threads; ``None`` (the default) or ``math.inf`` use
-        all cores.
+    n_threads : int or math.inf, default math.inf
+        The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
         Checked as in r5r; has no effect.
     progress : bool, default True

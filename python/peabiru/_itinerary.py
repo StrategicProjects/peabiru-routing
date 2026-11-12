@@ -84,7 +84,7 @@ def detailed_itineraries(
     new_carspeeds: Optional[Any] = None,
     carspeed_scale: float = 1,
     new_lts: Optional[Any] = None,
-    n_threads: Optional[Number] = None,
+    n_threads: Optional[Number] = math.inf,
     verbose: bool = False,
     progress: bool = True,
     drop_geometry: bool = False,

@@ -76,7 +76,7 @@ def isochrone(
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
     percentiles: Optional[Union[int, Sequence[int]]] = None,
-    n_threads: Optional[Number] = None,
+    n_threads: Optional[Number] = math.inf,
     verbose: bool = False,
     progress: bool = True,
     sample_size: Any = _UNSET,
@@ -176,9 +176,8 @@ def isochrone(
         Up to 5 distinct values from 1 to 99: the travel-time percentiles to
         make polygons for. ``None`` (the default) means 50. Must be ``None``
         for line isochrones.
-    n_threads : int or math.inf, optional
-        The number of threads; ``None`` (the default) or ``math.inf`` use
-        all cores.
+    n_threads : int or math.inf, default math.inf
+        The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
         Checked as in r5r; has no effect.
     progress : bool, default True
