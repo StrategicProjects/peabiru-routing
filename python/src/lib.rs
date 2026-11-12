@@ -36,6 +36,7 @@ use std::time::Duration;
 mod fares;
 mod inspect;
 mod itinerary;
+mod options;
 mod scenario;
 
 /// Missing value in the `i32` columns handed to Python.
@@ -1154,6 +1155,7 @@ fn _peabiru(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(street_edges, m)?)?;
     m.add_function(wrap_pyfunction!(isochrone_lines, m)?)?;
     m.add_function(wrap_pyfunction!(itinerary::itineraries, m)?)?;
+    m.add_function(wrap_pyfunction!(options::trip_options_py, m)?)?;
     inspect::register(m)?;
     fares::register(m)?;
     Ok(())

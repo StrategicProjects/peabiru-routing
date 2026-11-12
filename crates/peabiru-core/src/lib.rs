@@ -132,6 +132,7 @@ mod inspect;
 mod isochrone;
 mod itinerary;
 mod jcompat;
+mod options;
 mod osm;
 mod output;
 mod street;
@@ -161,6 +162,7 @@ pub use isochrone::{
 pub use itinerary::{
     detailed_itineraries, write_itineraries_csv, Itinerary, ItineraryLeg, ItineraryParams,
 };
+pub use options::{trip_options, write_trip_options_csv, Criterion, TripOption, TripOptionsParams};
 pub use output::CsvOutput;
 pub use street::{
     build_network, street_travel_time_matrix, BuildOptions, CarSpeeds, LtsChange, LtsLine, Mode,

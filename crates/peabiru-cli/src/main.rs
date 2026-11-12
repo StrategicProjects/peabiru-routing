@@ -3,6 +3,7 @@ mod cli;
 mod expanded;
 mod isochrone;
 mod itineraries;
+mod options;
 
 use cli::{runtime_error, usage_error};
 use peabiru_core::unstable::{read_pbf_file, tag, ReadOptions};
@@ -19,10 +20,11 @@ fn usage_text() -> String {
          peabiru sample-raster <file.tif> <points> <out>   (R5's readElevation at points)\n       \
          peabiru crs-transform <epsg code> <points> <out>   (GeoTools' transform of a raster CRS)\n       \
          (PEABIRU_ELEVATION=TOBLER|MINETTI|NONE: elevation of the networks built from a\n        directory; without it .tif rasters are ignored)\n       \
-         {}\n       {}\n       {}",
+         {}\n       {}\n       {}\n       {}",
         expanded::USAGE,
         isochrone::USAGE,
-        itineraries::USAGE
+        itineraries::USAGE,
+        options::USAGE
     )
 }
 
@@ -73,6 +75,7 @@ fn main() {
         Some("expanded") => expanded::run(&args[1..]),
         Some("isochrone") => isochrone::run(&args[1..]),
         Some("itineraries") => itineraries::run(&args[1..]),
+        Some("options") => options::run(&args[1..]),
         Some("dump-elevation") => {
             let cmd = "dump-elevation";
             if args.len() != 3 {

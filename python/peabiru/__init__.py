@@ -35,6 +35,7 @@ from ._fares import (
 from ._isochrone import isochrone
 from ._itinerary import detailed_itineraries
 from ._network import Network, build_network
+from ._options import TripOptions, trip_options
 from ._network_tools import (
     check_transit_availability,
     find_snap,
@@ -73,6 +74,7 @@ def core_version() -> str:
 
 __all__ = [
     "Network",
+    "TripOptions",
     "UnsupportedError",
     "__version__",
     "accessibility",
@@ -94,5 +96,6 @@ __all__ = [
     "street_network_to_sf",
     "transit_network_to_sf",
     "travel_time_matrix",
+    "trip_options",
     "write_fare_structure",
 ]

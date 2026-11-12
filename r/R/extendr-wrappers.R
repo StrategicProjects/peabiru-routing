@@ -173,4 +173,17 @@ rs_pareto_frontier <- function(ptr, olat, olon, dlat, dlon, mode, transit_modes,
 #' @noRd
 rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output, suboptimal_minutes, fare_structure, max_fare) .Call(wrap__rs_detailed_itineraries, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output, suboptimal_minutes, fare_structure, max_fare)
 
+#' Options between `origins[i]` and `destinations[i]` as
+#' `list(options = list(pair, option, total_time, fare, transfers,
+#' walk_time, departure_time, arrival_time, n_departures, first_departure,
+#' last_departure, description), departures = list(pair, option,
+#' departure_time, arrival_time, total_time), legs = list(pair, option,
+#' segment, mode, cumulative_fare, segment_duration, wait, distance, route,
+#' osm_id_list, edge_id_list, board_stop_id, alight_stop_id, geometry))`
+#' (`pair` 1-based; `fare` and `cumulative_fare` `NULL` without a fare
+#' structure, the id columns `NULL` without `osm_link_ids`, `geometry`
+#' `NULL` with `drop_geometry`, `legs` `NULL` without `itineraries`).
+#' @noRd
+rs_trip_options <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output) .Call(wrap__rs_trip_options, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output)
+
 # nolint end

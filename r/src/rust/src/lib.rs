@@ -29,6 +29,7 @@ use std::time::Duration;
 mod fares;
 mod inspect;
 mod itinerary;
+mod options;
 mod scenario;
 
 /// A network built once and shared by every routing call.
@@ -1217,4 +1218,5 @@ extendr_module! {
     use inspect;
     use fares;
     use itinerary;
+    use options;
 }

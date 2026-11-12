@@ -510,6 +510,124 @@ export declare function detailedItineraries(
   options?: DetailedItinerariesOptions,
 ): Promise<{ type: "FeatureCollection"; features: ItineraryFeature[] } | ItineraryRow[]>;
 
+/** A criterion of `tripOptions()`. */
+export type TripCriterion = "TIME" | "FARE" | "TRANSFERS" | "WALK";
+
+export interface TripOptionsOptions extends RoutingOptions {
+  /** Required with public transport. */
+  departureDatetime?: DateTime | null;
+  /** Minutes of departure, one at a time from `departureDatetime` (default 10). */
+  timeWindow?: number;
+  /**
+   * Some of `"TIME"` (door-to-door minutes from the departure minute),
+   * `"FARE"` (needs a `fareStructure`), `"TRANSFERS"` (rides minus one; 0
+   * without public transport) and `"WALK"` (minutes on foot: walked access
+   * and egress legs and walks between stops). Default null: all four with a
+   * `fareStructure`, all but `"FARE"` without one.
+   */
+  criteria?: TripCriterion[] | TripCriterion | null;
+  /** At most this many options per pair, the first in `option` order (default Infinity). */
+  maxOptions?: number;
+  /** Route from every origin to every destination (default false: pair them row by row). */
+  allToAll?: boolean;
+  /** Build the legs of each option (default true). */
+  itineraries?: boolean;
+  /** Add the options of every departure minute (default false). */
+  byDeparture?: boolean;
+  /** A fare structure (default null): needed for the `"FARE"` criterion, gives every option its fare. */
+  fareStructure?: FareStructure | null;
+  /** The highest fare of a trip (default Infinity). */
+  maxFare?: number;
+  /** Plain rows for the legs instead of GeoJSON features (default false). */
+  dropGeometry?: boolean;
+  /** Add r5r's `osm_link_ids` properties to each leg (default false), as in `detailedItineraries()`. */
+  osmLinkIds?: boolean;
+}
+
+/**
+ * One option of a pair: trips with the same street modes, the same routes
+ * between the same stops and the same fare, transfers and minutes on foot,
+ * not dominated at `n_departures` departure minutes. Times are those of its
+ * best minute (the least total time); minutes have one decimal.
+ */
+export interface TripOptionRow {
+  from_id: string | null;
+  to_id: string | null;
+  /** From 1, ordered by total time, then fare, transfers and minutes on foot. */
+  option: number;
+  total_time: number;
+  /** With a fare structure only. */
+  fare?: number;
+  transfers: number;
+  walk_time: number;
+  departure_time: string;
+  arrival_time: string;
+  n_departures: number;
+  first_departure: string;
+  last_departure: string;
+  /** The modes and route short names, as `"WALK > BUS 343 > WALK"`. */
+  description: string;
+}
+
+/** One option on the frontier of one departure minute (`byDeparture`). */
+export interface TripDepartureRow {
+  from_id: string | null;
+  to_id: string | null;
+  option: number;
+  departure_time: string;
+  arrival_time: string;
+  total_time: number;
+}
+
+/** One leg of an option, keyed by `from_id`, `to_id` and `option`, in the format of `detailedItineraries()`. */
+export interface TripLegRow {
+  from_id: string | null;
+  to_id: string | null;
+  option: number;
+  segment: number;
+  mode: string;
+  /** With a fare structure only: the fare paid up to the end of the leg. */
+  cumulative_fare?: number;
+  segment_duration: number;
+  wait: number;
+  distance: number;
+  route: string;
+  osm_id_list?: string;
+  edge_id_list?: string;
+  board_stop_id?: string;
+  alight_stop_id?: string;
+}
+
+/** A leg of an option with its line (longitude, latitude), as a GeoJSON feature. */
+export interface TripLegFeature {
+  type: "Feature";
+  properties: TripLegRow;
+  geometry: { type: "LineString"; coordinates: [number, number][] };
+}
+
+/** The result of `tripOptions()`. */
+export interface TripOptions {
+  options: TripOptionRow[];
+  /** The legs (null with `itineraries: false`). */
+  itineraries: { type: "FeatureCollection"; features: TripLegFeature[] } | TripLegRow[] | null;
+  /** Every minute's options (null without `byDeparture`). */
+  departures: TripDepartureRow[] | null;
+}
+
+/**
+ * peabiru's own multi-criteria trip planner (r5r has no counterpart): for
+ * each origin-destination pair, the trips that no other trip beats on all
+ * the chosen criteria at once, at each departure minute of the window,
+ * merged into options. Frequency-based routes are boarded at their expected
+ * times (half a headway): no random draws.
+ */
+export declare function tripOptions(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: TripOptionsOptions,
+): Promise<TripOptions>;
+
 /**
  * A fare structure, r5r's object (see `setupFareStructure()`): the global
  * settings, three tables as objects of columns, and r5r's debug settings.

@@ -27,6 +27,7 @@ import {
   transit_service_dates,
   transit_stops,
   transit_ttm,
+  trip_options_js,
 } from "../pkg/peabiru.js";
 
 const FUNCTIONS = {
@@ -35,6 +36,7 @@ const FUNCTIONS = {
   accessibility,
   expanded,
   itineraries,
+  trip_options: trip_options_js,
   isochrone_polygons,
   street_edges,
   availability: (net, date) => net.transit_availability(date),

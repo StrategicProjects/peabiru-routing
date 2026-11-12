@@ -23,7 +23,7 @@ use crate::RouteError;
 
 /// One leg of a trip as `Trip.loadTransitLegs` reads it from the states.
 #[derive(Debug, Clone)]
-enum RawLeg {
+pub(super) enum RawLeg {
     /// A walk between two stops (`newStopTransferLeg`).
     Walk {
         from: u32,
@@ -46,11 +46,11 @@ enum RawLeg {
 #[derive(Debug, Clone)]
 pub(super) struct RawTrip {
     pub(super) direct: Option<Trip>,
-    departure: i32,
+    pub(super) departure: i32,
     /// `state.time - departureTime`.
     pub(super) duration: i32,
     pub(super) fare: i32,
-    legs: Vec<RawLeg>,
+    pub(super) legs: Vec<RawLeg>,
 }
 
 impl RawTrip {
@@ -329,7 +329,7 @@ impl Planner<'_> {
     /// stops routed, the access and egress legs added. `None` when r5r skips
     /// the trip (`EgressPath.InvalidOriginException`).
     #[allow(clippy::too_many_arguments)]
-    fn augment(
+    pub(super) fn augment(
         &self,
         t: RawTrip,
         access: &Router,

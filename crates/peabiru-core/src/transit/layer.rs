@@ -31,6 +31,10 @@ pub struct FrequencyEntry {
     pub start: i32,
     pub end: i32,
     pub headway: i32,
+    /// GTFS `exact_times = 1`: the vehicles leave at `start`, `start +
+    /// headway`, ... exactly. R5 ignores it (and so do all the functions
+    /// that reproduce r5r); only `trip_options()` reads it.
+    pub exact: bool,
 }
 
 /// A trip's times at every stop of its pattern. Frequency trips hold
@@ -821,6 +825,7 @@ impl TransitLayer {
                     start: f.start_time,
                     end: f.end_time,
                     headway: f.headway_secs,
+                    exact: f.exact_times,
                 });
         }
 
@@ -1185,6 +1190,7 @@ mod tests {
             start,
             end,
             headway,
+            exact: false,
         };
         assert_eq!(
             trips[0].frequencies,
@@ -1204,6 +1210,7 @@ mod tests {
             start,
             end: 0,
             headway: 1,
+            exact: false,
         };
         let m = crate::gtfs::jparse::INT_MISSING;
         let order = |v: &[i32]| {
