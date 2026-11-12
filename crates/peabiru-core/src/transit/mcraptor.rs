@@ -1030,25 +1030,42 @@ impl<'a> McRaptor<'a> {
     ///
     /// A state on board is left behind once it can only be refused for
     /// the rest of the pattern. R5 keeps it on board to the last stop and
-    /// offers a new state at every stop; `addState` begins by refusing,
-    /// with no other effect, a state later than `limit` (the end of the
-    /// window plus the longest trip, the same for the whole search). The
-    /// state on board `s` is dropped at `pos` when all of these hold:
+    /// offers a new state at every stop. The state on board `s` is dropped
+    /// at `pos` when all of these hold:
     ///
     /// 1. it boarded at the pattern's last visit to its stop, so the state
-    ///    does not board again further on and its trip `k` is the same at
-    ///    every later position. (A state that boarded at an earlier visit
-    ///    of a stop the pattern comes back to stays on board whatever its
-    ///    time: a second boarding there would change its trip.)
+    ///    does not board again further on and its trip `k` (and the fare
+    ///    of what it offers, its memo) is the same at every later
+    ///    position. (A state that boarded at an earlier visit of a stop
+    ///    the pattern comes back to stays on board whatever its time: a
+    ///    second boarding there would change its trip.)
     /// 2. `pos >= settled[k]`: the arrivals of trip `k` do not decrease
-    ///    from `pos` to the end of the pattern.
-    /// 3. its arrival at `pos` is later than `limit`.
+    ///    from `pos` to the end of the pattern, so the state offered at
+    ///    `pos` and at every later position `q` has a time
+    ///    `arrivals[q * n + k] >= arrivals[pos * n + k]`.
+    /// 3. one of:
+    ///    - (a) its arrival at `pos` is later than `limit` (the end of the
+    ///      window plus the longest trip, the same for the whole search):
+    ///      `add_state` refuses such a state in its first statement;
+    ///    - (b) with the fare list, its arrival at `pos` is not before the
+    ///      time of `s` and either is later than the draw's `max_clock`
+    ///      or the fare of what it offers, already worked out, is over
+    ///      `max_fare`. `add_state` then, for the state offered at `pos`
+    ///      or later: may refuse it in its first two tests (too late, or
+    ///      target pruning); does not fail the test on going back in time;
+    ///      makes the stop's bag if it has none; and gets no entry from
+    ///      [`McRaptor::fare_entry`], which refuses on these same two
+    ///      grounds (the time, or the same fare against the same limit)
+    ///      before any list is looked at.
     ///
-    /// Then at `pos` and at every later position `q` the state offered has
-    /// time `arrivals[q * n + k] >= arrivals[pos * n + k] > limit`, which
-    /// `add_state` refuses in its first statement. The states that stay
-    /// keep their order, so the others are offered in the order R5 offers
-    /// them.
+    /// In every case the state offered is refused and no list changes. The
+    /// one trace (b) can skip is a bag made for a stop that has none, and
+    /// an empty bag is the same as none for all that reads the bags:
+    /// `do_one_round`'s copy (no state to board with), `do_transfers` (only
+    /// stops where a state was accepted), `collate` (no time for a stop
+    /// without non-transfer states) and `propagate_to_destination` (no
+    /// state to walk from). The states that stay keep their order, so the
+    /// others are offered in the order R5 offers them.
     fn ride_timetable(
         &mut self,
         pat: usize,
@@ -1060,6 +1077,12 @@ impl<'a> McRaptor<'a> {
         let n = table.trips.len();
         // `add_state`'s first test
         let limit = self.req.to_time.wrapping_add(self.req.max_trip_s);
+        // `fare_entry`'s two tests
+        let fare_list = matches!(self.dom, Dominance::Fare(_));
+        let max_clock = self.departure.wrapping_add(self.req.max_trip_s);
+        let max_fare = self.req.max_fare;
+        let over =
+            |memo: &Memo| matches!(memo, Some((f, _)) if f.paid.wrapping_sub(f.value) > max_fare);
         states.clear();
         for (pos, &stop) in layer.patterns[pat].stops.iter().enumerate() {
             let at = pos * n;
@@ -1069,7 +1092,13 @@ impl<'a> McRaptor<'a> {
                 let mut rider = states[r];
                 let k = rider.k as usize;
                 let arrival = table.arrivals[at + k];
-                if rider.at_last_visit && arrival > limit && pos as u32 >= table.settled[k] {
+                if rider.at_last_visit
+                    && pos as u32 >= table.settled[k]
+                    && (arrival > limit
+                        || (fare_list
+                            && arrival >= rider.s_time
+                            && (arrival > max_clock || over(&rider.memo))))
+                {
                     continue;
                 }
                 let added = self.add_state(
