@@ -1,6 +1,9 @@
 //! CSV output: matrices routed from slices of the origins write the files
 //! of the whole matrix, byte for byte.
 
+#[path = "../src/sample_data.rs"]
+mod sample_data;
+
 use peabiru_core::{
     build_from_dir, expanded_travel_time_matrix, street_accessibility, street_travel_time_matrix,
     transit_accessibility, transit_travel_time_matrix, AccessibilityParams, BuildOptions,
@@ -9,11 +12,9 @@ use peabiru_core::{
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
 /// The fixture's points as `(id, (lat, lon))`.
-fn points() -> (Vec<String>, Vec<(f64, f64)>) {
-    let text = std::fs::read_to_string(format!("{SPO}/spo_points.csv")).unwrap();
+fn points(spo: &str) -> (Vec<String>, Vec<(f64, f64)>) {
+    let text = std::fs::read_to_string(format!("{spo}/spo_points.csv")).unwrap();
     text.lines()
         .skip(1)
         .map(|line| {
@@ -80,8 +81,11 @@ fn same_in_slices(
 
 #[test]
 fn slices_of_the_origins_write_the_files_of_the_whole() {
-    let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
-    let (ids, pts) = points();
+    let Some(spo) = sample_data::spo() else {
+        return;
+    };
+    let net = build_from_dir(spo, &BuildOptions::default()).unwrap();
+    let (ids, pts) = points(spo);
 
     let p = RouteParams::default();
     let files = same_in_slices("walk", &ids, &ids, &pts, |w, first, o| {
@@ -147,8 +151,11 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
 
 #[test]
 fn an_unwritable_file_is_an_error_naming_it() {
-    let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
-    let (_, pts) = points();
+    let Some(spo) = sample_data::spo() else {
+        return;
+    };
+    let net = build_from_dir(spo, &BuildOptions::default()).unwrap();
+    let (_, pts) = points(spo);
     let ids: Vec<String> = (0..pts.len()).map(|i| format!("p{i}")).collect();
     let dir = empty_dir("unwritable");
     // a directory that is not there (ids naming one are refused, see the

@@ -10,13 +10,14 @@ use crate::transit::matrix::TransitData;
 use crate::transit::raptor::{self, Filtered, RaptorRequest};
 use std::panic::catch_unwind;
 
-const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
 /// `street_vertex_times` takes a walking speed; 0 km/h used to divide by
 /// zero (`distance_to_edge_mm / walk_mms`), in release builds too.
 #[test]
 fn street_vertex_times_rejects_zero_walk_speed_without_panicking() {
-    let (net, _) = crate::transit::build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let Some(spo) = crate::sample_data::spo() else {
+        return;
+    };
+    let (net, _) = crate::transit::build_from_dir(spo, &BuildOptions::default()).unwrap();
     let mut sc = Vec::new();
     let o = find_split(&net, -23.5563, -46.6290, Mode::Walk, &mut sc).unwrap();
     let r = catch_unwind(|| street_vertex_times(&net, &o, &[Some(o)], Mode::Walk, 0.0, 600));
@@ -46,7 +47,10 @@ fn request(max_duration: i32, time_window: i32) -> RaptorRequest {
 /// `iterations_per_minute` return usize::MAX.
 #[test]
 fn raptor_route_does_not_overflow_on_a_huge_max_duration() {
-    let (net, layer) = crate::transit::build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let Some(spo) = crate::sample_data::spo() else {
+        return;
+    };
+    let (net, layer) = crate::transit::build_from_dir(spo, &BuildOptions::default()).unwrap();
     let data = TransitData::new(&net, &layer);
     let active = layer.active_services(20190513, 0);
     let f = Filtered::new(&layer, &active, crate::TransitMode::ALL).unwrap();

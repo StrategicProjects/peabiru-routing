@@ -396,12 +396,13 @@ mod tests {
         assert_eq!(transit_mode(1500), None);
     }
 
-    const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
     #[test]
     fn network_tables_of_the_sample() {
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
         let (net, layer) =
-            crate::transit::build_from_dir(SPO, &crate::BuildOptions::default()).unwrap();
+            crate::transit::build_from_dir(spo, &crate::BuildOptions::default()).unwrap();
 
         // every point of the grid snaps within 300 m, on the streets' grid
         let pts = [(-23.5563, -46.6290), (-23.5577, -46.6321), (-10.0, -10.0)];

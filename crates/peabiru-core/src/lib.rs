@@ -220,6 +220,8 @@ mod transit;
 
 #[cfg(test)]
 mod review_tests;
+#[cfg(test)]
+mod sample_data;
 
 pub use cancel::{CancelToken, RouteError};
 pub use elevation::Elevation;

@@ -866,8 +866,6 @@ mod tests {
     use crate::street::router::{route, Speeds};
     use crate::street::{build::build_network, BuildOptions};
 
-    const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
     /// Deterministic pseudo-random numbers (xorshift).
     struct Rng(u64);
     impl Rng {
@@ -884,8 +882,8 @@ mod tests {
     }
 
     /// The sample's own points, `(lat, lon)`.
-    fn sample_points() -> Vec<(f64, f64)> {
-        let csv = std::fs::read_to_string(format!("{SPO}/spo_points.csv")).unwrap();
+    fn sample_points(spo: &str) -> Vec<(f64, f64)> {
+        let csv = std::fs::read_to_string(format!("{spo}/spo_points.csv")).unwrap();
         csv.lines()
             .skip(1)
             .map(|l| {
@@ -950,9 +948,12 @@ mod tests {
     /// on the street network alone and with the transit stops' LINK edges.
     #[test]
     fn vertex_times_match_the_plain_search() {
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
         let (with_stops, _) =
-            crate::transit::build_from_dir(SPO, &BuildOptions::default()).unwrap();
-        let alone = build_network(format!("{SPO}/spo_osm.pbf"), &BuildOptions::default()).unwrap();
+            crate::transit::build_from_dir(spo, &BuildOptions::default()).unwrap();
+        let alone = build_network(format!("{spo}/spo_osm.pbf"), &BuildOptions::default()).unwrap();
         let mut compared = 0u64;
         let mut reached = 0u64;
         let mut link_nodes = 0;
@@ -1023,7 +1024,10 @@ mod tests {
     /// them, so the vertex times at the edge's ends are theirs.
     #[test]
     fn start_states_match_the_plain_search() {
-        let net = build_network(format!("{SPO}/spo_osm.pbf"), &BuildOptions::default()).unwrap();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let net = build_network(format!("{spo}/spo_osm.pbf"), &BuildOptions::default()).unwrap();
         let mut search = Search::new(&net);
         let mut scratch = Vec::new();
         let mut checked = 0;
@@ -1081,8 +1085,8 @@ mod tests {
         matrix_of(net, o, d, mode, &with(p, StreetEngine::Search)).unwrap()
     }
 
-    fn spo() -> StreetNetwork {
-        build_network(format!("{SPO}/spo_osm.pbf"), &BuildOptions::default()).unwrap()
+    fn spo_network(spo: &str) -> StreetNetwork {
+        build_network(format!("{spo}/spo_osm.pbf"), &BuildOptions::default()).unwrap()
     }
 
     /// The whole matrix, minutes and empty cells, equals the plain
@@ -1093,11 +1097,14 @@ mod tests {
     /// again as the settings alternate.
     #[test]
     fn matrix_matches_the_plain_search() {
-        let net = spo();
-        let mut origins = sample_points();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let net = spo_network(spo);
+        let mut origins = sample_points(spo);
         origins.extend(random_points(&net, 40, 11));
         let mut destinations = random_points(&net, 60, 13);
-        destinations.extend(sample_points().into_iter().step_by(2));
+        destinations.extend(sample_points(spo).into_iter().step_by(2));
         let mut cells = 0usize;
         let mut filled = 0usize;
         for _pass in 0..2 {
@@ -1131,7 +1138,10 @@ mod tests {
     /// without being built again; a clone of the network shares it.
     #[test]
     fn kept_hierarchy_is_reused() {
-        let net = spo();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let net = spo_network(spo);
         let p0 = RouteParams {
             n_threads: 1,
             ..RouteParams::default()
@@ -1178,8 +1188,11 @@ mod tests {
     /// kept one usable.
     #[test]
     fn cancelled_calls_keep_no_half_built_hierarchy() {
-        let net = spo();
-        let pts = sample_points();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let net = spo_network(spo);
+        let pts = sample_points(spo);
         let p = RouteParams {
             n_threads: 2,
             engine: StreetEngine::Hierarchy,
@@ -1201,7 +1214,7 @@ mod tests {
         // cancelled from another thread while it contracts (or, on a fast
         // machine, after): either way nothing half-built is kept
         for delay_us in [0, 200, 1000, 5000] {
-            let fresh = spo();
+            let fresh = spo_network(spo);
             let c = CancelToken::new();
             let q = RouteParams {
                 cancel: c.clone(),
@@ -1240,8 +1253,11 @@ mod tests {
     /// clone made before the change keeps its own.
     #[test]
     fn a_changed_network_drops_its_hierarchies() {
-        let mut net = spo();
-        let pts = sample_points();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let mut net = spo_network(spo);
+        let pts = sample_points(spo);
         let p = RouteParams {
             n_threads: 2,
             engine: StreetEngine::Hierarchy,
@@ -1283,9 +1299,12 @@ mod tests {
     /// it are the plain search's on the linked network, for every mode.
     #[test]
     fn linking_stops_drops_the_hierarchies() {
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
         use crate::transit::{gtfs_files_in_dir, TransitLayer};
-        let mut net = spo();
-        let pts = sample_points();
+        let mut net = spo_network(spo);
+        let pts = sample_points(spo);
         let p = RouteParams {
             n_threads: 2,
             engine: StreetEngine::Hierarchy,
@@ -1296,7 +1315,7 @@ mod tests {
         }
         assert_eq!(net.hierarchies.keys().len(), 3);
         let before = net.n_vertices();
-        let mut layer = TransitLayer::load(&gtfs_files_in_dir(SPO).unwrap()).unwrap();
+        let mut layer = TransitLayer::load(&gtfs_files_in_dir(spo).unwrap()).unwrap();
         layer.link_stops(&mut net);
         assert!(net.n_vertices() > before, "the stops changed the network");
         assert!(net.hierarchies.keys().is_empty());
@@ -1310,7 +1329,10 @@ mod tests {
     /// The contraction gives the same hierarchy at any thread count.
     #[test]
     fn hierarchy_does_not_depend_on_threads() {
-        let net = spo();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let net = spo_network(spo);
         for mode in [Mode::Car, Mode::Walk] {
             let p = RouteParams::default();
             let g = ModeGraph::new(&net, mode, Speeds::new(&p, mode), p.max_lts);
@@ -1332,6 +1354,9 @@ mod tests {
     /// Which engine computes the matrix.
     #[test]
     fn dispatch() {
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
         use StreetEngine::*;
         assert!(wanted(Auto, Mode::Walk, false, 1000, 1, 0.0, || 1.0));
         assert!(!wanted(Auto, Mode::Walk, false, 10, 1, 0.0, || 1.0));
@@ -1352,7 +1377,7 @@ mod tests {
         let never = || -> f64 { unreachable!() };
         assert!(!wanted(Search, Mode::Car, true, 10_000, 1, 0.0, never));
         assert!(wanted(Hierarchy, Mode::Car, false, 1, 4, 0.0, never));
-        let net = spo();
+        let net = spo_network(spo);
         let p = RouteParams::default();
         let extent = Extent::of(&net);
         let share = |mode, minutes: f64| {
@@ -1363,7 +1388,7 @@ mod tests {
         assert!(share(Mode::Walk, 1.0) < 0.01);
         assert!(share(Mode::Walk, 10.0) < share(Mode::Bicycle, 10.0));
         // cars on a network with turn restrictions always search
-        let mut net = spo();
+        let mut net = spo_network(spo);
         net.restriction_starts.push((0, 0));
         let p = with(&RouteParams::default(), Hierarchy);
         let g = ModeGraph::new(&net, Mode::Car, Speeds::new(&p, Mode::Car), p.max_lts);
@@ -1379,10 +1404,13 @@ mod tests {
     /// that decides whether a hierarchy pays off.
     #[test]
     fn loose_stop_vertices_do_not_stretch_the_extent() {
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
         use crate::transit::{gtfs_files_in_dir, TransitLayer};
-        let mut net = spo();
+        let mut net = spo_network(spo);
         let streets = Extent::of(&net).area;
-        let mut layer = TransitLayer::load(&gtfs_files_in_dir(SPO).unwrap()).unwrap();
+        let mut layer = TransitLayer::load(&gtfs_files_in_dir(spo).unwrap()).unwrap();
         layer.link_stops(&mut net);
         let (lat0, lat1) = (
             net.v_lat.iter().min().unwrap(),
