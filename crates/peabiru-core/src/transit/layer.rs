@@ -143,10 +143,12 @@ pub struct TransitLayer {
     pub(crate) routes: Vec<RouteInfo>,
     pub(crate) pattern_route: Vec<u32>,
     pub(crate) pattern_shape: Vec<Option<u32>>,
-    /// Per pattern with a shape: whether its first trip's stop times and
-    /// the shape's points all have `shape_dist_traveled` (R5 then cuts the
-    /// shape by those distances, which detailed itineraries do not follow).
-    pub(crate) pattern_shape_dist: Vec<bool>,
+    /// Per pattern with a shape whose points and whose first trip's stop
+    /// times all have `shape_dist_traveled`: R5's location of each stop
+    /// along the shape found from those distances (`(segment, fraction as
+    /// float)`, `TransitLayer.loadFromGtfs`). `None` when R5 projects the
+    /// stops on the shape instead.
+    pub(crate) pattern_shape_cuts: Vec<Option<ShapeCuts>>,
     /// Shapes of `shapes.txt` as `[lon, lat]` points, in sequence order.
     pub(crate) shapes: Vec<Vec<[f64; 2]>>,
 }
@@ -971,12 +973,18 @@ impl TransitLayer {
                         ..Pattern::default()
                     });
                     self.pattern_route.push(ri);
-                    let by_dist = shape.is_some()
-                        && rows.iter().all(|r| r.shape_dist)
-                        && feed
-                            .shape_dists
-                            .get(trip.shape_id.as_str())
-                            .is_some_and(|m| m.values().all(|&d| d));
+                    let shape_dists = feed
+                        .shape_dists
+                        .get(trip.shape_id.as_str())
+                        .filter(|m| m.values().all(|d| !d.is_nan()));
+                    let cuts = match (shape, shape_dists) {
+                        (Some(_), Some(m)) if rows.iter().all(|r| !r.shape_dist.is_nan()) => {
+                            let dists: Vec<f64> = m.values().copied().collect();
+                            Some(cuts_by_distance(&dists, rows.iter().map(|r| r.shape_dist)))
+                        }
+                        _ => None,
+                    };
+                    let by_dist = cuts.is_some();
                     // Without distances R5 projects each stop on the shape
                     // (JTS LocationIndexedLine, x scaled by the cosine of
                     // the first point's latitude); a stop that is no
@@ -997,7 +1005,7 @@ impl TransitLayer {
                         }
                     }
                     self.pattern_shape.push(shape);
-                    self.pattern_shape_dist.push(by_dist);
+                    self.pattern_shape_cuts.push(cuts);
                     pattern_of.insert(key, self.patterns.len() - 1);
                     self.patterns.len() - 1
                 }
@@ -1146,6 +1154,36 @@ pub fn gtfs_files_in_dir(
         }
     }
     Ok(out)
+}
+
+/// Stop locations along a shape: `(segment, fraction as float)` per stop.
+pub(crate) type ShapeCuts = Box<[(u32, f32)]>;
+
+/// R5's stop locations along a shape from `shape_dist_traveled`
+/// (`TransitLayer.loadFromGtfs`): for each stop's distance, the first
+/// segment whose end is not before it (the last segment for a distance past
+/// the end), the fraction `(dist - begin) / (end - begin)` taken as JTS's
+/// `LinearLocation(segment, fraction)` normalizes it (clamped to [0, 1], a
+/// fraction of 1 the next vertex, NaN kept), then stored as a `float`. The
+/// distances are used as given: no unit, no check that they increase.
+/// `shape` has at least two points.
+pub(crate) fn cuts_by_distance(shape: &[f64], stops: impl Iterator<Item = f64>) -> ShapeCuts {
+    stops
+        .map(|dist| {
+            let mut segment = 0usize;
+            while segment + 2 < shape.len() && dist > shape[segment + 1] {
+                segment += 1;
+            }
+            let (begin, end) = (shape[segment], shape[segment + 1]);
+            // LinearLocation.normalize() (a NaN stays NaN)
+            let mut frac = ((dist - begin) / (end - begin)).clamp(0.0, 1.0);
+            if frac == 1.0 {
+                frac = 0.0;
+                segment += 1;
+            }
+            (segment as u32, frac as f32)
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -1639,6 +1677,34 @@ r5r refuses to build a network from this feed."
     }
 
     #[test]
+    fn stops_cut_the_shape_by_distance_as_r5_does() {
+        let cuts = |shape: &[f64], stops: &[f64]| -> Vec<(u32, f32)> {
+            cuts_by_distance(shape, stops.iter().copied()).into_vec()
+        };
+        let shape = [0.0, 100.0, 300.0, 600.0];
+        // inside segments, on vertices (a fraction of 1 is the next vertex),
+        // before the start and past the end (clamped)
+        assert_eq!(
+            cuts(&shape, &[50.0, 100.0, 200.0, 600.0, -10.0, 900.0]),
+            [(0, 0.5), (1, 0.0), (1, 0.5), (3, 0.0), (0, 0.0), (3, 0.0)]
+        );
+        // distances are not checked: a decrease is passed over by the scan
+        assert_eq!(
+            cuts(&[0.0, 200.0, 100.0, 300.0], &[150.0, 250.0]),
+            [(0, 0.75), (2, 0.75)]
+        );
+        // a repeated distance: 0/0 is NaN, kept (JTS's normalize leaves it)
+        let c = cuts(&[0.0, 0.0, 10.0], &[0.0, 5.0]);
+        assert!(c[0].0 == 0 && c[0].1.is_nan());
+        assert_eq!(c[1], (1, 0.5));
+        // below a repeated distance: -x/0 is -inf, clamped to 0
+        assert_eq!(cuts(&[5.0, 5.0, 10.0], &[1.0]), [(0, 0.0)]);
+        // a fraction that rounds to 1 as a float stays below the vertex here
+        // (hops.rs normalizes it again when it reads it back)
+        assert_eq!(cuts(&[0.0, 1.0, 2.0], &[1.0 - 1e-12]), [(0, 1.0)]);
+    }
+
+    #[test]
     fn interpolation_truncates_by_distance() {
         let st = |a: Option<i32>| StopTime {
             trip_id: "t".into(),
@@ -1648,7 +1714,7 @@ r5r refuses to build a network from this feed."
             stop_sequence: 0,
             pickup_type: 0,
             drop_off_type: 0,
-            shape_dist: false,
+            shape_dist: f64::NAN,
         };
         let rows = [st(Some(100)), st(None), st(Some(200))];
         let refs: Vec<&StopTime> = rows.iter().collect();
