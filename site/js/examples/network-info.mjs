@@ -17,7 +17,7 @@ const network = await peabiru.buildNetwork({
 // ANCHOR: info
 console.log(network.info());
 console.log(await network.transitAvailability("2019-05-13"));
-console.log("feeds r5r would refuse:", network.r5rWarnings().length);
+console.log("warnings of the build:", network.r5rWarnings().length);
 console.log("workers:", network.workers);
 // ANCHOR_END: info
 

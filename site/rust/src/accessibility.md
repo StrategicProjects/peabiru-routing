@@ -2,7 +2,7 @@
 
 `transit_accessibility` (walk + public transport) and
 `street_accessibility` (one street mode) compute what `accessibility()`
-returns in R and Python: for each origin, the sum over destinations of the opportunities at the
+returns in R, Python and JavaScript: for each origin, the sum over destinations of the opportunities at the
 destination times a decay weight of the travel time.
 
 <img src="../assets/diagrams/accessibility.svg" alt="Accessibility is the sum over destinations of opportunities times a decay weight of the travel time; five decay functions drawn for a 30 minute cutoff." width="980" height="420">
@@ -24,7 +24,7 @@ not rounded to minutes, and the exponential is a port of `FastMath.exp` from
 Apache Commons Math 3 rather than the platform's `exp`, so the values do not
 depend on the C library.
 
-The R and Python packages adjust the trip limits before routing: with
+The packages adjust the trip limits before routing: with
 `Step`, `max_trip_duration` becomes the largest cutoff, and an unlimited
 `max_walk_time` becomes `max_trip_duration`. `r5r_trip_limits` applies the
 same rules, so the crate gives the packages' numbers for their arguments

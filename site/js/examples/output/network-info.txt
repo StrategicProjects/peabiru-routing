@@ -9,5 +9,5 @@
   frequencies: true
 }
 { services: 6, active: 3 }
-feeds r5r would refuse: 0
+warnings of the build: 0
 workers: 0

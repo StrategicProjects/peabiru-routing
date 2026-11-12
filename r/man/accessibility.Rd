@@ -36,7 +36,7 @@ accessibility(
   verbose = FALSE,
   progress = TRUE,
   output_dir = NULL,
-  r5r_core
+  r5r_core = deprecated()
 )
 }
 \arguments{
@@ -52,24 +52,23 @@ and the opportunity columns.}
 numeric columns of \code{destinations} with the opportunity counts. Missing
 values count as 0, with a warning.}
 
-\item{mode}{A character vector, the transport modes: one of \code{"WALK"},
-\code{"BICYCLE"} or \code{"CAR"}, and for public transport \code{"TRANSIT"} (every
-transit mode) or any of \code{"TRAM"}, \code{"SUBWAY"}, \code{"RAIL"}, \code{"BUS"},
-\code{"FERRY"}, \code{"CABLE_CAR"}, \code{"GONDOLA"} and \code{"FUNICULAR"}; the street
-mode, \code{"WALK"} by default with transit, is the access mode.}
+\item{mode}{A character vector, the transport modes (see the section
+"Transport modes"). Defaults to \code{"WALK"}.}
 
 \item{mode_egress}{A string, the mode from the last stop to the
-destination: \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}.}
+destination: \code{"WALK"} (the default), \code{"BICYCLE"} or \code{"CAR"}. Ignored
+without public transport.}
 
-\item{departure_datetime}{A POSIXct, the departure date and time. Its
-clock time and date are taken in its own time zone. Required with
-transit.}
+\item{departure_datetime}{A POSIXct, the departure date and time (see
+the section "Date and time"). Required with public transport.}
 
-\item{time_window}{An integer, the window of departure minutes, starting
-at \code{departure_datetime}, over which travel times are computed.}
+\item{time_window}{An integer, the number of departure minutes, from
+\code{departure_datetime} on, over which travel times are computed.
+Defaults to 10.}
 
 \item{percentiles}{An integer vector of up to 5 values from 1 to 99, the
-travel time percentiles over the time window to report.}
+percentiles of the travel time over the departures of the window to
+report. Defaults to 50, the median.}
 
 \item{decay_function}{A string: \code{"step"}, \code{"exponential"},
 \code{"fixed_exponential"}, \code{"linear"} or \code{"logistic"}.}
@@ -84,82 +83,90 @@ deviation in minutes for \code{"logistic"} (at least 1); \code{NULL} for \code{"
 and \code{"exponential"}.}
 
 \item{max_walk_time, max_bike_time, max_car_time}{The maximum time in
-minutes for each street mode (\code{Inf}, the default, means the trip limit).}
+minutes on foot, by bicycle and by car. Each limit applies to each leg
+on its own (15 minutes to reach the first stop and another 15 from the
+last), and to the whole trip when that mode is the only one. \code{Inf}, the
+default, leaves only \code{max_trip_duration}.}
 
-\item{max_trip_duration}{An integer, the maximum trip duration in minutes.}
+\item{max_trip_duration}{An integer, the maximum trip duration in
+minutes. Defaults to 120.}
 
-\item{walk_speed, bike_speed}{Speeds in km/h.}
+\item{walk_speed, bike_speed}{Average speeds in km/h, 3.6 and 12 by
+default.}
 
-\item{max_rides}{An integer, the maximum number of public transport rides.}
+\item{max_rides}{An integer, the maximum number of public transport rides
+in a trip. Defaults to 3.}
 
 \item{max_lts}{An integer from 1 to 4, the highest level of traffic stress
-a cyclist will ride on.}
+a cyclist rides on (see the section "Level of traffic stress").
+Defaults to 2.}
 
 \item{fare_structure}{A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}) or
 \code{NULL} (the default): no fares. It must have a row for every route of
-the network, as in r5r; R5's own fare calculators (a structure with a
-\code{type}) are not supported.}
+the network.}
 
 \item{max_fare}{A number, the highest fare of a trip (\code{Inf}, the default:
 no limit), in the currency of the fare structure; a finite value needs
 a \code{fare_structure}.}
 
-\item{new_carspeeds}{A scenario of car speeds, as in r5r: \code{NULL}, a data
-frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type} (\code{"scale"}, a
-factor for the car speed of the way's edges, or \code{"km/h"}, a speed; 0
-closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s or
-\code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+\item{new_carspeeds}{A scenario of car speeds: \code{NULL} (the default), a
+data frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type}
+(\code{"scale"}, a factor for the car speed of the way's edges, or \code{"km/h"},
+a speed; 0 closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s
+or \code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
-overlaps most).}
+overlaps most). Polygons that are not valid are an error, and so are
+ties that cannot be settled exactly as R5 settles them.}
 
 \item{carspeed_scale}{A number of at least 0, the factor for the car
 speeds of the edges \code{new_carspeeds} leaves out (all of them when it is
-\code{NULL}).}
+\code{NULL}). Defaults to 1. R5 keeps car speeds as 16-bit centimetres per
+second: a factor or speed that would bring a speed to 0 or less, or
+past that range, is an error.}
 
-\item{new_lts}{A scenario of levels of traffic stress, as in r5r: \code{NULL},
-a data frame with columns \code{osm_id} and \code{lts} (integer), or an \code{sf} data
-frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts} (1 to 4)
-and \code{priority}: each street edge takes the level of the line closest to
-it among those whose bounding box meets its own. As in r5r, the
-scenario changes the street search from the origins (the trip without
-public transport, and access by bicycle or car) but not the egress
-from the stops, and \code{priority} is not used. A car speed that R5's
-16-bit cm/s would turn into 0 or less (a factor too small or too
-large) is an error, as are polygons that are not valid and ties
-between polygons that peabiru cannot settle exactly as R5 does.}
+\item{new_lts}{A scenario of levels of traffic stress: \code{NULL} (the
+default), a data frame with columns \code{osm_id} and \code{lts} (integer), or an
+\code{sf} data frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts}
+(1 to 4) and \code{priority}: each street edge takes the level of the line
+closest to it among those whose bounding box meets its own (\code{priority}
+is not used). A scenario (of car speeds or of levels of traffic stress)
+changes the street search from the origins (the trip without public
+transport, and access by bicycle or car) but not the egress from the
+stops, and turns off slope costs, with a warning, on a network built
+with an elevation raster.}
 
 \item{draws_per_minute}{An integer, the Monte Carlo draws per departure
-minute for frequency-based 'GTFS'.}
+minute (see the section "Departures and Monte Carlo draws"). Defaults
+to 5.}
 
-\item{seed}{An integer seed for the Monte Carlo draws, or \code{NULL}. With
-frequency-based 'GTFS', results are reproducible (and equal to r5r's)
-only with a seed.}
+\item{seed}{An integer seed for the Monte Carlo draws, or \code{NULL} (the
+default: the draws differ from call to call). With a seed, the same
+inputs give the same results whatever \code{n_threads}.}
 
 \item{n_threads}{The number of threads; \code{Inf} (the default) uses all cores.}
 
-\item{verbose, progress}{Logicals, checked as in r5r; peabiru prints no
-progress counter.}
+\item{verbose, progress}{Logicals, checked but without effect: no progress
+counter or routing log is printed.}
 
-\item{output_dir}{\code{NULL}, or the path of an existing directory: instead of
-returning the result, write it there as r5r does, one CSV file per
-origin, \verb{from_<origin id>.csv} (the id is not sanitized; an existing
-file of that name is replaced, other files are left alone), and return
-\code{output_dir}. The origins are routed a slice at a time and each slice is
-written before the next one is routed, so the whole result is never held
-in memory. The files are r5r's byte for byte: the columns of the result
-(with \code{cutoff} also under \code{"fixed_exponential"}, as the placeholder
-\code{0}), fields with \verb{,} or \verb{"} quoted, \code{NA} as an empty field, doubles
-as Java writes them (\code{2.0}, \code{1.0E-4}); an origin with no row has no
-file, except in \code{\link[=accessibility]{accessibility()}}. As in r5r, \code{"WALK"} is then routed
-from the origins even when there are fewer destinations, ids must not
-be missing, and the rule that blanks out trips over
-\code{max_trip_duration} in the returned result is not applied to the
-files.}
+\item{output_dir}{\code{NULL} (the default), or the path of an existing
+directory: instead of returning the result, write it there, one CSV
+file per origin, \verb{from_<origin id>.csv} (the id is not sanitized; an
+existing file of that name is replaced, other files are left alone),
+and return \code{output_dir}. The origins are routed a slice at a time and
+each slice is written before the next one is routed, so the whole
+result is never held in memory. The files have the columns of the
+result (with \code{cutoff} also under \code{"fixed_exponential"}, as the
+placeholder \code{0}), fields with \verb{,} or \verb{"} quoted, \code{NA} as an empty
+field, and doubles as Java writes them (\code{2.0}, \code{1.0E-4}), byte for byte
+the files r5r writes; an origin with no row has no file, except in
+\code{\link[=accessibility]{accessibility()}}. With \code{output_dir}, \code{"WALK"} is routed from the
+origins even when there are fewer destinations, ids must not be
+missing, and trips over \code{max_trip_duration} are not blanked out as in
+the returned result.}
 
-\item{r5r_core}{Deprecated: the network under the name r5r used before
-version 2.3.0. As in r5r, it is accepted with a warning and used as
-\code{r5r_network}.}
+\item{r5r_core}{Deprecated: the network under its name before r5r 2.3.0,
+accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 A \code{data.frame} with \code{id}, \code{opportunity}, \code{percentile}, \code{cutoff}
@@ -171,23 +178,47 @@ origin, opportunity, percentile and cutoff, in that order. With
 Cumulative or decay-weighted access to the opportunities at the
 destinations from each origin, by one street mode (\code{"WALK"}, \code{"BICYCLE"}
 or \code{"CAR"}) or by public transport (see \code{\link[=travel_time_matrix]{travel_time_matrix()}} for the
-modes). Arguments, defaults and the result are those of
-\code{r5r::accessibility()} (r5r 2.5.0); the values are bit-identical.
+modes). For each origin, the opportunities of every destination are
+summed, each weighted by the decay function of the travel time to it,
+for every percentile of the travel time over the departure window and
+every cutoff.
 }
-\details{
-As in r5r, with the \code{"step"} function trips longer than the largest
-cutoff are not considered (\code{max_trip_duration} becomes \code{max(cutoffs)}),
-while the other functions still weight them; and \code{max_trip_duration} may
-not be shorter than the largest cutoff.
+\section{Decay functions}{
 
-With a \code{fare_structure} (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}), public transport
-is routed as r5r routes it then: with R5's multi-criteria router
-(McRAPTOR) over \code{time_window * draws_per_minute} departure times sampled
-in the window, keeping at each stop the fastest trip whose fare is within
-\code{max_fare}. As in r5r, combinations of \code{time_window} and
-\code{draws_per_minute} that R5's sampler cannot meet (exactly 200 draws, or
-too many draws for the window) are an error.
+With \code{t} the travel time and \code{c} a cutoff:
+\itemize{
+\item \code{"step"}: weight 1 below the cutoff, 0 from it on (cumulative
+opportunities). Trips longer than the largest cutoff are not routed
+(\code{max_trip_duration} becomes \code{max(cutoffs)}).
+\item \code{"exponential"}: \code{2^(-t / c)}, half the weight at the cutoff; 0 from
+two hours on.
+\item \code{"fixed_exponential"}: \code{exp(-decay_value * t)} with \code{t} in seconds,
+without cutoffs; 0 from two hours on.
+\item \code{"linear"}: 1 up to \code{decay_value / 2} minutes before the cutoff, 0 from
+\code{decay_value / 2} minutes after it, falling linearly in between.
+\item \code{"logistic"}: a logistic curve with its median at the cutoff and
+standard deviation \code{decay_value} minutes, scaled to 1 at \code{t = 0}.
 }
+
+The weights are those of R5, computed with the exponential of Apache
+Commons Math (\code{FastMath.exp()}) that R5 calls, so the sums are R5's to the
+last bit. Except with \code{"step"}, \code{max_trip_duration} may not be shorter
+than the largest cutoff.
+
+With a \code{fare_structure}, public transport is routed with fares as in
+\code{\link[=travel_time_matrix]{travel_time_matrix()}} (see its section "Departures and Monte Carlo
+draws").
+}
+
+\section{Compatibility with r5r}{
+
+The arguments, their defaults and checks, the columns and the rows of the
+result are those of \code{r5r::accessibility()} in r5r 2.5.0, and the values
+are equal to the last bit (with frequencies, for the same \code{seed}); the
+result is a \code{data.frame} rather than a \code{data.table}. An empty
+\code{percentiles} is an error that says so (r5r fails on it in Java).
+}
+
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
@@ -207,3 +238,12 @@ access <- accessibility(
 )
 head(access)
 }
+\seealso{
+Other routing functions:
+\code{\link[=arrival_travel_time_matrix]{arrival_travel_time_matrix()}},
+\code{\link[=detailed_itineraries]{detailed_itineraries()}},
+\code{\link[=expanded_travel_time_matrix]{expanded_travel_time_matrix()}},
+\code{\link[=isochrone]{isochrone()}},
+\code{\link[=travel_time_matrix]{travel_time_matrix()}}
+}
+\concept{routing functions}

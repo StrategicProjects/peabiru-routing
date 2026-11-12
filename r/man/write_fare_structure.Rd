@@ -15,21 +15,29 @@ write_fare_structure(fare_structure, file_path)
 The path passed to \code{file_path}, invisibly.
 }
 \description{
-Writes a fare structure as r5r's \code{write_fare_structure()} does: five
-\code{.csv} files (\code{data.table::fwrite()}'s format) in a \code{.zip} file. The CSV
-files are those r5r writes, deflated in the same order; the archive's
-bytes differ from r5r's (whose archive also holds the files'
-modification times). Each file reads back with r5r's
-\code{read_fare_structure()}, and the reverse.
+Writes a fare structure to a \code{.zip} file holding five \code{.csv} files
+(\code{global_settings.csv}, \code{fares_per_type.csv}, \code{fares_per_transfer.csv},
+\code{fares_per_route.csv} and \code{debug_settings.csv}, in the format of
+\code{data.table::fwrite()}), which \code{\link[=read_fare_structure]{read_fare_structure()}} reads back.
 }
+\section{Compatibility with r5r}{
+
+The arguments are those of \code{r5r::write_fare_structure()} in r5r 2.5.0,
+and the CSV files are those r5r writes, byte for byte, deflated in the
+same order; the archive's bytes differ from r5r's (whose archive also
+holds the files' modification times). A file written
+by either package reads back in the other. A \code{fare_structure} that is not
+a fare structure, or whose settings have the wrong length, and a \code{NULL}
+\code{file_path} are errors that say so (r5r checks nothing there and fails
+while writing, or writes tables recycled to the wrong length).
+}
+
 \examples{
-\dontshow{if (identical(tolower(Sys.getenv("NOT_CRAN")), "true")) withAutoprint(\{ # examplesIf}
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
 fare_structure <- setup_fare_structure(network, base_fare = 4.4)
 tmpfile <- tempfile("sample_fare_structure", fileext = ".zip")
 write_fare_structure(fare_structure, tmpfile)
-\dontshow{\}) # examplesIf}
 }
 \seealso{
 Other fare structure:

@@ -1,0 +1,7 @@
+[ 'file', 'line', 'type', 'field', 'id', 'priority' ]
+agency 3 DuplicateKeyError agency_id 1 MEDIUM
+calendar 8 DuplicateKeyError service_id USD MEDIUM
+calendar 9 DuplicateKeyError service_id U__ MEDIUM
+0 errors of priority HIGH
+Error: High priority GTFS errors found; network build failed (bus.zip: 1 error). Use getGtfsErrors() on the same feeds to see them.
+[ 'agency: NoAgencyInFeedError' ]

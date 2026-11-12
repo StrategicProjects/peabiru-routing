@@ -13,10 +13,11 @@ setup_r5(
 )
 }
 \arguments{
-\item{data_path}{A string, the directory with the \code{.pbf} file and the
-'GTFS' feeds.}
+\item{data_path}{A string, the directory with the \code{.pbf} file, the
+'GTFS' feeds and the elevation raster.}
 
-\item{verbose}{A logical. Whether to show informative messages.}
+\item{verbose}{A logical. Whether to report the build of the network in
+messages. Defaults to \code{FALSE}.}
 
 \item{temp_dir}{A logical. Accepted for compatibility with r5r, which uses
 it to choose where to keep the R5 jar; it has no effect.}
@@ -45,7 +46,6 @@ network <- suppressWarnings(setup_r5(data_path))
 \seealso{
 Other support functions:
 \code{\link[=download_r5]{download_r5()}},
-\code{\link[=get_gtfs_errors]{get_gtfs_errors()}},
 \code{\link[=r5r_cache]{r5r_cache()}},
 \code{\link[=r5r_sitrep]{r5r_sitrep()}},
 \code{\link[=stop_r5]{stop_r5()}}

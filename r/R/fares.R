@@ -20,10 +20,10 @@ fare_object <- function(x) {
 #'
 #' Creates a basic fare structure that describes how transit fares should be
 #' calculated in [travel_time_matrix()], [accessibility()],
-#' [detailed_itineraries()] and [pareto_frontier()], as r5r's
-#' `setup_fare_structure()`: every route, fare type and transfer costs
-#' `base_fare`, read as a Java `float` as in r5r. The structure can then be
-#' edited to follow the fare rules of the study area.
+#' [detailed_itineraries()] and [pareto_frontier()]: every route, fare type
+#' and transfer costs `base_fare` (read as a 32-bit float, the type R5 keeps
+#' fares in). The structure can then be edited to follow the fare rules of
+#' the study area.
 #'
 #' The structure is a list:
 #' * `max_discounted_transfers`: most transfers with a discount (default 1).
@@ -37,7 +37,7 @@ fare_object <- function(x) {
 #' * `fares_per_route`: the fare type of each GTFS route (`agency_id`,
 #'   `agency_name`, `route_id`, `route_short_name`, `route_long_name`, `mode`,
 #'   `route_fare`, `fare_type`), matched by `agency_id` and `route_id`.
-#' * `debug_settings`: r5r's debug settings (`output_file`, `trip_info`).
+#' * `debug_settings`: the debug settings (`output_file`, `trip_info`).
 #'
 #' How the fare of a trip follows from it: the first ride costs its route's
 #' fare (the type's `fare`, or the route's `route_fare` when the type has
@@ -48,7 +48,16 @@ fare_object <- function(x) {
 #' `fares_per_transfer` for the two types (and not on the same route, unless
 #' the type has `allow_same_route_transfer`) brings the two rides to that
 #' row's `fare`; any other ride costs its full fare. The total is capped at
-#' `fare_cap`.
+#' `fare_cap`. These are the rules of R5's `RuleBasedInRoutingFareCalculator`,
+#' written for r5r and ported to the 'Rust' core.
+#'
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks and the structure are those of
+#' `r5r::setup_fare_structure()` in r5r 2.5.0; its tables are `data.frame`s
+#' rather than `data.table`s. Structures move between the two packages
+#' through [write_fare_structure()] and [read_fare_structure()]. R5's own
+#' fare calculators (a structure with a `type`, which r5r passes to R5) are
+#' not available: the routing functions stop with an error on one.
 #'
 #' @param r5r_network A network built with [build_network()].
 #' @param base_fare A number, at least 0: the fare of every route, type and
@@ -56,15 +65,16 @@ fare_object <- function(x) {
 #' @param by A string: one fare type per mode (`"MODE"`, the default), per
 #'   agency (`"AGENCY_ID"`, or `"AGENCY_NAME"`), or one type for all routes
 #'   (`"GENERIC"`).
-#' @param debug_path,debug_info As in r5r: a `.csv` path and one of `"MODE"`,
-#'   `"ROUTE"` and `"MODE_ROUTE"`, stored in the structure's
-#'   `debug_settings`. r5r 2.5.0 writes no debug file whatever they say, and
-#'   neither does peabiru.
-#' @param r5r_core Deprecated, as in r5r: the network.
+#' @param debug_path,debug_info A `.csv` path (or `NULL`) and one of
+#'   `"MODE"`, `"ROUTE"` and `"MODE_ROUTE"` (or `NULL`), stored in the
+#'   structure's `debug_settings`. No debug file is written whatever they
+#'   say (nor does r5r 2.5.0 write one).
+#' @param r5r_core Deprecated: the network under its name before r5r 2.3.0,
+#'   accepted with a warning.
 #'
 #' @return A fare structure (a list, see Details).
 #' @family fare structure
-#' @examplesIf identical(tolower(Sys.getenv("NOT_CRAN")), "true")
+#' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
 #' network <- build_network(data_path, n_threads = 2)
 #' fare_structure <- setup_fare_structure(network, base_fare = 4.4)
@@ -75,8 +85,8 @@ setup_fare_structure <- function(r5r_network,
                                  by = "MODE",
                                  debug_path = NULL,
                                  debug_info = NULL,
-                                 r5r_core) {
-  if (!missing(r5r_core)) {
+                                 r5r_core = deprecated()) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
@@ -122,18 +132,26 @@ setup_fare_structure <- function(r5r_network,
 
 #' Write a fare structure object to disk
 #'
-#' Writes a fare structure as r5r's `write_fare_structure()` does: five
-#' `.csv` files (`data.table::fwrite()`'s format) in a `.zip` file. The CSV
-#' files are those r5r writes, deflated in the same order; the archive's
-#' bytes differ from r5r's (whose archive also holds the files'
-#' modification times). Each file reads back with r5r's
-#' `read_fare_structure()`, and the reverse.
+#' Writes a fare structure to a `.zip` file holding five `.csv` files
+#' (`global_settings.csv`, `fares_per_type.csv`, `fares_per_transfer.csv`,
+#' `fares_per_route.csv` and `debug_settings.csv`, in the format of
+#' `data.table::fwrite()`), which [read_fare_structure()] reads back.
+#'
+#' @section Compatibility with r5r:
+#' The arguments are those of `r5r::write_fare_structure()` in r5r 2.5.0,
+#' and the CSV files are those r5r writes, byte for byte, deflated in the
+#' same order; the archive's bytes differ from r5r's (whose archive also
+#' holds the files' modification times). A file written
+#' by either package reads back in the other. A `fare_structure` that is not
+#' a fare structure, or whose settings have the wrong length, and a `NULL`
+#' `file_path` are errors that say so (r5r checks nothing there and fails
+#' while writing, or writes tables recycled to the wrong length).
 #'
 #' @param fare_structure A fare structure (see [setup_fare_structure()]).
 #' @param file_path A path to a `.zip` file.
 #' @return The path passed to `file_path`, invisibly.
 #' @family fare structure
-#' @examplesIf identical(tolower(Sys.getenv("NOT_CRAN")), "true")
+#' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
 #' network <- build_network(data_path, n_threads = 2)
 #' fare_structure <- setup_fare_structure(network, base_fare = 4.4)
@@ -163,16 +181,23 @@ write_fare_structure <- function(fare_structure, file_path) {
 
 #' Read a fare structure object from a file
 #'
-#' Reads a fare structure written by [write_fare_structure()] or by r5r's,
-#' as r5r's `read_fare_structure()` does (`data.table::fread()` with the
-#' columns and types r5r selects).
+#' Reads a fare structure from a `.zip` file written by
+#' [write_fare_structure()] (or by r5r's): the five `.csv` files are read
+#' with the columns and types of the structure (see
+#' [setup_fare_structure()]), the way `data.table::fread()` reads them.
+#'
+#' @section Compatibility with r5r:
+#' The arguments and the result are those of `r5r::read_fare_structure()`
+#' in r5r 2.5.0, with `data.frame`s rather than `data.table`s. A
+#' `file_path` that names several files is an error (r5r's check lets it
+#' through and then fails unzipping them).
 #'
 #' @param file_path A path to a fare structure `.zip` file.
 #' @param encoding A string, `"UTF-8"` (the default), `"unknown"` or
 #'   `"Latin-1"`: how the text of the files is read.
 #' @return A fare structure (see [setup_fare_structure()]).
 #' @family fare structure
-#' @examplesIf identical(tolower(Sys.getenv("NOT_CRAN")), "true")
+#' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
 #' network <- build_network(data_path, n_threads = 2)
 #' tmpfile <- tempfile("sample_fare_structure", fileext = ".zip")
@@ -360,17 +385,22 @@ check_fares <- function(fare_structure, max_fare, r5r_network) {
 #' Calculate travel time and monetary cost Pareto frontier
 #'
 #' Fits the Pareto frontier of travel time and fare between each origin and
-#' each destination, as r5r's `pareto_frontier()`: for every value of
-#' `fare_cutoffs`, in the order given, the travel times of R5's fare router
-#' (McRAPTOR, over `time_window` sampled departure times) when no trip may
-#' cost more than the cutoff; a destination and percentile gets a row at each
-#' cutoff where its travel time changes and is below `max_trip_duration`.
+#' each destination: for every value of `fare_cutoffs`, in the order given,
+#' the travel times of R5's fare router (McRAPTOR, over `time_window`
+#' sampled departure times) when no trip may cost more than the cutoff; a
+#' destination and percentile gets a row at each cutoff where its travel
+#' time changes and is below `max_trip_duration`. `monetary_cost` is the
+#' cutoff as the router reads it, a 32-bit float (`4.8` is
+#' `4.800000190734863`). Routes given by frequencies are routed with Monte
+#' Carlo draws: pass `seed` for reproducible results.
 #'
-#' The arguments are those of r5r 2.5.0's `pareto_frontier()`, with the same
-#' defaults and checks. `monetary_cost` is the cutoff as R5 reads it, a Java
-#' `float` (`4.8` is `4.800000190734863`), as r5r reports it. As in r5r,
-#' frequency-based routes are routed with Monte Carlo draws: pass `seed`
-#' for reproducible results.
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks, the columns and the rows of the
+#' result are those of `r5r::pareto_frontier()` in r5r 2.5.0, with the same
+#' values (with frequencies, for the same `seed`); the result is a
+#' `data.frame` rather than a `data.table`. `output_dir`, with which r5r
+#' writes the result to CSV files, is not available: anything but `NULL`
+#' is an error.
 #'
 #' @inheritParams travel_time_matrix
 #' @param fare_structure A fare structure (see [setup_fare_structure()]);
@@ -379,12 +409,13 @@ check_fares <- function(fare_structure, max_fare, r5r_network) {
 #'   least 0, unique.
 #' @param seed An integer or `NULL`: the seed of the Monte Carlo draws of
 #'   frequency-based routes.
-#' @param output_dir Not supported (an error unless `NULL`).
+#' @param output_dir Must be `NULL` (the default): writing the frontier to
+#'   files is not available.
 #'
-#' @return A data.frame with `from_id`, `to_id`, `percentile`,
+#' @return A `data.frame` with `from_id`, `to_id` (character), `percentile`,
 #'   `travel_time` and `monetary_cost`.
 #' @family fare structure
-#' @examplesIf identical(tolower(Sys.getenv("NOT_CRAN")), "true")
+#' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
 #' network <- build_network(data_path, n_threads = 2)
 #' points <- read.csv(file.path(data_path, "spo_points.csv"))
@@ -422,9 +453,9 @@ pareto_frontier <- function(r5r_network,
                             verbose = FALSE,
                             progress = TRUE,
                             output_dir = NULL,
-                            r5r_core) {
+                            r5r_core = deprecated()) {
   # mirrors r5r R/pareto_frontier.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }

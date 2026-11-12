@@ -403,7 +403,7 @@ touch each other. `isochrone()` returns the polygons as traced, and
 The R package returns its polygons made valid as r5r does, with
 `sf::st_make_valid()` on longitude and latitude (s2), which merges many of
 the holes into the polygon: 285.9 km² in the
-[R example](../../r/articles/recife-caruaru.html). The other polygons agree
+<a href="../../r/articles/recife-caruaru.html">R example</a>. The other polygons agree
 to 0.1 km².
 
 

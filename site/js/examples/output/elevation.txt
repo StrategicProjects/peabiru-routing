@@ -1,0 +1,8 @@
+NONE TOBLER MINETTI
+WALK    flat: 40 40 38 37 | TOBLER: 42 41 39 38 | MINETTI: 42 41 40 39
+BICYCLE flat: 17 20 18 21 | TOBLER: 18 21 19 22 | MINETTI: 18 21 19 22
+BICYCLE on the UTM raster: 18 21 18 22
+[
+  "of the 15585 elevation samples on the network, 6151 with a value beyond +/-3276.7 m, which r5r stores wrapped around as 16-bit decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m becomes -3053.6 m); the slope costs are r5r's, but probably not what you want there: fill the voids or crop the raster"
+]
+kept with the network: 1

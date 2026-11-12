@@ -2,7 +2,7 @@
 
 `expanded_travel_time_matrix` and
 `arrival_travel_time_matrix` keep the trips themselves instead of
-percentiles, like the functions of the same names in R and Python.
+percentiles, like the functions of the same names in R, Python and JavaScript.
 
 <img src="../assets/diagrams/expanded-arrival.svg" alt="Expanded matrix: one row per departure minute and draw, with the breakdown. Arrival matrix: the latest departure that arrives in time." width="980" height="520">
 

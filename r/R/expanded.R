@@ -1,17 +1,29 @@
 #' Calculate minute-by-minute travel times between origin destination pairs
 #'
 #' The travel time of every trip between each origin and destination, for
-#' every departure minute in the time window (and every Monte Carlo draw
-#' with frequency-based 'GTFS'), by public transport (see
-#' [travel_time_matrix()] for the modes). Arguments, defaults and the result are
-#' those of `r5r::expanded_travel_time_matrix()` (r5r 2.5.0), with the same
-#' values.
+#' every departure minute in the time window (and every Monte Carlo draw on
+#' routes given by frequencies), by public transport, reached and left by
+#' any street mode (see [travel_time_matrix()] for the modes). Each row is
+#' one trip: when it departs, which routes it rides and, with `breakdown`,
+#' how its time splits into access, waiting, riding, transfers and egress.
+#' A departure whose fastest trip uses no public transport has the street
+#' mode as `routes` (`"[WALK]"`, `"[BICYCLE]"` or `"[CAR]"`).
 #'
-#' Only public transport is supported: with a street mode alone r5r reports
-#' the same trip for every minute of a departure time taken from the clock
-#' (`Sys.time()`), which peabiru does not reproduce; that is an error. A
-#' trip without public transport has the street mode as
-#' `routes` (`"[WALK]"`, `"[BICYCLE]"` or `"[CAR]"`), as in r5r.
+#' A street mode alone is an error: use [travel_time_matrix()], whose
+#' travel times do not depend on the departure minute. At most 5,000
+#' destinations are accepted (R5's limit).
+#'
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks, the columns, the rows and their
+#' order are those of `r5r::expanded_travel_time_matrix()` in r5r 2.5.0,
+#' with the same values (with frequencies, for the same `seed`); the result
+#' is a `data.frame` rather than a `data.table`. With a street mode alone
+#' r5r reports the same trip for every minute of a departure time taken
+#' from the computer's clock (`Sys.time()`) rather than from
+#' `departure_datetime`; peabiru stops with an error instead. With more
+#' than one 'GTFS' feed, a few trips can differ between operating systems
+#' (the feeds are loaded in the order the file system lists them), as
+#' r5r's do.
 #'
 #' @inheritParams travel_time_matrix
 #' @param breakdown A logical. Whether to break each trip down into access,
@@ -24,6 +36,7 @@
 #'   `n_rides`, and `total_time`. Times are in minutes, with one decimal.
 #'   Trips longer than `max_trip_duration` have `NA` times and routes. With
 #'   `output_dir`, `output_dir`.
+#' @family routing functions
 #' @export
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -66,9 +79,9 @@ expanded_travel_time_matrix <- function(r5r_network,
                                         verbose = FALSE,
                                         progress = TRUE,
                                         output_dir = NULL,
-                                        r5r_core) {
+                                        r5r_core = deprecated()) {
   # mirrors r5r R/expanded_travel_time_matrix.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
@@ -124,24 +137,34 @@ expanded_travel_time_matrix <- function(r5r_network,
 #' Calculate travel time matrix between origin destination pairs considering a
 #' time of arrival
 #'
-#' For each origin and destination, the trip that leaves latest and still
-#' arrives by `arrival_datetime`, by public transport (see
-#' [travel_time_matrix()] for the modes). Arguments, defaults and the result are
-#' those of `r5r::arrival_travel_time_matrix()` (r5r 2.5.0), with the same
-#' values: as r5r does, departures are searched minute by minute from
-#' `arrival_datetime - max_trip_duration`, which may fall on the day before.
+#' For each origin and destination, the trip by public transport that
+#' leaves latest and still arrives by `arrival_datetime` (see
+#' [travel_time_matrix()] for the modes). Departures are searched minute by
+#' minute from `arrival_datetime - max_trip_duration`, which may fall on
+#' the day before, and each pair keeps the latest departure that arrives in
+#' time, with its routes and, with `breakdown`, its components.
 #'
-#' Only public transport is supported (see
-#' [expanded_travel_time_matrix()]); the other unsupported options are
-#' errors too.
+#' As in [expanded_travel_time_matrix()], a street mode alone is an error
+#' and at most 5,000 destinations are accepted.
+#'
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks, the columns, the rows and their
+#' order are those of `r5r::arrival_travel_time_matrix()` in r5r 2.5.0,
+#' with the same values (with frequencies, for the same `seed`); the result
+#' is a `data.frame` rather than a `data.table`. An `arrival_datetime` that
+#' is not a date-time is an error that says so (r5r fails on it with an
+#' internal R error); a street mode alone is an error, as in
+#' [expanded_travel_time_matrix()].
 #'
 #' @inheritParams expanded_travel_time_matrix
-#' @param arrival_datetime A POSIXct (or a POSIXlt, converted as r5r does),
-#'   the time by which trips must arrive, taken in its own time zone.
+#' @param arrival_datetime A POSIXct (or a POSIXlt, which is converted), the
+#'   time by which trips must arrive (see the section "Date and time" of
+#'   [travel_time_matrix()]).
 #'
 #' @return A `data.frame` with the columns of
 #'   [expanded_travel_time_matrix()]: one row per origin and destination
 #'   reached in time. With `output_dir`, `output_dir`.
+#' @family routing functions
 #' @export
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -182,9 +205,9 @@ arrival_travel_time_matrix <- function(r5r_network,
                                        verbose = FALSE,
                                        progress = TRUE,
                                        output_dir = NULL,
-                                       r5r_core) {
+                                       r5r_core = deprecated()) {
   # mirrors r5r R/arrival_travel_time_matrix.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }

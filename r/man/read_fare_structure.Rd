@@ -16,19 +16,26 @@ read_fare_structure(file_path, encoding = "UTF-8")
 A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}).
 }
 \description{
-Reads a fare structure written by \code{\link[=write_fare_structure]{write_fare_structure()}} or by r5r's,
-as r5r's \code{read_fare_structure()} does (\code{data.table::fread()} with the
-columns and types r5r selects).
+Reads a fare structure from a \code{.zip} file written by
+\code{\link[=write_fare_structure]{write_fare_structure()}} (or by r5r's): the five \code{.csv} files are read
+with the columns and types of the structure (see
+\code{\link[=setup_fare_structure]{setup_fare_structure()}}), the way \code{data.table::fread()} reads them.
 }
+\section{Compatibility with r5r}{
+
+The arguments and the result are those of \code{r5r::read_fare_structure()}
+in r5r 2.5.0, with \code{data.frame}s rather than \code{data.table}s. A
+\code{file_path} that names several files is an error (r5r's check lets it
+through and then fails unzipping them).
+}
+
 \examples{
-\dontshow{if (identical(tolower(Sys.getenv("NOT_CRAN")), "true")) withAutoprint(\{ # examplesIf}
 data_path <- system.file("extdata/spo", package = "peabiru")
 network <- build_network(data_path, n_threads = 2)
 tmpfile <- tempfile("sample_fare_structure", fileext = ".zip")
 write_fare_structure(setup_fare_structure(network, base_fare = 4.4), tmpfile)
 fare_structure <- read_fare_structure(tmpfile)
 fare_structure$transfer_time_allowance
-\dontshow{\}) # examplesIf}
 }
 \seealso{
 Other fare structure:

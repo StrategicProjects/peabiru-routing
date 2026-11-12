@@ -86,9 +86,10 @@ reference:
   - read_fare_structure
   - write_fare_structure
   - pareto_frontier
-- title: Isochrones
+- title: Isochrones and itineraries
   desc: >
-    The areas or street segments reached from each origin within each cutoff.
+    The areas or street segments reached from each origin within each
+    cutoff, and the legs of each trip.
   contents:
   - isochrone
   - detailed_itineraries
@@ -126,7 +127,11 @@ articles:
   - articles/travel-time-matrices
   - articles/accessibility
   - articles/expanded-and-arrival
+  - articles/itineraries
   - articles/fares
+  - articles/elevation
+  - articles/scenarios
+  - articles/network-inspection
   - articles/coming-from-r5r
 - title: Examples
   navbar: Examples

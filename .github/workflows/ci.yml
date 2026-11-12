@@ -44,6 +44,9 @@ jobs:
         # root licence files; regenerate with the script when this fails
         if: runner.os == 'Linux'
         run: python3 tools/third_party_notices.py --check
+      - name: The R, Python and JavaScript pages list the same differences from r5r
+        if: runner.os == 'Linux'
+        run: python3 tools/check_differences.py
       - name: Lint
         run: cargo clippy --all-targets --locked -- -D warnings
       - name: Test

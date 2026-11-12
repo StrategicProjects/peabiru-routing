@@ -25,7 +25,6 @@ r5r_sitrep()
 \seealso{
 Other support functions:
 \code{\link[=download_r5]{download_r5()}},
-\code{\link[=get_gtfs_errors]{get_gtfs_errors()}},
 \code{\link[=r5r_cache]{r5r_cache()}},
 \code{\link[=setup_r5]{setup_r5()}},
 \code{\link[=stop_r5]{stop_r5()}}

@@ -3,44 +3,48 @@
 #' The areas (`polygon_output = TRUE`) or the street segments
 #' (`polygon_output = FALSE`) reached from each origin within each cutoff,
 #' by one street mode (`"WALK"`, `"BICYCLE"` or `"CAR"`) or by public
-#' transport (see [travel_time_matrix()] for the modes).
-#' Arguments, defaults and the result are those of `r5r::isochrone()`
-#' (r5r 2.5.0).
+#' transport (see [travel_time_matrix()] for the modes). Package 'sf' is
+#' required.
 #'
-#' Polygon isochrones are made as r5r makes them: travel times from each
-#' origin to the centres of a regular grid of Web Mercator pixels covering
-#' the network (see `zoom`), the bands from 0 to each cutoff traced over that
-#' grid by marching squares (as `isoband::isobands()`), grouped into
-#' polygons with holes (as `isoband::iso_to_sfg()`) and finally passed to
-#' `sf::st_make_valid()`. The travel times and the polygons before
-#' `sf::st_make_valid()` are r5r's exactly; that last step is the same call
-#' to 'sf', so the result is r5r's too, coordinate for coordinate, when the
-#' input to it is. The order of the rings and the vertex each one starts at
-#' depend on the C++ library 'isoband' was built with (libc++ on macOS,
-#' libstdc++ on Linux and Windows): peabiru follows the platform it runs on,
-#' so its polygons are those of r5r on the same platform. Between platforms
-#' they differ in that order and, by the system's \code{sinh()} and
-#' \code{atan()}, in the last bits of some latitudes.
+#' Polygon isochrones are traced from the travel times from each origin to
+#' the centres of a regular grid of Web Mercator pixels covering the network
+#' (see `zoom`): the bands from 0 to each cutoff are traced over that grid
+#' by marching squares (the algorithm of `isoband::isobands()`), grouped
+#' into polygons with holes (as `isoband::iso_to_sfg()` groups them) and
+#' passed to `sf::st_make_valid()`. The order of the rings and the vertex
+#' each one starts at follow the C++ library 'isoband' is built with on
+#' each platform (libc++ on macOS, libstdc++ on Linux and Windows); between
+#' platforms the polygons differ in that order and, by the system's
+#' \code{sinh()} and \code{atan()}, in the last bits of some latitudes.
 #'
 #' Line isochrones are the travel times from each origin to the centroid of
-#' every street segment (`sf::st_centroid()` of r5r's
-#' `street_network_to_sf()` edges), each segment in the band of the smallest
-#' cutoff at or above its travel time. The centroids agree with r5r's to
-#' within a few units in the last place (about 1e-14 degrees), which has not
-#' changed a travel time in any comparison made.
+#' every street segment (`sf::st_centroid()` of the edges of
+#' [street_network_to_sf()]), each segment in the band of the smallest
+#' cutoff at or above its travel time.
 #'
-#' As in r5r, `max_trip_duration` is ignored: the trip limit is the largest
-#' cutoff (plus 10 minutes for polygons, so that the outer band is
-#' interpolated like the inner ones).
+#' `max_trip_duration` is not used: the trip limit is the largest cutoff
+#' (plus 10 minutes for polygons, so that the outer band is interpolated
+#' like the inner ones).
 #'
-#' Package 'sf' is required.
+#' @section Compatibility with r5r:
+#' The arguments, their defaults and checks and the result are those of
+#' `r5r::isochrone()` in r5r 2.5.0. The travel times are r5r's, and so are
+#' the polygons before `sf::st_make_valid()`, ring for ring and vertex for
+#' vertex on the same platform, so the `sf` returned is r5r's, coordinate
+#' for coordinate (compared with `identical()`). The centroids of the line
+#' isochrones agree with r5r's to within a few units in the last place
+#' (about 1e-14 degrees), which has not changed a travel time in any
+#' comparison made. The deprecated `sample_size` is accepted with r5r's
+#' warning and ignored. An empty `percentiles`, a `polygon_output` of `NA`,
+#' `origins` without rows and a fractional `zoom` are errors that say so
+#' (r5r lets them through and then fails, or passes the fraction to R5).
 #'
 #' @inheritParams travel_time_matrix
 #' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
 #'   `POINT sf` with an `id` column, in WGS 84.
 #' @param mode A character vector, the transport modes (default
 #'   `"transit"`): one of `"WALK"`, `"BICYCLE"` or `"CAR"`, and for public
-#'   transport `"TRANSIT"` or some of its modes (as in
+#'   transport `"TRANSIT"` or some of its modes (see
 #'   [travel_time_matrix()]).
 #' @param cutoffs A numeric vector, the travel times in minutes that delimit
 #'   the isochrones. Values are sorted and duplicates removed; 0 is added and
@@ -51,13 +55,13 @@
 #'   the Equator).
 #' @param polygon_output A logical. `TRUE` (the default) for polygon
 #'   isochrones, `FALSE` for the street segments reached.
-#' @param max_trip_duration Ignored, as in r5r: the trip limit comes from
+#' @param max_trip_duration Not used: the trip limit comes from
 #'   `max(cutoffs)`.
 #' @param percentiles An integer vector of up to 5 values from 1 to 99, the
 #'   travel time percentiles to make polygons for (one set per percentile).
 #'   `NULL` (the default) means 50. Must be `NULL` with
 #'   `polygon_output = FALSE`.
-#' @param sample_size Deprecated and ignored, as in r5r (a warning when
+#' @param sample_size Deprecated and ignored (a warning when
 #'   given).
 #'
 #' @return A `"sf" "data.frame"` in WGS 84. With `polygon_output = TRUE`,
@@ -68,10 +72,11 @@
 #'   `polygon_output = FALSE`, one `LINESTRING` per street segment reached,
 #'   with columns `id`, `edge_index`, `osm_id`, `isochrone` (the smallest
 #'   cutoff at or above the segment's travel time), `travel_time_p50`, the
-#'   segment's attributes as in r5r's `street_network_to_sf()`
+#'   segment's attributes from [street_network_to_sf()]
 #'   (`from_vertex`, `to_vertex`, `street_class`, `length`, `walk`, `car`,
 #'   `car_speed`, `bicycle`, `bicycle_lts`) and `geometry`; rows by origin,
 #'   then by band and travel time, both descending.
+#' @family routing functions
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -114,14 +119,14 @@ isochrone <- function(r5r_network,
                       n_threads = Inf,
                       verbose = FALSE,
                       progress = TRUE,
-                      sample_size,
-                      r5r_core) {
+                      sample_size = deprecated(),
+                      r5r_core = deprecated()) {
   # mirrors r5r R/isochrone.R
-  if (!missing(r5r_core)) {
+  if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
   }
-  if (!missing(sample_size)) {
+  if (is_present(sample_size)) {
     warning("The `sample_size` argument is no longer used and has no effect.",
             call. = FALSE)
   }
@@ -184,6 +189,9 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
                                max_rides, max_lts, draws_per_minute, seed,
                                percentiles, n_threads, verbose, progress) {
   origins <- assign_points_input(origins, "origins")
+  # r5r fails on origins without rows (undefined columns, an internal R
+  # error); without this, sf would fail on an empty result
+  if (nrow(origins) == 0L) stop("'origins' has no rows.", call. = FALSE)
   ids <- origins$id
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)
