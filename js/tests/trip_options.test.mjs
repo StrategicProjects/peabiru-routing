@@ -1,4 +1,4 @@
-// tripOptions(): peabiru's own multi-criteria planner (no r5r reference).
+// tripOptions(): the multi-criteria planner.
 // The core checks the search against an exhaustive enumeration; these check
 // the JavaScript side: the rows, the merge over the window, the legs, the
 // same result through the pool of workers, and the checks.

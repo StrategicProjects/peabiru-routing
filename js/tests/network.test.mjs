@@ -17,8 +17,6 @@ test("the sample network has its streets and its feed", async () => {
   assert.ok(info.stops > 0 && info.patterns > 0 && info.services > 0);
   assert.equal(info.frequencies, true);
   assert.deepEqual(net.buildWarnings(), []);
-  // the name of 0.0.1, kept as an alias
-  assert.deepEqual(net.r5rWarnings(), net.buildWarnings());
   const monday = await net.transitAvailability("2019-05-13");
   assert.equal(monday.services, info.services);
   assert.ok(monday.active > 0 && monday.active <= monday.services);

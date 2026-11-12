@@ -1,6 +1,6 @@
 //! Fare structures and `paretoFrontier()`. A structure crosses the
 //! boundary as a flat object of arrays (see `js/lib/index.js`), which the
-//! JavaScript side turns into r5r's object.
+//! JavaScript side turns into the package's object.
 
 use super::{err, f64_array, i32_array, points, route_err, transit, transit_params, Network};
 use js_sys::{Array, Object, Reflect, Uint8Array};
@@ -270,21 +270,21 @@ pub(crate) fn fare_arg(fare: &JsValue) -> Result<Option<Arc<FareStructure>>, JsE
     Ok(Some(Arc::new(from_js(fare)?)))
 }
 
-/// r5r's `setup_fare_structure()`, as the flat object.
+/// `setupFareStructure()`, as the flat object.
 #[wasm_bindgen]
 pub fn fare_setup(network: &Network, base_fare: f64, by: &str) -> Result<JsValue, JsError> {
     let s = setup_fare_structure(&network.net, base_fare, by).map_err(route_err)?;
     Ok(to_js(&s))
 }
 
-/// r5r's `read_fare_structure()` of the bytes of a `.zip` file.
+/// `readFareStructure()` of the bytes of a `.zip` file.
 #[wasm_bindgen]
 pub fn fare_read(bytes: &[u8], encoding: &str) -> Result<JsValue, JsError> {
     let s = read_fare_structure(bytes, encoding).map_err(route_err)?;
     Ok(to_js(&s))
 }
 
-/// r5r's `write_fare_structure()`: the bytes of the `.zip` file.
+/// `writeFareStructure()`: the bytes of the `.zip` file.
 #[wasm_bindgen]
 pub fn fare_write(fare: JsValue) -> Result<Uint8Array, JsError> {
     let s = from_js(&fare)?;
@@ -292,7 +292,7 @@ pub fn fare_write(fare: JsValue) -> Result<Uint8Array, JsError> {
     Ok(Uint8Array::from(bytes.as_slice()))
 }
 
-/// The checks r5r makes when it is given a structure for a network.
+/// The checks of a structure given for a network.
 #[wasm_bindgen]
 pub fn fare_check(network: &Network, fare: JsValue) -> Result<(), JsError> {
     let s = from_js(&fare)?;
@@ -300,7 +300,7 @@ pub fn fare_check(network: &Network, fare: JsValue) -> Result<(), JsError> {
     s.validate_for(&network.net).map_err(route_err)
 }
 
-/// r5r's `pareto_frontier()` as `[from, to, percentile, travel_time]`
+/// `paretoFrontier()` as `[from, to, percentile, travel_time]`
 /// (Int32Array, 0-based indices) and `monetary_cost` (Float64Array);
 /// `transit_modes` empty routes by `mode` alone.
 #[wasm_bindgen]

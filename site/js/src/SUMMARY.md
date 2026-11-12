@@ -12,7 +12,8 @@
 - [Inspecting a network and GTFS errors](network.md)
 - [Threads and workers](threads.md)
 - [Bundlers and loading the module](bundlers.md)
-- [Coming from R or Python](differences.md)
+- [Coming from R or Python](r-python.md)
+- [Compared with r5r](differences.md)
 - [Examples: isochrones and a map](examples.md)
 
 ---

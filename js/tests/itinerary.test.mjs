@@ -1,5 +1,5 @@
-// detailedItineraries(): r5r's rows as GeoJSON features or plain rows, the
-// same through the pool of workers as on the calling thread, and r5r's
+// detailedItineraries(): the rows as GeoJSON features or plain rows, the
+// same through the pool of workers as on the calling thread, and the
 // checks.
 
 import assert from "node:assert/strict";
@@ -24,7 +24,7 @@ const COLS = [
   "total_duration", "total_distance", "segment", "mode", "segment_duration", "wait", "distance", "route",
 ];
 
-test("features with r5r's properties, the same with workers", async () => {
+test("features with their properties, the same with workers", async () => {
   const fc = await peabiru.detailedItineraries(net, o, d, { mode: "WALK", departureDatetime: DEPARTURE });
   assert.equal(fc.type, "FeatureCollection");
   assert.ok(fc.features.length > 0);
@@ -60,8 +60,8 @@ test("pairs, allToAll and the checks", async () => {
   }
   await assert.rejects(peabiru.detailedItineraries(net, o, d, { departureDatetime: DEPARTURE, osmLinkIds: true, dropGeometry: true }), /dropGeometry/);
   await assert.rejects(peabiru.detailedItineraries(net, o, d, { departureDatetime: DEPARTURE, suboptimalMinutes: 3 }), /Must be 0/);
-  // the sample's GTFS is frequency-based, which r5r refuses here
-  await assert.rejects(peabiru.detailedItineraries(net, o, d, { mode: ["WALK", "TRANSIT"], departureDatetime: DEPARTURE }), /frequencies/);
+  // the sample's GTFS is frequency-based, which is refused here
+  await assert.rejects(peabiru.detailedItineraries(net, o, d, { mode: ["WALK", "TRANSIT"], departureDatetime: DEPARTURE }), /Assertion on 'network' failed: .*frequencies/);
 });
 
 test("scenarios slow the car, the same with workers", async () => {

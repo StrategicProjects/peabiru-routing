@@ -16,9 +16,9 @@ have pages of their own: [detailed itineraries](itineraries.md),
 
 ## Arguments
 
-The options are r5r's arguments, with r5r's defaults, in camelCase:
-`departure_datetime` is `departureDatetime`, `max_trip_duration` is
-`maxTripDuration`, and so on (all of them are in the
+The options are the arguments of the R and Python packages, with the
+same defaults, in camelCase: `departure_datetime` is `departureDatetime`,
+`max_trip_duration` is `maxTripDuration`, and so on (all of them are in the
 [API reference](api.md#RoutingOptions)). An option name that is not one of
 them is an error, so a typo does not go unnoticed.
 
@@ -32,14 +32,14 @@ them is an error, so a typo does not go unnoticed.
   feeds. A `Date` also works, but it is read in the local time zone of the
   JavaScript runtime, which is rarely the feeds' time zone: prefer strings.
 - **Frequency-based GTFS** (`frequencies.txt`) is routed with Monte Carlo
-  draws: results are reproducible, and equal to r5r's, only with a `seed`.
-- `onWarning` receives the warnings that r5r would give (by default
+  draws: results are reproducible only with a `seed`.
+- `onWarning` receives the warnings of the call (by default
   `console.warn`); `signal` takes an `AbortSignal` and `nThreads` the
   number of workers to use (see [Threads and workers](threads.md)).
 
 ## Results
 
-Results are objects of columns, named as r5r names them, never arrays of
+Results are objects of columns, never arrays of
 row objects (a matrix can have millions of rows). The id columns are arrays
 of strings; the numbers are typed arrays:
 
@@ -50,7 +50,7 @@ of strings; the numbers are typed arrays:
 | `expandedTravelTimeMatrix()`, `arrivalTravelTimeMatrix()` | `from_id`, `to_id`, `departure_time` (`"HH:MM:SS"`), `draw_number` (`Int32Array`); with `breakdown: true`, `access_time`, `wait_time`, `ride_time`, `transfer_time`, `egress_time` (`Float64Array`, minutes); `routes` (strings); `n_rides` (`Int32Array`, with `breakdown`); `total_time` (`Float64Array`) |
 
 Rows are origin-major, in the order of the inputs; pairs that are not
-reached are left out, as in r5r. Missing values are
+reached are left out. Missing values are
 [`NA_INT32`](api.md#NA_INT32) (-2147483648) in the `Int32Array` columns,
 `NaN` in the `Float64Array` columns and `null` in the string columns.
 
@@ -181,5 +181,4 @@ Both need public transport; with a street mode alone they throw
 What peabiru does not do throws
 [`UnsupportedError`](api.md#UnsupportedError): `outputDir`, expanded and
 arrival matrices by a street mode alone, and R5's own fare calculators.
-`verbose` and `progress` are checked as r5r checks them; peabiru prints
-nothing.
+`verbose` and `progress` are checked; peabiru prints nothing.

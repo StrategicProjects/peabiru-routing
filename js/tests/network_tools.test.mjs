@@ -1,6 +1,6 @@
 // findSnap(), streetNetworkBbox(), streetNetworkToSf(), transitNetworkToSf(),
-// checkTransitAvailability() and getGtfsErrors(). Their values are compared
-// with r5r's by the R package's parity tests (the core is the same); these
+// checkTransitAvailability() and getGtfsErrors(). Their values are checked
+// by the repository's parity suites (the core is the same); these
 // check the JavaScript layer, inline and on workers.
 
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import { test } from "node:test";
 import * as peabiru from "../lib/index.js";
 import { read, sampleNetwork, samplePoints, storedZip } from "./helpers.mjs";
 
-test("findSnap has r5r's columns, and NaN where nothing snaps", async () => {
+test("findSnap has its columns, and NaN where nothing snaps", async () => {
   const net = await sampleNetwork();
   const pts = samplePoints();
   const some = { id: [...pts.id.slice(0, 3), "far"], lon: [...pts.lon.slice(0, 3), -46.0], lat: [...pts.lat.slice(0, 3), -23.0] };
@@ -98,7 +98,7 @@ test("getGtfsErrors lists gtfs-lib's errors of the feeds", async () => {
   await assert.rejects(() => peabiru.getGtfsErrors(42), TypeError);
 });
 
-test("buildNetwork refuses feeds with errors of priority HIGH, as r5r", async () => {
+test("buildNetwork refuses feeds with errors of priority HIGH", async () => {
   const feed = {
     "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\nA,A,-23.5563,-46.6290\nB,B,-23.5577,-46.6321\n",
     "routes.txt": "route_id,route_type\nR,3\n",

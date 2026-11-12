@@ -33,7 +33,7 @@ console.log(`${frontier.from_id.length} rows; cutoffs as R5 reads them:`, [...ne
 // ANCHOR_END: routing
 
 // ANCHOR: files
-// the bytes of a .zip file that r5r's read_fare_structure() reads too
+// the bytes of a .zip file, as the R and Python packages write it
 const bytes = peabiru.writeFareStructure(fares);
 const back = peabiru.readFareStructure(bytes);
 console.log("read back the same:", JSON.stringify(back) === JSON.stringify(fares));

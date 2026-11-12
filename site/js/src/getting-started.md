@@ -107,9 +107,8 @@ whose bytes come from `file.arrayBuffer()`:
 ```
 
 The GTFS feeds load in the order of the `gtfs` array; with more than one
-feed that order can change a few results of expanded and arrival matrices,
-as the order of the files in a directory does in r5r (see
-[Coming from R or Python](differences.md#feed-order)).
+feed that order can change a few results of expanded and arrival matrices
+(see [Coming from R or Python](r-python.md#feed-order)).
 
 ## What the network holds
 
@@ -121,8 +120,8 @@ as the order of the files in a directory does in r5r (see
 {{#include ../examples/output/network-info.txt}}
 ```
 
-`transitAvailability()` counts the services running on a date, as r5r does
-before routing. As r5r, `buildNetwork()` throws when a GTFS feed has errors
+`transitAvailability()` counts the services running on a date.
+`buildNetwork()` throws when a GTFS feed has errors
 of priority `"HIGH"`; `getGtfsErrors()` lists them. `coreVersion()` gives the version of the Rust core, once the
 module is loaded:
 

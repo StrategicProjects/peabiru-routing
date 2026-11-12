@@ -1,4 +1,4 @@
-// Trip options on r5r's sample of Porto Alegre with its fare structure:
+// Trip options on the sample of Porto Alegre with its fare structure:
 // the trade-off between time and fare, every minute's frontier, the legs of
 // an option with all four criteria.
 import assert from "node:assert/strict";
@@ -13,7 +13,7 @@ function show(rows, columns) {
 }
 
 // ANCHOR: setup
-// the feeds in the order macOS lists r5r's sample directory, which r5r uses there
+// the feeds in the order macOS lists the sample directory
 const network = await peabiru.buildNetwork({
   pbf: await poaFile("poa_osm.pbf"),
   gtfs: [

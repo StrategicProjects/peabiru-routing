@@ -20,7 +20,7 @@ const NATIVE = {
 };
 
 for (const mode of ["WALK", "BICYCLE", "CAR"]) {
-  test(`${mode} matrix: r5r's columns, origin-major, as the native core`, async () => {
+  test(`${mode} matrix: the columns, origin-major, as the native core`, async () => {
     const m = await peabiru.travelTimeMatrix(net, pts, pts, { mode });
     assert.deepEqual(Object.keys(m), ["from_id", "to_id", "travel_time_p50"]);
     assert.ok(m.travel_time_p50 instanceof Int32Array);
@@ -208,7 +208,7 @@ test("bad arguments are errors, never ignored", async () => {
   );
 });
 
-test("ids and coordinates are checked as r5r checks them", async () => {
+test("ids and coordinates are checked", async () => {
   const warnings = [];
   const onWarning = (m) => warnings.push(m);
   const numeric = { id: pts.id.map((_, i) => i + 1), lon: pts.lon, lat: pts.lat };

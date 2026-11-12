@@ -97,7 +97,7 @@ available (Node, and pages that are
 otherwise as a copy sent to each worker, which drops it once its network is
 built.
 
-Measured on the r5r sample of Porto Alegre (`.pbf` 0.9 MB, two GTFS feeds
+Measured on the sample data of Porto Alegre from the r5r project (`.pbf` 0.9 MB, two GTFS feeds
 1.1 MB, 1227 points), in Node 24 on an Apple M2 Pro, peak resident memory of
 the whole process (build and one transit matrix), as reported in the
 package's README:

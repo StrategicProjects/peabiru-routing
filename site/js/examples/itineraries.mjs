@@ -1,4 +1,4 @@
-// Detailed itineraries on r5r's sample of Porto Alegre (timetabled GTFS):
+// Detailed itineraries on the sample of Porto Alegre (timetabled GTFS):
 // the fastest trip, the alternatives, all-to-all pairs, the OpenStreetMap
 // ways of a leg, and fares.
 import assert from "node:assert/strict";
@@ -24,7 +24,7 @@ function byOption(rows) {
 const via = (rows) => rows.map((r) => (r.route ? `${r.mode} ${r.route}` : r.mode)).join(" > ");
 
 // ANCHOR: network
-// the feeds in the order macOS lists r5r's sample directory, which r5r uses there
+// the feeds in the order macOS lists the sample directory
 const network = await peabiru.buildNetwork({
   pbf: await poaFile("poa_osm.pbf"),
   gtfs: [
