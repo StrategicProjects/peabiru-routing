@@ -30,7 +30,7 @@ Fortaleza and Curitiba. Three are used:
 
 | City | Feed | What it has | Version, validity | Licence |
 |---|---|---|---|---|
-| São Paulo | [SPTrans](https://www.sptrans.com.br/desenvolvedores/), as the [Mobility Database](https://mobilitydatabase.org/feeds/gtfs/mdb-8) fetched it from SPTrans on 2026-11-12 | 1,350 bus routes, 9 of the Metrô and 7 of CPTM, all by frequency (`frequencies.txt`) | `agency_url` carries `versao=111126`; calendar 2023-10-01 to 2027-06-01 | **not stated**: SPTrans gives the file to registered developers and neither its page nor the Mobility Database names a licence |
+| São Paulo | [SPTrans](https://www.sptrans.com.br/desenvolvedores/), as the [Mobility Database](https://mobilitydatabase.org/feeds/gtfs/mdb-8) fetched it from SPTrans on 2026-11-12 | 1,350 bus routes, 9 of the Metrô and 7 of CPTM, all by frequency (`frequencies.txt`) | `agency_url` carries `versao=111126`; calendar 2023-10-01 to 2027-06-01 | public data: SPTrans publishes the file for registered developers; neither its page nor the Mobility Database names a licence |
 | Rio de Janeiro | [Secretaria Municipal de Transportes](https://www.data.rio/search?q=gtfs) (SMTR), "GTFS do Rio de Janeiro" on data.rio, file at `dados.mobilidade.rio/gtfs/schedule` | municipal buses and BRT, nearly all by frequency (17,275 of 17,361 trips); **no** metro, suburban trains (SuperVia), light rail (VLT) or ferries | file of 2026-06-10; `feed_info` 2024-01-01 to 2026-12-31 | CC BY 4.0 |
 | Belo Horizonte | [Superintendência de Mobilidade](https://dados.pbh.gov.br/dataset/gtfs) (SUMOB), "GTFS" on dados.pbh.gov.br | the conventional and the supplementary bus systems, by timetable; **no** metro | version 202611111921 (rewritten every day at the same address); `feed_info` 2023-09-07 to 2026-12-31 | CC BY |
 
@@ -46,9 +46,10 @@ Two were left out:
   the city's open-data portal refused our requests (HTTP 403) on
   2026-11-12, so this was not taken further.
 
-São Paulo's feed is the official one, but its licence is not stated
-anywhere we could find; it is used here as the Mobility Database
-redistributes it, and nothing of it is copied into this repository.
+São Paulo's feed is the official one and is public data: SPTrans
+publishes it for registered developers, without naming a licence. It is
+used here as the Mobility Database redistributes it, and nothing of it is
+copied into this repository.
 
 ## The data
 
