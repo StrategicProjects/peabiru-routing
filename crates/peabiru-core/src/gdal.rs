@@ -1,8 +1,9 @@
 //! How GDAL's GeoJSON driver writes a coordinate, as `sf::st_write()` calls
-//! it in r5r (no layer options: no `COORDINATE_PRECISION`, no
-//! `SIGNIFICANT_FIGURES`, not RFC 7946). r5r hands its speed polygons to R5
-//! through such a file, so R5 routes on the coordinates read back from that
-//! text; the bindings without GDAL (Python, JavaScript) apply the same rule.
+//! it (no layer options: no `COORDINATE_PRECISION`, no
+//! `SIGNIFICANT_FIGURES`, not RFC 7946). The speed polygons of a scenario
+//! reach R5 through such a file, so R5 routes on the coordinates read back
+//! from that text; the bindings without GDAL (Python, JavaScript) apply the
+//! same rule.
 //!
 //! The rule, from GDAL 3.8.5 (`OGR_json_double_with_precision_to_string`
 //! in `ogrgeojsonwriter.cpp`, `OGRFormatDouble`, `intelliround` and
@@ -32,7 +33,7 @@ pub fn gdal_geojson_text(v: f64) -> String {
     remove_trailing_zeros(intelliround(format!("{v:.15}")))
 }
 
-/// The coordinate R5 reads where r5r gives it `v`: GDAL's text for it
+/// The coordinate R5 reads for `v` in such a file: GDAL's text for it
 /// ([`gdal_geojson_text`]) read back as the nearest double, as Java's
 /// `Double.parseDouble` and GDAL read it. Infinite and NaN values are
 /// returned as they are.

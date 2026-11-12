@@ -1,4 +1,5 @@
-//! r5r's `pareto_frontier()` (`ParetoFrontierCalculator`): for every fare
+//! The Pareto frontier of travel time and fare (a port of
+//! `ParetoFrontierCalculator`, see LICENSE-THIRD-PARTY): for every fare
 //! cutoff, the travel-time matrix of R5's fare router with `maxFare` set to
 //! the cutoff, then per destination and percentile the cutoffs at which
 //! the travel time changes.
@@ -24,12 +25,12 @@ pub struct ParetoRow {
     /// Whole minutes, below `max_trip_duration`.
     pub travel_time: i32,
     /// The fare cutoff at which this travel time is first reached, as the
-    /// double of the Java `float` r5r reads it into (`4.8` is
+    /// double of the Java `float` it is read into (`4.8` is
     /// `4.800000190734863`).
     pub monetary_cost: f64,
 }
 
-/// r5r's `pareto_frontier()` result: rows origin by origin, destination by
+/// The result of `pareto_frontier()`: rows origin by origin, destination by
 /// destination, percentile by percentile (ascending), then in the order of
 /// the fare cutoffs.
 #[derive(Debug, Clone, PartialEq)]
@@ -105,7 +106,7 @@ pub(crate) fn pareto_frontier(
             rows.into_iter().collect::<Result<_, _>>()?
         }
         None => {
-            // the fare structure is still read in, as r5r does
+            // the fare structure is still read in and checked
             crate::fares::FareStructure::check(fs).map_err(RouteError::Invalid)?;
             crate::transit::matrix::check_percentiles(&p.percentiles)
                 .map_err(RouteError::Invalid)?;

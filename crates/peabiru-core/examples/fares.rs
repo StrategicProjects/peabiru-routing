@@ -1,5 +1,5 @@
-//! Fares, as r5r's `setup_fare_structure()`, `max_fare` and
-//! `pareto_frontier()`: travel times within a budget, and the trade-off
+//! Fares (`setup_fare_structure()`, `max_fare` and
+//! `pareto_frontier()`): travel times within a budget, and the trade-off
 //! between time and money.
 //!
 //! ```sh
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     opts.n_threads = 2;
     let net = build_from_dir(&dir, &opts)?;
 
-    // A fare structure written by r5r's write_fare_structure() (second
+    // A fare structure file written by write_fare_structure() (second
     // argument), or one fare type per mode where every ride and every
     // discounted transfer costs 5.
     let fares = match std::env::args_os().nth(2) {
@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fares.max_discounted_transfers,
         fares.transfer_time_allowance
     );
-    // The same bytes r5r's write_fare_structure() writes, and back.
+    // The structure as the bytes of a .zip file, and back.
     let zip = write_fare_structure(&fares)?;
     assert_eq!(read_fare_structure(&zip, "UTF-8")?, fares);
 

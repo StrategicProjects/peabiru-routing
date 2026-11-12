@@ -5,7 +5,7 @@
 //! filter; the legs add up to the values; threads change nothing). With
 //! `PEABIRU_OPTIONS_POA=<dir with the Porto Alegre .pbf and .zip files>` and
 //! `PEABIRU_OPTIONS_POA_FARES=<fares_poa.zip>` the properties are checked on
-//! Porto Alegre with r5r's fare structure too.
+//! Porto Alegre with a fare structure too.
 
 use super::search::frequency_board;
 use super::*;
@@ -364,7 +364,7 @@ fn properties_on_sao_paulo() {
         o.push(pts[rng.below(pts.len())]);
         d.push(pts[rng.below(pts.len())]);
     }
-    // r5r's flat fare by mode, with a 60-minute integration
+    // a flat fare by mode, with a 60-minute integration
     let mut fs = crate::fares::setup_fare_structure(&layer, 4.4, "MODE").unwrap();
     fs.transfer_time_allowance = 60.0;
     for t in &mut fs.fares_per_transfer {

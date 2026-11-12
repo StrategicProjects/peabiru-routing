@@ -1,11 +1,11 @@
-//! The WKT text r5r writes for an itinerary leg (`LineString.toString()`):
+//! The WKT text of an itinerary leg (JTS's `LineString.toString()`):
 //! JTS 1.18.1's `WKTWriter`, whose ordinates go through `OrdinateFormat`,
 //! a `java.text.DecimalFormat` with pattern `0`, at most 16 fraction
 //! digits (the floating precision model's maximum significant digits) and
 //! half-even rounding.
 //!
 //! `DecimalFormat` does not use `Double.toString`'s shortest digits (JDK 19
-//! and later): in JDK 21, the version r5r runs on, `DigitList` still takes
+//! and later): in JDK 21, the version R5 7.6 runs on, `DigitList` still takes
 //! the digits of the older `FloatingDecimal` conversion, which are not
 //! always the shortest (`2e23` comes out as `1.9999999999999998E23`, hence
 //! `199999999999999980000000`), and rounds them to 16 fraction digits with

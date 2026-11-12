@@ -52,11 +52,11 @@ for w in network.build_warnings() {
 }
 let points = vec![(-23.5563, -46.6290), (-23.5577, -46.6321)]; // (lat, lon)
 
-// walking, with r5r's defaults
+// walking, with the default speeds and limits
 let walk = street_travel_time_matrix(&network, &points, &points, Mode::Walk, &RouteParams::default())?;
 println!("{:?} min", walk.get(0, 1));
 
-// walking and public transport: parameters start from r5r's defaults
+// walking and public transport: parameters start from the defaults
 let mut params = TransitParams::default();
 params.date = 20190513;
 params.departure_time = 14 * 3600;
@@ -75,7 +75,7 @@ the whole buffer without copying; `CsvOutput` writes them to one CSV file
 per origin.
 
 `build_from_dir` recognises the files by their extension in lower case only
-(`.pbf`, `.zip`, `.tif`), as r5r does: a `map.PBF` or a `feed.ZIP` is
+(`.pbf`, `.zip`, `.tif`): a `map.PBF` or a `feed.ZIP` is
 ignored. `build_from_bytes` builds the same network from the files' bytes
 held in memory, with the feeds in the order you give them. The crate also
 builds for `wasm32-unknown-unknown`, where it runs on the calling thread
@@ -94,22 +94,15 @@ walks through them; its sources are under
 [`site/rust/src`](https://github.com/StrategicProjects/peabiru-routing/tree/main/site/rust/src).
 
 **Status**: early development; the interfaces may still change before 1.0.
-R5's own fare calculators are not ported (fares follow r5r's rule-based
-fare structure).
-
-## Compatibility with r5r
-
-The functions follow [r5r](https://github.com/ipea/r5r) 2.5.0 (R5 7.6):
-the same parameters, defaults and checks, and the same results, value for
-value. The repository's parity suites compare them on r5r's sample data.
+R5's own fare calculators are not ported (fares follow a rule-based fare
+structure).
 
 ## Licence and credits
 
 MIT (`LICENSE-MIT`). The routing logic is ported from Conveyal's
-[R5](https://github.com/conveyal/r5) 7.6 (MIT). The fare calculator, the
-fare structure and the multi-criteria branch of the trip planner are
-translations of r5r's Java code (MIT), and polygon isochrones of the
-isoband algorithm (MIT). `fastmath.rs`, `fastmath_trig.rs` and part of
-`jcompat.rs` are translations of parts of Apache Commons Math 3.0
-(Apache-2.0), and `fdlibm.rs` of fdlibm 5.3. The notices and licence texts
-of these works are in `LICENSE-THIRD-PARTY`.
+[R5](https://github.com/conveyal/r5) 7.6 (MIT). Polygon isochrones are a
+translation of the isoband algorithm (MIT). `fastmath.rs`,
+`fastmath_trig.rs` and part of `jcompat.rs` are translations of parts of
+Apache Commons Math 3.0 (Apache-2.0), and `fdlibm.rs` of fdlibm 5.3. The
+notices and licence texts of these and of the other works the crate derives
+from are in `LICENSE-THIRD-PARTY`.

@@ -366,7 +366,7 @@ mod tests {
         );
     }
 
-    /// Checked against r5r with feeds of quoted spaces, form feeds and
+    /// Checked against gtfs-lib with feeds of quoted spaces, form feeds and
     /// no-break spaces in names, and a repeated column.
     #[test]
     fn values_and_headers_as_javacsv() {

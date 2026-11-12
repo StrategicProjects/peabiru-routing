@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         net.street().n_edges()
     );
 
-    // r5r's defaults: 3.6 km/h walking, 12 km/h cycling, max_lts 2, 120 min.
+    // The defaults: 3.6 km/h walking, 12 km/h cycling, max_lts 2, 120 min.
     let mut params = RouteParams::default();
     params.n_threads = 2;
     let n = points.coords.len();

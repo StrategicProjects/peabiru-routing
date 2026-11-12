@@ -61,8 +61,8 @@ const BOARD_SLACK: i32 = 60;
 pub(crate) struct Config {
     pub(crate) max_rides: usize,
     /// Trip limit, seconds: no stop is reached at or after `departure +
-    /// max_t`, and no trip arrives after it (as R5's RAPTOR and r5r's trip
-    /// planner do).
+    /// max_t`, and no trip arrives after it (as in R5's RAPTOR and in the
+    /// itinerary planner).
     pub(crate) max_t: i32,
     /// `(int)(walkSpeed * 1000)`, mm/s, for the walks between stops.
     pub(crate) walk_mms: i32,

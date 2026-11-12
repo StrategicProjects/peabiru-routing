@@ -1,8 +1,7 @@
-//! What a network holds, as r5r's network functions report it:
-//! `find_snap()`, `street_network_bbox()`, `street_network_to_sf()`,
-//! `transit_network_to_sf()` and `check_transit_availability()` (r5r's
-//! Java `SnapFinder`, `StreetNetwork`, `TransitNetwork` and
-//! `TransitServiceDates`).
+//! What a network holds: where points snap to the streets, the box of
+//! the street network, its vertices and edges, the transit stops and
+//! routes, and the dates with service (the ported `SnapFinder`,
+//! `StreetNetwork`, `TransitNetwork` and `TransitServiceDates`).
 
 use crate::street::flags::LINK;
 use crate::street::geom::FIXED_FACTOR;
@@ -63,7 +62,7 @@ pub(crate) fn find_snap(
 impl StreetNetwork {
     /// The bounding box of the street network as
     /// `[xmin, ymin, xmax, ymax]` (longitude, latitude degrees): R5's
-    /// `StreetLayer.envelope`, which r5r's `street_network_bbox()` returns.
+    /// `StreetLayer.envelope`.
     /// It covers every OpenStreetMap node of the ways R5 tried to make
     /// street edges from, even edges it then dropped, so it can be a little
     /// larger than the box of the edges. A network without streets gives
@@ -79,9 +78,9 @@ impl StreetNetwork {
     }
 }
 
-/// The vertices of r5r's `street_network_to_sf()$vertices`: those at an end
+/// The vertices of the street network: those at an end
 /// of a street edge (connectors of transit stops and park-and-rides left
-/// out), in r5r's order. Made by [`street_vertices`](crate::street_vertices).
+/// out), in a fixed order. Made by [`street_vertices`](crate::street_vertices).
 #[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub struct StreetVertices {
@@ -93,8 +92,8 @@ pub struct StreetVertices {
     pub lon: Vec<f64>,
     /// `park_and_ride`: the centre of a park-and-ride.
     pub park_and_ride: Vec<bool>,
-    /// `bike_sharing`: a bike-sharing station (always `false`: neither r5r
-    /// nor peabiru loads bike sharing).
+    /// `bike_sharing`: a bike-sharing station (always `false`: bike sharing
+    /// is not loaded).
     pub bike_sharing: Vec<bool>,
 }
 
@@ -146,7 +145,7 @@ fn java_hash_set_order(keys: Vec<u32>) -> Vec<u32> {
     keys
 }
 
-/// The stops of r5r's `transit_network_to_sf()$stops`, one per stop in
+/// The stops of the public transport network, one per stop in
 /// stop index order. Made by [`transit_stops`](crate::transit_stops).
 #[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
@@ -185,7 +184,7 @@ pub(crate) fn transit_stops(net: &StreetNetwork, layer: &TransitLayer) -> Transi
     t
 }
 
-/// The routes of r5r's `transit_network_to_sf()$routes`: one row per trip
+/// The routes of the public transport network: one row per trip
 /// pattern (the trips of a route with the same stops), in pattern order.
 /// Made by [`transit_routes`](crate::transit_routes).
 #[derive(Debug, Clone, Default, PartialEq)]

@@ -86,13 +86,13 @@ impl Network {
     }
 
     /// The warnings of the build, one per line, for the caller to show: one
-    /// per GTFS feed built from although r5r refuses to build a network
-    /// from it (with [`BuildOptions::ignore_gtfs_errors`]; see
-    /// [`TransitLayer::r5r_warnings`]), then those about the elevation raster
+    /// per GTFS feed built from in spite of its GTFS errors of priority
+    /// `HIGH` (with [`BuildOptions::ignore_gtfs_errors`]; see
+    /// [`TransitLayer::feed_warnings`]), then those about the elevation raster
     /// (see [`StreetNetwork::elevation_warnings`]). Empty for a clean build.
     pub fn build_warnings(&self) -> Vec<String> {
         let mut w = match self.transit() {
-            Some(t) => t.r5r_warnings(),
+            Some(t) => t.feed_warnings(),
             None => Vec::new(),
         };
         w.extend(self.street.elevation_warnings().iter().cloned());
@@ -118,7 +118,7 @@ impl Network {
 }
 
 /// Read an OpenStreetMap `.pbf` file and build the street network for
-/// walking, cycling and driving, as R5 7.6 builds it for r5r, without
+/// walking, cycling and driving, as R5 7.6 builds it, without
 /// public transport ([`Network::transit`] is `None`; see [`build_from_dir`]
 /// for a network with GTFS feeds).
 ///
@@ -137,19 +137,19 @@ pub fn build_network(
 }
 
 /// Build a network from a directory holding one OpenStreetMap `.pbf` file
-/// and any number of GTFS `.zip` feeds, as r5r's `build_network()` does,
+/// and any number of GTFS `.zip` feeds,
 /// and link the stops to the streets; with [`BuildOptions::elevation`],
 /// apply slope costs from the directory's `.tif` raster (see
 /// [`build_from_bytes_with_elevation`] for the rasters supported).
 ///
 /// Files are recognised by their extension in lower case only (`.pbf`,
-/// `.zip`), as r5r does; with several `.pbf` files the last one listed is
+/// `.zip`); with several `.pbf` files the last one listed is
 /// used, and the feeds are loaded in the order the operating system lists
 /// them, which is the order R5 loads them in. A directory without GTFS
 /// feeds gives a network without public transport ([`Network::transit`] is
 /// `None`), good for street routing only.
 ///
-/// As r5r does, the build fails when a feed has GTFS errors of priority
+/// The build fails when a feed has GTFS errors of priority
 /// `HIGH`, or is one gtfs-lib cannot load at all
 /// ([`NetworkError::high_priority_gtfs_errors`],
 /// [`gtfs_errors`](crate::gtfs_errors)), unless
@@ -186,7 +186,7 @@ pub fn build_from_dir(dir: impl AsRef<Path>, opts: &BuildOptions) -> Result<Netw
 /// the `.pbf` data name it `OpenStreetMap data`. With no feeds, the network
 /// has no public transport, good for street routing only.
 ///
-/// As r5r does, the build fails when a feed has GTFS errors of priority
+/// The build fails when a feed has GTFS errors of priority
 /// `HIGH`, or is one gtfs-lib cannot load at all
 /// ([`NetworkError::high_priority_gtfs_errors`],
 /// [`gtfs_errors`](crate::gtfs_errors)), unless
@@ -221,20 +221,19 @@ pub fn build_from_bytes(
 /// or 32 or 64-bit floats, uncompressed or compressed with LZW,
 /// Deflate or PackBits, north up, georeferenced by a tie point and a pixel
 /// scale (what GDAL writes), in WGS 84 longitude and latitude (EPSG:4326)
-/// or in another system r5r reads through GeoTools' coordinate transforms
-/// and peabiru reproduces: SIRGAS 2000 (4674), SAD69 (4618), Corrego
+/// or in another system whose GeoTools coordinate transform (the one R5
+/// uses) peabiru reproduces: SIRGAS 2000 (4674), SAD69 (4618), Corrego
 /// Alegre 1970-72 (4225), their UTM zones used in Brazil, SIRGAS 2000 /
 /// Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) and WGS 84 /
 /// Pseudo-Mercator (3857). Other rasters are an error that says what to
-/// change. In a system other than EPSG:4326, r5r reads one pixel or the
+/// change. In a system other than EPSG:4326, R5 reads one pixel or the
 /// other for a sample within nanometres of the boundary between two pixels
 /// of different values (or of the raster's edge), depending on the machine
 /// it runs on; peabiru reads the one Java's `StrictMath` gives, on every
 /// machine, and counts such samples in
 /// [`StreetNetwork::elevation_warnings`] (and so in
 /// [`Network::build_warnings`]). A sample that `StrictMath` itself puts on
-/// the outer edge (inside the envelope, past the last pixel) is an error,
-/// as it is in r5r.
+/// the outer edge (inside the envelope, past the last pixel) is an error.
 pub fn build_from_bytes_with_elevation(
     pbf: &[u8],
     feeds: &[(&str, &[u8])],
@@ -247,7 +246,7 @@ pub fn build_from_bytes_with_elevation(
 }
 
 /// Street travel-time matrix in whole minutes by walking, cycling or
-/// driving, as r5r's `travel_time_matrix()` with a single street mode.
+/// driving, a single street mode from door to door.
 /// Points are `(lat, lon)` degrees. [`RouteError::Invalid`] when the
 /// parameters are invalid (see [`RouteParams::validate`]),
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled before the
@@ -273,8 +272,8 @@ pub fn street_travel_time_matrix(
     )
 }
 
-/// Public transport travel-time matrix, as r5r's `travel_time_matrix()` with
-/// public transport in `mode` (by default `c("WALK", "TRANSIT")`; see
+/// Public transport travel-time matrix: walking (by default) to, between
+/// and from public transport, over a departure window (see
 /// [`TransitParams::transit_modes`], [`TransitParams::mode`] and
 /// [`TransitParams::egress_mode`]). Points are `(lat, lon)` degrees.
 /// [`RouteError::Invalid`] when the network has no public transport or the
@@ -298,14 +297,13 @@ pub fn transit_travel_time_matrix(
     )
 }
 
-/// Accessibility by public transport (r5r `accessibility()` with public
-/// transport in `mode`; the modes, access and egress as in
+/// Accessibility by public transport (the modes, access and egress as in
 /// [`transit_travel_time_matrix`]). Opportunity counts that are zero,
 /// negative or NaN contribute nothing (`TravelTimeReducer.java:251-253`).
 /// `p.percentiles` are the travel-time percentiles; `p.max_trip_duration`
-/// and `p.max_walk_time` must already be what r5r hands to R5 (for the
-/// step function r5r sets `max_trip_duration` to the largest cutoff before
-/// deriving the walk limit; see [`r5r_trip_limits`](crate::r5r_trip_limits)).
+/// and `p.max_walk_time` must already be the limits of the search (for
+/// the step function `max_trip_duration` is the largest cutoff, set before
+/// deriving the walk limit; see [`accessibility_trip_limits`](crate::accessibility_trip_limits)).
 ///
 /// Every origin gets a value for every (opportunity, percentile, cutoff),
 /// 0 when nothing is reachable or the origin cannot be linked. Points are
@@ -332,11 +330,10 @@ pub fn transit_accessibility(
     )
 }
 
-/// Accessibility by a street mode alone (r5r `accessibility()` with `mode`
-/// one of `WALK`, `BICYCLE`, `CAR`): one unvarying travel time per
+/// Accessibility by a street mode alone (`WALK`, `BICYCLE` or `CAR`): one unvarying travel time per
 /// destination, so every percentile gets the same value
 /// (`TravelTimeReducer.recordUnvaryingTravelTimeAtTarget`).
-/// `params.max_trip_duration` is the search limit r5r passes to R5,
+/// `params.max_trip_duration` is the search limit,
 /// and `percentiles` are checked as
 /// [`validate_percentiles`](crate::validate_percentiles) does.
 /// Errors as [`transit_accessibility`].
@@ -360,8 +357,9 @@ pub fn street_accessibility(
     )
 }
 
-/// r5r's `expanded_travel_time_matrix()`: per origin, the rows in r5r's
-/// order (destination, departure minute, draw). For each departure minute
+/// Every trip of the departure window, minute by minute, with the routes
+/// ridden: per origin, the rows ordered by destination, departure minute
+/// and draw. For each departure minute
 /// the transit records come first in `PATH_ORDER`, numbered 1.., then the
 /// remaining draws repeat the walk-only record (or an unreachable, NA one)
 /// up to the draws per minute (`populateTravelTimesBreakdown`). A
@@ -390,10 +388,10 @@ pub fn expanded_travel_time_matrix(
     )
 }
 
-/// r5r's `arrival_travel_time_matrix()`. `p` must already hold the
+/// The latest trip that arrives by a given time. `p` must already hold the
 /// departure side of the search: the service date and departure from
 /// [`arrival_departure`](crate::arrival_departure) and
-/// `time_window = max_trip_duration`, as the R wrapper sets them. For each
+/// `time_window = max_trip_duration`. For each
 /// destination the latest departure minute with a record arriving by
 /// `departure + max_trip_duration` wins: its first transit record in
 /// `PATH_ORDER`, else the walk-only record (`filterLatestBeforeArrivalTime`,
@@ -417,12 +415,12 @@ pub fn arrival_travel_time_matrix(
     )
 }
 
-/// Travel-time surface by a street mode alone (r5r's `isochrone()` with
-/// `mode` one of `WALK`, `BICYCLE`, `CAR` and `polygon_output = TRUE`): one
+/// Travel-time surface by a street mode alone (`WALK`, `BICYCLE` or `CAR`),
+/// the first step of a polygon isochrone: one
 /// travel time per cell, the same at every percentile. The grid is
 /// [`WebMercatorGrid::for_network`](crate::WebMercatorGrid::for_network) at
-/// `zoom` (9 to 12). `params.max_trip_duration` is the search limit r5r
-/// hands R5 (its `isochrone()` passes the largest cutoff plus 10 minutes).
+/// `zoom` (9 to 12). `params.max_trip_duration` is the search limit (for
+/// isochrones, the largest cutoff plus 10 minutes).
 /// Points are `(lat, lon)` degrees; an origin that cannot be linked reaches
 /// nothing. [`RouteError::Invalid`] for invalid parameters, percentiles
 /// (see [`validate_percentiles`](crate::validate_percentiles)) or zoom,
@@ -433,7 +431,7 @@ pub fn arrival_travel_time_matrix(
 /// same grid and mode (as R5 keeps its linkages; public transport
 /// surfaces walk, so they share the walking ones): up to 9 grids and
 /// modes, the least recently used dropped first beyond 64 MiB, at 40
-/// bytes a cell (6.2 MiB for r5r's Porto Alegre sample at zoom 12, 0.4 MiB
+/// bytes a cell (6.2 MiB for the Porto Alegre sample at zoom 12, 0.4 MiB
 /// at zoom 10). Clones of the network share them.
 pub fn street_travel_time_surface(
     network: &Network,
@@ -453,11 +451,10 @@ pub fn street_travel_time_surface(
     )
 }
 
-/// Travel-time surface by public transport (r5r's `isochrone()` with
-/// public transport in `mode`, its modes, access and egress as in
-/// [`TransitParams`], and `polygon_output = TRUE`), at each of
+/// Travel-time surface by public transport (its modes, access and egress
+/// as in [`TransitParams`]), at each of
 /// `p.percentiles` over the departure window. `p.max_trip_duration` is the
-/// limit r5r hands R5 (the largest cutoff plus 10 minutes). Otherwise as
+/// search limit (for isochrones, the largest cutoff plus 10 minutes). Otherwise as
 /// [`street_travel_time_surface`], and [`RouteError::Invalid`] when the
 /// network has no public transport.
 pub fn transit_travel_time_surface(
@@ -470,17 +467,16 @@ pub fn transit_travel_time_surface(
     crate::isochrone::transit_travel_time_surface(&network.street, layer, data, origins, p, zoom)
 }
 
-/// The street edges of the network, as r5r's
-/// `street_network_to_sf(r5r_network)$edges` (see [`StreetEdges`]).
+/// The street edges of the network, one row per directed edge (see
+/// [`StreetEdges`]).
 pub fn street_edges(network: &Network) -> StreetEdges {
     crate::isochrone::street_edges(&network.street)
 }
 
 /// Detailed itineraries between each origin and the destination of the
-/// same index (`origins[i]` to `destinations[i]`, `(lat, lon)` degrees), as
-/// r5r 2.5.0's `detailed_itineraries()` with `all_to_all = FALSE` (pair the
-/// points beforehand for `all_to_all`): per pair its itineraries in r5r's
-/// order, none when no trip is found (r5r then has no rows).
+/// same index (`origins[i]` to `destinations[i]`, `(lat, lon)` degrees; pair the
+/// points beforehand for every origin to every destination): per pair its
+/// itineraries, in R5's order, none when no trip is found.
 ///
 /// Without public transport (`p.transit_modes` empty) the itinerary is the
 /// street path by `p.mode`. With it, the network must have public transport;
@@ -488,8 +484,8 @@ pub fn street_edges(network: &Network) -> StreetEdges {
 /// the direct trip and the fastest public transport trip over the window
 /// (FastRaptor), otherwise the trips McRAPTOR finds, with their fares when
 /// `p.fare_structure` is given.
-/// Errors: invalid parameters, a network with frequency-based trips (r5r
-/// refuses them too), cancellation, and the rare cases noted in the error
+/// Errors: invalid parameters, a network with frequency-based trips,
+/// cancellation, and the rare cases noted in the error
 /// message that R5 does not route reproducibly. The notes of
 /// [`detailed_itineraries_noted`] are dropped.
 pub fn detailed_itineraries(
@@ -518,21 +514,20 @@ pub fn detailed_itineraries_noted(
     )
 }
 
-/// r5r 2.5.0's `pareto_frontier()`: the trade-off between travel time and
-/// fare. For every cutoff of `fare_cutoffs`, in the order given, the
+/// The trade-off between travel time and fare. For every cutoff of `fare_cutoffs`, in the order given, the
 /// travel times are those of R5's fare router (McRAPTOR, see
 /// [`TransitParams::fare_structure`]) with `max_fare` set to the cutoff
 /// (`p.max_fare` is not used); a destination and percentile gets a row at
 /// each cutoff where its travel time differs from that of the previous
 /// cutoff with a row, and is below `max_trip_duration`.
 ///
-/// `p.fare_structure` is required. As in r5r, `draws_per_minute` is 1
+/// `p.fare_structure` is required. `draws_per_minute` is 1
 /// whatever `p.draws_per_minute` says, so that `time_window` departure
 /// times are sampled. With `p.transit_modes` empty the trip is by
-/// `p.mode` alone (r5r's `mode` without public transport): the
+/// `p.mode` alone: the
 /// street travel time, the same at every cutoff, with
-/// `p.max_trip_duration` as the limit (r5r lowers it to the mode's own
-/// limit first); otherwise the network must have public transport
+/// `p.max_trip_duration` as the limit (lower it to the mode's own limit
+/// first); otherwise the network must have public transport
 /// ([`RouteError::Invalid`]). Points are `(lat, lon)` degrees.
 pub fn pareto_frontier(
     network: &Network,
@@ -557,7 +552,7 @@ pub fn pareto_frontier(
 }
 
 /// Where each point (`(lat, lon)` degrees) snaps to the streets `mode` may
-/// use, as r5r's `find_snap()`: the nearest point of an edge within
+/// use: the nearest point of an edge within
 /// `radius_m` metres, looked for first within 300 m when `radius_m` is
 /// larger (R5 `StreetLayer.findSplit`). `None` for a point with no such
 /// edge. [`RouteError::Invalid`] for a negative or non-finite radius.
@@ -570,10 +565,10 @@ pub fn find_snap(
     crate::inspect::find_snap(&network.street, points, radius_m, mode)
 }
 
-/// The street vertices r5r's `street_network_to_sf()` lists (see
-/// [`StreetVertices`]). r5r collects them in a Java `HashSet<Integer>`
-/// while it walks the edges, and lists them in that set's iteration order,
-/// which this reproduces: by bucket of the set's final table (the hash of
+/// The street vertices at an end of some edge (see [`StreetVertices`]),
+/// in the iteration order of the Java `HashSet<Integer>` they would be
+/// collected in while walking the edges, which makes the order the same
+/// on every platform: by bucket of the set's final table (the hash of
 /// an `Integer` spread as `h ^ (h >>> 16)`), and within a bucket in the
 /// order they were added.
 pub fn street_vertices(network: &Network) -> StreetVertices {
@@ -582,7 +577,7 @@ pub fn street_vertices(network: &Network) -> StreetVertices {
 
 /// The transit stops of a network (see [`TransitStops`]): the position is
 /// that of the stop's vertex in the street network, the stop's coordinates
-/// rounded down to 1e-7 degrees, as r5r reports it. Empty for a network
+/// rounded down to 1e-7 degrees. Empty for a network
 /// without public transport.
 pub fn transit_stops(network: &Network) -> TransitStops {
     match network.transit() {
@@ -593,8 +588,7 @@ pub fn transit_stops(network: &Network) -> TransitStops {
 
 /// The transit routes of a network (see [`TransitRoutes`]), none for a
 /// network without public transport. [`RouteError::Invalid`] for a route
-/// type R5 does not know (r5r fails with Java's
-/// `IllegalArgumentException` there).
+/// type R5 does not know.
 pub fn transit_routes(network: &Network) -> Result<TransitRoutes, RouteError> {
     match network.transit() {
         Some(layer) => crate::inspect::transit_routes(&network.street, layer),
@@ -603,13 +597,12 @@ pub fn transit_routes(network: &Network) -> Result<TransitRoutes, RouteError> {
 }
 
 /// The dates (`yyyymmdd`, ascending) on which some service of a trip in
-/// the timetable runs, as r5r's `check_transit_availability()` finds them
-/// when no date is given (r5r's `TransitServiceDates.getDates`): every day
+/// the timetable runs: every day
 /// of each such service's calendar on which it runs, and every date of its
 /// calendar exceptions on which it runs. Services no trip uses do not
 /// count; none for a network without public transport.
 /// [`RouteError::Invalid`] when such a service's calendar has a start or
-/// end that is not a date, with r5r's message.
+/// end that is not a date.
 pub fn transit_service_dates(network: &Network) -> Result<Vec<u32>, RouteError> {
     match network.transit() {
         Some(layer) => crate::inspect::transit_service_dates(layer),
@@ -617,13 +610,13 @@ pub fn transit_service_dates(network: &Network) -> Result<Vec<u32>, RouteError> 
     }
 }
 
-/// r5r's `setup_fare_structure()`: one fare type per mode (`by =
+/// A starting fare structure for the network: one fare type per mode (`by =
 /// "MODE"`), per agency id (`"AGENCY_ID"`, or `"AGENCY"`) or name
 /// (`"AGENCY_NAME"`), or a single `GENERIC` type (anything else); every
 /// route, type and transfer between two types costs `base_fare`, read as a
 /// Java `float`. The routes are in the network's route order (none
 /// without public transport), the types and transfers in the order of
-/// r5r's Java `HashSet`s.
+/// Java `HashSet`s.
 pub fn setup_fare_structure(
     network: &Network,
     base_fare: f64,

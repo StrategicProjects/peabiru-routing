@@ -1,5 +1,5 @@
-//! `peabiru expanded`: r5r's `expanded_travel_time_matrix()` and, with
-//! `--arrival`, `arrival_travel_time_matrix()`, written as r5r's CSV.
+//! `peabiru expanded`: `expanded_travel_time_matrix()` and, with
+//! `--arrival`, `arrival_travel_time_matrix()`, written as CSV.
 
 use super::cli::{self, runtime_error, usage_error};
 use peabiru_core::{
@@ -138,7 +138,7 @@ pub(crate) fn field(s: &str) -> std::borrow::Cow<'_, str> {
     }
 }
 
-/// One CSV row as `data.table::fwrite` writes r5r's result: NA as empty,
+/// One CSV row as `data.table::fwrite` writes the table: NA as empty,
 /// numbers in their shortest form.
 fn write_row(
     w: &mut impl Write,

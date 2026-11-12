@@ -1,5 +1,5 @@
 //! The pairs of [`trip_options`](crate::trip_options): the street searches
-//! of r5r's trip planner (direct trip, access and egress stop searches,
+//! of the trip planner (direct trip, access and egress stop searches,
 //! reused from `transit` and `mc`), peabiru's multi-criteria search
 //! (`crate::options::search`) at every departure minute, the merge of the
 //! minutes into options, and their legs built as `detailed_itineraries()`
@@ -355,7 +355,7 @@ fn itinerary_params(p: &TripOptionsParams) -> ItineraryParams {
 
 /// The access and egress stop searches of a pair (`findAccessPaths`,
 /// `findEgressPaths`), with the legs the search starts and ends with. An
-/// egress stop whose leg r5r could not draw (`EgressPath`'s
+/// egress stop whose leg cannot be drawn (`EgressPath`'s
 /// `InvalidOriginException`) is left out.
 struct StopSearches<'a> {
     access: Router<'a>,

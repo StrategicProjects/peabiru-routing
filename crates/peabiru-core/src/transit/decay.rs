@@ -1,5 +1,5 @@
 //! Distance-decay functions for accessibility, as R5 7.6
-//! `com.conveyal.r5.analyst.decay.*` (r5r's `decay_function`). Inputs are
+//! `com.conveyal.r5.analyst.decay.*`. Inputs are
 //! whole seconds (cutoff and travel time); the weight is a double in
 //! `[0, 1]`, computed with the same operations in the same order as the
 //! Java bytecode, and with commons-math3's `FastMath.exp`, so the weights are
@@ -15,7 +15,7 @@ const FOUR_HOURS_IN_SECONDS: i32 = 14_400;
 /// looking for the zero point.
 const ZERO_EPSILON: f64 = 0.001;
 
-/// A decay function and its parameter, in r5r's terms (`decay_function`
+/// A decay function and its parameter (the packages' `decay_function`
 /// and `decay_value`): how much an opportunity reached in `t` counts
 /// towards accessibility, given a cutoff. The weights are bit-identical to
 /// R5's. Non-exhaustive: R5 may gain other functions.

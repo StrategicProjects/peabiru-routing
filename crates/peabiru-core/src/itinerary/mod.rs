@@ -1,17 +1,16 @@
-//! Detailed itineraries, as r5r 2.5.0's `detailed_itineraries()`.
+//! Detailed itineraries (`detailed_itineraries()`).
 //!
-//! r5r routes each origin-destination pair on its own with its
-//! `TripPlanner` (`FastDetailedItineraryPlanner`): a direct trip by the
-//! street mode (R5's `StreetRouter` toward the destination, A* and target
-//! pruning included), and, with public transport, the fastest trip found by
-//! R5's `FastRaptorWorker` over the departure window from the stops an
-//! access search reaches to the stops an egress search (r5r's
-//! `R5REgressRouter`) reaches, rebuilt leg by leg: the access and egress
-//! street paths, the walks between stops routed again on the streets, and
-//! the rides drawn along the GTFS shapes. With `shortest_path = FALSE` or
-//! a fare structure r5r routes public transport with R5's McRAPTOR instead
-//! (see `mc`), and so does it for a pair whose FastRaptor path cannot be
-//! read back.
+//! Each origin-destination pair is routed on its own by a trip planner
+//! (the ported `TripPlanner`, `FastDetailedItineraryPlanner`): a direct
+//! trip by the street mode (R5's `StreetRouter` toward the destination, A*
+//! and target pruning included), and, with public transport, the fastest
+//! trip found by R5's `FastRaptorWorker` over the departure window from
+//! the stops an access search reaches to the stops a backward egress
+//! search reaches, rebuilt leg by leg: the access and egress street paths,
+//! the walks between stops routed again on the streets, and the rides
+//! drawn along the GTFS shapes. With `shortest_path = FALSE` or a fare
+//! structure, public transport is routed with R5's McRAPTOR instead (see
+//! `mc`), and so is a pair whose FastRaptor path cannot be read back.
 
 pub(crate) mod geom;
 mod hops;
@@ -34,20 +33,20 @@ use geom::{clock, edge_line, line_length_m, minutes_1dp, without_repeats, Line};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-/// Parameters of [`detailed_itineraries`](crate::detailed_itineraries), with r5r's defaults but for the
-/// date and departure time. Fill it in by changing the fields of
+/// Parameters of [`detailed_itineraries`](crate::detailed_itineraries); the
+/// date and departure time have no default. Fill it in by changing the fields of
 /// [`ItineraryParams::default()`].
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct ItineraryParams {
     /// The street mode of the trip without public transport and of the
-    /// access to it: r5r's street mode in `mode` (default [`Mode::Walk`]).
+    /// access to it (default [`Mode::Walk`]).
     pub mode: Mode,
-    /// The public transport modes, r5r's transit modes in `mode`; empty
+    /// The public transport modes; empty
     /// (the default) for a street-only itinerary.
     pub transit_modes: Vec<TransitMode>,
-    /// The street mode from public transport to the destination, r5r's
-    /// `mode_egress` (default [`Mode::Walk`]).
+    /// The street mode from public transport to the destination
+    /// (default [`Mode::Walk`]).
     pub egress_mode: Mode,
     /// Service date `yyyymmdd` (needed with public transport).
     pub date: u32,
@@ -55,21 +54,19 @@ pub struct ItineraryParams {
     pub departure_time: i32,
     /// Departure window in minutes (default 10).
     pub time_window: i32,
-    /// r5r's `suboptimal_minutes` (default 0): with `shortest_path =
-    /// false`, how many minutes slower than the best an alternative may be
-    /// and still be kept; it must be 0 with `shortest_path` or a
+    /// With `shortest_path = false`, how many minutes slower than the best an alternative may be
+    /// and still be kept (default 0); it must be 0 with `shortest_path` or a
     /// `fare_structure`.
     pub suboptimal_minutes: i32,
-    /// Longest walk, bicycle and car leg in minutes (default 120 each):
-    /// r5r's `max_walk_time` and friends, where `Inf` is
-    /// `max_trip_duration`.
+    /// Longest walk, bicycle and car leg in minutes (default 120 each);
+    /// for no limit of their own, give `max_trip_duration`.
     pub max_walk_time: i32,
     #[allow(missing_docs)]
     pub max_bike_time: i32,
     #[allow(missing_docs)]
     pub max_car_time: i32,
     /// Trip limit in whole minutes (default 120). Without public transport
-    /// r5r lowers it to the street mode's own limit.
+    /// it is lowered to the street mode's own limit.
     pub max_trip_duration: i32,
     /// Walking speed, km/h (default 3.6).
     pub walk_speed: f64,
@@ -80,33 +77,31 @@ pub struct ItineraryParams {
     /// Highest level of traffic stress a cyclist rides on, 1 to 4
     /// (default 2).
     pub max_lts: i32,
-    /// r5r's `shortest_path` (default true): the fastest itinerary only;
+    /// The fastest itinerary only (default true);
     /// `false` gives the alternatives McRAPTOR finds (one per sequence of
     /// routes).
     pub shortest_path: bool,
-    /// r5r's `fare_structure` (default `None`): with public transport the
+    /// The fare structure (default `None`): with public transport the
     /// trips are routed with McRAPTOR and fares (R5's
     /// `FareDominatingList`), and the itineraries get their fares.
     pub fare_structure: Option<Arc<FareStructure>>,
-    /// r5r's `max_fare` (default infinity), read as a Java `float`; a
+    /// The highest fare (default infinity), read as a Java `float`; a
     /// finite value needs a `fare_structure`.
     pub max_fare: f64,
     /// Worker threads; 0 means all cores.
     pub n_threads: usize,
     /// Stops the computation when cancelled.
     pub cancel: CancelToken,
-    /// r5r's `osm_link_ids` (default false): fill in each leg's
+    /// Whether to fill in (default false) each leg's
     /// [`osm_ids`](ItineraryLeg::osm_ids), [`edge_ids`](ItineraryLeg::edge_ids)
     /// and stop ids.
     pub osm_link_ids: bool,
     /// Car speeds and levels of traffic stress changed for this call
-    /// (r5r's `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
-    /// changes nothing. r5r's trip planner routes every street leg (direct
-    /// trip, access, egress, walks between stops) on the scenario's
-    /// network, and so does this.
+    /// (see [`Scenario`](crate::Scenario)); the default changes nothing.
+    /// Every street leg (direct trip, access, egress, walks between stops)
+    /// is routed on the scenario's network.
     pub scenario: crate::Scenario,
-    /// For tests: fail every FastRaptor trip, as r5r does with the Java
-    /// system property `r5r.failFastRaptor`, so that each pair with public
+    /// For tests: fail every FastRaptor trip, so that each pair with public
     /// transport that reaches stops is planned again with McRAPTOR.
     #[doc(hidden)]
     pub fail_fast_raptor: bool,
@@ -201,7 +196,7 @@ impl ItineraryParams {
         }
     }
 
-    /// `max_trip_duration` as r5r hands it to R5 (`assign_max_trip_duration`):
+    /// `max_trip_duration` as R5 receives it:
     /// lowered to the street mode's limit when there is no public transport.
     fn trip_limit_min(&self) -> i32 {
         if self.transit_modes.is_empty() {
@@ -212,45 +207,44 @@ impl ItineraryParams {
     }
 }
 
-/// One leg (r5r's `segment`) of an [`Itinerary`].
+/// One leg (`segment`) of an [`Itinerary`].
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct ItineraryLeg {
     /// `WALK`, `BICYCLE`, `CAR`, or the public transport mode of a ride
-    /// (`BUS`, `RAIL`, `SUBWAY`, `TRAM`, ...), as r5r writes it.
+    /// (`BUS`, `RAIL`, `SUBWAY`, `TRAM`, ...).
     pub mode: String,
-    /// Seconds on the leg, and r5r's `segment_duration` (minutes, one
+    /// Seconds on the leg, and `segment_duration` (minutes, one
     /// decimal place).
     pub duration_s: i32,
     #[allow(missing_docs)]
     pub segment_duration: f64,
-    /// Seconds waiting before a ride, and r5r's `wait` (minutes, one
+    /// Seconds waiting before a ride, and `wait` (minutes, one
     /// decimal place); 0 for street legs.
     pub wait_s: i32,
     #[allow(missing_docs)]
     pub wait: f64,
-    /// Metres, along [`geometry`](Self::geometry) (r5r's `distance`).
+    /// Metres, along [`geometry`](Self::geometry).
     pub distance: i32,
     /// GTFS `route_id` of a ride, empty for a street leg.
     pub route: String,
-    /// With a fare structure, r5r's `cumulative_fare`: the fare paid up to
+    /// With a fare structure, the fare paid up to
     /// the end of the leg (0 before the first ride); `None` without one.
     pub cumulative_fare: Option<f64>,
-    /// The leg's line as `(lon, lat)` degrees, as r5r's `geometry`
-    /// column holds it (the values read back from the WKT text JTS writes,
-    /// see [`wkt`](Self::wkt)).
+    /// The leg's line as `(lon, lat)` degrees: the values read back from
+    /// the WKT text JTS writes (see [`wkt`](Self::wkt)).
     pub geometry: Vec<[f64; 2]>,
     /// The line before JTS's formatting.
     raw: Vec<[f64; 2]>,
     /// With [`ItineraryParams::osm_link_ids`]: the OpenStreetMap way ids
     /// and the street edge indices of a street leg, in order and once
-    /// each, as r5r lists them (`osm_id_list`, `edge_id_list`; see
+    /// each (`osm_id_list`, `edge_id_list`; see
     /// [`osm_id_list`](Self::osm_id_list)); empty for a ride and otherwise.
     pub osm_ids: Vec<i64>,
     #[allow(missing_docs)]
     pub edge_ids: Vec<u32>,
     /// With [`ItineraryParams::osm_link_ids`]: the stops a ride is boarded
-    /// and left at, `feed_id:stop_id` (r5r's `board_stop_id`,
+    /// and left at, `feed_id:stop_id` (`board_stop_id`,
     /// `alight_stop_id`); empty for street legs and otherwise.
     pub board_stop_id: String,
     #[allow(missing_docs)]
@@ -258,7 +252,7 @@ pub struct ItineraryLeg {
 }
 
 impl ItineraryLeg {
-    /// The leg's line as the WKT text r5r writes for it (JTS 1.18.1's
+    /// The leg's line as WKT text (JTS 1.18.1's
     /// `LineString.toString()` on JDK 21): `LINESTRING (x y, ...)` with at
     /// most 16 fraction digits per ordinate, or `LINESTRING EMPTY`.
     pub fn wkt(&self) -> String {
@@ -267,45 +261,45 @@ impl ItineraryLeg {
         s
     }
 
-    /// r5r's `osm_id_list`: [`osm_ids`](Self::osm_ids) as Java prints a
+    /// `osm_id_list`: [`osm_ids`](Self::osm_ids) as Java prints a
     /// set, `[id1, id2, ...]`, or `[]`.
     pub fn osm_id_list(&self) -> String {
         links::list_text(&self.osm_ids)
     }
 
-    /// r5r's `edge_id_list`, as [`osm_id_list`](Self::osm_id_list).
+    /// `edge_id_list`, as [`osm_id_list`](Self::osm_id_list).
     pub fn edge_id_list(&self) -> String {
         links::list_text(&self.edge_ids)
     }
 }
 
-/// One itinerary between an origin-destination pair: r5r's rows of one
-/// `option`, one per leg.
+/// One itinerary between an origin-destination pair: one `option`, with
+/// its legs.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct Itinerary {
     /// The pair (index into the origins and destinations given).
     pub pair: usize,
-    /// r5r's `option`, from 1.
+    /// The number of the itinerary within its pair (`option`), from 1.
     pub option: u32,
-    /// Departure, seconds after midnight, and as r5r writes it (`HH:MM:SS`).
+    /// Departure, seconds after midnight, and as text (`HH:MM:SS`).
     pub departure_s: i32,
     #[allow(missing_docs)]
     pub departure_time: String,
-    /// Door-to-door seconds, and r5r's `total_duration` (minutes, one
+    /// Door-to-door seconds, and `total_duration` (minutes, one
     /// decimal place).
     pub total_duration_s: i32,
     #[allow(missing_docs)]
     pub total_duration: f64,
-    /// Metres, the sum of the legs' distances (r5r's `total_distance`).
+    /// Metres, the sum of the legs' distances.
     pub total_distance: i32,
-    /// With a fare structure, r5r's `total_fare`; `None` without one.
+    /// With a fare structure, the fare of the whole trip; `None` without one.
     pub total_fare: Option<f64>,
-    /// The legs in order (r5r's `segment` 1, 2, ...).
+    /// The legs in order (`segment` 1, 2, ...).
     pub legs: Vec<ItineraryLeg>,
 }
 
-/// A leg before r5r turns it into output columns.
+/// A leg before it is turned into output columns.
 #[derive(Debug, Clone)]
 struct Leg {
     mode: String,
@@ -347,7 +341,7 @@ impl Leg {
     }
 }
 
-/// A trip of r5r's `TripPlanner` (`Trip`).
+/// A trip of the planner (the ported `Trip`).
 #[derive(Debug, Clone)]
 struct Trip {
     direct: bool,
@@ -356,7 +350,7 @@ struct Trip {
     /// `Trip.augment` adds the access and egress legs and sums the legs.
     sort_duration: i32,
     sort_legs: usize,
-    /// Seconds after `augment` (r5r's `total_duration`).
+    /// Seconds after `augment` (`total_duration`).
     duration: i32,
     legs: Vec<Leg>,
     /// With a fare structure: the total fare and each leg's cumulative
@@ -441,18 +435,17 @@ fn direct_trip(
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ItineraryNotes {
-    /// The pairs (indices, ascending) whose itineraries in r5r depend on the
+    /// The pairs (indices, ascending) whose itineraries in R5 depend on the
     /// searches that ran before them in the session: with car egress, R5
     /// reverses the via edges of turn restrictions with two or more via
     /// ways in place on every check of a backward car search. For every
-    /// pair peabiru returns the itineraries r5r gives on a freshly built
-    /// network for that pair alone with one thread.
+    /// pair peabiru returns the itineraries of a freshly built network for
+    /// that pair alone with one thread.
     pub history_dependent: Vec<usize>,
     /// The pairs (indices, ascending) whose fastest public transport trip
-    /// FastRaptor found but whose path r5r cannot read back
-    /// (`Trip(Path, ...)` fails), so that r5r plans them again with
-    /// McRAPTOR (`FastDetailedItineraryPlanner`), and so does peabiru. Not
-    /// a warning: r5r only logs it.
+    /// FastRaptor found but whose path cannot be read back
+    /// (`Trip(Path, ...)` fails), so that they are planned again with
+    /// McRAPTOR (`FastDetailedItineraryPlanner`). A note, not a warning.
     pub mcraptor_fallbacks: Vec<usize>,
 }
 
@@ -482,7 +475,7 @@ pub(crate) fn detailed_itineraries_noted(
             destinations.len()
         )));
     }
-    // r5r reads the fare structure in as soon as it is given (for the
+    // the fare structure is read in as soon as it is given (for the
     // network's routes, whatever the modes)
     let calc = match (&p.fare_structure, transit) {
         (Some(fs), Some((layer, _))) => Some(crate::fares::FareCalculator::new(fs, layer)?),
@@ -492,8 +485,8 @@ pub(crate) fn detailed_itineraries_noted(
         }
         _ => None,
     };
-    // the scenario's network for every street leg (r5r's TripPlanner routes
-    // on getTransportNetwork(), the scenario copy)
+    // the scenario's network for every street leg (TripPlanner routes on
+    // getTransportNetwork(), the scenario copy)
     let by_car = p.mode == Mode::Car || (!p.transit_modes.is_empty() && p.egress_mode == Mode::Car);
     let scen = crate::street::scenario::scenario_network(net, &p.scenario, by_car)?;
     let net = scen.as_ref().unwrap_or(net);
@@ -567,7 +560,7 @@ pub(crate) fn detailed_itineraries_noted(
     Ok((its, notes))
 }
 
-/// The warning for the pairs (0-based, sorted) whose itineraries in r5r
+/// The warning for the pairs (0-based, sorted) whose itineraries in R5
 /// depend on what ran before them.
 fn history_warning(pairs: &[usize], n: usize) -> String {
     const SHOWN: usize = 10;
@@ -582,8 +575,8 @@ fn history_warning(pairs: &[usize], n: usize) -> String {
     format!(
         "{} of {} pairs ({} {}) have car searches that cross a turn restriction with two or \
          more via ways, whose via edges R5 reverses in place on every check of a backward car \
-         search: r5r's itineraries for them may depend on the searches that ran before in the \
-         session (other pairs, earlier calls, threads). peabiru returns those r5r gives on a \
+         search: in R5 the itineraries for them may depend on the searches that ran before in \
+         the session (other pairs, earlier calls, threads). peabiru always returns those of a \
          freshly built network for the pair alone with one thread.",
         pairs.len(),
         n,
@@ -602,7 +595,7 @@ fn plan(
     scratch: &mut Vec<u32>,
     via: &mut via::ViaOrders,
 ) -> Result<Vec<Trip>, RouteError> {
-    // r5r hands R5 NaN for a missing coordinate: no street is found
+    // a missing coordinate reaches R5 as NaN: no street is found
     if ![o.0, o.1, d.0, d.1].iter().all(|v| v.is_finite()) {
         return Ok(Vec::new());
     }
@@ -617,7 +610,7 @@ fn plan(
                 trips.extend(direct);
                 trips.extend(t);
             }
-            // r5r plans the pair again with McRAPTOR, from the direct trip
+            // the pair is planned again with McRAPTOR, from the direct trip
             // on (which the egress search may have changed, see `via`)
             Err(e) if transit::is_fallback(&e) => {
                 via.mcraptor_fallback = true;
@@ -644,7 +637,7 @@ fn plan(
             trips = vec![t];
         }
     }
-    // with a fare structure r5r reports the fare columns, 0 for a trip
+    // with a fare structure the fare columns are reported, 0 for a trip
     // without public transport
     if p.fare_structure.is_some() {
         for t in &mut trips {
@@ -685,10 +678,9 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
         .collect()
 }
 
-/// Write itineraries as r5r's `detailed_itineraries()` does with
-/// `output_dir`: one file per pair with itineraries,
-/// `<dir>/from_<origin id>_to_<destination id>.csv`, with r5r's columns
-/// and number formats (`RDataFrame.saveToCsv`): with `osm_link_ids` (the
+/// Write itineraries to CSV files (`output_dir`): one file per pair with
+/// itineraries, `<dir>/from_<origin id>_to_<destination id>.csv`, with
+/// Java's number formats (`RDataFrame.saveToCsv`): with `osm_link_ids` (the
 /// itineraries routed with it) `osm_id_list`, `edge_id_list`,
 /// `board_stop_id` and `alight_stop_id` after `route`, and the `geometry`
 /// column (the WKT text of [`ItineraryLeg::wkt`]) last unless

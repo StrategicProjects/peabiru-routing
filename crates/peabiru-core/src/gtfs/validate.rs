@@ -1,8 +1,7 @@
 //! The errors conveyal gtfs-lib (as bundled in R5 7.6) records while it
 //! loads a GTFS feed: `GTFSFeed.loadFromFile` with the table loaders of
-//! `com.conveyal.gtfs.model` and `PostLoadValidator`. r5r 2.5.0 writes
-//! them to `gtfs_errors.csv` and refuses to build a network when any has
-//! priority `HIGH`; `get_gtfs_errors()` reads them back.
+//! `com.conveyal.gtfs.model` and `PostLoadValidator`. A network is not
+//! built when any has priority `HIGH`; `get_gtfs_errors()` lists them.
 //!
 //! The loaders are ported field by field, in gtfs-lib's order, with its
 //! quirks: a value missing from a required column is an `EmptyFieldError`
@@ -12,9 +11,8 @@
 //! twice (`from_stop_id`, `trip_id`, ...) reports an empty value twice;
 //! `line` counts records, the header being line 1.
 //!
-//! Where gtfs-lib throws instead of recording an error, and r5r's
-//! `build_network()` fails without writing `gtfs_errors.csv`, this returns
-//! an error saying so ([`Outcome::Fails`]).
+//! Where gtfs-lib throws instead of recording an error, this returns an
+//! error saying so ([`Outcome::Fails`]).
 
 use super::csv::{for_each_row, Header, ReadError, Row};
 use super::jparse::{parse_double, parse_int, INT_MISSING};
@@ -66,7 +64,7 @@ type HashSet<K> = std::collections::HashSet<K, BuildHasherDefault<Fx>>;
 /// gtfs-lib's `Priority` of an error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GtfsErrorPriority {
-    /// Makes r5r refuse to build the network.
+    /// `HIGH`: a network is not built from the feed.
     High,
     /// `MEDIUM`.
     Medium,
@@ -77,7 +75,7 @@ pub enum GtfsErrorPriority {
 }
 
 impl GtfsErrorPriority {
-    /// The name r5r writes: `"HIGH"`, `"MEDIUM"`, `"LOW"` or `"UNKNOWN"`.
+    /// The name of the priority: `"HIGH"`, `"MEDIUM"`, `"LOW"` or `"UNKNOWN"`.
     pub fn as_str(self) -> &'static str {
         match self {
             GtfsErrorPriority::High => "HIGH",
@@ -88,7 +86,7 @@ impl GtfsErrorPriority {
     }
 }
 
-/// One row of r5r's `gtfs_errors.csv`: an error gtfs-lib recorded while
+/// One GTFS error: an error gtfs-lib recorded while
 /// loading a feed. Made by [`gtfs_errors`](crate::gtfs_errors).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GtfsFeedError {
@@ -245,7 +243,7 @@ impl Feed {
     ) {
         self.errors.push(GtfsFeedError {
             file: Some(file.to_string()),
-            // GTFSError.line is a long; r5r stores it as an int
+            // GTFSError.line is a long; kept as an int
             line: line as i32,
             error_type,
             field: field.map(str::to_string),
@@ -1423,17 +1421,14 @@ fn find_patterns_failure(f: &Feed) -> Option<String> {
 }
 
 /// The errors conveyal gtfs-lib (as in R5 7.6) records while loading the
-/// GTFS feed whose `.zip` is `zip`, as r5r 2.5.0 writes them to
-/// `gtfs_errors.csv` when it builds a network (one feed; r5r lists the
-/// feeds one after the other). `name` names the feed in errors.
+/// GTFS feed whose `.zip` is `zip` (one feed; call it once per feed).
+/// `name` names the feed in errors.
 ///
 /// Every check of gtfs-lib's table loaders and of its `PostLoadValidator`
-/// is made, in gtfs-lib's order (r5r lists the rows in the order of a Java
-/// `HashSet`, which changes from one run to the next; this lists them by
-/// table, in gtfs-lib's loading order, then by line). An error when the zip
+/// is made, and the errors are listed by table, in gtfs-lib's loading
+/// order, then by line. An error when the zip
 /// cannot be read, when gtfs-lib would fail on the feed instead of listing
-/// its errors (r5r's `build_network()` then fails without writing
-/// `gtfs_errors.csv`), and for a `locations.geojson` (GTFS-Flex zones)
+/// its errors, and for a `locations.geojson` (GTFS-Flex zones)
 /// that is not in UTF-8.
 pub fn gtfs_errors(name: &str, zip: &[u8]) -> Result<Vec<GtfsFeedError>, crate::NetworkError> {
     match validate(zip) {
@@ -1576,9 +1571,8 @@ mod tests {
         assert_eq!(check(&[]), Ok(vec![]));
     }
 
-    /// gtfs-lib's rows for these cases, as r5r 2.5.0 writes them to
-    /// gtfs_errors.csv (checked against it with larger feeds of the same
-    /// kinds).
+    /// gtfs-lib's rows for these cases (checked against gtfs-lib with larger
+    /// feeds of the same kinds).
     #[test]
     fn loader_errors_as_gtfs_lib() {
         let got = check(&[
@@ -1755,7 +1749,7 @@ mod tests {
     }
 
     /// GTFS-Flex zones and groups, as gtfs-lib reads them (checked against
-    /// r5r with flex variants of the São Paulo and Porto Alegre samples).
+    /// R5 with flex variants of the São Paulo and Porto Alegre samples).
     #[test]
     fn flex_zones_and_groups() {
         let zone = |kind: &str| {

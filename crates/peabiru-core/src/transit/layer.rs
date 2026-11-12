@@ -32,8 +32,8 @@ pub struct FrequencyEntry {
     pub end: i32,
     pub headway: i32,
     /// GTFS `exact_times = 1`: the vehicles leave at `start`, `start +
-    /// headway`, ... exactly. R5 ignores it (and so do all the functions
-    /// that reproduce r5r); only `trip_options()` reads it.
+    /// headway`, ... exactly. R5 ignores it, and so do all the functions
+    /// but `trip_options()`, which reads it.
     pub exact: bool,
 }
 
@@ -58,8 +58,8 @@ impl TripSchedule {
 /// Trips sharing route, stop sequence and pickup/drop-off types.
 #[derive(Debug, Clone, Default)]
 pub struct Pattern {
-    /// GTFS `route_id`, unscoped (R5 `RouteInfo.route_id`, what r5r reports
-    /// in `routes`).
+    /// GTFS `route_id`, unscoped (R5 `RouteInfo.route_id`, what the results
+    /// report in `routes`).
     pub route_id: String,
     pub route_type: i32,
     pub stops: Vec<u32>,
@@ -102,7 +102,7 @@ impl Service {
 }
 
 /// Whether [`TransitLayer::from_feeds`] checks the feeds for the errors
-/// that make r5r refuse them, and how.
+/// of priority `HIGH`, for which the build is refused, and how.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FeedCheck {
     /// No check: load what can be read.
@@ -135,9 +135,9 @@ pub struct TransitLayer {
     /// Trips of all feeds left out of the timetable, by reason.
     pub(crate) dropped_trips: DroppedTrips,
     /// What was found in each feed, in loading order (see
-    /// [`TransitLayer::r5r_warnings`]).
+    /// [`TransitLayer::feed_warnings`]).
     pub(crate) feed_reports: Vec<FeedReport>,
-    /// Drawn, not routed on (r5r's `transit_network_to_sf()`; see
+    /// Drawn, not routed on (`transit_network_to_sf()`; see
     /// `crate::inspect`): the `stop_name` of each stop (`None` when blank),
     /// R5's `RouteInfo` list, and per pattern its index in it and the
     /// shape of the trip that made the pattern (into `shapes`).
@@ -157,7 +157,7 @@ pub struct TransitLayer {
     pub(crate) shapes: Vec<Vec<[f64; 2]>>,
 }
 
-/// R5's `RouteInfo`: a GTFS route as r5r reports it, `None` for a blank
+/// R5's `RouteInfo`: a GTFS route as it is reported, `None` for a blank
 /// value.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct RouteInfo {
@@ -213,21 +213,21 @@ impl DroppedTrips {
     }
 }
 
-/// What loading one GTFS feed found. Some of it makes r5r 2.5.0 refuse to
-/// build a network from the feed (gtfs-lib reports a high-priority error),
-/// while peabiru builds it: see [`FeedReport::r5r_refusals`].
+/// What loading one GTFS feed found. Some of it is a GTFS error of
+/// priority `HIGH` (as gtfs-lib ranks it), for which the build is refused
+/// unless such errors are ignored: see [`FeedReport::high_priority_cases`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct FeedReport {
     /// The feed's `.zip` file.
     pub path: std::path::PathBuf,
     /// Entries of the tables read from a subfolder of the `.zip` rather than
-    /// its root (r5r: `TableInSubdirectoryError`).
+    /// its root (gtfs-lib's `TableInSubdirectoryError`).
     pub tables_in_subfolder: Vec<String>,
-    /// The feed has no `agency.txt` (r5r: `NoAgencyInFeedError`).
+    /// The feed has no `agency.txt` (gtfs-lib's `NoAgencyInFeedError`).
     pub no_agency: bool,
     /// Trips of this feed left out of the timetable, by reason. Only
-    /// `unknown_stop` and `unknown_route` make r5r refuse the feed
+    /// `unknown_stop` and `unknown_route` are errors of priority `HIGH`
     /// (`ReferentialIntegrityError`).
     pub dropped_trips: DroppedTrips,
 }
@@ -241,10 +241,10 @@ impl FeedReport {
         )
     }
 
-    /// Why r5r would refuse this feed, one phrase per case (empty when it
-    /// would not): tables in a subfolder, no `agency.txt`, trips that refer
+    /// The errors of priority `HIGH` found in this feed, one phrase per
+    /// case (empty when there are none): tables in a subfolder, no `agency.txt`, trips that refer
     /// to a stop or route that does not exist.
-    pub fn r5r_refusals(&self) -> Vec<String> {
+    pub fn high_priority_cases(&self) -> Vec<String> {
         let mut out = Vec::new();
         if !self.tables_in_subfolder.is_empty() {
             let mut folders: Vec<&str> = Vec::new();
@@ -290,25 +290,25 @@ impl FeedReport {
         out
     }
 
-    /// One warning for this feed naming everything r5r would refuse it
-    /// for, or `None` when r5r would build it.
-    pub fn r5r_warning(&self) -> Option<String> {
-        let found = self.r5r_refusals();
-        (!found.is_empty()).then(|| warning(&self.file_name(), &found.join("; ")))
+    /// One warning for this feed naming every case of
+    /// [`FeedReport::high_priority_cases`], or `None` when there are none.
+    pub fn warning(&self) -> Option<String> {
+        let found = self.high_priority_cases();
+        (!found.is_empty()).then(|| feed_warning(&self.file_name(), &found.join("; ")))
     }
 
-    /// One warning per case r5r would refuse this feed for.
-    pub fn r5r_warnings_per_case(&self) -> Vec<String> {
+    /// One warning per case of [`FeedReport::high_priority_cases`].
+    pub fn warnings_per_case(&self) -> Vec<String> {
         let file = self.file_name();
-        self.r5r_refusals()
+        self.high_priority_cases()
             .iter()
-            .map(|c| warning(&file, c))
+            .map(|c| feed_warning(&file, c))
             .collect()
     }
 }
 
-fn warning(file: &str, found: &str) -> String {
-    format!("GTFS feed '{file}': {found}. r5r refuses to build a network from this feed.")
+fn feed_warning(file: &str, found: &str) -> String {
+    format!("GTFS feed '{file}': {found}. A network is built from this feed only because GTFS errors are ignored.")
 }
 
 /// WGS84 ellipsoidal distance in metres (Vincenty's inverse formula; R5 uses
@@ -484,8 +484,7 @@ fn java_frequency_order(entries: &[FrequencyEntry]) -> Option<Vec<FrequencyEntry
 /// exception R5 throws.
 fn r5_fails(why: String, exception: &str) -> GtfsError {
     GtfsError::R5Fails(format!(
-        "{why}, and R5 fails building its transit layer from the feed ({exception}), as \
-         does r5r's build_network()"
+        "{why}, and R5 fails building its transit layer from the feed ({exception})"
     ))
 }
 
@@ -549,8 +548,7 @@ impl TransitLayer {
         self.services.len()
     }
 
-    /// Number of services running on `date` (`yyyymmdd`), as r5r's
-    /// `getTransitServiceAvailability` counts them;
+    /// Number of services running on `date` (`yyyymmdd`);
     /// [`RouteError::Invalid`](crate::RouteError::Invalid) when `date` is
     /// not a calendar date (see [`validate_date`](crate::validate_date)).
     pub fn n_services_active_on(&self, date: u32) -> Result<usize, crate::RouteError> {
@@ -621,8 +619,8 @@ impl TransitLayer {
     /// (`crate::gtfs::validate`): a feed gtfs-lib fails on is an error at
     /// once; feeds with errors of priority `HIGH` are not loaded, the
     /// following feeds are still validated, and the error names them all
-    /// ([`GtfsError::HighPriority`]), as r5r refuses the network when any
-    /// feed has one.
+    /// ([`GtfsError::HighPriority`]): no network is built when any feed has
+    /// one.
     pub(crate) fn from_feeds<'a>(
         feeds: impl IntoIterator<Item = Result<(std::path::PathBuf, Cow<'a, [u8]>), GtfsError>>,
         limits: Limits,
@@ -697,7 +695,7 @@ impl TransitLayer {
                     e
                 } else {
                     // gtfs-lib loads it with errors of lower priority only
-                    GtfsError::BuiltByR5r(Box::new(e))
+                    GtfsError::NotRead(Box::new(e))
                 }
             })?;
             let id = feed_id(&feed, &path);
@@ -728,15 +726,15 @@ impl TransitLayer {
         Ok(layer)
     }
 
-    /// Warnings for the feeds that r5r refuses to build a network from and
-    /// peabiru builds, one per feed, in loading order (empty when there are
+    /// Warnings for the feeds built in spite of GTFS errors of priority
+    /// `HIGH`, one per feed, in loading order (empty when there are
     /// none). Such feeds are built only with
     /// [`BuildOptions::ignore_gtfs_errors`](crate::BuildOptions::ignore_gtfs_errors);
     /// otherwise the build fails. The core never prints them; the CLI does.
-    pub fn r5r_warnings(&self) -> Vec<String> {
+    pub fn feed_warnings(&self) -> Vec<String> {
         self.feed_reports
             .iter()
-            .filter_map(FeedReport::r5r_warning)
+            .filter_map(FeedReport::warning)
             .collect()
     }
 
@@ -838,8 +836,8 @@ impl TransitLayer {
         let first_pattern = self.patterns.len();
         let mut dropped = DroppedTrips::default();
         for (trip_id, trip) in trips {
-            // on-demand (GTFS-Flex) trips are not routed (r5r never asks
-            // R5 for on-demand services)
+            // on-demand (GTFS-Flex) trips are not routed (R5 is never asked
+            // for on-demand services)
             if feed.flex_trips.contains(trip_id) {
                 continue;
             }
@@ -1139,14 +1137,14 @@ impl TransitLayer {
     }
 }
 
-/// Whether a file name ends with `suffix`, case-sensitively, as r5r's
-/// `NetworkBuilder.loadDirectory` tests names (`String.endsWith`).
+/// Whether a file name ends with `suffix`, case-sensitively (Java's
+/// `String.endsWith`).
 pub(crate) fn has_suffix(name: &std::ffi::OsStr, suffix: &str) -> bool {
     name.as_encoded_bytes().ends_with(suffix.as_bytes())
 }
 
-/// The `.zip` files of a directory (lower-case extension, as r5r matches
-/// it) in the order the operating system lists them, which is the order R5
+/// The `.zip` files of a directory (lower-case extension only)
+/// in the order the operating system lists them, which is the order R5
 /// (Java `File.listFiles`) loads feeds in.
 pub fn gtfs_files_in_dir(
     dir: impl AsRef<std::path::Path>,
@@ -1358,7 +1356,7 @@ BADFREQ,08:00:00,08:00:00,A,1\nBADFREQ,08:10:00,08:10:00,B,2\n",
         use crate::gtfs::zip::tests::make_zip;
         // tests run in parallel: one directory per call, named after its first feed
         let dir = std::env::temp_dir().join(format!(
-            "peabiru-r5r-warn-{}-{}",
+            "peabiru-feed-warn-{}-{}",
             std::process::id(),
             feeds[0].0
         ));
@@ -1381,10 +1379,10 @@ BADFREQ,08:00:00,08:00:00,A,1\nBADFREQ,08:10:00,08:10:00,B,2\n",
         out
     }
 
-    /// Feeds that r5r refuses and peabiru builds are reported, with a
+    /// Feeds built in spite of errors of priority HIGH are reported, with a
     /// warning naming the file; a clean feed gives none.
     #[test]
-    fn feeds_r5r_refuses_are_reported() {
+    fn feeds_with_ignored_errors_are_reported() {
         let clean = clean_feed();
         let nested: Files = clean
             .iter()
@@ -1420,7 +1418,7 @@ T4,08:00:00,08:00:00,A,1\nT4,08:10:00,08:10:00,B,2\n",
 T1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,B,2\n\
 T2,08:00:00,08:00:00,A,1\nT2,08:10:00,08:10:00,B,2\n",
         );
-        // Trips left out for other reasons are not what r5r refuses a feed for.
+        // Trips left out for other reasons are not errors of priority HIGH.
         let mut other_drops = clean.clone();
         set(
             &mut other_drops,
@@ -1442,18 +1440,18 @@ T2,08:00:00,08:00:00,A,1\nT2,08:10:00,08:10:00,B,2\n",
             ("one_route.zip", one_route),
             ("other_drops.zip", other_drops),
         ]);
-        let warn = |i: usize| all[i].1.r5r_warning();
+        let warn = |i: usize| all[i].1.warning();
 
-        assert_eq!(all[0].1.r5r_refusals(), Vec::<String>::new());
+        assert_eq!(all[0].1.high_priority_cases(), Vec::<String>::new());
         assert_eq!(warn(0), None);
-        assert!(all[0].0.r5r_warnings().is_empty());
+        assert!(all[0].0.feed_warnings().is_empty());
 
         assert_eq!(all[1].1.tables_in_subfolder.len(), 6);
         assert!(!all[1].1.no_agency);
         assert_eq!(
             warn(1).unwrap(),
             "GTFS feed 'nested.zip': its tables are in a subfolder of the .zip ('gtfs/'). \
-r5r refuses to build a network from this feed."
+A network is built from this feed only because GTFS errors are ignored."
         );
         // the nested feed is built all the same, as the clean one
         assert_eq!(all[1].0.patterns.len(), 1);
@@ -1462,7 +1460,7 @@ r5r refuses to build a network from this feed."
         assert_eq!(
             warn(2).unwrap(),
             "GTFS feed 'no_agency.zip': it has no agency.txt. \
-r5r refuses to build a network from this feed."
+A network is built from this feed only because GTFS errors are ignored."
         );
 
         assert_eq!(all[3].1.dropped_trips.unknown_stop, 2);
@@ -1470,14 +1468,14 @@ r5r refuses to build a network from this feed."
         assert_eq!(
             warn(3).unwrap(),
             "GTFS feed 'bad_refs.zip': 3 trips left out (2 refer to a stop that does not exist, \
-1 to a route that does not exist). r5r refuses to build a network from this feed."
+1 to a route that does not exist). A network is built from this feed only because GTFS errors are ignored."
         );
-        assert_eq!(all[3].0.r5r_warnings(), [warn(3).unwrap()]);
+        assert_eq!(all[3].0.feed_warnings(), [warn(3).unwrap()]);
 
         assert_eq!(
             warn(4).unwrap(),
             "GTFS feed 'one_route.zip': 1 trip left out because it refers to a route that \
-does not exist. r5r refuses to build a network from this feed."
+does not exist. A network is built from this feed only because GTFS errors are ignored."
         );
 
         assert_eq!(all[5].1.dropped_trips.total(), 2);
@@ -1501,24 +1499,25 @@ does not exist. r5r refuses to build a network from this feed."
         let all = reports(&[("x.zip", files)]);
         let r = &all[0].1;
         assert_eq!(
-            r.r5r_warning().unwrap(),
+            r.warning().unwrap(),
             "GTFS feed 'x.zip': its tables are in a subfolder of the .zip ('feed/'); \
 it has no agency.txt; 1 trip left out because it refers to a stop that does not exist. \
-r5r refuses to build a network from this feed."
+A network is built from this feed only because GTFS errors are ignored."
         );
         assert_eq!(
-            r.r5r_warnings_per_case(),
+            r.warnings_per_case(),
             [
                 "GTFS feed 'x.zip': its tables are in a subfolder of the .zip ('feed/'). \
-r5r refuses to build a network from this feed.",
-                "GTFS feed 'x.zip': it has no agency.txt. r5r refuses to build a network from this feed.",
+A network is built from this feed only because GTFS errors are ignored.",
+                "GTFS feed 'x.zip': it has no agency.txt. \
+A network is built from this feed only because GTFS errors are ignored.",
                 "GTFS feed 'x.zip': 1 trip left out because it refers to a stop that does not exist. \
-r5r refuses to build a network from this feed."
+A network is built from this feed only because GTFS errors are ignored."
             ]
         );
     }
 
-    /// Extensions are matched case-sensitively, as r5r does.
+    /// Extensions are matched case-sensitively.
     #[test]
     fn data_files_match_lower_case_extensions() {
         use std::ffi::OsStr;
@@ -1739,7 +1738,7 @@ r5r refuses to build a network from this feed."
         assert_eq!(interpolate(&refs, &nan), Err(1));
         let far = [(0.0, 0.0), (0.001, 0.0), (90.001, 0.0)];
         assert_eq!(interpolate(&refs, &far), Err(2));
-        // a longitude out of range is measured (as r5r does)
+        // a longitude out of range is measured (as R5 does)
         let east = [(0.0, 0.0), (0.001, 0.0), (0.003, 181.0)];
         assert!(interpolate(&refs, &east).is_ok());
     }

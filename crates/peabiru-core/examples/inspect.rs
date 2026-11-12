@@ -1,6 +1,6 @@
-//! Looking into a network, as r5r's `find_snap()`, `street_network_bbox()`,
-//! `street_network_to_sf()`, `transit_network_to_sf()`,
-//! `check_transit_availability()` and `gtfs_errors()` do.
+//! Looking into a network: where points snap to the streets, the bounding
+//! box, the street and transit networks, the service dates and the GTFS
+//! errors of each feed.
 //!
 //! ```sh
 //! cargo run --release -p peabiru-core --example inspect [network_dir]
@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let points = common::read_points(&dir, &[]);
     let mut opts = BuildOptions::default();
     opts.n_threads = 2;
-    // As r5r's build_network(), the build fails when a feed has GTFS errors
+    // The build fails when a feed has GTFS errors
     // of priority HIGH; ignore_gtfs_errors builds what can be read anyway.
     let net = match build_from_dir(&dir, &opts) {
         Ok(built) => built,
@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Where the first three points meet the streets open to walking
-    // (r5r's find_snap(), radius 1600 m).
+    // (within a radius of 1600 m).
     for (id, snap) in
         points
             .ids
@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         b[0], b[2], b[1], b[3]
     );
 
-    // The street network as r5r's street_network_to_sf() lists it.
+    // The street network: its vertices and edges.
     let vertices = street_vertices(&net);
     let edges = street_edges(&net);
     let km: f64 = (0..edges.len()).map(|i| edges.length_m(i)).sum::<f64>() / 1000.0;
@@ -95,8 +95,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // The errors gtfs-lib records loading each feed, by priority and type.
-    // Errors of priority HIGH make build_from_dir() fail, as r5r's
-    // build_network() does (BuildOptions::ignore_gtfs_errors to build anyway).
+    // Errors of priority HIGH make build_from_dir() fail
+    // (BuildOptions::ignore_gtfs_errors to build anyway).
     for path in gtfs_files_in_dir(&dir)? {
         let bytes = std::fs::read(&path)?;
         let name = path.file_name().unwrap_or_default().to_string_lossy();

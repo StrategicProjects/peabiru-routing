@@ -346,7 +346,7 @@ fn rs_core_version() -> &'static str {
 fn rs_build_network(data_path: &str, n_threads: i32, elevation: &str) -> Result<Robj> {
     let mut opts = BuildOptions::default();
     opts.n_threads = threads(n_threads);
-    opts.elevation = peabiru_core::Elevation::from_r5r_name(elevation)
+    opts.elevation = peabiru_core::Elevation::from_name(elevation)
         .ok_or_else(|| err(format!("unknown elevation model {elevation:?}")))?;
     let lister = format!("get_gtfs_errors({data_path:?})");
     let net = build_from_dir(data_path, &opts).map_err(|e| err(build_error(&e, &lister)))?;
@@ -393,7 +393,7 @@ fn rs_network_info(ptr: Robj) -> Result<Robj> {
         patterns = patterns as f64,
         services = services as f64,
         frequencies = freq,
-        elevation = n.net.street().elevation().r5r_name()
+        elevation = n.net.street().elevation().name()
     )
     .into())
 }

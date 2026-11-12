@@ -1,24 +1,23 @@
-//! Isochrones, as r5r's `isochrone()`.
+//! Isochrones.
 //!
-//! Polygon isochrones (r5r's default, `polygon_output = TRUE`) are made in
+//! Polygon isochrones (`polygon_output = TRUE` in the packages) are made in
 //! two steps, both here: a travel-time *surface* from each origin to the
 //! cells of a Web Mercator grid covering the network (R5's
 //! `TravelTimeSurfaceTask`; [`street_travel_time_surface`],
 //! [`transit_travel_time_surface`]), then the band of each cutoff traced
 //! over the surface by marching squares and grouped into polygons with
-//! holes, as the R package isoband does for r5r ([`isochrone_polygons`]).
+//! holes, as the R package isoband does ([`isochrone_polygons`]).
 //! The surface is R5's, value for value; the rings are isoband's, vertex
 //! for vertex and in the order isoband gives them on the platform (it
 //! depends on the C++ standard library isoband is built with; see
-//! [`isochrone_polygons`]). r5r then hands the
-//! polygons to `sf::st_make_valid()`, which on longitude/latitude data
-//! rebuilds them with s2 (snapping to 1e-7 degrees); that last step is not
-//! reproduced here: the R package applies it, other callers get isoband's
-//! polygons.
+//! [`isochrone_polygons`]). Repairing the polygons with
+//! `sf::st_make_valid()`, which on longitude/latitude data rebuilds them
+//! with s2 (snapping to 1e-7 degrees), is not done here: the R package
+//! applies it, other callers get isoband's polygons.
 //!
 //! Line isochrones (`polygon_output = FALSE`) are the street edges reached
 //! from each origin, banded by cutoff: [`street_edges`] lists the edges and
-//! the centroid r5r routes to on each, a travel-time matrix to those
+//! the centroid to route to on each, a travel-time matrix to those
 //! centroids gives the times, and [`isochrone_lines`] bands and orders them.
 
 mod edges;
@@ -41,8 +40,8 @@ use crate::transit::raptor::UNREACHED;
 use crate::{RouteError, TransitLayer, TransitParams};
 
 /// Travel times from each origin to every cell of a Web Mercator grid, in
-/// whole minutes at each percentile, as R5's travel-time surface (and
-/// r5r's internal `travel_time_surface()`): `i32::MAX` where a cell is not
+/// whole minutes at each percentile, as R5's travel-time surface:
+/// `i32::MAX` where a cell is not
 /// reached. The minutes are not capped at the trip limit: a street time
 /// includes the partial edges at both ends and may pass it, as in R5.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,14 +123,14 @@ pub(crate) fn street_travel_time_surface(
     })
 }
 
-/// r5r's `isochrone()` has no scenario arguments, so there is nothing to
-/// compare a surface with a scenario with: an error.
+/// Travel-time surfaces take no scenario: an error for one that changes
+/// anything.
 fn no_scenario(s: &crate::Scenario) -> Result<(), RouteError> {
     if s.is_unchanged() {
         Ok(())
     } else {
         Err(RouteError::Invalid(
-            "travel-time surfaces take no scenario: r5r's isochrone() has no new_carspeeds, \
+            "travel-time surfaces take no scenario: isochrone() has no new_carspeeds, \
              carspeed_scale or new_lts"
                 .into(),
         ))
@@ -176,8 +175,8 @@ pub(crate) fn transit_travel_time_surface(
     })
 }
 
-/// r5r's cutoffs of `isochrone()`: `sort(unique(c(0, cutoffs)))` without
-/// the 0, ascending. They must be finite and at least 0, and one must be
+/// The cutoffs of isochrones: distinct, ascending and without
+/// the 0. They must be finite and at least 0, and one must be
 /// above 0; [`RouteError::Invalid`] otherwise.
 pub fn isochrone_cutoffs(cutoffs: &[f64]) -> Result<Vec<f64>, RouteError> {
     if cutoffs.is_empty() {
@@ -201,8 +200,8 @@ pub fn isochrone_cutoffs(cutoffs: &[f64]) -> Result<Vec<f64>, RouteError> {
     Ok(out)
 }
 
-/// The trip limit r5r's `isochrone()` derives from the cutoffs (the user's
-/// `max_trip_duration` is ignored): `as.integer(max(cutoffs))`, minutes
+/// The trip limit of isochrones, derived from the cutoffs (not from a
+/// `max_trip_duration`): the largest cutoff, its minutes
 /// truncated. Line isochrones route with it; polygon isochrones with it
 /// plus 10. Errors as [`isochrone_cutoffs`], and when it does not fit an
 /// `i32`.
@@ -232,31 +231,30 @@ pub struct IsochronePolygon {
     pub isochrone: f64,
     /// The polygons, each a shell followed by its holes, every ring closed;
     /// as isoband's `separate_polygons()` makes them (shells as traced,
-    /// holes reversed), before r5r's `sf::st_make_valid()`.
+    /// holes reversed), before any repair (`sf::st_make_valid()`).
     pub polygons: Vec<Polygon>,
 }
 
-/// r5r's `webmercator_pixel_to_lon()`.
+/// The longitude of a Web Mercator pixel coordinate.
 fn pixel_to_lon(px: f64, zoom: i32) -> f64 {
     px / 256.0 / 2f64.powi(zoom) * 360.0 - 180.0
 }
 
-/// r5r's `webmercator_pixel_to_lat()` (`rad2deg()` is `rad * 180 / pi`).
+/// The latitude of a Web Mercator pixel coordinate.
 fn pixel_to_lat(px: f64, zoom: i32) -> f64 {
     use std::f64::consts::PI;
     (PI - px / 256.0 / 2f64.powi(zoom) * 2.0 * PI).sinh().atan() * 180.0 / PI
 }
 
-/// Polygon isochrones from a travel-time surface, as r5r's `isochrone()`
-/// makes them (`surface_isochrone()`): for each origin, each percentile and
+/// Polygon isochrones from a travel-time surface: for each origin, each percentile and
 /// each cutoff, the cells reached in less than the cutoff, traced by
 /// isoband's marching squares over the cell centres (`isoband::isobands()`
 /// from 0 to the cutoff), converted to longitude and latitude and grouped
 /// into polygons with holes (`isoband::iso_to_sfg()`).
 ///
-/// `cutoffs` are r5r's (see [`isochrone_cutoffs`]). Every (origin,
+/// `cutoffs` are checked by [`isochrone_cutoffs`]. Every (origin,
 /// percentile, cutoff) gets one result, ordered by origin, percentile
-/// (ascending) and cutoff (descending), as r5r orders its rows.
+/// (ascending) and cutoff (descending).
 /// [`RouteError::Invalid`] for bad cutoffs, and where isoband stops: two
 /// rings whose relation it cannot decide.
 ///
@@ -266,7 +264,7 @@ fn pixel_to_lat(px: f64, zoom: i32) -> f64 {
 /// with, libc++ on macOS and libstdc++ on Linux and Windows. This function
 /// follows the target it is compiled for (libc++ on Apple targets and on
 /// WebAssembly, libstdc++ elsewhere), so on each platform the polygons are
-/// those r5r makes there.
+/// those the R package isoband makes there.
 pub fn isochrone_polygons(
     surface: &TravelTimeSurface,
     cutoffs: &[f64],
@@ -283,7 +281,7 @@ pub(crate) fn isochrone_polygons_in(
 ) -> Result<Vec<IsochronePolygon>, RouteError> {
     let cutoffs = isochrone_cutoffs(cutoffs)?;
     let g = surface.grid;
-    // r5r: west + seq_len(width) - 0.5, north + seq_len(height) - 0.5
+    // cell centres: west + 1..=width - 0.5, north + 1..=height - 0.5
     let x: Vec<f64> = (1..=g.width())
         .map(|i| f64::from(g.west() + i) - 0.5)
         .collect();
@@ -340,7 +338,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cutoffs_follow_r5r() {
+    fn cutoffs_are_checked() {
         assert_eq!(
             isochrone_cutoffs(&[30.0, 0.0, 15.0, 15.0]).unwrap(),
             vec![15.0, 30.0]

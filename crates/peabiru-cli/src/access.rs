@@ -9,7 +9,7 @@ use peabiru_core::{
     AccessibilityParams, CsvOutput, DecayFunction, Destinations,
 };
 
-/// r5r's `assign_decay_function()`.
+/// The decay function of `--decay-function` and `--decay-value`, checked.
 fn decay(name: &str, value: Option<&str>) -> Res<DecayFunction> {
     let name = name.trim();
     let v = value.map(|v| number("decay-value", v)).transpose()?;
@@ -78,7 +78,7 @@ fn decay(name: &str, value: Option<&str>) -> Res<DecayFunction> {
     })
 }
 
-/// r5r's `set_cutoffs()`: the cutoffs R5 receives (ascending, or the
+/// The cutoffs the engine receives (ascending, or the
 /// placeholder 0 for fixed_exponential).
 fn cutoffs(values: Option<&[String]>, fixed: bool) -> Res<Option<Vec<i32>>> {
     let Some(values) = values else {
@@ -152,7 +152,7 @@ pub fn accessibility(a: AccessibilityArgs) -> Res<()> {
     let scen = scenario(&ctx, &a.scenario, &built.net)?;
     let th = threads(&a.net);
     let mut ap = AccessibilityParams::default();
-    // r5r passes the placeholder 0 when cutoffs is NULL
+    // the placeholder 0 when no cutoffs are given (fixed_exponential)
     ap.cutoffs = cuts.clone().unwrap_or_else(|| vec![0]);
     ap.decay = f;
     let dest = Destinations::new(&d.coords, &d.columns);
@@ -232,7 +232,7 @@ pub fn isochrone(a: IsochroneArgs) -> Res<()> {
             "the largest of --cutoffs is beyond the integer range",
         ));
     }
-    // r5r: the largest cutoff is the trip limit (polygons route 10 minutes
+    // the largest cutoff is the trip limit (polygons route 10 minutes
     // past it), the bands start at 0
     let limit = top as i32;
     let mut cuts = values.clone();
@@ -325,7 +325,7 @@ pub fn isochrone(a: IsochroneArgs) -> Res<()> {
         ctx.progress(format!("{} polygons", rows.len()));
         return Ok(());
     }
-    // lines: the matrix to the centroids of the street edges, as r5r's
+    // lines: the matrix to the centroids of the street edges, as
     // travel_time_matrix() gives it
     let edges = street_edges(&built.net);
     let dest = edges.centroid_points();

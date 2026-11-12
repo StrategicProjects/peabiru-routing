@@ -1,5 +1,5 @@
-//! Slope costs from an elevation raster, as r5r's
-//! `build_network(elevation = "TOBLER" | "MINETTI")`: walking and cycling
+//! Slope costs from an elevation raster, with Tobler's or Minetti's
+//! model: walking and cycling
 //! times change with the slope of each street, driving times do not.
 //!
 //! ```sh
@@ -54,12 +54,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         opts.n_threads = 2;
         opts.elevation = model;
         let net = build_from_bytes_with_elevation(&pbf, &feeds, &tif, &opts)?;
-        // What r5r stores silently (voids, no-data values, samples on a
-        // pixel boundary of a projected raster); the packages warn.
+        // Suspect samples (voids, no-data values, samples on a pixel
+        // boundary of a projected raster) come as warnings.
         for w in net.build_warnings() {
             eprintln!("warning: {w}");
         }
-        let mut line = format!("{:<8}", model.r5r_name());
+        let mut line = format!("{:<8}", model.name());
         for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
             let m = street_travel_time_matrix(&net, o, d, mode, &params)?;
             let total: u32 = m.row(0).iter().flatten().sum();

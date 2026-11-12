@@ -1,5 +1,5 @@
-//! Every trip of the departure window (r5r's
-//! `expanded_travel_time_matrix()`), and the latest trip that arrives in
+//! Every trip of the departure window
+//! (`expanded_travel_time_matrix()`), and the latest trip that arrives in
 //! time (`arrival_travel_time_matrix()`).
 //!
 //! ```sh
@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Arrival by 15:00 within 60 minutes: the search window is the 60
-    // minutes before the arrival time, as in r5r.
+    // minutes before the arrival time.
     let max_trip = 60;
     let (date, departure) = arrival_departure(20190513, 15 * 3600, max_trip)?;
     let mut params = TransitParams::default();

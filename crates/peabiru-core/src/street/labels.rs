@@ -5,7 +5,7 @@
 //! These rules follow Conveyal R5 7.6 (`StreetLayer.isWayRoutable`,
 //! `USTraversalPermissionLabeler`, `SpeedLabeler` with the default
 //! `SpeedConfig`, `LevelOfTrafficStressLabeler`, `TypeOfEdgeLabeler`), MIT
-//! licensed, so travel times match r5r. Quirks are kept on purpose and noted
+//! licensed, so travel times are R5's. Quirks are kept on purpose and noted
 //! where they occur.
 
 use super::flags::*;

@@ -3,7 +3,7 @@
 //! gtfs-lib records and the zone ids that stop times and location groups
 //! may refer to. The zones themselves are never routed on: R5 builds
 //! on-demand services from them only for requests with the `ON_DEMAND`
-//! flag, which r5r never sets.
+//! flag, which peabiru's requests never set.
 //!
 //! gtfs-lib streams the file with Jackson and expects one exact shape: a
 //! `FeatureCollection` object whose only members are `type` and

@@ -1,11 +1,11 @@
-//! r5r's fare structure file: a `.zip` holding five CSV files, written by
-//! `data.table::fwrite()` and read back by `data.table::fread()`
+//! The fare structure file: a `.zip` holding five CSV files, in the format
+//! of `data.table::fwrite()`, read back as `data.table::fread()` reads it
 //! (`write_fare_structure()`, `read_fare_structure()`).
 //!
 //! The CSV text is `fwrite`'s (its quoting, its numbers, `\n` line ends);
 //! the archive around it is deflated as `zip::zip()`'s, with the same
 //! entries in the same order, but dated 1980-01-01 and compressed by
-//! miniz_oxide, so the `.zip` bytes differ from r5r's (whose bytes carry
+//! miniz_oxide, so the `.zip` bytes differ from those of `zip::zip()` (whose bytes carry
 //! the files' modification times anyway) while every file in it is the
 //! same.
 
@@ -255,7 +255,7 @@ pub fn zip_deflated(files: &[(&str, &[u8])]) -> Vec<u8> {
     out
 }
 
-/// The five file names of r5r's archive, in its order.
+/// The five file names of the archive, in its order.
 pub(crate) const FILES: [&str; 5] = [
     "global_settings.csv",
     "fares_per_type.csv",
@@ -269,7 +269,7 @@ fn text(v: impl IntoIterator<Item = Option<String>>) -> FwriteColumn {
 }
 
 /// The five CSV files of `write_fare_structure()`, in its order, for a
-/// structure whose tables have r5r's columns.
+/// structure whose tables have the expected columns.
 pub(crate) fn fare_csvs(s: &FareStructure, eol: &str) -> Result<Vec<String>, RouteError> {
     let col = |n: &str, c: FwriteColumn| (n.to_string(), c);
     let global = fwrite_csv_eol(
@@ -377,12 +377,11 @@ pub(crate) fn fare_csvs(s: &FareStructure, eol: &str) -> Result<Vec<String>, Rou
     Ok(vec![global, types, transfers, routes, debug])
 }
 
-/// r5r's `write_fare_structure()`: the bytes of the `.zip` file. The five
-/// CSV files in it are byte for byte those r5r writes on the same platform
-/// (`fwrite`'s line ends: `\r\n` on Windows, `\n` elsewhere, and in
-/// WebAssembly); the archive deflates them, as r5r's,
-/// but leaves them undated (see the module notes), so the `.zip` bytes
-/// differ.
+/// The bytes of a fare structure `.zip` file. The five CSV files in it
+/// are byte for byte what `data.table::fwrite()` writes on the same
+/// platform (its line ends: `\r\n` on Windows, `\n` elsewhere, and in
+/// WebAssembly); the archive deflates them and leaves them undated (see
+/// the module notes).
 pub fn write_fare_structure(s: &FareStructure) -> Result<Vec<u8>, RouteError> {
     let csvs = fare_csvs(s, crate::output::LINE_END)?;
     let files: Vec<(&str, &[u8])> = FILES
@@ -585,10 +584,10 @@ fn as_integer(x: f64) -> f64 {
     }
 }
 
-/// r5r's `read_fare_structure()` of the bytes of a fare structure `.zip`
+/// The fare structure in the bytes of a fare structure `.zip`
 /// file: the global settings (the counts made integers as `as.integer()`
-/// does: `Inf` becomes `NA`, NaN here), the three tables with the columns
-/// r5r selects, and the debug settings. `encoding` is fread's: `"UTF-8"`
+/// does: `Inf` becomes `NA`, NaN here), the three tables with their known
+/// columns, and the debug settings. `encoding` is fread's: `"UTF-8"`
 /// (the default) and `"unknown"` read the text as UTF-8, `"Latin-1"` as
 /// ISO 8859-1.
 pub fn read_fare_structure(bytes: &[u8], encoding: &str) -> Result<FareStructure, RouteError> {

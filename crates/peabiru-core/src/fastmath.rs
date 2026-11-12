@@ -1,5 +1,5 @@
-//! commons-math3 3.0 `FastMath.exp`, bit for bit, as bundled in the R5 jar
-//! r5r runs (`r5-v7.6-all.jar`). R5's decay functions call it instead of
+//! commons-math3 3.0 `FastMath.exp`, bit for bit, as bundled in the R5 7.6
+//! jar (`r5-v7.6-all.jar`). R5's decay functions call it instead of
 //! `Math.exp`, and it is not correctly rounded, so `f64::exp` (the platform
 //! libm) differs from it in the last bit for some arguments.
 //!
@@ -1355,7 +1355,7 @@ static EXP_FRAC_TABLE_B: [u64; 1025] = [
 mod tests {
     use super::exp;
 
-    /// `(x, FastMath.exp(x))` as raw bits, from the r5r R5 jar.
+    /// `(x, FastMath.exp(x))` as raw bits, from the R5 7.6 jar.
     const VECTORS: &[(u64, u64)] = &[
         (0x0000000000000000, 0x3ff0000000000000),
         (0x8000000000000000, 0x3ff0000000000000),

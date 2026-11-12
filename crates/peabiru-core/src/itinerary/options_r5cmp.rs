@@ -1,5 +1,5 @@
 //! The time and fare frontier of `trip_options()`'s search against the one
-//! R5's McRAPTOR port (`FareDominatingList` with r5r's calculator) leaves at
+//! R5's McRAPTOR port (`FareDominatingList` with the rule-based calculator) leaves at
 //! the destination, departure minute by departure minute, on a real
 //! network: `PEABIRU_R5CMP_DIR=<network dir> PEABIRU_R5CMP_FARES=<fares
 //! zip> PEABIRU_R5CMP_PAIRS=<origins.csv>,<destinations.csv>`.

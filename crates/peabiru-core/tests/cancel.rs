@@ -60,7 +60,7 @@ fn calls(s: &'static Sample, heavy: bool) -> Vec<(&'static str, Call)> {
     let (tw, dpm) = if heavy { (1440, 20) } else { (10, 1) };
     let reps = if heavy { 5000 } else { 1 };
     let many: Vec<(f64, f64)> = s.points.repeat(reps);
-    // r5r's defaults: a cutoff of 30 minutes, step decay
+    // the defaults: a cutoff of 30 minutes, step decay
     let a = AccessibilityParams::default();
     let route = |cancel: &CancelToken| {
         let mut p = RouteParams::default();

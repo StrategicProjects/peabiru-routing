@@ -18,13 +18,13 @@ pub enum GtfsError {
     /// Why gtfs-lib fails loading the feed (see `validate`).
     GtfsLibFails(String),
     /// Why R5 fails building its transit layer from a feed that gtfs-lib
-    /// loads (so does r5r's `build_network()`).
+    /// loads.
     R5Fails(String),
     /// Feeds with errors of priority `HIGH`, and how many each has.
     HighPriority(Vec<(std::path::PathBuf, usize)>),
     /// A feed peabiru cannot read that gtfs-lib loads with errors of lower
-    /// priority only, so that r5r builds a network from it.
-    BuiltByR5r(Box<GtfsError>),
+    /// priority only, so that R5 builds a network from it.
+    NotRead(Box<GtfsError>),
     /// An error in the feed read from `path`.
     InFeed {
         path: std::path::PathBuf,
@@ -38,10 +38,10 @@ impl fmt::Display for GtfsError {
             GtfsError::Zip(e) => write!(f, "{e}"),
             GtfsError::Csv { file, error } => write!(f, "{file} {error}"),
             GtfsError::GtfsLibFails(why) | GtfsError::R5Fails(why) => f.write_str(why),
-            GtfsError::BuiltByR5r(e) => write!(
+            GtfsError::NotRead(e) => write!(
                 f,
-                "{e} (r5r builds a network from this feed, whose GTFS errors are not of \
-                 priority HIGH, but peabiru cannot read it)"
+                "{e} (the GTFS errors of this feed are not of priority HIGH, but peabiru cannot \
+                 read it)"
             ),
             GtfsError::HighPriority(feeds) => {
                 let list: Vec<String> = feeds
@@ -56,7 +56,7 @@ impl fmt::Display for GtfsError {
                     .collect();
                 write!(
                     f,
-                    "high priority GTFS errors found in {}; network build failed (as in r5r)",
+                    "high priority GTFS errors found in {}; network build failed",
                     list.join(", ")
                 )
             }
@@ -267,7 +267,7 @@ impl<'a> Fields<'a, '_> {
 impl Feed {
     /// Read a feed from the bytes of a GTFS zip file, with bounds on how
     /// far the archive may expand, also saying how the archive is laid out
-    /// (for the warnings about feeds that r5r refuses). Errors name the
+    /// (for the warnings about feeds with ignored errors). Errors name the
     /// file, `path`.
     pub(crate) fn read_zip_checked(
         path: &std::path::Path,
@@ -411,7 +411,7 @@ impl Feed {
             });
         })?;
 
-        // Shapes are only drawn (r5r's transit_network_to_sf()), never
+        // Shapes are only drawn (transit_network_to_sf()), never
         // routed on.
         table(a, "shapes.txt", |f| {
             let Some(id) = f.opt("shape_id") else {
@@ -454,7 +454,7 @@ const TABLES: [&str; 10] = [
 ];
 
 /// How a feed's archive is laid out, in the two ways that make gtfs-lib
-/// (and so r5r) refuse a feed that peabiru reads.
+/// report an error of priority `HIGH` in a feed that peabiru can read.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct ArchiveLayout {
     /// Entries of the tables found in a subfolder rather than at the root

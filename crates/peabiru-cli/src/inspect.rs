@@ -135,7 +135,7 @@ pub fn info(a: InfoArgs) -> Res<()> {
         b[1],
         b[2],
         b[3],
-        s.elevation().r5r_name()
+        s.elevation().name()
     );
     match net.transit() {
         Some(t) => {

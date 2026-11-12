@@ -1,5 +1,4 @@
-//! Scenarios, as r5r's `new_carspeeds`, `carspeed_scale` and `new_lts`:
-//! the car speeds and the levels of traffic stress of the streets changed
+//! Scenarios: the car speeds and the levels of traffic stress of the streets changed
 //! for one call, without rebuilding the network.
 //!
 //! ```sh

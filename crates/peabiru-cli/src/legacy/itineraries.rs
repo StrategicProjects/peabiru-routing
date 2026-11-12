@@ -1,4 +1,4 @@
-//! `peabiru itineraries`: r5r's `detailed_itineraries()` (no fares),
+//! `peabiru itineraries`: `detailed_itineraries()` (no fares),
 //! origin `i` to destination `i`, written as CSV with the geometry as WKT
 //! (coordinates in shortest round-trip form).
 
@@ -72,7 +72,7 @@ pub fn run(args: &[String]) {
     }
     let (dir, origins, dests, out) = (&args[0], &args[1], &args[2], &args[3]);
     let mut p = ItineraryParams::default();
-    // r5r's test switch r5r.failFastRaptor: every pair to McRAPTOR
+    // test switch: every FastRaptor trip fails, so every pair goes to McRAPTOR
     p.fail_fast_raptor = std::env::var_os("PEABIRU_FAIL_FAST_RAPTOR").is_some_and(|v| v == "1");
     p.scenario = super::cli::scenario(cmd);
     let mut i = 4;

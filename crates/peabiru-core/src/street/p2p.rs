@@ -1,4 +1,4 @@
-//! R5's `StreetRouter` with its states kept, for the street legs of r5r's
+//! R5's `StreetRouter` with its states kept, for the street legs of
 //! `detailed_itineraries()`.
 //!
 //! The travel-time searches of [`super::router`] keep one time per edge and
@@ -10,8 +10,8 @@
 //! (R5 7.6) step by step: a state arena with back pointers, the per-edge
 //! state lists of `bestStatesAtEdge` in insertion order, the exact queue,
 //! the `StopVisitor` of transit stop searches (at most 200 stops, none
-//! closer than five minutes by bicycle or car), reverse searches (r5r's
-//! `R5REgressRouter`), and `getState(Split)` / `getStateAtVertex` with their
+//! closer than five minutes by bicycle or car), reverse searches (for
+//! egress legs), and `getState(Split)` / `getStateAtVertex` with their
 //! tie rules.
 
 use super::flags::*;
@@ -121,7 +121,7 @@ pub(crate) struct Req {
     /// `walkSpeed`, `bikeSpeed` in m/s as `float`.
     pub(crate) walk: f32,
     pub(crate) bike: f32,
-    /// `bikeTrafficStress` (r5r's `max_lts`).
+    /// `bikeTrafficStress` (`max_lts`).
     pub(crate) lts: i32,
 }
 
@@ -344,7 +344,7 @@ impl<'a> Router<'a> {
         self.queue.offer((self.key(id), id));
     }
 
-    /// r5r's `R5REgressRouter.setOrigin`: a reverse search from a point,
+    /// The origin of an egress search: a reverse search from a point,
     /// seeded with the partial edges to the split and the walk off the
     /// street, as the costs RAPTOR gets. False when no seed survives.
     pub(crate) fn set_egress_origin(&mut self, split: Split) -> bool {

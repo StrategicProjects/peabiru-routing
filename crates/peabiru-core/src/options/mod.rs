@@ -1,7 +1,7 @@
 //! peabiru's own multi-criteria trip planner, [`trip_options`]: for each
 //! origin-destination pair, every trip worth considering on the chosen
 //! criteria (total time, fare, transfers, time on foot) over a departure
-//! window. Unlike the rest of the crate it reproduces nothing of r5r: it
+//! window. Unlike the rest of the crate it is not a port: it
 //! builds on R5's network semantics (street searches, stop linking,
 //! transfers, boarding rules) so that its times agree with the other
 //! functions, and adds its own search ([`search`]) and fare comparisons
@@ -137,7 +137,7 @@ pub struct TripOptionsParams {
     /// Highest level of traffic stress a cyclist rides on, 1 to 4
     /// (default 2).
     pub max_lts: i32,
-    /// r5r's fare structure (default `None`): needed for the fare
+    /// The fare structure (default `None`): needed for the fare
     /// criterion, and gives every option its fare.
     pub fare_structure: Option<Arc<FareStructure>>,
     /// Highest fare (default infinity), read as a Java `float` as the
@@ -309,7 +309,7 @@ impl TripOption {
 /// frequency-based trips are boarded at their expected times (half a
 /// headway of waiting; the scheduled departures with `exact_times = 1`),
 /// so the result does not change from call to call and differs on purpose
-/// from r5r's Monte Carlo draws. See the guide of the packages for the
+/// from the Monte Carlo draws of the other functions. See the guide of the packages for the
 /// definitions and how this differs from `pareto_frontier()` and
 /// `detailed_itineraries()`.
 ///

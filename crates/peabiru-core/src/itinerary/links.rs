@@ -1,19 +1,19 @@
-//! r5r's `osm_link_ids = TRUE` columns: the OpenStreetMap ways and the
+//! The `osm_link_ids = TRUE` columns: the OpenStreetMap ways and the
 //! street edges of each street leg, and the stops of each ride.
 //!
 //! A street leg's ids come from R5's `StreetSegment.streetEdges` (direct
-//! trips, access legs and walks between stops) or from r5r's
+//! trips, access legs and walks between stops) or from
 //! `EgressPath.build` (the leg from the last stop): one entry per edge
 //! traversed, the egress leg's partial edge included when it has a length.
 //! `StreetSegment` merges entries first (`compactEdges`): an entry joins the
 //! previous group when both are "similar", and the group keeps its first
 //! edge. Similar means the same mode, and either both "continue" on a street
-//! of the same name, or both turn on a roundabout. r5r's network has no
+//! of the same name, or both turn on a roundabout. The network has no
 //! street names (R5 drops its OSM database once the network is built, and
 //! `StreetLayer.getNameEdgeIdx` then returns null for every edge), so only
 //! the roundabout rule applies: an edge of a `junction=roundabout` way,
 //! after the first edge of the leg, joins a group that starts on such an
-//! edge with the same mode. r5r then keeps, in order and once each, the
+//! edge with the same mode. Kept then are, in order and once each, the
 //! OSM way id of each group's edge and that edge's index, when the way id
 //! is positive (connectors have none).
 

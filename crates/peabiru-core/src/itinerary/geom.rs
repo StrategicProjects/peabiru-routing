@@ -1,6 +1,6 @@
-//! Geometry and number formatting of r5r's itineraries: edge lines as R5's
+//! Geometry and number formatting of itineraries: edge lines as R5's
 //! `Edge.getGeometry()` gives them, `Utils.getLinestringLength`, the
-//! `TripLeg.getGeometry()` clean-up and r5r's rounding of minutes.
+//! `TripLeg.getGeometry()` clean-up and the rounding of minutes.
 
 use crate::street::StreetNetwork;
 

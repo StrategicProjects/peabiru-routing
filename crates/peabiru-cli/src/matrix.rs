@@ -9,9 +9,9 @@ use peabiru_core::{
 };
 use std::sync::Arc;
 
-/// r5r's `reverse_if_direct_mode()`: with walking alone, more origins than
-/// destinations and no elevation raster, r5r routes from the destinations
-/// and swaps the columns back, and the two directions can differ.
+/// With walking alone, more origins than destinations and no elevation
+/// raster, the matrix is routed from the destinations and the columns
+/// swapped back (fewer searches); the two directions can differ.
 pub fn swap_od(o: &Points, d: &Points, m: &Modes, has_tif: bool) -> bool {
     !m.has_transit() && m.street == Mode::Walk && o.len() > d.len() && !has_tif
 }
@@ -53,7 +53,7 @@ impl Call<'_> {
         p
     }
 
-    /// The matrix from `o` to `d`, as r5r's `travel_time_matrix()` reports
+    /// The matrix from `o` to `d`, as `travel_time_matrix()` reports
     /// it: the pairs reached, with times beyond the trip limit as NA.
     pub fn rows(&self, o: &[(f64, f64)], d: &[(f64, f64)]) -> Res<Rows> {
         let mtd = self.street.lim.trip as u32;
@@ -98,7 +98,7 @@ impl Call<'_> {
         Ok(r)
     }
 
-    /// The matrix written as r5r's `output_dir` writes it.
+    /// The matrix written as one CSV file per origin.
     pub fn write_dir(&self, dir: &str, o: &Points, d: &Points) -> Res<()> {
         let w = CsvOutput::new(dir, &o.ids, &d.ids, self.threads)?;
         let io = |e: std::io::Error| runtime(format!("cannot write {dir}: {e}"));
@@ -395,7 +395,7 @@ pub fn arrival(a: ArrivalArgs) -> Res<()> {
     let mtd = max_trip_duration(&a.street)?;
     let street = street(&a.street, &m, mtd)?;
     let at = datetime("arrival", &a.arrival)?;
-    // r5r: the departure is arrival - max_trip_duration, over a window of
+    // the departure is arrival - max_trip_duration, over a window of
     // max_trip_duration minutes
     let (date, time) = arrival_departure(at.date, at.time, street.lim.trip)?;
     let when = When { date, time };

@@ -1,9 +1,9 @@
 //! Scenarios: the car speeds and levels of traffic stress of a street
-//! network changed for one routing call, as r5r 2.5.0 changes them with
-//! the arguments `new_carspeeds`, `carspeed_scale` and `new_lts`.
+//! network changed for one routing call (`new_carspeeds`, `carspeed_scale`
+//! and `new_lts` in the packages).
 //!
-//! r5r applies them to a scenario copy of R5's network (`RoutingProperties
-//! .getTransportNetworkForScenario`) with four modifications, outside R5's
+//! They are applied to a scenario copy of the network (as R5 copies it:
+//! `getTransportNetworkForScenario`) with four modifications, outside R5's
 //! scenario machinery, so that nothing is rebuilt afterwards:
 //!
 //! - car speeds by OSM way (`RoadCongestionOSM`): each directed edge whose
@@ -15,12 +15,12 @@
 //!   (ties: the longest overlap), `carspeed_scale` outside every polygon
 //!   (`(short)` of a `double` product; a factor of 0 leaves cars allowed);
 //! - levels of traffic stress by OSM way (`SetLtsOsm`) and by line
-//!   (`R5RShapefileLts`, `ShapefileMatcher`: each edge pair takes the level
+//!   (R5's `ShapefileMatcher`: each edge pair takes the level
 //!   of the line closest to it by discrete Hausdorff distance among those
 //!   whose bounding box meets the edge's).
 //!
 //! Connectors (transit stops, park-and-ride) are edges of OSM way -1, as
-//! in R5. The scenario network is then used where r5r uses it: the street
+//! in R5. The scenario network is then used for the street
 //! searches from the origins, the links of the origins, and the speed of
 //! the destination's edge. The destinations stay linked as on the base
 //! network (R5 copies the base linkage), the egress tables from the stops
@@ -36,7 +36,7 @@ use crate::{Polygon, RouteError};
 use jts::{Env, Pt, StrTree};
 use std::collections::HashMap;
 
-/// r5r's `new_carspeeds`.
+/// New car speeds (`new_carspeeds`).
 #[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub enum CarSpeeds {
@@ -57,9 +57,9 @@ pub enum CarSpeeds {
     ByPolygon(Vec<SpeedPolygon>),
 }
 
-/// A polygon of r5r's `new_carspeeds` as an `sf` data frame: a
+/// A polygon of [`CarSpeeds::ByPolygon`]: a
 /// multipolygon in `[lon, lat]` degrees, a factor for the car speeds of
-/// the edges it meets and a priority. r5r hands the polygons to R5 as
+/// the edges it meets and a priority. R5 reads the polygons from
 /// GeoJSON, written by GDAL with 15 decimals of each coordinate (and a
 /// tail that looks like round-off trimmed): give the coordinates as R5
 /// reads them back (the R package makes the same round trip; the Python
@@ -87,7 +87,7 @@ impl SpeedPolygon {
     }
 }
 
-/// r5r's `new_lts`.
+/// New levels of traffic stress (`new_lts`).
 #[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub enum LtsChange {
@@ -103,7 +103,7 @@ pub enum LtsChange {
     ByLine(Vec<LtsLine>),
 }
 
-/// A line of r5r's `new_lts` as an `sf` data frame, in `[lon, lat]`
+/// A line of [`LtsChange::ByLine`], in `[lon, lat]`
 /// degrees, and its level of traffic stress.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -121,8 +121,8 @@ impl LtsLine {
     }
 }
 
-/// Changes to the street network for one routing call: r5r's
-/// `new_carspeeds`, `carspeed_scale` and `new_lts`. The default changes
+/// Changes to the street network for one routing call: new car speeds, a
+/// factor for them and new levels of traffic stress. The default changes
 /// nothing. Fill it in by changing the fields of [`Scenario::default()`].
 ///
 /// ```
@@ -156,26 +156,26 @@ impl Default for Scenario {
 }
 
 impl Scenario {
-    /// Whether the scenario changes nothing, so that r5r routes on the
+    /// Whether the scenario changes nothing, so that routing is on the
     /// network as built (no `new_carspeeds`, `carspeed_scale` 1, no
     /// `new_lts`).
     pub fn is_unchanged(&self) -> bool {
         !self.changes_car_speeds() && self.lts == LtsChange::Unchanged
     }
 
-    /// r5r `set_new_congestion`: `!is.null(new_carspeeds) || carspeed_scale != 1`.
+    /// Whether car speeds change: new speeds, or a factor other than 1.
     fn changes_car_speeds(&self) -> bool {
         self.car_speeds != CarSpeeds::Unchanged || self.car_speed_scale != 1.0
     }
 
-    /// Check the values (r5r's checks where the core sees them): the
+    /// Check the values: the
     /// factor finite and at least 0, no NaN, rings of at least 4 points
     /// and closed, lines of at least 2 points, finite coordinates.
     pub(crate) fn check(&self) -> Result<(), String> {
         let s = self.car_speed_scale;
         if s == f32::INFINITY {
-            // a finite double above the float range: r5r hands R5
-            // .jfloat(carspeed_scale), which is then Infinity
+            // a finite double above the float range: R5 reads the factor
+            // as a Java float, which is then Infinity
             return Err(
                 "carspeed_scale is too large for the 32-bit float R5 reads it as \
                         (it becomes Infinity there, and R5's car speeds overflow, which \
@@ -265,9 +265,9 @@ impl Scenario {
         let mut net = base.clone();
         net.forget_kept();
         // R5's scenario copy of the edges (`EdgeStore.extendOnlyCopy`, made
-        // by r5r's `getTransportNetworkForScenario`) leaves out the cost
-        // fields: walking and cycling lose their slope costs (r5r warns of
-        // this, issue #555).
+        // by `getTransportNetworkForScenario`) leaves out the cost
+        // fields: walking and cycling lose their slope costs (the packages
+        // warn of this).
         net.edge_slope = Vec::new();
         net.elevation = crate::Elevation::None;
         if self.changes_car_speeds() {
@@ -290,8 +290,8 @@ impl Scenario {
 }
 
 /// Java's `Long.parseLong`: an optional sign and decimal digits, nothing
-/// else (r5r hands R5 the ids as `as.character()` text, so a number R
-/// writes as `1e+05` is refused).
+/// else (the ids reach R5 as text, so a number written as `1e+05` is
+/// refused).
 pub fn java_parse_long(s: &str) -> Option<i64> {
     let digits = s.strip_prefix(['-', '+']).unwrap_or(s);
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
@@ -371,7 +371,7 @@ fn set_lts(net: &mut StreetNetwork, e: usize, lts: i32) {
     *f = (*f & !LTS_MASK) | BIKE_LTS_EXPLICIT | lts_flag(lts);
 }
 
-/// r5r `RoadCongestionOSM.apply`.
+/// Car speeds by OSM way (the ported `RoadCongestionOSM.apply`).
 fn speeds_by_way(net: &mut StreetNetwork, values: &[(i64, f32)], kmh: bool, default: f32) {
     let map: HashMap<i64, f32> = values.iter().copied().collect();
     for e in 0..net.n_edges() {
@@ -402,7 +402,7 @@ fn edge_points(net: &StreetNetwork, e: usize, out: &mut Vec<Pt>) {
     }
 }
 
-/// R5 `RoadCongestion.apply`, with the polygons as r5r writes them
+/// R5 `RoadCongestion.apply`, with the polygons' attributes
 /// (`scale`, `priority`) and `default` (`carspeed_scale`) outside them.
 fn speeds_by_polygon(
     net: &mut StreetNetwork,
@@ -466,7 +466,7 @@ fn speeds_by_polygon(
     Ok(())
 }
 
-/// r5r `SetLtsOsm.apply`.
+/// Levels of traffic stress by OSM way (the ported `SetLtsOsm.apply`).
 fn lts_by_way(net: &mut StreetNetwork, values: &[(i64, i32)]) {
     let map: HashMap<i64, i32> = values.iter().copied().collect();
     for e in 0..net.n_edges() {
@@ -477,7 +477,7 @@ fn lts_by_way(net: &mut StreetNetwork, values: &[(i64, i32)]) {
     }
 }
 
-/// R5 `ShapefileMatcher.match` as r5r runs it (`R5RShapefileLts`).
+/// Levels of traffic stress by line: R5 `ShapefileMatcher.match`.
 fn lts_by_line(net: &mut StreetNetwork, lines: &[LtsLine]) {
     let envs: Vec<Option<Env>> = lines.iter().map(|l| Env::of(&l.points)).collect();
     let tree = StrTree::build(&envs);
@@ -531,7 +531,7 @@ pub(crate) fn check_car_speeds(net: &StreetNetwork) -> Result<(), RouteError> {
             "the scenario leaves {} street edges open to cars with a speed of 0 or less (such \
              as an edge of OSM way {}, at {} cm/s): R5 keeps car speeds in cm/s as 16-bit \
              integers, so a factor or speed that brings a speed below 1 cm/s, or above \
-             32767 cm/s (about 1180 km/h), makes r5r fail or route with negative times; use \
+             32767 cm/s (about 1180 km/h), makes R5 fail or route with negative times; use \
              another factor or speed, or a factor or speed of 0 to close the road",
             bad.len(),
             osm_id(net, e),
@@ -566,7 +566,7 @@ mod tests {
     }
 
     #[test]
-    fn speeds_and_levels_as_r5r_modifications() {
+    fn speeds_and_levels_as_modifications() {
         let Some(spo) = crate::sample_data::spo() else {
             return;
         };

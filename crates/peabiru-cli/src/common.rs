@@ -1,6 +1,5 @@
 //! What the commands share: errors and exit codes, building the network,
-//! reading points, checking arguments as the packages check them (r5r's
-//! `assign_*` and `set_*` functions, as the Python package ports them),
+//! reading points, checking arguments as the packages check them,
 //! scenarios and fare structures, and writing CSV and GeoJSON.
 
 use crate::app::{
@@ -144,7 +143,7 @@ pub fn count_or_inf(name: &str, v: &str) -> Res<Option<i32>> {
     count(name, v, 1).map(Some)
 }
 
-/// r5r's `set_speed()`: a positive finite number.
+/// A speed: a positive finite number.
 pub fn speed(name: &str, v: &str) -> Res<f64> {
     let x = number(name, v)?;
     if !x.is_finite() || x <= 0.0 {
@@ -155,7 +154,7 @@ pub fn speed(name: &str, v: &str) -> Res<f64> {
     Ok(x)
 }
 
-/// r5r's `set_max_lts()`: 1 to 4.
+/// `--max-lts`: 1 to 4.
 pub fn max_lts(v: &str) -> Res<i32> {
     let x = count("max-lts", v, 1)?;
     if x > 4 {
@@ -167,7 +166,7 @@ pub fn max_lts(v: &str) -> Res<i32> {
     Ok(x)
 }
 
-/// r5r's `set_percentiles()`: 1 to 5 distinct values from 1 to 99,
+/// `--percentiles`: 1 to 5 distinct values from 1 to 99,
 /// ascending.
 pub fn percentiles(values: &[String]) -> Res<Vec<i32>> {
     let mut p = Vec::with_capacity(values.len());
@@ -197,7 +196,7 @@ pub fn threads(a: &NetworkArgs) -> usize {
 // ---------------------------------------------------------------------------
 // Modes and departures
 
-/// r5r's transit modes, as its `assign_mode()` lists them.
+/// The names of the public transport modes.
 const TRANSIT_NAMES: [&str; 9] = [
     "TRANSIT",
     "TRAM",
@@ -211,7 +210,7 @@ const TRANSIT_NAMES: [&str; 9] = [
 ];
 const DIRECT_NAMES: [&str; 5] = ["WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK"];
 
-/// The modes of a call, as r5r's `assign_mode()` sorts them out.
+/// The modes of a call, sorted into street, transit, access and egress.
 #[derive(Clone, Debug)]
 pub struct Modes {
     /// The street mode alone, or of the access to public transport.
@@ -238,7 +237,7 @@ pub fn street_mode(name: &str, v: &str) -> Res<Mode> {
     }
 }
 
-/// r5r's `assign_mode()`.
+/// The modes of `--mode` and `--mode-egress`, checked.
 pub fn modes(mode: &[String], egress: &str) -> Res<Modes> {
     let mut seen: Vec<String> = Vec::new();
     for m in mode {
@@ -282,9 +281,7 @@ pub fn modes(mode: &[String], egress: &str) -> Res<Modes> {
         .iter()
         .any(|m| *m == "CAR_PARK" || *m == "BICYCLE_RENT")
     {
-        return Err(usage(
-            "CAR_PARK and BICYCLE_RENT are not supported (nor are they by r5r)",
-        ));
+        return Err(usage("CAR_PARK and BICYCLE_RENT are not supported"));
     }
     let street = match direct.first() {
         Some(m) => street_mode("mode", m)?,
@@ -363,7 +360,7 @@ pub fn date(name: &str, v: &str) -> Res<u32> {
     Ok(d)
 }
 
-/// r5r's `assign_departure()`: required with public transport; without it
+/// `--departure`: required with public transport; without it
 /// the date only has to be a date (street routing does not read it).
 pub fn departure(v: Option<&str>, m: &Modes) -> Res<When> {
     match v {
@@ -372,7 +369,7 @@ pub fn departure(v: Option<&str>, m: &Modes) -> Res<When> {
             "--departure is required with public transport: results depend on the departure \
              time",
         )),
-        // as r5r, the current time (here in UTC: only itineraries show it)
+        // the current time (in UTC: only itineraries show it)
         None => {
             let s = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -395,7 +392,7 @@ pub fn departure(v: Option<&str>, m: &Modes) -> Res<When> {
     }
 }
 
-/// r5r's `check_transit_availability_on_date()`.
+/// Refuses a date on which no public transport service runs.
 pub fn check_service(ctx: &Ctx, net: &Network, date: u32) -> Res<()> {
     let (total, active) = match net.transit() {
         Some(t) => (t.n_services(), t.n_services_active_on(date)?),
@@ -420,8 +417,7 @@ pub fn check_service(ctx: &Ctx, net: &Network, date: u32) -> Res<()> {
     Ok(())
 }
 
-/// The street limits of a call (r5r's `assign_max_street_time()` and
-/// `assign_max_trip_duration()`), in minutes.
+/// The street limits of a call, in minutes.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub walk: i32,
@@ -439,7 +435,7 @@ pub struct Street {
     pub lim: Limits,
 }
 
-/// r5r's street limits with `max_trip_duration` (already resolved, e.g.
+/// The street limits with `max_trip_duration` (already resolved, e.g.
 /// capped by the cutoffs of accessibility) as `mtd`.
 pub fn street(a: &StreetArgs, m: &Modes, mtd: i32) -> Res<Street> {
     let walk_speed = speed("walk-speed", &a.walk_speed)?;
@@ -478,8 +474,8 @@ pub fn max_trip_duration(a: &StreetArgs) -> Res<i32> {
     count("max-trip-duration", &a.max_trip_duration, 1)
 }
 
-/// r5r's `set_monte_carlo_draws()`; with McRAPTOR (fares, alternatives)
-/// the draws R5 cannot sample are refused, as r5r refuses them.
+/// The Monte Carlo draws; with McRAPTOR (fares, alternatives) the draws
+/// R5 cannot sample are refused.
 pub fn check_draws(dpm: i32, tw: i32, mcraptor: bool) -> Res<()> {
     if !mcraptor {
         return Ok(());
@@ -489,7 +485,7 @@ pub fn check_draws(dpm: i32, tw: i32, mcraptor: bool) -> Res<()> {
         return Err(usage(format!(
             "a --time-window of {tw} minutes with {dpm} draws per minute gives exactly 200 \
              Monte Carlo draws, which R5's McRaptor algorithm does not accept; use a slightly \
-             different --time-window (see https://github.com/ipea/r5r/issues/602)"
+             different --time-window"
         )));
     }
     let m = f64::from(60 / dpm);
@@ -591,13 +587,12 @@ pub fn transit_params(
 /// A built network and what the commands need to know about how.
 pub struct Built {
     pub net: Network,
-    /// Whether r5r would see an elevation raster (then it does not swap
-    /// origins and destinations of walking matrices).
+    /// Whether the directory has an elevation raster (then origins and
+    /// destinations of walking matrices are not swapped).
     pub has_tif: bool,
 }
 
-/// The files of a directory as r5r's `list.files()` gives them (no hidden
-/// files), sorted.
+/// The files of a directory (no hidden files), sorted.
 fn dir_files(dir: &Path) -> Res<Vec<String>> {
     let mut names: Vec<String> = std::fs::read_dir(dir)
         .map_err(|e| runtime(format!("{}: {e}", dir.display())))?
@@ -609,7 +604,7 @@ fn dir_files(dir: &Path) -> Res<Vec<String>> {
     Ok(names)
 }
 
-/// The elevation model of `--elevation`: with no raster r5r uses none.
+/// The elevation model of `--elevation`: none without a raster.
 fn elevation(a: &NetworkArgs, has_tif: bool) -> Elevation {
     if !has_tif {
         return Elevation::None;
@@ -690,8 +685,8 @@ pub fn build(ctx: &Ctx, a: &NetworkArgs) -> Res<Built> {
                     .join(", ")
             )));
         }
-        // r5r looks for ".tif" as a regular expression: any character
-        // before "tif" anywhere in the name
+        // a raster is any file with a character followed by "tif"
+        // anywhere in its name (the R package's rule)
         let has_tif = files
             .iter()
             .any(|f| f.get(1..).is_some_and(|s| s.contains("tif")));
@@ -919,8 +914,7 @@ impl Points {
     }
 }
 
-/// r5r's `assign_points_input()` on a CSV file, and
-/// `assign_opportunities()` for `columns`: points with a missing
+/// The points of a CSV file, and the opportunity `columns`: points with a missing
 /// coordinate are not routed (a warning), duplicated ids are an error
 /// when `unique`, missing opportunity counts are 0 (a warning).
 pub fn read_points(
@@ -1036,7 +1030,7 @@ pub fn fare_structure(path: &Path, net: Option<&Network>) -> Res<FareStructure> 
     Ok(fs)
 }
 
-/// `--fare-structure` and `--max-fare` (r5r's `fare_arg` checks).
+/// `--fare-structure` and `--max-fare`, checked.
 pub fn fares(a: &FareArgs, net: &Network) -> Res<(Option<Arc<FareStructure>>, f64)> {
     let fs = a
         .fare_structure
@@ -1117,7 +1111,7 @@ fn prop_f64(path: &Path, f: &serde_json::Value, name: &str) -> Res<f64> {
 }
 
 /// The scenario of `--new-carspeeds`, `--carspeed-scale` and `--new-lts`
-/// (warning, as r5r does, that a scenario drops the slope costs).
+/// (warning that a scenario drops the slope costs).
 pub fn scenario(ctx: &Ctx, a: &ScenarioArgs, net: &Network) -> Res<Scenario> {
     use peabiru_core::unstable::{
         gdal_geojson_coordinate, java_parse_float, java_parse_int, java_parse_long,
@@ -1273,7 +1267,7 @@ pub fn scenario(ctx: &Ctx, a: &ScenarioArgs, net: &Network) -> Res<Scenario> {
     if changed && net.street().elevation() != Elevation::None {
         ctx.warn(
             "a scenario was used for this calculation: walking and cycling are routed without \
-             the slope costs of elevation (as in r5r, issue #555)",
+             the slope costs of elevation",
         );
     }
     Ok(s)

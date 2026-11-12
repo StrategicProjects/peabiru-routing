@@ -1,4 +1,4 @@
-//! The lines of rides: R5's `TripPattern.getHopGeometries` with r5r's
+//! The lines of rides: R5's `TripPattern.getHopGeometries` with
 //! `saveShapes = true`. A pattern with a GTFS shape is cut along it at the
 //! stops' locations, which R5 finds when it builds the network by
 //! projecting each stop onto the shape in a local coordinate system
@@ -222,7 +222,7 @@ fn stop_locations(
 }
 
 /// The line of a ride from stop position `from` to `to` of a pattern:
-/// its hops' points one after the other (the shared stop repeated, as r5r's
+/// its hops' points one after the other (the shared stop repeated, as
 /// `TripLeg.augmentTransitLeg` adds them). `Err` with a reason when R5
 /// would fail on this pattern.
 pub(crate) fn ride_line(
