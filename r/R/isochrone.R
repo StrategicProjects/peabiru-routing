@@ -189,6 +189,9 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
                                max_rides, max_lts, draws_per_minute, seed,
                                percentiles, n_threads, verbose, progress) {
   origins <- assign_points_input(origins, "origins")
+  # r5r fails on origins without rows (undefined columns, an internal R
+  # error); without this, sf would fail on an empty result
+  if (nrow(origins) == 0L) stop("'origins' has no rows.", call. = FALSE)
   ids <- origins$id
   mode_list <- assign_mode(mode, mode_egress)
   departure <- assign_departure(departure_datetime, mode_list)

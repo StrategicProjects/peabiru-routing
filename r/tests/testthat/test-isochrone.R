@@ -90,3 +90,9 @@ test_that("arguments are checked as r5r checks them", {
   expect_identical(iso(pts, mode = "WALK", cutoffs = c(0, 5), max_trip_duration = 1),
                    iso(pts, mode = "WALK", cutoffs = c(0, 5)))
 })
+
+test_that("polygon isochrones of origins without rows are an error that says so", {
+  # r5r fails there on undefined columns (an internal R error)
+  expect_error(iso(fixture_points()[0, ], mode = "WALK", cutoffs = 10),
+               "'origins' has no rows", fixed = TRUE)
+})
