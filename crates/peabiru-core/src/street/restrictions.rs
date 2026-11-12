@@ -476,6 +476,74 @@ mod tests {
         }
     }
 
+    /// R5 reverses the via edges of a `no_` restriction with two or more of
+    /// them in place on each check of a reverse car search, and forward
+    /// searches then read them reversed (`Router::via_fresh`).
+    #[test]
+    fn reversed_via_edges_change_forward_searches() {
+        use crate::street::p2p::{Req, Router};
+        use std::collections::HashMap;
+        let mut net = network_from_extract(grid(Vec::new()));
+        let vertex = |r: usize, c: usize| {
+            (0..net.v_lat.len())
+                .find(|&v| {
+                    net.v_lat[v] == (r * 10_000) as i32 && net.v_lon[v] == (c * 10_000) as i32
+                })
+                .unwrap()
+        };
+        let edge = |a: usize, b: usize| {
+            (0..net.edge_flags.len())
+                .find(|&e| net.edge_from(e) == a && net.edge_to(e) == b)
+                .unwrap() as u32
+        };
+        // eastbound along row 3: no going straight from column 0 to 4
+        let e: Vec<u32> = (0..4)
+            .map(|c| edge(vertex(C, c), vertex(C, c + 1)))
+            .collect();
+        let r = TurnRestriction {
+            relation: 7,
+            only: false,
+            from_edge: e[0],
+            via_edges: vec![e[1], e[2]],
+            to_edge: e[3],
+        };
+        net.restrictions.push(r.clone());
+        net.reverse_restrictions.push(r);
+        net.restriction_starts = vec![(e[0], 0)];
+        net.edge_flags[e[0] as usize] |= crate::street::flags::RESTRICTION_START;
+        let mut scratch = Vec::new();
+        let on = |c: f64| (C as f64 * 1e-3, c * 1e-3);
+        let split = |p: (f64, f64), scratch: &mut Vec<u32>| {
+            crate::street::link::find_split(&net, p.0, p.1, Mode::Car, scratch).unwrap()
+        };
+        let (o, d) = (split(on(0.5), &mut scratch), split(on(3.5), &mut scratch));
+        let seconds = |fresh: Option<HashMap<u64, bool>>| {
+            let mut router = Router::new(&net, Mode::Car, Req::new(3.6, 12.0, 2), false);
+            router.time_limit = 3600;
+            router.via_fresh = fresh;
+            router.set_origin_split(o);
+            router.set_destination(d);
+            router.route();
+            let last = router.final_state(&d).unwrap();
+            (router.states[last as usize].dur, router.via_used.clone())
+        };
+        let (built, used) = seconds(Some(HashMap::new()));
+        assert_eq!(seconds(None).0, built);
+        // the restriction's array reversed: the straight way is open
+        let (reversed, used_rev) = seconds(Some(HashMap::from([(7, true)])));
+        assert!(reversed < built, "{reversed} {built}");
+        // the checks whose outcome depends on the order were recorded
+        assert!(used.iter().all(|&b| !b) && !used.is_empty());
+        assert!(used_rev.iter().all(|&b| b) && !used_rev.is_empty());
+        // a reverse search reverses the array on every check
+        let mut back = Router::new(&net, Mode::Car, Req::new(3.6, 12.0, 2), true);
+        back.time_limit = 3600;
+        back.via_fresh = Some(HashMap::new());
+        assert!(back.set_egress_origin(d));
+        back.route();
+        assert!(back.via_fresh.as_ref().unwrap().contains_key(&7));
+    }
+
     #[test]
     fn via_way_restrictions_are_built() {
         let net = network_from_extract(grid(vec![

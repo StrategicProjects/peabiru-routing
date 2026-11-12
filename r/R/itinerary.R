@@ -23,10 +23,10 @@
 #' egress search checks one, so what r5r returns for a pair whose car
 #' searches cross such a restriction can depend on the searches that ran
 #' before (in the same call, on other threads, or in earlier calls).
-#' peabiru plans such a pair for every order those via edges can be in:
-#' when the itineraries are the same in all of them, they are returned (they
-#' are r5r's whatever ran before); otherwise the call stops with an error
-#' naming the pair.
+#' peabiru returns, for every pair, what r5r gives on a freshly built
+#' network for that pair alone with one thread, and warns once per call,
+#' naming the pairs whose itineraries some other order of those via edges
+#' would change (on Porto Alegre, about 1 pair in 200).
 #'
 #' @inheritParams travel_time_matrix
 #' @param suboptimal_minutes An integer, 0 (the default): with
@@ -196,6 +196,7 @@ detailed_itineraries <- function(r5r_network,
     as.integer(max_lts), shortest_path, threads, drop_geometry, scenario, osm_link_ids, output,
     as.integer(suboptimal_minutes), fare_structure, as.double(max_fare)
   ))
+  for (w in res$warnings) warning(w, call. = FALSE)
   if (!is.null(output_dir)) return(output_dir)
 
   i <- res$pair

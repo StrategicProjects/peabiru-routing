@@ -440,7 +440,8 @@ fn direct_trip(
 /// Errors: invalid parameters, `shortest_path = false` with public
 /// transport (McRAPTOR, not ported), a network with frequency-based trips
 /// (r5r refuses them too), cancellation, and the rare cases noted in the
-/// error message that R5 does not route reproducibly.
+/// error message that R5 does not route reproducibly. The notes of
+/// [`detailed_itineraries_noted`] are dropped.
 pub fn detailed_itineraries(
     net: &StreetNetwork,
     transit: Option<(&TransitLayer, &TransitData)>,
@@ -448,6 +449,41 @@ pub fn detailed_itineraries(
     destinations: &[(f64, f64)],
     p: &ItineraryParams,
 ) -> Result<Vec<Vec<Itinerary>>, RouteError> {
+    detailed_itineraries_noted(net, transit, origins, destinations, p).map(|(its, _)| its)
+}
+
+/// What the packages warn about after [`detailed_itineraries_noted`].
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct ItineraryNotes {
+    /// The pairs (indices, ascending) whose itineraries in r5r depend on the
+    /// searches that ran before them in the session: with car egress, R5
+    /// reverses the via edges of turn restrictions with two or more via
+    /// ways in place on every check of a backward car search. For every
+    /// pair peabiru returns the itineraries r5r gives on a freshly built
+    /// network for that pair alone with one thread.
+    pub history_dependent: Vec<usize>,
+}
+
+impl ItineraryNotes {
+    /// The warnings for a call of `n_pairs` pairs (at most one).
+    pub fn warnings(&self, n_pairs: usize) -> Vec<String> {
+        if self.history_dependent.is_empty() {
+            return Vec::new();
+        }
+        vec![history_warning(&self.history_dependent, n_pairs)]
+    }
+}
+
+/// [`detailed_itineraries`], with the notes the packages turn into
+/// warnings.
+pub fn detailed_itineraries_noted(
+    net: &StreetNetwork,
+    transit: Option<(&TransitLayer, &TransitData)>,
+    origins: &[(f64, f64)],
+    destinations: &[(f64, f64)],
+    p: &ItineraryParams,
+) -> Result<(Vec<Vec<Itinerary>>, ItineraryNotes), RouteError> {
     p.check().map_err(RouteError::Invalid)?;
     if origins.len() != destinations.len() {
         return Err(RouteError::Invalid(format!(
@@ -488,7 +524,7 @@ pub fn detailed_itineraries(
     // a car egress search runs backwards, which in R5 reverses the via
     // edges of turn restrictions in place (see `via`)
     let free = !p.transit_modes.is_empty() && p.egress_mode == Mode::Car;
-    type Chunk = Result<Vec<(usize, Vec<Itinerary>)>, RouteError>;
+    type Chunk = Result<Vec<(usize, Vec<Itinerary>, bool)>, RouteError>;
     let chunks: Vec<Chunk> = crate::sys::scoped(0..threads, |_| {
         let mut out = Vec::new();
         let mut scratch = Vec::new();
@@ -497,7 +533,7 @@ pub fn detailed_itineraries(
             if i >= n {
                 break;
             }
-            let its = via::settle(free, i, |via| {
+            let (its, depends) = via::settle(free, |via| {
                 let trips = plan(
                     net,
                     planner.as_ref(),
@@ -509,21 +545,54 @@ pub fn detailed_itineraries(
                 )?;
                 Ok(finish(i, trips))
             })?;
-            out.push((i, its));
+            out.push((i, its, depends));
         }
         Ok(out)
     });
     cancel.check()?;
     let mut slots: Vec<Option<Vec<Itinerary>>> = (0..n).map(|_| None).collect();
+    let mut dependent = Vec::new();
     for chunk in chunks {
-        for (i, v) in chunk? {
+        for (i, v, depends) in chunk? {
             slots[i] = Some(v);
+            if depends {
+                dependent.push(i);
+            }
         }
     }
-    Ok(slots
+    dependent.sort_unstable();
+    let its = slots
         .into_iter()
         .map(|s| s.expect("every pair is planned"))
-        .collect())
+        .collect();
+    let mut notes = ItineraryNotes::default();
+    notes.history_dependent = dependent;
+    Ok((its, notes))
+}
+
+/// The warning for the pairs (0-based, sorted) whose itineraries in r5r
+/// depend on what ran before them.
+fn history_warning(pairs: &[usize], n: usize) -> String {
+    const SHOWN: usize = 10;
+    let mut list: Vec<String> = pairs
+        .iter()
+        .take(SHOWN)
+        .map(|i| (i + 1).to_string())
+        .collect();
+    if pairs.len() > SHOWN {
+        list.push("...".into());
+    }
+    format!(
+        "{} of {} pairs ({} {}) have car searches that cross a turn restriction with two or \
+         more via ways, whose via edges R5 reverses in place on every check of a backward car \
+         search: r5r's itineraries for them may depend on the searches that ran before in the \
+         session (other pairs, earlier calls, threads). peabiru returns those r5r gives on a \
+         freshly built network for the pair alone with one thread.",
+        pairs.len(),
+        n,
+        if pairs.len() == 1 { "pair" } else { "pairs" },
+        list.join(", ")
+    )
 }
 
 /// `TripPlanner.plan()` for one pair.
@@ -551,8 +620,10 @@ fn plan(
                 trips.extend(direct);
                 trips.extend(t);
             }
-            // r5r routes the pair again with McRAPTOR
+            // r5r plans the pair again with McRAPTOR, from the direct trip
+            // on (which the egress search may have changed, see `via`)
             Err(e) if transit::is_fallback(&e) => {
+                let direct = direct_trip(net, p, o, d, scratch, via);
                 return planner.mc_plan(o, d, direct, None, scratch, via);
             }
             Err(e) => return Err(e),

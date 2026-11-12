@@ -5,7 +5,9 @@
 use super::{err, interruptible, network, points, street_mode, transit_modes, Outcome};
 use extendr_api::prelude::*;
 use extendr_api::Result;
-use peabiru_core::{detailed_itineraries, write_itineraries_csv, ItineraryParams, RouteError};
+use peabiru_core::{
+    detailed_itineraries_noted, write_itineraries_csv, ItineraryParams, RouteError,
+};
 
 /// Itineraries between `origins[i]` and `destinations[i]`, as
 /// `list(pair, option, departure_time, total_duration, total_distance,
@@ -14,7 +16,8 @@ use peabiru_core::{detailed_itineraries, write_itineraries_csv, ItineraryParams,
 /// the four id columns `NULL` without `osm_link_ids`, `geometry` `NULL`
 /// with `drop_geometry`). With `output`
 /// (`list(dir, from_ids, to_ids)`) the files are written instead and
-/// `NULL` returned.
+/// only `list(warnings)` returned. `warnings`: the texts R shows as
+/// warnings.
 /// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]
@@ -75,12 +78,13 @@ fn rs_detailed_itineraries(
     p.n_threads = n_threads.max(0) as usize;
     p.osm_link_ids = osm_link_ids;
     let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
-    let res = match interruptible(&p.cancel, || {
-        detailed_itineraries(&n.net, transit, &o, &d, &p)
+    let (res, notes) = match interruptible(&p.cancel, || {
+        detailed_itineraries_noted(&n.net, transit, &o, &d, &p)
     })? {
         Outcome::Done(v) => v,
         Outcome::Stopped(cond) => return super::stopped(cond),
     };
+    let warnings = notes.warnings(o.len());
     if !output.is_null() {
         let get = |name: &str| -> Result<Vec<String>> {
             output
@@ -94,7 +98,7 @@ fn rs_detailed_itineraries(
         let pts: Vec<_> = o.iter().copied().zip(d.iter().copied()).collect();
         write_itineraries_csv(&dir, &ids, &pts, &res, drop_geometry, osm_link_ids)
             .map_err(|e| err(RouteError::Invalid(format!("cannot write {dir}: {e}"))))?;
-        return Ok(().into());
+        return Ok(list!(warnings = warnings).into());
     }
     let mut pair = Vec::new();
     let mut option = Vec::new();
@@ -179,7 +183,8 @@ fn rs_detailed_itineraries(
         edge_id_list = edges,
         board_stop_id = board,
         alight_stop_id = alight,
-        geometry = geometry
+        geometry = geometry,
+        warnings = warnings
     )
     .into())
 }

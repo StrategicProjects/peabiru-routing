@@ -4,7 +4,7 @@
 
 use crate::cli::{self, runtime_error, usage_error};
 use peabiru_core::{
-    detailed_itineraries, BuildOptions, ItineraryParams, Mode, TransitData, TransitMode,
+    detailed_itineraries_noted, BuildOptions, ItineraryParams, Mode, TransitData, TransitMode,
 };
 use std::fmt::Write as _;
 use std::time::Instant;
@@ -121,8 +121,11 @@ pub fn run(args: &[String]) {
     let data = (!p.transit_modes.is_empty()).then(|| TransitData::new(&net, &layer));
     let transit = data.as_ref().map(|d| (&layer, d));
     let t1 = Instant::now();
-    let res = detailed_itineraries(&net, transit, &opts, &dpts, &p)
+    let (res, notes) = detailed_itineraries_noted(&net, transit, &opts, &dpts, &p)
         .unwrap_or_else(|e| runtime_error(cmd, e));
+    for w in notes.warnings(opts.len()) {
+        eprintln!("warning: {w}");
+    }
     let t2 = Instant::now();
     let mut s = String::from(
         "from_id,to_id,option,departure_time,total_duration,total_distance,segment,mode,\

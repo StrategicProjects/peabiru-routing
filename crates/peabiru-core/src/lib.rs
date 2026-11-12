@@ -159,7 +159,8 @@ pub use isochrone::{
     Polygon, StreetEdges, TravelTimeSurface, WebMercatorGrid,
 };
 pub use itinerary::{
-    detailed_itineraries, write_itineraries_csv, Itinerary, ItineraryLeg, ItineraryParams,
+    detailed_itineraries, detailed_itineraries_noted, write_itineraries_csv, Itinerary,
+    ItineraryLeg, ItineraryNotes, ItineraryParams,
 };
 pub use output::CsvOutput;
 pub use street::{

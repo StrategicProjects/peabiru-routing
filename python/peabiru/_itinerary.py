@@ -107,8 +107,9 @@ def detailed_itineraries(
     As in r5r, networks
     whose GTFS has frequency-based trips cannot be used with public
     transport. With ``mode_egress="CAR"``, a pair whose itineraries in r5r
-    depend on the searches that ran before (R5 reverses the via edges of
-    some turn restrictions in place) is an error; see the guide.
+    may depend on the searches that ran before (R5 reverses the via edges of
+    some turn restrictions in place) gets r5r's itineraries on a freshly
+    built network, with a warning; see the guide.
 
     Parameters
     ----------
@@ -262,7 +263,9 @@ def detailed_itineraries(
             None if out_dir is None else (out_dir, [str(i) for i in o.ids], [str(i) for i in d.ids]),
             int(suboptimal_minutes), fares, float(max_fare),
         )
-    if r is None:
+    for w in r["warnings"]:
+        warnings.warn(w, stacklevel=2)
+    if out_dir is not None:
         return output_dir
     pair = _i32(r["pair"])
     df = pd.DataFrame({

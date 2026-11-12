@@ -12,10 +12,13 @@
 #
 # R5 reverses the via edges of a turn restriction with two or more of them
 # in place on every check of a backward car search, so r5r's result for a
-# pair whose searches cross one may depend on what ran before; peabiru then
-# tries every order and refuses the pair when the itineraries differ. When a
-# call is refused, the pairs are compared one by one and the refused ones
-# listed. Exits with status 1 if any pair peabiru routes differs.
+# pair whose searches cross one may depend on what ran before; peabiru
+# returns what r5r gives on a freshly built network for the pair alone with
+# one thread, and warns, listing the pairs whose result may differ. Here:
+# the pairs peabiru does not list must be identical to r5r's call of all 300
+# pairs; each listed pair is compared with r5r on a fresh network (loaded
+# again from network.dat, nothing routed before) for that pair alone,
+# n_threads = 1. Exits with status 1 if any of these differs.
 
 args <- commandArgs(TRUE)
 # a seed followed by "s" (e.g. 3s) runs on a car speed scenario: 400 random
@@ -46,8 +49,31 @@ plain <- function(x) {
 }
 args_for <- function(o, d) c(list(origins = o, destinations = d, mode = c("WALK", "TRANSIT"),
                                   mode_egress = "CAR", departure_datetime = dep), scen)
+# peabiru's itineraries and the pairs (row numbers) its warning lists
+peabiru_run <- function(o, d) {
+  listed <- integer(0)
+  q <- withCallingHandlers(
+    do.call(peabiru::detailed_itineraries, c(list(pb), args_for(o, d))),
+    warning = function(w) {
+      m <- conditionMessage(w)
+      if (grepl("turn restriction with two or more via ways", m)) {
+        p <- regmatches(m, regexpr("\\(pairs? [0-9, .]+\\)", m))
+        listed <<- as.integer(regmatches(p, gregexpr("[0-9]+", p))[[1]])
+        if (grepl("...", p, fixed = TRUE)) listed <<- NA_integer_
+      }
+      invokeRestart("muffleWarning")
+    })
+  list(q = q, listed = listed)
+}
+rows_of <- function(x, id) {
+  x <- x[x$from_id == id, ]
+  rownames(x) <- NULL
+  x
+}
 ways <- unique(street_network_to_sf(pb)$edges$osm_id)
 failed <- 0
+total_listed <- 0
+total_pairs <- 0
 for (tag in seeds) {
   seed <- as.integer(sub("s$", "", tag))
   scen <- if (grepl("s$", tag)) {
@@ -63,31 +89,40 @@ for (tag in seeds) {
   d$id <- paste0("d", seq_len(n))
   r <- plain(suppressWarnings(do.call(r5r::detailed_itineraries,
                                       c(list(r5), args_for(o, d), progress = FALSE))))
-  q <- tryCatch(do.call(peabiru::detailed_itineraries, c(list(pb), args_for(o, d))),
-                error = function(e) e)
-  if (!inherits(q, "error")) {
-    ok <- identical(q, r)
-    if (!ok) failed <- failed + 1
-    message(sprintf("seed %s: %d rows  %s", tag, nrow(r), if (ok) "identical" else "DIFFERENT"))
-    next
+  run <- peabiru_run(o, d)
+  listed <- run$listed
+  if (anyNA(listed)) {
+    # more than the warning shows: find them pair by pair
+    listed <- which(vapply(seq_len(n), function(i) length(peabiru_run(o[i, ], d[i, ])$listed) > 0,
+                           TRUE))
   }
-  refused <- integer(0)
-  same <- 0
-  differ <- 0
-  for (i in seq_len(n)) {
-    qi <- tryCatch(do.call(peabiru::detailed_itineraries, c(list(pb), args_for(o[i, ], d[i, ]))),
-                   error = function(e) e)
-    if (inherits(qi, "error")) {
-      refused <- c(refused, i)
-      next
-    }
-    ri <- r[r$from_id == o$id[i], ]
-    rownames(ri) <- NULL
-    if (identical(qi, ri)) same <- same + 1 else differ <- differ + 1
-  }
-  if (differ > 0) failed <- failed + 1
-  message(sprintf("seed %s: refused pairs %s; the other %d pairs: %d identical, %d different",
-                  tag, paste(refused, collapse = ","), n - length(refused), same, differ))
+  others <- setdiff(seq_len(n), listed)
+  same <- vapply(others, function(i) identical(rows_of(run$q, o$id[i]), rows_of(r, o$id[i])), TRUE)
+  # each listed pair alone, on a fresh r5r network, one thread
+  fresh_same <- vapply(listed, function(i) {
+    f <- suppressMessages(r5r::build_network(dir, verbose = FALSE))
+    on.exit(r5r::stop_r5(f))
+    a <- args_for(o[i, ], d[i, ])
+    ri <- plain(suppressWarnings(do.call(r5r::detailed_itineraries,
+                                         c(list(f), a, n_threads = 1, progress = FALSE))))
+    qi <- suppressWarnings(do.call(peabiru::detailed_itineraries, c(list(pb), a)))
+    identical(qi, ri) && identical(rows_of(run$q, o$id[i]), qi)
+  }, TRUE)
+  in_call <- vapply(listed, function(i) identical(rows_of(run$q, o$id[i]), rows_of(r, o$id[i])), TRUE)
+  # the same call again in r5r's session: only listed pairs may change
+  r2 <- plain(suppressWarnings(do.call(r5r::detailed_itineraries,
+                                       c(list(r5), args_for(o, d), progress = FALSE))))
+  moved <- vapply(seq_len(n), function(i) !identical(rows_of(r, o$id[i]), rows_of(r2, o$id[i])), TRUE)
+  if (!all(same) || !all(fresh_same) || any(moved[others])) failed <- failed + 1
+  total_listed <- total_listed + length(listed)
+  total_pairs <- total_pairs + n
+  message(sprintf(paste0("seed %s: %d rows; %d pairs not listed: %d identical; %d listed (%s): ",
+                         "%d identical to r5r fresh, %d also equal in r5r's call of all pairs; ",
+                         "r5r's second call changed %d listed and %d other pairs"),
+                  tag, nrow(r), length(others), sum(same), length(listed),
+                  paste(listed, collapse = ","), sum(fresh_same), sum(in_call),
+                  sum(moved[listed]), sum(moved[others])))
 }
+message(sprintf("listed %d of %d pairs", total_listed, total_pairs))
 r5r::stop_r5(r5)
 if (failed > 0) quit(status = 1)

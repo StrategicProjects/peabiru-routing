@@ -24,6 +24,7 @@ import wasmInit, {
   gtfs_errors as rawGtfsErrors,
   isochrone_lines as rawIsochroneLines,
   itineraries as rawItineraries,
+  itinerary_warnings as rawItineraryWarnings,
   isochrone_polygons as rawIsochronePolygons,
   street_bbox as rawStreetBbox,
   street_edges as rawStreetEdges,
@@ -2052,6 +2053,11 @@ export async function detailedItineraries(network, origins, destinations, option
     opt.nThreads, opt.signal,
   );
   const rows = [];
+  const dependent = [];
+  for (const { offset, result } of parts) {
+    for (const i of result[20]) dependent.push(i + offset);
+  }
+  for (const w of rawItineraryWarnings(Int32Array.from(dependent), o.length)) warn(w);
   for (const { offset, result } of parts) {
     const [pair, option, totalDistance, segment, distance, nPoints, totalDuration, segmentDuration, wait, x, y, dep, mode, route,
       osmIds, edgeIds, boardStop, alightStop, totalFare, cumulativeFare] = result;
