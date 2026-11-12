@@ -82,7 +82,7 @@ redistributes it, and nothing of it is copied into this repository.
 | Streets | [OpenStreetMap](https://www.openstreetmap.org/copyright), extract of the Sudeste region by [Geofabrik](https://download.geofabrik.de/south-america/brazil/sudeste.html), dated 2026-11-01 (863 MB; MD5 `15c2834145c0273c96b5e7dee21c1109`, as Geofabrik publishes) | ODbL 1.0 |
 | GTFS | the three feeds above (14, 25 and 52 MB) | above |
 | Municipal boundaries | [IBGE, malhas municipais](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3) (API, version 3) | public data, IBGE |
-| Cells, population, income | Ipea, [Access to Opportunities Project](https://www.ipea.gov.br/acessooportunidades/en/), data release v1.0.0 of [aopdata](https://github.com/ipeaGIT/aopdata): H3 cells of resolution 9 (357 m between centres) with the residents and the household income per person of the **Censo 2010** | the aopdata repository is MIT; no separate licence for the data is stated. Ipea asks for the citations at the end of this page |
+| Cells, population, income | Ipea, [Access to Opportunities Project](https://www.ipea.gov.br/acessooportunidades/en/), data release v1.0.0 of [aopdata](https://github.com/ipeaGIT/aopdata): H3 cells of resolution 9 (about 350 m between centres) with the residents and the household income per person of the **Censo 2010** | the aopdata repository is MIT; no separate licence for the data is stated. Ipea asks for the citations at the end of this page |
 | Jobs, schools, health facilities | the same release, land use of **2019**: formal jobs (RAIS), public schools (Censo Escolar), public health facilities (CNES), per cell | same |
 
 Income is that of 2010 because nothing newer exists at this resolution: the
@@ -143,6 +143,7 @@ with the cut and the feed.
 
 ```{r networks}
 utm <- 31983   # SIRGAS 2000 / UTM zone 23S, in metres, for the three cities
+threads <- 4   # of the 10 of the laptop; the default is all of them
 
 boundary_of <- function(code) {
   url <- paste0("https://servicodados.ibge.gov.br/api/v3/malhas/municipios/", code,
@@ -167,7 +168,7 @@ for (k in names(cities)) {
   st_write(st_sf(geometry = st_transform(area, 4326)), polygon, delete_dsn = TRUE, quiet = TRUE)
   pbf <- file.path(dir, paste0(k, ".osm.pbf"))
   stopifnot(system2("osmium", c("extract", "--overwrite", "-p", polygon, sudeste, "-o", pbf)) == 0)
-  networks[[k]] <- build_network(dir)
+  networks[[k]] <- build_network(dir, n_threads = threads)
   cat(sprintf("%s: %.0f km2, %.1f MB\n", k, as.numeric(st_area(area)) / 1e6, file.size(pbf) / 1e6))
 }
 networks$spo
@@ -239,33 +240,27 @@ access_of <- function(k) {
   cells <- st_drop_geometry(grids[[k]])
   origins <- cells[cells$population > 0, ]
   destinations <- cells[cells$jobs + cells$schools + cells$health > 0, ]
-  seconds <- system.time(a <- accessibility(
+  a <- accessibility(
     networks[[k]], origins, destinations,
     opportunities_colnames = c("jobs", "schools", "health"),
     mode = c("WALK", "TRANSIT"), departure_datetime = departure, time_window = 60,
     percentiles = 50, cutoffs = c(30, 60), max_trip_duration = 60, seed = 42,
-    progress = FALSE))[["elapsed"]]
+    n_threads = threads, progress = FALSE)
   cat(sprintf("%s: %d origins x %d destinations\n", k, nrow(origins), nrow(destinations)))
   # one row per cell, one column per opportunity and cutoff: jobs_60, ...
   a$what <- paste(a$opportunity, a$cutoff, sep = "_")
   wide <- reshape(as.data.frame(a[, c("id", "what", "accessibility")]), idvar = "id",
                   timevar = "what", direction = "wide")
   names(wide) <- sub("accessibility.", "", names(wide), fixed = TRUE)
-  attr(wide, "seconds") <- seconds
   merge(origins, wide, by = "id")
 }
 access <- lapply(setNames(names(cities), names(cities)), access_of)
 ```
 
-```{r, include = FALSE}
-secs <- sapply(access, attr, "seconds")
-```
-
-On the laptop this was written on (Apple M2 Pro, 10 threads, busy with
-other work at the time) the three calls took `r round(secs[["spo"]] / 60)`,
-`r round(secs[["rio"]] / 60)` and `r round(secs[["bho"]] / 60, 1)` minutes;
-the R session peaked under 2 GiB, in Belo Horizonte, whose feed has 513 MB
-of `stop_times.txt`.
+On the laptop this was written on (Apple M2 Pro, 4 of its 10 threads, busy
+with other work at the time) the three calls took about 50 minutes
+together, nearly all of it in São Paulo and Rio de Janeiro, and the R
+session, with the three networks loaded, peaked at 3.8 GiB of memory.
 
 As shares of the jobs of the municipality, weighted by residents:
 
@@ -409,7 +404,7 @@ variant <- function(hour, window, ...) {
                      departure_datetime = as.POSIXct(sprintf("2026-11-17 %02d:00:00", hour),
                                                      tz = "America/Sao_Paulo"),
                      time_window = window, cutoffs = 60, max_trip_duration = 60,
-                     progress = FALSE, ...)
+                     n_threads = threads, progress = FALSE, ...)
   round(weighted.mean(as.numeric(a$accessibility), bho$population[match(a$id, bho$id)]))
 }
 c(as_above = variant(7, 60), window_06_08 = variant(6, 120),
@@ -435,9 +430,11 @@ frequency (r5r refuses them in `detailed_itineraries()`, and with a fare
 structure its travel times fall back to walking; peabiru does the same):
 that excludes São Paulo and Rio de Janeiro, whose feeds do carry the fares
 (`fare_attributes.txt`: R$ 5.30 the bus and R$ 5.40 the metro and the train
-in São Paulo, R$ 9.38 the two together; R$ 5.00 in Rio de Janeiro, with one
-transfer within three hours). Belo Horizonte's feed has timetables and
-fares by line (R$ 6.25, 6.00 and 3.00), but its
+in São Paulo, R$ 9.38 the two together; in Rio de Janeiro R$ 5.00 on the
+buses, with one transfer within three hours, and on the BRT, and R$ 15.00
+to 24.85 on the executive lines). Belo Horizonte's feed has timetables and
+fares by line (R$ 6.25 or 6.00 on all but two lines, which cost R$ 5.00 and
+3.00), but its
 [rules](https://prefeitura.pbh.gov.br/sumob/onibus/tipos-de-linha-e-servicos)
 (page updated on 2026-09-04) cannot be written faithfully in r5r's format:
 a second ride within 90 minutes costs half the cheaper fare with the BHBUS
@@ -488,8 +485,8 @@ poa_destinations <- poa_cells[poa_cells$jobs > 0, ]
 table(quintile = poa_origins$quintile, useNA = "ifany")
 ```
 
-The sample covers the centre of the city, where incomes are higher: few of
-its cells are in the poorest fifth of Porto Alegre.
+The sample covers the centre of the city, where incomes are higher: the
+two poorest fifths of Porto Alegre have fewer of its cells than the others.
 
 ### What a budget leaves
 
@@ -504,7 +501,7 @@ with_budget <- function(max_fare) {
                      mode = c("WALK", "TRANSIT"), departure_datetime = poa_departure,
                      time_window = 60, percentiles = 50, cutoffs = 60, max_trip_duration = 60,
                      fare_structure = fares, max_fare = max_fare, draws_per_minute = 1,
-                     progress = FALSE)
+                     n_threads = threads, progress = FALSE)
   as.numeric(a$accessibility[match(poa_origins$id, a$id)])   # integers would overflow in the means
 }
 budget <- data.frame(poa_origins[, c("id", "population", "quintile")],
@@ -531,8 +528,8 @@ resident of the sample reaches at any fare, and two fares
 `r sprintf("%.0f%%", k_all[["kept_two_fares"]])`. The loss is larger where
 incomes are lower: in the poorest fifth one fare keeps
 `r sprintf("%.0f%%", k_q["1", "kept_one_fare"])`, in the richest
-`r sprintf("%.0f%%", k_q["5", "kept_one_fare"])`. Few cells of the sample
-are in the poorest fifths, so read the gradient rather than the levels.
+`r sprintf("%.0f%%", k_q["5", "kept_one_fare"])`. The sample is the
+centre of the city only, so read the gradient rather than the levels.
 
 ```{r, echo = FALSE, results = "asis"}
 live('fig("fare-budget-poa.svg")', 'echo = FALSE, fig.alt = "Grouped bars, one group per income quintile, of the mean share of jobs reached within 60 minutes by public transport in the Porto Alegre sample at any fare, with at most two bus fares, and with at most one."')
@@ -635,7 +632,7 @@ r5r 2.5.0 alike (checked for the 14:05 departure: r5r's
 - **Old people, old jobs, new buses.** Residents and income from the Censo
   2010, opportunities from 2019, public transport from 2026.
 - **Cells, not addresses.** Every trip starts and ends at the centre of an
-  H3 cell (357 m apart), linked to the nearest street as r5r does.
+  H3 cell (about 350 m apart), linked to the nearest street as r5r does.
 - **Fares.** Porto Alegre's are r5r's sample structure for its 2019 sample
   network, not checked here against the tariff decrees of that year, on a
   part of the city and an afternoon hour.

@@ -368,9 +368,8 @@ With fares the router samples departures in the window
 does. One bus fare, which pays a single ride, keeps 84% of the jobs that the
 average resident of the sample reaches at any fare, and two fares 98%; the
 loss is larger where incomes are lower: in the poorest fifth, one fare keeps
-74%, in the richest 89%. Few cells of the sample are in the poorest fifths
-(it covers the centre of the city), so read the gradient rather than the
-levels.
+74%, in the richest 89%. The sample is the centre of the city only, so read
+the gradient rather than the levels.
 
 ### The frontier of a trip
 
