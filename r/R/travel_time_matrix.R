@@ -68,13 +68,18 @@
 #' `options(peabiru.output = "data.table")` the result is identical to
 #' r5r's, its class included. For a walking trip with more origins than
 #' destinations the search runs from the destinations, as r5r runs it, and
-#' the columns are swapped back. A
+#' the columns are swapped back. An `sf` of points (or of scenario
+#' polygons or lines) in another CRS than WGS 84 is reprojected, where r5r
+#' stops with an error. A
 #' missing destination id is an error (r5r fails on it in Java). See
 #' the article "Coming from r5r" on the package website for every difference.
 #'
 #' @param r5r_network A network built with [build_network()].
 #' @param origins,destinations A `data.frame` with columns `id`, `lon` and
-#'   `lat`, or a `POINT sf` with an `id` column, in WGS 84. Ids that are not
+#'   `lat` (WGS 84 longitude and latitude), or a `POINT sf` with an `id`
+#'   column, in any coordinate reference system (CRS): an `sf` in another
+#'   CRS than WGS 84 is reprojected with `sf::st_transform()`, with a
+#'   message, and one without a CRS is an error. Ids that are not
 #'   character are converted, with a warning; points with missing
 #'   coordinates are not routed, with a warning; duplicated ids are an
 #'   error.
@@ -115,7 +120,8 @@
 #'   data frame with columns `osm_id`, `max_speed` and `speed_type`
 #'   (`"scale"`, a factor for the car speed of the way's edges, or `"km/h"`,
 #'   a speed; 0 closes the way to cars), or an `sf` data frame of `POLYGON`s
-#'   or `MULTIPOLYGON`s in WGS 84 with columns `poly_id` (character), `scale`
+#'   or `MULTIPOLYGON`s (in any CRS, reprojected to WGS 84 as `origins`)
+#'   with columns `poly_id` (character), `scale`
 #'   (numeric) and `priority` (integer): each street edge takes the factor
 #'   of the polygon it meets with the highest priority (ties: the one it
 #'   overlaps most). Polygons that are not valid are an error, and so are
@@ -127,7 +133,8 @@
 #'   past that range, is an error.
 #' @param new_lts A scenario of levels of traffic stress: `NULL` (the
 #'   default), a data frame with columns `osm_id` and `lts` (integer), or an
-#'   `sf` data frame of `LINESTRING`s in WGS 84 with columns `line_id`, `lts`
+#'   `sf` data frame of `LINESTRING`s (in any CRS, reprojected to WGS 84 as
+#'   `origins`) with columns `line_id`, `lts`
 #'   (1 to 4) and `priority`: each street edge takes the level of the line
 #'   closest to it among those whose bounding box meets its own (`priority`
 #'   is not used). A scenario (of car speeds or of levels of traffic stress)

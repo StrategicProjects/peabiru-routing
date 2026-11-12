@@ -42,8 +42,9 @@ accessibility(
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
-\item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat}, or a
-\verb{POINT sf} with an \code{id} column, in WGS 84.}
+\item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat} (WGS
+84), or a \verb{POINT sf} with an \code{id} column, in any coordinate reference
+system (reprojected to WGS 84, see \code{\link[=travel_time_matrix]{travel_time_matrix()}}).}
 
 \item{destinations}{A \code{data.frame} or \verb{POINT sf} with \code{id}, \code{lon}, \code{lat}
 and the opportunity columns.}
@@ -113,7 +114,8 @@ a \code{fare_structure}.}
 data frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type}
 (\code{"scale"}, a factor for the car speed of the way's edges, or \code{"km/h"},
 a speed; 0 closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s
-or \code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+or \code{MULTIPOLYGON}s (in any CRS, reprojected to WGS 84 as \code{origins})
+with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
 overlaps most). Polygons that are not valid are an error, and so are
@@ -127,7 +129,8 @@ past that range, is an error.}
 
 \item{new_lts}{A scenario of levels of traffic stress: \code{NULL} (the
 default), a data frame with columns \code{osm_id} and \code{lts} (integer), or an
-\code{sf} data frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts}
+\code{sf} data frame of \code{LINESTRING}s (in any CRS, reprojected to WGS 84 as
+\code{origins}) with columns \code{line_id}, \code{lts}
 (1 to 4) and \code{priority}: each street edge takes the level of the line
 closest to it among those whose bounding box meets its own (\code{priority}
 is not used). A scenario (of car speeds or of levels of traffic stress)

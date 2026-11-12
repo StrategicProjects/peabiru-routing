@@ -29,8 +29,10 @@ needs_sf <- function(fun) {
 #' that says so (r5r lets it through and fails in Java).
 #'
 #' @param r5r_network A network built with [build_network()].
-#' @param points Either a `POINT sf` object with WGS84 CRS, or a
-#'   `data.frame` containing the columns `id`, `lon` and `lat`.
+#' @param points Either a `POINT sf` object with an `id` column, in any
+#'   coordinate reference system (reprojected to WGS 84, see
+#'   [travel_time_matrix()]), or a `data.frame` containing the columns `id`,
+#'   `lon` and `lat` (WGS 84).
 #' @param radius Numeric. The maximum radius in meters within which to
 #'   snap. Defaults to 1600m.
 #' @param mode A string. Which mode to consider when trying to snap the

@@ -15,8 +15,10 @@ find_snap(
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
-\item{points}{Either a \verb{POINT sf} object with WGS84 CRS, or a
-\code{data.frame} containing the columns \code{id}, \code{lon} and \code{lat}.}
+\item{points}{Either a \verb{POINT sf} object with an \code{id} column, in any
+coordinate reference system (reprojected to WGS 84, see
+\code{\link[=travel_time_matrix]{travel_time_matrix()}}), or a \code{data.frame} containing the columns \code{id},
+\code{lon} and \code{lat} (WGS 84).}
 
 \item{radius}{Numeric. The maximum radius in meters within which to
 snap. Defaults to 1600m.}

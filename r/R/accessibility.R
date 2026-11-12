@@ -39,8 +39,9 @@
 #' `percentiles` is an error that says so (r5r fails on it in Java).
 #'
 #' @inheritParams travel_time_matrix
-#' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
-#'   `POINT sf` with an `id` column, in WGS 84.
+#' @param origins A `data.frame` with columns `id`, `lon` and `lat` (WGS
+#'   84), or a `POINT sf` with an `id` column, in any coordinate reference
+#'   system (reprojected to WGS 84, see [travel_time_matrix()]).
 #' @param destinations A `data.frame` or `POINT sf` with `id`, `lon`, `lat`
 #'   and the opportunity columns.
 #' @param opportunities_colnames A character vector, the names of the

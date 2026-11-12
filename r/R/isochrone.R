@@ -40,8 +40,9 @@
 #' (r5r lets them through and then fails, or passes the fraction to R5).
 #'
 #' @inheritParams travel_time_matrix
-#' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
-#'   `POINT sf` with an `id` column, in WGS 84.
+#' @param origins A `data.frame` with columns `id`, `lon` and `lat` (WGS
+#'   84), or a `POINT sf` with an `id` column, in any coordinate reference
+#'   system (reprojected to WGS 84, see [travel_time_matrix()]).
 #' @param mode A character vector, the transport modes (default
 #'   `"transit"`): one of `"WALK"`, `"BICYCLE"` or `"CAR"`, and for public
 #'   transport `"TRANSIT"` or some of its modes (see

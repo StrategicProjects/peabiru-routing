@@ -59,6 +59,12 @@ The package now exports all 22 functions of r5r 2.5.0, with r5r's formals
   It applies to every table, `sf` results and the tables of fare structures
   and of `trip_options()` included. 'tibble' is now imported; 'data.table'
   stays suggested.
+* An `sf` of points (`origins`, `destinations`, `points`) or of scenario
+  polygons or lines (`new_carspeeds`, `new_lts`) in another coordinate
+  reference system than WGS 84 is reprojected with `sf::st_transform()`,
+  with a message of class `peabiru_reprojected` naming the argument and the
+  CRS (r5r, and peabiru so far, stopped with an error). An `sf` without a
+  CRS is an error that says how to set it. Results stay in EPSG:4326.
 * `read_fare_structure()` keeps the columns of a table without rows
   in the file, as r5r's `fread()` does (it returned a table without columns).
 * Deprecated arguments (`r5r_core`, and `sample_size` in `isochrone()`)

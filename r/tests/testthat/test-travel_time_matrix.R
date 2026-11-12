@@ -242,9 +242,10 @@ test_that("sf and data.table points give the data.frame result", {
     accessibility(network, pts, pts, opportunities_colnames = "jobs", cutoffs = 20,
                   n_threads = 2)
   )
-  expect_error(
+  # another CRS is reprojected (test-crs.R)
+  expect_message(
     travel_time_matrix(network, sf::st_transform(s, 3857), s, n_threads = 2),
-    "WGS 84"
+    "reprojected", class = "peabiru_reprojected"
   )
   skip_if_not_installed("data.table")
   dt <- data.table::as.data.table(pts)

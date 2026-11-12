@@ -80,7 +80,8 @@ points_bad <- list(
   id_num = transform(pts, id = seq_len(3)), id_NA = transform(pts, id = c(NA, id[-1])),
   matrix = as.matrix(pts[, c("lat", "lon")]), zero_rows = pts[0, ],
   sf_line = st_sf(id = "l", geometry = st_sfc(st_linestring(rbind(c(-51.2, -30.0), c(-51.21, -30.01))), crs = 4326)),
-  sf_utm = st_transform(st_as_sf(pts, coords = c("lon", "lat"), crs = 4326), 32722)
+  sf_utm = st_transform(st_as_sf(pts, coords = c("lon", "lat"), crs = 4326), 32722),
+  sf_nocrs = st_as_sf(pts, coords = c("lon", "lat"))
 )
 specific <- list(
   origins = points_bad, destinations = points_bad, points = points_bad,
@@ -185,7 +186,11 @@ deliberate <- c(
   "write_fare_structure:file_path:NULL_" =
     "r5r lets NULL through its check and fails in zip::zip() (an internal R error)",
   "read_fare_structure:two_files:combination" =
-    "r5r's check takes several files and zip::unzip() then fails (an internal R error)"
+    "r5r's check takes several files and zip::unzip() then fails (an internal R error)",
+  ".*:(origins|destinations|points):sf_utm" =
+    "peabiru reprojects an sf in another CRS to WGS 84, with a message; r5r refuses it",
+  ".*:(origins|destinations|points):sf_nocrs" =
+    "an sf without a CRS: peabiru's error says how to set it (r5r's asks for WGS 84)"
 )
 # r5r raises its cli::cli_abort() errors as 'rlang' conditions; peabiru,
 # which imports nothing, raises the same message as a simpleError

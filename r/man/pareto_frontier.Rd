@@ -35,7 +35,10 @@ pareto_frontier(
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
-\code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84. Ids that are not
+\code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
+column, in any coordinate reference system (CRS): an \code{sf} in another
+CRS than WGS 84 is reprojected with \code{sf::st_transform()}, with a
+message, and one without a CRS is an error. Ids that are not
 character are converted, with a warning; points with missing
 coordinates are not routed, with a warning; duplicated ids are an
 error.}

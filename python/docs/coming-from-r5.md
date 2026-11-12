@@ -94,6 +94,13 @@ dtype: object
   network). Column names, order and values are r5r's; the types are the
   Python equivalents in the table above.
 
+<!-- diff:sf-any-crs -->
+- **Geometries in another coordinate reference system** (R only). The R
+  package reprojects an `sf` input in any CRS to WGS 84, with a message,
+  where r5r stops with an error. In Python, as in r5r, a `GeoDataFrame` of
+  points or of scenario polygons or lines must be in EPSG:4326 (a
+  `ValueError` otherwise): reproject it with `GeoDataFrame.to_crs(4326)`.
+
 <!-- diff:network-in-memory -->
 - **The network lives in memory only.** Nothing is written to the data
   directory (no `network.dat`, no `gtfs_errors.csv`); a

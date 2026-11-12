@@ -156,6 +156,23 @@ it stops with an error that says so.
   options(peabiru.output = "data.table") # r5r's classes, for r5r scripts
   ```
 
+<!-- diff:sf-any-crs -->
+- **`sf` inputs in any coordinate reference system.** r5r stops with an
+  error on a `POINT` `sf` (`origins`, `destinations`, `points`) or on
+  scenario polygons or lines (`new_carspeeds`, `new_lts`) that are not in
+  WGS 84. peabiru reprojects them with `sf::st_transform()` and says so in
+  a message (class `peabiru_reprojected`, one per argument; silence it with
+  `suppressMessages()`), naming the argument and the CRS. An `sf` without a
+  CRS is an error that says how to set it, and geometries that are not
+  points where points are needed are refused as r5r refuses them. Results
+  are always in WGS 84 (EPSG:4326).
+
+```{r, eval = requireNamespace("sf", quietly = TRUE)}
+pts_utm <- sf::st_transform(sf::st_as_sf(points, coords = c("lon", "lat"), crs = 4326),
+                            31983) # SIRGAS 2000 / UTM zone 23S
+ttm <- travel_time_matrix(network, pts_utm, pts_utm, mode = "WALK", n_threads = 2)
+```
+
 <!-- diff:network-in-memory -->
 - **The network lives in memory only.** Nothing is written to the data
   directory (no `network.dat`, no `gtfs_errors.csv`), and the network

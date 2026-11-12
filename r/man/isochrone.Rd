@@ -35,8 +35,9 @@ isochrone(
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
-\item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat}, or a
-\verb{POINT sf} with an \code{id} column, in WGS 84.}
+\item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat} (WGS
+84), or a \verb{POINT sf} with an \code{id} column, in any coordinate reference
+system (reprojected to WGS 84, see \code{\link[=travel_time_matrix]{travel_time_matrix()}}).}
 
 \item{mode}{A character vector, the transport modes (default
 \code{"transit"}): one of \code{"WALK"}, \code{"BICYCLE"} or \code{"CAR"}, and for public

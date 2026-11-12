@@ -40,7 +40,10 @@ travel_time_matrix(
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
-\code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84. Ids that are not
+\code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
+column, in any coordinate reference system (CRS): an \code{sf} in another
+CRS than WGS 84 is reprojected with \code{sf::st_transform()}, with a
+message, and one without a CRS is an error. Ids that are not
 character are converted, with a warning; points with missing
 coordinates are not routed, with a warning; duplicated ids are an
 error.}
@@ -94,7 +97,8 @@ a \code{fare_structure}.}
 data frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type}
 (\code{"scale"}, a factor for the car speed of the way's edges, or \code{"km/h"},
 a speed; 0 closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s
-or \code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+or \code{MULTIPOLYGON}s (in any CRS, reprojected to WGS 84 as \code{origins})
+with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
 overlaps most). Polygons that are not valid are an error, and so are
@@ -108,7 +112,8 @@ past that range, is an error.}
 
 \item{new_lts}{A scenario of levels of traffic stress: \code{NULL} (the
 default), a data frame with columns \code{osm_id} and \code{lts} (integer), or an
-\code{sf} data frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts}
+\code{sf} data frame of \code{LINESTRING}s (in any CRS, reprojected to WGS 84 as
+\code{origins}) with columns \code{line_id}, \code{lts}
 (1 to 4) and \code{priority}: each street edge takes the level of the line
 closest to it among those whose bounding box meets its own (\code{priority}
 is not used). A scenario (of car speeds or of levels of traffic stress)
@@ -235,7 +240,9 @@ travel times are equal pair by pair (with frequencies, for the same
 \code{options(peabiru.output = "data.table")} the result is identical to
 r5r's, its class included. For a walking trip with more origins than
 destinations the search runs from the destinations, as r5r runs it, and
-the columns are swapped back. A
+the columns are swapped back. An \code{sf} of points (or of scenario
+polygons or lines) in another CRS than WGS 84 is reprojected, where r5r
+stops with an error. A
 missing destination id is an error (r5r fails on it in Java). See
 the article "Coming from r5r" on the package website for every difference.
 }

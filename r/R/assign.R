@@ -8,7 +8,8 @@ r5r_transit_modes <- c(
 )
 r5r_direct_modes <- c("WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK")
 
-# r5r assign_points_input(): a data.frame or POINT sf with id, lon, lat.
+# r5r assign_points_input(): a data.frame or POINT sf with id, lon, lat. An
+# sf in another CRS is reprojected to WGS 84 (r5r refuses it).
 assign_points_input <- function(df, name, unique_ids = TRUE) {
   if (!inherits(df, "data.frame")) {
     stop("'", name, "' must be either a 'data.frame' or a 'POINT sf'.",
@@ -24,14 +25,8 @@ assign_points_input <- function(df, name, unique_ids = TRUE) {
       stop("'", name, "' must be either a 'data.frame' or a 'POINT sf'.",
            call. = FALSE)
     }
-    if (sf::st_crs(df) != sf::st_crs(4326)) {
-      stop(
-        "'", name, "' CRS must be WGS 84 (EPSG 4326). ",
-        "Please use either sf::set_crs() to set it or ",
-        "sf::st_transform() to reproject it.",
-        call. = FALSE
-      )
-    }
+    # r5r requires WGS 84; peabiru reprojects any other CRS, with a message
+    df <- as_wgs84(df, name)
     # coordinates come from the geometry, never from attribute columns
     coords <- sf::st_coordinates(df)
     df <- sf::st_drop_geometry(df)
@@ -412,4 +407,37 @@ check_messages <- function(verbose, progress) {
 # Utils.getTimeFromSeconds in r5r's Java: HH:MM:SS, hours not wrapped at 24.
 seconds_to_hhmmss <- function(s) {
   sprintf("%02d:%02d:%02d", s %/% 3600L, (s %/% 60L) %% 60L, s %% 60L)
+}
+
+# An sf in WGS 84 (EPSG:4326): returned as it is when its CRS is WGS 84,
+# reprojected with sf::st_transform() from any other CRS, with a message
+# (one per argument, of class "peabiru_reprojected"), and an error when it
+# has none, since its coordinates could then be in any system.
+as_wgs84 <- function(x, name) {
+  crs <- sf::st_crs(x)
+  if (is.na(crs)) {
+    stop("'", name, "' has no coordinate reference system (CRS). If its ",
+         "coordinates are longitude and latitude in WGS 84, set it with ",
+         "sf::st_set_crs(", name, ", 4326); otherwise set the CRS they are in, ",
+         "and peabiru reprojects them to WGS 84.", call. = FALSE)
+  }
+  if (crs == sf::st_crs(4326)) return(x)
+  what <- crs_label(crs)
+  x <- tryCatch(sf::st_transform(x, 4326), error = function(e) {
+    stop("'", name, "' cannot be reprojected from ", what, " to WGS 84 ",
+         "(EPSG:4326): ", conditionMessage(e), call. = FALSE)
+  })
+  message(structure(class = c("peabiru_reprojected", "message", "condition"), list(
+    message = paste0("'", name, "' reprojected from ", what,
+                     " to WGS 84 (EPSG:4326).\n"),
+    call = NULL
+  )))
+  x
+}
+
+# A CRS as people know it: its name and EPSG code, or what defined it.
+crs_label <- function(crs) {
+  label <- if (!is.null(crs$Name) && !identical(crs$Name, "unknown")) crs$Name else crs$input
+  if (!is.na(crs$epsg)) label <- paste0(label, " (EPSG:", crs$epsg, ")")
+  label
 }
