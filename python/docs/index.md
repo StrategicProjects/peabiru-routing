@@ -15,8 +15,7 @@ The routing engine is written in Rust and runs inside the Python process:
 no Java is needed, the network is built once in memory and reused by every
 call, and results come back as `pandas.DataFrame`s. The same Rust core
 powers the R package of the same name, with the same functions and
-arguments. Coming from r5r or r5py? See
-[Coming from r5py / r5r](coming-from-r5.md).
+arguments. See also [the comparison with r5r](coming-from-r5.md).
 
 | Function | What it computes |
 |---|---|
@@ -60,7 +59,7 @@ maturin develop --uv --release
 
 peabiru ships a small network for examples and tests: the streets around
 Avenida Paulista, in Sao Paulo, with the frequency-based GTFS feed of
-SPTrans, cut from the sample data of the R package r5r. Build a network
+SPTrans. Build a network
 from its directory:
 
 ```python
@@ -171,14 +170,12 @@ ignored: R5's own fare calculators, expanded or arrival matrices by a street
 mode alone and `pareto_frontier()` with `output_dir` raise
 [`UnsupportedError`](reference.md#peabiru.UnsupportedError); some elevation
 rasters, more than one `.pbf` file and a few itinerary pairs are errors too.
-The full list, with every other deliberate difference from r5r, is under
-[Coming from r5py / r5r](coming-from-r5.md#deliberate-differences).
+The guides say where each of them applies.
 
 ## Sample data
 
 The sample network in `peabiru.sample_data_path()` is cut from the Sao Paulo
-sample data of r5r. `spo_osm.pbf` contains map data &copy; OpenStreetMap
-contributors, available under the
+sample data of the r5r project. `spo_osm.pbf` contains map data &copy;
+OpenStreetMap contributors, available under the
 [Open Database License](https://www.openstreetmap.org/copyright);
-`spo_gtfs.zip` is the SPTrans GTFS feed shipped with r5r, without
-`shapes.txt`.
+`spo_gtfs.zip` is a GTFS feed of SPTrans, without `shapes.txt`.

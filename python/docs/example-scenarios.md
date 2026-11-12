@@ -5,18 +5,18 @@
 A transport plan is a list of changes: a cycle path here, a lane taken
 from cars there, a new clinic, a fare rule. Each one asks the same
 question twice, before and after. In peabiru the street network is built
-once, and the changes r5r calls *scenarios* are arguments of each routing
+once, and the changes, called *scenarios*, are arguments of each routing
 call: `new_lts` changes the level of traffic stress cyclists meet on chosen
 streets, `new_carspeeds` and `carspeed_scale` change car speeds by street
 or by area, and a fare structure is a dictionary of tables that can be
 edited before the call. A new school or clinic is not even a change to the
 network: it is one more row among the destinations.
 
-This example asks four such questions of Porto Alegre, on the sample data
-that comes with r5r, and times each one: a what-if is one routing call
+This example asks four such questions of Porto Alegre, on a small sample
+of the city, and times each one: a what-if is one routing call
 on the network as built, with nothing to edit and rebuild. The code blocks make one script; the output under
 each is what it prints, computed on 2026-11-12, and the numbers are those
-of the [R example](../../r/articles/scenarios-porto-alegre.html), whose
+of the <a href="../../r/articles/scenarios-porto-alegre.html">R example</a>, whose
 figures are drawn from the same results by `site/figures/scenarios.R` in
 the repository. The fare routing takes a few minutes. It needs
 [geopandas](https://geopandas.org) 1.0 or later.
@@ -30,14 +30,16 @@ the repository. The fare routing takes a few minutes. It needs
 
 | Data | Source | Licence |
 |---|---|---|
-| Streets | OpenStreetMap extract of Porto Alegre in r5r 2.5.0's sample data (`poa_osm.pbf`) | ODbL 1.0, © OpenStreetMap contributors |
-| Public transport | The EPTC bus and Trensurb train GTFS feeds of r5r's sample (`poa_eptc.zip`, `poa_trensurb.zip`), cut for the sample: the buses run from 11:20 to 17:50 only, so the analyses below leave at 14:00 on Monday 13 May 2019 | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
-| Grid | `poa_hexgrid.csv`: 1,227 H3 cells (resolution 9) with population, jobs, schools and health facilities; r5r does not document its sources | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
-| Fares | `fares/fares_poa.zip`, r5r's fare structure of the sample | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
+| Streets | OpenStreetMap extract of Porto Alegre (`poa_osm.pbf`) | ODbL 1.0, © OpenStreetMap contributors |
+| Public transport | The EPTC bus and Trensurb train GTFS feeds (`poa_eptc.zip`, `poa_trensurb.zip`), cut for the sample: the buses run from 11:20 to 17:50 only, so the analyses below leave at 14:00 on Monday 13 May 2019 | see below |
+| Grid | `poa_hexgrid.csv`: 1,227 H3 cells (resolution 9) with population, jobs, schools and health facilities; its sources are not documented | see below |
+| Fares | `fares/fares_poa.zip`, the fare structure of the sample | see below |
 
-All files come from r5r's repository at the tag of version 2.5.0. The
+All four are the sample data of Porto Alegre from the r5r project (its
+repository at the tag of version 2.5.0), whose licence line is
+`GPL (>= 3) | MIT + file LICENSE`. The
 sample also has an elevation raster, left out here: a call with a scenario
-routes without slope costs (as r5r does, with a warning), so the before
+routes without slope costs (with a warning), so the before
 and the after would not be comparable. The files are downloaded once into
 `PEABIRU_EXAMPLE_DATA`.
 
@@ -334,9 +336,7 @@ with a fare structure the multi-criteria router is used, far slower than
 the one used without fares. The two are different algorithms and their
 travel times differ a little, in both directions, so the reference for the
 budgets is the second row: the multi-criteria router with a budget that
-never binds. (The difference is R5's: on 103 of these origins r5r 2.5.0
-gives the same access as peabiru, origin by origin, with the structure and
-without it.)
+never binds. (The difference is that of R5's two routers.)
 
 ```python
 def jobs_by_transit(**fare_args):
@@ -419,4 +419,4 @@ figures, and `build_time`, `t_before`, `t_after`, `t_base`, `t_slow`,
 `t_shut` and `t_walk` above hold this run's.
 
 Map data © OpenStreetMap contributors, under the ODbL; GTFS feeds, grid and
-fare structure as distributed with r5r 2.5.0.
+fare structure from the sample data credited above.

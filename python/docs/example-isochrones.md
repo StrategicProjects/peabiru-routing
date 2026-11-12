@@ -14,7 +14,7 @@ map, [matplotlib](https://matplotlib.org).
 
 ## The data
 
-The example uses the Porto Alegre sample of r5r 2.5.0: an OpenStreetMap
+The example uses the sample data of Porto Alegre from the r5r project: an OpenStreetMap
 extract of the city, the GTFS feeds of its buses (EPTC) and of its
 metropolitan train (Trensurb), a hexagonal grid with population, jobs and
 schools, and a few points of interest. The files are downloaded once, into

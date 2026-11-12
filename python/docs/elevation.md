@@ -11,8 +11,7 @@ times never change. The cost function is chosen with `elevation`:
 - `"MINETTI"`: Minetti's energy cost of walking on slopes;
 - `"NONE"`: no slope costs, even with a raster.
 
-The slope costs are R5's, ported from Conveyal's R5 7.6, so the times are
-r5r's.
+The slope costs are those of Conveyal's R5 7.6, ported to Rust.
 
 The examples use the sample network with three small synthetic rasters
 made for the package's tests (smooth hills between 743 and 834 m over the
@@ -122,9 +121,9 @@ reprojected pixels are not the same pixels.
 In a projected system, which pixel a street point falls in is computed
 with sines and cosines. For a point within nanometres (5e-8 m, or 2e-13
 degrees) of the boundary between two pixels of different values, or of the
-raster's edge, r5r's answer depends on the last bits of the JVM's
-trigonometry, and so on the machine. peabiru reads the pixel that Java's
-`StrictMath` gives, the same on every machine, and warns once with the
+raster's edge, the answer depends on the last bits of the trigonometry.
+peabiru reads the pixel that Java's `StrictMath` gives (R5 is written in
+Java), the same on every machine, and warns once with the
 number of such points: about one in a hundred million for 30 m pixels.
 Reprojecting the raster to EPSG:4326 removes the ambiguity. The sample has
 none, so building it gives no warning:
@@ -141,15 +140,14 @@ print(len(caught), "warnings")
 ```
 
 A point that `StrictMath` itself puts on the raster's outer edge (inside
-its envelope, past the last pixel) is an error: there is no pixel to read,
-and r5r fails there too.
+its envelope, past the last pixel) is an error: there is no pixel to read.
 
 ## Voids and out-of-range values
 
 Elevations are kept, as in R5, in decimetres in 16-bit integers. Voids and
 values beyond +/-3276.7 m therefore wrap around: SRTM's -32768 voids become
 0 m, -9999 becomes 3108.2 m, and a NaN no-data value is stored as 0 m. The
-slope costs are r5r's, which says nothing about them; peabiru warns,
+slope costs are computed on the wrapped values; peabiru warns,
 counting such samples and those equal to the raster's no-data value. A
 raster with voids:
 
@@ -170,14 +168,13 @@ the study area before building the network.
 
 ## Rasters peabiru refuses
 
-These are a `RuntimeError` that says what to change, where r5r would read
-something else or fail:
+These are a `RuntimeError` that says what to change:
 
-- a `.prj` file next to the raster (r5r would use its system instead of the
-  GeoTIFF's);
-- a raster whose name ends in `.tiff` (r5r fails to read it: rename it to
-  `.tif`);
-- more than one raster in the directory (r5r reads the last one listed);
+- a `.prj` file next to the raster (it would contradict or duplicate the
+  GeoTIFF's own coordinate system);
+- a raster whose name ends in `.tiff` (rename it to `.tif`);
+- more than one raster in the directory (which one to read would be
+  arbitrary);
 - a raster in another coordinate system, or with another layout or
   compression.
 
@@ -198,7 +195,7 @@ RuntimeError: the raster has a hills.prj file next to it, whose coordinate ...
 
 A routing call with a scenario (`new_carspeeds`, `carspeed_scale` or
 `new_lts`, see [Scenarios](scenarios.md)) runs on a copy of the network
-without the slope costs, as in R5, with r5r's warning:
+without the slope costs, as in R5, with a warning:
 
 ```python
 tobler = networks["TOBLER"]
@@ -213,11 +210,10 @@ print(scenario.equals(flat))
 ```
 
 ```text
-A scenario was used for this calculation. This may affect results for WALK or BICYCLE due to missing elevation. See issue #555.
+A scenario was used for this calculation: WALK and BICYCLE are routed without the slope costs of the network's elevation.
 True
 ```
 
 A network with elevation also turns off one shortcut: a walking matrix with
 more origins than destinations is routed from the destinations (and the
-columns swapped back) only when the data directory has no `.tif` file, as
-in r5r.
+columns swapped back) only when the data directory has no `.tif` file.

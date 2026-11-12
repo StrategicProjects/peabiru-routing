@@ -3,11 +3,9 @@
 [`detailed_itineraries()`][peabiru.detailed_itineraries] gives the legs of
 each trip between pairs of origins and destinations: walking, cycling or
 driving, and each public transport ride, with its duration, waiting time,
-distance, route and line. It is r5r's `detailed_itineraries()` (r5r 2.5.0):
-the same arguments, the same rows in the same order, the same numbers and
-the same coordinates.
+distance, route and line.
 
-The examples use the sample data of Porto Alegre from r5r 2.5.0, downloaded
+The examples use the sample data of Porto Alegre from the r5r project, downloaded
 once into the temporary directory (about 2 MB); its GTFS feeds only have
 service in the afternoon, hence the 14:00 departure.
 
@@ -59,7 +57,7 @@ without one have no rows.
 
 The result is a `geopandas.GeoDataFrame` of `LineString`s in EPSG:4326, one
 row per leg (`segment`), or a `pandas.DataFrame` with `drop_geometry=True`.
-As in r5r:
+Of note:
 
 - a street leg's line holds the whole of the first and last street
   segments, not only the parts walked or driven; the leg from the last stop
@@ -76,7 +74,7 @@ mode alone, the alternatives R5's multi-criteria router (McRAPTOR) finds
 over the departure window, one per sequence of routes. `suboptimal_minutes`
 (which must be 0 with `shortest_path=True`) keeps search branches up to
 that many minutes slower than the best one, so higher values return more
-itineraries. The options are numbered by `option` in r5r's order: the trip
+itineraries. The options are numbered by `option` in this order: the trip
 by the street mode alone first, then by the number of legs, then by
 duration, so the first option is not the fastest when a trip with fewer
 legs is slower (on Porto Alegre with `suboptimal_minutes=10`, a pair had 102
@@ -176,7 +174,7 @@ With `osm_link_ids=True` (which needs the geometry, so not with
 [`street_network_to_sf()`][peabiru.street_network_to_sf] numbers them) it
 goes along, and each ride its board and alight stops (`board_stop_id`,
 `alight_stop_id`, as `"<feed>:<stop_id>"`). Consecutive edges on a
-roundabout give only their first ids, and connectors none, as in r5r:
+roundabout give only their first ids, and connectors none:
 
 ```python
 bike = peabiru.detailed_itineraries(
@@ -195,16 +193,16 @@ print(bike[["mode", "distance", "osm_id_list"]].to_string())
 
 With `mode_egress="CAR"`, R5 reverses the via edges of turn restrictions
 with two or more via ways in place each time its backward egress search
-checks one, so what r5r returns for a pair whose car searches cross such a
+checks one, so what R5 finds for a pair whose car searches cross such a
 restriction can depend on the searches that ran before (in the same call,
 on other threads, or in earlier calls). peabiru returns, for every pair,
-what r5r gives on a freshly built network for that pair alone with one
+the itineraries of a freshly built network for that pair alone with one
 thread, and warns once per call, naming the pairs whose itineraries some
 other order of those via edges would change (on Porto Alegre, about 1 pair
 in 200). Rides along GTFS shapes cut by `shape_dist_traveled` follow
 R5's cut. Networks whose
-GTFS has frequency-based trips cannot be used with public transport here,
-as in r5r: convert the frequencies to stop times first (with gtfstools'
+GTFS has frequency-based trips cannot be used with public transport here:
+convert the frequencies to stop times first (with gtfstools'
 `frequencies_to_stop_times()` in R, for instance).
 
 ## Trip options

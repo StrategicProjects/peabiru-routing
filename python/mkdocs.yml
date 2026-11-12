@@ -48,7 +48,7 @@ nav:
       - Scenarios: scenarios.md
       - Inspecting a network: network-inspection.md
       - GTFS errors: gtfs-errors.md
-      - Coming from r5py / r5r: coming-from-r5.md
+      - Compared with r5r and r5py: coming-from-r5.md
   - Examples:
       - Isochrones by mode: example-isochrones.md
       - Access to jobs and schools: example-accessibility.md

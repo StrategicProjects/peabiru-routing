@@ -61,8 +61,8 @@ it comes:
 keeps one row per departure minute (and per draw, on a frequency-based
 network) instead of percentiles. With `breakdown=True`, each trip is split
 into its parts, and the routes taken are listed. Here, from Farroupilha Park
-to the PUCRS university campus in Porto Alegre, whose sample (from r5r
-2.5.0) has bus timetables:
+to the PUCRS university campus in Porto Alegre, whose sample data (from the r5r
+project) has bus timetables:
 
 ```python
 import tempfile

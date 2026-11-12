@@ -124,7 +124,7 @@ print(network.info())
 ```
 
 Two checks before routing: `build_network()` refuses a feed with errors of
-high priority, as r5r does, and
+high priority, and
 [`get_gtfs_errors()`][peabiru.get_gtfs_errors] lists the others;
 [`check_transit_availability()`][peabiru.check_transit_availability] says how
 much of the feed runs on the day chosen, Tuesday 17 November 2026.
@@ -254,7 +254,7 @@ palma     2.04        1.66       5.32
 ## Time against fare
 
 A fare is a limit of its own: the fastest trip is of little use to someone
-who cannot pay for its transfers. peabiru routes with fares as r5r does: a
+who cannot pay for its transfers. peabiru routes with fares: a
 *fare structure* says what each ride costs and which transfers are
 discounted, `max_fare` keeps the fastest trip within a budget, and
 [`pareto_frontier()`][peabiru.pareto_frontier] gives the travel time at each
@@ -262,12 +262,12 @@ budget.
 
 Belo Horizonte's feed has the fares by line, but its
 [rules](https://prefeitura.pbh.gov.br/sumob/onibus/tipos-de-linha-e-servicos)
-cannot be written faithfully in r5r's format (a transfer inside a MOVE
+cannot be written faithfully as a fare structure (a transfer inside a MOVE
 station costs nothing, a second ride within 90 minutes costs half the
 cheaper fare); the <a href="../../r/articles/capitals.html#time-against-fare">R article</a>
-has the details. So this part uses **Porto Alegre**: the sample data of r5r
-2.5.0 (the centre and the neighbourhoods around it, as of May 2019) and the
-fare structure r5r ships for it. The feeds only have service in the
+has the details. So this part uses **Porto Alegre**: the sample data listed
+above (the centre and the neighbourhoods around it, as of May 2019) and
+its fare structure. The feeds only have service in the
 afternoon, so the departures are from 14:00 to 14:59 of Monday 13 May 2019.
 
 ```python
@@ -298,7 +298,7 @@ A bus ride costs R$ 4.80 and a train ride R$ 4.50; two buses within 60
 minutes cost R$ 7.20 together, a bus and a train R$ 8.37; one discounted
 transfer per trip.
 
-The cells are r5r's sample grid (the same H3 cells as Ipea's), with the
+The cells are the sample's grid (the same H3 cells as Ipea's), with the
 income quintile of each cell in the whole city (`R002`).
 
 ```python
@@ -454,7 +454,7 @@ with their geometry unless `drop_geometry=True`.
   the municipality.
 - **Old people, old jobs, new buses**: residents and income from the Censo
   2010, opportunities from 2019, public transport from 2026.
-- **Fares**: Porto Alegre's are r5r's sample structure for its 2019 sample
+- **Fares**: Porto Alegre's are the sample's structure for its 2019
   network, not checked here against the tariff decrees of that year, on a
   part of the city and an afternoon hour.
 
@@ -462,7 +462,7 @@ with their geometry unless `drop_geometry=True`.
 
 Map data © OpenStreetMap contributors, under the ODbL. GTFS: Superintendência
 de Mobilidade de Belo Horizonte (CC BY); EPTC and Trensurb, as cut for the
-sample data of r5r. Boundary © IBGE. Cells, population, income, jobs,
+sample data listed above. Boundary © IBGE. Cells, population, income, jobs,
 schools and health facilities:
 
 - Pereira, R. H. M. et al. (2022). *Distribuição espacial de características
