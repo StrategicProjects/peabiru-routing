@@ -122,7 +122,7 @@ def test_unsupported_and_invalid(network, points, departure):
         peabiru.arrival_travel_time_matrix(
             network, points, points, mode="TRANSIT", arrival_datetime="15:00"
         )
-    # by car, a record without public transport has r5r's routes "[CAR]"
+    # by car, a record without public transport has the routes "[CAR]"
     car = peabiru.expanded_travel_time_matrix(
         network, points, points, mode=["CAR", "TRANSIT"], departure_datetime=departure,
         max_car_time=5, seed=1,

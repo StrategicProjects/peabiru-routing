@@ -1,6 +1,5 @@
 """Fare structures, fares in the routing functions and pareto_frontier().
-Parity with r5r is checked by bench/compare/fares_parity.R and
-bench/compare/fares_py.py."""
+The values are compared with a reference in bench/compare/."""
 
 import math
 import os
@@ -58,7 +57,7 @@ def test_write_and_read_round_trip(network, tmp_path):
         pd.testing.assert_frame_equal(back[k], fs[k])
     assert back["fare_cap"] == 7.5
     assert back["debug_settings"] == fs["debug_settings"]
-    # r5r's five files, in its order, deflated as zip::zip() does
+    # five files, in this order, deflated
     with zipfile.ZipFile(path) as z:
         assert z.namelist() == [
             "global_settings.csv", "fares_per_type.csv", "fares_per_transfer.csv",
@@ -87,7 +86,7 @@ def test_structures_are_checked(network, points, departure):
         ttm({"type": "boston"})
     extra = dict(fs)
     extra["fares_per_route"] = fs["fares_per_route"].assign(note="x")
-    with pytest.raises(ValueError, match="cannot read"):
+    with pytest.raises(ValueError, match="not part of a fare structure"):
         ttm(extra)
     with pytest.raises(ValueError, match="200 Monte Carlo draws"):
         ttm(fs, time_window=40)

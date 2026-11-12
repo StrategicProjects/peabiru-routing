@@ -68,8 +68,8 @@ def test_a_raster_is_not_read_with_elevation_none(tmp_path):
 
 
 def test_a_name_that_merely_contains_tif_is_not_a_raster(tmp_path):
-    # r5r looks for ".tif" as a regular expression, so this name counts for
-    # the swap of origins and destinations, but R5 finds no raster to read
+    # ".tif" is looked for as a regular expression, so this name counts for
+    # the swap of origins and destinations, but there is no raster to read
     shutil.copy(os.path.join(peabiru.sample_data_path(), "spo_osm.pbf"), tmp_path)
     (tmp_path / "identificacao_zonas.csv").write_text("zone\n")
     network = peabiru.build_network(tmp_path, n_threads=2)
@@ -117,7 +117,7 @@ FEED = {
 
 
 def refused(path, feeds):
-    """r5r's build_network() fails on feeds with errors of priority HIGH."""
+    """The message of a build refused for errors of priority HIGH."""
     return (
         f"High priority GTFS errors found; network build failed ({feeds}). "
         f'Use peabiru.get_gtfs_errors("{os.path.realpath(path)}") to see them.'

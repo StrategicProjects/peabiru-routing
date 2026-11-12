@@ -1,9 +1,18 @@
-"""Argument errors worded as r5r's (and the R package's): every case of
-bench/compare/argument_errors.json, R's message turned into Python's terms
-by the file's "python" rules, unless the case is listed there as worded
-differently on purpose. The file is written by
+"""Repository check: the Python package's argument errors against the cases
+of bench/compare/argument_errors.json.
+
+Every case of the file is called, and the error compared with R's message
+turned into Python's terms by the file's "python" rules, unless the case is
+listed there as worded differently on purpose. The file is written by
 bench/compare/argument_errors.R from the R package, whose messages
-bench/compare/error_parity.R holds equal to r5r's."""
+bench/compare/error_parity.R compares with r5r's.
+
+Run with pytest from the repository root, against the installed package::
+
+    python -m pytest bench/compare/py_argument_errors.py
+
+A missing file is a failure, not a skip.
+"""
 
 import datetime as dt
 import json
@@ -16,9 +25,7 @@ import pytest
 
 import peabiru
 
-HERE = os.path.dirname(__file__)
-CASES = os.path.join(HERE, "..", "..", "bench", "compare", "argument_errors.json")
-pytestmark = pytest.mark.skipif(not os.path.exists(CASES), reason="no bench/compare/ (sdist)")
+CASES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "argument_errors.json")
 
 # R's values; its numbers are doubles (-1 is a float in R)
 VALUES = dict(NULL_=None, chr="a", chr2=["a", "b"], neg=-1.0, zero=0.0, frac=1.5, big=1e10,
@@ -34,6 +41,11 @@ def python_text(spec, msg):
     for pattern, repl in spec["rules"]["python"]:
         msg = re.sub(pattern, repl.replace("$1", r"\1"), msg)
     return msg
+
+
+@pytest.fixture(scope="module")
+def network():
+    return peabiru.build_network(peabiru.sample_data_path(), n_threads=2)
 
 
 @pytest.fixture
@@ -60,14 +72,16 @@ def calls(network):
     )
 
 
-def test_messages_are_r5r_s(network, calls):
+def test_messages(network, calls):
     spec = load()
     deliberate = spec["deliberate"]["python"]
     wrong = []
+    compared = 0
     for c in spec["cases"]:
         key = f"{c['fun']}:{c['arg']}:{c['value']}"
         if any(re.fullmatch(k, key) for k in deliberate):
             continue
+        compared += 1
         args = dict(calls[c["fun"]])
         args[c["arg"]] = VALUES[c["value"]]
         expected = python_text(spec, c["message"])
@@ -86,6 +100,7 @@ def test_messages_are_r5r_s(network, calls):
     if out:
         with open(out, "w", encoding="utf-8") as f:
             f.write("\n".join(wrong))
+    print(f"{compared} of {len(spec['cases'])} cases compared, {len(wrong)} differ")
     assert not wrong, f"{len(wrong)} of {len(spec['cases'])} differ:\n" + "\n".join(wrong[:40])
 
 
@@ -94,30 +109,3 @@ def test_deliberate_cases_still_exist():
     keys = [f"{c['fun']}:{c['arg']}:{c['value']}" for c in spec["cases"]]
     for k in spec["deliberate"]["python"]:
         assert any(re.fullmatch(k, key) for key in keys), k
-
-
-def test_checks_of_the_r_package(network, departure, tmp_path):
-    pts = peabiru.sample_points().iloc[:3].copy()
-    pts["id"] = pts["id"].astype(object)
-    pts.loc[1, "id"] = None
-    for f in (peabiru.travel_time_matrix, peabiru.expanded_travel_time_matrix):
-        with pytest.raises(ValueError, match=r"'destinations\$id' cannot be missing"):
-            f(network, pts.iloc[:1], pts, mode=["WALK", "TRANSIT"], departure_datetime=departure)
-    with pytest.raises(ValueError, match="'origins' has no rows"):
-        peabiru.isochrone(network, pts.iloc[:0], mode="WALK", cutoffs=10,
-                          departure_datetime=departure)
-    path = os.path.join(tmp_path, "never.zip")
-    with pytest.raises((TypeError, ValueError), match="fare_structure"):
-        peabiru.write_fare_structure({"fare_cap": 1}, path)
-    assert not os.path.exists(path)
-
-
-def test_engine_refusals_are_unsupported_errors():
-    from peabiru._checks import core_errors
-
-    with pytest.raises(peabiru.UnsupportedError, match="^not supported: x"):
-        with core_errors("f"):
-            raise ValueError("not supported: x")
-    with pytest.raises(ValueError, match="^other$"):
-        with core_errors("f"):
-            raise ValueError("other")

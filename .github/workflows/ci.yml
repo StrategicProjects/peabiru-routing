@@ -108,6 +108,10 @@ jobs:
         # from the repository root, so that `import peabiru` finds the
         # installed wheel and not the source directory
         run: python -m pytest python/tests
+      - name: Repository checks of the Python package (bench/compare)
+        # the arguments and defaults of every function against the recorded
+        # formals, and the argument-error cases shared by the three packages
+        run: python -m pytest bench/compare/py_formals.py bench/compare/py_argument_errors.py
 
   js:
     name: npm package (WebAssembly)

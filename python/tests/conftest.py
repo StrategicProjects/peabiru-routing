@@ -1,5 +1,5 @@
-"""Fixtures: the small network shipped with the package (a crop of r5r's
-Sao Paulo sample: streets around Avenida Paulista and the SPTrans
+"""Fixtures: the small network shipped with the package (a crop of
+Sao Paulo: streets around Avenida Paulista and the SPTrans
 frequency-based GTFS), with 27 points."""
 
 import datetime as dt

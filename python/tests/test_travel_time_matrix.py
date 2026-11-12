@@ -20,7 +20,7 @@ def ttm(network, points, **kw):
 
 
 @pytest.mark.parametrize("mode", ["WALK", "BICYCLE", "CAR"])
-def test_street_matrices_have_r5rs_columns_and_types(network, points, mode):
+def test_street_matrices_columns_and_types(network, points, mode):
     m = ttm(network, points, mode=mode)
     assert isinstance(m, pd.DataFrame)
     assert list(m.columns) == ["from_id", "to_id", "travel_time_p50"]
@@ -95,7 +95,7 @@ def test_datetimes_are_wall_clock_times(network, points):
     pd.testing.assert_frame_equal(naive, stamp)
 
 
-def test_points_are_checked_as_r5r_checks_them(network, points):
+def test_points_are_checked(network, points):
     with pytest.raises(TypeError, match="must be either a 'DataFrame'"):
         peabiru.travel_time_matrix(network, points.to_dict(), points)
     with pytest.raises(ValueError, match=r"missing elements \{'lat'\}"):
@@ -130,7 +130,7 @@ def test_string_dtype_ids_and_nullable_coordinates(network, points):
 
 @pytest.mark.parametrize("dtype", ["float64", "Int64", "object"])
 def test_missing_numeric_id_stays_missing(network, points, dtype):
-    # r5r: as.character(NA) is NA, so the row's from_id is NA; the other
+    # a missing id stays missing, so the row's from_id is NA; the other
     # ids convert with astype(str) as before
     p = points.copy()
     p["id"] = pd.Series(np.arange(len(p)), dtype=dtype)
@@ -157,7 +157,7 @@ def test_geodataframe_points(network, points):
         peabiru.travel_time_matrix(network, geo.to_crs(3857), geo)
 
 
-def test_arguments_are_checked_as_r5r_checks_them(network, points, departure):
+def test_arguments_are_checked(network, points, departure):
     def call(**kw):
         return ttm(network, points, **kw)
 
@@ -165,13 +165,13 @@ def test_arguments_are_checked_as_r5r_checks_them(network, points, departure):
         call(mode="TRANSIT")
     with pytest.raises(ValueError, match="Please use only 1 of"):
         call(mode=["WALK", "CAR"])
-    with pytest.raises(ValueError, match="unsupported by r5r"):
+    with pytest.raises(ValueError, match="CAR_PARK and BICYCLE_RENT are not supported"):
         call(mode="CAR_PARK")
     with pytest.raises(ValueError, match="Names must be a subset"):
         call(mode="PLANE")
     with pytest.raises(TypeError, match="mode"):
         call(mode=["WALK", 1])
-    # as in r5r (toupper(unique(x))), a repeated egress mode is one mode,
+    # a repeated egress mode is one mode (R's toupper(unique(x))),
     # but unique() comes first: "WALK" and "walk" are two
     assert len(call(mode="WALK", mode_egress=["WALK", "WALK"])) == len(call(mode="WALK"))
     with pytest.raises(ValueError, match="'mode_egress' failed: Must have length 1"):
@@ -221,7 +221,7 @@ def test_unsupported_options_are_errors(network, points, departure):
     U = peabiru.UnsupportedError
     with pytest.raises(U, match="R5.*not supported"):
         call(fare_structure={"type": "boston"})
-    # TRANSIT with other transit modes is all transit modes, as in r5r
+    # TRANSIT with other transit modes is all transit modes
     pd.testing.assert_frame_equal(
         call(mode=["walk", "TRANSIT", "BUS"], seed=1), call(mode="TRANSIT", seed=1)
     )
@@ -229,7 +229,7 @@ def test_unsupported_options_are_errors(network, points, departure):
 
 def test_transit_modes_access_and_egress(network, points, departure):
     """Subsets of the transit modes and bicycle or car access and egress
-    route (their parity with r5r is checked in bench/compare)."""
+    route (their values are compared with a reference in bench/compare)."""
 
     def call(**kw):
         return ttm(network, points, departure_datetime=departure, seed=1, **kw)
@@ -285,8 +285,8 @@ def test_empty_result(network, points):
 
 
 def test_time_window_longer_than_a_day_is_accepted(network, points, departure):
-    # r5r 2.5.0 returns a matrix for time_window = 2000 (same values as 1440
-    # here: 0 and 7 minutes)
+    # a matrix for time_window = 2000 (same values as 1440 here: 0 and 7
+    # minutes)
     ttm = peabiru.travel_time_matrix(
         network, points.iloc[:1], points.iloc[:2], mode="TRANSIT",
         departure_datetime=departure, time_window=2000, seed=1,

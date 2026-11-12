@@ -1,6 +1,10 @@
 """Errors raised by the engine name the function's arguments, not the
 engine's parameters, and print numbers in short form."""
 
+import inspect
+import math
+import os
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -82,3 +86,48 @@ def test_user_message():
     assert user_message("time_window must be at least 1", "f", {"time_window": "max_trip_duration"}) == (
         "max_trip_duration must be at least 1"
     )
+
+
+def test_checks_before_routing(network, departure, tmp_path):
+    pts = peabiru.sample_points().iloc[:3].copy()
+    pts["id"] = pts["id"].astype(object)
+    pts.loc[1, "id"] = None
+    for f in (peabiru.travel_time_matrix, peabiru.expanded_travel_time_matrix):
+        with pytest.raises(ValueError, match=r"'destinations\$id' cannot be missing"):
+            f(network, pts.iloc[:1], pts, mode=TRANSIT, departure_datetime=departure)
+    with pytest.raises(ValueError, match="'origins' has no rows"):
+        peabiru.isochrone(network, pts.iloc[:0], mode="WALK", cutoffs=10,
+                          departure_datetime=departure)
+    path = os.path.join(tmp_path, "never.zip")
+    with pytest.raises((TypeError, ValueError), match="fare_structure"):
+        peabiru.write_fare_structure({"fare_cap": 1}, path)
+    assert not os.path.exists(path)
+
+
+def test_engine_refusals_are_unsupported_errors():
+    from peabiru._checks import core_errors
+
+    with pytest.raises(peabiru.UnsupportedError, match="^not supported: x"):
+        with core_errors("f"):
+            raise ValueError("not supported: x")
+    with pytest.raises(ValueError, match="^other$"):
+        with core_errors("f"):
+            raise ValueError("other")
+
+
+def test_the_network_is_the_first_argument_and_is_checked(points):
+    takes_network = [
+        "travel_time_matrix", "accessibility", "expanded_travel_time_matrix",
+        "arrival_travel_time_matrix", "isochrone", "detailed_itineraries", "trip_options",
+        "pareto_frontier", "setup_fare_structure", "find_snap", "street_network_bbox",
+        "street_network_to_sf", "transit_network_to_sf", "check_transit_availability",
+        "get_gtfs_errors",
+    ]
+    for name in takes_network:
+        assert next(iter(inspect.signature(getattr(peabiru, name)).parameters)) == "network", name
+    with pytest.raises(TypeError, match="^Assertion on 'network' failed: Must be a 'peabiru.Network'"):
+        peabiru.travel_time_matrix("not a network", points, points, mode="WALK")
+
+
+def test_build_network_uses_all_cores_by_default():
+    assert inspect.signature(peabiru.build_network).parameters["n_threads"].default == math.inf
