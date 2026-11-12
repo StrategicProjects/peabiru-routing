@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>peabiru: multimodal routing in Rust</title>
-<meta name="description" content="peabiru is a multimodal routing engine written in Rust: travel-time matrices and accessibility by walking, cycling, driving and public transport on OpenStreetMap and GTFS networks, without Java. Packages for R, Python, JavaScript (WebAssembly) and Rust, and a command-line tool.">
+<meta name="description" content="peabiru is a multimodal routing engine written in Rust: travel-time matrices, accessibility, isochrones, detailed itineraries and fares by walking, cycling, driving and public transport on OpenStreetMap and GTFS networks, without Java. Packages for R, Python, JavaScript (WebAssembly) and Rust, and a command-line tool.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/brand.css">
 <link rel="stylesheet" href="style.css">
@@ -29,9 +29,9 @@
 
 <section class="hero">
   <h1>Multimodal routing in Rust, for R, Python, JavaScript and the shell.</h1>
-  <p class="lead">peabiru computes travel-time matrices and accessibility by walking, cycling,
-  driving and public transport, on networks built from an OpenStreetMap extract and GTFS
-  feeds. The network is built once, in memory, and shared by every query and thread; there
+  <p class="lead">peabiru computes travel-time matrices, accessibility, isochrones, detailed
+  itineraries and fares by walking, cycling, driving and public transport, on networks built
+  from an OpenStreetMap extract, GTFS feeds and, optionally, an elevation raster. The network is built once, in memory, and shared by every query and thread; there
   is no Java runtime to start and nothing is written to disk. The same engine is behind
   the R package, the Python package, the JavaScript package (compiled to WebAssembly, for
   browsers and Node), the Rust crate and the command line.</p>
@@ -80,10 +80,26 @@
       <p>Expanded matrices with every departure minute and draw, broken down into access,
       waiting, riding, transfers and egress; arrival-time matrices.</p>
     </div>
+    <div class="card">
+      <h3>Isochrones</h3>
+      <p>The area reached within each cutoff, as polygons traced from a travel-time surface,
+      or the street segments reached.</p>
+    </div>
+    <div class="card">
+      <h3>Itineraries and fares</h3>
+      <p>Detailed itineraries leg by leg, with their lines: the fastest trip or the
+      alternatives. Fare structures, travel times within a budget, and the Pareto frontier of
+      time and fare.</p>
+    </div>
+    <div class="card">
+      <h3>Scenarios and terrain</h3>
+      <p>Car speeds and cyclists' traffic stress changed per call, without rebuilding the
+      network; walking and cycling times that follow the slope of the streets.</p>
+    </div>
   </div>
-  <p>The interface follows r5r's, so code written for r5r needs few changes, and the
-  results are checked against r5r's value by value
-  (<a href="r/articles/coming-from-r5r.html">coming from r5r</a>).</p>
+  <p>Public transport can be any subset of its modes, reached and left on foot, by bicycle or
+  by car. The network can be inspected: where points snap to the streets, its streets, stops
+  and routes, the dates with service, and the errors of each GTFS feed.</p>
 </section>
 
 <section aria-labelledby="gallery">
@@ -284,36 +300,54 @@ Measured 2026-11-10; <a href="benchmarks.html">methodology, all tasks and how th
 
 <section aria-labelledby="status">
   <h2 id="status">Status</h2>
-  <p>Early development: version 0.0.1, on crates.io, PyPI and npm (CRAN to follow); the
-  interfaces may still change. Options that are not implemented are errors, never silently ignored.</p>
+  <p>Early development: on crates.io, PyPI and npm (CRAN to follow); the interfaces may
+  still change. Options that are not implemented are errors, never silently ignored.</p>
   <div class="two">
     <div>
       <h3>Implemented</h3>
       <ul class="check">
-        <li>Network from one <code>.pbf</code> and any number of GTFS feeds (schedules and frequencies)</li>
+        <li>Network from one <code>.pbf</code>, any number of GTFS feeds (schedules and frequencies) and an optional elevation raster; feeds with errors of priority <code>HIGH</code> are refused</li>
         <li><code>travel_time_matrix()</code>: walk, bicycle, car; transit (any subset of its modes) reached and left on foot, by bicycle or by car</li>
         <li><code>accessibility()</code> with all five decay functions</li>
         <li><code>expanded_travel_time_matrix()</code> and <code>arrival_travel_time_matrix()</code></li>
         <li><code>isochrone()</code>: polygons from a travel-time surface, or the street segments reached</li>
-        <li>Monte Carlo draws for frequency-based feeds, reproducible with a <code>seed</code></li>
+        <li><code>detailed_itineraries()</code>: the fastest trip or the alternatives, leg by leg</li>
+        <li>Fares: <code>setup_fare_structure()</code>, <code>read_fare_structure()</code>, <code>write_fare_structure()</code>, <code>max_fare</code> and <code>pareto_frontier()</code></li>
+        <li>Slope costs from elevation (Tobler, Minetti); car speed and traffic stress scenarios</li>
+        <li><code>find_snap()</code>, <code>street_network_bbox()</code>, <code>street_network_to_sf()</code>, <code>transit_network_to_sf()</code>, <code>check_transit_availability()</code>, <code>get_gtfs_errors()</code></li>
+        <li>Monte Carlo draws for frequency-based feeds, reproducible with a <code>seed</code>; CSV output with <code>output_dir</code> (R and Python)</li>
       </ul>
     </div>
     <div>
-      <h3>Not yet</h3>
+      <h3>Not ported</h3>
       <ul class="todo">
-        <li>R5's own fare calculators</li>
+        <li>R5's own fare calculators (fares follow r5r's rule-based fare structure)</li>
       </ul>
     </div>
   </div>
+</section>
+
+<section aria-labelledby="compat">
+  <h2 id="compat">Compatibility with r5r</h2>
+  <p>The R package exports all 22 functions of <a href="https://github.com/ipea/r5r">r5r</a>
+  2.5.0 with their names, arguments and defaults, including the ones that only manage r5r's
+  Java side (<code>setup_r5()</code>, <code>stop_r5()</code>, <code>download_r5()</code>,
+  <code>r5r_cache()</code>, <code>r5r_sitrep()</code>), kept so that scripts written for r5r run
+  unchanged. The Python and JavaScript packages have the same routing and network functions
+  (in camelCase in JavaScript, which has no <code>output_dir</code>). The results are checked
+  against r5r's value by value (<a href="r/articles/coming-from-r5r.html">coming from r5r</a>).</p>
 </section>
 
 <section aria-labelledby="credits">
   <h2 id="credits">Credits</h2>
   <p>The routing logic is a port of <a href="https://github.com/conveyal/r5">Conveyal's R5</a>
   (MIT licence), and the interface follows <a href="https://github.com/ipea/r5r">r5r</a>
-  (Ipea), whose results are the reference for the tests. The exponential used by the decay functions follows
+  (Ipea), whose results are the reference for the tests; the fare calculator, the fare
+  structure and the multi-criteria branch of the trip planner are translations of r5r's Java
+  code (MIT). Polygon isochrones port the algorithm of
+  <a href="https://github.com/r-lib/isoband">isoband</a> (MIT), and parts of
   <a href="https://commons.apache.org/proper/commons-math/">Apache Commons Math</a> 3
-  (Apache-2.0), which R5 calls. The name comes from the Peabiru, the pre-Columbian network of
+  (Apache-2.0) and fdlibm are translated so that the numbers are R5's. The name comes from the Peabiru, the pre-Columbian network of
   trails that crossed South America from the Atlantic coast to the Andes.</p>
 </section>
 
