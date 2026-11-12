@@ -55,6 +55,7 @@ pub fn trip_options_js(
     max_options: usize,
     itineraries: bool,
     osm_link_ids: bool,
+    walk_resolution: i32,
 ) -> Result<Array, JsError> {
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     if o.len() != d.len() {
@@ -85,6 +86,7 @@ pub fn trip_options_js(
     p.fare_structure = super::fares::fare_arg(&fare)?;
     p.max_fare = max_fare;
     p.max_options = max_options;
+    p.walk_resolution_s = walk_resolution;
     p.itineraries = itineraries;
     p.osm_link_ids = osm_link_ids;
     p.n_threads = 1;

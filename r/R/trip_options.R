@@ -30,6 +30,17 @@
 #' search; each ride boards at least a minute after its stop is reached,
 #' on the vehicle that gets to the alighting stop first.
 #'
+#' The search is exact; what is returned is then compared at the
+#' resolution the values are read at: total time to a tenth of a minute (as
+#' it is reported), and minutes on foot to the whole minute (rounded,
+#' `walk_resolution` seconds). Of the trips of a minute's exact set, one is
+#' left out when another is no worse on every criterion in those terms and
+#' better on one, or equal on all and better in exact terms (least total
+#' time, then transfers, walking, fare); two trips a few seconds of walking
+#' apart are not both returned. The values returned are exact. Rounding
+#' cannot make a trip look better than one that beats it, so this is the
+#' same as comparing every trip at that resolution.
+#'
 #' The minutes are then merged into options: trips with the same street
 #' modes, the same routes between the same stops (whichever vehicles), and
 #' the same fare, transfers and minutes on foot are one option, available
@@ -75,6 +86,11 @@
 #'   `fare_structure`, all but `"FARE"` without one.
 #' @param max_options A number: at most this many options per pair, the
 #'   first in the order of `option`; `Inf` (the default) for all of them.
+#' @param walk_resolution A number of seconds, 60 (the default): the step
+#'   to which minutes on foot are compared. By default walking is compared to
+#'   the whole minute (rounded), so that of two trips a few seconds of walking
+#'   apart and otherwise no better only one is returned; `1` compares the
+#'   exact seconds. See "Not dominated".
 #' @param itineraries A logical. Whether to build the legs of each option
 #'   (`TRUE`, the default).
 #' @param by_departure A logical. Whether to add the options of every
@@ -140,6 +156,7 @@ trip_options <- function(r5r_network,
                          fare_structure = NULL,
                          max_fare = Inf,
                          max_options = Inf,
+                         walk_resolution = 60L,
                          all_to_all = FALSE,
                          itineraries = TRUE,
                          by_departure = FALSE,
@@ -194,6 +211,7 @@ trip_options <- function(r5r_network,
   check_max_lts(max_lts)
   assert_number(max_options, "max_options", lower = 1)
   if (is.finite(max_options)) assert_count(max_options, "max_options", positive = TRUE)
+  assert_count(walk_resolution, "walk_resolution", positive = TRUE)
   assert_flag(itineraries, "itineraries")
   assert_flag(by_departure, "by_departure")
   assert_flag(drop_geometry, "drop_geometry")
@@ -225,7 +243,7 @@ trip_options <- function(r5r_network,
     as.double(walk_speed), as.double(bike_speed), as.integer(max_rides),
     as.integer(max_lts), threads, scenario, fare_structure, as.double(max_fare),
     if (is.finite(max_options)) as.integer(max_options) else 0L,
-    itineraries, drop_geometry, osm_link_ids, output
+    itineraries, drop_geometry, osm_link_ids, output, as.integer(walk_resolution)
   ))
   if (!is.null(output_dir)) return(output_dir)
 

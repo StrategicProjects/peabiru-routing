@@ -129,6 +129,9 @@ test_that("criteria, limits and threads", {
   expect_error(call(criteria = c("TIME", "SPEED")), "criteria")
   expect_error(call(criteria = character()), "criteria")
   expect_error(call(max_options = 0), "max_options")
+  # exact walking keeps as many options or more
+  expect_true(nrow(call(walk_resolution = 1)) >= nrow(a))
+  expect_error(call(walk_resolution = 0), "walk_resolution")
   expect_error(call(max_fare = 3), "max_fare")
 })
 

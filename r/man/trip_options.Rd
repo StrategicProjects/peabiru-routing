@@ -24,6 +24,7 @@ trip_options(
   fare_structure = NULL,
   max_fare = Inf,
   max_options = Inf,
+  walk_resolution = 60L,
   all_to_all = FALSE,
   itineraries = TRUE,
   by_departure = FALSE,
@@ -98,6 +99,12 @@ a \code{fare_structure}.}
 
 \item{max_options}{A number: at most this many options per pair, the
 first in the order of \code{option}; \code{Inf} (the default) for all of them.}
+
+\item{walk_resolution}{A number of seconds, 60 (the default): the step
+to which minutes on foot are compared. By default walking is compared to
+the whole minute (rounded), so that of two trips a few seconds of walking
+apart and otherwise no better only one is returned; \code{1} compares the
+exact seconds. See "Not dominated".}
 
 \item{all_to_all}{A logical. Whether to route from every origin to
 every destination (\code{TRUE}) or pair them row by row (\code{FALSE}, the
@@ -220,6 +227,17 @@ trips that reach a stop of the access search, ride and walk between
 stops (as R5's transfer tables allow), and leave a stop of the egress
 search; each ride boards at least a minute after its stop is reached,
 on the vehicle that gets to the alighting stop first.
+
+The search is exact; what is returned is then compared at the
+resolution the values are read at: total time to a tenth of a minute (as
+it is reported), and minutes on foot to the whole minute (rounded,
+\code{walk_resolution} seconds). Of the trips of a minute's exact set, one is
+left out when another is no worse on every criterion in those terms and
+better on one, or equal on all and better in exact terms (least total
+time, then transfers, walking, fare); two trips a few seconds of walking
+apart are not both returned. The values returned are exact. Rounding
+cannot make a trip look better than one that beats it, so this is the
+same as comparing every trip at that resolution.
 
 The minutes are then merged into options: trips with the same street
 modes, the same routes between the same stops (whichever vehicles), and

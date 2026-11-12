@@ -124,6 +124,12 @@ pub fn fwrite_csv(columns: &[(String, FwriteColumn)]) -> Result<String, RouteErr
     fwrite_csv_eol(columns, "\n")
 }
 
+/// [`fwrite_csv`] with the platform's line ends, `fwrite`'s default:
+/// `\r\n` on Windows, `\n` elsewhere (and in WebAssembly).
+pub fn fwrite_csv_native(columns: &[(String, FwriteColumn)]) -> Result<String, RouteError> {
+    fwrite_csv_eol(columns, crate::output::LINE_END)
+}
+
 /// [`fwrite_csv`] with the line end given (`fwrite`'s `eol`, `"\r\n"` by
 /// default on Windows); line breaks inside quoted fields are left alone.
 fn fwrite_csv_eol(columns: &[(String, FwriteColumn)], eol: &str) -> Result<String, RouteError> {
