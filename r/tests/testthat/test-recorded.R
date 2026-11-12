@@ -128,7 +128,10 @@ test_that("fare structures, their files and fare-limited results are the recorde
   expect_identical(l$Name, c("global_settings.csv", "fares_per_type.csv",
                              "fares_per_transfer.csv", "fares_per_route.csv",
                              "debug_settings.csv"))
-  expect_identical(as.integer(l$Length), c(82L, 153L, 158L, 1465L, 44L))
+  # lines end in LF, and in CR LF on Windows (one more byte for each of the
+  # 4, 4, 10, 20 and 3 lines)
+  crlf <- if (.Platform$OS.type == "windows") c(4L, 4L, 10L, 20L, 3L) else 0L
+  expect_identical(as.integer(l$Length), c(82L, 153L, 158L, 1465L, 44L) + crlf)
   expect_lt(file.size(z), sum(l$Length))
   ex <- tempfile()
   utils::unzip(z, exdir = ex)
