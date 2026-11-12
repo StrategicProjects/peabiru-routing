@@ -275,9 +275,12 @@ A few things to know about these registers, seen while preparing them:
 One travel-time matrix per city, mode and kind of unit, from every cell to
 every unit; the smallest time of each cell is its time to the nearest one.
 Driving is free flow (no congestion), and these networks are built without
-an elevation raster: Recife is flat, but Caruaru is hilly, so its walking
-and cycling times are optimistic (a `.tif` raster in the data directory
-would add slope costs, see `build_network()`).
+an elevation raster (a `.tif` raster in the data directory adds slope
+costs, see `build_network()`). The
+[terrain example](../../r/articles/terrain.html#recife-and-caruaru-as-published)
+of the R site recomputes the shares below with slopes: on foot, within 15
+minutes of a health unit, Recife goes from 75.8% to 73.7% and Caruaru from
+68.0% to 65.8%, and within 30 minutes or by bicycle very little changes.
 
 ```python
 def nearest(k, mode, limit):

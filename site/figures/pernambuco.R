@@ -18,6 +18,8 @@ source(file.path(root_dir, "site", "figures", "pernambuco-data.R"))
 
 threads <- 4
 cache <- pe_cache()
+# the cities of this script (pe_cities also has those of terrain.R)
+pe_two <- c("recife", "caruaru")
 
 city_data <- function(key) {
   dir <- prepare_city(key, cache)
@@ -241,7 +243,7 @@ figures$pe_nearest_caruaru <- function() {
 # ------------------------------------------------------------------ share of the population, by mode
 share_table <- function() {
   modes <- c(WALK = "Walking", BICYCLE = "Cycling", CAR = "Driving (free flow)")
-  do.call(rbind, lapply(names(pe_cities), function(key) {
+  do.call(rbind, lapply(pe_two, function(key) {
     do.call(rbind, lapply(names(modes), function(m) {
       t <- nearest(key, m, 60)
       pop <- sum(t$population)
@@ -301,16 +303,19 @@ figures$pe_share <- function() {
 
 # ------------------------------------------------------------------ the browser demo
 figures$pe_demo_data <- function() {
-  for (k in names(pe_cities)) {
+  for (k in pe_two) {
     prepare_city(k, cache)
     demo_extract(k, file.path(root_dir, "site", "demo", "data", "pe"), cache)
   }
 }
 
 # ------------------------------------------------------------------ run
-wanted <- commandArgs(TRUE)
-if (length(wanted) == 0) wanted <- names(figures)
-unknown <- setdiff(wanted, names(figures))
-if (length(unknown)) stop("no figure named ", paste(unknown, collapse = ", "),
-                          " (have: ", paste(names(figures), collapse = ", "), ")")
-for (f in wanted) figures[[f]]()
+# (site/figures/terrain.R sources this file for its helpers: nothing runs then)
+if (sys.nframe() == 0L) {
+  wanted <- commandArgs(TRUE)
+  if (length(wanted) == 0) wanted <- names(figures)
+  unknown <- setdiff(wanted, names(figures))
+  if (length(unknown)) stop("no figure named ", paste(unknown, collapse = ", "),
+                            " (have: ", paste(names(figures), collapse = ", "), ")")
+  for (f in wanted) figures[[f]]()
+}
