@@ -770,16 +770,14 @@ mod tests {
         assert!(got.iter().map(Vec::len).sum::<usize>() > 100);
     }
 
-    const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
     type Trees = Vec<Option<Vec<(u32, i32)>>>;
 
     /// The São Paulo sample, its stop trees, and `n` pseudo-random points
     /// over and around it (a few with NaN, repeated or on a stop
     /// envelope's edge).
-    fn spo_points(n: usize) -> (StreetNetwork, TransitLayer, Trees, Vec<(f64, f64)>) {
+    fn spo_points(spo: &str, n: usize) -> (StreetNetwork, TransitLayer, Trees, Vec<(f64, f64)>) {
         let (net, layer) =
-            crate::transit::build_from_dir(SPO, &crate::BuildOptions::default()).unwrap();
+            crate::transit::build_from_dir(spo, &crate::BuildOptions::default()).unwrap();
         let trees = stop_trees(&net, &layer);
         let mut rng = crate::street::link::tests::Rng(0x5eed_1234_abcd_0042);
         let mut pts: Vec<(f64, f64)> = (0..n)
@@ -819,7 +817,10 @@ mod tests {
 
     #[test]
     fn egress_tables_match_every_stop_against_every_point() {
-        let (net, layer, trees, pts) = spo_points(9000);
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let (net, layer, trees, pts) = spo_points(spo, 9000);
         let cancel = crate::CancelToken::default();
         let splits = crate::street::link::link_points(
             &net,
@@ -842,7 +843,10 @@ mod tests {
 
     #[test]
     fn grid_egress_tables_match_every_stop_against_every_cell() {
-        let (net, layer, trees, _) = spo_points(0);
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let (net, layer, trees, _) = spo_points(spo, 0);
         let cancel = crate::CancelToken::default();
         for zoom in [10, 12] {
             let grid = crate::WebMercatorGrid::for_street(&net, zoom).unwrap();

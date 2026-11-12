@@ -11,7 +11,7 @@ use crate::street::StreetNetwork;
 /// them: every directed edge but the connectors of transit stops and
 /// park-and-rides, in edge order, with their attributes, geometry and
 /// centroid. Made by [`street_edges`](crate::street_edges).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StreetEdges {
     /// Directed edge index of each row.
     edges: Vec<u32>,

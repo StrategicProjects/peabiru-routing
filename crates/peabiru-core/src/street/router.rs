@@ -17,9 +17,9 @@ use std::sync::Mutex;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Mode {
-    /// `WALK`, at [`RouteParams::walk_speed_kmh`].
+    /// `WALK`, at [`RouteParams::walk_speed`].
     Walk,
-    /// `BICYCLE`, at [`RouteParams::bike_speed_kmh`] on streets up to
+    /// `BICYCLE`, at [`RouteParams::bike_speed`] on streets up to
     /// [`RouteParams::max_lts`], walking where cycling is not allowed.
     Bicycle,
     /// `CAR`, at the speed limits of OpenStreetMap (or R5's defaults by
@@ -69,7 +69,7 @@ pub enum StreetEngine {
 ///
 /// ```
 /// let mut p = peabiru_core::RouteParams::default();
-/// p.bike_speed_kmh = 15.0;
+/// p.bike_speed = 15.0;
 /// p.max_lts = 3;
 /// assert!(p.validate().is_ok());
 /// ```
@@ -77,14 +77,14 @@ pub enum StreetEngine {
 #[non_exhaustive]
 pub struct RouteParams {
     /// Walking speed, km/h (default 3.6).
-    pub walk_speed_kmh: f64,
+    pub walk_speed: f64,
     /// Cycling speed, km/h (default 12).
-    pub bike_speed_kmh: f64,
+    pub bike_speed: f64,
     /// Highest level of traffic stress a cyclist rides on, 1 to 4
     /// (default 2).
     pub max_lts: i32,
     /// Trip limit in whole minutes (default 120).
-    pub max_trip_duration_min: i32,
+    pub max_trip_duration: i32,
     /// Worker threads; 0 means all cores, and more than the cores
     /// available run as many as there are cores.
     pub n_threads: usize,
@@ -133,8 +133,8 @@ impl RouteParams {
     /// street routing function calls it first; [`RouteError::Invalid`]
     /// says what is wrong.
     pub fn validate(&self) -> Result<(), RouteError> {
-        check_speed("walk_speed_kmh", self.walk_speed_kmh).map_err(RouteError::Invalid)?;
-        check_speed("bike_speed_kmh", self.bike_speed_kmh).map_err(RouteError::Invalid)?;
+        check_speed("walk_speed", self.walk_speed).map_err(RouteError::Invalid)?;
+        check_speed("bike_speed", self.bike_speed).map_err(RouteError::Invalid)?;
         // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
         if !(1..=4).contains(&self.max_lts) {
             return Err(RouteError::Invalid(format!(
@@ -143,10 +143,10 @@ impl RouteParams {
             )));
         }
         let max_minutes = i32::MAX / 60;
-        if !(1..=max_minutes).contains(&self.max_trip_duration_min) {
+        if !(1..=max_minutes).contains(&self.max_trip_duration) {
             return Err(RouteError::Invalid(format!(
                 "max_trip_duration must be from 1 to {max_minutes} minutes, got {}",
-                self.max_trip_duration_min
+                self.max_trip_duration
             )));
         }
         self.scenario.check().map_err(RouteError::Invalid)
@@ -156,10 +156,10 @@ impl RouteParams {
 impl Default for RouteParams {
     fn default() -> Self {
         RouteParams {
-            walk_speed_kmh: 3.6,
-            bike_speed_kmh: 12.0,
+            walk_speed: 3.6,
+            bike_speed: 12.0,
             max_lts: 2,
-            max_trip_duration_min: 120,
+            max_trip_duration: 120,
             n_threads: 0,
             cancel: CancelToken::default(),
             engine: StreetEngine::Auto,
@@ -196,8 +196,8 @@ pub(super) struct Speeds {
 
 impl Speeds {
     pub(super) fn new(p: &RouteParams, mode: Mode) -> Self {
-        let walk = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
-        let bike = (p.bike_speed_kmh * 5.0 / 18.0) as f32;
+        let walk = (p.walk_speed * 5.0 / 18.0) as f32;
+        let bike = (p.bike_speed * 5.0 / 18.0) as f32;
         let on = match mode {
             Mode::Walk => walk,
             Mode::Bicycle => bike,
@@ -974,7 +974,7 @@ pub(crate) fn street_seconds(
     let o = find_split(net, from.0, from.1, mode, &mut scratch)?;
     let d = find_split(net, to.0, to.1, mode, &mut scratch)?;
     let mut search = Search::new(net);
-    route(net, &g, &o, params.max_trip_duration_min * 60, &mut search);
+    route(net, &g, &o, params.max_trip_duration * 60, &mut search);
     time_to_point(net, &g, &o, &d, &search)
 }
 
@@ -983,22 +983,22 @@ pub(crate) fn street_seconds(
 /// (`i32::MAX` where unreached; states kept only below `limit` seconds) and
 /// the direct time in seconds to each linked destination (`i32::MAX` where
 /// unreachable), as R5's `TravelTimeComputer` uses for access and for the
-/// non-transit option. An error when `walk_speed_kmh` is not a valid speed
+/// non-transit option. An error when `walk_speed` is not a valid speed
 /// (see [`RouteParams::validate`]).
 pub(crate) fn street_vertex_times(
     net: &StreetNetwork,
     origin: &Split,
     destinations: &[Option<Split>],
     mode: Mode,
-    walk_speed_kmh: f64,
+    walk_speed: f64,
     limit: i32,
 ) -> Result<(Vec<i32>, Vec<i32>), RouteError> {
     RouteParams {
-        walk_speed_kmh,
+        walk_speed,
         ..RouteParams::default()
     }
     .validate()?;
-    let g = ModeGraph::with_walk_speed(net, mode, walk_speed_kmh);
+    let g = ModeGraph::with_walk_speed(net, mode, walk_speed);
     let mut search = Search::new(net);
     let mut direct = Vec::new();
     search_from(
@@ -1017,9 +1017,9 @@ pub(crate) fn street_vertex_times(
 impl ModeGraph {
     /// The graph [`street_vertex_times`] searches: r5r's defaults but for
     /// the walking speed.
-    pub(crate) fn with_walk_speed(net: &StreetNetwork, mode: Mode, walk_speed_kmh: f64) -> Self {
+    pub(crate) fn with_walk_speed(net: &StreetNetwork, mode: Mode, walk_speed: f64) -> Self {
         let params = RouteParams {
-            walk_speed_kmh,
+            walk_speed,
             ..RouteParams::default()
         };
         ModeGraph::new(net, mode, Speeds::new(&params, mode), params.max_lts)
@@ -1032,13 +1032,13 @@ impl ModeGraph {
     pub(crate) fn with_speeds(
         net: &StreetNetwork,
         mode: Mode,
-        walk_speed_kmh: f64,
-        bike_speed_kmh: f64,
+        walk_speed: f64,
+        bike_speed: f64,
         max_lts: i32,
     ) -> Self {
         let params = RouteParams {
-            walk_speed_kmh,
-            bike_speed_kmh,
+            walk_speed,
+            bike_speed,
             max_lts,
             ..RouteParams::default()
         };
@@ -1121,7 +1121,7 @@ pub(crate) fn search_from(
 /// A street travel-time matrix: whole minutes from each origin to each
 /// destination, `None` where r5r reports no time (an origin or destination
 /// that cannot be linked to the streets, an unreachable destination, or a
-/// time beyond `max_trip_duration_min`).
+/// time beyond `max_trip_duration`).
 ///
 /// The minutes are held in one buffer, row by row (all destinations of the
 /// first origin, then of the second, ...), which
@@ -1223,7 +1223,7 @@ fn matrix_minutes(
     let scen = super::scenario::scenario_network(net, &params.scenario, mode == Mode::Car)?;
     let street = scen.as_ref().unwrap_or(net);
     let g = ModeGraph::new(street, mode, Speeds::new(params, mode), params.max_lts);
-    let m = params.max_trip_duration_min;
+    let m = params.max_trip_duration;
     if scen.is_none() {
         if let Some(m) = super::ch::travel_time_matrix(net, &g, origins, destinations, params) {
             return m;
@@ -1280,7 +1280,7 @@ fn matrix_minutes(
 /// destination (`i32::MAX` where the destination is unlinked or
 /// unreachable), and `reduce(i, None)` an origin that cannot be linked.
 /// The search is the one behind [`street_travel_time_matrix`], so a time can
-/// exceed `max_trip_duration_min` by the partial edges at both ends, as in
+/// exceed `max_trip_duration` by the partial edges at both ends, as in
 /// R5's `LinkedPointSet.eval`. Results are in origin order;
 /// [`RouteError::Cancelled`] when `params.cancel` is cancelled before every
 /// origin is done.
@@ -1320,7 +1320,7 @@ pub(crate) fn travel_time_seconds_linked<T: Send>(
     let scen = super::scenario::scenario_network(net, &params.scenario, mode == Mode::Car)?;
     let net = scen.as_ref().unwrap_or(net);
     let g = ModeGraph::new(net, mode, Speeds::new(params, mode), params.max_lts);
-    let limit = params.max_trip_duration_min * 60;
+    let limit = params.max_trip_duration * 60;
     let n_threads = worker_threads(params.n_threads, origins.len());
     let cancel = &params.cancel;
     let next = AtomicUsize::new(0);
@@ -1374,23 +1374,23 @@ pub(crate) mod tests {
         let net = StreetNetwork::default();
         let bad = [
             RouteParams {
-                walk_speed_kmh: 0.0,
+                walk_speed: 0.0,
                 ..RouteParams::default()
             },
             RouteParams {
-                bike_speed_kmh: f64::NAN,
+                bike_speed: f64::NAN,
                 ..RouteParams::default()
             },
             RouteParams {
-                walk_speed_kmh: -3.6,
+                walk_speed: -3.6,
                 ..RouteParams::default()
             },
             RouteParams {
-                max_trip_duration_min: 0,
+                max_trip_duration: 0,
                 ..RouteParams::default()
             },
             RouteParams {
-                max_trip_duration_min: i32::MAX,
+                max_trip_duration: i32::MAX,
                 ..RouteParams::default()
             },
             RouteParams {

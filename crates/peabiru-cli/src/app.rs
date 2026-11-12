@@ -279,7 +279,7 @@ pub struct StreetArgs {
 /// Public transport.
 #[derive(Args, Clone)]
 pub struct TransitArgs {
-    /// Departure date and time, YYYY-MM-DDTHH:MM[:SS] (local time of the
+    /// Departure date and time, YYYY-MM-DDTHH:MM (seconds optional) (local time of the
     /// network); required with public transport
     #[arg(long, value_name = "DATETIME", help_heading = "Routing")]
     pub departure: Option<String>,
@@ -485,7 +485,7 @@ pub struct ArrivalArgs {
     pub points: PointsArgs,
     #[command(flatten)]
     pub mode: ModeArgs,
-    /// Arrival date and time, YYYY-MM-DDTHH:MM[:SS]: trips leave from
+    /// Arrival date and time, YYYY-MM-DDTHH:MM (seconds optional): trips leave from
     /// --max-trip-duration minutes before and must arrive by it
     #[arg(long, value_name = "DATETIME", help_heading = "Routing")]
     pub arrival: String,

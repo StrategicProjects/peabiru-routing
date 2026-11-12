@@ -5,7 +5,15 @@
 #   bash site/figures/make.sh iso_modes    # only the ones named
 #   bash site/figures/make.sh --demo       # also the screenshot of the demo
 #   bash site/figures/make.sh --pernambuco # only the Recife and Caruaru ones
+#   bash site/figures/make.sh --terrain    # only the terrain ones
 #   bash site/figures/make.sh --scenarios  # only the scenario and Helsinki ones
+#
+# --terrain runs site/figures/terrain.R: elevation in Pernambuco (the Recife
+# metropolitan region as one network, five more municipalities) and in two
+# cities of hills (Salvador, Olinda). It uses the data of pernambuco-data.R
+# (same cache), the census tracts of Bahia and the Copernicus DEM (GLO-90 and
+# GLO-30, read from their tiles on AWS), and knits r/vignettes/articles/terrain.Rmd from its
+# .Rmd.orig. Names after it select figures of terrain.R (tr_pe_shares, ...).
 #
 # --pernambuco runs site/figures/pernambuco.R instead of figures.R: it
 # prepares the data of Recife and Caruaru (pernambuco-data.R: about 640 MB of
@@ -37,12 +45,14 @@ root="$(cd "$here/../.." && pwd)"
 
 demo=0
 pe=0
+terrain=0
 sc=0
 names=()
 for a in "$@"; do
   case "$a" in
     --demo) demo=1 ;;
     --pernambuco) pe=1 ;;
+    --terrain) terrain=1 ;;
     --scenarios) sc=1 ;;
     *) names+=("$a") ;;
   esac
@@ -58,6 +68,20 @@ fi
 if [ -n "$lib" ]; then
   R_LIBS="$(cd "$lib" && pwd)${R_LIBS:+:$R_LIBS}"
   export R_LIBS
+fi
+
+if [ "$terrain" = 1 ]; then
+  Rscript "$here/terrain.R" ${names[@]+"${names[@]}"}
+  if [ ${#names[@]} -eq 0 ]; then
+    # the article, knitted here like recife-caruaru.Rmd; it sources
+    # pernambuco-data.R from this checkout and reuses its cache
+    (cd "$root/r/vignettes/articles" &&
+      PEABIRU_PE_CACHE="$(Rscript -e 'source("'"$here"'/pernambuco-data.R"); cat(pe_cache())')" \
+      PEABIRU_PE_SCRIPT="$here/pernambuco-data.R" \
+      Rscript -e 'knitr::knit("terrain.Rmd.orig", "terrain.Rmd", quiet = TRUE)')
+  fi
+  du -ch "$root"/site/assets/figures/terrain-* | tail -1
+  exit 0
 fi
 
 if [ "$pe" = 1 ]; then

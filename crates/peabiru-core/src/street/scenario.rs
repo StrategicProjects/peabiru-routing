@@ -546,8 +546,6 @@ mod tests {
     use super::*;
     use crate::{transit::build_from_dir, BuildOptions};
 
-    const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
     #[test]
     fn java_parsers() {
         assert_eq!(java_parse_long("27184648"), Some(27184648));
@@ -569,7 +567,10 @@ mod tests {
 
     #[test]
     fn speeds_and_levels_as_r5r_modifications() {
-        let (base, _) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let (base, _) = build_from_dir(spo, &BuildOptions::default()).unwrap();
         let e = (0..base.n_edges())
             .find(|&e| base.edge_flags[e] & ALLOWS_CAR != 0 && base.edge_flags[e] & LINK == 0)
             .unwrap();
@@ -620,7 +621,10 @@ mod tests {
 
     #[test]
     fn invalid_scenarios_are_errors() {
-        let (base, _) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let (base, _) = build_from_dir(spo, &BuildOptions::default()).unwrap();
         let s = Scenario {
             car_speed_scale: -1.0,
             ..Default::default()

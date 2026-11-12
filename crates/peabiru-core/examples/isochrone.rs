@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Streets: one surface per mode, percentiles [50] (all the same here).
     let mut params = RouteParams::default();
-    params.max_trip_duration_min = limit;
+    params.max_trip_duration = limit;
     params.n_threads = 2;
     for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
         let surface = street_travel_time_surface(&net, origin, mode, &params, &[50], zoom)?;

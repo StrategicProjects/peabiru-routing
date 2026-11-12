@@ -69,6 +69,25 @@ routing and network functions (without r5r's functions for Java).
   network too.
 - **Breaking:** `RouteError` no longer converts from `String` or `&str`;
   build `RouteError::Invalid` explicitly.
+- **Breaking:** one name per concept in the parameter structs, the R and
+  Python packages' argument name, with the unit in the field's
+  documentation: `RouteParams::max_trip_duration_min` is
+  `max_trip_duration` (minutes), as in `TransitParams`, `ItineraryParams`
+  and `TripOptionsParams`; `walk_speed_kmh` and `bike_speed_kmh` are
+  `walk_speed` and `bike_speed` (km/h) in all four;
+  `TripOptionsParams::walk_resolution_s` is `walk_resolution` (seconds);
+  `TransitParams::access_mode` is `mode`, as in `ItineraryParams` and
+  `TripOptionsParams`. The engine's error messages use the new names.
+- **Breaking:** `Criterion` is `#[non_exhaustive]` (the criteria of
+  `trip_options` may grow), and `Criterion::ALL` and `TransitMode::ALL`
+  are `&'static [_]` slices instead of arrays of a fixed length, so that a
+  new criterion or mode does not change their type.
+- `StreetVertices`, `StreetEdges`, `TransitStops` and `TransitRoutes`
+  implement `PartialEq`, as the other result types do (not `Eq`: each holds
+  coordinates as floats).
+- `cargo test` passes in the packaged `peabiru-core`: the 38 tests that
+  read the repository's sample data (`r/inst/extdata/spo`), which the
+  crate does not carry, say on stderr that they are skipped and return.
 - `output_dir` (R, Python, the CLI's `--output-dir`; the core's
   `CsvOutput::new`, now fallible, `write_itineraries_csv` and
   `write_trip_options_csv`): an id that cannot name a file in the

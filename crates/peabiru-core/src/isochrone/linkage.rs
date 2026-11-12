@@ -146,17 +146,18 @@ mod tests {
     use crate::street::link::find_split;
     use crate::BuildOptions;
 
-    const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
-
-    fn spo() -> StreetNetwork {
-        crate::transit::build_from_dir(SPO, &BuildOptions::default())
+    fn spo_network(spo: &str) -> StreetNetwork {
+        crate::transit::build_from_dir(spo, &BuildOptions::default())
             .unwrap()
             .0
     }
 
     #[test]
     fn kept_links_are_those_of_each_cell() {
-        let net = spo();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let net = spo_network(spo);
         let cancel = CancelToken::default();
         let grid = WebMercatorGrid::for_street(&net, 11).unwrap();
         let mut scratch = Vec::new();
@@ -185,7 +186,10 @@ mod tests {
 
     #[test]
     fn linkages_are_kept_by_grid_and_mode_within_bounds() {
-        let net = spo();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let net = spo_network(spo);
         let cancel = CancelToken::default();
         let grid = |z| WebMercatorGrid::for_street(&net, z).unwrap();
         let first = grid_links(&net, &grid(10), Mode::Walk, 2, &cancel).unwrap();
@@ -266,7 +270,10 @@ mod tests {
 
     #[test]
     fn a_cancelled_linkage_is_not_kept() {
-        let net = spo();
+        let Some(spo) = crate::sample_data::spo() else {
+            return;
+        };
+        let net = spo_network(spo);
         let cancel = CancelToken::default();
         cancel.cancel();
         let grid = WebMercatorGrid::for_street(&net, 12).unwrap();

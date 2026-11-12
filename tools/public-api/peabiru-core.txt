@@ -21,13 +21,13 @@ impl core::marker::Unpin for peabiru_core::CarSpeeds
 impl core::marker::UnsafeUnpin for peabiru_core::CarSpeeds
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::CarSpeeds
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::CarSpeeds
-pub enum peabiru_core::Criterion
+#[non_exhaustive] pub enum peabiru_core::Criterion
 pub peabiru_core::Criterion::Fare
 pub peabiru_core::Criterion::Time
 pub peabiru_core::Criterion::Transfers
 pub peabiru_core::Criterion::Walk
 impl peabiru_core::Criterion
-pub const peabiru_core::Criterion::ALL: [peabiru_core::Criterion; 4]
+pub const peabiru_core::Criterion::ALL: &'static [peabiru_core::Criterion]
 pub fn peabiru_core::Criterion::from_name(&str) -> core::option::Option<peabiru_core::Criterion>
 pub fn peabiru_core::Criterion::name(self) -> &'static str
 impl core::clone::Clone for peabiru_core::Criterion
@@ -228,7 +228,7 @@ pub peabiru_core::TransitMode::Rail
 pub peabiru_core::TransitMode::Subway
 pub peabiru_core::TransitMode::Tram
 impl peabiru_core::TransitMode
-pub const peabiru_core::TransitMode::ALL: [peabiru_core::TransitMode; 8]
+pub const peabiru_core::TransitMode::ALL: &'static [peabiru_core::TransitMode]
 pub fn peabiru_core::TransitMode::from_name(&str) -> core::option::Option<peabiru_core::TransitMode>
 pub fn peabiru_core::TransitMode::name(self) -> &'static str
 impl core::clone::Clone for peabiru_core::TransitMode
@@ -737,7 +737,7 @@ impl core::marker::UnsafeUnpin for peabiru_core::ItineraryNotes
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ItineraryNotes
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ItineraryNotes
 #[non_exhaustive] pub struct peabiru_core::ItineraryParams
-pub peabiru_core::ItineraryParams::bike_speed_kmh: f64
+pub peabiru_core::ItineraryParams::bike_speed: f64
 pub peabiru_core::ItineraryParams::cancel: peabiru_core::CancelToken
 pub peabiru_core::ItineraryParams::date: u32
 pub peabiru_core::ItineraryParams::departure_time: i32
@@ -758,7 +758,7 @@ pub peabiru_core::ItineraryParams::shortest_path: bool
 pub peabiru_core::ItineraryParams::suboptimal_minutes: i32
 pub peabiru_core::ItineraryParams::time_window: i32
 pub peabiru_core::ItineraryParams::transit_modes: alloc::vec::Vec<peabiru_core::TransitMode>
-pub peabiru_core::ItineraryParams::walk_speed_kmh: f64
+pub peabiru_core::ItineraryParams::walk_speed: f64
 impl core::clone::Clone for peabiru_core::ItineraryParams
 pub fn peabiru_core::ItineraryParams::clone(&self) -> Self
 impl core::default::Default for peabiru_core::ItineraryParams
@@ -866,14 +866,14 @@ impl core::marker::UnsafeUnpin for peabiru_core::ParetoRow
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ParetoRow
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ParetoRow
 #[non_exhaustive] pub struct peabiru_core::RouteParams
-pub peabiru_core::RouteParams::bike_speed_kmh: f64
+pub peabiru_core::RouteParams::bike_speed: f64
 pub peabiru_core::RouteParams::cancel: peabiru_core::CancelToken
 pub peabiru_core::RouteParams::engine: peabiru_core::StreetEngine
 pub peabiru_core::RouteParams::max_lts: i32
-pub peabiru_core::RouteParams::max_trip_duration_min: i32
+pub peabiru_core::RouteParams::max_trip_duration: i32
 pub peabiru_core::RouteParams::n_threads: usize
 pub peabiru_core::RouteParams::scenario: peabiru_core::Scenario
-pub peabiru_core::RouteParams::walk_speed_kmh: f64
+pub peabiru_core::RouteParams::walk_speed: f64
 impl peabiru_core::RouteParams
 pub fn peabiru_core::RouteParams::validate(&self) -> core::result::Result<(), peabiru_core::RouteError>
 impl core::clone::Clone for peabiru_core::RouteParams
@@ -974,8 +974,11 @@ pub fn peabiru_core::StreetEdges::to_vertex(&self, usize) -> u32
 pub fn peabiru_core::StreetEdges::walk(&self, usize) -> bool
 impl core::clone::Clone for peabiru_core::StreetEdges
 pub fn peabiru_core::StreetEdges::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::StreetEdges
+pub fn peabiru_core::StreetEdges::eq(&self, &Self) -> bool
 impl core::fmt::Debug for peabiru_core::StreetEdges
 pub fn peabiru_core::StreetEdges::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::StreetEdges
 impl core::marker::Forget for peabiru_core::StreetEdges
 impl core::marker::Freeze for peabiru_core::StreetEdges
 impl core::marker::Send for peabiru_core::StreetEdges
@@ -1040,10 +1043,13 @@ pub peabiru_core::StreetVertices::lon: alloc::vec::Vec<f64>
 pub peabiru_core::StreetVertices::park_and_ride: alloc::vec::Vec<bool>
 impl core::clone::Clone for peabiru_core::StreetVertices
 pub fn peabiru_core::StreetVertices::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::StreetVertices
+pub fn peabiru_core::StreetVertices::eq(&self, &Self) -> bool
 impl core::default::Default for peabiru_core::StreetVertices
 pub fn peabiru_core::StreetVertices::default() -> Self
 impl core::fmt::Debug for peabiru_core::StreetVertices
 pub fn peabiru_core::StreetVertices::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::StreetVertices
 impl core::marker::Forget for peabiru_core::StreetVertices
 impl core::marker::Freeze for peabiru_core::StreetVertices
 impl core::marker::Send for peabiru_core::StreetVertices
@@ -1105,8 +1111,7 @@ impl core::marker::UnsafeUnpin for peabiru_core::TransitMatrix
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TransitMatrix
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TransitMatrix
 #[non_exhaustive] pub struct peabiru_core::TransitParams
-pub peabiru_core::TransitParams::access_mode: peabiru_core::Mode
-pub peabiru_core::TransitParams::bike_speed_kmh: f64
+pub peabiru_core::TransitParams::bike_speed: f64
 pub peabiru_core::TransitParams::cancel: peabiru_core::CancelToken
 pub peabiru_core::TransitParams::date: u32
 pub peabiru_core::TransitParams::departure_time: i32
@@ -1120,13 +1125,14 @@ pub peabiru_core::TransitParams::max_lts: i32
 pub peabiru_core::TransitParams::max_rides: usize
 pub peabiru_core::TransitParams::max_trip_duration: i32
 pub peabiru_core::TransitParams::max_walk_time: i32
+pub peabiru_core::TransitParams::mode: peabiru_core::Mode
 pub peabiru_core::TransitParams::n_threads: usize
 pub peabiru_core::TransitParams::percentiles: alloc::vec::Vec<i32>
 pub peabiru_core::TransitParams::scenario: peabiru_core::Scenario
 pub peabiru_core::TransitParams::seed: core::option::Option<i32>
 pub peabiru_core::TransitParams::time_window: i32
 pub peabiru_core::TransitParams::transit_modes: alloc::vec::Vec<peabiru_core::TransitMode>
-pub peabiru_core::TransitParams::walk_speed_kmh: f64
+pub peabiru_core::TransitParams::walk_speed: f64
 impl peabiru_core::TransitParams
 pub fn peabiru_core::TransitParams::validate(&self) -> core::result::Result<(), peabiru_core::RouteError>
 impl core::clone::Clone for peabiru_core::TransitParams
@@ -1156,10 +1162,13 @@ pub fn peabiru_core::TransitRoutes::is_empty(&self) -> bool
 pub fn peabiru_core::TransitRoutes::len(&self) -> usize
 impl core::clone::Clone for peabiru_core::TransitRoutes
 pub fn peabiru_core::TransitRoutes::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::TransitRoutes
+pub fn peabiru_core::TransitRoutes::eq(&self, &Self) -> bool
 impl core::default::Default for peabiru_core::TransitRoutes
 pub fn peabiru_core::TransitRoutes::default() -> Self
 impl core::fmt::Debug for peabiru_core::TransitRoutes
 pub fn peabiru_core::TransitRoutes::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::TransitRoutes
 impl core::marker::Forget for peabiru_core::TransitRoutes
 impl core::marker::Freeze for peabiru_core::TransitRoutes
 impl core::marker::Send for peabiru_core::TransitRoutes
@@ -1177,10 +1186,13 @@ pub peabiru_core::TransitStops::stop_index: alloc::vec::Vec<u32>
 pub peabiru_core::TransitStops::stop_name: alloc::vec::Vec<core::option::Option<alloc::string::String>>
 impl core::clone::Clone for peabiru_core::TransitStops
 pub fn peabiru_core::TransitStops::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::TransitStops
+pub fn peabiru_core::TransitStops::eq(&self, &Self) -> bool
 impl core::default::Default for peabiru_core::TransitStops
 pub fn peabiru_core::TransitStops::default() -> Self
 impl core::fmt::Debug for peabiru_core::TransitStops
 pub fn peabiru_core::TransitStops::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::TransitStops
 impl core::marker::Forget for peabiru_core::TransitStops
 impl core::marker::Freeze for peabiru_core::TransitStops
 impl core::marker::Send for peabiru_core::TransitStops
@@ -1245,7 +1257,7 @@ impl core::marker::UnsafeUnpin for peabiru_core::TripOption
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TripOption
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TripOption
 #[non_exhaustive] pub struct peabiru_core::TripOptionsParams
-pub peabiru_core::TripOptionsParams::bike_speed_kmh: f64
+pub peabiru_core::TripOptionsParams::bike_speed: f64
 pub peabiru_core::TripOptionsParams::cancel: peabiru_core::CancelToken
 pub peabiru_core::TripOptionsParams::criteria: alloc::vec::Vec<peabiru_core::Criterion>
 pub peabiru_core::TripOptionsParams::date: u32
@@ -1267,8 +1279,8 @@ pub peabiru_core::TripOptionsParams::osm_link_ids: bool
 pub peabiru_core::TripOptionsParams::scenario: peabiru_core::Scenario
 pub peabiru_core::TripOptionsParams::time_window: i32
 pub peabiru_core::TripOptionsParams::transit_modes: alloc::vec::Vec<peabiru_core::TransitMode>
-pub peabiru_core::TripOptionsParams::walk_resolution_s: i32
-pub peabiru_core::TripOptionsParams::walk_speed_kmh: f64
+pub peabiru_core::TripOptionsParams::walk_resolution: i32
+pub peabiru_core::TripOptionsParams::walk_speed: f64
 impl peabiru_core::TripOptionsParams
 pub fn peabiru_core::TripOptionsParams::resolved_criteria(&self) -> core::result::Result<alloc::vec::Vec<peabiru_core::Criterion>, peabiru_core::RouteError>
 impl core::clone::Clone for peabiru_core::TripOptionsParams
