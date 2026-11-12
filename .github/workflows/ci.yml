@@ -148,8 +148,11 @@ jobs:
       - name: Rust target for Rtools
         if: runner.os == 'Windows'
         run: rustup target add x86_64-pc-windows-gnu
-      - name: Install testthat
-        run: install.packages("testthat")
+      - name: Install testthat and the package's one dependency
+        # tibble is the class of the tables returned by default (Imports);
+        # sf, data.table and r5r are left out on purpose: the tests that
+        # need them must skip
+        run: install.packages(c("testthat", "tibble"))
         shell: Rscript {0}
       - name: Install the package from the checkout
         # bash: in PowerShell, R is an alias of Invoke-History
