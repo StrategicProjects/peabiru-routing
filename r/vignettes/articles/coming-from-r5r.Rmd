@@ -271,9 +271,9 @@ error that says so.
   egress search, so r5r's itineraries for a pair whose car searches cross
   one can depend on the searches that ran before; peabiru returns such a
   pair when its itineraries are the same in every order those edges can be
-  in, and otherwise stops with an error naming the pair. Pairs that r5r
-  routes again with McRAPTOR because the path of its first router cannot
-  be rebuilt are errors too.
+  in, and otherwise stops with an error naming the pair. A ride along a
+  GTFS shape that the feed cuts by `shape_dist_traveled` is an error too
+  (its geometry is not reproduced yet).
 
 ```{r, error = TRUE}
 fares <- setup_fare_structure(network, base_fare = 4.4)

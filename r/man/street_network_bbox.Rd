@@ -7,7 +7,7 @@
 street_network_bbox(
   r5r_network,
   output = c("polygon", "bbox", "vector"),
-  r5r_core
+  r5r_core = deprecated()
 )
 }
 \arguments{

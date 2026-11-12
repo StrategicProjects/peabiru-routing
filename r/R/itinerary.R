@@ -28,8 +28,8 @@
 #' peabiru plans such a pair for every order those via edges can be in:
 #' when the itineraries are the same in all of them, they are returned
 #' (they are r5r's whatever ran before); otherwise the call stops with an
-#' error naming the pair. The few pairs that r5r routes again with McRAPTOR
-#' because the path of its first router cannot be rebuilt are errors too.
+#' error naming the pair. A ride along a 'GTFS' shape that the feed cuts by
+#' `shape_dist_traveled` is an error too: its geometry is not reproduced.
 #'
 #' @inheritParams travel_time_matrix
 #' @param suboptimal_minutes An integer, 0 (the default): with

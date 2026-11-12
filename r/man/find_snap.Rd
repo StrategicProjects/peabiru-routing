@@ -4,7 +4,13 @@
 \alias{find_snap}
 \title{Find snapped locations of input points on street network}
 \usage{
-find_snap(r5r_network, points, radius = 1600, mode = "WALK", r5r_core)
+find_snap(
+  r5r_network,
+  points,
+  radius = 1600,
+  mode = "WALK",
+  r5r_core = deprecated()
+)
 }
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}

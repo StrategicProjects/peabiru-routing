@@ -28,7 +28,7 @@ pareto_frontier(
   verbose = FALSE,
   progress = TRUE,
   output_dir = NULL,
-  r5r_core
+  r5r_core = deprecated()
 )
 }
 \arguments{

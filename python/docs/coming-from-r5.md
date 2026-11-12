@@ -265,12 +265,15 @@ a refusal.)
   then computed on the clock time; an aware datetime gets R's `POSIXct`
   arithmetic on the absolute time (which matters only across a
   daylight-saving change).
-- **`isochrone(sample_size=...)`** is accepted, as r5r accepts its
-  deprecated argument: giving it only warns.
 - **A route of [`transit_network_to_sf()`][peabiru.transit_network_to_sf]
   whose line has a single point** (a pattern with one linked stop) is a
   shapely `Point`; r5r's `sf` holds a one-point `LINESTRING`, which shapely
   cannot represent.
+
+<!-- diff:deprecated-args -->
+- **Deprecated arguments**: there is no `r5r_core` (r5r's old name for the
+  network argument). `isochrone(sample_size=...)` is accepted, as r5r
+  accepts its deprecated argument: giving it only warns.
 
 ### Kept for equal results
 

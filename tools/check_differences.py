@@ -38,7 +38,7 @@ ITEMS: dict[str, frozenset[str]] = {
     "n-threads-build": ALL,
     "verbose-progress": ALL,
     "error-classes": ALL,
-    "deprecated-args": frozenset({"R"}),
+    "deprecated-args": ALL,
     # where peabiru does not depend on the run or the machine
     "gtfs-errors-order": ALL,
     "elevation-strictmath": ALL,
@@ -52,7 +52,7 @@ ITEMS: dict[str, frozenset[str]] = {
     # refusals
     "refuse-fare-calculators": ALL,
     "refuse-elevation-formats": ALL,
-    "refuse-multiple-pbf": frozenset({"R", "Python"}),
+    "refuse-multiple-pbf": ALL,
     "refuse-pareto-output-dir": frozenset({"R", "Python"}),
     "refuse-itinerary-cases": ALL,
     # files and geometries
