@@ -477,6 +477,68 @@ fn check(seed: u64) -> (usize, usize) {
     for a in &got {
         recheck(&inst, &search, a, calc.as_ref(), fare_tracked, seed);
     }
+    // the exact frontier filtered with walking and total time rounded keeps
+    // exactly the coarse Pareto set of every trip, one trip per vector
+    let mut rng = Rng::new(seed ^ 0xc0a5);
+    let walk_res = [1, 7, 30, 60, 300][rng.below(5)];
+    let time_res = [1, 6, 60][rng.below(3)];
+    let kept = net.coarse_frontier(&got, walk_res, time_res);
+    let coarse = |a: &Arrival| -> [i64; 4] {
+        let (c, _) = values(&inst.criteria, fare_tracked, a);
+        let round = |v: i64, r: i64| (v + r / 2).div_euclid(r);
+        [
+            if inst.criteria.time {
+                round(c[0], i64::from(time_res))
+            } else {
+                0
+            },
+            c[1],
+            if inst.criteria.walk {
+                round(c[2], i64::from(walk_res))
+            } else {
+                0
+            },
+            c[3],
+        ]
+    };
+    let mut have: Vec<[i64; 4]> = kept.iter().map(coarse).collect();
+    have.sort_unstable();
+    let n = have.len();
+    have.dedup();
+    assert_eq!(
+        n,
+        have.len(),
+        "seed {seed}: two trips with the same coarse values"
+    );
+    let all_coarse: Vec<[i64; 4]> = all.iter().map(coarse).collect();
+    let mut want: Vec<[i64; 4]> = all_coarse
+        .iter()
+        .filter(|v| {
+            !all_coarse
+                .iter()
+                .any(|o| o != *v && (0..4).all(|k| o[k] <= v[k]))
+        })
+        .copied()
+        .collect();
+    want.sort_unstable();
+    want.dedup();
+    assert_eq!(
+        have, want,
+        "seed {seed}: coarse frontier ({walk_res} s, {time_res} s)"
+    );
+    // of trips with the same coarse values, the first in exact terms
+    for k in &kept {
+        let ck = coarse(k);
+        let fk = values(&inst.criteria, fare_tracked, k).1;
+        for o in &got {
+            if coarse(o) == ck {
+                assert!(
+                    fk <= values(&inst.criteria, fare_tracked, o).1,
+                    "seed {seed}"
+                );
+            }
+        }
+    }
     (got.len(), all.len())
 }
 

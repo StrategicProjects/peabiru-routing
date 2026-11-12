@@ -169,7 +169,9 @@ rs_pareto_frontier <- function(ptr, olat, olon, dlat, dlon, mode, transit_modes,
 #' the four id columns `NULL` without `osm_link_ids`, `geometry` `NULL`
 #' with `drop_geometry`). With `output`
 #' (`list(dir, from_ids, to_ids)`) the files are written instead and
-#' `NULL` returned.
+#' only `list(warnings)` returned. `warnings`: the texts R shows as
+#' warnings. `fail_fast_raptor`: r5r's test switch `r5r.failFastRaptor`
+#' (option `peabiru.fail_fast_raptor`).
 #' @noRd
 rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output, suboptimal_minutes, fare_structure, max_fare, fail_fast_raptor) .Call(wrap__rs_detailed_itineraries, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, shortest_path, n_threads, drop_geometry, scenario, osm_link_ids, output, suboptimal_minutes, fare_structure, max_fare, fail_fast_raptor)
 
@@ -184,6 +186,6 @@ rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, 
 #' structure, the id columns `NULL` without `osm_link_ids`, `geometry`
 #' `NULL` with `drop_geometry`, `legs` `NULL` without `itineraries`).
 #' @noRd
-rs_trip_options <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output) .Call(wrap__rs_trip_options, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output)
+rs_trip_options <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output, walk_resolution) .Call(wrap__rs_trip_options, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output, walk_resolution)
 
 # nolint end

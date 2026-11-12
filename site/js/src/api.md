@@ -1297,6 +1297,7 @@ Also takes every option of [`RoutingOptions`](#RoutingOptions).
 - `timeWindow?: number`: Minutes of departure, one at a time from `departureDatetime` (default 10).
 - `criteria?: TripCriterion[] | TripCriterion | null`: Some of `"TIME"` (door-to-door minutes from the departure minute), `"FARE"` (needs a `fareStructure`), `"TRANSFERS"` (rides minus one; 0 without public transport) and `"WALK"` (minutes on foot: walked access and egress legs and walks between stops). Default null: all four with a `fareStructure`, all but `"FARE"` without one.
 - `maxOptions?: number`: At most this many options per pair, the first in `option` order (default Infinity).
+- `walkResolution?: number`: Seconds to which minutes on foot are compared (default 60: the whole minute, rounded), so that of two trips a few seconds of walking apart and otherwise no better only one is returned; 1 compares the exact seconds.
 - `allToAll?: boolean`: Route from every origin to every destination (default false: pair them row by row).
 - `itineraries?: boolean`: Build the legs of each option (default true).
 - `byDeparture?: boolean`: Add the options of every departure minute (default false).

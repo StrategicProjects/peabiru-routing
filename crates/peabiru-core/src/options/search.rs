@@ -42,7 +42,8 @@
 //! the search tracks (walking with the walking criterion, fare with a fare
 //! structure and the fare criterion or a fare limit). The result per
 //! departure minute is the exact Pareto set of the trips above, one trip per
-//! vector of values.
+//! vector of values (which `Network::coarse_frontier` then filters at the
+//! resolution the values are reported at).
 
 use super::bounds::{Bounds, INF};
 use super::Criteria;
@@ -164,6 +165,64 @@ impl<'a> Network<'a> {
 
     fn track_fare(&self) -> bool {
         self.fare.is_some()
+    }
+
+    /// The trips of an exact frontier (`arrivals`, as [`Search::run`]
+    /// returns them) still kept when time on foot is compared in steps of
+    /// `walk_res` seconds and total time in steps of `time_res` seconds
+    /// (1: exact): a value `v` counts as `round(v / res)` (half up), and a
+    /// trip is dropped when another one's coarse values on the chosen
+    /// criteria are no worse and either better on one of them or equal on
+    /// all with exact ranking values (total time, transfers, time on foot,
+    /// fare) that come first. The kept trips keep their exact values; the
+    /// order is kept.
+    ///
+    /// Filtering the exact frontier is enough. Rounding is monotone, so a
+    /// trip that some trip `b` dominates exactly is dominated or matched by
+    /// `b` in coarse values too, with `b` ranked first; and each trip off
+    /// the exact frontier is dominated by one on it. So the coarse values
+    /// left are exactly the coarse Pareto set of all the trips: rounding
+    /// creates no dominance that is not there in coarse terms and hides
+    /// none (the tests check this against the enumeration of every trip).
+    pub(crate) fn coarse_frontier(
+        &self,
+        arrivals: &[Arrival],
+        walk_res: i32,
+        time_res: i32,
+    ) -> Vec<Arrival> {
+        let c = &self.cfg.criteria;
+        let fare_tracked = self.track_fare();
+        let round = |v: i32, r: i32| -> i64 {
+            let (v, r) = (i64::from(v), i64::from(r.max(1)));
+            (v + r / 2).div_euclid(r)
+        };
+        let vals: Vec<([i64; 4], [i64; 4])> = arrivals
+            .iter()
+            .map(|a| {
+                let full = [
+                    i64::from(a.total),
+                    i64::from(a.transfers()),
+                    if c.walk { i64::from(a.walk) } else { 0 },
+                    if fare_tracked { i64::from(a.fare) } else { 0 },
+                ];
+                let coarse = [
+                    if c.time { round(a.total, time_res) } else { 0 },
+                    if c.transfers { full[1] } else { 0 },
+                    if c.walk { round(a.walk, walk_res) } else { 0 },
+                    if c.fare { full[3] } else { 0 },
+                ];
+                (coarse, full)
+            })
+            .collect();
+        let beats = |b: usize, a: usize| {
+            let (cb, fb) = vals[b];
+            let (ca, fa) = vals[a];
+            (0..4).all(|k| cb[k] <= ca[k]) && (cb != ca || (fb, b) < (fa, a))
+        };
+        (0..arrivals.len())
+            .filter(|&a| !(0..arrivals.len()).any(|b| b != a && beats(b, a)))
+            .map(|a| arrivals[a])
+            .collect()
     }
 }
 

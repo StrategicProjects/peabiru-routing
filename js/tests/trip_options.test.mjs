@@ -72,5 +72,7 @@ test("criteria and limits", async () => {
   await assert.rejects(call({ criteria: ["FARE"] }), /needs a fareStructure/);
   await assert.rejects(call({ criteria: ["TIME", "SPEED"] }), /criteria/);
   await assert.rejects(call({ maxOptions: 0 }), /maxOptions/);
+  assert.ok((await call({ walkResolution: 1 })).options.length >= a.options.length);
+  await assert.rejects(call({ walkResolution: 0 }), /walkResolution/);
   await assert.rejects(call({ seed: 1 }), /unknown option 'seed'/);
 });

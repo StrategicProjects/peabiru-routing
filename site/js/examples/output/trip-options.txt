@@ -14,7 +14,7 @@ option  departure_time  arrival_time  total_time
 4       14:00:00        14:57:40      57.7
 4       14:01:00        14:58:40      57.7
 4       14:02:00        14:59:40      57.7
-5 options with the four criteria; the legs of the first:
+4 options with the four criteria; the legs of the first:
 segment  mode  cumulative_fare  segment_duration  wait  distance  route
 1        WALK  0                10.9              0     694
 2        BUS   4.8              7.4               1.2   2113      T4
