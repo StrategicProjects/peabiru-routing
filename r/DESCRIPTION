@@ -37,14 +37,19 @@ Authors@R: c(
     person("Authors of the dependency Rust crates", role = "cph",
            comment = "Rust crates vendored in src/rust/vendor.tar.xz; see inst/AUTHORS")
   )
-Description: Computes travel-time matrices, accessibility and trip-by-trip
-    (expanded and arrival) matrices on multimodal transport networks (walk,
-    bike, car and public transport) built from 'OpenStreetMap' extracts and
-    'GTFS' feeds. The routing engine is written in 'Rust', runs in the R
-    session without a 'Java' runtime, keeps the network in memory, and is
-    shared with the 'Python' package of the same name. The engine is a port of
-    'R5', and the functions, their arguments and their results follow the
-    'r5r' package.
+Description: Builds multimodal transport networks from 'OpenStreetMap'
+    extracts, 'GTFS' feeds and, optionally, an elevation raster, and routes
+    on them by walking, cycling, driving and public transport. Computes
+    travel-time matrices, accessibility to opportunities, isochrones,
+    detailed itineraries and trip options that trade off travel time, fare,
+    transfers and walking. Supports fare structures, slope-aware walking and
+    cycling, and scenarios of car speeds and cycling stress applied per call
+    without rebuilding the network. The routing engine is written in 'Rust':
+    it runs inside the R session with no 'Java' runtime, keeps the network
+    in memory, uses all cores, and is shared with the 'Python' and
+    'JavaScript' packages of the same name. Function names, arguments and
+    results are compatible with the 'r5r' package, and the algorithms follow
+    Conveyal's 'R5' routing engine.
 License: MIT + file LICENSE
 Copyright: The peabiru authors. The package includes code derived from
     other works; their copyright notices and licences are in the file
@@ -55,6 +60,7 @@ Copyright: The peabiru authors. The package includes code derived from
 URL: https://github.com/StrategicProjects/peabiru-routing
 BugReports: https://github.com/StrategicProjects/peabiru-routing/issues
 Encoding: UTF-8
+Language: en-GB
 Roxygen: list(markdown = TRUE)
 SystemRequirements: Cargo (Rust's package manager), rustc >= 1.81
 Config/rextendr/version: 0.5.0
@@ -70,5 +76,6 @@ Suggests:
     sf,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
+Config/Needs/website: dplyr, ggplot2
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
