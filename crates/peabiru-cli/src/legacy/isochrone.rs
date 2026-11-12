@@ -1,12 +1,12 @@
 //! `peabiru isochrone`: polygon or line isochrones, as r5r's `isochrone()`,
 //! for testing the core against r5r.
 
-use crate::cli::{self, runtime_error, usage_error};
+use super::cli::{self, runtime_error, usage_error};
 use peabiru_core::unstable::{isochrone_polygons_in, CxxLibrary};
 use peabiru_core::{
     build_network, isochrone_lines, isochrone_trip_limit, street_edges, street_travel_time_matrix,
     street_travel_time_surface, transit_travel_time_matrix, transit_travel_time_surface,
-    BuildOptions, Mode, RouteParams, TransitData, TransitParams,
+    BuildOptions, Mode, RouteParams, TransitParams,
 };
 use std::fmt::Write as _;
 
@@ -31,7 +31,7 @@ fn ring_wkt(out: &mut String, ring: &[[f64; 2]]) {
 }
 
 pub fn run(args: &[String]) {
-    let (net_path, points_path, out) = crate::positional3(CMD, args);
+    let (net_path, points_path, out) = super::positional3(CMD, args);
     let mut mode = "TRANSIT".to_string();
     let mut cutoffs: Vec<f64> = vec![0.0, 15.0, 30.0];
     let mut zoom = 10;
@@ -126,27 +126,19 @@ pub fn run(args: &[String]) {
     if street_mode == Some(Mode::Walk) && walk_limit < limit {
         limit = walk_limit;
     }
-    let (ids, pts) = crate::read_points(CMD, points_path);
+    let (ids, pts) = super::read_points(CMD, points_path);
     let is_dir = std::path::Path::new(net_path).is_dir();
     let mut build = BuildOptions::default();
     build.n_threads = tp.n_threads;
     let fail_io = |e: peabiru_core::NetworkError| -> ! { runtime_error(CMD, e) };
-    let (net, layer) = if is_dir {
-        let (n, l) = cli::build_from_dir(CMD, net_path, &build).unwrap_or_else(|e| fail_io(e));
-        (n, Some(l))
+    let net = if is_dir {
+        cli::build_from_dir(CMD, net_path, &build).unwrap_or_else(|e| fail_io(e))
     } else {
         if street_mode.is_none() {
             usage_error(CMD, "TRANSIT needs a directory with GTFS feeds");
         }
-        (
-            build_network(net_path, &build).unwrap_or_else(|e| fail_io(e)),
-            None,
-        )
+        build_network(net_path, &build).unwrap_or_else(|e| fail_io(e))
     };
-    let data = layer
-        .as_ref()
-        .filter(|_| street_mode.is_none())
-        .map(|l| TransitData::new(&net, l));
     rp.max_trip_duration_min = limit;
     tp.max_trip_duration = limit;
     tp.max_walk_time = walk_limit;
@@ -166,12 +158,9 @@ pub fn run(args: &[String]) {
             Some(m) => street_travel_time_matrix(&net, &pts, &dest, m, &rp)
                 .unwrap_or_else(|e| usage_error(CMD, e))
                 .into_vec(),
-            None => {
-                let (layer, data) = (layer.as_ref().unwrap(), data.as_ref().unwrap());
-                transit_travel_time_matrix(&net, layer, data, &pts, &dest, &tp)
-                    .unwrap_or_else(|e| usage_error(CMD, e))
-                    .into_vec()
-            }
+            None => transit_travel_time_matrix(&net, &pts, &dest, &tp)
+                .unwrap_or_else(|e| usage_error(CMD, e))
+                .into_vec(),
         };
         let res = isochrone_lines(pts.len(), edges.len(), &minutes, &cutoffs)
             .unwrap_or_else(|e| usage_error(CMD, e));
@@ -197,14 +186,7 @@ pub fn run(args: &[String]) {
     }
     let surface = match street_mode {
         Some(m) => street_travel_time_surface(&net, &pts, m, &rp, &percentiles, zoom),
-        None => transit_travel_time_surface(
-            &net,
-            layer.as_ref().unwrap(),
-            data.as_ref().unwrap(),
-            &pts,
-            &tp,
-            zoom,
-        ),
+        None => transit_travel_time_surface(&net, &pts, &tp, zoom),
     }
     .unwrap_or_else(|e| usage_error(CMD, e));
     if let Some(path) = surface_path {

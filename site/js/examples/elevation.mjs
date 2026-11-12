@@ -46,7 +46,7 @@ const voids = await peabiru.buildNetwork({
   onWarning: (message) => warnings.push(message),
 });
 console.log(warnings);
-console.log("kept with the network:", voids.r5rWarnings().length);
+console.log("kept with the network:", voids.buildWarnings().length);
 // ANCHOR_END: voids
 
 for (const n of [flat, tobler, minetti, utm, voids]) n.free();

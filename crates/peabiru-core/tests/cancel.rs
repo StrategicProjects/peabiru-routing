@@ -3,8 +3,8 @@
 use peabiru_core::{
     arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix, street_accessibility,
     street_travel_time_matrix, transit_accessibility, transit_travel_time_matrix,
-    AccessibilityParams, BuildOptions, CancelToken, Destinations, Mode, RouteError, RouteParams,
-    StreetNetwork, TransitData, TransitLayer, TransitParams,
+    AccessibilityParams, BuildOptions, CancelToken, Destinations, Mode, Network, RouteError,
+    RouteParams, TransitParams,
 };
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -12,9 +12,7 @@ use std::time::{Duration, Instant};
 const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
 
 struct Sample {
-    net: StreetNetwork,
-    layer: TransitLayer,
-    data: TransitData,
+    net: Network,
     points: Vec<(f64, f64)>,
     jobs: Vec<Vec<f64>>,
 }
@@ -22,8 +20,7 @@ struct Sample {
 fn sample() -> &'static Sample {
     static SAMPLE: OnceLock<Sample> = OnceLock::new();
     SAMPLE.get_or_init(|| {
-        let (net, layer) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
-        let data = TransitData::new(&net, &layer);
+        let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
         let text = std::fs::read_to_string(format!("{SPO}/spo_points.csv")).unwrap();
         let (mut points, mut jobs) = (Vec::new(), Vec::new());
         for line in text.lines().skip(1) {
@@ -33,8 +30,6 @@ fn sample() -> &'static Sample {
         }
         Sample {
             net,
-            layer,
-            data,
             points,
             jobs: vec![jobs],
         }
@@ -93,8 +88,7 @@ fn calls(heavy: bool) -> Vec<(&'static str, Call)> {
             "transit matrix",
             Box::new(move |c: &CancelToken| {
                 let p = transit_params(tw, dpm, c);
-                transit_travel_time_matrix(&s.net, &s.layer, &s.data, &s.points, &s.points, &p)
-                    .map(drop)
+                transit_travel_time_matrix(&s.net, &s.points, &s.points, &p).map(drop)
             }),
         ),
         (
@@ -102,24 +96,21 @@ fn calls(heavy: bool) -> Vec<(&'static str, Call)> {
             Box::new(move |c: &CancelToken| {
                 let dest = Destinations::new(&s.points, &s.jobs);
                 let p = transit_params(tw, dpm, c);
-                transit_accessibility(&s.net, &s.layer, &s.data, &s.points, &dest, &p, &a2)
-                    .map(drop)
+                transit_accessibility(&s.net, &s.points, &dest, &p, &a2).map(drop)
             }),
         ),
         (
             "expanded matrix",
             Box::new(move |c: &CancelToken| {
                 let p = transit_params(tw, dpm, c);
-                expanded_travel_time_matrix(&s.net, &s.layer, &s.data, &s.points, &s.points, &p)
-                    .map(drop)
+                expanded_travel_time_matrix(&s.net, &s.points, &s.points, &p).map(drop)
             }),
         ),
         (
             "arrival matrix",
             Box::new(move |c: &CancelToken| {
                 let p = transit_params(tw, dpm, c);
-                arrival_travel_time_matrix(&s.net, &s.layer, &s.data, &s.points, &s.points, &p)
-                    .map(drop)
+                arrival_travel_time_matrix(&s.net, &s.points, &s.points, &p).map(drop)
             }),
         ),
     ]
@@ -170,13 +161,13 @@ fn a_single_slow_origin_stops_soon_after_the_cancel() {
     let one = &s.points[..1];
     let (r, late) = cancel_after(Duration::from_millis(200), |c| {
         let p = transit_params(1440, 100, c);
-        transit_travel_time_matrix(&s.net, &s.layer, &s.data, one, &s.points, &p).map(drop)
+        transit_travel_time_matrix(&s.net, one, &s.points, &p).map(drop)
     });
     assert_eq!(r, Err(RouteError::Cancelled));
     assert!(late < Duration::from_millis(500), "{late:?}");
     let (r, late) = cancel_after(Duration::from_millis(200), |c| {
         let p = transit_params(1440, 20, c);
-        expanded_travel_time_matrix(&s.net, &s.layer, &s.data, one, &s.points, &p).map(drop)
+        expanded_travel_time_matrix(&s.net, one, &s.points, &p).map(drop)
     });
     assert_eq!(r, Err(RouteError::Cancelled));
     assert!(late < Duration::from_millis(500), "{late:?}");
@@ -187,8 +178,7 @@ fn invalid_parameters_are_not_a_cancellation() {
     let s = sample();
     let mut p = TransitParams::default();
     p.date = 20190230;
-    let e = transit_travel_time_matrix(&s.net, &s.layer, &s.data, &s.points, &s.points, &p)
-        .unwrap_err();
+    let e = transit_travel_time_matrix(&s.net, &s.points, &s.points, &p).unwrap_err();
     assert!(
         matches!(e, RouteError::Invalid(ref m) if m.contains("date")),
         "{e}"

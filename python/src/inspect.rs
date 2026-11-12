@@ -52,7 +52,7 @@ fn find_snap<'py>(
 /// `[xmin, ymin, xmax, ymax]` of the street network (R5's envelope).
 #[pyfunction]
 fn street_bbox(network: &Network) -> [f64; 4] {
-    network.net.bbox()
+    network.net.street().bbox()
 }
 
 /// The vertices of r5r's `street_network_to_sf()`, as columns.
@@ -73,8 +73,8 @@ fn street_vertices<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'p
 /// coordinates for stops not linked to the streets).
 #[pyfunction]
 fn transit_stops<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'py, PyDict>> {
-    let s = match &network.transit {
-        Some(t) => transit_stops_core(&network.net, &t.layer),
+    let s = match network.net.transit() {
+        Some(_) => transit_stops_core(&network.net),
         None => Default::default(),
     };
     let index: Vec<i32> = s.stop_index.iter().map(|&i| i as i32).collect();
@@ -93,8 +93,8 @@ fn transit_stops<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'py,
 /// line of each row as `n_points` (int32) and flat `x`, `y` (f64).
 #[pyfunction]
 fn transit_routes<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'py, PyDict>> {
-    let r = match &network.transit {
-        Some(t) => transit_routes_core(&network.net, &t.layer).map_err(value_err)?,
+    let r = match network.net.transit() {
+        Some(_) => transit_routes_core(&network.net).map_err(value_err)?,
         None => Default::default(),
     };
     let (mut n_points, mut x, mut y) = (Vec::with_capacity(r.len()), Vec::new(), Vec::new());
@@ -123,8 +123,8 @@ fn transit_routes<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'py
 /// as r5r's `check_transit_availability()` discovers them.
 #[pyfunction]
 fn transit_service_dates(network: &Network) -> PyResult<Vec<u32>> {
-    match &network.transit {
-        Some(t) => transit_service_dates_core(&t.layer).map_err(value_err),
+    match network.net.transit() {
+        Some(_) => transit_service_dates_core(&network.net).map_err(value_err),
         None => Ok(Vec::new()),
     }
 }
@@ -132,9 +132,8 @@ fn transit_service_dates(network: &Network) -> PyResult<Vec<u32>> {
 /// The paths of the network's GTFS feeds, in loading order.
 #[pyfunction]
 fn feed_paths(network: &Network) -> Vec<String> {
-    network.transit.as_ref().map_or_else(Vec::new, |t| {
-        t.layer
-            .feed_reports()
+    network.net.transit().map_or_else(Vec::new, |t| {
+        t.feed_reports()
             .iter()
             .map(|f| f.path.to_string_lossy().into_owned())
             .collect()

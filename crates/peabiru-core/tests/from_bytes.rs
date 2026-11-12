@@ -3,7 +3,7 @@
 
 use peabiru_core::{
     build_from_bytes, build_from_dir, street_travel_time_matrix, transit_travel_time_matrix,
-    BuildOptions, Mode, RouteParams, TransitData, TransitParams,
+    BuildOptions, Mode, RouteParams, TransitParams,
 };
 
 const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
@@ -26,12 +26,13 @@ fn read(name: &str) -> Vec<u8> {
 #[test]
 fn bytes_build_the_network_of_the_directory() {
     let opts = BuildOptions::default();
-    let (net_d, layer_d) = build_from_dir(SPO, &opts).unwrap();
+    let net_d = build_from_dir(SPO, &opts).unwrap();
     let (pbf, gtfs) = (read("spo_osm.pbf"), read("spo_gtfs.zip"));
-    let (net_b, layer_b) = build_from_bytes(&pbf, &[("spo_gtfs.zip", &gtfs)], &opts).unwrap();
+    let net_b = build_from_bytes(&pbf, &[("spo_gtfs.zip", &gtfs)], &opts).unwrap();
 
-    assert_eq!(net_b.n_vertices(), net_d.n_vertices());
-    assert_eq!(net_b.n_edges(), net_d.n_edges());
+    assert_eq!(net_b.street().n_vertices(), net_d.street().n_vertices());
+    assert_eq!(net_b.street().n_edges(), net_d.street().n_edges());
+    let (layer_b, layer_d) = (net_b.transit().unwrap(), net_d.transit().unwrap());
     assert_eq!(layer_b.feed_ids(), layer_d.feed_ids());
     assert_eq!(layer_b.n_stops(), layer_d.n_stops());
     assert_eq!(layer_b.n_linked_stops(), layer_d.n_linked_stops());
@@ -53,10 +54,8 @@ fn bytes_build_the_network_of_the_directory() {
     p.departure_time = 14 * 3600;
     p.percentiles = vec![10, 50, 90];
     p.seed = Some(42);
-    let data_b = TransitData::new(&net_b, &layer_b);
-    let data_d = TransitData::new(&net_d, &layer_d);
-    let b = transit_travel_time_matrix(&net_b, &layer_b, &data_b, &pts, &pts, &p).unwrap();
-    let d = transit_travel_time_matrix(&net_d, &layer_d, &data_d, &pts, &pts, &p).unwrap();
+    let b = transit_travel_time_matrix(&net_b, &pts, &pts, &p).unwrap();
+    let d = transit_travel_time_matrix(&net_d, &pts, &pts, &p).unwrap();
     assert_eq!(b, d);
 }
 
@@ -65,13 +64,15 @@ fn feeds_load_in_the_order_given() {
     let (pbf, gtfs) = (read("spo_osm.pbf"), read("spo_gtfs.zip"));
     let opts = BuildOptions::default();
     let feeds: [(&str, &[u8]); 2] = [("b.zip", &gtfs), ("a.zip", &gtfs)];
-    let (_, layer) = build_from_bytes(&pbf, &feeds, &opts).unwrap();
+    let net = build_from_bytes(&pbf, &feeds, &opts).unwrap();
+    let layer = net.transit().unwrap();
     // spo_gtfs.zip has no feed_info.txt: the ids are the names
     assert_eq!(layer.feed_ids(), ["b", "a"]);
     let names: Vec<String> = layer.feed_reports().iter().map(|r| r.file_name()).collect();
     assert_eq!(names, ["b.zip", "a.zip"]);
-    let (_, none) = build_from_bytes(&pbf, &[], &opts).unwrap();
-    assert!(none.feed_ids().is_empty());
+    let none = build_from_bytes(&pbf, &[], &opts).unwrap();
+    assert!(none.transit().is_none());
+    assert!(none.build_warnings().is_empty());
 }
 
 #[test]

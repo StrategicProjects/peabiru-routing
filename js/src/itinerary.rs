@@ -77,9 +77,7 @@ pub fn itineraries(
     p.max_fare = max_fare;
     p.n_threads = 1;
     p.osm_link_ids = osm_link_ids;
-    let transit = network.transit.as_ref().map(|t| (&t.layer, &t.data));
-    let (res, notes) =
-        detailed_itineraries_noted(&network.net, transit, &o, &d, &p).map_err(route_err)?;
+    let (res, notes) = detailed_itineraries_noted(&network.net, &o, &d, &p).map_err(route_err)?;
     let mut ints: [Vec<i32>; 6] = Default::default();
     let mut nums: [Vec<f64>; 5] = Default::default();
     let mut fare_cols: [Vec<f64>; 2] = Default::default();

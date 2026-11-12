@@ -8,8 +8,7 @@ into options.
 
 ```rust,ignore
 pub fn trip_options(
-    net: &StreetNetwork,
-    transit: Option<(&TransitLayer, &TransitData)>,
+    network: &Network,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TripOptionsParams,
@@ -22,7 +21,7 @@ p.transit_modes = peabiru_core::TransitMode::ALL.to_vec();
 p.date = 20190513;
 p.departure_time = 14 * 3600;
 p.fare_structure = Some(std::sync::Arc::new(fares)); // all four criteria by default
-let options = peabiru_core::trip_options(&net, Some((&layer, &data)), &o, &d, &p)?;
+let options = peabiru_core::trip_options(&network, &o, &d, &p)?;
 for t in &options[0] {
     println!("{} {:.1} min {:?} {} transfers: {}", t.option, t.total_time, t.fare,
              t.transfers, t.description);

@@ -5,7 +5,7 @@
 use peabiru_core::{
     build_from_dir, isochrone_lines, isochrone_polygons, street_edges, street_travel_time_matrix,
     street_travel_time_surface, transit_travel_time_surface, BuildOptions, Mode, RouteParams,
-    TransitData, TransitParams, WebMercatorGrid,
+    TransitParams, WebMercatorGrid,
 };
 
 const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
@@ -21,7 +21,7 @@ fn ring_area(r: &[[f64; 2]]) -> f64 {
 
 #[test]
 fn street_surface_is_the_matrix_to_the_cell_centres() {
-    let (net, _) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let mut p = RouteParams::default();
     p.max_trip_duration_min = 25;
     p.n_threads = 2;
@@ -48,8 +48,7 @@ fn street_surface_is_the_matrix_to_the_cell_centres() {
 
 #[test]
 fn polygons_grow_with_the_cutoff() {
-    let (net, layer) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
-    let data = TransitData::new(&net, &layer);
+    let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let mut p = TransitParams::default();
     p.date = 20190513;
     p.departure_time = 14 * 3600;
@@ -57,7 +56,7 @@ fn polygons_grow_with_the_cutoff() {
     p.max_trip_duration = 40;
     p.n_threads = 2;
     let far = (-23.0, -46.0);
-    let s = transit_travel_time_surface(&net, &layer, &data, &[ORIGIN, far], &p, 10).unwrap();
+    let s = transit_travel_time_surface(&net, &[ORIGIN, far], &p, 10).unwrap();
     let rows = isochrone_polygons(&s, &[0.0, 30.0, 10.0, 20.0]).unwrap();
     assert_eq!(rows.len(), 6);
     let cut: Vec<(usize, f64)> = rows.iter().map(|r| (r.origin, r.isochrone)).collect();
@@ -92,9 +91,9 @@ fn polygons_grow_with_the_cutoff() {
 
 #[test]
 fn lines_are_the_edges_reached_banded() {
-    let (net, _) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let edges = street_edges(&net);
-    assert!(!edges.is_empty() && edges.len() <= net.n_edges());
+    assert!(!edges.is_empty() && edges.len() <= net.street().n_edges());
     for i in 0..edges.len() {
         let g = edges.geometry(i);
         assert!(g.len() >= 2);
@@ -132,9 +131,7 @@ fn lines_are_the_edges_reached_banded() {
 type Call = (Option<Mode>, i32, usize, &'static [(f64, f64)]);
 
 fn surface_of(
-    net: &peabiru_core::StreetNetwork,
-    layer: &peabiru_core::TransitLayer,
-    data: &TransitData,
+    net: &peabiru_core::Network,
     (mode, zoom, threads, origins): Call,
 ) -> peabiru_core::TravelTimeSurface {
     match mode {
@@ -155,7 +152,7 @@ fn surface_of(
             p.max_trip_duration = 30;
             p.percentiles = vec![50, 10];
             p.n_threads = threads;
-            transit_travel_time_surface(net, layer, data, origins, &p, zoom).unwrap()
+            transit_travel_time_surface(net, origins, &p, zoom).unwrap()
         }
     }
 }
@@ -182,23 +179,21 @@ fn repeated_surfaces_are_those_of_a_fresh_network() {
         calls.rotate_left(5);
     }
     let fresh = || build_from_dir(SPO, &BuildOptions::default()).unwrap();
-    let (net, layer) = fresh();
-    let data = TransitData::new(&net, &layer);
+    let net = fresh();
     let mut want = Vec::new();
     for &(m, z, _, origins) in &calls {
         let key = (m, z, origins.len());
         if want.iter().any(|(k, _)| *k == key) {
             continue;
         }
-        let (net, layer) = fresh();
-        let data = TransitData::new(&net, &layer);
-        want.push((key, surface_of(&net, &layer, &data, (m, z, 2, origins))));
+        let net = fresh();
+        want.push((key, surface_of(&net, (m, z, 2, origins))));
     }
     // and on a clone, which shares what the network kept
     let copy = net.clone();
     for (i, &call) in calls.iter().enumerate() {
         let net = if i % 7 == 6 { &copy } else { &net };
-        let got = surface_of(net, &layer, &data, call);
+        let got = surface_of(net, call);
         let (m, z, threads, origins) = call;
         let key = (m, z, origins.len());
         let w = &want.iter().find(|(k, _)| *k == key).unwrap().1;

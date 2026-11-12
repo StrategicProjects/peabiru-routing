@@ -32,7 +32,7 @@ query and thread.
 | `peabiru` | Python | [`python/`](python) (PyO3, maturin) | [PyPI](https://pypi.org/project/peabiru/) |
 | `peabiru` | JavaScript (browsers, Node) | [`js/`](js) (WebAssembly, wasm-bindgen) | [npm](https://www.npmjs.com/package/peabiru) |
 | `peabiru-core` | Rust | [`crates/peabiru-core`](crates/peabiru-core) | [crates.io](https://crates.io/crates/peabiru-core) |
-| `peabiru` | command line | [`crates/peabiru-cli`](crates/peabiru-cli) | |
+| `peabiru` | command line | [`crates/peabiru-cli`](crates/peabiru-cli) | crates.io (`peabiru-cli`), not published yet |
 
 The name comes from the Peabiru, the pre-Columbian network of trails that
 crossed South America from the Atlantic to the Andes.

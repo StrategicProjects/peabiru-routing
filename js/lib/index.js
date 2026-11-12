@@ -1434,7 +1434,7 @@ export class Network {
       this.#raw = raw;
       const [stops, patterns, services, frequencies] = raw.transit_sizes();
       this.#info = { vertices: raw.n_vertices(), edges: raw.n_edges(), elevation: raw.elevation(), feeds: Array.from(raw.feed_ids()), stops, patterns, services, frequencies: frequencies === 1 };
-      this.#warnings = Array.from(raw.r5r_warnings());
+      this.#warnings = Array.from(raw.build_warnings());
     } else {
       this.#pool = pool;
       this.#info = pool.slots[0].info;
@@ -1483,12 +1483,21 @@ export class Network {
    * Warnings about the build, which buildNetwork() also hands to
    * `onWarning`: those about the elevation raster (samples r5r stores
    * wrapped around, beyond +/-3276.7 m, such as SRTM's -32768 voids, or
-   * equal to the raster's no-data value). GTFS feeds that r5r refuses to
-   * build a network from are an error instead, as in r5r.
+   * equal to the raster's no-data value; street points near a pixel
+   * boundary of a projected raster). GTFS feeds that r5r refuses to build a
+   * network from are an error instead, as in r5r.
    */
-  r5rWarnings() {
+  buildWarnings() {
     this.#alive();
     return [...this.#warnings];
+  }
+
+  /**
+   * @deprecated The former name of buildWarnings(), which it returns; kept
+   * so that code written for 0.0.1 still runs.
+   */
+  r5rWarnings() {
+    return this.buildWarnings();
   }
 
   /** @internal `[services, active]` on a yyyymmdd date. */
@@ -1628,7 +1637,7 @@ export async function buildNetwork(input) {
     }
     network = new Network(PRIVATE, null, pool, tif !== undefined);
   }
-  for (const w of network.r5rWarnings()) warn(w);
+  for (const w of network.buildWarnings()) warn(w);
   return network;
 }
 

@@ -83,9 +83,8 @@ pub(crate) fn itineraries<'py>(
     p.max_fare = max_fare;
     p.n_threads = n_threads;
     p.osm_link_ids = osm_link_ids;
-    let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
     let (res, notes) = interruptible(py, &p.cancel, || {
-        detailed_itineraries_noted(&n.net, transit, &o, &d, &p)
+        detailed_itineraries_noted(&n.net, &o, &d, &p)
     })?;
     let out = PyDict::new(py);
     out.set_item("warnings", notes.warnings(o.len()))?;

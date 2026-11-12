@@ -60,7 +60,7 @@ test("the network's workers and the clamp of nThreads", async () => {
   assert.equal(inline.workers, 0);
   assert.equal(pool.workers, 4);
   assert.deepEqual(pool.info(), inline.info());
-  assert.deepEqual(pool.r5rWarnings(), inline.r5rWarnings());
+  assert.deepEqual(pool.buildWarnings(), inline.buildWarnings());
   assert.deepEqual(await pool.transitAvailability("2019-05-13"), await inline.transitAvailability("2019-05-13"));
   // a network that routes inline takes any nThreads, as one
   const m = await peabiru.travelTimeMatrix(inline, pts, pts, { mode: "CAR", nThreads: 8 });

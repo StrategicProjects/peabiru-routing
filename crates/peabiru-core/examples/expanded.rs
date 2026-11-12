@@ -10,7 +10,7 @@ mod common;
 
 use peabiru_core::{
     arrival_departure, arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix,
-    BuildOptions, TransitData, TransitParams,
+    BuildOptions, TransitParams,
 };
 
 fn hhmm(s: i32) -> String {
@@ -22,8 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let points = common::read_points(&dir, &[]);
     let mut opts = BuildOptions::default();
     opts.n_threads = 2;
-    let (net, layer) = build_from_dir(&dir, &opts)?;
-    let data = TransitData::new(&net, &layer);
+    let net = build_from_dir(&dir, &opts)?;
     let origin = &points.coords[..1];
 
     // Expanded: one row per departure minute (and per draw with frequencies).
@@ -33,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     params.time_window = 2;
     params.seed = Some(42);
     params.n_threads = 2;
-    let rows = expanded_travel_time_matrix(&net, &layer, &data, origin, &points.coords, &params)?;
+    let rows = expanded_travel_time_matrix(&net, origin, &points.coords, &params)?;
     // One destination, a ride on metro line 1 away.
     let to = points.ids.iter().position(|id| id == "89a8100c02fffff");
     for r in rows.origin(0).iter().filter(|r| Some(r.to as usize) == to) {
@@ -62,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     params.max_walk_time = max_trip;
     params.seed = Some(42);
     params.n_threads = 2;
-    let rows = arrival_travel_time_matrix(&net, &layer, &data, origin, &points.coords, &params)?;
+    let rows = arrival_travel_time_matrix(&net, origin, &points.coords, &params)?;
     for r in rows.origin(0).iter().take(5) {
         if let Some(t) = &r.trip {
             println!(

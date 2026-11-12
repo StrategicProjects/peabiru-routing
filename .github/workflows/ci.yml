@@ -61,6 +61,19 @@ jobs:
       - run: rustup toolchain install 1.81 --profile minimal
       - run: cargo +1.81 check --locked -p peabiru-core -p peabiru-cli
 
+  public-api:
+    name: public API of peabiru-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # the versions tools/public_api.sh names: the snapshot depends on how
+      # this nightly's rustdoc describes the items
+      - run: rustup toolchain install nightly-2026-11-08 --profile minimal
+      - run: cargo install cargo-public-api --version 0.52.0 --locked
+      - name: The public API matches tools/public-api/peabiru-core.txt
+        run: bash tools/public_api.sh
+
   python:
     name: Python ${{ matrix.python }}
     runs-on: ubuntu-24.04

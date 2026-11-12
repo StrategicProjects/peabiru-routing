@@ -72,7 +72,12 @@ impl WebMercatorGrid {
     /// made from). `zoom` must be 9 to 12, and the grid at most 5,000,000
     /// cells, as R5 requires; [`RouteError::Invalid`] otherwise, and for a
     /// network without streets.
-    pub fn for_network(net: &StreetNetwork, zoom: i32) -> Result<Self, RouteError> {
+    pub fn for_network(network: &crate::Network, zoom: i32) -> Result<Self, RouteError> {
+        Self::for_street(network.street(), zoom)
+    }
+
+    /// [`WebMercatorGrid::for_network`] of a street network.
+    pub(crate) fn for_street(net: &StreetNetwork, zoom: i32) -> Result<Self, RouteError> {
         check_zoom(zoom)?;
         let Some((min_lat, max_lat, min_lon, max_lon)) = net.envelope else {
             return Err(RouteError::Invalid(

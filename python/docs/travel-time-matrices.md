@@ -282,9 +282,12 @@ of the result (accessibility files also keep `cutoff` under
 `"fixed_exponential"`, as r5r's placeholder `0`), fields holding `,` or `"`
 quoted, a missing value as an empty field, decimals as Java writes them
 (`2.0`, `1.0E-4`), lines ended by `\n` (`\r\n` on Windows). An origin with
-no row gets no file (accessibility writes one for every origin). The id is
-not sanitized: an id with `/` names a file in a subdirectory, an error when
-that does not exist. An existing file of the same name is replaced, other
+no row gets no file (accessibility writes one for every origin). The file
+names are built from the ids, so an id that cannot name a file in the
+directory (one with a path separator `/` or `\`, or NUL, and on Windows
+`< > : " | ? *`) raises `ValueError` before anything is routed or written
+(r5r fails on it in Java, or writes a file of another name). An existing
+file of the same name is replaced, other
 files are left alone. As in r5r, `"WALK"` is then routed from the origins
 even when there are fewer destinations, and the rule that blanks out trips
 over `max_trip_duration` in a returned result is not applied to the files.

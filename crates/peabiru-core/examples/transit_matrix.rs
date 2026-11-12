@@ -7,9 +7,7 @@
 
 mod common;
 
-use peabiru_core::{
-    build_from_dir, transit_travel_time_matrix, BuildOptions, TransitData, TransitParams,
-};
+use peabiru_core::{build_from_dir, transit_travel_time_matrix, BuildOptions, TransitParams};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dir = common::data_dir();
@@ -18,9 +16,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // One .pbf plus every GTFS .zip of the directory, as r5r's build_network().
     let mut opts = BuildOptions::default();
     opts.n_threads = 2;
-    let (net, layer) = build_from_dir(&dir, &opts)?;
-    // Transfers and egress distances, computed once and shared by every query.
-    let data = TransitData::new(&net, &layer);
+    // The stops are linked to the streets, and the transfers between them
+    // found, once, when the network is built.
+    let net = build_from_dir(&dir, &opts)?;
+    let layer = net.transit().ok_or("the directory has no GTFS feed")?;
     println!("{} stops, {} patterns", layer.n_stops(), layer.n_patterns());
 
     // Monday 2019-05-13, departures from 14:00 (seconds after midnight)
@@ -34,8 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     params.seed = Some(42);
     params.n_threads = 2;
     // Whole minutes at each percentile; None = no time.
-    let m =
-        transit_travel_time_matrix(&net, &layer, &data, &points.coords, &points.coords, &params)?;
+    let m = transit_travel_time_matrix(&net, &points.coords, &points.coords, &params)?;
     for j in 0..5 {
         println!(
             "{} -> {}: {:?} min at percentiles {:?}",

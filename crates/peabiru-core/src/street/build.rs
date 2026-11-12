@@ -16,7 +16,7 @@ use crate::NetworkError;
 /// Smallest strongly connected component kept per mode (R5 `MIN_SUBGRAPH_SIZE`).
 pub const MIN_SUBGRAPH_SIZE: usize = 40;
 
-/// Options for [`build_network`] and [`build_from_dir`](crate::build_from_dir).
+/// Options for [`build_network`](crate::build_network) and [`build_from_dir`](crate::build_from_dir).
 /// Fill it in by changing the fields of [`BuildOptions::default()`].
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
@@ -42,20 +42,13 @@ pub struct BuildOptions {
     /// [`build_from_bytes_with_elevation`](crate::build_from_bytes_with_elevation)
     /// takes its bytes. [`Elevation::None`](crate::Elevation::None) (the
     /// default) ignores any raster; so does a build with no raster, and so
-    /// does [`build_network`], which reads a `.pbf` file only. Unlike r5r,
+    /// does [`build_network`](crate::build_network), which reads a `.pbf` file only. Unlike r5r,
     /// whose default is `"TOBLER"`, the default here is no elevation.
     pub elevation: crate::Elevation,
 }
 
-/// Read an OpenStreetMap `.pbf` file and build the street network for
-/// walking, cycling and driving, as R5 7.6 builds it for r5r (no transit;
-/// see [`build_from_dir`](crate::build_from_dir) for that).
-///
-/// A file that cannot be read or decoded, or that gives no street edge at
-/// all (empty, a header only, or no routable way), is an error naming the
-/// file. R5 fails on such a file too, with an
-/// `ArrayIndexOutOfBoundsException` from `StreetLayer.loadFromOsm`.
-pub fn build_network(
+/// The work of [`crate::build_network`].
+pub(crate) fn build_network(
     path: impl AsRef<std::path::Path>,
     opts: &BuildOptions,
 ) -> Result<StreetNetwork, NetworkError> {

@@ -228,6 +228,12 @@ export declare class Network {
    * the raster's no-data value; street points near a pixel boundary of a
    * projected raster).
    */
+  buildWarnings(): string[];
+  /**
+   * The same as `buildWarnings()`, its name before version 0.1.0.
+   *
+   * @deprecated Use `buildWarnings()`; this alias returns the same list.
+   */
   r5rWarnings(): string[];
 }
 

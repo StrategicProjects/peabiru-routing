@@ -9,7 +9,7 @@ mod common;
 
 use peabiru_core::{
     build_from_dir, r5r_trip_limits, transit_accessibility, AccessibilityParams, BuildOptions,
-    DecayFunction, Destinations, TransitData, TransitParams,
+    DecayFunction, Destinations, TransitParams,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,8 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let points = common::read_points(&dir, &["jobs"]);
     let mut opts = BuildOptions::default();
     opts.n_threads = 2;
-    let (net, layer) = build_from_dir(&dir, &opts)?;
-    let data = TransitData::new(&net, &layer);
+    let net = build_from_dir(&dir, &opts)?;
 
     let decay = DecayFunction::Logistic {
         standard_deviation_minutes: 5.0,
@@ -38,15 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut a = AccessibilityParams::default();
     a.cutoffs = cutoffs;
     a.decay = decay;
-    let acc = transit_accessibility(
-        &net,
-        &layer,
-        &data,
-        &points.coords,
-        &destinations,
-        &params,
-        &a,
-    )?;
+    let acc = transit_accessibility(&net, &points.coords, &destinations, &params, &a)?;
     // One value per origin, opportunity column, percentile and cutoff.
     for (i, id) in points.ids.iter().enumerate().take(5) {
         println!(

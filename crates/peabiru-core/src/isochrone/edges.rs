@@ -10,7 +10,7 @@ use crate::street::StreetNetwork;
 /// The street edges of a network as r5r's `street_network_to_sf()` lists
 /// them: every directed edge but the connectors of transit stops and
 /// park-and-rides, in edge order, with their attributes, geometry and
-/// centroid. Made by [`street_edges`].
+/// centroid. Made by [`street_edges`](crate::street_edges).
 #[derive(Debug, Clone)]
 pub struct StreetEdges {
     /// Directed edge index of each row.
@@ -30,9 +30,8 @@ pub struct StreetEdges {
     geometry: Vec<[f64; 2]>,
 }
 
-/// The street edges of `net`, as r5r's `street_network_to_sf(r5r_network)$edges`
-/// (see [`StreetEdges`]).
-pub fn street_edges(net: &StreetNetwork) -> StreetEdges {
+/// The work of [`crate::street_edges`].
+pub(crate) fn street_edges(net: &StreetNetwork) -> StreetEdges {
     let mut t = StreetEdges {
         edges: Vec::new(),
         centroids: Vec::new(),

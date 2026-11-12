@@ -88,7 +88,7 @@ R5 keeps elevations as 16-bit integers of decimetres, so values beyond
 R5 does, so the slope costs are r5r's, and warns (r5r is silent), counting
 those samples and the ones equal to the raster's no-data value. The
 warning goes to `onWarning` (by default `console.warn`) and stays with the
-network, in `network.r5rWarnings()`:
+network, in `network.buildWarnings()`:
 
 ```js
 {{#include ../examples/elevation.mjs:voids}}

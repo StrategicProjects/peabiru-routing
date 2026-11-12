@@ -120,7 +120,10 @@ network.free();
 - `readonly workers: number`: Number of workers of the network; 0 when it routes on the calling thread.
 - `info(): NetworkInfo`: The sizes of the network (see [`NetworkInfo`](#NetworkInfo)).
 - `transitAvailability(date: Date | string): Promise<{ services: number; active: number }>`: The number of services in the network and of those running on `date` (a Date, read in local time, or a string `"YYYY-MM-DD"`): the check the routing functions make on their departure date.
-- `r5rWarnings(): string[]`: The warnings of the build, which `buildNetwork()` also hands to `onWarning`: those about the elevation raster (samples stored wrapped around, beyond +/-3276.7 m, such as SRTM's -32768 voids, or equal to the raster's no-data value; street points near a pixel boundary of a projected raster).
+- `buildWarnings(): string[]`: The warnings of the build, which `buildNetwork()` also hands to `onWarning`: those about the elevation raster (samples stored wrapped around, beyond +/-3276.7 m, such as SRTM's -32768 voids, or equal to the raster's no-data value; street points near a pixel boundary of a projected raster).
+- `r5rWarnings(): string[]`: The same as `buildWarnings()`, its name before version 0.1.0.
+
+@deprecated Use `buildWarnings()`; this alias returns the same list.
 
 ### NetworkInfo {#NetworkInfo}
 

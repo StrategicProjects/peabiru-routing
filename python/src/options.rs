@@ -98,8 +98,7 @@ pub(crate) fn trip_options_py<'py>(
     p.itineraries = itineraries;
     p.osm_link_ids = osm_link_ids;
     p.n_threads = n_threads;
-    let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
-    let res = interruptible(py, &p.cancel, || trip_options(&n.net, transit, &o, &d, &p))?;
+    let res = interruptible(py, &p.cancel, || trip_options(&n.net, &o, &d, &p))?;
     if let Some((dir, from, to)) = output {
         let ids: Vec<(String, String)> = from.into_iter().zip(to).collect();
         let pts: Vec<_> = o.iter().copied().zip(d.iter().copied()).collect();

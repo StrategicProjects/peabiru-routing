@@ -137,7 +137,8 @@ counter or routing log is printed.}
 
 \item{output_dir}{\code{NULL} (the default), or the path of an existing
 directory: instead of returning the result, write it there, one CSV
-file per origin, \verb{from_<origin id>.csv} (the id is not sanitized; an
+file per origin, \verb{from_<origin id>.csv} (an id that cannot name a file there, such as one with a path
+separator, is an error; an
 existing file of that name is replaced, other files are left alone),
 and return \code{output_dir}. The origins are routed a slice at a time and
 each slice is written before the next one is routed, so the whole

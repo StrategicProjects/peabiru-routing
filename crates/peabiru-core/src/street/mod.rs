@@ -16,9 +16,9 @@ pub(crate) mod restrictions;
 pub(crate) mod router;
 pub(crate) mod scenario;
 
-pub use build::{build_network, BuildOptions};
+pub use build::BuildOptions;
 pub(crate) use restrictions::TurnRestriction;
-pub use router::{street_travel_time_matrix, Mode, RouteParams, StreetEngine, StreetMatrix};
+pub use router::{Mode, RouteParams, StreetEngine, StreetMatrix};
 pub use scenario::{CarSpeeds, LtsChange, LtsLine, Scenario, SpeedPolygon};
 
 /// Edge flags (bit set per directed edge).
@@ -61,7 +61,7 @@ pub mod vertex_flags {
 }
 
 /// A routable street network for walking, cycling and driving, built by
-/// [`build_network`] or, with its transit stops linked to the streets, by
+/// [`build_network`](crate::build_network) or, with its transit stops linked to the streets, by
 /// [`build_from_dir`](crate::build_from_dir).
 ///
 /// A network is read-only once built: share it between threads by

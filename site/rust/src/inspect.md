@@ -6,14 +6,14 @@ do (`find_snap()`, `street_network_bbox()`, `street_network_to_sf()`,
 
 | Function | What it gives |
 |---|---|
-| `find_snap(net, points, radius_m, mode)` | where each point meets the streets open to `mode`: the snapped point and its distance, or `None` |
-| `StreetNetwork::bbox()` | the box of the street network, `[xmin, ymin, xmax, ymax]` |
-| `street_vertices(net)` | the street vertices, with their position and park-and-ride flag |
-| `street_edges(net)` | the directed street edges: OSM way id, street class, length, permissions, car speed, level of traffic stress, line |
-| `transit_stops(net, layer)` | the stops, with their position on the streets and whether they are linked to them |
-| `transit_routes(net, layer)` | one row per trip pattern: agency, route ids and names, mode, line |
-| `transit_service_dates(layer)` | the dates on which some service runs |
-| `TransitLayer::n_services_active_on(date)` | how many services run on a date |
+| `find_snap(network, points, radius_m, mode)` | where each point meets the streets open to `mode`: the snapped point and its distance, or `None` |
+| `network.street().bbox()` | the box of the street network, `[xmin, ymin, xmax, ymax]` |
+| `street_vertices(network)` | the street vertices, with their position and park-and-ride flag |
+| `street_edges(network)` | the directed street edges: OSM way id, street class, length, permissions, car speed, level of traffic stress, line |
+| `transit_stops(network)` | the stops, with their position on the streets and whether they are linked to them |
+| `transit_routes(network)` | one row per trip pattern: agency, route ids and names, mode, line |
+| `transit_service_dates(network)` | the dates on which some service runs |
+| `network.transit()?.n_services_active_on(date)` | how many services run on a date |
 
 The rows come in r5r's order, which for the street vertices is that of a
 Java `HashSet`, reproduced.
@@ -38,7 +38,7 @@ load at all. `NetworkError::high_priority_gtfs_errors()` then gives each
 such feed with its number of `HIGH` errors. With
 `BuildOptions::ignore_gtfs_errors = true` the feeds are not checked: the
 network is built from what can be read, leaving out trips that refer to
-stops or routes that do not exist, and `TransitLayer::r5r_warnings()` says
+stops or routes that do not exist, and `Network::build_warnings()` says
 which feeds r5r would refuse.
 
 ## Example

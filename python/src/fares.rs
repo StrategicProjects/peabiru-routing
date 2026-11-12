@@ -8,7 +8,7 @@ use super::{
 };
 use peabiru_core::{
     pareto_frontier, read_fare_structure, setup_fare_structure, write_fare_structure, FarePerRoute,
-    FarePerTransfer, FarePerType, FareStructure, TransitLayer,
+    FarePerTransfer, FarePerType, FareStructure,
 };
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict};
@@ -177,9 +177,7 @@ fn fare_setup<'py>(
     by: &str,
 ) -> PyResult<Bound<'py, PyDict>> {
     let n = network.get();
-    let empty = TransitLayer::default();
-    let layer = n.transit.as_ref().map_or(&empty, |t| &t.layer);
-    let s = setup_fare_structure(layer, base_fare, by).map_err(value_err)?;
+    let s = setup_fare_structure(&n.net, base_fare, by).map_err(value_err)?;
     to_py(py, &s)
 }
 
@@ -205,10 +203,7 @@ fn fare_write<'py>(py: Python<'py>, fare: &Bound<'py, PyDict>) -> PyResult<Bound
 fn fare_check(network: &Bound<'_, Network>, fare: &Bound<'_, PyDict>) -> PyResult<()> {
     let s = from_py(fare)?;
     s.validate().map_err(value_err)?;
-    if let Some(t) = &network.get().transit {
-        s.validate_for(&t.layer).map_err(value_err)?;
-    }
-    Ok(())
+    s.validate_for(&network.get().net).map_err(value_err)
 }
 
 /// r5r's `pareto_frontier()`: `(from, to, percentile, travel_time)` as
@@ -276,14 +271,14 @@ fn pareto<'py>(
         n_threads,
     );
     p.fare_structure = Some(Arc::new(from_py(fare)?));
-    let tr = if with_transit {
-        let t = transit(n)?;
-        Some((&t.layer, &t.data))
+    if with_transit {
+        transit(n)?;
     } else {
-        None
-    };
+        // by `mode` alone
+        p.transit_modes.clear();
+    }
     let f = interruptible(py, &p.cancel, || {
-        pareto_frontier(&n.net, tr, &o, &d, &p, &fare_cutoffs)
+        pareto_frontier(&n.net, &o, &d, &p, &fare_cutoffs)
     })?;
     let r = &f.rows;
     let out = PyDict::new(py);

@@ -10,7 +10,8 @@
 use super::search::frequency_board;
 use super::*;
 use crate::transit::layer::FrequencyEntry;
-use crate::{BuildOptions, TransitMode};
+use crate::transit::matrix::TransitData;
+use crate::{BuildOptions, TransitLayer, TransitMode};
 
 const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
 
@@ -235,7 +236,9 @@ fn properties(
         ..Default::default()
     };
     let transit = Some((layer, data));
-    let run = |p: &TripOptionsParams| trip_options(net, transit, o, d, p).expect("options");
+    let run = |p: &TripOptionsParams| {
+        crate::itinerary::trip_options_impl(net, transit, o, d, p).expect("options")
+    };
     let all = base.resolved_criteria().unwrap();
     let full = run(&base);
     let mut n = 0;
@@ -351,7 +354,7 @@ fn properties(
 
 #[test]
 fn properties_on_sao_paulo() {
-    let (net, layer) = crate::build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let (net, layer) = crate::transit::build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let data = TransitData::new(&net, &layer);
     let pts = read_points(&format!("{SPO}/spo_points.csv"));
     let mut rng = super::testing::Rng::new(5);
@@ -361,7 +364,7 @@ fn properties_on_sao_paulo() {
         d.push(pts[rng.below(pts.len())]);
     }
     // r5r's flat fare by mode, with a 60-minute integration
-    let mut fs = crate::setup_fare_structure(&layer, 4.4, "MODE").unwrap();
+    let mut fs = crate::fares::setup_fare_structure(&layer, 4.4, "MODE").unwrap();
     fs.transfer_time_allowance = 60.0;
     for t in &mut fs.fares_per_transfer {
         t.fare = 6.0;
@@ -373,7 +376,7 @@ fn properties_on_sao_paulo() {
 
 #[test]
 fn cancelled_calls_stop() {
-    let (net, layer) = crate::build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let (net, layer) = crate::transit::build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let data = TransitData::new(&net, &layer);
     let pts = read_points(&format!("{SPO}/spo_points.csv"));
     let p = TripOptionsParams {
@@ -383,13 +386,14 @@ fn cancelled_calls_stop() {
         ..Default::default()
     };
     p.cancel.cancel();
-    let r = trip_options(&net, Some((&layer, &data)), &pts, &pts, &p);
+    let r = crate::itinerary::trip_options_impl(&net, Some((&layer, &data)), &pts, &pts, &p);
     assert!(matches!(r, Err(RouteError::Cancelled)), "{r:?}");
     // and the fare criterion without a fare structure is an error
     let mut q = p.clone();
     q.cancel = CancelToken::default();
     q.criteria = vec![Criterion::Fare];
-    let r = trip_options(&net, Some((&layer, &data)), &pts[..1], &pts[..1], &q);
+    let r =
+        crate::itinerary::trip_options_impl(&net, Some((&layer, &data)), &pts[..1], &pts[..1], &q);
     assert!(matches!(r, Err(RouteError::Invalid(m)) if m.contains("FARE")));
 }
 
@@ -398,7 +402,7 @@ fn cancelled_calls_stop() {
 fn properties_on_porto_alegre() {
     let dir = std::env::var("PEABIRU_OPTIONS_POA").expect("dir");
     let fares = std::env::var("PEABIRU_OPTIONS_POA_FARES").expect("fares");
-    let (net, layer) = crate::build_from_dir(&dir, &BuildOptions::default()).unwrap();
+    let (net, layer) = crate::transit::build_from_dir(&dir, &BuildOptions::default()).unwrap();
     let data = TransitData::new(&net, &layer);
     let fs = crate::read_fare_structure(&std::fs::read(fares).unwrap(), "UTF-8").unwrap();
     let pts = read_points(&std::env::var("PEABIRU_OPTIONS_POA_POINTS").expect("points"));

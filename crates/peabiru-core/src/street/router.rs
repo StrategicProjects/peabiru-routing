@@ -45,7 +45,7 @@ const RIGHT_TURN: i32 = 10;
 const LEFT_TURN: i32 = 30;
 const U_TURN: i32 = 90;
 
-/// How [`street_travel_time_matrix`] computes a street matrix. Every choice gives
+/// How [`street_travel_time_matrix`](crate::street_travel_time_matrix) computes a street matrix. Every choice gives
 /// the same matrix; they differ only in speed and memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[non_exhaustive]
@@ -93,7 +93,7 @@ pub struct RouteParams {
     /// which nothing cancels unless a clone of it is kept.
     pub cancel: CancelToken,
     /// How a street travel-time matrix is computed (see [`StreetEngine`]);
-    /// it changes the speed of [`street_travel_time_matrix`], never its result.
+    /// it changes the speed of [`street_travel_time_matrix`](crate::street_travel_time_matrix), never its result.
     /// A call with a [`Scenario`](crate::Scenario) always takes the search.
     pub engine: StreetEngine,
     /// Car speeds and levels of traffic stress changed for this call
@@ -133,8 +133,8 @@ impl RouteParams {
     /// street routing function calls it first; [`RouteError::Invalid`]
     /// says what is wrong.
     pub fn validate(&self) -> Result<(), RouteError> {
-        check_speed("walk_speed_kmh", self.walk_speed_kmh)?;
-        check_speed("bike_speed_kmh", self.bike_speed_kmh)?;
+        check_speed("walk_speed_kmh", self.walk_speed_kmh).map_err(RouteError::Invalid)?;
+        check_speed("bike_speed_kmh", self.bike_speed_kmh).map_err(RouteError::Invalid)?;
         // r5r `set_max_lts`: 1 to 4 (R5 treats anything else as 4)
         if !(1..=4).contains(&self.max_lts) {
             return Err(RouteError::Invalid(format!(
@@ -1193,18 +1193,8 @@ impl StreetMatrix {
     }
 }
 
-/// Street travel-time matrix in whole minutes by walking, cycling or
-/// driving, as r5r's `travel_time_matrix()` with a single street mode.
-/// Points are `(lat, lon)` degrees. [`RouteError::Invalid`] when the
-/// parameters are invalid (see [`RouteParams::validate`]),
-/// [`RouteError::Cancelled`] when `params.cancel` is cancelled before the
-/// matrix is complete.
-///
-/// `params.engine` chooses how the matrix is computed (see
-/// [`StreetEngine`]); the result is the same either way. A contraction
-/// hierarchy built here is kept with the network and makes later matrices
-/// of the same mode and speeds faster.
-pub fn street_travel_time_matrix(
+/// The work of [`crate::street_travel_time_matrix`].
+pub(crate) fn street_travel_time_matrix(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
@@ -1688,7 +1678,8 @@ pub(crate) mod tests {
     fn dump_car_vertex_times() {
         let spec = std::env::var("PEABIRU_DUMP").expect("PEABIRU_DUMP");
         let a: Vec<&str> = spec.split(',').collect();
-        let (net, _) = crate::build_from_dir(a[0], &crate::BuildOptions::default()).unwrap();
+        let (net, _) =
+            crate::transit::build_from_dir(a[0], &crate::BuildOptions::default()).unwrap();
         let (lat, lon): (f64, f64) = (a[1].parse().unwrap(), a[2].parse().unwrap());
         let g = ModeGraph::with_speeds(&net, Mode::Car, 3.6, 12.0, 2);
         let o = find_split(&net, lat, lon, Mode::Car, &mut Vec::new()).unwrap();

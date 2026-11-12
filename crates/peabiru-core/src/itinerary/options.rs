@@ -17,8 +17,9 @@ use crate::options::{Criteria, TripOption, TripOptionsParams};
 use crate::street::link::{find_split, Split};
 use crate::street::p2p::Router;
 use crate::street::{Mode, StreetNetwork};
+use crate::transit::matrix::TransitData;
 use crate::transit::raptor::route_type_mode;
-use crate::{RouteError, TransitData, TransitLayer};
+use crate::{RouteError, TransitLayer};
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

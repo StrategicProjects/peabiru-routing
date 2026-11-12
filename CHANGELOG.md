@@ -53,6 +53,50 @@ routing and network functions (without r5r's functions for Java).
 
 ### Rust crate and CLI
 
+- **Breaking:** `build_from_dir`, `build_from_bytes`,
+  `build_from_bytes_with_elevation` and `build_network` return a `Network`
+  (the street network and, with GTFS feeds, the transit layer linked to
+  it), and every routing and inspection function takes `&Network` in place
+  of the street network, transit layer and `TransitData` it took apart
+  (`TransitData` is no longer public). `Network::street()`,
+  `Network::transit()` (`None` without feeds) and
+  `Network::build_warnings()` (the feeds built from with
+  `ignore_gtfs_errors`, then the elevation raster's warnings) describe it.
+  Public transport functions return `RouteError::Invalid` on a network
+  without it. `pareto_frontier` routes by the access mode alone when
+  `TransitParams::transit_modes` is empty; `setup_fare_structure`,
+  `FareStructure::validate_for` and `WebMercatorGrid::for_network` take the
+  network too.
+- **Breaking:** `RouteError` no longer converts from `String` or `&str`;
+  build `RouteError::Invalid` explicitly.
+- `output_dir` (R, Python, the CLI's `--output-dir`; the core's
+  `CsvOutput::new`, now fallible, `write_itineraries_csv` and
+  `write_trip_options_csv`): an id that cannot name a file in the
+  directory (a path separator `/` or `\`, NUL; on Windows also
+  `< > : " | ? *` or a control character) is an error naming it, before
+  anything is routed or written; r5r fails on such ids in Java or writes a
+  file of another name. `trip_options()` uses the same rule.
+- A snapshot of the public API (`tools/public-api/peabiru-core.txt`),
+  checked in CI, so that changes to it are deliberate.
+- **The command-line tool, redesigned** to be published as the crate
+  `peabiru-cli` (binary `peabiru`): one command per function of the
+  packages (`info`/`build`, `matrix`, `expanded`, `arrival`,
+  `accessibility`, `isochrone`, `itineraries`, `pareto`, `options`,
+  `snap`, `network`, `fares setup|read|write`, `completions`), named
+  options with the packages' argument names in kebab-case, defaults and
+  checks (`--departure 2019-05-13T14:00`, `--mode WALK,BUS`,
+  `--max-walk-time Inf`, `--fare-structure fares.zip`, `--elevation`,
+  `--new-carspeeds`, `--walk-resolution`, ...), networks as directories or
+  a `.pbf` with `--gtfs` and `--tif`, CSV and GeoJSON output, `--output-dir`
+  as r5r's, help with examples for every command, exit status 0/1/2 and
+  130 on Ctrl-C. What the environment variables switched
+  (`PEABIRU_ELEVATION`, `PEABIRU_IGNORE_GTFS_ERRORS`, `PEABIRU_SCENARIO`,
+  `PEABIRU_STREET_MATRIX`) is now an option (`--elevation`,
+  `--ignore-gtfs-errors`, `--new-carspeeds`/`--new-lts`,
+  `--street-engine`). Every command gives the R package's values
+  (`bench/compare/cli_parity.R`). The old positional spellings
+  (`ttm`, `transit`, `dump-edges`, ...) still run for the repository's
+  scripts, undocumented, also as `peabiru dev <command>`.
 - API: `find_snap`, `StreetNetwork::bbox`, `street_vertices`,
   `transit_stops`, `transit_routes`, `transit_service_dates`, `gtfs_errors`,
   `detailed_itineraries`, `write_itineraries_csv`, `Scenario` and its parts,
@@ -101,6 +145,10 @@ routing and network functions (without r5r's functions for Java).
 
 ### JavaScript
 
+- `network.buildWarnings()`: the warnings of the build, which are peabiru's
+  own (elevation voids, samples on a pixel boundary, ...) as well as r5r's;
+  `network.r5rWarnings()`, its former name, is a deprecated alias that
+  returns the same list.
 - New functions: `detailedItineraries()`, `setupFareStructure()`,
   `readFareStructure()`, `writeFareStructure()`, `paretoFrontier()`,
   `findSnap()`, `streetNetworkBbox()`, `streetNetworkToSf()`,

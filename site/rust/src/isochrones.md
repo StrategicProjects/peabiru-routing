@@ -11,7 +11,7 @@ it, traced with the same algorithm as the R package isoband.
 
 ```rust,ignore
 pub fn street_travel_time_surface(
-    net: &StreetNetwork,
+    network: &Network,
     origins: &[(f64, f64)],
     mode: Mode,
     params: &RouteParams,
@@ -20,9 +20,7 @@ pub fn street_travel_time_surface(
 ) -> Result<TravelTimeSurface, RouteError>
 
 pub fn transit_travel_time_surface(
-    net: &StreetNetwork,
-    layer: &TransitLayer,
-    data: &TransitData,
+    network: &Network,
     origins: &[(f64, f64)],
     p: &TransitParams,
     zoom: i32,

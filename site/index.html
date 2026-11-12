@@ -270,21 +270,23 @@ const ttm = await peabiru.travelTimeMatrix(network, points, points, {
     <div class="snippet">
       <h3>Rust and the command line <span class="tag ok">works today</span></h3>
 <pre><code><span class="c"># cargo add peabiru-core</span>
-use peabiru_core::{build_from_dir, transit_travel_time_matrix, BuildOptions, TransitData, TransitParams};
+use peabiru_core::{build_from_dir, transit_travel_time_matrix, BuildOptions, TransitParams};
 
 <span class="c">// the sample in the repository; any directory with one .pbf and GTFS .zip files</span>
-let (net, layer) = build_from_dir("r/inst/extdata/spo", &amp;BuildOptions::default())?;
-let data = TransitData::new(&amp;net, &amp;layer);
+let network = build_from_dir("r/inst/extdata/spo", &amp;BuildOptions::default())?;
 let mut params = TransitParams::default();
 params.date = 20190513;
 params.departure_time = 14 * 3600;
 params.seed = Some(42);
-let ttm = transit_travel_time_matrix(&amp;net, &amp;layer, &amp;data, &amp;points, &amp;points, &amp;params)?;</code></pre>
-<pre><code><span class="c"># the same from the shell, CSV in and out</span>
-cargo run --release -p peabiru-cli -- transit r/inst/extdata/spo \
-    r/inst/extdata/spo/spo_points.csv ttm.csv \
-    --date 2019-05-13 --time 14:00:00 --tw 10 --percentiles 25,50,75 --seed 42</code></pre>
-      <p class="muted"><a href="rust/">The Rust guide</a> · <a href="rust/api/peabiru_core/">API reference</a></p>
+let ttm = transit_travel_time_matrix(&amp;network, &amp;points, &amp;points, &amp;params)?;</code></pre>
+<pre><code><span class="c"># the same from the shell, CSV in and out (crate peabiru-cli, binary peabiru)</span>
+peabiru matrix r/inst/extdata/spo --origins r/inst/extdata/spo/spo_points.csv \
+    --mode WALK,TRANSIT --departure 2019-05-13T14:00 --percentiles 25,50,75 \
+    --seed 42 -o ttm.csv</code></pre>
+      <p class="muted"><a href="rust/">The Rust guide</a> · <a href="rust/api/peabiru_core/">API reference</a> ·
+      <a href="rust/cli.html">The command line</a>: matrices, accessibility, isochrones, itineraries,
+      fares and network exports without R or Python, from the crate <code>peabiru-cli</code>
+      (to be published with version 0.1.0; for now built from the repository)</p>
     </div>
   </div>
 </section>

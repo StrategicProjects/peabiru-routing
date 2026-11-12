@@ -12,7 +12,7 @@ use crate::street::{Mode, StreetNetwork};
 use crate::transit::matrix::{check_date, weekday};
 use crate::{RouteError, TransitLayer};
 
-/// Where a point meets the street network: the result of [`find_snap`].
+/// Where a point meets the street network: the result of [`find_snap`](crate::find_snap).
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[non_exhaustive]
 pub struct Snap {
@@ -25,12 +25,8 @@ pub struct Snap {
     pub distance_m: f64,
 }
 
-/// Where each point (`(lat, lon)` degrees) snaps to the streets `mode` may
-/// use, as r5r's `find_snap()`: the nearest point of an edge within
-/// `radius_m` metres, looked for first within 300 m when `radius_m` is
-/// larger (R5 `StreetLayer.findSplit`). `None` for a point with no such
-/// edge. [`RouteError::Invalid`] for a negative or non-finite radius.
-pub fn find_snap(
+/// The work of [`crate::find_snap`].
+pub(crate) fn find_snap(
     net: &StreetNetwork,
     points: &[(f64, f64)],
     radius_m: f64,
@@ -85,7 +81,7 @@ impl StreetNetwork {
 
 /// The vertices of r5r's `street_network_to_sf()$vertices`: those at an end
 /// of a street edge (connectors of transit stops and park-and-rides left
-/// out), in r5r's order. Made by [`street_vertices`].
+/// out), in r5r's order. Made by [`street_vertices`](crate::street_vertices).
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct StreetVertices {
@@ -102,13 +98,8 @@ pub struct StreetVertices {
     pub bike_sharing: Vec<bool>,
 }
 
-/// The street vertices r5r's `street_network_to_sf()` lists (see
-/// [`StreetVertices`]). r5r collects them in a Java `HashSet<Integer>`
-/// while it walks the edges, and lists them in that set's iteration order,
-/// which this reproduces: by bucket of the set's final table (the hash of
-/// an `Integer` spread as `h ^ (h >>> 16)`), and within a bucket in the
-/// order they were added.
-pub fn street_vertices(net: &StreetNetwork) -> StreetVertices {
+/// The work of [`crate::street_vertices`].
+pub(crate) fn street_vertices(net: &StreetNetwork) -> StreetVertices {
     let mut seen = vec![false; net.n_vertices()];
     let mut order: Vec<u32> = Vec::new();
     for e in 0..net.n_edges() {
@@ -156,7 +147,7 @@ fn java_hash_set_order(keys: Vec<u32>) -> Vec<u32> {
 }
 
 /// The stops of r5r's `transit_network_to_sf()$stops`, one per stop in
-/// stop index order. Made by [`transit_stops`].
+/// stop index order. Made by [`transit_stops`](crate::transit_stops).
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct TransitStops {
@@ -175,10 +166,8 @@ pub struct TransitStops {
     pub linked_to_street: Vec<bool>,
 }
 
-/// The transit stops of a network (see [`TransitStops`]): the position is
-/// that of the stop's vertex in the street network, the stop's coordinates
-/// rounded down to 1e-7 degrees, as r5r reports it.
-pub fn transit_stops(net: &StreetNetwork, layer: &TransitLayer) -> TransitStops {
+/// The work of [`crate::transit_stops`].
+pub(crate) fn transit_stops(net: &StreetNetwork, layer: &TransitLayer) -> TransitStops {
     let n = layer.n_stops();
     let mut t = TransitStops::default();
     for s in 0..n {
@@ -198,7 +187,7 @@ pub fn transit_stops(net: &StreetNetwork, layer: &TransitLayer) -> TransitStops 
 
 /// The routes of r5r's `transit_network_to_sf()$routes`: one row per trip
 /// pattern (the trips of a route with the same stops), in pattern order.
-/// Made by [`transit_routes`].
+/// Made by [`transit_routes`](crate::transit_routes).
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct TransitRoutes {
@@ -264,10 +253,8 @@ fn transit_mode(route_type: i32) -> Option<&'static str> {
     })
 }
 
-/// The transit routes of a network (see [`TransitRoutes`]).
-/// [`RouteError::Invalid`] for a route type R5 does not know (r5r fails
-/// with Java's `IllegalArgumentException` there).
-pub fn transit_routes(
+/// The work of [`crate::transit_routes`].
+pub(crate) fn transit_routes(
     net: &StreetNetwork,
     layer: &TransitLayer,
 ) -> Result<TransitRoutes, RouteError> {
@@ -312,14 +299,8 @@ pub fn transit_routes(
     Ok(t)
 }
 
-/// The dates (`yyyymmdd`, ascending) on which some service of a trip in
-/// the timetable runs, as r5r's `check_transit_availability()` finds them
-/// when no date is given (r5r's `TransitServiceDates.getDates`): every day
-/// of each such service's calendar on which it runs, and every date of its
-/// calendar exceptions on which it runs. Services no trip uses do not
-/// count. [`RouteError::Invalid`] when such a service's calendar has a
-/// start or end that is not a date, with r5r's message.
-pub fn transit_service_dates(layer: &TransitLayer) -> Result<Vec<u32>, RouteError> {
+/// The work of [`crate::transit_service_dates`].
+pub(crate) fn transit_service_dates(layer: &TransitLayer) -> Result<Vec<u32>, RouteError> {
     let mut used = vec![false; layer.services.len()];
     for p in &layer.patterns {
         for t in &p.trips {
@@ -419,7 +400,8 @@ mod tests {
 
     #[test]
     fn network_tables_of_the_sample() {
-        let (net, layer) = crate::build_from_dir(SPO, &crate::BuildOptions::default()).unwrap();
+        let (net, layer) =
+            crate::transit::build_from_dir(SPO, &crate::BuildOptions::default()).unwrap();
 
         // every point of the grid snaps within 300 m, on the streets' grid
         let pts = [(-23.5563, -46.6290), (-23.5577, -46.6321), (-10.0, -10.0)];

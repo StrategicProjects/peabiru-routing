@@ -183,12 +183,10 @@ trip_options <- function(r5r_network,
            "each pair is written to a file named 'from_<id>_to_<id>.csv'.",
            call. = FALSE)
     }
-    bad_ids <- unique(grep("[/\\\\:*?\"<>|]", c(origins$id, destinations$id), value = TRUE))
-    if (length(bad_ids) > 0) {
-      stop("With 'output_dir', ids cannot contain characters that are not ",
-           "allowed in file names (/ \\ : * ? \" < > |). Invalid id(s): ",
-           paste0("\"", bad_ids, "\"", collapse = ", "), ".", call. = FALSE)
-    }
+    # the core's rule for ids in file names, as for every output_dir
+    ids <- c(origins$id, destinations$id)
+    tryCatch(rs_check_output_ids(as.character(ids[!is.na(ids)])),
+             error = function(e) stop(conditionMessage(e), call. = FALSE))
   }
 
   mode_list <- assign_mode(mode, mode_egress)

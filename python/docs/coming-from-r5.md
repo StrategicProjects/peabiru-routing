@@ -229,6 +229,17 @@ ignoring the request:
 - More than one `.pbf` file in the data directory (r5r uses one of them):
   `ValueError`.
 
+<!-- diff:output-dir-ids -->
+- **Ids that cannot name a file, with `output_dir`.** The files are named
+  after the ids (`from_<id>.csv`), so an id holding a path separator (`/` or
+  `\`) or NUL, and on Windows also `< > : " | ? *`, raises `ValueError`
+  naming the id, before anything is routed or written. r5r fails on such an
+  id with Java's `FileNotFoundException` (`a/b`, `../x`) or writes a file of
+  another name (`from_a\b.csv` on Linux and macOS).
+  [`trip_options()`][peabiru.trip_options] follows the same rule;
+  [`detailed_itineraries()`][peabiru.detailed_itineraries] keeps r5r's own
+  check.
+
 <!-- diff:refuse-pareto-output-dir -->
 - [`pareto_frontier()`][peabiru.pareto_frontier] with `output_dir` (r5r
   writes CSV files): `UnsupportedError`.

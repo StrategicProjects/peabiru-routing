@@ -1,117 +1,109 @@
 # The command line
 
-The `peabiru` binary (crate `peabiru-cli`) runs the engine on CSV files. It
-is mostly a driver for benchmarks and parity checks, so its interface is
-plain and may change.
+The `peabiru` binary (crate `peabiru-cli`, to be published on crates.io
+with version 0.1.0) runs the engine from the shell: every function of the
+R, Python and JavaScript packages is a command, with their argument names
+in kebab-case, their defaults and their checks, so that a transport analyst
+can work without R or Python and get the same numbers.
 
 ```sh
-cargo build --release -p peabiru-cli
-# the binary is target/release/peabiru (or under your shared target dir)
+cargo install peabiru-cli            # once published; Rust 1.81 or later
+cargo build --release -p peabiru-cli # from the repository: target/release/peabiru
+peabiru --help                       # the commands
+peabiru matrix --help                # a command's options, with examples
 ```
 
-Points files are CSV with a header and at least `id`, `lon` and `lat`
-columns. Unless said otherwise, the same points are the origins and the
-destinations. Outputs are CSV in long format, one row per pair (or per
-origin), with the columns of the R and Python packages.
+## Inputs and outputs
 
-## Street matrix
+- **Network**: a directory with one OpenStreetMap `.pbf` file, any number of
+  GTFS `.zip` feeds and an optional `.tif` elevation raster (read as r5r's
+  `build_network()` reads it), or a `.pbf` file with `--gtfs feed.zip`
+  (repeatable) and `--tif raster.tif`. With a raster, walking and cycling
+  have slope costs (`--elevation TOBLER`, the default, `MINETTI` or
+  `NONE`). Feeds with GTFS errors of priority `HIGH` are refused, as r5r
+  refuses them (`--ignore-gtfs-errors` builds anyway, with a warning per
+  feed). `--threads N` (0, the default, uses every core).
+- **Points**: CSV with a header and the columns `id`, `lon`, `lat` (WGS 84),
+  RFC 4180 quoting; `--origins` and `--destinations` (by default the
+  origins). Points with a missing coordinate are not routed (a warning);
+  duplicated ids are an error.
+- **Results**: CSV on standard output or in `-o FILE`, with the columns of
+  the R package's tables; missing values are empty fields. Geometries as
+  GeoJSON (`--format geojson`) or as WKT in a CSV column. `--output-dir`
+  writes one CSV file per origin (or pair), byte for byte as r5r's
+  `output_dir`. Progress and warnings on standard error (`-q` silences
+  the progress).
+- **Exit status**: 0 done, 1 a file or network that cannot be read or
+  written, 2 a bad argument, 130 interrupted (Ctrl-C cancels the
+  computation through the core's `CancelToken`).
+
+## Commands
+
+| Command | R function | Notes |
+|---|---|---|
+| `info` (alias `build`) | `build_network()`, `check_transit_availability()`, `get_gtfs_errors()` | a summary; `--service-dates`, `--dates d1,d2`, `--start-date`/`--end-date`; `--gtfs-errors` (without building) |
+| `matrix` | `travel_time_matrix()` | `--mode WALK`, `BICYCLE`, `CAR`, or with `TRANSIT` (or `BUS,RAIL,...`); `--percentiles`, fares, scenarios, `--street-engine auto\|search\|hierarchy` |
+| `expanded` | `expanded_travel_time_matrix()` | `--breakdown` |
+| `arrival` | `arrival_travel_time_matrix()` | `--arrival DATETIME` |
+| `accessibility` | `accessibility()` | `--opportunities`, `--decay-function`, `--decay-value`, `--cutoffs` |
+| `isochrone` | `isochrone()` | polygons (`--zoom`, `--percentiles`) or `--lines`; GeoJSON or CSV |
+| `itineraries` | `detailed_itineraries()` | `--all-to-all`, `--shortest-path false` (alternatives), `--suboptimal-minutes`, fares, `--osm-link-ids`, `--drop-geometry` |
+| `pareto` | `pareto_frontier()` | `--fare-structure`, `--fare-cutoffs` |
+| `options` | `trip_options()` | `--criteria`, `--max-options`, `--walk-resolution`; the options to `-o`, `--legs FILE`, `--departures FILE` |
+| `snap` | `find_snap()` | `--points`, `--radius`, `--mode` |
+| `network` | `street_network_to_sf()`, `transit_network_to_sf()`, `street_network_bbox()` | `--layer edges\|vertices\|stops\|routes\|bbox` |
+| `fares setup\|read\|write` | `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` | `.zip` files in r5r's format; `read --output-dir` writes its CSV files, `write` makes the `.zip` from them |
+| `completions SHELL` | | bash, zsh, fish, elvish, powershell |
+
+Dates and times are `YYYY-MM-DDTHH:MM[:SS]`, the network's local time.
+Limits take `Inf` where the packages do (`--max-walk-time Inf`, the
+default, is the trip limit).
+
+## Examples
 
 ```sh
-peabiru ttm <network dir | file.osm.pbf> <points.csv> <WALK|BICYCLE|CAR> <out.csv> [n_threads] [repeats]
+# walking and public transport, three percentiles over a 10-minute window
+peabiru matrix data/poa --origins points.csv --mode WALK,TRANSIT \
+    --departure 2019-05-13T14:00 --percentiles 25,50,75 -o ttm.csv
+
+# accessibility to jobs and schools, logistic decay, by bicycle
+peabiru accessibility data/poa --origins points.csv --opportunities jobs,schools \
+    --mode BICYCLE --decay-function logistic --decay-value 5 --cutoffs 30 -o access.csv
+
+# isochrones by public transport as GeoJSON
+peabiru isochrone data/poa --origins one.csv --departure 2019-05-13T14:00 \
+    --cutoffs 15,30,45 -o isochrones.geojson
+
+# a fare structure, then the Pareto frontier of time and fare
+peabiru fares setup data/poa --base-fare 4.8 -o fares.zip
+peabiru pareto data/poa --origins o.csv --destinations d.csv \
+    --departure 2019-05-13T14:00 --fare-structure fares.zip --fare-cutoffs 0,4.8,9.6
+
+# a congestion scenario
+peabiru matrix data/poa --origins points.csv --mode CAR \
+    --new-carspeeds poa_osm_congestion.csv --carspeed-scale 0.8
 ```
 
-Writes `from_id,to_id,travel_time_p50` for the pairs that have a time.
+## Compared with the R package
 
-## Public transport matrix
+`bench/compare/cli_parity.R` runs every command on r5r's Porto Alegre
+sample (timetables, fares, an elevation raster, scenarios) and on the São
+Paulo sample (frequency-based routes) and compares each table with the R
+function's, value for value (doubles bit for bit), lines and polygons by
+their coordinates, and `--output-dir` files byte for byte. The deliberate
+differences: without `--departure`, street-only commands take the current
+time in UTC (r5r the local time; only the itineraries' `departure_time`
+shows it), and polygons and lines are written as built, without the
+`sf::st_make_valid()` of the R package (as Python and JavaScript return
+them; a route through a single linked stop is a point). With
+`--output-dir`, an id that cannot name a file in the directory (a path
+separator, NUL; on Windows also `< > : " | ? *`) is an error, as in the
+packages.
 
-```sh
-peabiru transit <dir> <points.csv> <out.csv> --date YYYY-MM-DD --time HH:MM:SS \
-    [--tw 10] [--percentiles 50] [--max-walk 120] [--max-trip 120] \
-    [--max-rides 3] [--draws 5] [--seed N] [--threads 0] [--repeats 1]
-```
+## For the repository's scripts
 
-## Accessibility
-
-```sh
-peabiru accessibility <dir | file.osm.pbf> <points.csv> <out.csv> --opportunities jobs,schools \
-    [--mode WALK,TRANSIT | WALK | BICYCLE | CAR] \
-    [--decay step|exponential|fixed_exponential|linear|logistic] [--decay-value V] \
-    [--cutoffs 30,60] [--percentiles 50] [--date YYYY-MM-DD] [--time HH:MM:SS] \
-    [--tw 10] [--max-walk N|Inf] [--max-trip 120] [--max-rides 3] [--draws 5] \
-    [--seed N] [--walk-speed 3.6] [--bike-speed 12] [--max-lts 2] \
-    [--destinations other.csv] [--threads 0] [--repeats 1]
-```
-
-The opportunity columns are read from the points file (or from
-`--destinations`). Arguments are checked, and trip limits derived, as in the
-R and Python packages.
-
-## Expanded and arrival matrices
-
-```sh
-peabiru expanded <dir> <points.csv> <out.csv> --date YYYY-MM-DD --time HH:MM:SS \
-    [--arrival] [--breakdown] [--origins N] [--tw 10] [--max-walk 120] \
-    [--max-trip 120] [--max-rides 3] [--draws 5] [--seed N] [--threads 0]
-```
-
-With `--arrival`, `--date` and `--time` are the arrival. `--origins N` routes
-only from the first N points.
-
-## Isochrones
-
-```sh
-peabiru isochrone <dir | file.osm.pbf> <points.csv> <out> \
-    [--mode WALK|BICYCLE|CAR|TRANSIT] [--cutoffs 0,15,30] [--zoom 10] [--lines] \
-    [--percentiles 50] [--surface surface.csv] [--edges edges.csv] \
-    [--date YYYY-MM-DD --time HH:MM:SS] [--tw 10] [--max-walk N|inf] [--max-rides 3] \
-    [--draws 5] [--seed N] [--walk-speed 3.6] [--bike-speed 12] [--max-lts 2] \
-    [--threads 0] [--cxx-library libc++|libstdc++]
-```
-
-Writes one tab-separated row per origin, cutoff and percentile with the
-polygons as WKT (`--lines`: the street segments reached instead).
-`--date` and `--time` are required with `TRANSIT`. `--cxx-library` orders
-the rings as isoband built with that C++ library would (see
-[Parity with r5r](parity.md)).
-
-## Detailed itineraries
-
-```sh
-peabiru itineraries <dir> <origins.csv> <destinations.csv> <out.csv> \
-    [--mode WALK|BICYCLE|CAR] [--transit TRANSIT|BUS,RAIL,...] [--egress WALK] \
-    [--date YYYY-MM-DD] [--time HH:MM:SS] [--tw 10] [--max-walk 120] [--max-bike 120] \
-    [--max-car 120] [--max-trip 120] [--walk-speed 3.6] [--bike-speed 12] \
-    [--max-rides 3] [--max-lts 2] [--threads 0]
-```
-
-Routes origin `i` to destination `i` and writes one row per leg, with its
-line as WKT. The command has no options for fares or alternatives; the
-crate's `detailed_itineraries` has them.
-
-## Environment variables
-
-| Variable | Effect |
-|---|---|
-| `PEABIRU_ELEVATION=TOBLER\|MINETTI\|NONE` | slope costs from the directory's `.tif` raster; without it rasters are ignored (r5r's default is `TOBLER`) |
-| `PEABIRU_IGNORE_GTFS_ERRORS=1` | build from feeds with errors of priority `HIGH`, with a warning per feed, instead of failing |
-| `PEABIRU_SCENARIO=<file>` | a scenario file: lines `carspeed_scale <x>`, `car scale` or `car km/h`, `way <osm id> <value>` and `lts <osm id> <level>` (polygons and lines are not read) |
-| `PEABIRU_STREET_MATRIX=dijkstra\|ch\|auto` | the engine of street matrices (`ttm`); the matrix is the same |
-
-## Diagnostics
-
-```sh
-peabiru --version
-peabiru osm-stats <file.osm.pbf> [n_threads]          # what the PBF reader sees
-peabiru dump-edges <file.osm.pbf | dir>               # every directed edge, as CSV
-peabiru dump-elevation <dir> <out prefix>             # elevation samples and slope factors
-peabiru sample-raster <file.tif> <points> <out>       # R5's elevation reading at points
-peabiru crs-transform <epsg code> <points> <out>      # GeoTools' transform of a raster CRS
-```
-
-`dump-edges` writes one row per directed edge with its permissions, speeds
-and traffic stress, for comparing two networks edge by edge (see
-[Parity with r5r](parity.md)); given a directory, it links the GTFS stops
-first. The last three compare the elevation code with R5 and GeoTools
-value by value; their point files hold the hex bits of the doubles.
-
-Each command prints the build and routing times on standard output.
+The benchmark and comparison scripts of the repository run older spellings
+of the tool (`ttm`, `transit`, the positional forms of `accessibility`,
+`expanded`, `isochrone`, `itineraries` and `options`, and diagnostic
+commands such as `dump-edges`), also reachable as `peabiru dev <command>`.
+They are not part of the tool's interface and may change at any time.

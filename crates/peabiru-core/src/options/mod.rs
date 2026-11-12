@@ -16,9 +16,9 @@ pub(crate) mod testing;
 #[cfg(test)]
 mod tests;
 
-use crate::street::{Mode, StreetNetwork};
+use crate::street::Mode;
 use crate::transit::raptor::TransitMode;
-use crate::{CancelToken, FareStructure, Itinerary, RouteError, TransitData, TransitLayer};
+use crate::{CancelToken, FareStructure, Itinerary, RouteError};
 use std::sync::Arc;
 
 /// Seconds to which [`trip_options`] compares total times when it decides
@@ -314,12 +314,12 @@ impl TripOption {
 /// structure, cancellation, and a car search that R5 does not route
 /// reproducibly (see [`detailed_itineraries`](crate::detailed_itineraries)).
 pub fn trip_options(
-    net: &StreetNetwork,
-    transit: Option<(&TransitLayer, &TransitData)>,
+    network: &crate::Network,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TripOptionsParams,
 ) -> Result<Vec<Vec<TripOption>>, RouteError> {
+    let (net, transit) = (network.street(), network.transit_pair());
     crate::itinerary::trip_options_impl(net, transit, origins, destinations, p)
 }
 
@@ -335,6 +335,10 @@ pub fn trip_options(
 /// `geometry` as WKT unless `drop_geometry`). Numbers are written as Java
 /// prints a `double`, as the other files of the package are. `ids` and
 /// `points` are those of the pairs given to [`trip_options`].
+///
+/// The file names are built from the ids: an id holding a path separator
+/// (`/`, `\\`) or NUL (on Windows also `< > : " | ? *` or a control
+/// character) is an error of kind `InvalidInput`, before anything is written.
 #[allow(clippy::type_complexity)]
 pub fn write_trip_options_csv(
     dir: &str,
@@ -345,6 +349,8 @@ pub fn write_trip_options_csv(
     osm_link_ids: bool,
 ) -> std::io::Result<()> {
     use crate::output::{csv_field, java_double, LINE_END};
+    crate::output::check_file_ids(ids.iter().flat_map(|(a, b)| [a.as_str(), b.as_str()]))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string()))?;
     let clock = |s: i32| format!("{:02}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60);
     for (k, opts) in options.iter().enumerate() {
         let Some(first) = opts.first() else {

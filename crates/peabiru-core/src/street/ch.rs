@@ -864,7 +864,7 @@ fn matrix(
 mod tests {
     use super::*;
     use crate::street::router::{route, Speeds};
-    use crate::street::{build_network, BuildOptions};
+    use crate::street::{build::build_network, BuildOptions};
 
     const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
 

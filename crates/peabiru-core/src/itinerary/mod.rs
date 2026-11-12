@@ -27,13 +27,14 @@ pub(crate) use options::trip_options_impl;
 use crate::street::link::find_split;
 use crate::street::p2p::{Req, Router};
 use crate::street::{Mode, StreetNetwork};
+use crate::transit::matrix::TransitData;
 use crate::transit::raptor::TransitMode;
-use crate::{CancelToken, FareStructure, RouteError, TransitData, TransitLayer};
+use crate::{CancelToken, FareStructure, RouteError, TransitLayer};
 use geom::{clock, edge_line, line_length_m, minutes_1dp, without_repeats, Line};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-/// Parameters of [`detailed_itineraries`], with r5r's defaults but for the
+/// Parameters of [`detailed_itineraries`](crate::detailed_itineraries), with r5r's defaults but for the
 /// date and departure time. Fill it in by changing the fields of
 /// [`ItineraryParams::default()`].
 #[derive(Debug, Clone)]
@@ -436,33 +437,7 @@ fn direct_trip(
     })
 }
 
-/// Detailed itineraries between each origin and the destination of the
-/// same index (`origins[i]` to `destinations[i]`, `(lat, lon)` degrees), as
-/// r5r 2.5.0's `detailed_itineraries()` with `all_to_all = FALSE` (pair the
-/// points beforehand for `all_to_all`): per pair its itineraries in r5r's
-/// order, none when no trip is found (r5r then has no rows).
-///
-/// Without public transport (`p.transit_modes` empty) the itinerary is the
-/// street path by `p.mode`. With it, `transit` must hold the network's
-/// public transport; with `shortest_path` and no fare structure the result
-/// is the faster of the direct trip and the fastest public transport trip
-/// over the window (FastRaptor), otherwise the trips McRAPTOR finds, with
-/// their fares when `p.fare_structure` is given.
-/// Errors: invalid parameters, a network with frequency-based trips (r5r
-/// refuses them too), cancellation, and the rare cases noted in the error
-/// message that R5 does not route reproducibly. The notes of
-/// [`detailed_itineraries_noted`] are dropped.
-pub fn detailed_itineraries(
-    net: &StreetNetwork,
-    transit: Option<(&TransitLayer, &TransitData)>,
-    origins: &[(f64, f64)],
-    destinations: &[(f64, f64)],
-    p: &ItineraryParams,
-) -> Result<Vec<Vec<Itinerary>>, RouteError> {
-    detailed_itineraries_noted(net, transit, origins, destinations, p).map(|(its, _)| its)
-}
-
-/// What the packages warn about after [`detailed_itineraries_noted`].
+/// What the packages warn about after [`detailed_itineraries_noted`](crate::detailed_itineraries_noted).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ItineraryNotes {
@@ -491,9 +466,8 @@ impl ItineraryNotes {
     }
 }
 
-/// [`detailed_itineraries`], with the notes the packages turn into
-/// warnings.
-pub fn detailed_itineraries_noted(
+/// The work of [`crate::detailed_itineraries_noted`].
+pub(crate) fn detailed_itineraries_noted(
     net: &StreetNetwork,
     transit: Option<(&TransitLayer, &TransitData)>,
     origins: &[(f64, f64)],
@@ -719,8 +693,12 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
 /// `board_stop_id` and `alight_stop_id` after `route`, and the `geometry`
 /// column (the WKT text of [`ItineraryLeg::wkt`]) last unless
 /// `drop_geometry`. `ids`
-/// and `points` are those of the pairs given to [`detailed_itineraries`]
+/// and `points` are those of the pairs given to [`detailed_itineraries`](crate::detailed_itineraries)
 /// (`(from_id, to_id)` and `((lat, lon), (lat, lon))`).
+///
+/// The file names are built from the ids: an id holding a path separator
+/// (`/`, `\\`) or NUL (on Windows also `< > : " | ? *` or a control
+/// character) is an error of kind `InvalidInput`, before anything is written.
 #[allow(clippy::type_complexity)]
 pub fn write_itineraries_csv(
     dir: &str,
@@ -731,6 +709,8 @@ pub fn write_itineraries_csv(
     osm_link_ids: bool,
 ) -> std::io::Result<()> {
     use crate::output::{csv_field, java_double, LINE_END};
+    crate::output::check_file_ids(ids.iter().flat_map(|(a, b)| [a.as_str(), b.as_str()]))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string()))?;
     for (k, its) in itineraries.iter().enumerate() {
         if its.is_empty() {
             continue;

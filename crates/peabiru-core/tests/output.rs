@@ -4,7 +4,7 @@
 use peabiru_core::{
     build_from_dir, expanded_travel_time_matrix, street_accessibility, street_travel_time_matrix,
     transit_accessibility, transit_travel_time_matrix, AccessibilityParams, BuildOptions,
-    CsvOutput, DecayFunction, Destinations, Mode, RouteParams, TransitData, TransitParams,
+    CsvOutput, DecayFunction, Destinations, Mode, RouteParams, TransitParams,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -57,10 +57,10 @@ fn same_in_slices(
     write: impl Fn(&CsvOutput, usize, &[(f64, f64)]),
 ) -> BTreeMap<String, Vec<u8>> {
     let whole = empty_dir(&format!("{name}-whole"));
-    let w = CsvOutput::new(whole.to_str().unwrap(), ids, dest_ids, 2);
+    let w = CsvOutput::new(whole.to_str().unwrap(), ids, dest_ids, 2).unwrap();
     write(&w, 0, pts);
     let sliced = empty_dir(&format!("{name}-sliced"));
-    let w = CsvOutput::new(sliced.to_str().unwrap(), ids, dest_ids, 3);
+    let w = CsvOutput::new(sliced.to_str().unwrap(), ids, dest_ids, 3).unwrap();
     let mut start = 0;
     for size in [1, 4, 2, 7].iter().cycle() {
         if start >= pts.len() {
@@ -80,8 +80,7 @@ fn same_in_slices(
 
 #[test]
 fn slices_of_the_origins_write_the_files_of_the_whole() {
-    let (net, layer) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
-    let data = TransitData::new(&net, &layer);
+    let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let (ids, pts) = points();
 
     let p = RouteParams::default();
@@ -106,7 +105,7 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
     t.seed = Some(42);
     t.n_threads = 2;
     same_in_slices("transit", &ids, &ids, &pts, |w, first, o| {
-        let m = transit_travel_time_matrix(&net, &layer, &data, o, &pts, &t).unwrap();
+        let m = transit_travel_time_matrix(&net, o, &pts, &t).unwrap();
         w.write_transit_matrix(first, &m).unwrap();
     });
 
@@ -119,7 +118,7 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
             &ids,
             &pts,
             |w, first, o| {
-                let m = expanded_travel_time_matrix(&net, &layer, &data, o, &pts, &e).unwrap();
+                let m = expanded_travel_time_matrix(&net, o, &pts, &e).unwrap();
                 w.write_expanded(first, &m, breakdown).unwrap();
             },
         );
@@ -135,7 +134,7 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
         standard_deviation_minutes: 5.0,
     };
     same_in_slices("access-transit", &ids, &[], &pts, |w, first, o| {
-        let acc = transit_accessibility(&net, &layer, &data, o, &dest, &t, &a).unwrap();
+        let acc = transit_accessibility(&net, o, &dest, &t, &a).unwrap();
         w.write_accessibility(first, &acc, &names).unwrap();
     });
     let files = same_in_slices("access-car", &ids, &[], &pts, |w, first, o| {
@@ -148,15 +147,18 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
 
 #[test]
 fn an_unwritable_file_is_an_error_naming_it() {
-    let (net, _) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let (_, pts) = points();
-    let ids: Vec<String> = (0..pts.len()).map(|i| format!("no/such/dir/{i}")).collect();
+    let ids: Vec<String> = (0..pts.len()).map(|i| format!("p{i}")).collect();
     let dir = empty_dir("unwritable");
-    let w = CsvOutput::new(dir.to_str().unwrap(), &ids, &ids, 2);
+    // a directory that is not there (ids naming one are refused, see the
+    // unit tests of CsvOutput::new)
+    let gone = dir.join("no").join("such");
+    let w = CsvOutput::new(gone.to_str().unwrap(), &ids, &ids, 2).unwrap();
     let m =
         street_travel_time_matrix(&net, &pts, &pts, Mode::Walk, &RouteParams::default()).unwrap();
     let e = w.write_street_matrix(0, &m, &[50]).unwrap_err();
     assert_eq!(e.kind(), std::io::ErrorKind::NotFound);
-    assert!(e.to_string().contains("from_no/such/dir/"), "{e}");
+    assert!(e.to_string().contains("from_p"), "{e}");
     let _ = std::fs::remove_dir_all(&dir);
 }

@@ -149,7 +149,7 @@ mod tests {
     const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
 
     fn spo() -> StreetNetwork {
-        crate::build_from_dir(SPO, &BuildOptions::default())
+        crate::transit::build_from_dir(SPO, &BuildOptions::default())
             .unwrap()
             .0
     }
@@ -158,7 +158,7 @@ mod tests {
     fn kept_links_are_those_of_each_cell() {
         let net = spo();
         let cancel = CancelToken::default();
-        let grid = WebMercatorGrid::for_network(&net, 11).unwrap();
+        let grid = WebMercatorGrid::for_street(&net, 11).unwrap();
         let mut scratch = Vec::new();
         for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
             for threads in [1, 3] {
@@ -187,7 +187,7 @@ mod tests {
     fn linkages_are_kept_by_grid_and_mode_within_bounds() {
         let net = spo();
         let cancel = CancelToken::default();
-        let grid = |z| WebMercatorGrid::for_network(&net, z).unwrap();
+        let grid = |z| WebMercatorGrid::for_street(&net, z).unwrap();
         let first = grid_links(&net, &grid(10), Mode::Walk, 2, &cancel).unwrap();
         let again = grid_links(&net, &grid(10), Mode::Walk, 2, &cancel).unwrap();
         assert!(Arc::ptr_eq(&first, &again));
@@ -269,7 +269,7 @@ mod tests {
         let net = spo();
         let cancel = CancelToken::default();
         cancel.cancel();
-        let grid = WebMercatorGrid::for_network(&net, 12).unwrap();
+        let grid = WebMercatorGrid::for_street(&net, 12).unwrap();
         assert!(matches!(
             grid_links(&net, &grid, Mode::Walk, 2, &cancel),
             Err(RouteError::Cancelled)

@@ -778,7 +778,8 @@ mod tests {
     /// over and around it (a few with NaN, repeated or on a stop
     /// envelope's edge).
     fn spo_points(n: usize) -> (StreetNetwork, TransitLayer, Trees, Vec<(f64, f64)>) {
-        let (net, layer) = crate::build_from_dir(SPO, &crate::BuildOptions::default()).unwrap();
+        let (net, layer) =
+            crate::transit::build_from_dir(SPO, &crate::BuildOptions::default()).unwrap();
         let trees = stop_trees(&net, &layer);
         let mut rng = crate::street::link::tests::Rng(0x5eed_1234_abcd_0042);
         let mut pts: Vec<(f64, f64)> = (0..n)
@@ -844,7 +845,7 @@ mod tests {
         let (net, layer, trees, _) = spo_points(0);
         let cancel = crate::CancelToken::default();
         for zoom in [10, 12] {
-            let grid = crate::WebMercatorGrid::for_network(&net, zoom).unwrap();
+            let grid = crate::WebMercatorGrid::for_street(&net, zoom).unwrap();
             let splits = crate::street::link::link_points(
                 &net,
                 grid.n_cells(),

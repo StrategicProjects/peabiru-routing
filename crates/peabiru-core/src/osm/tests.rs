@@ -418,7 +418,7 @@ fn file_errors_name_the_file() {
 /// empty edge store).
 #[test]
 fn file_without_streets_is_an_error() {
-    use crate::street::{build_network, BuildOptions};
+    use crate::street::{build::build_network, BuildOptions};
     let dir = std::env::temp_dir().join(format!("peabiru-no-streets-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let cases: [(&str, Vec<u8>); 4] = [

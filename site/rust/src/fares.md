@@ -8,7 +8,7 @@ of types with a discounted transfer, and one `FarePerRoute` per GTFS route
 (matched by `agency_id` and `route_id`).
 
 ```rust,ignore
-pub fn setup_fare_structure(layer: &TransitLayer, base_fare: f64, by: &str)
+pub fn setup_fare_structure(network: &Network, base_fare: f64, by: &str)
     -> Result<FareStructure, RouteError>;
 pub fn read_fare_structure(bytes: &[u8], encoding: &str) -> Result<FareStructure, RouteError>;
 pub fn write_fare_structure(s: &FareStructure) -> Result<Vec<u8>, RouteError>;
@@ -35,7 +35,7 @@ p.date = 20190513;
 p.departure_time = 14 * 3600;
 p.fare_structure = Some(std::sync::Arc::new(peabiru_core::read_fare_structure(&bytes, "UTF-8")?));
 p.max_fare = 4.8;
-let m = peabiru_core::transit_travel_time_matrix(&net, &layer, &data, &o, &d, &p)?;
+let m = peabiru_core::transit_travel_time_matrix(&network, &o, &d, &p)?;
 ```
 
 With a fare structure, public transport is routed as r5r routes it then:

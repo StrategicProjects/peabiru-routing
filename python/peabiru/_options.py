@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 import os
-import re
 from typing import Any, NamedTuple, Optional, Sequence, Union
 
 import numpy as np
@@ -216,13 +215,8 @@ def trip_options(
                 "With 'output_dir', origin-destination pairs must be unique, because each "
                 "pair is written to a file named 'from_<id>_to_<id>.csv'."
             )
-        bad = sorted({i for i in list(o.ids) + list(d.ids) if re.search(r'[/\\:*?"<>|]', str(i))})
-        if bad:
-            raise ValueError(
-                "With 'output_dir', ids cannot contain characters that are not allowed in "
-                'file names (/ \\ : * ? " < > |). Invalid id(s): '
-                + ", ".join(f'"{i}"' for i in bad) + "."
-            )
+        # the core's rule for ids in file names, as for every output_dir
+        _peabiru.check_output_ids([str(i) for i in list(o.ids) + list(d.ids) if i is not None])
     mode_list = assign_mode(mode, mode_egress)
     departure = assign_departure(departure_datetime, mode_list)
     if mode_list.transit:

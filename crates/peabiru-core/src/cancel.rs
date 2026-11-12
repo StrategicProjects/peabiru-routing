@@ -72,18 +72,6 @@ impl std::fmt::Display for RouteError {
 
 impl std::error::Error for RouteError {}
 
-impl From<String> for RouteError {
-    fn from(msg: String) -> Self {
-        RouteError::Invalid(msg)
-    }
-}
-
-impl From<&str> for RouteError {
-    fn from(msg: &str) -> Self {
-        RouteError::Invalid(msg.to_string())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

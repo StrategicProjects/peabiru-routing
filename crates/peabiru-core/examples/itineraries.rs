@@ -8,8 +8,7 @@
 mod common;
 
 use peabiru_core::{
-    build_from_dir, detailed_itineraries, BuildOptions, ItineraryParams, Mode, TransitData,
-    TransitMode,
+    build_from_dir, detailed_itineraries, BuildOptions, ItineraryParams, Mode, TransitMode,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,8 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let points = common::read_points(&dir, &[]);
     let mut opts = BuildOptions::default();
     opts.n_threads = 2;
-    let (net, layer) = build_from_dir(&dir, &opts)?;
-    let data = TransitData::new(&net, &layer);
+    let net = build_from_dir(&dir, &opts)?;
 
     // Two pairs: the first point to the 10th, the 2nd to the 13th.
     let origins = [points.coords[0], points.coords[1]];
@@ -29,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut p = ItineraryParams::default();
         p.mode = mode;
         p.n_threads = 2;
-        let per_pair = detailed_itineraries(&net, None, &origins, &destinations, &p)?;
+        let per_pair = detailed_itineraries(&net, &origins, &destinations, &p)?;
         for (k, its) in per_pair.iter().enumerate() {
             for it in its {
                 let leg = &it.legs[0];
@@ -53,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p.date = 20190513;
     p.departure_time = 14 * 3600;
     p.n_threads = 2;
-    match detailed_itineraries(&net, Some((&layer, &data)), &origins, &destinations, &p) {
+    match detailed_itineraries(&net, &origins, &destinations, &p) {
         Ok(per_pair) => {
             for (k, its) in per_pair.iter().enumerate() {
                 for it in its {
@@ -77,9 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // up to 10 minutes slower than the best.
     p.shortest_path = false;
     p.suboptimal_minutes = 10;
-    if let Ok(per_pair) =
-        detailed_itineraries(&net, Some((&layer, &data)), &origins, &destinations, &p)
-    {
+    if let Ok(per_pair) = detailed_itineraries(&net, &origins, &destinations, &p) {
         for (k, its) in per_pair.iter().enumerate() {
             println!("pair {k}: {} alternatives", its.len());
             for it in its.iter().take(3) {

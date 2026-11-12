@@ -27,16 +27,18 @@ mod isoband;
 pub(crate) mod linkage;
 mod separate;
 
-pub use edges::{isochrone_lines, street_edges, IsochroneLine, StreetEdges};
+pub(crate) use edges::street_edges;
+pub use edges::{isochrone_lines, IsochroneLine, StreetEdges};
 pub use grid::WebMercatorGrid;
 pub use isoband::CxxLibrary;
 pub use separate::Polygon;
 
 use crate::street::router::{travel_time_seconds_linked, Mode, RouteParams};
 use crate::street::StreetNetwork;
+use crate::transit::matrix::TransitData;
 use crate::transit::matrix::{check_percentiles, par_origins, percentile_index, Query};
 use crate::transit::raptor::UNREACHED;
-use crate::{RouteError, TransitData, TransitLayer, TransitParams};
+use crate::{RouteError, TransitLayer, TransitParams};
 
 /// Travel times from each origin to every cell of a Web Mercator grid, in
 /// whole minutes at each percentile, as R5's travel-time surface (and
@@ -83,25 +85,8 @@ impl TravelTimeSurface {
     }
 }
 
-/// Travel-time surface by a street mode alone (r5r's `isochrone()` with
-/// `mode` one of `WALK`, `BICYCLE`, `CAR` and `polygon_output = TRUE`): one
-/// travel time per cell, the same at every percentile. The grid is
-/// [`WebMercatorGrid::for_network`] at `zoom` (9 to 12).
-/// `params.max_trip_duration_min` is the search limit r5r hands R5 (its
-/// `isochrone()` passes the largest cutoff plus 10 minutes). Points are
-/// `(lat, lon)` degrees; an origin that cannot be linked reaches nothing.
-/// [`RouteError::Invalid`] for invalid parameters, percentiles (see
-/// [`validate_percentiles`](crate::validate_percentiles)) or zoom,
-/// [`RouteError::Cancelled`] when `params.cancel` is cancelled.
-///
-/// Most of a first call from a few origins is linking the grid's cells to
-/// the streets. The network keeps those links for later surfaces on the
-/// same grid and mode (as R5 keeps its linkages; public transport
-/// surfaces walk, so they share the walking ones): up to 9 grids and
-/// modes, the least recently used dropped first beyond 64 MiB, at 40
-/// bytes a cell (6.2 MiB for r5r's Porto Alegre sample at zoom 12, 0.4 MiB
-/// at zoom 10). Clones of the network share them.
-pub fn street_travel_time_surface(
+/// The work of [`crate::street_travel_time_surface`].
+pub(crate) fn street_travel_time_surface(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
     mode: Mode,
@@ -112,7 +97,7 @@ pub fn street_travel_time_surface(
     check_percentiles(percentiles).map_err(RouteError::Invalid)?;
     params.validate()?;
     no_scenario(&params.scenario)?;
-    let grid = WebMercatorGrid::for_network(net, zoom)?;
+    let grid = WebMercatorGrid::for_street(net, zoom)?;
     let mut percentiles = percentiles.to_vec();
     percentiles.sort_unstable();
     let np = percentiles.len();
@@ -153,13 +138,8 @@ fn no_scenario(s: &crate::Scenario) -> Result<(), RouteError> {
     }
 }
 
-/// Travel-time surface by public transport (r5r's `isochrone()` with
-/// public transport in `mode`, its modes, access and egress as in
-/// [`TransitParams`](crate::TransitParams), and
-/// `polygon_output = TRUE`), at each of `p.percentiles` over the departure
-/// window. `p.max_trip_duration` is the limit r5r hands R5 (the largest
-/// cutoff plus 10 minutes). Otherwise as [`street_travel_time_surface`].
-pub fn transit_travel_time_surface(
+/// The work of [`crate::transit_travel_time_surface`].
+pub(crate) fn transit_travel_time_surface(
     net: &StreetNetwork,
     layer: &TransitLayer,
     data: &TransitData,
@@ -168,7 +148,7 @@ pub fn transit_travel_time_surface(
     zoom: i32,
 ) -> Result<TravelTimeSurface, RouteError> {
     no_scenario(&p.scenario)?;
-    let grid = WebMercatorGrid::for_network(net, zoom)?;
+    let grid = WebMercatorGrid::for_street(net, zoom)?;
     let q = Query::new_grid(net, layer, data, &grid, p)?;
     let mut percentiles = p.percentiles.clone();
     percentiles.sort_unstable();

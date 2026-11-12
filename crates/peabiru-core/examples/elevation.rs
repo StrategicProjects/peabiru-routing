@@ -53,10 +53,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut opts = BuildOptions::default();
         opts.n_threads = 2;
         opts.elevation = model;
-        let (net, _layer) = build_from_bytes_with_elevation(&pbf, &feeds, &tif, &opts)?;
+        let net = build_from_bytes_with_elevation(&pbf, &feeds, &tif, &opts)?;
         // What r5r stores silently (voids, no-data values, samples on a
         // pixel boundary of a projected raster); the packages warn.
-        for w in net.elevation_warnings() {
+        for w in net.build_warnings() {
             eprintln!("warning: {w}");
         }
         let mut line = format!("{:<8}", model.r5r_name());

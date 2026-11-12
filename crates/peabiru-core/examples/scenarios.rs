@@ -10,12 +10,12 @@ mod common;
 
 use peabiru_core::{
     build_from_dir, street_edges, street_travel_time_matrix, BuildOptions, CarSpeeds, LtsChange,
-    Mode, RouteParams, Scenario, SpeedPolygon, StreetNetwork,
+    Mode, Network, RouteParams, Scenario, SpeedPolygon,
 };
 
 /// Sum of the travel times from the first point to every point, minutes.
 fn total(
-    net: &StreetNetwork,
+    net: &Network,
     pts: &[(f64, f64)],
     mode: Mode,
     scenario: Scenario,
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pts = common::read_points(&dir, &[]).coords;
     let mut opts = BuildOptions::default();
     opts.n_threads = 2;
-    let (net, _layer) = build_from_dir(&dir, &opts)?;
+    let net = build_from_dir(&dir, &opts)?;
     let edges = street_edges(&net);
 
     println!(

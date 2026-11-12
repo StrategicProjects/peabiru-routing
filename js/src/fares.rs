@@ -6,7 +6,7 @@ use super::{err, f64_array, i32_array, points, route_err, transit, transit_param
 use js_sys::{Array, Object, Reflect, Uint8Array};
 use peabiru_core::{
     pareto_frontier, read_fare_structure, setup_fare_structure, write_fare_structure, FarePerRoute,
-    FarePerTransfer, FarePerType, FareStructure, TransitLayer,
+    FarePerTransfer, FarePerType, FareStructure,
 };
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
@@ -273,9 +273,7 @@ pub(crate) fn fare_arg(fare: &JsValue) -> Result<Option<Arc<FareStructure>>, JsE
 /// r5r's `setup_fare_structure()`, as the flat object.
 #[wasm_bindgen]
 pub fn fare_setup(network: &Network, base_fare: f64, by: &str) -> Result<JsValue, JsError> {
-    let empty = TransitLayer::default();
-    let layer = network.transit.as_ref().map_or(&empty, |t| &t.layer);
-    let s = setup_fare_structure(layer, base_fare, by).map_err(route_err)?;
+    let s = setup_fare_structure(&network.net, base_fare, by).map_err(route_err)?;
     Ok(to_js(&s))
 }
 
@@ -299,10 +297,7 @@ pub fn fare_write(fare: JsValue) -> Result<Uint8Array, JsError> {
 pub fn fare_check(network: &Network, fare: JsValue) -> Result<(), JsError> {
     let s = from_js(&fare)?;
     s.validate().map_err(route_err)?;
-    if let Some(t) = &network.transit {
-        s.validate_for(&t.layer).map_err(route_err)?;
-    }
-    Ok(())
+    s.validate_for(&network.net).map_err(route_err)
 }
 
 /// r5r's `pareto_frontier()` as `[from, to, percentile, travel_time]`
@@ -361,13 +356,13 @@ pub fn pareto(
         seed,
     )?;
     p.fare_structure = Some(Arc::new(from_js(&fare)?));
-    let tr = if with_transit {
-        let t = transit(network)?;
-        Some((&t.layer, &t.data))
+    if with_transit {
+        transit(network)?;
     } else {
-        None
-    };
-    let f = pareto_frontier(&network.net, tr, &o, &d, &p, &fare_cutoffs).map_err(route_err)?;
+        // by `mode` alone
+        p.transit_modes.clear();
+    }
+    let f = pareto_frontier(&network.net, &o, &d, &p, &fare_cutoffs).map_err(route_err)?;
     let r = &f.rows;
     let out = Array::new();
     out.push(&i32_array(

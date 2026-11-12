@@ -43,7 +43,8 @@ fn time_and_fare_frontier_against_r5s_list() {
     let pairs = std::env::var("PEABIRU_R5CMP_PAIRS").expect("pairs");
     let (of, df) = pairs.split_once(',').expect("two files");
     let (o, d) = (points(of), points(df));
-    let (net, layer) = crate::build_from_dir(&dir, &BuildOptions::default()).expect("network");
+    let (net, layer) =
+        crate::transit::build_from_dir(&dir, &BuildOptions::default()).expect("network");
     let data = TransitData::new(&net, &layer);
     let read =
         crate::read_fare_structure(&std::fs::read(&fares).expect("zip"), "UTF-8").expect("fares");
