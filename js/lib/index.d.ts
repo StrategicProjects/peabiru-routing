@@ -74,10 +74,17 @@ export interface BuildNetworkInput {
   /**
    * An elevation raster (the bytes of a GeoTIFF `.tif` file): walking and
    * cycling times get the slope costs of `elevation`, as r5r gives them
-   * when its data directory has a `.tif` file. One band, WGS 84 longitude
-   * and latitude (EPSG:4326), north up, uncompressed or compressed with
-   * LZW, Deflate or PackBits; other rasters are an error. A raster also
-   * stops `travelTimeMatrix()` from swapping origins and destinations for
+   * when its data directory has a `.tif` file. One band, north up,
+   * uncompressed or compressed with LZW, Deflate or PackBits, in WGS 84
+   * longitude and latitude (EPSG:4326), SIRGAS 2000 (4674), SAD69 (4618),
+   * Corrego Alegre (4225), their UTM zones used in Brazil, SIRGAS 2000 /
+   * Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) or
+   * Pseudo-Mercator (3857); other rasters are an error. Where r5r's
+   * pixel depends on the machine (a point within nanometres of a pixel
+   * boundary in a raster not in EPSG:4326), peabiru reads the one Java's
+   * StrictMath gives, on every machine, with a warning. Voids and values
+   * beyond +/-3276.7 m wrap around as in r5r, with a warning. A raster also stops
+   * `travelTimeMatrix()` from swapping origins and destinations for
    * walking, as in r5r.
    */
   tif?: Bytes;
@@ -146,9 +153,11 @@ export declare class Network {
    */
   transitAvailability(date: Date | string): Promise<{ services: number; active: number }>;
   /**
-   * Warnings for the GTFS feeds that r5r refuses to build a network from:
-   * always empty, since buildNetwork() throws on such feeds as r5r does
-   * (kept for compatibility).
+   * Warnings about the build, which buildNetwork() also hands to
+   * `onWarning`: those about the elevation raster (samples r5r stores
+   * wrapped around, beyond +/-3276.7 m, such as SRTM's -32768 voids, or
+   * equal to the raster's no-data value). GTFS feeds that r5r refuses to
+   * build a network from are an error instead, as in r5r.
    */
   r5rWarnings(): string[];
 }

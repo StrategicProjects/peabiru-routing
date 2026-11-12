@@ -169,12 +169,30 @@ transport.
 
 As r5r does with a `.tif` file in its data directory, `buildNetwork({pbf,
 gtfs, tif})` gives walking and cycling times slope costs from an elevation
-raster: `elevation: "TOBLER"` (the default), `"MINETTI"` or `"NONE"`. The
-raster is a GeoTIFF of one band in WGS 84 longitude and latitude
-(EPSG:4326), north up, uncompressed or compressed with LZW, Deflate or
-PackBits; other rasters are an error. As in r5r, a raster also stops
-`travelTimeMatrix()` from swapping origins and destinations for walking,
-and a call with a scenario routes without the slope costs.
+raster: `elevation: "TOBLER"` (the default), `"MINETTI"` or `"NONE"`.
+The raster is a GeoTIFF of one band in WGS 84 longitude and latitude
+(EPSG:4326) or another coordinate reference system whose transform peabiru
+reproduces exactly: SIRGAS 2000 (4674), SAD69 (4618), Corrego Alegre 1970-72
+(4225), their UTM zones used in Brazil (31965-31985, 6210, 6211, 5396;
+29168-29172, 29187-29195; 22521-22525), SIRGAS 2000 / Brazil Polyconic
+(5880), WGS 84 / UTM (32601-32660, 32701-32760) and WGS 84 / Pseudo-Mercator
+(3857), north up, uncompressed or compressed with LZW, Deflate or PackBits;
+other rasters are an error. Where r5r's result depends on the machine,
+peabiru's does not: in a system other than EPSG:4326, r5r's own result depends on the machine it
+runs on for a street point within nanometres (5e-8 m, or 2e-13 degrees) of
+the boundary between two pixels of different values, or of the raster's
+edge: the last bits of Java's sines and cosines decide which pixel it reads.
+peabiru reads the pixel Java's StrictMath gives, the same on every machine,
+and warns once (`onWarning`) with the number of such points (about one in a
+hundred million for 30 m pixels; reprojecting the raster to EPSG:4326
+removes the ambiguity). A point that StrictMath itself puts on the raster's
+outer edge (inside its envelope, past the last pixel) remains an error,
+since there r5r fails on every machine and there is no pixel to read.
+Voids and values beyond +/-3276.7 m wrap around as in
+r5r (SRTM's -32768 becomes 0 m, -9999 becomes 3108.2 m), with a warning to
+`onWarning` that r5r does not give. As in r5r, a raster also stops
+`travelTimeMatrix()` from swapping origins and destinations for walking, and
+a call with a scenario routes without the slope costs.
 
 ## Feed order
 

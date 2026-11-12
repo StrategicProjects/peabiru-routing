@@ -21,9 +21,10 @@ setup_r5(
 \item{temp_dir}{A logical. Accepted for compatibility with r5r, which uses
 it to choose where to keep the R5 jar; it has no effect.}
 
-\item{elevation}{A string, \code{"TOBLER"} (the default), \code{"MINETTI"} or
-\code{"NONE"}. Only \code{"NONE"} can be routed; the default is fine when the
-directory has no \code{.tif} raster.}
+\item{elevation}{A string, the slope cost function for walking and
+cycling when \code{data_path} has a \code{.tif} elevation raster: \code{"TOBLER"} (the
+default; Tobler's hiking function), \code{"MINETTI"} (Minetti's energy cost
+of walking) or \code{"NONE"} (no slope costs).}
 
 \item{overwrite}{A logical. Accepted for compatibility with r5r, which uses
 it to rebuild a cached \code{network.dat}; the network is always built anew.}

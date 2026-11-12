@@ -16,6 +16,8 @@ fn usage_text() -> String {
          peabiru accessibility <dir|file.osm.pbf> <points.csv> <out.csv> --opportunities a,b [options]\n       \
          peabiru dump-edges <file.osm.pbf | dir>   (CSV like r5r::street_network_to_sf edges;\n                                             a directory links its GTFS stops)\n       \
          peabiru dump-elevation <dir> <out prefix>   (elevation samples and slope factors)\n       \
+         peabiru sample-raster <file.tif> <points> <out>   (R5's readElevation at points)\n       \
+         peabiru crs-transform <epsg code> <points> <out>   (GeoTools' transform of a raster CRS)\n       \
          (PEABIRU_ELEVATION=TOBLER|MINETTI|NONE: elevation of the networks built from a\n        directory; without it .tif rasters are ignored)\n       \
          {}\n       {}\n       {}",
         expanded::USAGE,
@@ -84,6 +86,13 @@ fn main() {
                 usage_error(cmd, "expected <file.tif> <points> <out>");
             }
             sample_raster(&args[1], &args[2], &args[3]);
+        }
+        Some("crs-transform") => {
+            let cmd = "crs-transform";
+            if args.len() != 4 {
+                usage_error(cmd, "expected <epsg code> <points> <out>");
+            }
+            crs_transform(&args[1], &args[2], &args[3]);
         }
         Some("dump-edges") => {
             let path = args
@@ -287,9 +296,46 @@ fn sample_raster(tif: &str, points: &str, out: &str) {
     let mut csv = String::new();
     for v in values {
         match v {
-            Ok(x) => csv.push_str(&format!("{:x}\n", x.to_bits())),
+            Ok((x, false)) => csv.push_str(&format!("{:x}\n", x.to_bits())),
+            // within nanometres of a pixel boundary: r5r's value depends on the machine
+            Ok((x, true)) => csv.push_str(&format!("{:x} AMBIGUOUS\n", x.to_bits())),
             Err(_) => csv.push_str("ERR\n"),
         }
+    }
+    cli::write_file(cmd, out, csv);
+}
+
+/// The transform R5 (GeoTools) applies to WGS 84 points for a raster in
+/// EPSG `code`, at points given as lines `lon,lat` of the hex bits of two
+/// doubles; one line out per point, `x y` as hex bits (for comparing with
+/// GeoTools, bench/compare/crs/).
+fn crs_transform(code: &str, points: &str, out: &str) {
+    let cmd = "crs-transform";
+    let code: u32 = code
+        .parse()
+        .unwrap_or_else(|_| usage_error(cmd, format!("bad EPSG code '{code}'")));
+    let text = std::fs::read_to_string(points)
+        .unwrap_or_else(|e| runtime_error(cmd, format!("{points}: {e}")));
+    let bits = |s: &str| {
+        u64::from_str_radix(s.trim(), 16)
+            .map(f64::from_bits)
+            .unwrap_or_else(|_| runtime_error(cmd, format!("{points}: bad value '{s}'")))
+    };
+    let pts: Vec<(f64, f64)> = text
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            let mut f = l.split(',');
+            let a = f.next().unwrap_or_else(|| runtime_error(cmd, "bad line"));
+            let b = f.next().unwrap_or_else(|| runtime_error(cmd, "bad line"));
+            (bits(a), bits(b))
+        })
+        .collect();
+    let xy = peabiru_core::unstable::crs_transform(code, &pts)
+        .unwrap_or_else(|| runtime_error(cmd, format!("EPSG:{code} is not supported")));
+    let mut csv = String::with_capacity(xy.len() * 34);
+    for (x, y) in xy {
+        csv.push_str(&format!("{:x} {:x}\n", x.to_bits(), y.to_bits()));
     }
     cli::write_file(cmd, out, csv);
 }

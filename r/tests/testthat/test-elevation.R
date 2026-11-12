@@ -82,3 +82,26 @@ test_that("a raster file in upper case is not one, as in r5r", {
   expect_identical(network$elevation, "NONE")
   expect_false(network$has_tif)
 })
+
+test_that("rasters in other coordinate reference systems are read", {
+  pts <- fixture_points()
+  for (tif in c("spo_hills_31983.tif", "spo_hills_4674.tif")) {
+    dir <- elevation_dir(stats::setNames(test_path("fixtures", tif), tif))
+    on.exit(unlink(dir, recursive = TRUE), add = TRUE)
+    n <- build_network(dir, n_threads = 2)
+    expect_identical(n$elevation, "TOBLER")
+    expect_false(identical(travel_time_matrix(n, pts, pts, mode = "WALK", n_threads = 2),
+                           travel_time_matrix(fixture_network(), pts, pts, mode = "WALK",
+                                              n_threads = 2)))
+  }
+})
+
+test_that("voids and values beyond +/-3276.7 m wrap around as in r5r, with a warning", {
+  dir <- elevation_dir(c("voids.tif" = test_path("fixtures", "spo_voids.tif")))
+  on.exit(unlink(dir, recursive = TRUE))
+  expect_warning(n <- build_network(dir, n_threads = 2),
+                 "elevation samples on the network, [0-9]+ with a value beyond \\+/-3276.7 m")
+  expect_identical(n$elevation, "TOBLER")
+  # a raster without them gives no warning
+  expect_no_warning(build_network(elevation_dir(), n_threads = 2))
+})

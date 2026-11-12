@@ -22,9 +22,10 @@ build_network(
 \item{temp_dir}{A logical. Accepted for compatibility with r5r, which uses
 it to choose where to keep the R5 jar; it has no effect.}
 
-\item{elevation}{A string, \code{"TOBLER"} (the default), \code{"MINETTI"} or
-\code{"NONE"}. Only \code{"NONE"} can be routed; the default is fine when the
-directory has no \code{.tif} raster.}
+\item{elevation}{A string, the slope cost function for walking and
+cycling when \code{data_path} has a \code{.tif} elevation raster: \code{"TOBLER"} (the
+default; Tobler's hiking function), \code{"MINETTI"} (Minetti's energy cost
+of walking) or \code{"NONE"} (no slope costs).}
 
 \item{overwrite}{A logical. Accepted for compatibility with r5r, which uses
 it to rebuild a cached \code{network.dat}; the network is always built anew.}
@@ -46,12 +47,46 @@ no \code{network.dat} cache.
 As in r5r, the files are recognised by their extension in lower case only:
 a \code{map.PBF} or a \code{feed.ZIP} is ignored.
 
-Elevation is not supported yet. As in r5r, when the directory has no
-\code{.tif} raster the network is built with \code{elevation = "NONE"}; when it has
-one (a file ending in \code{.tif} or \code{.tiff}), \code{elevation = "NONE"} must be
-given explicitly (and, as in r5r, the
-raster still disables the swap of origins and destinations that r5r does
-for walking).
+As in r5r, a \code{.tif} raster in \code{data_path} gives walking and cycling
+times slope costs (\code{elevation = "TOBLER"}, the default, or \code{"MINETTI"};
+never for cars), identical to r5r's: the raster is sampled every 10 m
+along each street at the nearest pixel, and each street's time is
+multiplied by the average cost of its slopes. Points outside the raster
+count as 0 m high, as in r5r. Without a \code{.tif} raster the network is
+built with \code{elevation = "NONE"}.
+
+The raster must be a GeoTIFF with one band in WGS 84 longitude and
+latitude (EPSG:4326) or another coordinate reference system whose
+transform peabiru reproduces exactly: SIRGAS 2000 (4674), SAD69 (4618),
+Corrego Alegre 1970-72 (4225), their UTM zones used in Brazil
+(31965-31985, 6210, 6211, 5396; 29168-29172, 29187-29195; 22521-22525),
+SIRGAS 2000 / Brazil Polyconic (5880), WGS 84 / UTM (32601-32660,
+32701-32760) and WGS 84 / Pseudo-Mercator (3857), given by its EPSG code
+(what GDAL writes), north up, uncompressed or compressed with LZW,
+Deflate or PackBits (what GDAL writes by default); other rasters are an
+error that says what to change, and so are a \code{.prj} file next to it (r5r
+would use its system instead), a raster whose name ends in \code{.tiff} (r5r
+fails to read it) and more than one raster (r5r reads the last one the
+file system lists).
+In a system other than EPSG:4326, r5r's own result depends on the machine
+it runs on for a street point within nanometres (5e-8 m, or 2e-13
+degrees) of the boundary between two pixels of different values, or of
+the raster's edge: the last bits of Java's sines and cosines decide which
+pixel it reads. peabiru reads the pixel Java's \code{StrictMath} gives, the
+same on every machine, and warns once with the number of such points
+(about one in a hundred million for 30 m pixels; reprojecting the raster
+to EPSG:4326 removes the ambiguity). A point that \code{StrictMath} itself
+puts on the raster's outer edge (inside its envelope, past the last
+pixel) remains an error, since there r5r fails on every machine and there
+is no pixel to read.
+Voids and values beyond +/-3276.7 m are stored wrapped around as r5r
+stores them (R5 keeps decimetres in 16-bit integers: SRTM's -32768 voids
+become 0 m, -9999 becomes 3108.2 m), so the slope costs are r5r's, with a
+warning that r5r does not give, counting them and the samples equal to
+the raster's no-data value. As in r5r, a raster also disables the swap of
+origins and destinations that r5r does for walking, and a routing call
+with a scenario (\code{new_carspeeds}, \code{carspeed_scale}, \code{new_lts}) runs
+without the slope costs, with r5r's warning.
 
 The 'GTFS' feeds are loaded in the order in which the operating system
 lists the directory, as R5 does. With more than one feed that order

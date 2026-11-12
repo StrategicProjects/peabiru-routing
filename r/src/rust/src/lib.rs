@@ -364,15 +364,18 @@ fn rs_network_valid(ptr: Robj) -> bool {
     network(&ptr).is_ok()
 }
 
-/// Warnings for the GTFS feeds that r5r refuses to build a network from,
-/// one per feed.
+/// Warnings about the network build: one per GTFS feed that r5r refuses
+/// to build a network from, then those about the elevation raster.
 /// @noRd
 #[extendr]
 fn rs_network_r5r_warnings(ptr: Robj) -> Result<Vec<String>> {
     let n = network(&ptr)?;
-    Ok(n.transit
+    let mut w = n
+        .transit
         .as_ref()
-        .map_or_else(Vec::new, |t| t.layer.r5r_warnings()))
+        .map_or_else(Vec::new, |t| t.layer.r5r_warnings());
+    w.extend(n.net.elevation_warnings().iter().cloned());
+    Ok(w)
 }
 
 /// Sizes of the network, for `print()`.

@@ -9,7 +9,8 @@ NULL
 #' @noRd
 rs_core_version <- function() .Call(wrap__rs_core_version)
 
-#' Build a network from a directory with one `.pbf` and any GTFS zips.
+#' Build a network from a directory with one `.pbf`, any GTFS zips and an
+#' optional `.tif` elevation raster (used unless `elevation` is `"NONE"`).
 #' @noRd
 rs_build_network <- function(data_path, n_threads, elevation) .Call(wrap__rs_build_network, data_path, n_threads, elevation)
 
@@ -17,8 +18,8 @@ rs_build_network <- function(data_path, n_threads, elevation) .Call(wrap__rs_bui
 #' @noRd
 rs_network_valid <- function(ptr) .Call(wrap__rs_network_valid, ptr)
 
-#' Warnings for the GTFS feeds that r5r refuses to build a network from,
-#' one per feed.
+#' Warnings about the network build: one per GTFS feed that r5r refuses
+#' to build a network from, then those about the elevation raster.
 #' @noRd
 rs_network_r5r_warnings <- function(ptr) .Call(wrap__rs_network_r5r_warnings, ptr)
 
@@ -135,8 +136,10 @@ rs_gtfs_errors <- function(paths) .Call(wrap__rs_gtfs_errors, paths)
 
 #' Itineraries between `origins[i]` and `destinations[i]`, as
 #' `list(pair, option, departure_time, total_duration, total_distance,
-#' segment, mode, segment_duration, wait, distance, route, geometry)`
-#' (`pair` 1-based; `geometry` `NULL` with `drop_geometry`). With `output`
+#' segment, mode, segment_duration, wait, distance, route, osm_id_list,
+#' edge_id_list, board_stop_id, alight_stop_id, geometry)` (`pair` 1-based;
+#' the four id columns `NULL` without `osm_link_ids`, `geometry` `NULL`
+#' with `drop_geometry`). With `output`
 #' (`list(dir, from_ids, to_ids)`) the files are written instead and
 #' `NULL` returned.
 #' @noRd
