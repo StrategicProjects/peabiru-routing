@@ -73,6 +73,12 @@ test("fares limit trips; the Pareto frontier lists the times at each fare", asyn
   await assert.rejects(() => peabiru.paretoFrontier(net, pts, pts, { departureDatetime: DEPARTURE, fareCutoffs: [1] }), /required/);
   await assert.rejects(() => peabiru.paretoFrontier(net, pts, pts, { departureDatetime: DEPARTURE, fareStructure: fs, fareCutoffs: [1, 1] }), /duplicated/);
   await assert.rejects(() => peabiru.paretoFrontier(net, pts, pts, { departureDatetime: DEPARTURE, fareStructure: fs, fareCutoffs: [1], drawsPerMinute: 2 }), /unknown option/);
+  // r5r's default mode is c("WALK", "TRANSIT"): public transport needs a departure time
+  await assert.rejects(() => peabiru.paretoFrontier(net, head(1), pts, { fareStructure: fs, fareCutoffs: [1] }), /departureDatetime/);
+  const walk = await peabiru.paretoFrontier(net, head(1), pts, { mode: "WALK", fareStructure: fs, fareCutoffs: [1], departureDatetime: DEPARTURE });
+  const both = await peabiru.paretoFrontier(net, head(1), pts, { mode: ["WALK", "TRANSIT"], fareStructure: fs, fareCutoffs: [1], departureDatetime: DEPARTURE, seed: 1 });
+  assert.deepEqual(await peabiru.paretoFrontier(net, head(1), pts, { fareStructure: fs, fareCutoffs: [1], departureDatetime: DEPARTURE, seed: 1 }), both);
+  assert.ok(walk.from_id.length > 0);
 });
 
 test("the pool of workers gives the frontier of one instance", async () => {
