@@ -10,7 +10,7 @@ description: >
 ```{r, include = FALSE}
 # This article is precomputed: its source is capitals.Rmd.orig, knitted into
 # capitals.Rmd by `bash site/figures/make.sh --capitals` (the data takes 1 GB
-# of downloads and osmium, and the routing half an hour: too much for every
+# of downloads and osmium, and the routing half an hour to an hour: too much for every
 # site build). Only the chunks written out below by cat() run when pkgdown
 # renders it.
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")

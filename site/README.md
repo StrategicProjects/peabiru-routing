@@ -115,7 +115,7 @@ streets with osmium; it checks each feed against the SHA-256 of the file the
 figures were computed from and stops if the publisher has replaced it
 (`PEABIRU_CAPITALS_ACCEPT_NEW=true` goes on: the figures and the text of the
 pages then need revising). `site/figures/capitals.R` computes the access of
-every inhabited cell (half an hour on a laptop; kept in `<cache>/results/`
+every inhabited cell (half an hour to an hour on a laptop; kept in `<cache>/results/`
 with a log of times, delete it to compute again) and draws
 `jobs-60min-{spo,rio,bho}.svg`, `access-income-capitals.svg`,
 `access-compare-capitals.svg`, `access-aop-capitals.svg` and, on r5r's
