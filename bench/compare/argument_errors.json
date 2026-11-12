@@ -51,17 +51,17 @@
       ".*:mode:(neg|zero|frac|big|inf|nan|lgl|num2)": "R turns numbers and logicals into text (toupper()) and reports the text as not a mode; Python and JavaScript report the value's type",
       ".*:mode_egress:(neg|zero|frac|big|inf|nan|lgl|num2)": "R turns numbers and logicals into text (toupper()) and reports the text as not a mode; Python and JavaScript report the value's type",
       "setup_fare_structure:by:(neg|zero|frac|big|inf|nan|lgl|num2)": "R turns numbers and logicals into text (toupper()) and reports the text as not a mode; Python and JavaScript report the value's type",
-      "arrival_travel_time_matrix:arrival_datetime:.*": "R checks arrival_datetime - max_trip_duration as 'departure_datetime' (a difftime for a number) and notes where r5r fails with an internal error; Python and JavaScript check arrival_datetime itself",
+      "arrival_travel_time_matrix:arrival_datetime:.*": "R checks arrival_datetime - max_trip_duration as 'departure_datetime' (a difftime for a number); Python and JavaScript check arrival_datetime itself",
       "pareto_frontier:fare_cutoffs:NULL_": "in R a missing argument and NULL differ; in Python and JavaScript None and undefined are the default, which says that fare_cutoffs is required",
-      "detailed_itineraries:all_to_all:.*": "R (as r5r) names the internal argument 'unique_ids'; Python and JavaScript name 'all_to_all'"
+      "detailed_itineraries:all_to_all:.*": "R names the internal argument 'unique_ids'; Python and JavaScript name 'all_to_all'"
     },
     "js": {
       ".*:mode:(neg|zero|frac|big|inf|nan|lgl|num2)": "R turns numbers and logicals into text (toupper()) and reports the text as not a mode; Python and JavaScript report the value's type",
       ".*:mode_egress:(neg|zero|frac|big|inf|nan|lgl|num2)": "R turns numbers and logicals into text (toupper()) and reports the text as not a mode; Python and JavaScript report the value's type",
       "setup_fare_structure:by:(neg|zero|frac|big|inf|nan|lgl|num2)": "R turns numbers and logicals into text (toupper()) and reports the text as not a mode; Python and JavaScript report the value's type",
-      "arrival_travel_time_matrix:arrival_datetime:.*": "R checks arrival_datetime - max_trip_duration as 'departure_datetime' (a difftime for a number) and notes where r5r fails with an internal error; Python and JavaScript check arrival_datetime itself",
+      "arrival_travel_time_matrix:arrival_datetime:.*": "R checks arrival_datetime - max_trip_duration as 'departure_datetime' (a difftime for a number); Python and JavaScript check arrival_datetime itself",
       "pareto_frontier:fare_cutoffs:NULL_": "in R a missing argument and NULL differ; in Python and JavaScript None and undefined are the default, which says that fare_cutoffs is required",
-      "detailed_itineraries:all_to_all:.*": "R (as r5r) names the internal argument 'unique_ids'; Python and JavaScript name 'all_to_all'",
+      "detailed_itineraries:all_to_all:.*": "R names the internal argument 'unique_ids'; Python and JavaScript name 'all_to_all'",
       ".*:departure_datetime:chr": "JavaScript also takes a string 'YYYY-MM-DD HH:MM:SS' (there is no time zone-free date and time type), so a string that is not one says what it must be"
     }
   },
@@ -2314,13 +2314,13 @@
       "fun": "arrival_travel_time_matrix",
       "arg": "arrival_datetime",
       "value": "chr",
-      "message": "Assertion on 'arrival_datetime' failed: Must be of type 'POSIXct', not 'character' (r5r 2.5.0 fails on it with an internal R error)."
+      "message": "Assertion on 'arrival_datetime' failed: Must be of type 'POSIXct', not 'character'."
     },
     {
       "fun": "arrival_travel_time_matrix",
       "arg": "arrival_datetime",
       "value": "chr2",
-      "message": "Assertion on 'arrival_datetime' failed: Must be of type 'POSIXct', not 'character' (r5r 2.5.0 fails on it with an internal R error)."
+      "message": "Assertion on 'arrival_datetime' failed: Must be of type 'POSIXct', not 'character'."
     },
     {
       "fun": "arrival_travel_time_matrix",
