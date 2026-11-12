@@ -33,7 +33,7 @@ be used with \code{start_date}.}
 accepted with a warning.}
 }
 \value{
-A \code{data.frame} with four columns: \code{date} (\code{Date}),
+A table with four columns: \code{date} (\code{Date}),
 \code{total_services}, \code{active_services} and \code{pct_active} (the proportion
 of active services). Automatic discovery returns dates in ascending
 order, or a zero-row table with these columns if no retained transit
@@ -66,8 +66,8 @@ queries remain available.
 \section{Compatibility with r5r}{
 
 The arguments, their defaults and checks, the columns and the values are
-those of \code{r5r::check_transit_availability()} in r5r 2.5.0; the result is
-a \code{data.frame} rather than a \code{data.table}.
+those of \code{r5r::check_transit_availability()} in r5r 2.5.0; with \code{options(peabiru.output = "data.table")}
+the result is identical to r5r's, its class included.
 }
 
 \examples{

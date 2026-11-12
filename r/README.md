@@ -74,9 +74,12 @@ ttm <- travel_time_matrix(
 
 The package exports the 22 functions of [r5r](https://github.com/ipea/r5r)
 2.5.0, with their arguments and defaults, and the results are r5r's: with
-the same arguments and `seed`, r5r returns the same `data.frame`
-(`identical()` after converting r5r's `data.table`). The article "Coming
-from r5r" lists what is the same and every difference.
+the same arguments and `seed`, r5r returns the same rows, columns and
+values. peabiru returns tibbles by default;
+`options(peabiru.output = "data.table")` gives r5r's `data.table`s,
+`identical()` to r5r's results, class included, and
+`options(peabiru.output = "data.frame")` base data frames. The article
+"Coming from r5r" lists what is the same and every difference.
 
 ## Documentation
 
@@ -86,7 +89,11 @@ the repository and open `_site/r/index.html`. It has a getting-started
 vignette and articles on travel-time matrices, accessibility, expanded and
 arrival matrices, detailed itineraries, fares, elevation, scenarios,
 inspecting a network, coming from r5r, how the engine works, and
-benchmarks.
+benchmarks. To go from points to maps with sf, dplyr and ggplot2, start with
+["peabiru with sf and the tidyverse"](https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/sf-tidyverse.Rmd):
+an sf grid in any coordinate reference system, the routing functions with
+the native pipe, dplyr on the tibbles they return, joins back to the
+geometry and `geom_sf()` maps.
 
 ## Licence and credits
 

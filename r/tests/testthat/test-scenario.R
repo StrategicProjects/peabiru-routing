@@ -109,7 +109,7 @@ test_that("sf scenarios are checked as r5r checks them, and route", {
   expect_identical(ttm(mode = "CAR", new_carspeeds = poly, carspeed_scale = 0.5),
                    ttm(mode = "CAR", carspeed_scale = 0.5))
   expect_error(ttm(mode = "CAR", new_carspeeds = sf::st_set_crs(poly, NA)),
-               "The CRS of parameter `new_speeds` must be WGS 84", fixed = TRUE)
+               "'new_carspeeds' has no coordinate reference system (CRS)", fixed = TRUE)
   bad <- poly
   bad$priority <- 1
   expect_error(ttm(mode = "CAR", new_carspeeds = bad),

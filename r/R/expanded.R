@@ -16,8 +16,8 @@
 #' @section Compatibility with r5r:
 #' The arguments, their defaults and checks, the columns, the rows and their
 #' order are those of `r5r::expanded_travel_time_matrix()` in r5r 2.5.0,
-#' with the same values (with frequencies, for the same `seed`); the result
-#' is a `data.frame` rather than a `data.table`. With a street mode alone
+#' with the same values (with frequencies, for the same `seed`); with `options(peabiru.output = "data.table")`
+#' the result is identical to r5r's, its class included. With a street mode alone
 #' r5r reports the same trip for every minute of a departure time taken
 #' from the computer's clock (`Sys.time()`) rather than from
 #' `departure_datetime`; peabiru stops with an error instead. With more
@@ -29,13 +29,15 @@
 #' @param breakdown A logical. Whether to break each trip down into access,
 #'   waiting, in-vehicle, transfer and egress times, and the number of rides.
 #'
-#' @return A `data.frame` with `from_id`, `to_id`, `departure_time`
+#' @return A table with `from_id`, `to_id`, `departure_time`
 #'   (`"HH:MM:SS"`), `draw_number`, with `breakdown = TRUE` `access_time`,
 #'   `wait_time`, `ride_time`, `transfer_time`, `egress_time`, then `routes`
 #'   (route ids joined by `"|"`, or `"[WALK]"`), with `breakdown = TRUE`
 #'   `n_rides`, and `total_time`. Times are in minutes, with one decimal.
 #'   Trips longer than `max_trip_duration` have `NA` times and routes. With
 #'   `output_dir`, `output_dir`.
+#'
+#'   `r doc_output_class()`
 #' @family routing functions
 #' @export
 #' @examples
@@ -81,6 +83,7 @@ expanded_travel_time_matrix <- function(r5r_network,
                                         output_dir = NULL,
                                         r5r_core = deprecated()) {
   # mirrors r5r R/expanded_travel_time_matrix.R
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -131,7 +134,7 @@ expanded_travel_time_matrix <- function(r5r_network,
     csv_output(output_dir, origins, destinations, breakdown = breakdown)
   ))
   if (!is.null(output_dir)) return(output_dir)
-  expanded_result(res, origins, destinations, breakdown, max_trip_duration)
+  as_output(expanded_result(res, origins, destinations, breakdown, max_trip_duration), kind)
 }
 
 #' Calculate travel time matrix between origin destination pairs considering a
@@ -150,8 +153,8 @@ expanded_travel_time_matrix <- function(r5r_network,
 #' @section Compatibility with r5r:
 #' The arguments, their defaults and checks, the columns, the rows and their
 #' order are those of `r5r::arrival_travel_time_matrix()` in r5r 2.5.0,
-#' with the same values (with frequencies, for the same `seed`); the result
-#' is a `data.frame` rather than a `data.table`. An `arrival_datetime` that
+#' with the same values (with frequencies, for the same `seed`); with `options(peabiru.output = "data.table")`
+#' the result is identical to r5r's, its class included. An `arrival_datetime` that
 #' is not a date-time is an error that says so (r5r fails on it with an
 #' internal R error); a street mode alone is an error, as in
 #' [expanded_travel_time_matrix()].
@@ -161,9 +164,11 @@ expanded_travel_time_matrix <- function(r5r_network,
 #'   time by which trips must arrive (see the section "Date and time" of
 #'   [travel_time_matrix()]).
 #'
-#' @return A `data.frame` with the columns of
+#' @return A table with the columns of
 #'   [expanded_travel_time_matrix()]: one row per origin and destination
 #'   reached in time. With `output_dir`, `output_dir`.
+#'
+#'   `r doc_output_class()`
 #' @family routing functions
 #' @export
 #' @examples
@@ -207,6 +212,7 @@ arrival_travel_time_matrix <- function(r5r_network,
                                        output_dir = NULL,
                                        r5r_core = deprecated()) {
   # mirrors r5r R/arrival_travel_time_matrix.R
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -280,7 +286,7 @@ arrival_travel_time_matrix <- function(r5r_network,
     csv_output(output_dir, origins, destinations, breakdown = breakdown)
   ))
   if (!is.null(output_dir)) return(output_dir)
-  expanded_result(res, origins, destinations, breakdown, max_trip_duration)
+  as_output(expanded_result(res, origins, destinations, breakdown, max_trip_duration), kind)
 }
 
 check_expanded_mode <- function(mode_list) {

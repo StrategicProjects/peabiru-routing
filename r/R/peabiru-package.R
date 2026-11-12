@@ -25,6 +25,61 @@
 #' [r5r_sitrep()]) are kept so that r5r scripts run. See
 #' the article "Coming from r5r" on the package website for the differences.
 #'
+#' @section Class of the results:
+#' The tables the functions return are tibbles by default. The option
+#' `peabiru.output`, read at each call, chooses another class:
+#'
+#' * `options(peabiru.output = "tibble")` (the default; 'tibble' is the
+#'   package's one dependency): tibbles, and `sf` tibbles (class
+#'   `c("sf", "tbl_df", "tbl", "data.frame")`) for the results with a
+#'   geometry, as `sf::st_as_sf()` makes of a tibble;
+#' * `options(peabiru.output = "data.frame")`: base `data.frame`s, and plain
+#'   `sf` data frames;
+#' * `options(peabiru.output = "data.table")` (needs 'data.table'):
+#'   `data.table`s, with the class r5r 2.5.0 gives each result, so that the
+#'   result is identical to r5r's: `sf` `data.table`s for isochrone
+#'   polygons, itineraries, the street edges and the transit routes, plain
+#'   `sf` data frames for isochrone lines, street vertices and transit
+#'   stops, and the index r5r's [find_snap()] leaves on `found`. A good
+#'   choice for large matrices handled with 'data.table'.
+#'
+#' Any other value is an error. The option applies to every table: the
+#' matrices, accessibility, Pareto frontiers, [find_snap()],
+#' [check_transit_availability()], [get_gtfs_errors()], the tables of a fare
+#' structure, the tables of [trip_options()] and the `sf` results (whose
+#' geometries are always in EPSG:4326). The rows, the columns, their order
+#' and types, and the row names are the same whatever the class.
+#'
+#' @references
+#' Conway, M. W., Byrd, A. and van der Linden, M. (2017). Evidence-based
+#' transit and land use sketch planning using interactive accessibility
+#' methods on combined schedule and headway-based networks. *Transportation
+#' Research Record*, 2653(1), 45-53. \doi{10.3141/2653-06}
+#'
+#' Conway, M. W., Byrd, A. and van Eggermond, M. (2018). Accounting for
+#' uncertainty and variation in accessibility metrics for public transport
+#' sketch planning. *Journal of Transport and Land Use*, 11(1).
+#' \doi{10.5198/jtlu.2018.1074}
+#'
+#' Conway, M. W. and Stewart, A. F. (2019). Getting Charlie off the MTA: a
+#' multiobjective optimization method to account for cost constraints in
+#' public transit accessibility metrics. *International Journal of
+#' Geographical Information Science*, 33(9), 1759-1787.
+#' \doi{10.1080/13658816.2019.1605075}
+#'
+#' Delling, D., Pajor, T. and Werneck, R. F. (2015). Round-based public
+#' transit routing. *Transportation Science*, 49(3), 591-604.
+#' \doi{10.1287/trsc.2014.0534}
+#'
+#' Geisberger, R., Sanders, P., Schultes, D. and Vetter, C. (2012). Exact
+#' routing in large road networks using contraction hierarchies.
+#' *Transportation Science*, 46(3), 388-404. \doi{10.1287/trsc.1110.0401}
+#'
+#' Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V. and
+#' Conway, M. W. (2021). r5r: Rapid Realistic Routing on Multimodal
+#' Transport Networks with R5 in R. *Findings*.
+#' \doi{10.32866/001c.21262}
+#'
 #' @section Sample data:
 #' `system.file("extdata/spo", package = "peabiru")` holds a small network
 #' for examples and tests, cut from the Sao Paulo sample data of the 'r5r'

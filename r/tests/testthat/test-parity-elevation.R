@@ -54,9 +54,10 @@ elevation_networks <- local({
 
 expect_elevation_parity <- function(key, fun, ...) {
   n <- elevation_networks(key)
+  local_output("data.table")
   pb <- getExportedValue("peabiru", fun)(n$pb, ..., n_threads = 2)
   r5 <- getExportedValue("r5r", fun)(n$r5, ..., n_threads = 2, progress = FALSE)
-  expect_identical(pb, as.data.frame(r5))
+  expect_identical_r5r(pb, r5)
 }
 
 test_that("walking and cycling with elevation equal r5r's", {
@@ -89,6 +90,7 @@ test_that("a scenario on a network with elevation equals r5r's, with its warning
   key <- "spo-tobler"
   n <- elevation_networks(key)
   pts <- n$points
+  local_output("data.table")
   expect_warning(
     pb <- travel_time_matrix(n$pb, pts, pts, mode = "WALK", carspeed_scale = 0.9,
                              n_threads = 2),
@@ -98,7 +100,7 @@ test_that("a scenario on a network with elevation equals r5r's, with its warning
     r5r::travel_time_matrix(n$r5, pts, pts, mode = "WALK", carspeed_scale = 0.9,
                             n_threads = 2, progress = FALSE)
   ))
-  expect_identical(pb, as.data.frame(r5))
+  expect_identical_r5r(pb, r5)
 })
 
 test_that("rasters in SIRGAS 2000 give r5r's transit times and itineraries", {

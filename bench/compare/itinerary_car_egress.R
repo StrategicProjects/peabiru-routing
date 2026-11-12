@@ -20,6 +20,8 @@
 # again from network.dat, nothing routed before) for that pair alone,
 # n_threads = 1. Exits with status 1 if any of these differs.
 
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 args <- commandArgs(TRUE)
 # a seed followed by "s" (e.g. 3s) runs on a car speed scenario: 400 random
 # ways at 0.4 to 1.5 times their speed

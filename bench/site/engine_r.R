@@ -7,6 +7,8 @@
 #   --points CSV --task ttm_transit --threads 10 --reps 3 --params JSON
 #   [--result out.csv]
 
+# peabiru returns tibbles by default; these scripts work with data.frames.
+options(peabiru.output = "data.frame")
 args <- commandArgs(trailingOnly = TRUE)
 opt <- function(name) {
   i <- match(paste0("--", name), args)

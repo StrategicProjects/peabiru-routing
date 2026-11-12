@@ -14,6 +14,8 @@
 # points_700m.csv, the whole city with car egress. Also counts the pairs
 # that take the fallback without the switch (peabiru: the CLI's report; r5r:
 # its log, in this script's output). Exits with status 1 if anything differs.
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 args <- commandArgs(TRUE)
 n <- if (length(args)) as.integer(args[1]) else 200L
 lib <- Sys.getenv("PEABIRU_R_LIB")

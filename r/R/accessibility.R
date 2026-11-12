@@ -34,13 +34,14 @@
 #' @section Compatibility with r5r:
 #' The arguments, their defaults and checks, the columns and the rows of the
 #' result are those of `r5r::accessibility()` in r5r 2.5.0, and the values
-#' are equal to the last bit (with frequencies, for the same `seed`); the
-#' result is a `data.frame` rather than a `data.table`. An empty
+#' are equal to the last bit (with frequencies, for the same `seed`); with `options(peabiru.output = "data.table")`
+#' the result is identical to r5r's, its class included. An empty
 #' `percentiles` is an error that says so (r5r fails on it in Java).
 #'
 #' @inheritParams travel_time_matrix
-#' @param origins A `data.frame` with columns `id`, `lon` and `lat`, or a
-#'   `POINT sf` with an `id` column, in WGS 84.
+#' @param origins A `data.frame` with columns `id`, `lon` and `lat` (WGS
+#'   84), or a `POINT sf` with an `id` column, in any coordinate reference
+#'   system (reprojected to WGS 84, see [travel_time_matrix()]).
 #' @param destinations A `data.frame` or `POINT sf` with `id`, `lon`, `lat`
 #'   and the opportunity columns.
 #' @param opportunities_colnames A character vector, the names of the
@@ -56,10 +57,12 @@
 #'   deviation in minutes for `"logistic"` (at least 1); `NULL` for `"step"`
 #'   and `"exponential"`.
 #'
-#' @return A `data.frame` with `id`, `opportunity`, `percentile`, `cutoff`
+#' @return A table with `id`, `opportunity`, `percentile`, `cutoff`
 #'   (absent with `"fixed_exponential"`) and `accessibility`, one row per
 #'   origin, opportunity, percentile and cutoff, in that order. With
 #'   `output_dir`, `output_dir`.
+#'
+#'   `r doc_output_class()`
 #' @family routing functions
 #' @export
 #' @examples
@@ -113,6 +116,7 @@ accessibility <- function(r5r_network,
                           output_dir = NULL,
                           r5r_core = deprecated()) {
   # mirrors r5r R/accessibility.R
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -196,5 +200,5 @@ accessibility <- function(r5r_network,
     accessibility = values
   )
   if (decay_function == "fixed_exponential") cols$cutoff <- NULL
-  new_df(cols)
+  as_output(new_df(cols), kind)
 }

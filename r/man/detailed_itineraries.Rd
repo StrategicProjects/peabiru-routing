@@ -41,7 +41,10 @@ detailed_itineraries(
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
-\code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84. Ids that are not
+\code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
+column, in any coordinate reference system (CRS): an \code{sf} in another
+CRS than WGS 84 is reprojected with \code{sf::st_transform()}, with a
+message, and one without a CRS is an error. Ids that are not
 character are converted, with a warning; points with missing
 coordinates are not routed, with a warning; duplicated ids are an
 error.}
@@ -104,7 +107,8 @@ a \code{fare_structure}.}
 data frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type}
 (\code{"scale"}, a factor for the car speed of the way's edges, or \code{"km/h"},
 a speed; 0 closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s
-or \code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+or \code{MULTIPOLYGON}s (in any CRS, reprojected to WGS 84 as \code{origins})
+with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
 overlaps most). Polygons that are not valid are an error, and so are
@@ -118,7 +122,8 @@ past that range, is an error.}
 
 \item{new_lts}{A scenario of levels of traffic stress: \code{NULL} (the
 default), a data frame with columns \code{osm_id} and \code{lts} (integer), or an
-\code{sf} data frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts}
+\code{sf} data frame of \code{LINESTRING}s (in any CRS, reprojected to WGS 84 as
+\code{origins}) with columns \code{line_id}, \code{lts}
 (1 to 4) and \code{priority}: each street edge takes the level of the line
 closest to it among those whose bounding box meets its own (\code{priority}
 is not used). A scenario (of car speeds or of levels of traffic stress)
@@ -133,7 +138,7 @@ with an elevation raster.}
 counter or routing log is printed.}
 
 \item{drop_geometry}{A logical. Whether to leave the geometry out and
-return a \code{data.frame}.}
+return a table without it.}
 
 \item{osm_link_ids}{A logical. Whether to add the columns
 \code{osm_id_list} (the OpenStreetMap way ids of a street leg's edges),
@@ -165,7 +170,7 @@ accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
 With \code{drop_geometry = FALSE}, an \code{sf} of \code{LINESTRING}s in
-EPSG:4326; otherwise a \code{data.frame}. One row per leg (\code{segment}) of
+EPSG:4326; otherwise a table without geometry. One row per leg (\code{segment}) of
 each itinerary (\code{option}), with \code{from_id}, \code{from_lat}, \code{from_lon},
 \code{to_id}, \code{to_lat}, \code{to_lon}, \code{option}, \code{departure_time},
 \code{total_duration} (minutes), \code{total_distance} (metres), \code{segment},
@@ -177,6 +182,9 @@ leg. Pairs without an itinerary have no rows. With \code{output_dir},
 one CSV file per pair with itineraries is written,
 \verb{from_<origin id>_to_<destination id>.csv} (the geometry as WKT text,
 byte for byte the files r5r writes), and \code{output_dir} is returned.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", the class r5r gives it. With "data.table", both are
+\code{data.table}s, as r5r's.
 }
 \description{
 The itinerary of each trip between pairs of origins and destinations:
@@ -204,9 +212,9 @@ that run).
 \section{Compatibility with r5r}{
 
 The arguments, their defaults and checks, the columns, the rows and the
-geometries are those of \code{r5r::detailed_itineraries()} in r5r 2.5.0; with
-\code{drop_geometry = TRUE} the result is a \code{data.frame} rather than a
-\code{data.table}. With \code{mode_egress = "CAR"}, R5 reverses the via edges of
+geometries are those of \code{r5r::detailed_itineraries()} in r5r 2.5.0, and
+with \code{options(peabiru.output = "data.table")} the result is identical to r5r's, its class
+included. With \code{mode_egress = "CAR"}, R5 reverses the via edges of
 turn restrictions with two or more via ways in place each time its
 backward egress search checks one, so what r5r returns for a pair whose
 car searches cross such a restriction can depend on the searches that

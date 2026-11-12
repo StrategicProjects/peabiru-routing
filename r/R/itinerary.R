@@ -23,9 +23,9 @@
 #'
 #' @section Compatibility with r5r:
 #' The arguments, their defaults and checks, the columns, the rows and the
-#' geometries are those of `r5r::detailed_itineraries()` in r5r 2.5.0; with
-#' `drop_geometry = TRUE` the result is a `data.frame` rather than a
-#' `data.table`. With `mode_egress = "CAR"`, R5 reverses the via edges of
+#' geometries are those of `r5r::detailed_itineraries()` in r5r 2.5.0, and
+#' with `options(peabiru.output = "data.table")` the result is identical to r5r's, its class
+#' included. With `mode_egress = "CAR"`, R5 reverses the via edges of
 #' turn restrictions with two or more via ways in place each time its
 #' backward egress search checks one, so what r5r returns for a pair whose
 #' car searches cross such a restriction can depend on the searches that
@@ -47,7 +47,7 @@
 #'   default; a single origin or destination is repeated to match the
 #'   other).
 #' @param drop_geometry A logical. Whether to leave the geometry out and
-#'   return a `data.frame`.
+#'   return a table without it.
 #' @param osm_link_ids A logical. Whether to add the columns
 #'   `osm_id_list` (the OpenStreetMap way ids of a street leg's edges),
 #'   `edge_id_list` (the indices of the street network's edges, as
@@ -58,7 +58,7 @@
 #'   Needs `drop_geometry = FALSE`. Defaults to `FALSE`.
 #'
 #' @return With `drop_geometry = FALSE`, an `sf` of `LINESTRING`s in
-#'   EPSG:4326; otherwise a `data.frame`. One row per leg (`segment`) of
+#'   EPSG:4326; otherwise a table without geometry. One row per leg (`segment`) of
 #'   each itinerary (`option`), with `from_id`, `from_lat`, `from_lon`,
 #'   `to_id`, `to_lat`, `to_lon`, `option`, `departure_time`,
 #'   `total_duration` (minutes), `total_distance` (metres), `segment`,
@@ -70,6 +70,9 @@
 #'   one CSV file per pair with itineraries is written,
 #'   `from_<origin id>_to_<destination id>.csv` (the geometry as WKT text,
 #'   byte for byte the files r5r writes), and `output_dir` is returned.
+#'
+#'   `r doc_output_class(sf = TRUE)` With "data.table", both are
+#'   `data.table`s, as r5r's.
 #' @family routing functions
 #' @export
 #' @examplesIf requireNamespace("sf", quietly = TRUE)
@@ -116,6 +119,7 @@ detailed_itineraries <- function(r5r_network,
                                  output_dir = NULL,
                                  r5r_core = deprecated()) {
   # mirrors r5r R/detailed_itineraries.R
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -227,14 +231,14 @@ detailed_itineraries <- function(r5r_network,
     out$board_stop_id <- res$board_stop_id
     out$alight_stop_id <- res$alight_stop_id
   }
-  if (drop_geometry) return(out)
+  if (drop_geometry) return(as_output(out, kind))
   # as r5r builds it: WKT read by sf, then an sf in EPSG:4326
   out$geometry <- if (nrow(out) > 0) {
     sf::st_as_sfc(res$geometry)
   } else {
     sf::st_sfc(sf::st_linestring(), crs = 4326)[0]
   }
-  sf::st_sf(out, crs = 4326)
+  as_output_sf(sf::st_sf(out, crs = 4326), kind, data_table = TRUE)
 }
 
 # r5r expand_od_pairs()

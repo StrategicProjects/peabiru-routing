@@ -11,6 +11,8 @@
 # use) with one argument replaced by one of the values below, which each
 # language can write; the cases R refuses are written with R's message and
 # condition class (default out: bench/compare/argument_errors.json).
+# peabiru returns tibbles by default; this script works with data.frames.
+options(peabiru.output = "data.frame")
 args <- commandArgs(TRUE)
 here <- dirname(sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)))
 out <- if (length(args)) args[1] else file.path(here, "argument_errors.json")

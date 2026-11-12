@@ -23,7 +23,7 @@ test_that("street itineraries have r5r's columns, types and order", {
   df <- detailed_itineraries(fixture_network(), pts[1:5, ], pts[6:10, ], mode = "WALK",
                              departure_datetime = departure, drop_geometry = TRUE,
                              n_threads = 2)
-  expect_identical(class(df), "data.frame")
+  expect_identical(class(df), c("tbl_df", "tbl", "data.frame"))
   expect_identical(df, sf::st_drop_geometry(it))
 })
 

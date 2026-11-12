@@ -49,3 +49,17 @@ r5r_network_or_skip <- function(dir) {
   ))
   r5
 }
+
+# The parity tests compare peabiru's results under
+# options(peabiru.output = "data.table") with r5r's, class and attributes
+# included. data.table's ".internal.selfref" is a pointer to the table
+# itself, never identical between two tables: it is left out (in every table
+# of a list).
+no_selfref <- function(x) {
+  if (is.list(x) && !is.data.frame(x)) return(lapply(x, no_selfref))
+  attr(x, ".internal.selfref") <- NULL
+  x
+}
+expect_identical_r5r <- function(pb, r5) {
+  expect_identical(no_selfref(pb), no_selfref(r5))
+}

@@ -15,8 +15,10 @@ find_snap(
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
-\item{points}{Either a \verb{POINT sf} object with WGS84 CRS, or a
-\code{data.frame} containing the columns \code{id}, \code{lon} and \code{lat}.}
+\item{points}{Either a \verb{POINT sf} object with an \code{id} column, in any
+coordinate reference system (reprojected to WGS 84, see
+\code{\link[=travel_time_matrix]{travel_time_matrix()}}), or a \code{data.frame} containing the columns \code{id},
+\code{lon} and \code{lat} (WGS 84).}
 
 \item{radius}{Numeric. The maximum radius in meters within which to
 snap. Defaults to 1600m.}
@@ -29,13 +31,15 @@ points to the network. Defaults to \code{WALK}, also allows \code{BICYCLE} and
 accepted with a warning.}
 }
 \value{
-A \code{data.frame} with the original points (\code{point_id}, \code{lat},
+A table with the original points (\code{point_id}, \code{lat},
 \code{lon}), their snapped coordinates on the street network (\code{snap_lat},
 \code{snap_lon}), the distance in meters between the point and its snapped
 location (\code{distance}, haversine on a sphere of radius 6,367,450 m, as
 R5 measures it) and whether the point snapped (\code{found}). Points that
 could not be snapped have \code{NA} coordinates and distance and
 \code{found = FALSE}.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 Finds where points snap to the street network: snapping is how routing
@@ -49,8 +53,11 @@ cannot be used to snap car trips).
 \section{Compatibility with r5r}{
 
 The arguments, their defaults and checks, the columns and the values are
-those of \code{r5r::find_snap()} in r5r 2.5.0; the result is a \code{data.frame}
-rather than a \code{data.table}. A \code{radius} of \code{NA} or of length 0 is an error
+those of \code{r5r::find_snap()} in r5r 2.5.0; with
+\code{options(peabiru.output = "data.table")} the result is identical to r5r's,
+with the index on \code{found} that r5r's update of the points not found leaves
+(when \code{options(datatable.auto.index)} is on, as by default). A \code{radius}
+of \code{NA} or of length 0 is an error
 that says so (r5r lets it through and fails in Java).
 }
 

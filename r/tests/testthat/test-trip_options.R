@@ -99,7 +99,7 @@ test_that("the legs are those of detailed_itineraries() and add up", {
   df <- trip_options(fixture_network(), pts[2:4, ], pts[10:12, ],
                      departure_datetime = departure, time_window = 2L,
                      fare_structure = trip_fares(), drop_geometry = TRUE, n_threads = 2)
-  expect_identical(class(df$itineraries), "data.frame")
+  expect_identical(class(df$itineraries), c("tbl_df", "tbl", "data.frame"))
   expect_identical(df$itineraries, legs)
   expect_identical(df$options, r$options)
 })

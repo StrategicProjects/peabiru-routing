@@ -20,7 +20,7 @@ fig("architecture.svg")
 
 The Rust crate `peabiru-core` does all the work. This R package checks the
 arguments, converts points and results between R and Rust, and returns a
-`data.frame`; the Python package (which returns pandas data frames), the
+tibble (or a `data.frame` or `data.table`, see `?peabiru`); the Python package (which returns pandas data frames), the
 JavaScript package (the engine compiled to WebAssembly, for browsers and
 Node) and the `peabiru` command-line tool (CSV in, CSV out) do the same for
 their users.

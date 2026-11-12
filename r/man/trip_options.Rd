@@ -43,7 +43,10 @@ trip_options(
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
 \item{origins, destinations}{A \code{data.frame} with columns \code{id}, \code{lon} and
-\code{lat}, or a \verb{POINT sf} with an \code{id} column, in WGS 84. Ids that are not
+\code{lat} (WGS 84 longitude and latitude), or a \verb{POINT sf} with an \code{id}
+column, in any coordinate reference system (CRS): an \code{sf} in another
+CRS than WGS 84 is reprojected with \code{sf::st_transform()}, with a
+message, and one without a CRS is an error. Ids that are not
 character are converted, with a warning; points with missing
 coordinates are not routed, with a warning; duplicated ids are an
 error.}
@@ -118,7 +121,8 @@ departure minute (\code{FALSE}, the default).}
 data frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type}
 (\code{"scale"}, a factor for the car speed of the way's edges, or \code{"km/h"},
 a speed; 0 closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s
-or \code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+or \code{MULTIPOLYGON}s (in any CRS, reprojected to WGS 84 as \code{origins})
+with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
 overlaps most). Polygons that are not valid are an error, and so are
@@ -132,7 +136,8 @@ past that range, is an error.}
 
 \item{new_lts}{A scenario of levels of traffic stress: \code{NULL} (the
 default), a data frame with columns \code{osm_id} and \code{lts} (integer), or an
-\code{sf} data frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts}
+\code{sf} data frame of \code{LINESTRING}s (in any CRS, reprojected to WGS 84 as
+\code{origins}) with columns \code{line_id}, \code{lts}
 (1 to 4) and \code{priority}: each street edge takes the level of the line
 closest to it among those whose bounding box meets its own (\code{priority}
 is not used). A scenario (of car speeds or of levels of traffic stress)
@@ -147,7 +152,7 @@ with an elevation raster.}
 counter or routing log is printed.}
 
 \item{drop_geometry}{A logical. Whether to leave the geometry of the legs
-out (and return them as a \code{data.frame}).}
+out (and return them as a table without geometry).}
 
 \item{osm_link_ids}{A logical. Whether to add the columns
 \code{osm_id_list} (the OpenStreetMap way ids of a street leg's edges),
@@ -166,7 +171,7 @@ columns and the geometry as WKT, and return \code{output_dir}.}
 \value{
 A list with
 \itemize{
-\item \code{options}, a \code{data.frame}: one row per option, with \code{from_id},
+\item \code{options}, a table: one row per option, with \code{from_id},
 \code{to_id}, \code{option} (from 1, ordered by total time, then fare,
 transfers and minutes on foot), \code{total_time} (minutes, one decimal
 place), \code{fare} (with a \code{fare_structure}), \code{transfers}, \code{walk_time}
@@ -180,11 +185,14 @@ by \code{from_id}, \code{to_id} and \code{option}: \code{segment}, \code{mode},
 \code{cumulative_fare} (with a \code{fare_structure}), \code{segment_duration},
 \code{wait}, \code{distance}, \code{route}, the four id columns with \code{osm_link_ids},
 and the geometry: an \code{sf} of \code{LINESTRING}s in EPSG:4326, or a
-\code{data.frame} with \code{drop_geometry = TRUE};
-\item \code{departures} (with \code{by_departure = TRUE}), a \code{data.frame}: for every
+table without geometry with \code{drop_geometry = TRUE};
+\item \code{departures} (with \code{by_departure = TRUE}), a table: for every
 departure minute, the options on its frontier (\code{from_id}, \code{to_id},
 \code{option}, \code{departure_time}, \code{arrival_time}, \code{total_time}).
 }
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}). An \code{sf} result keeps its geometry column and EPSG:4326 and takes the same data frame class: an \code{sf} tibble, a plain \code{sf} data frame, or, with "data.table", the class r5r gives it. With "data.table", the itineraries are
+an \code{sf} \code{data.table}, as those of \code{\link[=detailed_itineraries]{detailed_itineraries()}}.
 }
 \description{
 For each pair of origin and destination, every trip worth considering:

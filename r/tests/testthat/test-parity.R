@@ -22,9 +22,10 @@ r5r_network <- local({
 
 expect_same_as_r5r <- function(fun, ...) {
   n <- r5r_network()
+  local_output("data.table")
   pb <- getExportedValue("peabiru", fun)(n$pb, ..., n_threads = 2)
   r5 <- getExportedValue("r5r", fun)(n$r5, ..., n_threads = 2, progress = FALSE)
-  expect_identical(pb, as.data.frame(r5))
+  expect_identical_r5r(pb, r5)
 }
 
 test_that("street travel time matrices equal r5r's", {
@@ -77,16 +78,15 @@ test_that("expanded and arrival matrices equal r5r's", {
                      seed = 42)
 })
 
-# r5r's isochrone() returns a data.table for polygons; the rest is identical,
-# geometry included (the same polygons go through sf::st_make_valid()).
+# Identical, class and geometry included (the same polygons go through
+# sf::st_make_valid()): an sf data.table for polygons, a plain sf for lines.
 expect_same_isochrone <- function(...) {
   skip_if_not_installed("sf")
   n <- r5r_network()
+  local_output("data.table")
   pb <- isochrone(n$pb, ..., n_threads = 2)
   r5 <- r5r::isochrone(n$r5, ..., n_threads = 2, progress = FALSE)
-  class(r5) <- setdiff(class(r5), "data.table")
-  attr(r5, ".internal.selfref") <- NULL
-  expect_identical(pb, r5)
+  expect_identical_r5r(pb, r5)
 }
 
 test_that("isochrones equal r5r's", {
@@ -108,6 +108,7 @@ test_that("isochrones equal r5r's", {
 
 test_that("scenarios equal r5r's", {
   skip_if_not_installed("sf")
+  local_output("data.table")
   n <- r5r_network()
   pts <- n$points[1:80, ]
   edges <- street_network_to_sf(n$pb)$edges
@@ -146,9 +147,7 @@ test_that("scenarios equal r5r's", {
     pb <- suppressWarnings(do.call(detailed_itineraries, c(list(n$pb), args, n_threads = 2)))
     r5 <- suppressWarnings(do.call(r5r::detailed_itineraries,
                                    c(list(n$r5), args, n_threads = 2, progress = FALSE)))
-    class(r5) <- setdiff(class(r5), "data.table")
-    attr(r5, ".internal.selfref") <- NULL
-    expect_identical(pb, r5)
+    expect_identical_r5r(pb, r5)
   }
   dirs <- c(tempfile(), tempfile())
   for (x in dirs) dir.create(x)
@@ -165,11 +164,11 @@ test_that("scenarios equal r5r's", {
   }
 })
 
-# r5r's detailed_itineraries() returns an sf data.table; the rest is
-# identical, geometry included. bench/compare/itinerary_parity.R covers
-# public transport (Porto Alegre).
+# Identical, the sf data.table's class and the geometry included.
+# bench/compare/itinerary_parity.R covers public transport (Porto Alegre).
 test_that("detailed itineraries equal r5r's", {
   skip_if_not_installed("sf")
+  local_output("data.table")
   n <- r5r_network()
   pts <- n$points
   set.seed(7)
@@ -184,9 +183,7 @@ test_that("detailed itineraries equal r5r's", {
     args <- c(list(origins = o, destinations = d, departure_datetime = departure), a)
     pb <- do.call(detailed_itineraries, c(list(n$pb), args, n_threads = 2))
     r5 <- do.call(r5r::detailed_itineraries, c(list(n$r5), args, n_threads = 2, progress = FALSE))
-    class(r5) <- setdiff(class(r5), "data.table")
-    attr(r5, ".internal.selfref") <- NULL
-    expect_identical(pb, r5)
+    expect_identical_r5r(pb, r5)
   }
   # output_dir: the same files, byte for byte, with the geometry
   dirs <- c(tempfile(), tempfile())
@@ -212,32 +209,41 @@ test_that("detailed itineraries equal r5r's", {
 
 test_that("fare structures equal r5r's, and each reads the other's files", {
   n <- r5r_network()
+  local_output("data.table")
   for (by in c("MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC")) {
     pb <- setup_fare_structure(n$pb, 4.8, by = by)
     r5 <- r5r::setup_fare_structure(n$r5, 4.8, by = by)
-    r5[4:6] <- lapply(r5[4:6], as.data.frame)
-    expect_identical(pb, r5)
+    expect_identical_r5r(pb, r5)
   }
+  # read_fare_structure() of r5r's file, an empty table included
+  fs <- r5r::setup_fare_structure(n$r5, 4.8, by = "GENERIC")
+  fs$fares_per_transfer <- utils::head(fs$fares_per_transfer, 0)
+  z <- tempfile(fileext = ".zip")
+  r5r::write_fare_structure(fs, z)
+  expect_identical_r5r(read_fare_structure(z), r5r::read_fare_structure(z))
   fs <- r5r::setup_fare_structure(n$r5, 3.75)
   zr <- tempfile(fileext = ".zip")
-  zp <- tempfile(fileext = ".zip")
   r5r::write_fare_structure(fs, zr)
-  write_fare_structure(read_fare_structure(zr), zp)
-  a <- r5r::read_fare_structure(zp)
-  b <- r5r::read_fare_structure(zr)
-  expect_identical(lapply(a, function(x) if (is.data.frame(x)) as.data.frame(x) else x),
-                   lapply(b, function(x) if (is.data.frame(x)) as.data.frame(x) else x))
-  # the same entries in the same order, deflated, with the same contents
   lr <- utils::unzip(zr, list = TRUE)
-  lp <- utils::unzip(zp, list = TRUE)
-  expect_identical(lp[, 1:2], lr[, 1:2])
-  expect_lt(file.size(zp), sum(lp$Length))
   er <- tempfile()
-  ep <- tempfile()
   utils::unzip(zr, exdir = er)
-  utils::unzip(zp, exdir = ep)
-  for (f in lr$Name) {
-    expect_identical(readBin(file.path(ep, f), "raw", 1e7), readBin(file.path(er, f), "raw", 1e7))
+  # a structure read in any class writes r5r's files
+  for (kind in c("data.table", "tibble", "data.frame")) {
+    local_output(kind)
+    zp <- tempfile(fileext = ".zip")
+    write_fare_structure(read_fare_structure(zr), zp)
+    a <- r5r::read_fare_structure(zp)
+    b <- r5r::read_fare_structure(zr)
+    expect_identical_r5r(a, b)
+    # the same entries in the same order, deflated, with the same contents
+    lp <- utils::unzip(zp, list = TRUE)
+    expect_identical(lp[, 1:2], lr[, 1:2])
+    expect_lt(file.size(zp), sum(lp$Length))
+    ep <- tempfile()
+    utils::unzip(zp, exdir = ep)
+    for (f in lr$Name) {
+      expect_identical(readBin(file.path(ep, f), "raw", 1e7), readBin(file.path(er, f), "raw", 1e7))
+    }
   }
 })
 

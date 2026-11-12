@@ -1,20 +1,25 @@
 # Fare structures, as r5r's R/fare_structure.R. The object is r5r's: a list
 # with the global settings, three tables and the debug settings. r5r's
-# tables are data.tables; these are data.frames.
+# tables are data.tables; these are built as data.frames and returned in the
+# class of options(peabiru.output = ) (fare_tables below).
 
-# A table of the core (a list of columns) as a data.frame; with no rows,
-# r5r's setDT() of jsonlite's empty list: a data.frame without columns.
-fare_table <- function(cols) {
-  if (length(cols[[1]]) == 0L) return(new_df(list()))
+# A table of the core (a list of columns) as a data.frame. With no rows,
+# from setup_fare_structure(), r5r's setDT() of jsonlite's empty list: a
+# data.frame without columns; from read_fare_structure(), what fread() reads
+# from a file with only the header: the columns, empty.
+fare_table <- function(cols, keep_empty_columns) {
+  if (!keep_empty_columns && length(cols[[1]]) == 0L) return(new_df(list()))
   new_df(cols)
 }
 
-fare_object <- function(x) {
-  x$fares_per_type <- fare_table(x$fares_per_type)
-  x$fares_per_transfer <- fare_table(x$fares_per_transfer)
-  x$fares_per_route <- fare_table(x$fares_per_route)
+fare_object <- function(x, keep_empty_columns = FALSE) {
+  x$fares_per_type <- fare_table(x$fares_per_type, keep_empty_columns)
+  x$fares_per_transfer <- fare_table(x$fares_per_transfer, keep_empty_columns)
+  x$fares_per_route <- fare_table(x$fares_per_route, keep_empty_columns)
   x
 }
+
+fare_tables <- c("fares_per_type", "fares_per_transfer", "fares_per_route")
 
 #' Setup a fare structure to calculate the monetary costs of trips
 #'
@@ -53,8 +58,8 @@ fare_object <- function(x) {
 #'
 #' @section Compatibility with r5r:
 #' The arguments, their defaults and checks and the structure are those of
-#' `r5r::setup_fare_structure()` in r5r 2.5.0; its tables are `data.frame`s
-#' rather than `data.table`s. Structures move between the two packages
+#' `r5r::setup_fare_structure()` in r5r 2.5.0; with `options(peabiru.output = "data.table")`
+#' its tables are `data.table`s, and the structure is identical to r5r's. Structures move between the two packages
 #' through [write_fare_structure()] and [read_fare_structure()]. R5's own
 #' fare calculators (a structure with a `type`, which r5r passes to R5) are
 #' not available: the routing functions stop with an error on one.
@@ -73,6 +78,8 @@ fare_object <- function(x) {
 #'   accepted with a warning.
 #'
 #' @return A fare structure (a list, see Details).
+#'
+#'   `r doc_output_class()`
 #' @family fare structure
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -90,6 +97,7 @@ setup_fare_structure <- function(r5r_network,
     warn_r5r_core()
     r5r_network <- r5r_core
   }
+  kind <- output_class()
   # r5r's checks, in its order (R/fare_structure.R)
   assert_network(r5r_network)
   cm_assert(check_numeric(base_fare, lower = 0, len = 1, any.missing = FALSE), "base_fare")
@@ -127,7 +135,7 @@ setup_fare_structure <- function(r5r_network,
   } else {
     list(output_file = "", trip_info = "MODE")
   }
-  fs
+  as_output_list(fs, kind, fare_tables)
 }
 
 #' Write a fare structure object to disk
@@ -188,7 +196,7 @@ write_fare_structure <- function(fare_structure, file_path) {
 #'
 #' @section Compatibility with r5r:
 #' The arguments and the result are those of `r5r::read_fare_structure()`
-#' in r5r 2.5.0, with `data.frame`s rather than `data.table`s. A
+#' in r5r 2.5.0 (identical, tables included, with `options(peabiru.output = "data.table")`). A
 #' `file_path` that names several files is an error (r5r's check lets it
 #' through and then fails unzipping them).
 #'
@@ -196,6 +204,8 @@ write_fare_structure <- function(fare_structure, file_path) {
 #' @param encoding A string, `"UTF-8"` (the default), `"unknown"` or
 #'   `"Latin-1"`: how the text of the files is read.
 #' @return A fare structure (see [setup_fare_structure()]).
+#'
+#'   `r doc_output_class()`
 #' @family fare structure
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -206,6 +216,7 @@ write_fare_structure <- function(fare_structure, file_path) {
 #' fare_structure$transfer_time_allowance
 #' @export
 read_fare_structure <- function(file_path, encoding = "UTF-8") {
+  kind <- output_class()
   cm_assert(check_file_exists(file_path, extension = "zip"), "file_path")
   cm_assert_and("encoding", check_string(encoding),
                 check_names(encoding, subset.of = c("unknown", "UTF-8", "Latin-1")))
@@ -213,7 +224,7 @@ read_fare_structure <- function(file_path, encoding = "UTF-8") {
     stop("'file_path' names more than one file (r5r fails unzipping them).", call. = FALSE)
   }
   bytes <- readBin(file_path, "raw", file.info(file_path)$size)
-  fs <- fare_object(rs_read_fare_structure(bytes, encoding))
+  fs <- fare_object(rs_read_fare_structure(bytes, encoding), keep_empty_columns = TRUE)
   if (encoding == "Latin-1") {
     fix <- function(df) {
       # fread marks the bytes as latin1 without converting them; the core
@@ -225,7 +236,7 @@ read_fare_structure <- function(file_path, encoding = "UTF-8") {
     fs$fares_per_transfer <- fix(fs$fares_per_transfer)
     fs$fares_per_route <- fix(fs$fares_per_route)
   }
-  fs
+  as_output_list(fs, kind, fare_tables)
 }
 
 # r5r's assert_fare_structure() (R/fare_structure.R), check by check and in
@@ -397,8 +408,8 @@ check_fares <- function(fare_structure, max_fare, r5r_network) {
 #' @section Compatibility with r5r:
 #' The arguments, their defaults and checks, the columns and the rows of the
 #' result are those of `r5r::pareto_frontier()` in r5r 2.5.0, with the same
-#' values (with frequencies, for the same `seed`); the result is a
-#' `data.frame` rather than a `data.table`. `output_dir`, with which r5r
+#' values (with frequencies, for the same `seed`); with `options(peabiru.output = "data.table")`
+#' the result is identical to r5r's, its class included. `output_dir`, with which r5r
 #' writes the result to CSV files, is not available: anything but `NULL`
 #' is an error.
 #'
@@ -412,8 +423,10 @@ check_fares <- function(fare_structure, max_fare, r5r_network) {
 #' @param output_dir Must be `NULL` (the default): writing the frontier to
 #'   files is not available.
 #'
-#' @return A `data.frame` with `from_id`, `to_id` (character), `percentile`,
+#' @return A table with `from_id`, `to_id` (character), `percentile`,
 #'   `travel_time` and `monetary_cost`.
+#'
+#'   `r doc_output_class()`
 #' @family fare structure
 #' @examples
 #' data_path <- system.file("extdata/spo", package = "peabiru")
@@ -455,6 +468,7 @@ pareto_frontier <- function(r5r_network,
                             output_dir = NULL,
                             r5r_core = deprecated()) {
   # mirrors r5r R/pareto_frontier.R
+  kind <- output_class()
   if (is_present(r5r_core)) {
     warn_r5r_core()
     r5r_network <- r5r_core
@@ -508,8 +522,9 @@ pareto_frontier <- function(r5r_network,
   if (!is.null(output_dir)) unsupported("'output_dir' in pareto_frontier()")
   check_fare_cutoffs(fare_cutoffs)
   if (length(percentiles) == 0L) {
-    return(new_df(list(from_id = character(), to_id = character(), percentile = integer(),
-                       travel_time = integer(), monetary_cost = numeric())))
+    return(as_output(new_df(list(from_id = character(), to_id = character(),
+                                 percentile = integer(), travel_time = integer(),
+                                 monetary_cost = numeric())), kind))
   }
 
   res <- raise_if_stopped(rs_pareto_frontier(
@@ -529,7 +544,7 @@ pareto_frontier <- function(r5r_network,
   ))
   over <- which(out$travel_time > max_trip_duration)
   out$travel_time[over] <- NA_integer_
-  out
+  as_output(out, kind)
 }
 
 # r5r set_fare_cutoffs(): checkmate::assert_numeric(lower = 0, any.missing =

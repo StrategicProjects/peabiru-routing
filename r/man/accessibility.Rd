@@ -42,8 +42,9 @@ accessibility(
 \arguments{
 \item{r5r_network}{A network built with \code{\link[=build_network]{build_network()}}.}
 
-\item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat}, or a
-\verb{POINT sf} with an \code{id} column, in WGS 84.}
+\item{origins}{A \code{data.frame} with columns \code{id}, \code{lon} and \code{lat} (WGS
+84), or a \verb{POINT sf} with an \code{id} column, in any coordinate reference
+system (reprojected to WGS 84, see \code{\link[=travel_time_matrix]{travel_time_matrix()}}).}
 
 \item{destinations}{A \code{data.frame} or \verb{POINT sf} with \code{id}, \code{lon}, \code{lat}
 and the opportunity columns.}
@@ -113,7 +114,8 @@ a \code{fare_structure}.}
 data frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type}
 (\code{"scale"}, a factor for the car speed of the way's edges, or \code{"km/h"},
 a speed; 0 closes the way to cars), or an \code{sf} data frame of \code{POLYGON}s
-or \code{MULTIPOLYGON}s in WGS 84 with columns \code{poly_id} (character), \code{scale}
+or \code{MULTIPOLYGON}s (in any CRS, reprojected to WGS 84 as \code{origins})
+with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
 overlaps most). Polygons that are not valid are an error, and so are
@@ -127,7 +129,8 @@ past that range, is an error.}
 
 \item{new_lts}{A scenario of levels of traffic stress: \code{NULL} (the
 default), a data frame with columns \code{osm_id} and \code{lts} (integer), or an
-\code{sf} data frame of \code{LINESTRING}s in WGS 84 with columns \code{line_id}, \code{lts}
+\code{sf} data frame of \code{LINESTRING}s (in any CRS, reprojected to WGS 84 as
+\code{origins}) with columns \code{line_id}, \code{lts}
 (1 to 4) and \code{priority}: each street edge takes the level of the line
 closest to it among those whose bounding box meets its own (\code{priority}
 is not used). A scenario (of car speeds or of levels of traffic stress)
@@ -169,10 +172,12 @@ the returned result.}
 accepted with a warning and used as \code{r5r_network}.}
 }
 \value{
-A \code{data.frame} with \code{id}, \code{opportunity}, \code{percentile}, \code{cutoff}
+A table with \code{id}, \code{opportunity}, \code{percentile}, \code{cutoff}
 (absent with \code{"fixed_exponential"}) and \code{accessibility}, one row per
 origin, opportunity, percentile and cutoff, in that order. With
 \code{output_dir}, \code{output_dir}.
+
+Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s, as r5r returns them (see \link{peabiru-package}).
 }
 \description{
 Cumulative or decay-weighted access to the opportunities at the
@@ -214,8 +219,8 @@ draws").
 
 The arguments, their defaults and checks, the columns and the rows of the
 result are those of \code{r5r::accessibility()} in r5r 2.5.0, and the values
-are equal to the last bit (with frequencies, for the same \code{seed}); the
-result is a \code{data.frame} rather than a \code{data.table}. An empty
+are equal to the last bit (with frequencies, for the same \code{seed}); with \code{options(peabiru.output = "data.table")}
+the result is identical to r5r's, its class included. An empty
 \code{percentiles} is an error that says so (r5r fails on it in Java).
 }
 
