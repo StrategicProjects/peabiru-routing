@@ -166,6 +166,13 @@ fn compare(
                 &data.transfers,
                 &planner.mc_allowed,
                 &planner.mc_active,
+                planner.mc_schedules.get_or_init(|| {
+                    crate::transit::mcraptor::Schedules::new(
+                        layer,
+                        &planner.mc_allowed,
+                        &planner.mc_active,
+                    )
+                }),
                 &req,
                 Dominance::Fare(&calc),
                 Some(&egress),

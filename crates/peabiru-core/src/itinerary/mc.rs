@@ -246,11 +246,15 @@ impl Planner<'_> {
         };
         let allowed = &self.mc_allowed;
         let active = &self.mc_active;
+        let schedules = self
+            .mc_schedules
+            .get_or_init(|| crate::transit::mcraptor::Schedules::new(layer, allowed, active));
         let mut router = McRaptor::new(
             layer,
             &self.data.transfers,
             allowed,
             active,
+            schedules,
             &req,
             dom,
             Some(&egress_times),

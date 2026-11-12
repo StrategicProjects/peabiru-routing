@@ -8,6 +8,8 @@ pub(crate) mod expanded;
 pub(crate) mod layer;
 pub(crate) mod matrix;
 pub(crate) mod mcraptor;
+#[cfg(test)]
+mod mcraptor_r5;
 pub(crate) mod pareto;
 pub(crate) mod raptor;
 pub(crate) mod walk;
