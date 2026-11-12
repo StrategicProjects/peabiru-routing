@@ -453,8 +453,8 @@ Paulo, 0.90 in Rio de Janeiro and
 differ, and not in one direction: for the average resident, the jobs within
 an hour computed here are 0.75 times Ipea's in São Paulo,
 1.53 times in Rio de Janeiro (although this network has no
-rail) and 1.37 times in Belo Horizonte. **We did not establish
-why.** Two differences of method that are easy to try do not explain it: in
+rail) and 1.37 times in Belo Horizonte. Ipea's settings are
+not the reason: in
 Belo Horizonte, Ipea's window (06:00 to 08:00) and a limit of 30 or of 15
 minutes on each walk move the mean by less than 2%.
 
@@ -480,10 +480,40 @@ c(as_above = variant(7, 60), window_06_08 = variant(6, 120),
 #>       422854       428599       428529       425644
 ```
 
-The feeds are seven years apart, the street data too, and Ipea's runs have
-settings this page does not reproduce; telling a change in the service from
-a change in the method would take Ipea's 2019 inputs, routed again with
-today's settings. Until then the levels of the two should not be compared.
+The reason is in the timetables. The runs below were made apart from this
+page, with Ipea's settings as its published code has them (departures 06:00
+to 08:00, at most 30 minutes on each walk, trips of up to three hours with
+the 60-minute limit applied to the median, relief from SRTM), and Ipea's
+feeds of 2019 are not public, so the speeds are fitted, not read from them.
+
+- **Belo Horizonte.** The feed of 2026 schedules every trip, at every hour,
+  at 21 km/h (20.8 to 21.3 for nine trips in ten): a generated timetable,
+  with no congestion in it. The city's own monitoring measured about 14
+  km/h at the afternoon peak of 2019. With the same feed slowed to 16 km/h,
+  the relief and Ipea's settings, the mean is 307,556 jobs against Ipea's
+  308,011, the correlation rises from 0.91 to 0.97, and the two agree
+  within 5% at every distance from the centre (as published here, the
+  ratio went from 1.1 in the centre to 2.1 between 7.5 and 10 km). Of the
+  1.37, the settings account for +1%, the relief for -3% and the speed for
+  the rest. r5r gives the same numbers on the slowed network.
+- **São Paulo.** The feed changed the other way. On the 88 bus trips it
+  shares with a sample of SPTrans's feed of about 2019, run times are 12%
+  longer and morning headways 25% longer. Undoing both on every bus line
+  (on a sample of 700 origins) brings the ratio from 0.75 to 0.89; the rest
+  we did not explain (Ipea's network also had the intermunicipal buses of
+  EMTU, and 88 trips are a small sample).
+- **Rio de Janeiro.** There was no feed of 2019 to compare. This one
+  schedules buses at about 22 km/h at 7 am, faster than at midday, while
+  Ipea's own numbers for 2019 are lower at the peak than off it. Its level
+  is reached (ratio 0.96, on a sample of 800 origins) when every trip takes
+  one and a half times as long, about 15 km/h; and Ipea's network had the
+  metro and the trains, which this one lacks. This is the least certain of
+  the three.
+
+Access computed from a timetable is only as good as the speeds in it: one
+that ignores congestion overstated Belo Horizonte's by a third. The
+differences between the two years on this page should not be read as
+changes in the service.
 
 ## Time against fare
 
