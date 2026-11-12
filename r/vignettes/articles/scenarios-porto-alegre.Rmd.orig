@@ -1,0 +1,413 @@
+---
+title: "Example: before and after in Porto Alegre"
+description: >
+  What-if questions answered without rebuilding the network: a new cycle
+  path, congestion and a closed avenue, one more health facility, and a
+  change in the fare rules, each with its map and its timing.
+---
+
+```{r, include = FALSE}
+# This article is precomputed: its source is scenarios-porto-alegre.Rmd.orig,
+# knitted into scenarios-porto-alegre.Rmd by
+# `bash site/figures/make.sh --scenarios` (the fare routing takes minutes,
+# too long for every site build). Only the chunks written out below by cat()
+# run when pkgdown renders it.
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", error = FALSE)   # an error stops the knit
+work <- file.path(tempdir(), "scenarios-poa")
+dir.create(work, showWarnings = FALSE)
+if (nzchar(Sys.getenv("PEABIRU_SCENARIOS_CACHE")) && !file.exists(file.path(work, "example-data"))) {
+  file.symlink(Sys.getenv("PEABIRU_SCENARIOS_CACHE"), file.path(work, "example-data"))
+}
+knitr::opts_knit$set(root.dir = work)
+local({
+  hook <- knitr::knit_hooks$get("output")
+  real <- normalizePath(file.path(work, "example-data"), mustWork = FALSE)
+  knitr::knit_hooks$set(output = function(x, options) hook(gsub(real, "example-data", x, fixed = TRUE), options))
+})
+live <- function(code, opts = "echo = FALSE") {
+  cat("```{r, ", opts, "}\n", code, "\n```\n", sep = "")
+}
+```
+
+```{r, echo = FALSE, results = "asis"}
+live('source("setup.R")', "include = FALSE")
+```
+
+A transport plan is a list of changes: a cycle path here, a lane taken from
+cars there, a new clinic, a fare rule. Each one asks the same question
+twice, before and after. In peabiru the street network is built once, and
+the changes that r5r calls *scenarios* are arguments of each routing call:
+`new_lts` changes the level of traffic stress cyclists meet on chosen
+streets, `new_carspeeds` and `carspeed_scale` change car speeds by street
+or by area, and a fare structure is a list of tables that can be edited
+before the call. A new school or clinic is not even a change to the
+network: it is one more row among the destinations.
+
+This example asks four such questions of Porto Alegre, on the sample data
+that comes with r5r, and times each one: a what-if is one routing call
+on the network as built, with nothing to edit and rebuild. It was computed on 2026-11-12 with
+peabiru `r packageVersion("peabiru")`; the output shown is what the code
+printed. The same steps in Python are in the [Python
+example](../../python/example-scenarios/).
+
+## The data
+
+| Data | Source | Licence |
+|---|---|---|
+| Streets | OpenStreetMap extract of Porto Alegre in r5r 2.5.0's sample data (`poa_osm.pbf`) | ODbL 1.0, © OpenStreetMap contributors |
+| Public transport | The EPTC bus and Trensurb train GTFS feeds of r5r's sample (`poa_eptc.zip`, `poa_trensurb.zip`), cut for the sample: the buses run from 11:20 to 17:50 only, so the analyses below leave at 14:00 on Monday 13 May 2019 | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
+| Grid | `poa_hexgrid.csv`: 1,227 H3 cells (resolution 9) with population, jobs, schools and health facilities; r5r does not document its sources | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
+| Fares | `fares/fares_poa.zip`, r5r's fare structure of the sample | distributed in the r5r package, whose licence line is `GPL (>= 3) \| MIT + file LICENSE` |
+
+All files come from r5r's repository at the tag of version 2.5.0
+(`https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/`).
+The sample also has an elevation raster, left out here: a call with a
+scenario routes without slope costs (as r5r does, with a warning), so
+the before and the after would not be comparable.
+
+```{r data, message = FALSE}
+library(peabiru)
+library(sf)
+
+data_dir <- file.path(Sys.getenv("PEABIRU_EXAMPLE_DATA", "example-data"), "poa")
+url <- "https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/"
+dir.create(file.path(data_dir, "network"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(data_dir, "fares"), showWarnings = FALSE)
+for (f in c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip", "poa_hexgrid.csv",
+            "fares/fares_poa.zip")) {
+  dest <- file.path(data_dir, f)
+  if (!file.exists(dest)) download.file(paste0(url, f), dest, mode = "wb", quiet = TRUE)
+}
+for (f in c("poa_osm.pbf", "poa_eptc.zip", "poa_trensurb.zip")) {
+  if (!file.exists(file.path(data_dir, "network", f))) file.copy(file.path(data_dir, f), file.path(data_dir, "network"))
+}
+
+threads <- 4   # of this laptop's ten cores
+build_time <- system.time(network <- build_network(file.path(data_dir, "network"),
+                                                   n_threads = threads))[["elapsed"]]
+network
+build_time
+
+grid <- read.csv(file.path(data_dir, "poa_hexgrid.csv"))
+grid$jobs[is.na(grid$jobs)] <- 0               # 5 cells have no count
+grid$healthcare[is.na(grid$healthcare)] <- 0
+colSums(grid[, c("population", "jobs", "schools", "healthcare")])
+
+# the average over the residents of the grid
+per_resident <- function(value, id) weighted.mean(value, grid$population[match(id, grid$id)])
+osm <- st_read(file.path(data_dir, "poa_osm.pbf"), "lines", quiet = TRUE)
+ways_named <- function(name) osm[!is.na(osm$name) & osm$name == name & !is.na(osm$highway), ]
+```
+
+Building the network takes about `r round(build_time, 1)` seconds; every
+call below is timed the same way, by `system.time()`, on a laptop with ten
+cores, four of them used (`n_threads`), and other work running, so the
+timings are indications.
+
+## A new cycle path
+
+A cyclist who rides only on streets of low traffic stress (levels 1 and 2
+of four, `max_lts = 2`, the default) walks the bicycle on the others. In
+this extract Avenida Protásio Alves, the radial avenue east of the centre,
+is level 4 from end to end. What if it had a protected cycle path? The
+scenario gives its OpenStreetMap ways level 1:
+
+```{r cycle-path}
+ways <- ways_named("Avenida Protásio Alves")
+path <- data.frame(osm_id = as.numeric(ways$osm_id), lts = 1L)
+nrow(path)
+
+jobs_by_bike <- function(...) {
+  accessibility(network, grid, grid, opportunities_colnames = "jobs",
+                mode = "BICYCLE", max_lts = 2, cutoffs = 20, n_threads = threads, ...)
+}
+t_before <- system.time(before <- jobs_by_bike())[["elapsed"]]
+t_after <- system.time(after <- jobs_by_bike(new_lts = path))[["elapsed"]]
+gain <- merge(before[, c("id", "accessibility")], after[, c("id", "accessibility")],
+              by = "id", suffixes = c("_before", "_after"))
+gainers <- gain$id[gain$accessibility_after > gain$accessibility_before]
+c(before = per_resident(gain$accessibility_before, gain$id),
+  after = per_resident(gain$accessibility_after, gain$id),
+  share_gaining = sum(grid$population[grid$id %in% gainers]) / sum(grid$population))
+c(call = t_before, with_scenario = t_after)
+```
+
+The average resident reaches `r format(round(per_resident(gain$accessibility_before, gain$id)), big.mark = ",")`
+jobs within 20 minutes on a low-stress bicycle ride today, and
+`r format(round(per_resident(gain$accessibility_after, gain$id)), big.mark = ",")`
+with the path; `r round(100 * sum(grid$population[grid$id %in% gainers]) / sum(grid$population))`%
+of residents gain something, all of them along the avenue and the
+neighbourhoods on both sides. The gain on average is small because most
+of the city's jobs are in the centre, which a low-stress ride from the
+east does not reach in 20 minutes either way.
+
+One ride across it, from the east end of the avenue to the Santa Casa
+hospital in the centre, before and after:
+
+```{r cycle-ride}
+ends <- data.frame(id = c("Jardim Carvalho", "Santa Casa"),
+                   lon = c(-51.1405, -51.2224), lat = c(-30.0415, -30.03043))
+monday <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+ride <- function(...) {
+  detailed_itineraries(network, ends[1, ], ends[2, ], mode = "BICYCLE", max_lts = 2,
+                       departure_datetime = monday, ...)
+}
+rides <- rbind(cbind(when = "today", ride()), cbind(when = "with the path", ride(new_lts = path)))
+as.data.frame(st_drop_geometry(rides)[, c("when", "total_duration", "total_distance")])
+```
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("scenario-cycle-path.svg")', 'echo = FALSE, fig.alt = "A map of the east of Porto Alegre with the hexagons that gain access to jobs within 20 minutes by bicycle on low-stress streets if Avenida Protasio Alves had a protected cycle path, and one ride from the east end of the avenue to the centre, today and with the path."')
+```
+
+The ride today is long for its 11 km because the bicycle is walked
+wherever no low-stress street goes the right way; with the path, it
+follows the avenue. `new_lts` also takes lines (an `sf` of `LINESTRING`s,
+each street taking the level of the nearest line), which is how a planned
+route that is not yet in OpenStreetMap is drawn in.
+
+## Congestion and a closed avenue
+
+peabiru's car speeds are free flow: the speed limit of each street, or a
+default by its class, with no traffic. Two scenarios change that. The
+first slows every street within 2 km of the Mercado Público, in the
+centre, to half its speed (a polygon with `scale = 0.5`); the second
+closes Avenida Ipiranga, the east–west arterial along the Dilúvio creek,
+to cars (speed 0 on its ways).
+
+```{r car}
+centre <- st_transform(st_sfc(st_point(c(-51.22781, -30.02756)), crs = 4326), 31982)
+slow_centre <- st_sf(poly_id = "centre", scale = 0.5, priority = 1L,
+                     geometry = st_transform(st_buffer(centre, 2000, nQuadSegs = 16), 4326))
+ipiranga <- ways_named("Avenida Ipiranga")
+closed <- data.frame(osm_id = as.numeric(ipiranga$osm_id), max_speed = 0, speed_type = "km/h")
+
+drive <- function(...) {
+  m <- travel_time_matrix(network, grid, grid, mode = "CAR", n_threads = threads, ...)
+  m[, c("from_id", "to_id", "travel_time_p50")]
+}
+t_base <- system.time(base <- drive())[["elapsed"]]
+t_slow <- system.time(slow <- drive(new_carspeeds = slow_centre))[["elapsed"]]
+t_shut <- system.time(shut <- drive(new_carspeeds = closed))[["elapsed"]]
+c(call = t_base, half_speed = t_slow, closed = t_shut)
+
+change <- function(scenario) {
+  m <- merge(base, scenario, by = c("from_id", "to_id"), all.x = TRUE)
+  m$travel_time_p50.y[is.na(m$travel_time_p50.y)] <- 120   # no longer within the limit
+  d <- m$travel_time_p50.y - m$travel_time_p50.x
+  c(mean_minutes = mean(d), pairs_slower = mean(d > 0), longest = max(d))
+}
+rbind(half_speed = change(slow), closed = change(shut))
+```
+
+Over all `r format(nrow(base), big.mark = ",")` pairs of cells, the slower
+centre adds `r round(change(slow)[["mean_minutes"]], 2)` minutes on average
+and the closed avenue `r round(change(shut)[["mean_minutes"]], 2)`: small
+numbers, because most pairs do not cross either. The maps show where they
+fall.
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("scenario-car.svg")', 'echo = FALSE, fig.alt = "Two maps of Porto Alegre covered by hexagons coloured by how much longer it takes to drive from each cell to all the others: with half speed in the centre, the centre loses most; with Avenida Ipiranga closed, the cells along the avenue lose most."')
+```
+
+Access to health facilities by car, within 10 minutes:
+
+```{r car-health}
+health_by_car <- function(...) {
+  a <- accessibility(network, grid, grid, opportunities_colnames = "healthcare",
+                     mode = "CAR", cutoffs = 10, n_threads = threads, ...)
+  per_resident(a$accessibility, a$id)
+}
+c(today = health_by_car(), half_speed = health_by_car(new_carspeeds = slow_centre),
+  closed = health_by_car(new_carspeeds = closed))
+```
+
+And access to public transport by car: in R5, and so in peabiru, a car
+trip with `mode = c("CAR", "TRANSIT")` may drive to any stop and board
+there, or drive all the way. In this sample the direct drive is always
+faster, before and after (one departure per pair, a cell in 25):
+
+```{r car-transit}
+some <- grid[seq(1, nrow(grid), by = 25), ]
+legs <- function(...) {
+  e <- expanded_travel_time_matrix(network, some, some, mode = c("CAR", "TRANSIT"),
+                                   departure_datetime = monday, time_window = 1,
+                                   n_threads = threads, ...)
+  table(uses_transit = e$routes != "[CAR]")
+}
+legs()
+legs(new_carspeeds = slow_centre)
+```
+
+So the car-access legs do not change here; on a network where they are
+used, a scenario changes them too (it changes every street search from the
+origin), but not the egress from the last stop, as in r5r (see the
+[scenarios guide](scenarios.html)).
+
+## One more health facility
+
+Where would one more health facility bring the most people within 15
+minutes' walk? Not a network scenario at all: the destinations are a data
+frame, and one walking matrix from every cell to every cell answers the
+question for every candidate site at once.
+
+```{r facility}
+t_walk <- system.time(walk <- travel_time_matrix(network, grid, grid, mode = "WALK",
+                                                  max_trip_duration = 60,
+                                                  n_threads = threads))[["elapsed"]]
+nearest <- function(sites) {
+  w <- walk[walk$to_id %in% sites, ]
+  unname(tapply(w$travel_time_p50, w$from_id, min)[grid$id])   # NA: none within the hour
+}
+has <- grid$id[grid$healthcare > 0]
+today <- nearest(has)
+covered <- !is.na(today) & today <= 15
+
+# for each candidate cell, the residents it would bring within 15 minutes
+w <- walk[walk$travel_time_p50 <= 15 & !covered[match(walk$from_id, grid$id)], ]
+w$people <- grid$population[match(w$from_id, grid$id)]
+best <- sort(tapply(w$people, w$to_id, sum), decreasing = TRUE)
+head(best, 3)
+
+with_one_more <- nearest(c(has, names(best)[1]))
+share_15 <- function(t) sum(grid$population[!is.na(t) & t <= 15]) / sum(grid$population)
+c(today = share_15(today), with_one_more = share_15(with_one_more))
+t_walk
+```
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("scenario-health.svg")', 'echo = FALSE, fig.alt = "Two maps of Porto Alegre: on the left, hexagons coloured by the walking time to the nearest health facility; on the right, the minutes saved around the cell where one more facility brings the most residents within 15 minutes."')
+```
+
+The best cell brings `r format(best[[1]], big.mark = ",")` more people
+within 15 minutes, and the share of the population within 15 minutes of a
+health facility goes from `r sprintf("%.1f", 100 * share_15(today))`% to
+`r sprintf("%.1f", 100 * share_15(with_one_more))`%. The search is over the cells
+of the grid, which are hexagons about 350 m across: it says where to look
+for a site, not which plot to buy. The same code with `grid$schools`
+finds that schools are already within 15 minutes of
+`r round(100 * share_15(nearest(grid$id[grid$schools > 0])), 1)`% of
+the population, so one more school changes far less.
+
+## A change in the fare rules
+
+The sample fare structure charges R\$ 4.80 for a bus and R\$ 4.50 for the
+train; a second bus within an hour brings the pair to R\$ 7.20 (and bus and
+train to R\$ 8.37), and only one transfer per trip is discounted. Two
+edits of it: every transfer within the hour free (two rides cost the
+dearer fare, up to two discounted transfers), and no transfer discount at
+all.
+
+```{r fares}
+fares <- read_fare_structure(file.path(data_dir, "fares", "fares_poa.zip"))
+fares$fares_per_type[, c("type", "fare", "unlimited_transfers")]
+fares$fares_per_transfer
+
+free <- fares
+fare_of <- function(type) fares$fares_per_type$fare[match(type, fares$fares_per_type$type)]
+free$fares_per_transfer$fare <- pmax(fare_of(free$fares_per_transfer$first_leg),
+                                     fare_of(free$fares_per_transfer$second_leg))
+free$max_discounted_transfers <- 2L
+none <- fares
+none$max_discounted_transfers <- 0L
+```
+
+The jobs within 45 minutes by public transport, on average over the
+residents, with one fare to spend (`max_fare = 4.8`) and with R\$ 7.20,
+under each structure. With a fare structure, public transport is routed by
+R5's multi-criteria router, which is far slower than the one-criterion
+router used without fares (compare the first timing with the others). The
+two are different algorithms and their travel times differ a little, in
+both directions, so the reference for the budgets is the second row: the
+multi-criteria router with a budget that never binds.
+
+```{r fare-access}
+jobs_by_transit <- function(...) {
+  a <- accessibility(network, grid, grid, opportunities_colnames = "jobs",
+                     mode = c("WALK", "TRANSIT"), departure_datetime = monday,
+                     time_window = 5, cutoffs = 45, seed = 42, n_threads = threads, ...)
+  per_resident(a$accessibility, a$id)
+}
+timed <- function(...) {
+  t <- system.time(v <- jobs_by_transit(...))[["elapsed"]]
+  c(jobs = round(v), seconds = round(t, 1))
+}
+rbind(
+  no_fare_structure = timed(),
+  any_budget = timed(fare_structure = fares, max_fare = 1000),
+  sample_4.80 = timed(fare_structure = fares, max_fare = 4.8),
+  free_4.80 = timed(fare_structure = free, max_fare = 4.8),
+  none_4.80 = timed(fare_structure = none, max_fare = 4.8),
+  sample_7.20 = timed(fare_structure = fares, max_fare = 7.2),
+  free_7.20 = timed(fare_structure = free, max_fare = 7.2),
+  none_7.20 = timed(fare_structure = none, max_fare = 7.2)
+)
+```
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("scenario-fares.svg")', 'echo = FALSE, fig.alt = "Bars of the average number of jobs reachable within 45 minutes by public transport under the sample fare structure, free transfers and no transfer discount, for budgets of R$ 4.80 and R$ 7.20, against the access with any budget."')
+```
+
+With one fare to spend, a trip with a transfer is out of reach under the
+sample rules (R\$ 7.20) and in reach when transfers are free, which is
+where the difference is. With R\$ 7.20, the sample's discount covers one
+transfer, and only the structure without discounts falls behind. (The
+structure with free transfers is also the slowest to route, several times
+slower than the other two in this run.)
+
+For one trip, `trip_options()` lists the options worth considering, here
+by travel time and fare; the best option within one fare changes with
+the rules:
+
+```{r trip-options}
+pair <- grid[match(c("89a90129d93ffff", "89a9012b12fffff"), grid$id), ]
+options_under <- function(structure) {
+  o <- trip_options(network, pair[1, ], pair[2, ], departure_datetime = monday,
+                    criteria = c("TIME", "FARE"), fare_structure = structure,
+                    itineraries = FALSE)$options
+  as.data.frame(o[, c("option", "total_time", "fare", "transfers", "departure_time", "description")])
+}
+options_under(fares)
+options_under(free)
+```
+
+Under the sample rules, the 49-minute trip with three buses costs R\$ 12.00
+and the fastest at one fare is a single bus at 82 minutes; with free
+transfers, the 49-minute trip costs one fare.
+
+## What each what-if cost
+
+Every scenario above was one routing call on the network built once, at
+the start, in `r round(build_time, 1)` seconds; none of them rebuilt it.
+For the record, the timings of this run (seconds):
+
+```{r timings}
+round(c(build_network = build_time,
+        bicycle_access = t_before, bicycle_access_new_lts = t_after,
+        car_matrix = t_base, car_matrix_half_speed = t_slow, car_matrix_closed = t_shut,
+        walk_matrix_every_facility_site = t_walk), 2)
+```
+
+A call with a street scenario searches the network directly, without the
+contraction hierarchies peabiru keeps for repeated street matrices, so it
+can take longer than the same call without one (the car matrix here).
+This sample is small and builds in about a second, so what a scenario
+saves here is the work of editing the OpenStreetMap file, not time; the
+network of the [Helsinki example](helsinki.html) takes about 15
+seconds to build, and a what-if on it is still one call.
+
+## Variations
+
+- **Real speeds.** Instead of a polygon, a table of `osm_id`, `max_speed`
+  and `speed_type = "km/h"` from measured speeds (GPS traces, a traffic
+  model) gives peak-hour car times; `carspeed_scale` scales every street
+  the table leaves out.
+- **Planned routes.** `new_lts` as lines (`line_id`, `lts`, `priority`)
+  takes a cycle network drawn in a GIS, before it exists in
+  OpenStreetMap; r5r's sample has one, `poa_ls_lts.rds` (see the
+  [scenarios guide](scenarios.html)).
+- **Many sites.** The facility search above works for any number of new
+  sites at once: add the best cell, recompute `covered`, and repeat.
+
+Map data © OpenStreetMap contributors, under the ODbL; GTFS feeds, grid and
+fare structure as distributed with r5r 2.5.0.

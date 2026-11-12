@@ -127,6 +127,28 @@ computes everything again from the downloads). The Python page
 `test_docs.py` only with osmium and `PEABIRU_EXAMPLE_DATA` (the same cache
 can be reused). Nothing of the feeds or the grid is committed.
 
+### Scenarios and Helsinki
+
+`bash site/figures/make.sh --scenarios` draws the before-and-after figures
+of Porto Alegre and the figures of Helsinki. `site/figures/scenarios-data.R`
+downloads (once, into `PEABIRU_SCENARIOS_CACHE`, by default
+`tools::R_user_dir("peabiru", "cache")/scenarios`, about 880 MB) the Porto
+Alegre sample of r5r 2.5.0, Geofabrik's dated extract of Finland, HSL's GTFS
+feed and HSY's 250 m grids of residents and jobs; it cuts the streets of the
+capital region with osmium and the feed to the trips of one Tuesday (rows
+copied unchanged), and leaves out the cell in the sea where HSY puts the
+residents without a building. `site/figures/scenarios.R` draws
+`scenario-cycle-path.svg`, `scenario-car.svg`, `scenario-health.svg`,
+`scenario-fares.svg`, `helsinki-jobs.svg` and `helsinki-isochrones.svg`;
+then the R articles `scenarios-porto-alegre.Rmd` and `helsinki.Rmd` are
+knitted from their `.Rmd.orig` (about twenty minutes on a busy laptop: routing with a fare
+structure is slow). HSL replaces its feed every day and keeps about two
+months of service in it, so a later run needs a later date (`hel_date` in
+`scenarios-data.R`, and the date in the two pages) and gives other numbers.
+The Python pages `example-scenarios.md` and `example-helsinki.md` need
+`PEABIRU_EXAMPLE_DATA` (the same cache can be reused), and the second one
+osmium.
+
 The examples:
 
 - R: the pkgdown-only articles `r/vignettes/articles/isochrones.Rmd`,

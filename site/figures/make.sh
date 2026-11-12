@@ -7,6 +7,7 @@
 #   bash site/figures/make.sh --pernambuco # only the Recife and Caruaru ones
 #   bash site/figures/make.sh --terrain    # only the terrain ones
 #   bash site/figures/make.sh --capitals   # only the ones of the capitals
+#   bash site/figures/make.sh --scenarios  # only the scenario and Helsinki ones
 #
 # --terrain runs site/figures/terrain.R: elevation in Pernambuco (the Recife
 # metropolitan region as one network, five more municipalities) and in two
@@ -29,6 +30,13 @@
 # R article r/vignettes/articles/capitals.Rmd from its .Rmd.orig. Names after
 # it select figures of capitals.R (cap_income, cap_fare_budget, ...).
 #
+# --scenarios runs site/figures/scenarios.R instead: it prepares the data of
+# the scenarios on Porto Alegre and of Helsinki (scenarios-data.R: about
+# 880 MB of downloads, cached, and osmium), draws their figures, and knits the
+# precomputed R articles scenarios-porto-alegre.Rmd and helsinki.Rmd from
+# their .Rmd.orig (about ten minutes: the fare routing is slow). Names after
+# it select figures of scenarios.R (scen_cycle, hel_jobs, ...).
+#
 # The SVG figures are computed with the peabiru R package on the sample data
 # of Porto Alegre (r5r 2.5.0's, downloaded once into a cache directory) and
 # São Paulo (the package's own), and drawn with ggplot2, sf and svglite.
@@ -47,6 +55,7 @@ demo=0
 pe=0
 capitals=0
 terrain=0
+sc=0
 names=()
 for a in "$@"; do
   case "$a" in
@@ -54,6 +63,7 @@ for a in "$@"; do
     --pernambuco) pe=1 ;;
     --capitals) capitals=1 ;;
     --terrain) terrain=1 ;;
+    --scenarios) sc=1 ;;
     *) names+=("$a") ;;
   esac
 done
@@ -104,6 +114,14 @@ if [ "$pe" = 1 ]; then
     (cd "$root/r/vignettes/articles" &&
       PEABIRU_PE_CACHE="$(Rscript -e 'source("'"$here"'/pernambuco-data.R"); cat(pe_cache())')" \
       Rscript -e 'knitr::knit("recife-caruaru.Rmd.orig", "recife-caruaru.Rmd", quiet = TRUE)')
+  fi
+elif [ "$sc" = 1 ]; then
+  Rscript "$here/scenarios.R" ${names[@]+"${names[@]}"}
+  if [ ${#names[@]} -eq 0 ]; then
+    # the articles reuse the downloads of scenarios-data.R
+    (cd "$root/r/vignettes/articles" &&
+      PEABIRU_SCENARIOS_CACHE="$(Rscript -e 'source("'"$here"'/scenarios-data.R"); cat(sc_cache())')" \
+      Rscript -e 'for (a in c("scenarios-porto-alegre", "helsinki")) knitr::knit(paste0(a, ".Rmd.orig"), paste0(a, ".Rmd"), quiet = TRUE)')
   fi
 else
   Rscript "$here/figures.R" ${names[@]+"${names[@]}"}

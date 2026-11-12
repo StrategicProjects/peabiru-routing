@@ -150,6 +150,8 @@ articles:
   - articles/recife-caruaru
   - articles/terrain
   - articles/capitals
+  - articles/scenarios-porto-alegre
+  - articles/helsinki
 - title: Under the hood
   navbar: Under the hood
   contents:
