@@ -396,9 +396,12 @@ salvador BICYCLE   MINETTI       94.4       83.4         9.66
 `school_15` and `health_15` are the share of the residents (in %) within 15
 minutes of the nearest public school and primary health care unit;
 `mean_health`, the average time to the health unit, in minutes, over those
-who reach one within the hour. On foot in Salvador the slopes add 1.1
-minutes with Tobler and 2.8 with Minetti, and the residents within 15
-minutes of a health unit go from 60.7% to 56.4% and 49.2%. Olinda, mostly
+who reach one within the hour with that model, so the rows of a city are
+not over exactly the same cells. On foot in Salvador the average goes from
+15.1 minutes to 16.2 with Tobler and 17.8 with Minetti (cell by cell, over
+those that reach a unit both ways, Tobler adds 1.26 minutes), and the
+residents within 15 minutes of a health unit go from 60.7% to 56.4% and
+49.2%. Olinda, mostly
 flat, loses less than half of that.
 
 ## Traffic stress and slope

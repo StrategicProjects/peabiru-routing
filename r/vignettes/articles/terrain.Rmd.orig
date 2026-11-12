@@ -539,7 +539,12 @@ reshape(models, direction = "wide", idvar = c("city", "mode"), timevar = "elevat
 Minetti's cost is the larger in every city, on foot and by bicycle, by a
 factor of two to three: in Salvador the average walk to a health unit goes
 from 15.1 minutes on flat ground to 16.2 with Tobler and 17.8 with Minetti,
-and the residents within 15 minutes from 60.7% to 56.4% and 49.2%. The
+and the residents within 15 minutes from 60.7% to 56.4% and 49.2%. Each
+average is over the residents who reach a unit within the hour with that
+model, so the three are not over exactly the same cells: cell by cell, over
+those that reach one both ways, Tobler adds 1.26 minutes in Salvador (the
+table of the previous section), not the 1.09 that separates the two
+averages. The
 choice of function matters as much as the choice of raster: a result
 should state both. `"TOBLER"` is the
 default, as in r5r.
