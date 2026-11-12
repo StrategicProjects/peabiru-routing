@@ -24,3 +24,18 @@ local_output <- function(kind, frame = parent.frame()) {
 }
 
 departure <- as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")
+
+# sf::sf_use_s2(on) until the calling test (or function) ends.
+local_s2 <- function(on, frame = parent.frame()) {
+  old <- suppressMessages(sf::sf_use_s2(on))
+  do.call(on.exit, list(bquote(suppressMessages(sf::sf_use_s2(.(old)))), add = TRUE, after = FALSE),
+          envir = frame)
+  invisible(old)
+}
+
+# options(peabiru.isochrone_repair = how) until the calling test (or function) ends.
+local_isochrone_repair <- function(how, frame = parent.frame()) {
+  old <- options(peabiru.isochrone_repair = how)
+  do.call(on.exit, list(bquote(options(.(old))), add = TRUE, after = FALSE), envir = frame)
+  invisible(old)
+}

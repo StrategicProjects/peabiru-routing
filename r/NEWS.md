@@ -51,6 +51,13 @@ The package now exports all 22 functions of r5r 2.5.0, with r5r's formals
 
 ## Changes
 
+* `isochrone()`: when `sf::st_make_valid()` with spherical geometry (s2)
+  changes the area of a polygon by more than one part in 10,000 (it can,
+  by several per cent, in polygons of many parts and holes, and r5r returns
+  those), the polygons of that origin are repaired on the plane instead,
+  with a warning of class `peabiru_isochrone_repair`.
+  `options(peabiru.isochrone_repair = "r5r")` returns r5r's polygons.
+
 * The class of the tables returned is chosen by
   `options(peabiru.output = )`, read at each call: `"tibble"` (the default),
   `"data.frame"` (what every function returned before) or `"data.table"`,

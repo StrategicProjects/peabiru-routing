@@ -334,7 +334,9 @@ with a fare structure the multi-criteria router is used, far slower than
 the one used without fares. The two are different algorithms and their
 travel times differ a little, in both directions, so the reference for the
 budgets is the second row: the multi-criteria router with a budget that
-never binds.
+never binds. (The difference is R5's: on 103 of these origins r5r 2.5.0
+gives the same access as peabiru, origin by origin, with the structure and
+without it.)
 
 ```python
 def jobs_by_transit(**fare_args):

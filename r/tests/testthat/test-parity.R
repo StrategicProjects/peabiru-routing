@@ -84,6 +84,8 @@ expect_same_isochrone <- function(...) {
   skip_if_not_installed("sf")
   n <- r5r_network()
   local_output("data.table")
+  # r5r's repair of the polygons, whatever s2 does to their area
+  local_isochrone_repair("r5r")
   pb <- isochrone(n$pb, ..., n_threads = 2)
   r5 <- r5r::isochrone(n$r5, ..., n_threads = 2, progress = FALSE)
   expect_identical_r5r(pb, r5)

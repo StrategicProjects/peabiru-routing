@@ -11,7 +11,8 @@
 #' (see `zoom`): the bands from 0 to each cutoff are traced over that grid
 #' by marching squares (the algorithm of `isoband::isobands()`), grouped
 #' into polygons with holes (as `isoband::iso_to_sfg()` groups them) and
-#' passed to `sf::st_make_valid()`. The order of the rings and the vertex
+#' passed to `sf::st_make_valid()` (see the section on r5r for the case in
+#' which spherical geometry changes their area). The order of the rings and the vertex
 #' each one starts at follow the C++ library 'isoband' is built with on
 #' each platform (libc++ on macOS, libstdc++ on Linux and Windows); between
 #' platforms the polygons differ in that order and, by the system's
@@ -31,7 +32,17 @@
 #' `r5r::isochrone()` in r5r 2.5.0. The travel times are r5r's, and so are
 #' the polygons before `sf::st_make_valid()`, ring for ring and vertex for
 #' vertex on the same platform, so the `sf` returned is r5r's, coordinate
-#' for coordinate (compared with `identical()`). The centroids of the line
+#' for coordinate (compared with `identical()`), with one exception. With
+#' spherical geometry on (`sf::sf_use_s2()`, sf's default),
+#' `sf::st_make_valid()` snaps the vertices and, in a polygon of many parts
+#' and holes, can return an area that is not the traced one: of 438
+#' isochrones of Porto Alegre and Helsinki, 17 came out between 0.1% and
+#' 9.5% larger or smaller. r5r returns those. Here, when the s2 repair
+#' changes the area of a polygon by more than one part in 10,000, the
+#' polygons of that origin are repaired on the plane instead (which leaves
+#' the area as traced) and a warning of class `peabiru_isochrone_repair`
+#' names them; `options(peabiru.isochrone_repair = "r5r")` returns r5r's
+#' polygons in every case. The centroids of the line
 #' isochrones agree with r5r's to within a few units in the last place
 #' (about 1e-14 degrees), which has not changed a travel time in any
 #' comparison made. The deprecated `sample_size` is accepted with r5r's
@@ -238,8 +249,23 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
   geoms <- multipolygons(res)
   group <- (res$origin - 1L) * length(percentiles) + match(res$percentile, percentiles)
   groups <- split(geoms, factor(group, levels = unique(group)))
-  polygons <- lapply(unname(groups), function(g) sf::st_make_valid(sf::st_sfc(g, crs = 4326)))
-  polygons <- do.call(c, polygons)
+  repaired <- lapply(unname(groups), function(g) repair_polygons(sf::st_sfc(g, crs = 4326)))
+  polygons <- do.call(c, lapply(repaired, `[[`, "polygons"))
+  moved <- unlist(lapply(repaired, `[[`, "moved"))
+  if (any(moved)) {
+    at <- unique(paste0(ids[res$origin[moved]], " (", res$isochrone[moved], " min)"))
+    warning(structure(class = c("peabiru_isochrone_repair", "warning", "condition"), list(
+      message = paste0(
+        "sf::st_make_valid() with spherical geometry (s2) changed the area of ",
+        length(at), " isochrone", if (length(at) > 1L) "s", ", of ",
+        paste(utils::head(at, 5L), collapse = ", "), if (length(at) > 5L) ", ...",
+        ". The polygons of ", if (length(at) > 1L) "their origins" else "that origin",
+        " were repaired on the plane instead and are not r5r's, which keeps the",
+        " s2 result; options(peabiru.isochrone_repair = \"r5r\") gives r5r's."
+      ),
+      call = NULL
+    )))
+  }
   out <- new_df(list(
     id = ids[res$origin],
     isochrone = res$isochrone,
@@ -248,6 +274,30 @@ isochrone_polygons <- function(r5r_network, origins, mode, mode_egress, cutoffs,
   out$polygons <- polygons
   sf::st_as_sf(out, sf_column_name = "polygons")
 }
+
+# sf::st_make_valid() on the polygons of one origin and percentile. r5r calls
+# it with whatever geometry engine the session has; with s2 (sf's default
+# for longitude and latitude) the repair of a polygon of many parts and holes
+# can fill holes and return more area than its outer rings enclose (seen in a
+# 30-minute car isochrone of Helsinki, 524 km2 for 478). So with s2 on the
+# group is repaired both ways: where the areas agree the s2 result is kept,
+# which is r5r's coordinate for coordinate; where one differs the whole group
+# is the planar repair (GEOS), and `moved` says which polygons differed.
+# options(peabiru.isochrone_repair = "r5r") keeps what r5r returns.
+repair_polygons <- function(x) {
+  spherical <- sf::st_make_valid(x)
+  none <- list(polygons = spherical, moved = logical(length(x)))
+  if (!sf::sf_use_s2() || identical(getOption("peabiru.isochrone_repair"), "r5r")) return(none)
+  old <- suppressMessages(sf::sf_use_s2(FALSE))
+  on.exit(suppressMessages(sf::sf_use_s2(old)))
+  planar <- sf::st_make_valid(x)
+  area <- function(g) as.numeric(sf::st_area(sf::st_set_crs(g, NA)))
+  a <- area(spherical)
+  b <- area(planar)
+  moved <- abs(a - b) > isochrone_repair_tolerance * pmax(a, b)
+  if (any(moved)) list(polygons = planar, moved = moved) else none
+}
+isochrone_repair_tolerance <- 1e-4
 
 # The MULTIPOLYGON sfg of each row of rs_isochrone_polygons(), built as
 # isoband's separate_polygons() builds them: lists of polygons, each a list

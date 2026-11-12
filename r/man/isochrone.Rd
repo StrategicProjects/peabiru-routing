@@ -140,7 +140,8 @@ the centres of a regular grid of Web Mercator pixels covering the network
 (see \code{zoom}): the bands from 0 to each cutoff are traced over that grid
 by marching squares (the algorithm of \code{isoband::isobands()}), grouped
 into polygons with holes (as \code{isoband::iso_to_sfg()} groups them) and
-passed to \code{sf::st_make_valid()}. The order of the rings and the vertex
+passed to \code{sf::st_make_valid()} (see the section on r5r for the case in
+which spherical geometry changes their area). The order of the rings and the vertex
 each one starts at follow the C++ library 'isoband' is built with on
 each platform (libc++ on macOS, libstdc++ on Linux and Windows); between
 platforms the polygons differ in that order and, by the system's
@@ -161,7 +162,17 @@ The arguments, their defaults and checks and the result are those of
 \code{r5r::isochrone()} in r5r 2.5.0. The travel times are r5r's, and so are
 the polygons before \code{sf::st_make_valid()}, ring for ring and vertex for
 vertex on the same platform, so the \code{sf} returned is r5r's, coordinate
-for coordinate (compared with \code{identical()}). The centroids of the line
+for coordinate (compared with \code{identical()}), with one exception. With
+spherical geometry on (\code{sf::sf_use_s2()}, sf's default),
+\code{sf::st_make_valid()} snaps the vertices and, in a polygon of many parts
+and holes, can return an area that is not the traced one: of 438
+isochrones of Porto Alegre and Helsinki, 17 came out between 0.1\% and
+9.5\% larger or smaller. r5r returns those. Here, when the s2 repair
+changes the area of a polygon by more than one part in 10,000, the
+polygons of that origin are repaired on the plane instead (which leaves
+the area as traced) and a warning of class \code{peabiru_isochrone_repair}
+names them; \code{options(peabiru.isochrone_repair = "r5r")} returns r5r's
+polygons in every case. The centroids of the line
 isochrones agree with r5r's to within a few units in the last place
 (about 1e-14 degrees), which has not changed a travel time in any
 comparison made. The deprecated \code{sample_size} is accepted with r5r's

@@ -48,6 +48,7 @@ ITEMS: dict[str, frozenset[str]] = {
     "platform-order": ALL,
     # warnings peabiru adds
     "elevation-wrapped": ALL,
+    "isochrone-repair": frozenset({"R"}),
     # errors where r5r fails later or routes on wrong values
     "errors-instead-of-failures": ALL,
     "scenario-wrap": ALL,

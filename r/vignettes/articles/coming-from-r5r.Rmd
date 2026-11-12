@@ -234,6 +234,19 @@ in both packages; with the same `seed` they give the same.
   costs are r5r's, and warns, counting them and the samples equal to the
   raster's no-data value; r5r is silent.
 
+<!-- diff:isochrone-repair -->
+- **Isochrone polygons whose area the repair changes.** r5r passes the
+  traced polygons to `sf::st_make_valid()`, which with spherical geometry
+  on (sf's default) can return an area that is not the traced one: of 438
+  isochrones of Porto Alegre and Helsinki, 17 came out between 0.1% and
+  9.5% larger or smaller (a 30-minute car isochrone of Helsinki, 524 km²
+  for 478). Where the s2 repair changes the area of a polygon by more than
+  one part in 10,000, peabiru repairs the polygons of that origin on the
+  plane, which leaves the area as traced, and warns (class
+  `peabiru_isochrone_repair`), naming them. Everywhere else the polygons
+  are r5r's, coordinate for coordinate, and
+  `options(peabiru.isochrone_repair = "r5r")` gives r5r's in every case.
+
 (The elevation warning above, about points on a pixel boundary, is
 peabiru's too.)
 

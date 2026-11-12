@@ -96,3 +96,30 @@ test_that("polygon isochrones of origins without rows are an error that says so"
   expect_error(iso(fixture_points()[0, ], mode = "WALK", cutoffs = 10),
                "'origins' has no rows", fixed = TRUE)
 })
+
+test_that("a polygon whose area the s2 repair changes is repaired on the plane, with a warning", {
+  skip_if_not_installed("sf")
+  local_s2(TRUE)
+  car <- function() {
+    isochrone(fixture_network(), fixture_points()[10, ], mode = "CAR", cutoffs = c(10, 20),
+              n_threads = 2)
+  }
+  # square degrees, on the plane: what the traced rings enclose
+  area <- function(x) as.numeric(sf::st_area(sf::st_set_crs(sf::st_geometry(x), NA)))
+  expect_warning(x <- car(), class = "peabiru_isochrone_repair")
+  expect_true(sf::sf_use_s2())                      # the session's setting is left as it was
+  expect_true(all(sf::st_is_valid(x)))
+  # what r5r returns: sf::st_make_valid() with s2
+  r5r <- (function() {
+    local_isochrone_repair("r5r")
+    expect_no_warning(car())
+  })()
+  # with s2 off there is one repair only, and it is the one returned above
+  planar <- (function() {
+    local_s2(FALSE)
+    expect_no_warning(car())
+  })()
+  expect_true(sf::sf_use_s2())
+  expect_identical(sf::st_as_binary(sf::st_geometry(x)), sf::st_as_binary(sf::st_geometry(planar)))
+  expect_gt(max(abs(area(r5r) - area(planar)) / area(planar)), 1e-4)
+})

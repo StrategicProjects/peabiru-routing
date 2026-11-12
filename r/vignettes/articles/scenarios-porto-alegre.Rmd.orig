@@ -319,7 +319,9 @@ R5's multi-criteria router, which is far slower than the one-criterion
 router used without fares (compare the first timing with the others). The
 two are different algorithms and their travel times differ a little, in
 both directions, so the reference for the budgets is the second row: the
-multi-criteria router with a budget that never binds.
+multi-criteria router with a budget that never binds. (The difference is
+R5's: on 103 of these origins r5r 2.5.0 gives the same access as peabiru,
+origin by origin, with the structure and without it.)
 
 ```{r fare-access}
 jobs_by_transit <- function(...) {
