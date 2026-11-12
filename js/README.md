@@ -3,8 +3,10 @@
 Multimodal routing on [OpenStreetMap](https://www.openstreetmap.org) street
 networks and [GTFS](https://gtfs.org) public transport, in WebAssembly:
 travel-time matrices, accessibility, minute-by-minute (expanded) and
-arrival-time matrices, and isochrones, by walking, cycling, driving and
-public transport.
+arrival-time matrices, detailed itineraries, fares and Pareto frontiers,
+and isochrones, by walking, cycling, driving and public transport, with
+slope costs from an elevation raster and scenarios of car speeds and
+traffic stress.
 
 The routing engine is the Rust core of the peabiru packages for R and
 Python, compiled to WebAssembly. It runs in browsers, in bundlers and in
@@ -12,7 +14,7 @@ Node (18 or later), with no server and no Java, and gives the same numbers
 as the native packages, which give the numbers of
 [r5r](https://github.com/ipea/r5r) 2.5.0.
 
-**Status**: version 0.0.1, early development; the interfaces may still change.
+**Status**: early development; the interfaces may still change.
 
 [<img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/demo-poa.webp" width="560" alt="An isochrone map of Porto Alegre computed in the browser: three nested areas reached by walking and public transport from a clicked point.">](https://github.com/StrategicProjects/peabiru-routing/tree/main/site/demo)
 
@@ -52,18 +54,26 @@ network.free();
 In a browser, read the files with `fetch(url).then((r) => r.arrayBuffer())`
 or from an `<input type="file">` (`file.arrayBuffer()`).
 
-Every function returns a Promise. To route on several threads, build the
-network with workers: `buildNetwork({ pbf, gtfs, nThreads: 4 })` (see
-[Threads](#threads)).
+Every function that reads or routes on a network returns a Promise. To
+route on several threads, build the network with workers:
+`buildNetwork({ pbf, gtfs, nThreads: 4 })` (see [Threads](#threads)).
 
 | Function | What it computes |
 |---|---|
-| `buildNetwork({ pbf, gtfs, nThreads })` | a network from an OpenStreetMap extract and any GTFS feeds |
+| `buildNetwork({ pbf, gtfs, tif, elevation, nThreads })` | a network from an OpenStreetMap extract, any GTFS feeds and an optional elevation raster |
 | `travelTimeMatrix(network, origins, destinations, options)` | travel times between every origin and destination |
 | `accessibility(network, origins, destinations, options)` | cumulative or decay-weighted access to opportunities |
 | `expandedTravelTimeMatrix(network, origins, destinations, options)` | travel times minute by minute, with a breakdown of each trip |
 | `arrivalTravelTimeMatrix(network, origins, destinations, options)` | the latest trip that arrives by a given time |
+| `detailedItineraries(network, origins, destinations, options)` | the legs of the fastest trip, or of the alternatives, as GeoJSON |
 | `isochrone(network, origins, options)` | the areas (or street segments) reached within each cutoff, as GeoJSON |
+| `setupFareStructure(network, baseFare, options)`, `readFareStructure(bytes)`, `writeFareStructure(fs)` | a fare structure, made, read from or written to the bytes of a `.zip` file |
+| `paretoFrontier(network, origins, destinations, options)` | the travel time at each fare cutoff |
+| `findSnap(network, points, options)` | where points snap to the streets |
+| `streetNetworkBbox(network, output)` | the bounding box of the street network |
+| `streetNetworkToSf(network)`, `transitNetworkToSf(network)` | the street and public transport networks as GeoJSON |
+| `checkTransitAvailability(network, options)` | the services active on dates |
+| `getGtfsErrors(gtfs)` | the errors gtfs-lib reports in GTFS feeds |
 | `coreVersion()`, `version` | versions of the Rust core and of this package |
 
 `network.info()` gives the sizes of a network, `await network.transitAvailability(date)`
@@ -81,7 +91,9 @@ is `departureDatetime`, `max_trip_duration` is `maxTripDuration`, and so on
 (`timeWindow`, `percentiles`, `maxWalkTime`, `maxBikeTime`, `maxCarTime`,
 `walkSpeed`, `bikeSpeed`, `maxRides`, `maxLts`, `drawsPerMinute`, `seed`,
 `opportunitiesColnames`, `decayFunction`, `cutoffs`, `decayValue`,
-`breakdown`, `arrivalDatetime`, ...). An option name that is not one of
+`breakdown`, `arrivalDatetime`, `fareStructure`, `newCarspeeds`, ...;
+`paretoFrontier()` routes on foot and by public transport by default, as
+r5r's does). An option name that is not one of
 them is an error. Each options object also takes `onWarning`, a function
 that receives the warnings r5r would give (by default `console.warn`).
 
@@ -121,7 +133,17 @@ row objects (a matrix can have millions of rows):
   `to_id`, `departure_time` (`"HH:MM:SS"`), `draw_number`, with
   `breakdown: true` the times `access_time`, `wait_time`, `ride_time`,
   `transfer_time`, `egress_time` (`Float64Array`, minutes), then `routes`
-  (strings), `n_rides` (with `breakdown`) and `total_time`.
+  (strings), `n_rides` (with `breakdown`) and `total_time`;
+- `paretoFrontier()`: `from_id`, `to_id`, `percentile`, `travel_time`
+  (`Int32Array`) and `monetary_cost` (`Float64Array`);
+- `findSnap()`, `checkTransitAvailability()` and `getGtfsErrors()`: r5r's
+  columns, in the same way.
+
+`detailedItineraries()` returns a GeoJSON `FeatureCollection` of
+`LineString`s, one per leg, with r5r's columns as properties (or, with
+`dropGeometry: true`, an array of those rows), and `streetNetworkToSf()`
+and `transitNetworkToSf()` GeoJSON `FeatureCollection`s of r5r's two
+tables.
 
 `isochrone()` returns a GeoJSON `FeatureCollection` (coordinates
 `[lon, lat]`, WGS 84), as r5r's `isochrone()` returns an `sf` table. With
@@ -157,12 +179,14 @@ for (let i = 0; i < ttm.from_id.length; i++) {
 }
 ```
 
-## What is not supported
+## What peabiru refuses
 
-What peabiru does not support yet throws `peabiru.UnsupportedError`; it is
-never silently ignored: `outputDir`, expanded and arrival matrices by a
-street mode alone, and R5's own fare calculators (a `fareStructure` with a
-`type`).
+What peabiru does not do throws `peabiru.UnsupportedError`; it is never
+silently ignored: `outputDir` (there is no file system to write to),
+expanded and arrival matrices by a street mode alone, and R5's own fare
+calculators (a `fareStructure` with a `type`). A GTFS feed with errors of
+priority `HIGH` is refused by `buildNetwork()`, as r5r refuses it
+(`getGtfsErrors()` lists them).
 
 ## Elevation
 

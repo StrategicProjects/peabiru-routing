@@ -14,12 +14,20 @@ pub fn read_fare_structure(bytes: &[u8], encoding: &str) -> Result<FareStructure
 pub fn write_fare_structure(s: &FareStructure) -> Result<Vec<u8>, RouteError>;
 ```
 
-`read_fare_structure` and `write_fare_structure` read and write the bytes of
-r5r's `.zip` file: five CSV files in `data.table::fwrite()`'s format, the
-same text as r5r's (the archive stores them uncompressed, so its bytes
-differ).
+`setup_fare_structure` makes one where every ride and every discounted
+transfer costs `base_fare`, with one fare type per mode (`by = "MODE"`), per
+agency (`"AGENCY_ID"`, `"AGENCY_NAME"`) or a single `GENERIC` type; change
+its fields to follow a city's rules. `read_fare_structure` and
+`write_fare_structure` read and write the bytes of r5r's `.zip` file: five
+CSV files in `data.table::fwrite()`'s format, the same text as r5r's (the
+archive stores them uncompressed, so its bytes differ). A structure written
+by r5r is read here, and the other way round.
+
+## Routing with fares
 
 Set `TransitParams::fare_structure` (and `max_fare`) to route with fares:
+the matrix functions then keep, for each pair, the fastest trip that costs
+no more than `max_fare`. Accessibility takes the same fields.
 
 ```rust,ignore
 let mut p = peabiru_core::TransitParams::default();
@@ -45,6 +53,52 @@ cutoff, and per destination and percentile a row at each cutoff where the
 travel time changes. `detailed_itineraries` takes the same structure in
 `ItineraryParams::fare_structure` (and routes with McRAPTOR then, as it
 does with `shortest_path = false`); its itineraries get `total_fare` and
-each leg `cumulative_fare`.
+each leg `cumulative_fare` (see [Detailed itineraries](itineraries.md)).
 
-R5's own fare calculators (a JSON structure with a `type`) are not ported.
+The fare structure is r5r's rule-based one. R5's own fare calculators for other cities (a JSON structure with a `type`)
+are not ported.
+
+## Example
+
+```rust,ignore
+{{#include ../../../crates/peabiru-core/examples/fares.rs}}
+```
+
+On the São Paulo sample, a few kilometres across, walking is as fast as any
+paid trip from the first point, and no budget changes the times:
+
+```text
+type SUBWAY  fare 5.00
+type BUS     fare 5.00
+type RAIL    fare 5.00
+9 transfer rules, 19 routes, at most 1 discounted transfers within 120 min
+max_fare    0: 27 destinations, median 25 min
+max_fare    5: 27 destinations, median 25 min
+max_fare  inf: 27 destinations, median 25 min
+```
+
+On r5r's Porto Alegre sample (the directory of the
+[itineraries example](itineraries.md#example)), with the fare structure r5r
+ships for it as the second argument (`extdata/poa/fares/fares_poa.zip`),
+one fare buys most of the time saved, and a second one more for some
+destinations:
+
+```text
+type BUS     fare 4.80
+type RAIL    fare 4.50
+3 transfer rules, 117 routes, at most 1 discounted transfers within 60 min
+max_fare    0: 14 destinations, median 26 min
+max_fare    5: 15 destinations, median 16 min
+max_fare  inf: 15 destinations, median 16 min
+
+to bus_central_station: 21 min for 0.00 13 min for 5.00
+to gasometer_museum: 26 min for 0.00 12 min for 5.00
+to farroupilha_park: 31 min for 0.00 17 min for 5.00
+to moinhos_de_vento_hospital: 37 min for 0.00 26 min for 5.00 24 min for 10.00
+to farrapos_station: 82 min for 0.00 21 min for 5.00
+to iguatemi_shopping_center: 59 min for 5.00 49 min for 10.00
+to praia_de_belas_shopping_center: 44 min for 0.00 21 min for 5.00
+to beira_rio_stadium: 77 min for 0.00 32 min for 5.00
+to ufrgs: 21 min for 0.00 16 min for 5.00
+to pucrs: 114 min for 0.00 44 min for 5.00 35 min for 10.00
+```

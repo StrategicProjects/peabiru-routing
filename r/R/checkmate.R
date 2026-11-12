@@ -389,7 +389,7 @@ check_directory_exists <- function(x) {
 cli_text <- function(header = NULL, bullets = character()) {
   utf8 <- isTRUE(l10n_info()[["UTF-8"]])
   sym <- if (utf8) {
-    c(x = "✖", i = "ℹ", "!" = "!", "*" = "•", v = "✔", " " = " ")
+    c(x = "\u2716", i = "\u2139", "!" = "!", "*" = "\u2022", v = "\u2714", " " = " ")
   } else {
     c(x = "x", i = "i", "!" = "!", "*" = "*", v = "v", " " = " ")
   }

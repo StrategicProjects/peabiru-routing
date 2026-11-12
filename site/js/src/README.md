@@ -11,13 +11,14 @@
 -->
 
 The npm package `peabiru` computes travel-time matrices, accessibility,
-and minute-by-minute (expanded) and arrival-time matrices on multimodal
-networks built from an OpenStreetMap extract (`.pbf`) and GTFS public
-transport feeds (`.zip`), by walking, cycling, driving and public
-transport. Its routing engine is the Rust core of peabiru compiled to
-WebAssembly: it runs in browsers, in bundlers and in Node (18 or later),
-with no server and no Java, and gives the numbers of the R and Python
-packages, which give those of r5r.
+minute-by-minute (expanded) and arrival-time matrices, detailed
+itineraries, fares and Pareto frontiers, and isochrones on multimodal
+networks built from an OpenStreetMap extract (`.pbf`), GTFS public
+transport feeds (`.zip`) and, optionally, an elevation raster (`.tif`), by
+walking, cycling, driving and public transport. Its routing engine is the
+Rust core of peabiru compiled to WebAssembly: it runs in browsers, in
+bundlers and in Node (18 or later), with no server and no Java, and gives
+the numbers of the R and Python packages, which give those of r5r.
 
 ```js
 {{#include ../examples/first-matrix.mjs:matrix}}
@@ -32,29 +33,35 @@ The same engine is behind:
 
 This guide covers the JavaScript API: [getting started](getting-started.md)
 in Node and in a browser, the [routing functions](routing.md) and the
-columns they return, [threads and workers](threads.md),
-[bundlers](bundlers.md), what differs from
-[the R and Python packages](differences.md), and the
+columns they return, [detailed itineraries](itineraries.md),
+[fares](fares.md), [elevation](elevation.md), [scenarios](scenarios.md),
+[inspecting a network and GTFS errors](network.md),
+[threads and workers](threads.md), [bundlers](bundlers.md), what differs
+from [the R and Python packages](differences.md), and the
 [API reference](api.md), generated from the package's type declarations.
 
 ## Status
 
-Version 0.0.1, on [npm](https://www.npmjs.com/package/peabiru). Implemented: street matrices (walk,
-bicycle, car), public transport matrices (any subset of the transit modes,
-reached and left on foot, by bicycle or by car) with percentiles and Monte
-Carlo draws, accessibility with five decay functions, expanded and
-arrival matrices, isochrones, detailed itineraries (the fastest trip
-or the alternatives), fares and Pareto frontiers, with elevation. Not
-yet: R5's own fare calculators.
-What is not supported throws `UnsupportedError`; nothing is silently
-ignored. The API may still change.
+On [npm](https://www.npmjs.com/package/peabiru). The package covers the
+routing functions of r5r 2.5.0: street matrices (walk, bicycle, car),
+public transport matrices (any subset of the transit modes, reached and
+left on foot, by bicycle or by car) with percentiles and Monte Carlo
+draws, accessibility with five decay functions, expanded and arrival
+matrices, isochrones, detailed itineraries (the fastest trip or the
+alternatives), fares and Pareto frontiers, elevation, scenarios of car
+speeds and traffic stress, and the functions that inspect a network and
+its GTFS errors. What it does not do (R5's own fare calculators, writing
+results to files) throws `UnsupportedError`; nothing is silently ignored.
+The API may still change.
 
 ## The examples
 
 Every example in this guide is a file in `site/js/examples/` of the
 repository, included here verbatim, and so is the output shown under it.
 `node site/js/run_examples.mjs` runs them all on the São Paulo sample
-network of the Python package (`python/peabiru/data/spo/`): the Node
+network of the Python package (`python/peabiru/data/spo/`), or on r5r's
+sample of Porto Alegre where a timetabled feed is needed, together with
+the examples of the API reference: the Node
 examples with `node`, the browser examples in headless Chrome, as plain ES
 modules and, with `VITE` set to a Vite executable, bundled by Vite. It
 fails if any of them prints something other than the output shown here.

@@ -12,16 +12,19 @@ by walking, cycling, driving and public transport;
 [`write_fare_structure()`][peabiru.write_fare_structure] describe transit fares, which
 the routing functions take, and [`pareto_frontier()`][peabiru.pareto_frontier] trades
 travel time against fare;
-[`find_snap()`][peabiru.find_snap], [`street_network_to_sf()`][peabiru.street_network_to_sf],
+[`find_snap()`][peabiru.find_snap], [`street_network_bbox()`][peabiru.street_network_bbox],
+[`street_network_to_sf()`][peabiru.street_network_to_sf],
 [`transit_network_to_sf()`][peabiru.transit_network_to_sf],
 [`check_transit_availability()`][peabiru.check_transit_availability] and
 [`get_gtfs_errors()`][peabiru.get_gtfs_errors] inspect a network. The routing engine is
-written in Rust; no Java is needed. Options that peabiru does not support yet
-raise [`UnsupportedError`][peabiru.UnsupportedError]; they are never silently ignored.
+written in Rust; no Java is needed. A request peabiru cannot honour exactly
+is an error ([`UnsupportedError`][peabiru.UnsupportedError] for the few
+options it refuses), never silently ignored.
 
-The functions have the names, arguments and defaults of the r5r package
-(2.5.0), and the engine is a port of R5 7.6, the engine r5r drives, so the
-results are the same.
+The functions have the names, arguments and defaults of the R package r5r
+(2.5.0), and the engine is a port of Conveyal's R5 7.6, the engine r5r
+drives, so the results are the same; see "Coming from r5py / r5r" in the
+documentation for the differences.
 """
 
 from ._checks import UnsupportedError

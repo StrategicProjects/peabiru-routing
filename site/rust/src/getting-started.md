@@ -20,7 +20,8 @@ holding exactly these files:
 ```text
 data/spo/
 ├── spo_osm.pbf      # streets
-└── spo_gtfs.zip     # public transport (optional, several allowed)
+├── spo_gtfs.zip     # public transport (optional, several allowed)
+└── elevation.tif    # elevation (optional, read with BuildOptions::elevation)
 ```
 
 Files are recognised by their extension in lower case only, as in r5r: a
@@ -44,15 +45,18 @@ let (net, layer) = build_from_dir("r/inst/extdata/spo", &BuildOptions::default()
 // shared by every public transport query:
 let data = TransitData::new(&net, &layer);
 println!("{} stops in {} feeds", layer.n_stops(), layer.feed_ids().len());
-// Feeds that r5r would refuse are built all the same, with a warning:
-for w in layer.r5r_warnings() {
-    eprintln!("warning: {w}");
-}
 ```
 
 `BuildOptions::default()` uses all cores to decode the PBF file; set
-`n_threads` on it to use fewer. For street-only routing,
+`n_threads` on it to use fewer. As r5r's `build_network()` does, the build
+fails when a GTFS feed has errors of priority `HIGH` (set
+`ignore_gtfs_errors` to build what can be read; see
+[Inspecting a network](inspect.md#feeds-with-errors-of-priority-high)), and
+`elevation` applies slope costs from a `.tif` raster in the directory (see
+[Elevation](elevation.md)). For street-only routing,
 `peabiru_core::build_network(path_to_pbf, &opts)` reads just the `.pbf`.
+`build_from_bytes` builds the same network from the files' bytes, for
+programs without a file system (the JavaScript package uses it).
 
 The network is read-only data in memory: share it between threads by
 reference; every query function takes `&StreetNetwork` (and `&TransitLayer`,
@@ -68,8 +72,8 @@ to be the same.
 ## Parameters
 
 Parameter structs (`RouteParams` for streets, `TransitParams` for public
-transport, `AccessibilityParams`, `BuildOptions`) implement `Default` with
-the defaults of the R and Python packages; start from it and set only what
+transport, `AccessibilityParams`, `ItineraryParams`, `BuildOptions`) implement `Default` with
+the defaults of the R, Python and JavaScript packages; start from it and set only what
 differs:
 
 ```rust,ignore

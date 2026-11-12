@@ -70,6 +70,14 @@ unsupported <- function(what, instead = "") {
   stop(what, " is not supported by peabiru yet", instead, ".", call. = FALSE)
 }
 
+# lifecycle::deprecated() and lifecycle::is_present(), without depending on
+# 'lifecycle': the default of a deprecated argument is the missing argument,
+# so `r5r_core = deprecated()` in a call counts as not given, and the usage
+# shown in the documentation is the same as r5r's.
+deprecated <- function() quote(expr = )
+
+is_present <- function(arg) !identical(arg, quote(expr = ))
+
 # r5r >= 2.3.0 still accepts the network as `r5r_core`, with this warning
 warn_r5r_core <- function() {
   warning("The `r5r_core` argument is deprecated as of r5r v2.3.0. ",

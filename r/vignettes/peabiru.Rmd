@@ -176,17 +176,25 @@ length(list.files(out))
 head(read.csv(file.path(out, list.files(out)[1])), 3)
 ```
 
-## What is not supported yet
+## More
 
-Options that peabiru does not implement yet stop with an error rather than
-being ignored, such as R5's own fare calculators.
-For example:
+The package also computes isochrones (`isochrone()`), the legs of each trip
+(`detailed_itineraries()`), fares (`setup_fare_structure()`,
+`pareto_frontier()`), slope costs from an elevation raster, and scenarios of
+car speeds and traffic stress; it inspects networks with `find_snap()`,
+`street_network_to_sf()`, `transit_network_to_sf()`,
+`check_transit_availability()` and `get_gtfs_errors()`. The articles on the
+package website show each of them.
+
+What the engine cannot compute exactly as R5 does stops with an error that
+says so, rather than being ignored or approximated, such as R5's own fare
+calculators (a fare structure with a `type`):
 
 ```{r, error = TRUE}
-travel_time_matrix(network, points, points, mode = "CAR",
-                   carspeed_scale = 0.5)
+fares <- setup_fare_structure(network, base_fare = 4.4)
+fares$type <- "burlington"
+travel_time_matrix(network, points, points, mode = c("WALK", "TRANSIT"),
+                   departure_datetime = departure, fare_structure = fares)
 ```
 
-The help pages of `travel_time_matrix()`, `accessibility()`,
-`expanded_travel_time_matrix()` and `arrival_travel_time_matrix()` list each
-argument and its default.
+The help page of each function lists its arguments and their defaults.

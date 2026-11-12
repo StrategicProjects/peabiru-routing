@@ -1,0 +1,9 @@
+car:               mean 7.4 min, 729 pairs reached
+car, half speed:   mean 10.1 min, 729 pairs reached
+88 primary ways
+car, primary closed: mean 7.5 min, 651 pairs reached
+car, primary at 40%: mean 7.8 min, 729 pairs reached
+car, slow zone:    mean 13.4 min, 729 pairs reached
+bicycle, maxLts 2: mean 11.8 min, 729 pairs reached
+bicycle, calm primary: mean 11.2 min, 729 pairs reached
+bicycle, new lane: mean 9.5 min, 729 pairs reached

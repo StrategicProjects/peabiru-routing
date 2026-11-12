@@ -25,7 +25,7 @@ would be published):
 
 ```sh
 npm install /path/to/peabiru-routing/js
-npm install /path/to/peabiru-routing/js/peabiru-0.0.1.tgz   # after npm pack
+npm install /path/to/peabiru-routing/js/peabiru-<version>.tgz   # after npm pack
 ```
 
 The package is an ES module only (`import`, not `require()` before Node
@@ -35,7 +35,8 @@ or later, or a browser with WebAssembly and ES modules.
 ## Input data
 
 A network is built from the bytes of one OpenStreetMap extract in PBF
-format and, for public transport, of any number of GTFS feeds. The package
+format and, for public transport, of any number of GTFS feeds (and,
+optionally, of an [elevation raster](elevation.md)). The package
 reads no files itself: you pass it the bytes, read from disk in Node,
 fetched or picked by the user in a browser.
 
@@ -62,8 +63,8 @@ read the points with this small function (`sample.mjs`):
 
 `buildNetwork()` loads the WebAssembly module the first time it is called,
 reads the extract and the feeds, and builds the network in the module's
-memory, where it stays until `network.free()`. Every function returns a
-Promise. A matrix is an object of columns (`from_id`, `to_id`, and one
+memory, where it stays until `network.free()`. Every function that reads
+or routes on a network returns a Promise. A matrix is an object of columns (`from_id`, `to_id`, and one
 `Int32Array` per percentile), one row per origin and destination reached,
 in the order of the origins: see [Routing functions](routing.md).
 
