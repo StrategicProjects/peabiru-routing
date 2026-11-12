@@ -544,7 +544,7 @@ pub(crate) fn check_car_speeds(net: &StreetNetwork) -> Result<(), RouteError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{build_from_dir, BuildOptions};
+    use crate::{transit::build_from_dir, BuildOptions};
 
     const SPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../r/inst/extdata/spo");
 

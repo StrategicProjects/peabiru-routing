@@ -80,7 +80,7 @@ pub struct FarePerRoute {
 /// r5r's fare structure: how much each ride costs and which transfers are
 /// discounted. The values are those of r5r's R object (`setup_fare_structure()`,
 /// `read_fare_structure()`): counts and minutes as doubles, `Inf` for no
-/// limit. Start from [`setup_fare_structure`] or [`read_fare_structure`]
+/// limit. Start from [`setup_fare_structure`](crate::setup_fare_structure) or [`read_fare_structure`]
 /// and change the fields.
 ///
 /// The rules, as r5r's `RuleBasedInRoutingFareCalculator` applies them:
@@ -292,13 +292,8 @@ fn mode_name(route_type: i32) -> Result<&'static str, String> {
     }
 }
 
-/// r5r's `setup_fare_structure()`: one fare type per mode (`by =
-/// "MODE"`), per agency id (`"AGENCY_ID"`, or `"AGENCY"`) or name
-/// (`"AGENCY_NAME"`), or a single `GENERIC` type (anything else); every
-/// route, type and transfer between two types costs `base_fare`, read as a
-/// Java `float`. The routes are in the network's route order, the types
-/// and transfers in the order of r5r's Java `HashSet`s.
-pub fn setup_fare_structure(
+/// The work of [`crate::setup_fare_structure`].
+pub(crate) fn setup_fare_structure(
     layer: &TransitLayer,
     base_fare: f64,
     by: &str,
@@ -401,9 +396,13 @@ impl FareStructure {
     /// is given the structure for a network (`setFareCalculator`, even for
     /// a street-only trip): its numbers as Java reads them, and a row of
     /// `fares_per_route` for the `agency_id` and `route_id` of every
-    /// route the network's trip patterns run on.
-    pub fn validate_for(&self, layer: &TransitLayer) -> Result<(), RouteError> {
-        FareCalculator::new(self, layer).map(|_| ())
+    /// route the network's trip patterns run on. For a network without
+    /// public transport, the same as [`FareStructure::validate`].
+    pub fn validate_for(&self, network: &crate::Network) -> Result<(), RouteError> {
+        match network.transit() {
+            Some(layer) => FareCalculator::new(self, layer).map(|_| ()),
+            None => self.validate(),
+        }
     }
 
     pub(crate) fn check(&self) -> Result<(), String> {

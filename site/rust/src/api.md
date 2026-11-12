@@ -8,9 +8,9 @@ Main entry points:
 
 | Item | What it does |
 |---|---|
-| [`build_from_dir`](api/peabiru_core/fn.build_from_dir.html) | street network + transit layer from a directory |
-| [`build_network`](api/peabiru_core/fn.build_network.html) | street network from a `.pbf` |
-| [`TransitData`](api/peabiru_core/struct.TransitData.html) | per-network walking tables |
+| [`Network`](api/peabiru_core/struct.Network.html) | the network every function takes: streets and, with GTFS, public transport |
+| [`build_from_dir`](api/peabiru_core/fn.build_from_dir.html), [`build_from_bytes`](api/peabiru_core/fn.build_from_bytes.html) | a network from a directory, or from the files' bytes |
+| [`build_network`](api/peabiru_core/fn.build_network.html) | a street-only network from a `.pbf` |
 | [`street_travel_time_matrix`](api/peabiru_core/fn.street_travel_time_matrix.html) | street matrix ([`StreetMatrix`](api/peabiru_core/struct.StreetMatrix.html)) |
 | [`transit_travel_time_matrix`](api/peabiru_core/fn.transit_travel_time_matrix.html) | walk + transit matrix ([`TransitMatrix`](api/peabiru_core/struct.TransitMatrix.html)) |
 | [`transit_accessibility`](api/peabiru_core/fn.transit_accessibility.html), [`street_accessibility`](api/peabiru_core/fn.street_accessibility.html) | accessibility ([`Accessibility`](api/peabiru_core/struct.Accessibility.html)) |

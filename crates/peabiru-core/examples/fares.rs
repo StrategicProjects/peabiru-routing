@@ -10,7 +10,7 @@ mod common;
 
 use peabiru_core::{
     build_from_dir, pareto_frontier, read_fare_structure, setup_fare_structure,
-    transit_travel_time_matrix, write_fare_structure, BuildOptions, TransitData, TransitParams,
+    transit_travel_time_matrix, write_fare_structure, BuildOptions, TransitParams,
 };
 use std::sync::Arc;
 
@@ -19,15 +19,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let points = common::read_points(&dir, &[]);
     let mut opts = BuildOptions::default();
     opts.n_threads = 2;
-    let (net, layer) = build_from_dir(&dir, &opts)?;
-    let data = TransitData::new(&net, &layer);
+    let net = build_from_dir(&dir, &opts)?;
 
     // A fare structure written by r5r's write_fare_structure() (second
     // argument), or one fare type per mode where every ride and every
     // discounted transfer costs 5.
     let fares = match std::env::args_os().nth(2) {
         Some(zip) => read_fare_structure(&std::fs::read(zip)?, "UTF-8")?,
-        None => setup_fare_structure(&layer, 5.0, "MODE")?,
+        None => setup_fare_structure(&net, 5.0, "MODE")?,
     };
     for t in &fares.fares_per_type {
         println!(
@@ -59,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The fastest trip that costs no more than max_fare.
     for max_fare in [0.0, 5.0, f64::INFINITY] {
         p.max_fare = max_fare;
-        let m = transit_travel_time_matrix(&net, &layer, &data, origin, destinations, &p)?;
+        let m = transit_travel_time_matrix(&net, origin, destinations, &p)?;
         let times: Vec<u32> = (0..destinations.len())
             .filter_map(|j| m.get(0, j)[0])
             .collect();
@@ -73,14 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // pareto_frontier(): per destination, the travel time at each fare
     // cutoff where it changes.
     p.max_fare = f64::INFINITY;
-    let frontier = pareto_frontier(
-        &net,
-        Some((&layer, &data)),
-        origin,
-        destinations,
-        &p,
-        &[0.0, 5.0, 10.0],
-    )?;
+    let frontier = pareto_frontier(&net, origin, destinations, &p, &[0.0, 5.0, 10.0])?;
     let mut last = usize::MAX;
     for r in &frontier.rows {
         let changed = frontier

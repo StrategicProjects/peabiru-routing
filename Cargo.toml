@@ -22,7 +22,7 @@ edition = "2021"
 rust-version = "1.81"
 license = "MIT AND Apache-2.0 AND BSD-3-Clause"
 repository = "https://github.com/StrategicProjects/peabiru-routing"
-homepage = "https://github.com/StrategicProjects/peabiru-routing"
+homepage = "https://strategicprojects.github.io/peabiru-routing/"
 
 [workspace.dependencies]
 peabiru-core = { path = "crates/peabiru-core", version = "0.0.1" }

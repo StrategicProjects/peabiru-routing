@@ -22,8 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let net = build_network(&pbf, &opts)?;
     println!(
         "{} vertices, {} directed edges",
-        net.n_vertices(),
-        net.n_edges()
+        net.street().n_vertices(),
+        net.street().n_edges()
     );
 
     // r5r's defaults: 3.6 km/h walking, 12 km/h cycling, max_lts 2, 120 min.

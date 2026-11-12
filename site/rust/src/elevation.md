@@ -13,7 +13,7 @@ Driving times do not change.
 
 `build_from_dir` reads the `.tif` (or `.tiff`) raster of the directory
 when a model is set; `build_from_bytes_with_elevation` takes the raster's
-bytes. `StreetNetwork::elevation()` tells which model a network was built
+bytes. `network.street().elevation()` tells which model a network was built
 with.
 
 ## What is computed
@@ -43,7 +43,8 @@ GDAL, for example).
 
 ## Warnings
 
-`StreetNetwork::elevation_warnings()` lists what looks wrong in the raster.
+`StreetNetwork::elevation_warnings()` (and `Network::build_warnings()`, with the
+warnings about GTFS feeds) lists what looks wrong in the raster.
 The core never prints them; the R, Python and JavaScript packages turn them
 into warnings.
 

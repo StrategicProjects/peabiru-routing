@@ -297,10 +297,7 @@ fn rs_check_fare_structure(ptr: Robj, fare_structure: Robj) -> Result<()> {
     };
     s.validate().map_err(err)?;
     let n = network(&ptr)?;
-    if let Some(t) = &n.transit {
-        s.validate_for(&t.layer).map_err(err)?;
-    }
-    Ok(())
+    s.validate_for(&n.net).map_err(err)
 }
 
 /// r5r's `setup_fare_structure()` as a list (columns of the tables).
@@ -308,9 +305,7 @@ fn rs_check_fare_structure(ptr: Robj, fare_structure: Robj) -> Result<()> {
 #[extendr]
 fn rs_setup_fare_structure(ptr: Robj, base_fare: f64, by: &str) -> Result<Robj> {
     let n = network(&ptr)?;
-    let empty = peabiru_core::TransitLayer::default();
-    let layer = n.transit.as_ref().map_or(&empty, |t| &t.layer);
-    let s = setup_fare_structure(layer, base_fare, by).map_err(err)?;
+    let s = setup_fare_structure(&n.net, base_fare, by).map_err(err)?;
     structure_to_r(&s)
 }
 
@@ -423,14 +418,14 @@ fn rs_pareto_frontier(
     )?;
     p.fare_structure = fs;
     p.n_threads = threads(n_threads);
-    let tr = if transit {
-        let t = super::transit(n)?;
-        Some((&t.layer, &t.data))
+    if transit {
+        super::transit(n)?;
     } else {
-        None
-    };
+        // by `mode` alone
+        p.transit_modes.clear();
+    }
     let f = match interruptible(&p.cancel, || {
-        pareto_frontier(&n.net, tr, &o, &d, &p, fare_cutoffs)
+        pareto_frontier(&n.net, &o, &d, &p, fare_cutoffs)
     })? {
         Outcome::Done(v) => v,
         Outcome::Stopped(cond) => return super::stopped(cond),

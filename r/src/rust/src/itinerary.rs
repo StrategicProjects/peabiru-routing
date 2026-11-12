@@ -80,13 +80,11 @@ fn rs_detailed_itineraries(
     p.n_threads = n_threads.max(0) as usize;
     p.osm_link_ids = osm_link_ids;
     p.fail_fast_raptor = fail_fast_raptor;
-    let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
-    let (res, notes) = match interruptible(&p.cancel, || {
-        detailed_itineraries_noted(&n.net, transit, &o, &d, &p)
-    })? {
-        Outcome::Done(v) => v,
-        Outcome::Stopped(cond) => return super::stopped(cond),
-    };
+    let (res, notes) =
+        match interruptible(&p.cancel, || detailed_itineraries_noted(&n.net, &o, &d, &p))? {
+            Outcome::Done(v) => v,
+            Outcome::Stopped(cond) => return super::stopped(cond),
+        };
     let warnings = notes.warnings(o.len());
     if !output.is_null() {
         let get = |name: &str| -> Result<Vec<String>> {

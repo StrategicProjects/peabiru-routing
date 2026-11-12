@@ -28,7 +28,7 @@ use peabiru_core::{
     street_edges as street_edges_core, street_travel_time_matrix, street_travel_time_surface,
     transit_accessibility, transit_travel_time_matrix, transit_travel_time_surface, validate_date,
     AccessibilityParams, BuildOptions, DecayFunction, Destinations, ExpandedRow, Mode, RouteError,
-    RouteParams, StreetNetwork, TransitData, TransitLayer, TransitMode, TransitParams,
+    RouteParams, TransitLayer, TransitMode, TransitParams,
 };
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
@@ -45,14 +45,7 @@ const NA_I32: i32 = i32::MIN;
 /// A network built once and shared by every routing call.
 #[wasm_bindgen]
 pub struct Network {
-    net: StreetNetwork,
-    /// Present when at least one GTFS feed was given.
-    transit: Option<Transit>,
-}
-
-struct Transit {
-    layer: TransitLayer,
-    data: TransitData,
+    net: peabiru_core::Network,
 }
 
 fn err(msg: impl std::fmt::Display) -> JsError {
@@ -90,9 +83,9 @@ fn route_err(e: RouteError) -> JsError {
     }
 }
 
-fn transit(n: &Network) -> Result<&Transit, JsError> {
-    n.transit
-        .as_ref()
+fn transit(n: &Network) -> Result<&TransitLayer, JsError> {
+    n.net
+        .transit()
         .ok_or_else(|| err("the network has no public transport (no GTFS feed)"))
 }
 
@@ -157,49 +150,39 @@ impl Network {
             Some(t) => build_from_bytes_with_elevation(pbf, &feeds, t, &opts),
             None => build_from_bytes(pbf, &feeds, &opts),
         };
-        let (net, layer) =
-            built.map_err(|e| err(build_error(&e, "getGtfsErrors() on the same feeds")))?;
-        let transit = if layer.feed_ids().is_empty() {
-            None
-        } else {
-            let data = TransitData::new(&net, &layer);
-            Some(Transit { layer, data })
-        };
-        Ok(Network { net, transit })
+        let net = built.map_err(|e| err(build_error(&e, "getGtfsErrors() on the same feeds")))?;
+        Ok(Network { net })
     }
 
     /// Vertices of the street network.
     pub fn n_vertices(&self) -> usize {
-        self.net.n_vertices()
+        self.net.street().n_vertices()
     }
 
     /// Directed edges of the street network.
     pub fn n_edges(&self) -> usize {
-        self.net.n_edges()
+        self.net.street().n_edges()
     }
 
     /// The slope cost function in use: `"TOBLER"`, `"MINETTI"` or `"NONE"`.
     pub fn elevation(&self) -> String {
-        self.net.elevation().r5r_name().to_string()
+        self.net.street().elevation().r5r_name().to_string()
     }
 
     /// The feed ids, in loading order.
     pub fn feed_ids(&self) -> Array {
-        let ids = self
-            .transit
-            .as_ref()
-            .map_or(&[][..], |t| t.layer.feed_ids());
+        let ids = self.net.transit().map_or(&[][..], |t| t.feed_ids());
         ids.iter().map(|s| JsValue::from_str(s)).collect()
     }
 
     /// `[stops, patterns, services, frequencies (0/1)]`.
     pub fn transit_sizes(&self) -> Vec<u32> {
-        match &self.transit {
+        match self.net.transit() {
             Some(t) => vec![
-                t.layer.n_stops() as u32,
-                t.layer.n_patterns() as u32,
-                t.layer.n_services() as u32,
-                u32::from(t.layer.has_frequencies()),
+                t.n_stops() as u32,
+                t.n_patterns() as u32,
+                t.n_services() as u32,
+                u32::from(t.has_frequencies()),
             ],
             None => vec![0, 0, 0, 0],
         }
@@ -208,11 +191,7 @@ impl Network {
     /// Warnings about the network build: one per feed that r5r refuses to
     /// build a network from, then those about the elevation raster.
     pub fn r5r_warnings(&self) -> Array {
-        let mut w = self
-            .transit
-            .as_ref()
-            .map_or_else(Vec::new, |t| t.layer.r5r_warnings());
-        w.extend(self.net.elevation_warnings().iter().cloned());
+        let w = self.net.build_warnings();
         w.iter().map(|s| JsValue::from_str(s)).collect()
     }
 
@@ -220,11 +199,11 @@ impl Network {
     /// r5r's `getTransitServiceAvailability`.
     pub fn transit_availability(&self, date: u32) -> Result<Vec<u32>, JsError> {
         validate_date(date).map_err(route_err)?;
-        let Some(t) = &self.transit else {
+        let Some(t) = self.net.transit() else {
             return Ok(vec![0, 0]);
         };
-        let active = t.layer.n_services_active_on(date).map_err(route_err)?;
-        Ok(vec![t.layer.n_services() as u32, active as u32])
+        let active = t.n_services_active_on(date).map_err(route_err)?;
+        Ok(vec![t.n_services() as u32, active as u32])
     }
 }
 
@@ -382,7 +361,7 @@ pub fn transit_ttm(
     max_fare: f64,
 ) -> Result<Array, JsError> {
     let scenario = scenario::scenario_of(&scenario)?;
-    let t = transit(network)?;
+    transit(network)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let np = percentiles.len();
     let mut p = transit_params(
@@ -407,8 +386,7 @@ pub fn transit_ttm(
     p.fare_structure = fares::fare_arg(&fare)?;
     p.max_fare = max_fare;
     p.scenario = scenario.clone();
-    let m = transit_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
-        .map_err(route_err)?;
+    let m = transit_travel_time_matrix(&network.net, &o, &d, &p).map_err(route_err)?;
     let (mut from, mut to) = (Vec::new(), Vec::new());
     let mut cols: Vec<Vec<i32>> = vec![Vec::new(); np];
     for (i, row) in m.rows().enumerate() {
@@ -503,7 +481,7 @@ pub fn accessibility(
     a.decay = decay(decay_function, decay_value)?;
     let dest = Destinations::new(&d, &opp);
     let values = if !transit_modes.is_empty() {
-        let t = transit(network)?;
+        transit(network)?;
         let mut p = transit_params(
             transit_modes,
             mode,
@@ -526,7 +504,7 @@ pub fn accessibility(
         p.fare_structure = fares::fare_arg(&fare)?;
         p.max_fare = max_fare;
         p.scenario = scenario.clone();
-        transit_accessibility(&network.net, &t.layer, &t.data, &o, &dest, &p, &a)
+        transit_accessibility(&network.net, &o, &dest, &p, &a)
     } else {
         let m = street_mode(mode)?;
         let mut p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);
@@ -575,7 +553,7 @@ pub fn expanded(
     scenario: JsValue,
 ) -> Result<Array, JsError> {
     let scenario = scenario::scenario_of(&scenario)?;
-    let t = transit(network)?;
+    transit(network)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let mut p = transit_params(
         transit_modes,
@@ -598,9 +576,9 @@ pub fn expanded(
     )?;
     p.scenario = scenario.clone();
     let rows = if arrival {
-        arrival_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
+        arrival_travel_time_matrix(&network.net, &o, &d, &p)
     } else {
-        expanded_travel_time_matrix(&network.net, &t.layer, &t.data, &o, &d, &p)
+        expanded_travel_time_matrix(&network.net, &o, &d, &p)
     }
     .map_err(route_err)?;
     let c = ExpandedColumns::new(rows.into_vec());
@@ -654,7 +632,7 @@ pub fn isochrone_polygons(
 ) -> Result<Array, JsError> {
     let o = points(olat, olon)?;
     let surface = if !transit_modes.is_empty() {
-        let t = transit(network)?;
+        transit(network)?;
         let p = transit_params(
             transit_modes,
             mode,
@@ -674,7 +652,7 @@ pub fn isochrone_polygons(
             draws_per_minute,
             Some(seed),
         )?;
-        transit_travel_time_surface(&network.net, &t.layer, &t.data, &o, &p, zoom)
+        transit_travel_time_surface(&network.net, &o, &p, zoom)
     } else {
         let m = street_mode(mode)?;
         let p = route_params(walk_speed, bike_speed, max_lts, max_trip_duration);

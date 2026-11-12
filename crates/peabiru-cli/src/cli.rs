@@ -49,19 +49,19 @@ pub fn build_from_dir(
     cmd: &str,
     dir: impl AsRef<std::path::Path>,
     opts: &peabiru_core::BuildOptions,
-) -> Result<(peabiru_core::StreetNetwork, peabiru_core::TransitLayer), peabiru_core::NetworkError> {
+) -> Result<peabiru_core::Network, peabiru_core::NetworkError> {
     let mut opts = opts.clone();
     opts.ignore_gtfs_errors = std::env::var("PEABIRU_IGNORE_GTFS_ERRORS").as_deref() == Ok("1");
     if let Some(e) = elevation(cmd) {
         opts.elevation = e;
     }
     let built = peabiru_core::build_from_dir(dir, &opts)?;
-    for report in built.1.feed_reports() {
+    for report in built.transit().map_or(&[][..], |t| t.feed_reports()) {
         for w in report.r5r_warnings_per_case() {
             eprintln!("peabiru {cmd}: warning: {w}");
         }
     }
-    for w in built.0.elevation_warnings() {
+    for w in built.street().elevation_warnings() {
         eprintln!("peabiru {cmd}: warning: {w}");
     }
     Ok(built)

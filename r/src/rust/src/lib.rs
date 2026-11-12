@@ -20,8 +20,8 @@ use peabiru_core::{
     isochrone_polygons, street_accessibility, street_edges, street_travel_time_matrix,
     street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
     transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, CancelToken,
-    CsvOutput, DecayFunction, Destinations, Mode, RouteError, RouteParams, StreetNetwork,
-    TransitData, TransitLayer, TransitMode, TransitParams,
+    CsvOutput, DecayFunction, Destinations, Mode, RouteError, RouteParams, TransitLayer,
+    TransitMode, TransitParams,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -34,14 +34,7 @@ mod scenario;
 
 /// A network built once and shared by every routing call.
 struct Network {
-    net: StreetNetwork,
-    /// Present when the data directory had at least one GTFS feed.
-    transit: Option<Transit>,
-}
-
-struct Transit {
-    layer: TransitLayer,
-    data: TransitData,
+    net: peabiru_core::Network,
 }
 
 fn err(msg: impl std::fmt::Display) -> Error {
@@ -260,9 +253,9 @@ fn network(ptr: &Robj) -> Result<&Network> {
         .map_err(|_| err("this network is no longer valid; build it again"))
 }
 
-fn transit(n: &Network) -> Result<&Transit> {
-    n.transit
-        .as_ref()
+fn transit(n: &Network) -> Result<&TransitLayer> {
+    n.net
+        .transit()
         .ok_or_else(|| err("the network has no public transport (no GTFS feed)"))
 }
 
@@ -327,7 +320,7 @@ impl Output {
 
 /// A file that could not be written, as a routing error.
 fn io_err(e: std::io::Error) -> RouteError {
-    RouteError::from(e.to_string())
+    RouteError::Invalid(e.to_string())
 }
 
 /// Version of the Rust core this package was built against.
@@ -347,15 +340,8 @@ fn rs_build_network(data_path: &str, n_threads: i32, elevation: &str) -> Result<
     opts.elevation = peabiru_core::Elevation::from_r5r_name(elevation)
         .ok_or_else(|| err(format!("unknown elevation model {elevation:?}")))?;
     let lister = format!("get_gtfs_errors({data_path:?})");
-    let (net, layer) =
-        build_from_dir(data_path, &opts).map_err(|e| err(build_error(&e, &lister)))?;
-    let transit = if layer.feed_ids().is_empty() {
-        None
-    } else {
-        let data = TransitData::new(&net, &layer);
-        Some(Transit { layer, data })
-    };
-    let ptr = ExternalPtr::new(Network { net, transit });
+    let net = build_from_dir(data_path, &opts).map_err(|e| err(build_error(&e, &lister)))?;
+    let ptr = ExternalPtr::new(Network { net });
     Ok(ptr.into())
 }
 
@@ -372,12 +358,7 @@ fn rs_network_valid(ptr: Robj) -> bool {
 #[extendr]
 fn rs_network_r5r_warnings(ptr: Robj) -> Result<Vec<String>> {
     let n = network(&ptr)?;
-    let mut w = n
-        .transit
-        .as_ref()
-        .map_or_else(Vec::new, |t| t.layer.r5r_warnings());
-    w.extend(n.net.elevation_warnings().iter().cloned());
-    Ok(w)
+    Ok(n.net.build_warnings())
 }
 
 /// Sizes of the network, for `print()`.
@@ -385,25 +366,25 @@ fn rs_network_r5r_warnings(ptr: Robj) -> Result<Vec<String>> {
 #[extendr]
 fn rs_network_info(ptr: Robj) -> Result<Robj> {
     let n = network(&ptr)?;
-    let (feeds, stops, patterns, services, freq) = match &n.transit {
+    let (feeds, stops, patterns, services, freq) = match n.net.transit() {
         Some(t) => (
-            t.layer.feed_ids().to_vec(),
-            t.layer.n_stops(),
-            t.layer.n_patterns(),
-            t.layer.n_services(),
-            t.layer.has_frequencies(),
+            t.feed_ids().to_vec(),
+            t.n_stops(),
+            t.n_patterns(),
+            t.n_services(),
+            t.has_frequencies(),
         ),
         None => (Vec::new(), 0, 0, 0, false),
     };
     Ok(list!(
-        vertices = n.net.n_vertices() as f64,
-        edges = n.net.n_edges() as f64,
+        vertices = n.net.street().n_vertices() as f64,
+        edges = n.net.street().n_edges() as f64,
         feeds = feeds,
         stops = stops as f64,
         patterns = patterns as f64,
         services = services as f64,
         frequencies = freq,
-        elevation = n.net.elevation().r5r_name()
+        elevation = n.net.street().elevation().r5r_name()
     )
     .into())
 }
@@ -416,11 +397,11 @@ fn rs_transit_availability(ptr: Robj, date: i32) -> Result<Vec<f64>> {
     let n = network(&ptr)?;
     let date = u32::try_from(date).unwrap_or(0);
     validate_date(date).map_err(err)?;
-    let Some(t) = &n.transit else {
+    let Some(t) = n.net.transit() else {
         return Ok(vec![0.0, 0.0]);
     };
-    let active = t.layer.n_services_active_on(date).map_err(err)?;
-    Ok(vec![t.layer.n_services() as f64, active as f64])
+    let active = t.n_services_active_on(date).map_err(err)?;
+    Ok(vec![t.n_services() as f64, active as f64])
 }
 
 fn street_mode(mode: &str) -> Result<Mode> {
@@ -612,7 +593,7 @@ fn rs_transit_ttm(
     max_fare: f64,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
-    let t = transit(n)?;
+    transit(n)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
     let mut p = transit_params(
         transit_modes,
@@ -641,8 +622,7 @@ fn rs_transit_ttm(
         let w = out.writer(n_threads);
         done!(interruptible(&p.cancel, || {
             for r in w.origin_chunks(d.len() * percentiles.len()) {
-                let m =
-                    transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o[r.clone()], &d, &p)?;
+                let m = transit_travel_time_matrix(&n.net, &o[r.clone()], &d, &p)?;
                 w.write_transit_matrix(r.start, &m).map_err(io_err)?;
             }
             Ok(())
@@ -650,7 +630,7 @@ fn rs_transit_ttm(
         return Ok(().into());
     }
     let m = done!(interruptible(&p.cancel, || {
-        transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)
+        transit_travel_time_matrix(&n.net, &o, &d, &p)
     })?);
     let np = percentiles.len();
     let (mut from, mut to) = (Vec::new(), Vec::new());
@@ -766,7 +746,7 @@ fn rs_accessibility(
     a.cutoffs = cutoffs.to_vec();
     a.decay = decay(decay_function, decay_value)?;
     let acc = if !transit_modes.is_empty() {
-        let t = transit(n)?;
+        transit(n)?;
         let mut p = transit_params(
             transit_modes,
             mode,
@@ -793,8 +773,7 @@ fn rs_accessibility(
         done!(interruptible(&p.cancel, || {
             let mut all = None;
             for r in &chunks {
-                let acc =
-                    transit_accessibility(&n.net, &t.layer, &t.data, &o[r.clone()], &dest, &p, &a)?;
+                let acc = transit_accessibility(&n.net, &o[r.clone()], &dest, &p, &a)?;
                 match &w {
                     Some(w) => w
                         .write_accessibility(r.start, &acc, &names)
@@ -907,9 +886,9 @@ fn rs_expanded(
     p.scenario = scenario::scenario_of(&scenario)?;
     let route = |o: &[(f64, f64)]| {
         if arrival {
-            arrival_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)
+            arrival_travel_time_matrix(&n.net, o, &d, &p)
         } else {
-            expanded_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)
+            expanded_travel_time_matrix(&n.net, o, &d, &p)
         }
     };
     if let Some(out) = Output::of(&output)? {
@@ -919,7 +898,7 @@ fn rs_expanded(
             .ok_or_else(|| err("output$breakdown must be TRUE or FALSE"))?;
         let w = out.writer(n_threads);
         // at most one row per destination, departure minute and draw
-        let draws = if t.layer.has_frequencies() {
+        let draws = if t.has_frequencies() {
             draws_per_minute.max(1) as usize
         } else {
             1
@@ -1024,7 +1003,7 @@ fn rs_isochrone_polygons(
     let n = network(&ptr)?;
     let o = points(olat, olon);
     let rows = if !transit_modes.is_empty() {
-        let t = transit(n)?;
+        transit(n)?;
         let p = transit_params(
             transit_modes,
             mode,
@@ -1046,7 +1025,7 @@ fn rs_isochrone_polygons(
             n_threads,
         )?;
         done!(interruptible(&p.cancel, || {
-            let s = transit_travel_time_surface(&n.net, &t.layer, &t.data, &o, &p, zoom)?;
+            let s = transit_travel_time_surface(&n.net, &o, &p, zoom)?;
             isochrone_polygons(&s, cutoffs)
         })?)
     } else {
@@ -1102,7 +1081,7 @@ fn rs_isochrone_polygons(
 /// @noRd
 #[extendr]
 fn rs_street_edges(ptr: Robj) -> Result<Robj> {
-    Ok(edges_list(&network(&ptr)?.net))
+    Ok(edges_list(street_edges(&network(&ptr)?.net)))
 }
 
 /// The street edges of the network a scenario makes (as `rs_street_edges`),
@@ -1112,13 +1091,12 @@ fn rs_street_edges(ptr: Robj) -> Result<Robj> {
 fn rs_scenario_street_edges(ptr: Robj, scenario: Robj) -> Result<Robj> {
     let n = network(&ptr)?;
     let s = scenario::scenario_of(&scenario)?;
-    let net = peabiru_core::unstable::scenario_network(&n.net, &s).map_err(err)?;
-    Ok(net.map_or_else(|| ().into(), |net| edges_list(&net)))
+    let edges = peabiru_core::unstable::scenario_street_edges(&n.net, &s).map_err(err)?;
+    Ok(edges.map_or_else(|| ().into(), edges_list))
 }
 
 /// The columns of r5r's `street_network_to_sf()` edges.
-fn edges_list(net: &StreetNetwork) -> Robj {
-    let e = street_edges(net);
+fn edges_list(e: peabiru_core::StreetEdges) -> Robj {
     let rows = 0..e.len();
     let cen = e.centroid_points();
     let (mut n_points, mut x, mut y) = (Vec::with_capacity(e.len()), Vec::new(), Vec::new());

@@ -87,8 +87,8 @@ pub struct ExpandedRow {
 }
 
 /// The rows of an expanded or arrival matrix, origin by origin, each
-/// origin's rows in r5r's order (see [`expanded_travel_time_matrix`] and
-/// [`arrival_travel_time_matrix`]).
+/// origin's rows in r5r's order (see [`expanded_travel_time_matrix`](crate::expanded_travel_time_matrix) and
+/// [`arrival_travel_time_matrix`](crate::arrival_travel_time_matrix)).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExpandedMatrix(Vec<Vec<ExpandedRow>>);
 
@@ -347,9 +347,10 @@ impl<'a> Context<'a> {
         destinations: &[(f64, f64)],
         p: &'a TransitParams,
     ) -> Result<Self, RouteError> {
-        validate(layer, destinations.len(), p)?;
+        validate(layer, destinations.len(), p).map_err(RouteError::Invalid)?;
         let active = layer.active_services(p.date, weekday(p.date));
-        let filtered = Filtered::new(layer, &active, &p.transit_modes)?;
+        let filtered =
+            Filtered::new(layer, &active, &p.transit_modes).map_err(RouteError::Invalid)?;
         let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
         let walk_mms = (walk_speed * 1000.0f32) as i32;
         let link = |mode| {
@@ -758,7 +759,7 @@ fn per_origin<T: Send>(
     cancel.check()?;
     let mut out: Vec<Option<T>> = (0..origins.len()).map(|_| None).collect();
     for (i, r) in done.into_iter().flatten() {
-        out[i] = Some(r?);
+        out[i] = Some(r.map_err(RouteError::Invalid)?);
     }
     Ok(out
         .into_iter()
@@ -766,19 +767,8 @@ fn per_origin<T: Send>(
         .collect())
 }
 
-/// r5r's `expanded_travel_time_matrix()`: per origin, the rows in r5r's
-/// order (destination, departure minute, draw). For each departure minute
-/// the transit records come first in `PATH_ORDER`, numbered 1.., then the
-/// remaining draws repeat the walk-only record (or an unreachable, NA one)
-/// up to the draws per minute (`populateTravelTimesBreakdown`). A
-/// destination with no record at all has no rows. Points are `(lat, lon)`
-/// degrees; `p.percentiles` are not used.
-///
-/// [`RouteError::Invalid`] when the parameters are invalid (see
-/// [`TransitParams::validate`]) or there are more than 5,000 destinations
-/// (R5's limit for paths); [`RouteError::Cancelled`] when `p.cancel` is
-/// cancelled before every origin is done.
-pub fn expanded_travel_time_matrix(
+/// The work of [`crate::expanded_travel_time_matrix`].
+pub(crate) fn expanded_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
     data: &TransitData,
@@ -854,23 +844,14 @@ pub fn arrival_departure(
         return Ok((date, t as i32));
     }
     let days = t.div_euclid(86_400);
-    let date = civil_from_days(days_from_civil(date) + days).ok_or_else(|| {
-        format!("max_trip_duration {max_trip_duration} min reaches before year 1")
-    })?;
+    let date = civil_from_days(days_from_civil(date) + days)
+        .ok_or_else(|| format!("max_trip_duration {max_trip_duration} min reaches before year 1"))
+        .map_err(RouteError::Invalid)?;
     Ok((date, t.rem_euclid(86_400) as i32))
 }
 
-/// r5r's `arrival_travel_time_matrix()`. `p` must already hold the
-/// departure side of the search: the service date and departure from
-/// [`arrival_departure`] and `time_window = max_trip_duration`, as the R
-/// wrapper sets them. For each destination the latest departure minute
-/// with a record arriving by `departure + max_trip_duration` wins: its
-/// first transit record in `PATH_ORDER`, else the walk-only record
-/// (`filterLatestBeforeArrivalTime`, offs 31-266). At most one row per
-/// destination. Errors as [`expanded_travel_time_matrix`], and
-/// [`RouteError::Invalid`] when `p.time_window` is not
-/// `p.max_trip_duration`.
-pub fn arrival_travel_time_matrix(
+/// The work of [`crate::arrival_travel_time_matrix`].
+pub(crate) fn arrival_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
     data: &TransitData,
@@ -879,7 +860,9 @@ pub fn arrival_travel_time_matrix(
     p: &TransitParams,
 ) -> Result<ExpandedMatrix, RouteError> {
     if p.time_window != p.max_trip_duration {
-        return Err("an arrival search needs time_window = max_trip_duration".into());
+        return Err(RouteError::Invalid(
+            "an arrival search needs time_window = max_trip_duration".into(),
+        ));
     }
     let ctx = Context::new(net, layer, data, destinations, p)?;
     let dpm = ctx.draws_per_minute;

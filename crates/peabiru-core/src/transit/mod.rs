@@ -22,30 +22,8 @@ use crate::NetworkError;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-/// Build the street network and the transit layer from a directory holding
-/// one OpenStreetMap `.pbf` file and any number of GTFS `.zip` feeds, as
-/// r5r's `build_network()` does, and link the stops to the streets; with
-/// [`BuildOptions::elevation`], apply slope costs from the directory's
-/// `.tif` raster (see [`build_from_bytes_with_elevation`] for the rasters
-/// supported).
-///
-/// Files are recognised by their extension in lower case only (`.pbf`,
-/// `.zip`), as r5r does; with several `.pbf` files the last one listed is
-/// used, and the feeds are loaded in the order the operating system lists
-/// them, which is the order R5 loads them in. A directory without GTFS
-/// feeds gives an empty layer ([`TransitLayer::feed_ids`] is empty), good
-/// for street routing only.
-///
-/// As r5r does, the build fails when a feed has GTFS errors of priority
-/// `HIGH`, or is one gtfs-lib cannot load at all
-/// ([`NetworkError::high_priority_gtfs_errors`],
-/// [`gtfs_errors`](crate::gtfs_errors)), unless
-/// [`BuildOptions::ignore_gtfs_errors`] is set.
-///
-/// This reads the files and builds the network as [`build_from_bytes`]
-/// does from the same bytes, with the feeds in the directory's order;
-/// errors name the files by their path.
-pub fn build_from_dir(
+/// The work of [`crate::build_from_dir`].
+pub(crate) fn build_from_dir(
     dir: impl AsRef<Path>,
     opts: &BuildOptions,
 ) -> Result<(StreetNetwork, TransitLayer), NetworkError> {
@@ -149,46 +127,8 @@ fn raster_in_dir(dir: &Path, mut rasters: Vec<PathBuf>) -> Result<Option<Named>,
     }
 }
 
-/// Build the street network and the transit layer from data held in
-/// memory: the bytes of an OpenStreetMap `.pbf` file and of any number of
-/// GTFS `.zip` feeds, each with its file name. The network is the one
-/// [`build_from_dir`] builds from a directory holding the same files, and
-/// the stops are linked to the streets in the same way.
-///
-/// The feeds are loaded in the order of `feeds`. That order matters: the
-/// stops, patterns and, where two feeds offer equally good trips, the
-/// routes chosen follow it. [`build_from_dir`] loads them in the order the
-/// operating system lists the directory (as R5 does), which differs from
-/// one file system to another; to reproduce a network built from a
-/// directory, pass the feeds in the order of its
-/// [`TransitLayer::feed_reports`].
-///
-/// A feed's name stands for its file name: it names the feed in errors
-/// and in [`FeedReport`](crate::FeedReport)s and, when the feed has no
-/// `feed_info.feed_id`, gives its feed id (the name without a trailing
-/// `.zip`), which prefixes its stop ids. Use the names the files have on
-/// disk (such as `"poa_eptc.zip"`) and keep them distinct. Errors about
-/// the `.pbf` data name it `OpenStreetMap data`. With no feeds, the layer
-/// is empty, good for street routing only.
-///
-/// As r5r does, the build fails when a feed has GTFS errors of priority
-/// `HIGH`, or is one gtfs-lib cannot load at all
-/// ([`NetworkError::high_priority_gtfs_errors`],
-/// [`gtfs_errors`](crate::gtfs_errors)), unless
-/// [`BuildOptions::ignore_gtfs_errors`] is set.
-///
-/// ```no_run
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let pbf = std::fs::read("r/inst/extdata/spo/spo_osm.pbf")?;
-/// let gtfs = std::fs::read("r/inst/extdata/spo/spo_gtfs.zip")?;
-/// let opts = peabiru_core::BuildOptions::default();
-/// let (net, layer) = peabiru_core::build_from_bytes(&pbf, &[("spo_gtfs.zip", &gtfs)], &opts)?;
-/// assert_eq!(layer.feed_ids(), ["spo_gtfs"]);
-/// # let _ = net;
-/// # Ok(())
-/// # }
-/// ```
-pub fn build_from_bytes(
+/// The work of [`crate::build_from_bytes`].
+pub(crate) fn build_from_bytes(
     pbf: &[u8],
     feeds: &[(&str, &[u8])],
     opts: &BuildOptions,
@@ -206,30 +146,8 @@ pub fn build_from_bytes(
     )
 }
 
-/// [`build_from_bytes`] with an elevation raster: the bytes of a GeoTIFF
-/// file, as [`build_from_dir`] reads the `.tif` file of a directory. The
-/// slope costs of [`BuildOptions::elevation`] are applied to walking and
-/// cycling (with [`Elevation::None`](crate::Elevation::None) the raster is
-/// not read). Errors about the raster name it `elevation raster`.
-///
-/// The raster must be a GeoTIFF of one band of 8, 16 or 32-bit integers
-/// or 32 or 64-bit floats, uncompressed or compressed with LZW,
-/// Deflate or PackBits, north up, georeferenced by a tie point and a pixel
-/// scale (what GDAL writes), in WGS 84 longitude and latitude (EPSG:4326)
-/// or in another system r5r reads through GeoTools' coordinate transforms
-/// and peabiru reproduces: SIRGAS 2000 (4674), SAD69 (4618), Corrego
-/// Alegre 1970-72 (4225), their UTM zones used in Brazil, SIRGAS 2000 /
-/// Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) and WGS 84 /
-/// Pseudo-Mercator (3857). Other rasters are an error that says what to
-/// change. In a system other than EPSG:4326, r5r reads one pixel or the
-/// other for a sample within nanometres of the boundary between two pixels
-/// of different values (or of the raster's edge), depending on the machine
-/// it runs on; peabiru reads the one Java's `StrictMath` gives, on every
-/// machine, and counts such samples in
-/// [`StreetNetwork::elevation_warnings`](crate::StreetNetwork::elevation_warnings).
-/// A sample that `StrictMath` itself puts on the outer edge (inside the
-/// envelope, past the last pixel) is an error, as it is in r5r.
-pub fn build_from_bytes_with_elevation(
+/// The work of [`crate::build_from_bytes_with_elevation`].
+pub(crate) fn build_from_bytes_with_elevation(
     pbf: &[u8],
     feeds: &[(&str, &[u8])],
     raster: &[u8],

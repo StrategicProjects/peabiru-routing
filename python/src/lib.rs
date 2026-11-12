@@ -24,7 +24,7 @@ use peabiru_core::{
     street_travel_time_surface, transit_accessibility, transit_travel_time_matrix,
     transit_travel_time_surface, validate_date, AccessibilityParams, BuildOptions, CancelToken,
     CsvOutput, DecayFunction, Destinations, ExpandedRow, Mode, RouteError, RouteParams,
-    StreetNetwork, TransitData, TransitLayer, TransitMode, TransitParams,
+    TransitLayer, TransitMode, TransitParams,
 };
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
@@ -48,14 +48,7 @@ type Col<'py> = Bound<'py, PyBytes>;
 /// A network built once and shared by every routing call.
 #[pyclass(frozen, module = "peabiru._peabiru", name = "Network")]
 struct Network {
-    net: StreetNetwork,
-    /// Present when the data directory had at least one GTFS feed.
-    transit: Option<Transit>,
-}
-
-struct Transit {
-    layer: TransitLayer,
-    data: TransitData,
+    net: peabiru_core::Network,
 }
 
 fn runtime_err(msg: impl std::fmt::Display) -> PyErr {
@@ -167,9 +160,9 @@ fn written(r: std::io::Result<()>) -> PyResult<()> {
     r.map_err(PyErr::from)
 }
 
-fn transit(n: &Network) -> PyResult<&Transit> {
-    n.transit
-        .as_ref()
+fn transit(n: &Network) -> PyResult<&TransitLayer> {
+    n.net
+        .transit()
         .ok_or_else(|| value_err("the network has no public transport (no GTFS feed)"))
 }
 
@@ -216,16 +209,16 @@ impl Network {
     /// services and whether any trip is frequency-based.
     fn info<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let d = PyDict::new(py);
-        d.set_item("vertices", self.net.n_vertices())?;
-        d.set_item("edges", self.net.n_edges())?;
-        d.set_item("elevation", self.net.elevation().r5r_name())?;
-        match &self.transit {
+        d.set_item("vertices", self.net.street().n_vertices())?;
+        d.set_item("edges", self.net.street().n_edges())?;
+        d.set_item("elevation", self.net.street().elevation().r5r_name())?;
+        match self.net.transit() {
             Some(t) => {
-                d.set_item("feeds", t.layer.feed_ids().to_vec())?;
-                d.set_item("stops", t.layer.n_stops())?;
-                d.set_item("patterns", t.layer.n_patterns())?;
-                d.set_item("services", t.layer.n_services())?;
-                d.set_item("frequencies", t.layer.has_frequencies())?;
+                d.set_item("feeds", t.feed_ids().to_vec())?;
+                d.set_item("stops", t.n_stops())?;
+                d.set_item("patterns", t.n_patterns())?;
+                d.set_item("services", t.n_services())?;
+                d.set_item("frequencies", t.has_frequencies())?;
             }
             None => {
                 d.set_item("feeds", Vec::<String>::new())?;
@@ -242,23 +235,18 @@ impl Network {
     /// refuses to build a network from, then those about the elevation
     /// raster.
     fn r5r_warnings(&self) -> Vec<String> {
-        let mut w = self
-            .transit
-            .as_ref()
-            .map_or_else(Vec::new, |t| t.layer.r5r_warnings());
-        w.extend(self.net.elevation_warnings().iter().cloned());
-        w
+        self.net.build_warnings()
     }
 
     /// Number of services in the network and of those active on `date`
     /// (`yyyymmdd`), as r5r's `getTransitServiceAvailability`.
     fn transit_availability(&self, date: u32) -> PyResult<(usize, usize)> {
         validate_date(date).map_err(value_err)?;
-        let Some(t) = &self.transit else {
+        let Some(t) = self.net.transit() else {
             return Ok((0, 0));
         };
-        let active = t.layer.n_services_active_on(date).map_err(value_err)?;
-        Ok((t.layer.n_services(), active))
+        let active = t.n_services_active_on(date).map_err(value_err)?;
+        Ok((t.n_services(), active))
     }
 }
 
@@ -284,15 +272,9 @@ fn build_network(
         opts.n_threads = n_threads;
         opts.elevation = elevation;
         let lister = format!("peabiru.get_gtfs_errors({data_path:?})");
-        let (net, layer) =
+        let net =
             build_from_dir(&data_path, &opts).map_err(|e| runtime_err(build_error(&e, &lister)))?;
-        let transit = if layer.feed_ids().is_empty() {
-            None
-        } else {
-            let data = TransitData::new(&net, &layer);
-            Some(Transit { layer, data })
-        };
-        Ok(Network { net, transit })
+        Ok(Network { net })
     })
 }
 
@@ -501,7 +483,7 @@ fn transit_ttm<'py>(
     let modes = parse_transit_modes(transit_modes)?;
     let egress = transit_street_mode(egress_mode)?;
     let access = street_mode(access_mode)?;
-    let t = transit(n)?;
+    transit(n)?;
     let (o, d) = (points(olat, olon)?, points(dlat, dlon)?);
     let np = percentiles.len();
     let mut p = transit_params(
@@ -531,8 +513,7 @@ fn transit_ttm<'py>(
         let w = csv_writer(out, n_threads);
         written(interruptible(py, &p.cancel, || {
             for r in w.origin_chunks(d.len() * np) {
-                let m =
-                    transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o[r.clone()], &d, &p)?;
+                let m = transit_travel_time_matrix(&n.net, &o[r.clone()], &d, &p)?;
                 if let Err(e) = w.write_transit_matrix(r.start, &m) {
                     return Ok(Err(e));
                 }
@@ -543,7 +524,7 @@ fn transit_ttm<'py>(
         return Ok((empty.clone(), empty, Vec::new()));
     }
     let (from, to, cols) = interruptible(py, &p.cancel, || {
-        let m = transit_travel_time_matrix(&n.net, &t.layer, &t.data, &o, &d, &p)?;
+        let m = transit_travel_time_matrix(&n.net, &o, &d, &p)?;
         let (mut from, mut to) = (Vec::new(), Vec::new());
         let mut cols: Vec<Vec<i32>> = vec![Vec::new(); np];
         for (i, row) in m.rows().enumerate() {
@@ -705,9 +686,7 @@ fn accessibility<'py>(
         for r in &chunks {
             let o = &o[r.clone()];
             let acc = match (street, t) {
-                (None, Some(t)) => {
-                    transit_accessibility(&n.net, &t.layer, &t.data, o, &dest, &p, &a)?
-                }
+                (None, Some(_)) => transit_accessibility(&n.net, o, &dest, &p, &a)?,
                 (Some(m), _) => {
                     street_accessibility(&n.net, o, &dest, m, &params, &percentiles, &a)?
                 }
@@ -803,15 +782,15 @@ fn expanded<'py>(
     p.scenario = scenario.clone();
     let route = |o: &[(f64, f64)]| {
         if arrival {
-            arrival_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)
+            arrival_travel_time_matrix(&n.net, o, &d, &p)
         } else {
-            expanded_travel_time_matrix(&n.net, &t.layer, &t.data, o, &d, &p)
+            expanded_travel_time_matrix(&n.net, o, &d, &p)
         }
     };
     if let Some(out) = &output {
         let w = csv_writer(out, n_threads);
         // at most one row per destination, departure minute and draw
-        let draws = if t.layer.has_frequencies() {
+        let draws = if t.has_frequencies() {
             draws_per_minute.max(1) as usize
         } else {
             1
@@ -972,7 +951,7 @@ fn isochrone_polygons<'py>(
     let cancel = CancelToken::new();
     let rows = interruptible(py, &cancel, || {
         let surface = match (street, t) {
-            (None, Some(t)) => {
+            (None, Some(_)) => {
                 let mut p = transit_params(
                     modes.clone(),
                     access,
@@ -994,7 +973,7 @@ fn isochrone_polygons<'py>(
                     n_threads,
                 );
                 p.cancel = cancel.clone();
-                transit_travel_time_surface(&n.net, &t.layer, &t.data, &o, &p, zoom)?
+                transit_travel_time_surface(&n.net, &o, &p, zoom)?
             }
             (Some(m), _) => {
                 let mut params = route_params(

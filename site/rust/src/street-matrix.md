@@ -6,7 +6,7 @@ between every origin and every destination (in R, Python and JavaScript,
 
 ```rust,ignore
 pub fn street_travel_time_matrix(
-    net: &StreetNetwork,
+    network: &Network,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     mode: Mode,
@@ -49,7 +49,7 @@ it from another thread to stop the call:
 let params = RouteParams::default();
 let stop = params.cancel.clone();
 // from another thread: stop.cancel();
-match street_travel_time_matrix(&net, &origins, &destinations, Mode::Car, &params) {
+match street_travel_time_matrix(&network, &origins, &destinations, Mode::Car, &params) {
     Ok(matrix) => { /* ... */ }
     Err(RouteError::Cancelled) => { /* stopped; there is no partial result */ }
     Err(e) => { /* a parameter or an input was rejected: e.to_string() says why */ }

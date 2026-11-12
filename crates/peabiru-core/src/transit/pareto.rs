@@ -8,7 +8,7 @@ use super::raptor::UNREACHED;
 use super::TransitLayer;
 use crate::street::router::Mode;
 use crate::street::StreetNetwork;
-use crate::TransitData;
+use crate::transit::matrix::TransitData;
 use crate::{RouteError, RouteParams, TransitParams};
 
 /// One row of a [`ParetoFrontier`].
@@ -39,22 +39,8 @@ pub struct ParetoFrontier {
     pub rows: Vec<ParetoRow>,
 }
 
-/// r5r 2.5.0's `pareto_frontier()`: the trade-off between travel time and
-/// fare. For every cutoff of `fare_cutoffs`, in the order given, the
-/// travel times are those of R5's fare router (McRAPTOR, see
-/// [`TransitParams::fare_structure`]) with `max_fare` set to the cutoff
-/// (`p.max_fare` is not used); a destination and percentile gets a row at
-/// each cutoff where its travel time differs from that of the previous
-/// cutoff with a row, and is below `max_trip_duration`.
-///
-/// `p.fare_structure` is required. As in r5r, `draws_per_minute` is 1
-/// whatever `p.draws_per_minute` says, so that `time_window` departure
-/// times are sampled. With `transit` `None` the trip is by
-/// `p.access_mode` alone (r5r's `mode` without public transport): the
-/// street travel time, the same at every cutoff, with
-/// `p.max_trip_duration` as the limit (r5r lowers it to the mode's own
-/// limit first). Points are `(lat, lon)` degrees.
-pub fn pareto_frontier(
+/// The work of [`crate::pareto_frontier`].
+pub(crate) fn pareto_frontier(
     net: &StreetNetwork,
     transit: Option<(&TransitLayer, &TransitData)>,
     origins: &[(f64, f64)],
@@ -133,7 +119,13 @@ pub fn pareto_frontier(
                 ..RouteParams::default()
             };
             let mode: Mode = p.access_mode;
-            let m = crate::street_travel_time_matrix(net, origins, destinations, mode, &rp)?;
+            let m = crate::street::router::street_travel_time_matrix(
+                net,
+                origins,
+                destinations,
+                mode,
+                &rp,
+            )?;
             (0..origins.len())
                 .map(|i| {
                     let row: Vec<i32> = (0..nd)

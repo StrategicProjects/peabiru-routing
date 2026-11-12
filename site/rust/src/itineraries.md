@@ -6,8 +6,7 @@ index and describes the trips leg by leg, with their lines, as
 
 ```rust,ignore
 pub fn detailed_itineraries(
-    net: &StreetNetwork,
-    transit: Option<(&TransitLayer, &TransitData)>,
+    network: &Network,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &ItineraryParams,
@@ -21,8 +20,8 @@ empty when no trip is found.
 
 - Without public transport (`ItineraryParams::transit_modes` empty, the
   default), the itinerary is the street path by `mode` (walk, bicycle or
-  car), and `transit` may be `None`.
-- With public transport, `transit` holds the network's transit layer, `date`
+  car); the network needs no public transport.
+- With public transport, the network must have it (GTFS feeds), `date`
   and `departure_time` are required, and with `shortest_path = true` (the
   default) the result is the faster of the direct street trip and the
   fastest public transport trip over the departure window. With

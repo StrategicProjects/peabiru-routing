@@ -35,7 +35,7 @@ fn rs_find_snap(ptr: Robj, lat: &[f64], lon: &[f64], radius: f64, mode: &str) ->
 /// @noRd
 #[extendr]
 fn rs_street_bbox(ptr: Robj) -> Result<Vec<f64>> {
-    Ok(network(&ptr)?.net.bbox().to_vec())
+    Ok(network(&ptr)?.net.street().bbox().to_vec())
 }
 
 /// The vertices of r5r's `street_network_to_sf()`, as columns.
@@ -59,7 +59,7 @@ fn rs_street_vertices(ptr: Robj) -> Result<Robj> {
 #[extendr]
 fn rs_transit_stops(ptr: Robj) -> Result<Robj> {
     let n = network(&ptr)?;
-    let Some(t) = &n.transit else {
+    if n.net.transit().is_none() {
         return Ok(list!(
             stop_index = Vec::<i32>::new(),
             stop_id = Vec::<String>::new(),
@@ -69,8 +69,8 @@ fn rs_transit_stops(ptr: Robj) -> Result<Robj> {
             linked_to_street = Vec::<bool>::new()
         )
         .into());
-    };
-    let s = transit_stops(&n.net, &t.layer);
+    }
+    let s = transit_stops(&n.net);
     Ok(list!(
         stop_index = s.stop_index.iter().map(|&i| i as i32).collect::<Vec<_>>(),
         stop_id = s.stop_id,
@@ -88,8 +88,8 @@ fn rs_transit_stops(ptr: Robj) -> Result<Robj> {
 #[extendr]
 fn rs_transit_routes(ptr: Robj) -> Result<Robj> {
     let n = network(&ptr)?;
-    let r = match &n.transit {
-        Some(t) => transit_routes(&n.net, &t.layer).map_err(err)?,
+    let r = match n.net.transit() {
+        Some(_) => transit_routes(&n.net).map_err(err)?,
         None => Default::default(),
     };
     let (mut n_points, mut x, mut y) = (Vec::with_capacity(r.len()), Vec::new(), Vec::new());
@@ -121,10 +121,7 @@ fn rs_transit_routes(ptr: Robj) -> Result<Robj> {
 #[extendr]
 fn rs_transit_service_dates(ptr: Robj) -> Result<Vec<i32>> {
     let n = network(&ptr)?;
-    let Some(t) = &n.transit else {
-        return Ok(Vec::new());
-    };
-    Ok(transit_service_dates(&t.layer)
+    Ok(transit_service_dates(&n.net)
         .map_err(err)?
         .into_iter()
         .map(|d| d as i32)
@@ -136,9 +133,8 @@ fn rs_transit_service_dates(ptr: Robj) -> Result<Vec<i32>> {
 #[extendr]
 fn rs_feed_paths(ptr: Robj) -> Result<Vec<String>> {
     let n = network(&ptr)?;
-    Ok(n.transit.as_ref().map_or_else(Vec::new, |t| {
-        t.layer
-            .feed_reports()
+    Ok(n.net.transit().map_or_else(Vec::new, |t| {
+        t.feed_reports()
             .iter()
             .map(|f| f.path.to_string_lossy().into_owned())
             .collect()

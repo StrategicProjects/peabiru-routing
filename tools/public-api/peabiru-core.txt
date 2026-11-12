@@ -1,0 +1,1354 @@
+pub mod peabiru_core
+#[non_exhaustive] pub enum peabiru_core::CarSpeeds
+pub peabiru_core::CarSpeeds::ByPolygon(alloc::vec::Vec<peabiru_core::SpeedPolygon>)
+pub peabiru_core::CarSpeeds::KmhByWay(alloc::vec::Vec<(i64, f32)>)
+pub peabiru_core::CarSpeeds::ScaleByWay(alloc::vec::Vec<(i64, f32)>)
+pub peabiru_core::CarSpeeds::Unchanged
+impl core::clone::Clone for peabiru_core::CarSpeeds
+pub fn peabiru_core::CarSpeeds::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::CarSpeeds
+pub fn peabiru_core::CarSpeeds::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::CarSpeeds
+pub fn peabiru_core::CarSpeeds::default() -> Self
+impl core::fmt::Debug for peabiru_core::CarSpeeds
+pub fn peabiru_core::CarSpeeds::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::CarSpeeds
+impl core::marker::Forget for peabiru_core::CarSpeeds
+impl core::marker::Freeze for peabiru_core::CarSpeeds
+impl core::marker::Send for peabiru_core::CarSpeeds
+impl core::marker::Sync for peabiru_core::CarSpeeds
+impl core::marker::Unpin for peabiru_core::CarSpeeds
+impl core::marker::UnsafeUnpin for peabiru_core::CarSpeeds
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::CarSpeeds
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::CarSpeeds
+pub enum peabiru_core::Criterion
+pub peabiru_core::Criterion::Fare
+pub peabiru_core::Criterion::Time
+pub peabiru_core::Criterion::Transfers
+pub peabiru_core::Criterion::Walk
+impl peabiru_core::Criterion
+pub const peabiru_core::Criterion::ALL: [peabiru_core::Criterion; 4]
+pub fn peabiru_core::Criterion::from_name(&str) -> core::option::Option<peabiru_core::Criterion>
+pub fn peabiru_core::Criterion::name(self) -> &'static str
+impl core::clone::Clone for peabiru_core::Criterion
+pub fn peabiru_core::Criterion::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::Criterion
+impl core::cmp::Ord for peabiru_core::Criterion
+pub fn peabiru_core::Criterion::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for peabiru_core::Criterion
+pub fn peabiru_core::Criterion::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for peabiru_core::Criterion
+pub fn peabiru_core::Criterion::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for peabiru_core::Criterion
+pub fn peabiru_core::Criterion::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for peabiru_core::Criterion
+pub fn peabiru_core::Criterion::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for peabiru_core::Criterion
+impl core::marker::StructuralPartialEq for peabiru_core::Criterion
+impl core::marker::Forget for peabiru_core::Criterion
+impl core::marker::Freeze for peabiru_core::Criterion
+impl core::marker::Send for peabiru_core::Criterion
+impl core::marker::Sync for peabiru_core::Criterion
+impl core::marker::Unpin for peabiru_core::Criterion
+impl core::marker::UnsafeUnpin for peabiru_core::Criterion
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Criterion
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::Criterion
+#[non_exhaustive] pub enum peabiru_core::DecayFunction
+pub peabiru_core::DecayFunction::Exponential
+pub peabiru_core::DecayFunction::FixedExponential
+pub peabiru_core::DecayFunction::FixedExponential::decay_constant: f64
+pub peabiru_core::DecayFunction::Linear
+pub peabiru_core::DecayFunction::Linear::width_minutes: i32
+pub peabiru_core::DecayFunction::Logistic
+pub peabiru_core::DecayFunction::Logistic::standard_deviation_minutes: f64
+pub peabiru_core::DecayFunction::Step
+impl core::clone::Clone for peabiru_core::DecayFunction
+pub fn peabiru_core::DecayFunction::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::DecayFunction
+pub fn peabiru_core::DecayFunction::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::DecayFunction
+pub fn peabiru_core::DecayFunction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::DecayFunction
+impl core::marker::Forget for peabiru_core::DecayFunction
+impl core::marker::Freeze for peabiru_core::DecayFunction
+impl core::marker::Send for peabiru_core::DecayFunction
+impl core::marker::Sync for peabiru_core::DecayFunction
+impl core::marker::Unpin for peabiru_core::DecayFunction
+impl core::marker::UnsafeUnpin for peabiru_core::DecayFunction
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::DecayFunction
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::DecayFunction
+#[non_exhaustive] pub enum peabiru_core::Elevation
+pub peabiru_core::Elevation::Minetti
+pub peabiru_core::Elevation::None
+pub peabiru_core::Elevation::Tobler
+impl peabiru_core::Elevation
+pub fn peabiru_core::Elevation::from_r5r_name(&str) -> core::option::Option<Self>
+pub fn peabiru_core::Elevation::r5r_name(self) -> &'static str
+impl core::clone::Clone for peabiru_core::Elevation
+pub fn peabiru_core::Elevation::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::Elevation
+impl core::cmp::PartialEq for peabiru_core::Elevation
+pub fn peabiru_core::Elevation::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::Elevation
+pub fn peabiru_core::Elevation::default() -> Self
+impl core::fmt::Debug for peabiru_core::Elevation
+pub fn peabiru_core::Elevation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for peabiru_core::Elevation
+pub fn peabiru_core::Elevation::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for peabiru_core::Elevation
+impl core::marker::StructuralPartialEq for peabiru_core::Elevation
+impl core::marker::Forget for peabiru_core::Elevation
+impl core::marker::Freeze for peabiru_core::Elevation
+impl core::marker::Send for peabiru_core::Elevation
+impl core::marker::Sync for peabiru_core::Elevation
+impl core::marker::Unpin for peabiru_core::Elevation
+impl core::marker::UnsafeUnpin for peabiru_core::Elevation
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Elevation
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::Elevation
+pub enum peabiru_core::GtfsErrorPriority
+pub peabiru_core::GtfsErrorPriority::High
+pub peabiru_core::GtfsErrorPriority::Low
+pub peabiru_core::GtfsErrorPriority::Medium
+pub peabiru_core::GtfsErrorPriority::Unknown
+impl peabiru_core::GtfsErrorPriority
+pub fn peabiru_core::GtfsErrorPriority::as_str(self) -> &'static str
+impl core::clone::Clone for peabiru_core::GtfsErrorPriority
+pub fn peabiru_core::GtfsErrorPriority::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::GtfsErrorPriority
+impl core::cmp::PartialEq for peabiru_core::GtfsErrorPriority
+pub fn peabiru_core::GtfsErrorPriority::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::GtfsErrorPriority
+pub fn peabiru_core::GtfsErrorPriority::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for peabiru_core::GtfsErrorPriority
+pub fn peabiru_core::GtfsErrorPriority::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for peabiru_core::GtfsErrorPriority
+impl core::marker::StructuralPartialEq for peabiru_core::GtfsErrorPriority
+impl core::marker::Forget for peabiru_core::GtfsErrorPriority
+impl core::marker::Freeze for peabiru_core::GtfsErrorPriority
+impl core::marker::Send for peabiru_core::GtfsErrorPriority
+impl core::marker::Sync for peabiru_core::GtfsErrorPriority
+impl core::marker::Unpin for peabiru_core::GtfsErrorPriority
+impl core::marker::UnsafeUnpin for peabiru_core::GtfsErrorPriority
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::GtfsErrorPriority
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::GtfsErrorPriority
+#[non_exhaustive] pub enum peabiru_core::LtsChange
+pub peabiru_core::LtsChange::ByLine(alloc::vec::Vec<peabiru_core::LtsLine>)
+pub peabiru_core::LtsChange::ByWay(alloc::vec::Vec<(i64, i32)>)
+pub peabiru_core::LtsChange::Unchanged
+impl core::clone::Clone for peabiru_core::LtsChange
+pub fn peabiru_core::LtsChange::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::LtsChange
+pub fn peabiru_core::LtsChange::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::LtsChange
+pub fn peabiru_core::LtsChange::default() -> Self
+impl core::fmt::Debug for peabiru_core::LtsChange
+pub fn peabiru_core::LtsChange::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::LtsChange
+impl core::marker::Forget for peabiru_core::LtsChange
+impl core::marker::Freeze for peabiru_core::LtsChange
+impl core::marker::Send for peabiru_core::LtsChange
+impl core::marker::Sync for peabiru_core::LtsChange
+impl core::marker::Unpin for peabiru_core::LtsChange
+impl core::marker::UnsafeUnpin for peabiru_core::LtsChange
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::LtsChange
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::LtsChange
+#[non_exhaustive] pub enum peabiru_core::Mode
+pub peabiru_core::Mode::Bicycle
+pub peabiru_core::Mode::Car
+pub peabiru_core::Mode::Walk
+impl core::clone::Clone for peabiru_core::Mode
+pub fn peabiru_core::Mode::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::Mode
+impl core::cmp::PartialEq for peabiru_core::Mode
+pub fn peabiru_core::Mode::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::Mode
+pub fn peabiru_core::Mode::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for peabiru_core::Mode
+impl core::marker::StructuralPartialEq for peabiru_core::Mode
+impl core::marker::Forget for peabiru_core::Mode
+impl core::marker::Freeze for peabiru_core::Mode
+impl core::marker::Send for peabiru_core::Mode
+impl core::marker::Sync for peabiru_core::Mode
+impl core::marker::Unpin for peabiru_core::Mode
+impl core::marker::UnsafeUnpin for peabiru_core::Mode
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Mode
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::Mode
+#[non_exhaustive] pub enum peabiru_core::RouteError
+pub peabiru_core::RouteError::Cancelled
+pub peabiru_core::RouteError::Invalid(alloc::string::String)
+impl core::clone::Clone for peabiru_core::RouteError
+pub fn peabiru_core::RouteError::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::RouteError
+impl core::cmp::PartialEq for peabiru_core::RouteError
+pub fn peabiru_core::RouteError::eq(&self, &Self) -> bool
+impl core::error::Error for peabiru_core::RouteError
+impl core::fmt::Debug for peabiru_core::RouteError
+pub fn peabiru_core::RouteError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for peabiru_core::RouteError
+pub fn peabiru_core::RouteError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::RouteError
+impl core::marker::Forget for peabiru_core::RouteError
+impl core::marker::Freeze for peabiru_core::RouteError
+impl core::marker::Send for peabiru_core::RouteError
+impl core::marker::Sync for peabiru_core::RouteError
+impl core::marker::Unpin for peabiru_core::RouteError
+impl core::marker::UnsafeUnpin for peabiru_core::RouteError
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::RouteError
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::RouteError
+#[non_exhaustive] pub enum peabiru_core::StreetEngine
+pub peabiru_core::StreetEngine::Auto
+pub peabiru_core::StreetEngine::Hierarchy
+pub peabiru_core::StreetEngine::Search
+impl core::clone::Clone for peabiru_core::StreetEngine
+pub fn peabiru_core::StreetEngine::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::StreetEngine
+impl core::cmp::PartialEq for peabiru_core::StreetEngine
+pub fn peabiru_core::StreetEngine::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::StreetEngine
+pub fn peabiru_core::StreetEngine::default() -> Self
+impl core::fmt::Debug for peabiru_core::StreetEngine
+pub fn peabiru_core::StreetEngine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for peabiru_core::StreetEngine
+impl core::marker::StructuralPartialEq for peabiru_core::StreetEngine
+impl core::marker::Forget for peabiru_core::StreetEngine
+impl core::marker::Freeze for peabiru_core::StreetEngine
+impl core::marker::Send for peabiru_core::StreetEngine
+impl core::marker::Sync for peabiru_core::StreetEngine
+impl core::marker::Unpin for peabiru_core::StreetEngine
+impl core::marker::UnsafeUnpin for peabiru_core::StreetEngine
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::StreetEngine
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::StreetEngine
+#[non_exhaustive] pub enum peabiru_core::TransitMode
+pub peabiru_core::TransitMode::Bus
+pub peabiru_core::TransitMode::CableCar
+pub peabiru_core::TransitMode::Ferry
+pub peabiru_core::TransitMode::Funicular
+pub peabiru_core::TransitMode::Gondola
+pub peabiru_core::TransitMode::Rail
+pub peabiru_core::TransitMode::Subway
+pub peabiru_core::TransitMode::Tram
+impl peabiru_core::TransitMode
+pub const peabiru_core::TransitMode::ALL: [peabiru_core::TransitMode; 8]
+pub fn peabiru_core::TransitMode::from_name(&str) -> core::option::Option<peabiru_core::TransitMode>
+pub fn peabiru_core::TransitMode::name(self) -> &'static str
+impl core::clone::Clone for peabiru_core::TransitMode
+pub fn peabiru_core::TransitMode::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::TransitMode
+impl core::cmp::PartialEq for peabiru_core::TransitMode
+pub fn peabiru_core::TransitMode::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::TransitMode
+pub fn peabiru_core::TransitMode::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for peabiru_core::TransitMode
+pub fn peabiru_core::TransitMode::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for peabiru_core::TransitMode
+impl core::marker::StructuralPartialEq for peabiru_core::TransitMode
+impl core::marker::Forget for peabiru_core::TransitMode
+impl core::marker::Freeze for peabiru_core::TransitMode
+impl core::marker::Send for peabiru_core::TransitMode
+impl core::marker::Sync for peabiru_core::TransitMode
+impl core::marker::Unpin for peabiru_core::TransitMode
+impl core::marker::UnsafeUnpin for peabiru_core::TransitMode
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TransitMode
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TransitMode
+pub struct peabiru_core::Accessibility
+impl peabiru_core::Accessibility
+pub fn peabiru_core::Accessibility::cutoffs(&self) -> &[i32]
+pub fn peabiru_core::Accessibility::get(&self, usize, usize, usize, usize) -> f64
+pub fn peabiru_core::Accessibility::into_values(self) -> alloc::vec::Vec<f64>
+pub fn peabiru_core::Accessibility::n_opportunities(&self) -> usize
+pub fn peabiru_core::Accessibility::n_origins(&self) -> usize
+pub fn peabiru_core::Accessibility::per_origin(&self) -> usize
+pub fn peabiru_core::Accessibility::percentiles(&self) -> &[i32]
+pub fn peabiru_core::Accessibility::values(&self) -> &[f64]
+impl core::clone::Clone for peabiru_core::Accessibility
+pub fn peabiru_core::Accessibility::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::Accessibility
+pub fn peabiru_core::Accessibility::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::Accessibility
+pub fn peabiru_core::Accessibility::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::Accessibility
+impl core::marker::Forget for peabiru_core::Accessibility
+impl core::marker::Freeze for peabiru_core::Accessibility
+impl core::marker::Send for peabiru_core::Accessibility
+impl core::marker::Sync for peabiru_core::Accessibility
+impl core::marker::Unpin for peabiru_core::Accessibility
+impl core::marker::UnsafeUnpin for peabiru_core::Accessibility
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Accessibility
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::Accessibility
+#[non_exhaustive] pub struct peabiru_core::AccessibilityParams
+pub peabiru_core::AccessibilityParams::cutoffs: alloc::vec::Vec<i32>
+pub peabiru_core::AccessibilityParams::decay: peabiru_core::DecayFunction
+impl core::clone::Clone for peabiru_core::AccessibilityParams
+pub fn peabiru_core::AccessibilityParams::clone(&self) -> Self
+impl core::default::Default for peabiru_core::AccessibilityParams
+pub fn peabiru_core::AccessibilityParams::default() -> Self
+impl core::fmt::Debug for peabiru_core::AccessibilityParams
+pub fn peabiru_core::AccessibilityParams::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::AccessibilityParams
+impl core::marker::Freeze for peabiru_core::AccessibilityParams
+impl core::marker::Send for peabiru_core::AccessibilityParams
+impl core::marker::Sync for peabiru_core::AccessibilityParams
+impl core::marker::Unpin for peabiru_core::AccessibilityParams
+impl core::marker::UnsafeUnpin for peabiru_core::AccessibilityParams
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::AccessibilityParams
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::AccessibilityParams
+#[non_exhaustive] pub struct peabiru_core::Breakdown
+pub peabiru_core::Breakdown::access_time: f64
+pub peabiru_core::Breakdown::egress_time: f64
+pub peabiru_core::Breakdown::n_rides: u32
+pub peabiru_core::Breakdown::ride_time: f64
+pub peabiru_core::Breakdown::routes: alloc::string::String
+pub peabiru_core::Breakdown::total_time: f64
+pub peabiru_core::Breakdown::transfer_time: f64
+pub peabiru_core::Breakdown::wait_time: f64
+impl core::clone::Clone for peabiru_core::Breakdown
+pub fn peabiru_core::Breakdown::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::Breakdown
+pub fn peabiru_core::Breakdown::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::Breakdown
+pub fn peabiru_core::Breakdown::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::Breakdown
+impl core::marker::Forget for peabiru_core::Breakdown
+impl core::marker::Freeze for peabiru_core::Breakdown
+impl core::marker::Send for peabiru_core::Breakdown
+impl core::marker::Sync for peabiru_core::Breakdown
+impl core::marker::Unpin for peabiru_core::Breakdown
+impl core::marker::UnsafeUnpin for peabiru_core::Breakdown
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Breakdown
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::Breakdown
+#[non_exhaustive] pub struct peabiru_core::BuildOptions
+pub peabiru_core::BuildOptions::elevation: peabiru_core::Elevation
+pub peabiru_core::BuildOptions::ignore_gtfs_errors: bool
+pub peabiru_core::BuildOptions::n_threads: usize
+impl core::clone::Clone for peabiru_core::BuildOptions
+pub fn peabiru_core::BuildOptions::clone(&self) -> Self
+impl core::default::Default for peabiru_core::BuildOptions
+pub fn peabiru_core::BuildOptions::default() -> Self
+impl core::fmt::Debug for peabiru_core::BuildOptions
+pub fn peabiru_core::BuildOptions::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::BuildOptions
+impl core::marker::Freeze for peabiru_core::BuildOptions
+impl core::marker::Send for peabiru_core::BuildOptions
+impl core::marker::Sync for peabiru_core::BuildOptions
+impl core::marker::Unpin for peabiru_core::BuildOptions
+impl core::marker::UnsafeUnpin for peabiru_core::BuildOptions
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::BuildOptions
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::BuildOptions
+pub struct peabiru_core::CancelToken(_)
+impl peabiru_core::CancelToken
+pub fn peabiru_core::CancelToken::cancel(&self)
+pub fn peabiru_core::CancelToken::is_cancelled(&self) -> bool
+pub fn peabiru_core::CancelToken::new() -> Self
+impl core::clone::Clone for peabiru_core::CancelToken
+pub fn peabiru_core::CancelToken::clone(&self) -> Self
+impl core::default::Default for peabiru_core::CancelToken
+pub fn peabiru_core::CancelToken::default() -> Self
+impl core::fmt::Debug for peabiru_core::CancelToken
+pub fn peabiru_core::CancelToken::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::CancelToken
+impl core::marker::Freeze for peabiru_core::CancelToken
+impl core::marker::Send for peabiru_core::CancelToken
+impl core::marker::Sync for peabiru_core::CancelToken
+impl core::marker::Unpin for peabiru_core::CancelToken
+impl core::marker::UnsafeUnpin for peabiru_core::CancelToken
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::CancelToken
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::CancelToken
+pub struct peabiru_core::CsvOutput<'a>
+impl<'a> peabiru_core::CsvOutput<'a>
+pub fn peabiru_core::CsvOutput<'a>::new(&str, &'a [alloc::string::String], &'a [alloc::string::String], usize) -> Self
+pub fn peabiru_core::CsvOutput<'a>::origin_chunks(&self, usize) -> impl core::iter::traits::iterator::Iterator<Item = core::ops::range::Range<usize>>
+pub fn peabiru_core::CsvOutput<'a>::path(&self, usize) -> alloc::string::String
+pub fn peabiru_core::CsvOutput<'a>::write_accessibility(&self, usize, &peabiru_core::Accessibility, &[alloc::string::String]) -> core::io::error::Result<()>
+pub fn peabiru_core::CsvOutput<'a>::write_expanded(&self, usize, &peabiru_core::ExpandedMatrix, bool) -> core::io::error::Result<()>
+pub fn peabiru_core::CsvOutput<'a>::write_street_matrix(&self, usize, &peabiru_core::StreetMatrix, &[i32]) -> core::io::error::Result<()>
+pub fn peabiru_core::CsvOutput<'a>::write_transit_matrix(&self, usize, &peabiru_core::TransitMatrix) -> core::io::error::Result<()>
+impl<'a> core::clone::Clone for peabiru_core::CsvOutput<'a>
+pub fn peabiru_core::CsvOutput<'a>::clone(&self) -> Self
+impl<'a> core::fmt::Debug for peabiru_core::CsvOutput<'a>
+pub fn peabiru_core::CsvOutput<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Forget for peabiru_core::CsvOutput<'a>
+impl<'a> core::marker::Freeze for peabiru_core::CsvOutput<'a>
+impl<'a> core::marker::Send for peabiru_core::CsvOutput<'a>
+impl<'a> core::marker::Sync for peabiru_core::CsvOutput<'a>
+impl<'a> core::marker::Unpin for peabiru_core::CsvOutput<'a>
+impl<'a> core::marker::UnsafeUnpin for peabiru_core::CsvOutput<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for peabiru_core::CsvOutput<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for peabiru_core::CsvOutput<'a>
+#[non_exhaustive] pub struct peabiru_core::Destinations<'a>
+pub peabiru_core::Destinations::opportunities: &'a [alloc::vec::Vec<f64>]
+pub peabiru_core::Destinations::points: &'a [(f64, f64)]
+impl<'a> peabiru_core::Destinations<'a>
+pub fn peabiru_core::Destinations<'a>::new(&'a [(f64, f64)], &'a [alloc::vec::Vec<f64>]) -> Self
+impl<'a> core::clone::Clone for peabiru_core::Destinations<'a>
+pub fn peabiru_core::Destinations<'a>::clone(&self) -> Self
+impl<'a> core::fmt::Debug for peabiru_core::Destinations<'a>
+pub fn peabiru_core::Destinations<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for peabiru_core::Destinations<'a>
+impl<'a> core::marker::Forget for peabiru_core::Destinations<'a>
+impl<'a> core::marker::Freeze for peabiru_core::Destinations<'a>
+impl<'a> core::marker::Send for peabiru_core::Destinations<'a>
+impl<'a> core::marker::Sync for peabiru_core::Destinations<'a>
+impl<'a> core::marker::Unpin for peabiru_core::Destinations<'a>
+impl<'a> core::marker::UnsafeUnpin for peabiru_core::Destinations<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Destinations<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for peabiru_core::Destinations<'a>
+#[non_exhaustive] pub struct peabiru_core::DroppedTrips
+pub peabiru_core::DroppedTrips::invalid_frequencies: usize
+pub peabiru_core::DroppedTrips::missing_end_time: usize
+pub peabiru_core::DroppedTrips::negative_time: usize
+pub peabiru_core::DroppedTrips::no_stop_times: usize
+pub peabiru_core::DroppedTrips::unknown_route: usize
+pub peabiru_core::DroppedTrips::unknown_service: usize
+pub peabiru_core::DroppedTrips::unknown_stop: usize
+impl peabiru_core::DroppedTrips
+pub fn peabiru_core::DroppedTrips::total(&self) -> usize
+impl core::clone::Clone for peabiru_core::DroppedTrips
+pub fn peabiru_core::DroppedTrips::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::DroppedTrips
+impl core::cmp::PartialEq for peabiru_core::DroppedTrips
+pub fn peabiru_core::DroppedTrips::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::DroppedTrips
+pub fn peabiru_core::DroppedTrips::default() -> Self
+impl core::fmt::Debug for peabiru_core::DroppedTrips
+pub fn peabiru_core::DroppedTrips::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for peabiru_core::DroppedTrips
+impl core::marker::StructuralPartialEq for peabiru_core::DroppedTrips
+impl core::marker::Forget for peabiru_core::DroppedTrips
+impl core::marker::Freeze for peabiru_core::DroppedTrips
+impl core::marker::Send for peabiru_core::DroppedTrips
+impl core::marker::Sync for peabiru_core::DroppedTrips
+impl core::marker::Unpin for peabiru_core::DroppedTrips
+impl core::marker::UnsafeUnpin for peabiru_core::DroppedTrips
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::DroppedTrips
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::DroppedTrips
+pub struct peabiru_core::ExpandedMatrix(_)
+impl peabiru_core::ExpandedMatrix
+pub fn peabiru_core::ExpandedMatrix::into_vec(self) -> alloc::vec::Vec<alloc::vec::Vec<peabiru_core::ExpandedRow>>
+pub fn peabiru_core::ExpandedMatrix::n_origins(&self) -> usize
+pub fn peabiru_core::ExpandedMatrix::n_rows(&self) -> usize
+pub fn peabiru_core::ExpandedMatrix::origin(&self, usize) -> &[peabiru_core::ExpandedRow]
+pub fn peabiru_core::ExpandedMatrix::origins(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &[peabiru_core::ExpandedRow]> + '_
+impl core::clone::Clone for peabiru_core::ExpandedMatrix
+pub fn peabiru_core::ExpandedMatrix::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::ExpandedMatrix
+pub fn peabiru_core::ExpandedMatrix::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::ExpandedMatrix
+pub fn peabiru_core::ExpandedMatrix::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::ExpandedMatrix
+impl core::marker::Forget for peabiru_core::ExpandedMatrix
+impl core::marker::Freeze for peabiru_core::ExpandedMatrix
+impl core::marker::Send for peabiru_core::ExpandedMatrix
+impl core::marker::Sync for peabiru_core::ExpandedMatrix
+impl core::marker::Unpin for peabiru_core::ExpandedMatrix
+impl core::marker::UnsafeUnpin for peabiru_core::ExpandedMatrix
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ExpandedMatrix
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ExpandedMatrix
+#[non_exhaustive] pub struct peabiru_core::ExpandedRow
+pub peabiru_core::ExpandedRow::departure: i32
+pub peabiru_core::ExpandedRow::draw: u32
+pub peabiru_core::ExpandedRow::to: u32
+pub peabiru_core::ExpandedRow::trip: core::option::Option<peabiru_core::Breakdown>
+impl core::clone::Clone for peabiru_core::ExpandedRow
+pub fn peabiru_core::ExpandedRow::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::ExpandedRow
+pub fn peabiru_core::ExpandedRow::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::ExpandedRow
+pub fn peabiru_core::ExpandedRow::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::ExpandedRow
+impl core::marker::Forget for peabiru_core::ExpandedRow
+impl core::marker::Freeze for peabiru_core::ExpandedRow
+impl core::marker::Send for peabiru_core::ExpandedRow
+impl core::marker::Sync for peabiru_core::ExpandedRow
+impl core::marker::Unpin for peabiru_core::ExpandedRow
+impl core::marker::UnsafeUnpin for peabiru_core::ExpandedRow
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ExpandedRow
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ExpandedRow
+#[non_exhaustive] pub struct peabiru_core::FarePerRoute
+pub peabiru_core::FarePerRoute::agency_id: core::option::Option<alloc::string::String>
+pub peabiru_core::FarePerRoute::agency_name: core::option::Option<alloc::string::String>
+pub peabiru_core::FarePerRoute::fare_type: core::option::Option<alloc::string::String>
+pub peabiru_core::FarePerRoute::mode: core::option::Option<alloc::string::String>
+pub peabiru_core::FarePerRoute::route_fare: f64
+pub peabiru_core::FarePerRoute::route_id: core::option::Option<alloc::string::String>
+pub peabiru_core::FarePerRoute::route_long_name: core::option::Option<alloc::string::String>
+pub peabiru_core::FarePerRoute::route_short_name: core::option::Option<alloc::string::String>
+impl core::clone::Clone for peabiru_core::FarePerRoute
+pub fn peabiru_core::FarePerRoute::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::FarePerRoute
+pub fn peabiru_core::FarePerRoute::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::FarePerRoute
+pub fn peabiru_core::FarePerRoute::default() -> Self
+impl core::fmt::Debug for peabiru_core::FarePerRoute
+pub fn peabiru_core::FarePerRoute::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::FarePerRoute
+impl core::marker::Forget for peabiru_core::FarePerRoute
+impl core::marker::Freeze for peabiru_core::FarePerRoute
+impl core::marker::Send for peabiru_core::FarePerRoute
+impl core::marker::Sync for peabiru_core::FarePerRoute
+impl core::marker::Unpin for peabiru_core::FarePerRoute
+impl core::marker::UnsafeUnpin for peabiru_core::FarePerRoute
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::FarePerRoute
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::FarePerRoute
+#[non_exhaustive] pub struct peabiru_core::FarePerTransfer
+pub peabiru_core::FarePerTransfer::fare: f64
+pub peabiru_core::FarePerTransfer::first_leg: core::option::Option<alloc::string::String>
+pub peabiru_core::FarePerTransfer::second_leg: core::option::Option<alloc::string::String>
+impl core::clone::Clone for peabiru_core::FarePerTransfer
+pub fn peabiru_core::FarePerTransfer::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::FarePerTransfer
+pub fn peabiru_core::FarePerTransfer::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::FarePerTransfer
+pub fn peabiru_core::FarePerTransfer::default() -> Self
+impl core::fmt::Debug for peabiru_core::FarePerTransfer
+pub fn peabiru_core::FarePerTransfer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::FarePerTransfer
+impl core::marker::Forget for peabiru_core::FarePerTransfer
+impl core::marker::Freeze for peabiru_core::FarePerTransfer
+impl core::marker::Send for peabiru_core::FarePerTransfer
+impl core::marker::Sync for peabiru_core::FarePerTransfer
+impl core::marker::Unpin for peabiru_core::FarePerTransfer
+impl core::marker::UnsafeUnpin for peabiru_core::FarePerTransfer
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::FarePerTransfer
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::FarePerTransfer
+#[non_exhaustive] pub struct peabiru_core::FarePerType
+pub peabiru_core::FarePerType::allow_same_route_transfer: bool
+pub peabiru_core::FarePerType::fare: f64
+pub peabiru_core::FarePerType::fare_type: core::option::Option<alloc::string::String>
+pub peabiru_core::FarePerType::unlimited_transfers: bool
+pub peabiru_core::FarePerType::use_route_fare: bool
+impl core::clone::Clone for peabiru_core::FarePerType
+pub fn peabiru_core::FarePerType::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::FarePerType
+pub fn peabiru_core::FarePerType::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::FarePerType
+pub fn peabiru_core::FarePerType::default() -> Self
+impl core::fmt::Debug for peabiru_core::FarePerType
+pub fn peabiru_core::FarePerType::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::FarePerType
+impl core::marker::Forget for peabiru_core::FarePerType
+impl core::marker::Freeze for peabiru_core::FarePerType
+impl core::marker::Send for peabiru_core::FarePerType
+impl core::marker::Sync for peabiru_core::FarePerType
+impl core::marker::Unpin for peabiru_core::FarePerType
+impl core::marker::UnsafeUnpin for peabiru_core::FarePerType
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::FarePerType
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::FarePerType
+#[non_exhaustive] pub struct peabiru_core::FareStructure
+pub peabiru_core::FareStructure::debug_output_file: alloc::string::String
+pub peabiru_core::FareStructure::debug_trip_info: alloc::string::String
+pub peabiru_core::FareStructure::fare_cap: f64
+pub peabiru_core::FareStructure::fares_per_route: alloc::vec::Vec<peabiru_core::FarePerRoute>
+pub peabiru_core::FareStructure::fares_per_transfer: alloc::vec::Vec<peabiru_core::FarePerTransfer>
+pub peabiru_core::FareStructure::fares_per_type: alloc::vec::Vec<peabiru_core::FarePerType>
+pub peabiru_core::FareStructure::max_discounted_transfers: f64
+pub peabiru_core::FareStructure::transfer_time_allowance: f64
+impl peabiru_core::FareStructure
+pub fn peabiru_core::FareStructure::validate(&self) -> core::result::Result<(), peabiru_core::RouteError>
+pub fn peabiru_core::FareStructure::validate_for(&self, &peabiru_core::Network) -> core::result::Result<(), peabiru_core::RouteError>
+impl core::clone::Clone for peabiru_core::FareStructure
+pub fn peabiru_core::FareStructure::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::FareStructure
+pub fn peabiru_core::FareStructure::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::FareStructure
+pub fn peabiru_core::FareStructure::default() -> Self
+impl core::fmt::Debug for peabiru_core::FareStructure
+pub fn peabiru_core::FareStructure::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::FareStructure
+impl core::marker::Forget for peabiru_core::FareStructure
+impl core::marker::Freeze for peabiru_core::FareStructure
+impl core::marker::Send for peabiru_core::FareStructure
+impl core::marker::Sync for peabiru_core::FareStructure
+impl core::marker::Unpin for peabiru_core::FareStructure
+impl core::marker::UnsafeUnpin for peabiru_core::FareStructure
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::FareStructure
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::FareStructure
+#[non_exhaustive] pub struct peabiru_core::FeedReport
+pub peabiru_core::FeedReport::dropped_trips: peabiru_core::DroppedTrips
+pub peabiru_core::FeedReport::no_agency: bool
+pub peabiru_core::FeedReport::path: std::path::PathBuf
+pub peabiru_core::FeedReport::tables_in_subfolder: alloc::vec::Vec<alloc::string::String>
+impl peabiru_core::FeedReport
+pub fn peabiru_core::FeedReport::file_name(&self) -> alloc::string::String
+pub fn peabiru_core::FeedReport::r5r_refusals(&self) -> alloc::vec::Vec<alloc::string::String>
+pub fn peabiru_core::FeedReport::r5r_warning(&self) -> core::option::Option<alloc::string::String>
+pub fn peabiru_core::FeedReport::r5r_warnings_per_case(&self) -> alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for peabiru_core::FeedReport
+pub fn peabiru_core::FeedReport::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::FeedReport
+impl core::cmp::PartialEq for peabiru_core::FeedReport
+pub fn peabiru_core::FeedReport::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::FeedReport
+pub fn peabiru_core::FeedReport::default() -> Self
+impl core::fmt::Debug for peabiru_core::FeedReport
+pub fn peabiru_core::FeedReport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::FeedReport
+impl core::marker::Forget for peabiru_core::FeedReport
+impl core::marker::Freeze for peabiru_core::FeedReport
+impl core::marker::Send for peabiru_core::FeedReport
+impl core::marker::Sync for peabiru_core::FeedReport
+impl core::marker::Unpin for peabiru_core::FeedReport
+impl core::marker::UnsafeUnpin for peabiru_core::FeedReport
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::FeedReport
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::FeedReport
+pub struct peabiru_core::GtfsFeedError
+impl peabiru_core::GtfsFeedError
+pub fn peabiru_core::GtfsFeedError::error_type(&self) -> &'static str
+pub fn peabiru_core::GtfsFeedError::field(&self) -> core::option::Option<&str>
+pub fn peabiru_core::GtfsFeedError::file(&self) -> core::option::Option<&str>
+pub fn peabiru_core::GtfsFeedError::id(&self) -> core::option::Option<&str>
+pub fn peabiru_core::GtfsFeedError::line(&self) -> i32
+pub fn peabiru_core::GtfsFeedError::priority(&self) -> peabiru_core::GtfsErrorPriority
+impl core::clone::Clone for peabiru_core::GtfsFeedError
+pub fn peabiru_core::GtfsFeedError::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::GtfsFeedError
+impl core::cmp::PartialEq for peabiru_core::GtfsFeedError
+pub fn peabiru_core::GtfsFeedError::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::GtfsFeedError
+pub fn peabiru_core::GtfsFeedError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::GtfsFeedError
+impl core::marker::Forget for peabiru_core::GtfsFeedError
+impl core::marker::Freeze for peabiru_core::GtfsFeedError
+impl core::marker::Send for peabiru_core::GtfsFeedError
+impl core::marker::Sync for peabiru_core::GtfsFeedError
+impl core::marker::Unpin for peabiru_core::GtfsFeedError
+impl core::marker::UnsafeUnpin for peabiru_core::GtfsFeedError
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::GtfsFeedError
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::GtfsFeedError
+#[non_exhaustive] pub struct peabiru_core::IsochroneLine
+pub peabiru_core::IsochroneLine::edge: usize
+pub peabiru_core::IsochroneLine::isochrone: f64
+pub peabiru_core::IsochroneLine::origin: usize
+pub peabiru_core::IsochroneLine::travel_time: u32
+impl core::clone::Clone for peabiru_core::IsochroneLine
+pub fn peabiru_core::IsochroneLine::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::IsochroneLine
+pub fn peabiru_core::IsochroneLine::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::IsochroneLine
+pub fn peabiru_core::IsochroneLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for peabiru_core::IsochroneLine
+impl core::marker::StructuralPartialEq for peabiru_core::IsochroneLine
+impl core::marker::Forget for peabiru_core::IsochroneLine
+impl core::marker::Freeze for peabiru_core::IsochroneLine
+impl core::marker::Send for peabiru_core::IsochroneLine
+impl core::marker::Sync for peabiru_core::IsochroneLine
+impl core::marker::Unpin for peabiru_core::IsochroneLine
+impl core::marker::UnsafeUnpin for peabiru_core::IsochroneLine
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::IsochroneLine
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::IsochroneLine
+#[non_exhaustive] pub struct peabiru_core::IsochronePolygon
+pub peabiru_core::IsochronePolygon::isochrone: f64
+pub peabiru_core::IsochronePolygon::origin: usize
+pub peabiru_core::IsochronePolygon::percentile: i32
+pub peabiru_core::IsochronePolygon::polygons: alloc::vec::Vec<peabiru_core::Polygon>
+impl core::clone::Clone for peabiru_core::IsochronePolygon
+pub fn peabiru_core::IsochronePolygon::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::IsochronePolygon
+pub fn peabiru_core::IsochronePolygon::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::IsochronePolygon
+pub fn peabiru_core::IsochronePolygon::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::IsochronePolygon
+impl core::marker::Forget for peabiru_core::IsochronePolygon
+impl core::marker::Freeze for peabiru_core::IsochronePolygon
+impl core::marker::Send for peabiru_core::IsochronePolygon
+impl core::marker::Sync for peabiru_core::IsochronePolygon
+impl core::marker::Unpin for peabiru_core::IsochronePolygon
+impl core::marker::UnsafeUnpin for peabiru_core::IsochronePolygon
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::IsochronePolygon
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::IsochronePolygon
+#[non_exhaustive] pub struct peabiru_core::Itinerary
+pub peabiru_core::Itinerary::departure_s: i32
+pub peabiru_core::Itinerary::departure_time: alloc::string::String
+pub peabiru_core::Itinerary::legs: alloc::vec::Vec<peabiru_core::ItineraryLeg>
+pub peabiru_core::Itinerary::option: u32
+pub peabiru_core::Itinerary::pair: usize
+pub peabiru_core::Itinerary::total_distance: i32
+pub peabiru_core::Itinerary::total_duration: f64
+pub peabiru_core::Itinerary::total_duration_s: i32
+pub peabiru_core::Itinerary::total_fare: core::option::Option<f64>
+impl core::clone::Clone for peabiru_core::Itinerary
+pub fn peabiru_core::Itinerary::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::Itinerary
+pub fn peabiru_core::Itinerary::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::Itinerary
+pub fn peabiru_core::Itinerary::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::Itinerary
+impl core::marker::Forget for peabiru_core::Itinerary
+impl core::marker::Freeze for peabiru_core::Itinerary
+impl core::marker::Send for peabiru_core::Itinerary
+impl core::marker::Sync for peabiru_core::Itinerary
+impl core::marker::Unpin for peabiru_core::Itinerary
+impl core::marker::UnsafeUnpin for peabiru_core::Itinerary
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Itinerary
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::Itinerary
+#[non_exhaustive] pub struct peabiru_core::ItineraryLeg
+pub peabiru_core::ItineraryLeg::alight_stop_id: alloc::string::String
+pub peabiru_core::ItineraryLeg::board_stop_id: alloc::string::String
+pub peabiru_core::ItineraryLeg::cumulative_fare: core::option::Option<f64>
+pub peabiru_core::ItineraryLeg::distance: i32
+pub peabiru_core::ItineraryLeg::duration_s: i32
+pub peabiru_core::ItineraryLeg::edge_ids: alloc::vec::Vec<u32>
+pub peabiru_core::ItineraryLeg::geometry: alloc::vec::Vec<[f64; 2]>
+pub peabiru_core::ItineraryLeg::mode: alloc::string::String
+pub peabiru_core::ItineraryLeg::osm_ids: alloc::vec::Vec<i64>
+pub peabiru_core::ItineraryLeg::route: alloc::string::String
+pub peabiru_core::ItineraryLeg::segment_duration: f64
+pub peabiru_core::ItineraryLeg::wait: f64
+pub peabiru_core::ItineraryLeg::wait_s: i32
+impl peabiru_core::ItineraryLeg
+pub fn peabiru_core::ItineraryLeg::edge_id_list(&self) -> alloc::string::String
+pub fn peabiru_core::ItineraryLeg::osm_id_list(&self) -> alloc::string::String
+pub fn peabiru_core::ItineraryLeg::wkt(&self) -> alloc::string::String
+impl core::clone::Clone for peabiru_core::ItineraryLeg
+pub fn peabiru_core::ItineraryLeg::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::ItineraryLeg
+pub fn peabiru_core::ItineraryLeg::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::ItineraryLeg
+pub fn peabiru_core::ItineraryLeg::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::ItineraryLeg
+impl core::marker::Forget for peabiru_core::ItineraryLeg
+impl core::marker::Freeze for peabiru_core::ItineraryLeg
+impl core::marker::Send for peabiru_core::ItineraryLeg
+impl core::marker::Sync for peabiru_core::ItineraryLeg
+impl core::marker::Unpin for peabiru_core::ItineraryLeg
+impl core::marker::UnsafeUnpin for peabiru_core::ItineraryLeg
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ItineraryLeg
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ItineraryLeg
+#[non_exhaustive] pub struct peabiru_core::ItineraryNotes
+pub peabiru_core::ItineraryNotes::history_dependent: alloc::vec::Vec<usize>
+pub peabiru_core::ItineraryNotes::mcraptor_fallbacks: alloc::vec::Vec<usize>
+impl peabiru_core::ItineraryNotes
+pub fn peabiru_core::ItineraryNotes::warnings(&self, usize) -> alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for peabiru_core::ItineraryNotes
+pub fn peabiru_core::ItineraryNotes::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::ItineraryNotes
+impl core::cmp::PartialEq for peabiru_core::ItineraryNotes
+pub fn peabiru_core::ItineraryNotes::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::ItineraryNotes
+pub fn peabiru_core::ItineraryNotes::default() -> Self
+impl core::fmt::Debug for peabiru_core::ItineraryNotes
+pub fn peabiru_core::ItineraryNotes::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::ItineraryNotes
+impl core::marker::Forget for peabiru_core::ItineraryNotes
+impl core::marker::Freeze for peabiru_core::ItineraryNotes
+impl core::marker::Send for peabiru_core::ItineraryNotes
+impl core::marker::Sync for peabiru_core::ItineraryNotes
+impl core::marker::Unpin for peabiru_core::ItineraryNotes
+impl core::marker::UnsafeUnpin for peabiru_core::ItineraryNotes
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ItineraryNotes
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ItineraryNotes
+#[non_exhaustive] pub struct peabiru_core::ItineraryParams
+pub peabiru_core::ItineraryParams::bike_speed_kmh: f64
+pub peabiru_core::ItineraryParams::cancel: peabiru_core::CancelToken
+pub peabiru_core::ItineraryParams::date: u32
+pub peabiru_core::ItineraryParams::departure_time: i32
+pub peabiru_core::ItineraryParams::egress_mode: peabiru_core::Mode
+pub peabiru_core::ItineraryParams::fare_structure: core::option::Option<alloc::rcs::arc::Arc<peabiru_core::FareStructure>>
+pub peabiru_core::ItineraryParams::max_bike_time: i32
+pub peabiru_core::ItineraryParams::max_car_time: i32
+pub peabiru_core::ItineraryParams::max_fare: f64
+pub peabiru_core::ItineraryParams::max_lts: i32
+pub peabiru_core::ItineraryParams::max_rides: usize
+pub peabiru_core::ItineraryParams::max_trip_duration: i32
+pub peabiru_core::ItineraryParams::max_walk_time: i32
+pub peabiru_core::ItineraryParams::mode: peabiru_core::Mode
+pub peabiru_core::ItineraryParams::n_threads: usize
+pub peabiru_core::ItineraryParams::osm_link_ids: bool
+pub peabiru_core::ItineraryParams::scenario: peabiru_core::Scenario
+pub peabiru_core::ItineraryParams::shortest_path: bool
+pub peabiru_core::ItineraryParams::suboptimal_minutes: i32
+pub peabiru_core::ItineraryParams::time_window: i32
+pub peabiru_core::ItineraryParams::transit_modes: alloc::vec::Vec<peabiru_core::TransitMode>
+pub peabiru_core::ItineraryParams::walk_speed_kmh: f64
+impl core::clone::Clone for peabiru_core::ItineraryParams
+pub fn peabiru_core::ItineraryParams::clone(&self) -> Self
+impl core::default::Default for peabiru_core::ItineraryParams
+pub fn peabiru_core::ItineraryParams::default() -> Self
+impl core::fmt::Debug for peabiru_core::ItineraryParams
+pub fn peabiru_core::ItineraryParams::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::ItineraryParams
+impl core::marker::Freeze for peabiru_core::ItineraryParams
+impl core::marker::Send for peabiru_core::ItineraryParams
+impl core::marker::Sync for peabiru_core::ItineraryParams
+impl core::marker::Unpin for peabiru_core::ItineraryParams
+impl core::marker::UnsafeUnpin for peabiru_core::ItineraryParams
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ItineraryParams
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ItineraryParams
+#[non_exhaustive] pub struct peabiru_core::LtsLine
+pub peabiru_core::LtsLine::lts: i32
+pub peabiru_core::LtsLine::points: alloc::vec::Vec<[f64; 2]>
+impl peabiru_core::LtsLine
+pub fn peabiru_core::LtsLine::new(alloc::vec::Vec<[f64; 2]>, i32) -> Self
+impl core::clone::Clone for peabiru_core::LtsLine
+pub fn peabiru_core::LtsLine::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::LtsLine
+pub fn peabiru_core::LtsLine::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::LtsLine
+pub fn peabiru_core::LtsLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::LtsLine
+impl core::marker::Forget for peabiru_core::LtsLine
+impl core::marker::Freeze for peabiru_core::LtsLine
+impl core::marker::Send for peabiru_core::LtsLine
+impl core::marker::Sync for peabiru_core::LtsLine
+impl core::marker::Unpin for peabiru_core::LtsLine
+impl core::marker::UnsafeUnpin for peabiru_core::LtsLine
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::LtsLine
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::LtsLine
+pub struct peabiru_core::Network
+impl peabiru_core::Network
+pub fn peabiru_core::Network::build_warnings(&self) -> alloc::vec::Vec<alloc::string::String>
+pub fn peabiru_core::Network::street(&self) -> &peabiru_core::StreetNetwork
+pub fn peabiru_core::Network::transit(&self) -> core::option::Option<&peabiru_core::TransitLayer>
+impl core::clone::Clone for peabiru_core::Network
+pub fn peabiru_core::Network::clone(&self) -> Self
+impl core::fmt::Debug for peabiru_core::Network
+pub fn peabiru_core::Network::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::Network
+impl !core::marker::Freeze for peabiru_core::Network
+impl core::marker::Send for peabiru_core::Network
+impl core::marker::Sync for peabiru_core::Network
+impl core::marker::Unpin for peabiru_core::Network
+impl core::marker::UnsafeUnpin for peabiru_core::Network
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Network
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::Network
+pub struct peabiru_core::NetworkError(_)
+impl peabiru_core::NetworkError
+pub fn peabiru_core::NetworkError::high_priority_gtfs_errors(&self) -> core::option::Option<alloc::vec::Vec<(&std::path::Path, usize)>>
+impl core::error::Error for peabiru_core::NetworkError
+impl core::fmt::Debug for peabiru_core::NetworkError
+pub fn peabiru_core::NetworkError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for peabiru_core::NetworkError
+pub fn peabiru_core::NetworkError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::NetworkError
+impl core::marker::Freeze for peabiru_core::NetworkError
+impl core::marker::Send for peabiru_core::NetworkError
+impl core::marker::Sync for peabiru_core::NetworkError
+impl core::marker::Unpin for peabiru_core::NetworkError
+impl core::marker::UnsafeUnpin for peabiru_core::NetworkError
+impl !core::panic::unwind_safe::RefUnwindSafe for peabiru_core::NetworkError
+impl !core::panic::unwind_safe::UnwindSafe for peabiru_core::NetworkError
+#[non_exhaustive] pub struct peabiru_core::ParetoFrontier
+pub peabiru_core::ParetoFrontier::rows: alloc::vec::Vec<peabiru_core::ParetoRow>
+impl core::clone::Clone for peabiru_core::ParetoFrontier
+pub fn peabiru_core::ParetoFrontier::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::ParetoFrontier
+pub fn peabiru_core::ParetoFrontier::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::ParetoFrontier
+pub fn peabiru_core::ParetoFrontier::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::ParetoFrontier
+impl core::marker::Forget for peabiru_core::ParetoFrontier
+impl core::marker::Freeze for peabiru_core::ParetoFrontier
+impl core::marker::Send for peabiru_core::ParetoFrontier
+impl core::marker::Sync for peabiru_core::ParetoFrontier
+impl core::marker::Unpin for peabiru_core::ParetoFrontier
+impl core::marker::UnsafeUnpin for peabiru_core::ParetoFrontier
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ParetoFrontier
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ParetoFrontier
+#[non_exhaustive] pub struct peabiru_core::ParetoRow
+pub peabiru_core::ParetoRow::destination: usize
+pub peabiru_core::ParetoRow::monetary_cost: f64
+pub peabiru_core::ParetoRow::origin: usize
+pub peabiru_core::ParetoRow::percentile: i32
+pub peabiru_core::ParetoRow::travel_time: i32
+impl core::clone::Clone for peabiru_core::ParetoRow
+pub fn peabiru_core::ParetoRow::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::ParetoRow
+pub fn peabiru_core::ParetoRow::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::ParetoRow
+pub fn peabiru_core::ParetoRow::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for peabiru_core::ParetoRow
+impl core::marker::StructuralPartialEq for peabiru_core::ParetoRow
+impl core::marker::Forget for peabiru_core::ParetoRow
+impl core::marker::Freeze for peabiru_core::ParetoRow
+impl core::marker::Send for peabiru_core::ParetoRow
+impl core::marker::Sync for peabiru_core::ParetoRow
+impl core::marker::Unpin for peabiru_core::ParetoRow
+impl core::marker::UnsafeUnpin for peabiru_core::ParetoRow
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ParetoRow
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ParetoRow
+#[non_exhaustive] pub struct peabiru_core::RouteParams
+pub peabiru_core::RouteParams::bike_speed_kmh: f64
+pub peabiru_core::RouteParams::cancel: peabiru_core::CancelToken
+pub peabiru_core::RouteParams::engine: peabiru_core::StreetEngine
+pub peabiru_core::RouteParams::max_lts: i32
+pub peabiru_core::RouteParams::max_trip_duration_min: i32
+pub peabiru_core::RouteParams::n_threads: usize
+pub peabiru_core::RouteParams::scenario: peabiru_core::Scenario
+pub peabiru_core::RouteParams::walk_speed_kmh: f64
+impl peabiru_core::RouteParams
+pub fn peabiru_core::RouteParams::validate(&self) -> core::result::Result<(), peabiru_core::RouteError>
+impl core::clone::Clone for peabiru_core::RouteParams
+pub fn peabiru_core::RouteParams::clone(&self) -> Self
+impl core::default::Default for peabiru_core::RouteParams
+pub fn peabiru_core::RouteParams::default() -> Self
+impl core::fmt::Debug for peabiru_core::RouteParams
+pub fn peabiru_core::RouteParams::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::RouteParams
+impl core::marker::Freeze for peabiru_core::RouteParams
+impl core::marker::Send for peabiru_core::RouteParams
+impl core::marker::Sync for peabiru_core::RouteParams
+impl core::marker::Unpin for peabiru_core::RouteParams
+impl core::marker::UnsafeUnpin for peabiru_core::RouteParams
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::RouteParams
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::RouteParams
+#[non_exhaustive] pub struct peabiru_core::Scenario
+pub peabiru_core::Scenario::car_speed_scale: f32
+pub peabiru_core::Scenario::car_speeds: peabiru_core::CarSpeeds
+pub peabiru_core::Scenario::lts: peabiru_core::LtsChange
+impl peabiru_core::Scenario
+pub fn peabiru_core::Scenario::is_unchanged(&self) -> bool
+impl core::clone::Clone for peabiru_core::Scenario
+pub fn peabiru_core::Scenario::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::Scenario
+pub fn peabiru_core::Scenario::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::Scenario
+pub fn peabiru_core::Scenario::default() -> Self
+impl core::fmt::Debug for peabiru_core::Scenario
+pub fn peabiru_core::Scenario::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::Scenario
+impl core::marker::Forget for peabiru_core::Scenario
+impl core::marker::Freeze for peabiru_core::Scenario
+impl core::marker::Send for peabiru_core::Scenario
+impl core::marker::Sync for peabiru_core::Scenario
+impl core::marker::Unpin for peabiru_core::Scenario
+impl core::marker::UnsafeUnpin for peabiru_core::Scenario
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Scenario
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::Scenario
+#[non_exhaustive] pub struct peabiru_core::Snap
+pub peabiru_core::Snap::distance_m: f64
+pub peabiru_core::Snap::lat: f64
+pub peabiru_core::Snap::lon: f64
+impl core::clone::Clone for peabiru_core::Snap
+pub fn peabiru_core::Snap::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::Snap
+pub fn peabiru_core::Snap::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::Snap
+pub fn peabiru_core::Snap::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for peabiru_core::Snap
+impl core::marker::StructuralPartialEq for peabiru_core::Snap
+impl core::marker::Forget for peabiru_core::Snap
+impl core::marker::Freeze for peabiru_core::Snap
+impl core::marker::Send for peabiru_core::Snap
+impl core::marker::Sync for peabiru_core::Snap
+impl core::marker::Unpin for peabiru_core::Snap
+impl core::marker::UnsafeUnpin for peabiru_core::Snap
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Snap
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::Snap
+#[non_exhaustive] pub struct peabiru_core::SpeedPolygon
+pub peabiru_core::SpeedPolygon::polygons: alloc::vec::Vec<peabiru_core::Polygon>
+pub peabiru_core::SpeedPolygon::priority: f64
+pub peabiru_core::SpeedPolygon::scale: f64
+impl peabiru_core::SpeedPolygon
+pub fn peabiru_core::SpeedPolygon::new(alloc::vec::Vec<peabiru_core::Polygon>, f64, f64) -> Self
+impl core::clone::Clone for peabiru_core::SpeedPolygon
+pub fn peabiru_core::SpeedPolygon::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::SpeedPolygon
+pub fn peabiru_core::SpeedPolygon::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::SpeedPolygon
+pub fn peabiru_core::SpeedPolygon::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::SpeedPolygon
+impl core::marker::Forget for peabiru_core::SpeedPolygon
+impl core::marker::Freeze for peabiru_core::SpeedPolygon
+impl core::marker::Send for peabiru_core::SpeedPolygon
+impl core::marker::Sync for peabiru_core::SpeedPolygon
+impl core::marker::Unpin for peabiru_core::SpeedPolygon
+impl core::marker::UnsafeUnpin for peabiru_core::SpeedPolygon
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::SpeedPolygon
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::SpeedPolygon
+pub struct peabiru_core::StreetEdges
+impl peabiru_core::StreetEdges
+pub fn peabiru_core::StreetEdges::bicycle(&self, usize) -> bool
+pub fn peabiru_core::StreetEdges::bicycle_lts(&self, usize) -> i32
+pub fn peabiru_core::StreetEdges::car(&self, usize) -> bool
+pub fn peabiru_core::StreetEdges::car_speed_kph(&self, usize) -> f64
+pub fn peabiru_core::StreetEdges::centroid(&self, usize) -> core::option::Option<(f64, f64)>
+pub fn peabiru_core::StreetEdges::centroid_points(&self) -> alloc::vec::Vec<(f64, f64)>
+pub fn peabiru_core::StreetEdges::edge_index(&self, usize) -> u32
+pub fn peabiru_core::StreetEdges::from_vertex(&self, usize) -> u32
+pub fn peabiru_core::StreetEdges::geometry(&self, usize) -> &[[f64; 2]]
+pub fn peabiru_core::StreetEdges::is_empty(&self) -> bool
+pub fn peabiru_core::StreetEdges::len(&self) -> usize
+pub fn peabiru_core::StreetEdges::length_m(&self, usize) -> f64
+pub fn peabiru_core::StreetEdges::osm_id(&self, usize) -> i64
+pub fn peabiru_core::StreetEdges::street_class(&self, usize) -> &'static str
+pub fn peabiru_core::StreetEdges::to_vertex(&self, usize) -> u32
+pub fn peabiru_core::StreetEdges::walk(&self, usize) -> bool
+impl core::clone::Clone for peabiru_core::StreetEdges
+pub fn peabiru_core::StreetEdges::clone(&self) -> Self
+impl core::fmt::Debug for peabiru_core::StreetEdges
+pub fn peabiru_core::StreetEdges::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::StreetEdges
+impl core::marker::Freeze for peabiru_core::StreetEdges
+impl core::marker::Send for peabiru_core::StreetEdges
+impl core::marker::Sync for peabiru_core::StreetEdges
+impl core::marker::Unpin for peabiru_core::StreetEdges
+impl core::marker::UnsafeUnpin for peabiru_core::StreetEdges
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::StreetEdges
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::StreetEdges
+pub struct peabiru_core::StreetMatrix
+impl peabiru_core::StreetMatrix
+pub fn peabiru_core::StreetMatrix::as_slice(&self) -> &[core::option::Option<u32>]
+pub fn peabiru_core::StreetMatrix::get(&self, usize, usize) -> core::option::Option<u32>
+pub fn peabiru_core::StreetMatrix::into_vec(self) -> alloc::vec::Vec<core::option::Option<u32>>
+pub fn peabiru_core::StreetMatrix::n_destinations(&self) -> usize
+pub fn peabiru_core::StreetMatrix::n_origins(&self) -> usize
+pub fn peabiru_core::StreetMatrix::row(&self, usize) -> &[core::option::Option<u32>]
+pub fn peabiru_core::StreetMatrix::rows(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &[core::option::Option<u32>]> + '_
+impl core::clone::Clone for peabiru_core::StreetMatrix
+pub fn peabiru_core::StreetMatrix::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::StreetMatrix
+impl core::cmp::PartialEq for peabiru_core::StreetMatrix
+pub fn peabiru_core::StreetMatrix::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::StreetMatrix
+pub fn peabiru_core::StreetMatrix::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::StreetMatrix
+impl core::marker::Forget for peabiru_core::StreetMatrix
+impl core::marker::Freeze for peabiru_core::StreetMatrix
+impl core::marker::Send for peabiru_core::StreetMatrix
+impl core::marker::Sync for peabiru_core::StreetMatrix
+impl core::marker::Unpin for peabiru_core::StreetMatrix
+impl core::marker::UnsafeUnpin for peabiru_core::StreetMatrix
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::StreetMatrix
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::StreetMatrix
+pub struct peabiru_core::StreetNetwork
+impl peabiru_core::StreetNetwork
+pub fn peabiru_core::StreetNetwork::bbox(&self) -> [f64; 4]
+impl peabiru_core::StreetNetwork
+pub fn peabiru_core::StreetNetwork::elevation(&self) -> peabiru_core::Elevation
+pub fn peabiru_core::StreetNetwork::elevation_warnings(&self) -> &[alloc::string::String]
+pub fn peabiru_core::StreetNetwork::n_edges(&self) -> usize
+pub fn peabiru_core::StreetNetwork::n_restrictions(&self) -> usize
+pub fn peabiru_core::StreetNetwork::n_vertices(&self) -> usize
+impl core::clone::Clone for peabiru_core::StreetNetwork
+pub fn peabiru_core::StreetNetwork::clone(&self) -> Self
+impl core::default::Default for peabiru_core::StreetNetwork
+pub fn peabiru_core::StreetNetwork::default() -> Self
+impl core::fmt::Debug for peabiru_core::StreetNetwork
+pub fn peabiru_core::StreetNetwork::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::StreetNetwork
+impl !core::marker::Freeze for peabiru_core::StreetNetwork
+impl core::marker::Send for peabiru_core::StreetNetwork
+impl core::marker::Sync for peabiru_core::StreetNetwork
+impl core::marker::Unpin for peabiru_core::StreetNetwork
+impl core::marker::UnsafeUnpin for peabiru_core::StreetNetwork
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::StreetNetwork
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::StreetNetwork
+#[non_exhaustive] pub struct peabiru_core::StreetVertices
+pub peabiru_core::StreetVertices::bike_sharing: alloc::vec::Vec<bool>
+pub peabiru_core::StreetVertices::index: alloc::vec::Vec<u32>
+pub peabiru_core::StreetVertices::lat: alloc::vec::Vec<f64>
+pub peabiru_core::StreetVertices::lon: alloc::vec::Vec<f64>
+pub peabiru_core::StreetVertices::park_and_ride: alloc::vec::Vec<bool>
+impl core::clone::Clone for peabiru_core::StreetVertices
+pub fn peabiru_core::StreetVertices::clone(&self) -> Self
+impl core::default::Default for peabiru_core::StreetVertices
+pub fn peabiru_core::StreetVertices::default() -> Self
+impl core::fmt::Debug for peabiru_core::StreetVertices
+pub fn peabiru_core::StreetVertices::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::StreetVertices
+impl core::marker::Freeze for peabiru_core::StreetVertices
+impl core::marker::Send for peabiru_core::StreetVertices
+impl core::marker::Sync for peabiru_core::StreetVertices
+impl core::marker::Unpin for peabiru_core::StreetVertices
+impl core::marker::UnsafeUnpin for peabiru_core::StreetVertices
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::StreetVertices
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::StreetVertices
+pub struct peabiru_core::TransitLayer
+impl peabiru_core::TransitLayer
+pub fn peabiru_core::TransitLayer::dropped_trips(&self) -> peabiru_core::DroppedTrips
+pub fn peabiru_core::TransitLayer::feed_ids(&self) -> &[alloc::string::String]
+pub fn peabiru_core::TransitLayer::feed_reports(&self) -> &[peabiru_core::FeedReport]
+pub fn peabiru_core::TransitLayer::has_frequencies(&self) -> bool
+pub fn peabiru_core::TransitLayer::n_linked_stops(&self) -> usize
+pub fn peabiru_core::TransitLayer::n_patterns(&self) -> usize
+pub fn peabiru_core::TransitLayer::n_services(&self) -> usize
+pub fn peabiru_core::TransitLayer::n_services_active_on(&self, u32) -> core::result::Result<usize, peabiru_core::RouteError>
+pub fn peabiru_core::TransitLayer::n_stops(&self) -> usize
+pub fn peabiru_core::TransitLayer::r5r_warnings(&self) -> alloc::vec::Vec<alloc::string::String>
+impl core::clone::Clone for peabiru_core::TransitLayer
+pub fn peabiru_core::TransitLayer::clone(&self) -> Self
+impl core::default::Default for peabiru_core::TransitLayer
+pub fn peabiru_core::TransitLayer::default() -> Self
+impl core::fmt::Debug for peabiru_core::TransitLayer
+pub fn peabiru_core::TransitLayer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::TransitLayer
+impl core::marker::Freeze for peabiru_core::TransitLayer
+impl core::marker::Send for peabiru_core::TransitLayer
+impl core::marker::Sync for peabiru_core::TransitLayer
+impl core::marker::Unpin for peabiru_core::TransitLayer
+impl core::marker::UnsafeUnpin for peabiru_core::TransitLayer
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TransitLayer
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TransitLayer
+pub struct peabiru_core::TransitMatrix
+impl peabiru_core::TransitMatrix
+pub fn peabiru_core::TransitMatrix::as_slice(&self) -> &[core::option::Option<u32>]
+pub fn peabiru_core::TransitMatrix::get(&self, usize, usize) -> &[core::option::Option<u32>]
+pub fn peabiru_core::TransitMatrix::into_vec(self) -> alloc::vec::Vec<core::option::Option<u32>>
+pub fn peabiru_core::TransitMatrix::n_destinations(&self) -> usize
+pub fn peabiru_core::TransitMatrix::n_origins(&self) -> usize
+pub fn peabiru_core::TransitMatrix::percentiles(&self) -> &[i32]
+pub fn peabiru_core::TransitMatrix::row(&self, usize) -> &[core::option::Option<u32>]
+pub fn peabiru_core::TransitMatrix::rows(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &[core::option::Option<u32>]> + '_
+impl core::clone::Clone for peabiru_core::TransitMatrix
+pub fn peabiru_core::TransitMatrix::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::TransitMatrix
+impl core::cmp::PartialEq for peabiru_core::TransitMatrix
+pub fn peabiru_core::TransitMatrix::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::TransitMatrix
+pub fn peabiru_core::TransitMatrix::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::TransitMatrix
+impl core::marker::Forget for peabiru_core::TransitMatrix
+impl core::marker::Freeze for peabiru_core::TransitMatrix
+impl core::marker::Send for peabiru_core::TransitMatrix
+impl core::marker::Sync for peabiru_core::TransitMatrix
+impl core::marker::Unpin for peabiru_core::TransitMatrix
+impl core::marker::UnsafeUnpin for peabiru_core::TransitMatrix
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TransitMatrix
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TransitMatrix
+#[non_exhaustive] pub struct peabiru_core::TransitParams
+pub peabiru_core::TransitParams::access_mode: peabiru_core::Mode
+pub peabiru_core::TransitParams::bike_speed_kmh: f64
+pub peabiru_core::TransitParams::cancel: peabiru_core::CancelToken
+pub peabiru_core::TransitParams::date: u32
+pub peabiru_core::TransitParams::departure_time: i32
+pub peabiru_core::TransitParams::draws_per_minute: i32
+pub peabiru_core::TransitParams::egress_mode: peabiru_core::Mode
+pub peabiru_core::TransitParams::fare_structure: core::option::Option<alloc::rcs::arc::Arc<peabiru_core::FareStructure>>
+pub peabiru_core::TransitParams::max_bike_time: i32
+pub peabiru_core::TransitParams::max_car_time: i32
+pub peabiru_core::TransitParams::max_fare: f64
+pub peabiru_core::TransitParams::max_lts: i32
+pub peabiru_core::TransitParams::max_rides: usize
+pub peabiru_core::TransitParams::max_trip_duration: i32
+pub peabiru_core::TransitParams::max_walk_time: i32
+pub peabiru_core::TransitParams::n_threads: usize
+pub peabiru_core::TransitParams::percentiles: alloc::vec::Vec<i32>
+pub peabiru_core::TransitParams::scenario: peabiru_core::Scenario
+pub peabiru_core::TransitParams::seed: core::option::Option<i32>
+pub peabiru_core::TransitParams::time_window: i32
+pub peabiru_core::TransitParams::transit_modes: alloc::vec::Vec<peabiru_core::TransitMode>
+pub peabiru_core::TransitParams::walk_speed_kmh: f64
+impl peabiru_core::TransitParams
+pub fn peabiru_core::TransitParams::validate(&self) -> core::result::Result<(), peabiru_core::RouteError>
+impl core::clone::Clone for peabiru_core::TransitParams
+pub fn peabiru_core::TransitParams::clone(&self) -> Self
+impl core::default::Default for peabiru_core::TransitParams
+pub fn peabiru_core::TransitParams::default() -> Self
+impl core::fmt::Debug for peabiru_core::TransitParams
+pub fn peabiru_core::TransitParams::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::TransitParams
+impl core::marker::Freeze for peabiru_core::TransitParams
+impl core::marker::Send for peabiru_core::TransitParams
+impl core::marker::Sync for peabiru_core::TransitParams
+impl core::marker::Unpin for peabiru_core::TransitParams
+impl core::marker::UnsafeUnpin for peabiru_core::TransitParams
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TransitParams
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TransitParams
+#[non_exhaustive] pub struct peabiru_core::TransitRoutes
+pub peabiru_core::TransitRoutes::agency_id: alloc::vec::Vec<core::option::Option<alloc::string::String>>
+pub peabiru_core::TransitRoutes::agency_name: alloc::vec::Vec<core::option::Option<alloc::string::String>>
+pub peabiru_core::TransitRoutes::long_name: alloc::vec::Vec<core::option::Option<alloc::string::String>>
+pub peabiru_core::TransitRoutes::mode: alloc::vec::Vec<&'static str>
+pub peabiru_core::TransitRoutes::route_id: alloc::vec::Vec<alloc::string::String>
+pub peabiru_core::TransitRoutes::short_name: alloc::vec::Vec<core::option::Option<alloc::string::String>>
+impl peabiru_core::TransitRoutes
+pub fn peabiru_core::TransitRoutes::geometry(&self, usize) -> &[[f64; 2]]
+pub fn peabiru_core::TransitRoutes::is_empty(&self) -> bool
+pub fn peabiru_core::TransitRoutes::len(&self) -> usize
+impl core::clone::Clone for peabiru_core::TransitRoutes
+pub fn peabiru_core::TransitRoutes::clone(&self) -> Self
+impl core::default::Default for peabiru_core::TransitRoutes
+pub fn peabiru_core::TransitRoutes::default() -> Self
+impl core::fmt::Debug for peabiru_core::TransitRoutes
+pub fn peabiru_core::TransitRoutes::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::TransitRoutes
+impl core::marker::Freeze for peabiru_core::TransitRoutes
+impl core::marker::Send for peabiru_core::TransitRoutes
+impl core::marker::Sync for peabiru_core::TransitRoutes
+impl core::marker::Unpin for peabiru_core::TransitRoutes
+impl core::marker::UnsafeUnpin for peabiru_core::TransitRoutes
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TransitRoutes
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TransitRoutes
+#[non_exhaustive] pub struct peabiru_core::TransitStops
+pub peabiru_core::TransitStops::lat: alloc::vec::Vec<core::option::Option<f64>>
+pub peabiru_core::TransitStops::linked_to_street: alloc::vec::Vec<bool>
+pub peabiru_core::TransitStops::lon: alloc::vec::Vec<core::option::Option<f64>>
+pub peabiru_core::TransitStops::stop_id: alloc::vec::Vec<alloc::string::String>
+pub peabiru_core::TransitStops::stop_index: alloc::vec::Vec<u32>
+pub peabiru_core::TransitStops::stop_name: alloc::vec::Vec<core::option::Option<alloc::string::String>>
+impl core::clone::Clone for peabiru_core::TransitStops
+pub fn peabiru_core::TransitStops::clone(&self) -> Self
+impl core::default::Default for peabiru_core::TransitStops
+pub fn peabiru_core::TransitStops::default() -> Self
+impl core::fmt::Debug for peabiru_core::TransitStops
+pub fn peabiru_core::TransitStops::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::TransitStops
+impl core::marker::Freeze for peabiru_core::TransitStops
+impl core::marker::Send for peabiru_core::TransitStops
+impl core::marker::Sync for peabiru_core::TransitStops
+impl core::marker::Unpin for peabiru_core::TransitStops
+impl core::marker::UnsafeUnpin for peabiru_core::TransitStops
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TransitStops
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TransitStops
+pub struct peabiru_core::TravelTimeSurface
+impl peabiru_core::TravelTimeSurface
+pub fn peabiru_core::TravelTimeSurface::grid(&self) -> &peabiru_core::WebMercatorGrid
+pub fn peabiru_core::TravelTimeSurface::minutes(&self, usize, usize) -> &[i32]
+pub fn peabiru_core::TravelTimeSurface::n_origins(&self) -> usize
+pub fn peabiru_core::TravelTimeSurface::percentiles(&self) -> &[i32]
+impl core::clone::Clone for peabiru_core::TravelTimeSurface
+pub fn peabiru_core::TravelTimeSurface::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::TravelTimeSurface
+impl core::cmp::PartialEq for peabiru_core::TravelTimeSurface
+pub fn peabiru_core::TravelTimeSurface::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::TravelTimeSurface
+pub fn peabiru_core::TravelTimeSurface::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::TravelTimeSurface
+impl core::marker::Forget for peabiru_core::TravelTimeSurface
+impl core::marker::Freeze for peabiru_core::TravelTimeSurface
+impl core::marker::Send for peabiru_core::TravelTimeSurface
+impl core::marker::Sync for peabiru_core::TravelTimeSurface
+impl core::marker::Unpin for peabiru_core::TravelTimeSurface
+impl core::marker::UnsafeUnpin for peabiru_core::TravelTimeSurface
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TravelTimeSurface
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TravelTimeSurface
+#[non_exhaustive] pub struct peabiru_core::TripOption
+pub peabiru_core::TripOption::arrival_s: i32
+pub peabiru_core::TripOption::departure_s: i32
+pub peabiru_core::TripOption::departures: alloc::vec::Vec<i32>
+pub peabiru_core::TripOption::description: alloc::string::String
+pub peabiru_core::TripOption::fare: core::option::Option<f64>
+pub peabiru_core::TripOption::itinerary: core::option::Option<peabiru_core::Itinerary>
+pub peabiru_core::TripOption::option: u32
+pub peabiru_core::TripOption::pair: usize
+pub peabiru_core::TripOption::total_time: f64
+pub peabiru_core::TripOption::total_time_s: i32
+pub peabiru_core::TripOption::totals: alloc::vec::Vec<f64>
+pub peabiru_core::TripOption::totals_s: alloc::vec::Vec<i32>
+pub peabiru_core::TripOption::transfers: u32
+pub peabiru_core::TripOption::walk_time: f64
+pub peabiru_core::TripOption::walk_time_s: i32
+impl peabiru_core::TripOption
+pub fn peabiru_core::TripOption::n_departures(&self) -> usize
+impl core::clone::Clone for peabiru_core::TripOption
+pub fn peabiru_core::TripOption::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::TripOption
+pub fn peabiru_core::TripOption::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::TripOption
+pub fn peabiru_core::TripOption::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::TripOption
+impl core::marker::Forget for peabiru_core::TripOption
+impl core::marker::Freeze for peabiru_core::TripOption
+impl core::marker::Send for peabiru_core::TripOption
+impl core::marker::Sync for peabiru_core::TripOption
+impl core::marker::Unpin for peabiru_core::TripOption
+impl core::marker::UnsafeUnpin for peabiru_core::TripOption
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TripOption
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TripOption
+#[non_exhaustive] pub struct peabiru_core::TripOptionsParams
+pub peabiru_core::TripOptionsParams::bike_speed_kmh: f64
+pub peabiru_core::TripOptionsParams::cancel: peabiru_core::CancelToken
+pub peabiru_core::TripOptionsParams::criteria: alloc::vec::Vec<peabiru_core::Criterion>
+pub peabiru_core::TripOptionsParams::date: u32
+pub peabiru_core::TripOptionsParams::departure_time: i32
+pub peabiru_core::TripOptionsParams::egress_mode: peabiru_core::Mode
+pub peabiru_core::TripOptionsParams::fare_structure: core::option::Option<alloc::rcs::arc::Arc<peabiru_core::FareStructure>>
+pub peabiru_core::TripOptionsParams::itineraries: bool
+pub peabiru_core::TripOptionsParams::max_bike_time: i32
+pub peabiru_core::TripOptionsParams::max_car_time: i32
+pub peabiru_core::TripOptionsParams::max_fare: f64
+pub peabiru_core::TripOptionsParams::max_lts: i32
+pub peabiru_core::TripOptionsParams::max_options: usize
+pub peabiru_core::TripOptionsParams::max_rides: usize
+pub peabiru_core::TripOptionsParams::max_trip_duration: i32
+pub peabiru_core::TripOptionsParams::max_walk_time: i32
+pub peabiru_core::TripOptionsParams::mode: peabiru_core::Mode
+pub peabiru_core::TripOptionsParams::n_threads: usize
+pub peabiru_core::TripOptionsParams::osm_link_ids: bool
+pub peabiru_core::TripOptionsParams::scenario: peabiru_core::Scenario
+pub peabiru_core::TripOptionsParams::time_window: i32
+pub peabiru_core::TripOptionsParams::transit_modes: alloc::vec::Vec<peabiru_core::TransitMode>
+pub peabiru_core::TripOptionsParams::walk_speed_kmh: f64
+impl peabiru_core::TripOptionsParams
+pub fn peabiru_core::TripOptionsParams::resolved_criteria(&self) -> core::result::Result<alloc::vec::Vec<peabiru_core::Criterion>, peabiru_core::RouteError>
+impl core::clone::Clone for peabiru_core::TripOptionsParams
+pub fn peabiru_core::TripOptionsParams::clone(&self) -> Self
+impl core::default::Default for peabiru_core::TripOptionsParams
+pub fn peabiru_core::TripOptionsParams::default() -> Self
+impl core::fmt::Debug for peabiru_core::TripOptionsParams
+pub fn peabiru_core::TripOptionsParams::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::TripOptionsParams
+impl core::marker::Freeze for peabiru_core::TripOptionsParams
+impl core::marker::Send for peabiru_core::TripOptionsParams
+impl core::marker::Sync for peabiru_core::TripOptionsParams
+impl core::marker::Unpin for peabiru_core::TripOptionsParams
+impl core::marker::UnsafeUnpin for peabiru_core::TripOptionsParams
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::TripOptionsParams
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::TripOptionsParams
+pub struct peabiru_core::WebMercatorGrid
+impl peabiru_core::WebMercatorGrid
+pub fn peabiru_core::WebMercatorGrid::cell_center(&self, usize) -> (f64, f64)
+pub fn peabiru_core::WebMercatorGrid::cell_centers(&self) -> alloc::vec::Vec<(f64, f64)>
+pub fn peabiru_core::WebMercatorGrid::for_network(&peabiru_core::Network, i32) -> core::result::Result<Self, peabiru_core::RouteError>
+pub fn peabiru_core::WebMercatorGrid::height(&self) -> i32
+pub fn peabiru_core::WebMercatorGrid::n_cells(&self) -> usize
+pub fn peabiru_core::WebMercatorGrid::new(i32, i32, i32, i32, i32) -> core::result::Result<Self, peabiru_core::RouteError>
+pub fn peabiru_core::WebMercatorGrid::north(&self) -> i32
+pub fn peabiru_core::WebMercatorGrid::west(&self) -> i32
+pub fn peabiru_core::WebMercatorGrid::width(&self) -> i32
+pub fn peabiru_core::WebMercatorGrid::zoom(&self) -> i32
+impl core::clone::Clone for peabiru_core::WebMercatorGrid
+pub fn peabiru_core::WebMercatorGrid::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::WebMercatorGrid
+impl core::cmp::PartialEq for peabiru_core::WebMercatorGrid
+pub fn peabiru_core::WebMercatorGrid::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::WebMercatorGrid
+pub fn peabiru_core::WebMercatorGrid::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for peabiru_core::WebMercatorGrid
+impl core::marker::StructuralPartialEq for peabiru_core::WebMercatorGrid
+impl core::marker::Forget for peabiru_core::WebMercatorGrid
+impl core::marker::Freeze for peabiru_core::WebMercatorGrid
+impl core::marker::Send for peabiru_core::WebMercatorGrid
+impl core::marker::Sync for peabiru_core::WebMercatorGrid
+impl core::marker::Unpin for peabiru_core::WebMercatorGrid
+impl core::marker::UnsafeUnpin for peabiru_core::WebMercatorGrid
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::WebMercatorGrid
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::WebMercatorGrid
+pub const peabiru_core::VERSION: &str
+pub fn peabiru_core::arrival_departure(u32, i32, i32) -> core::result::Result<(u32, i32), peabiru_core::RouteError>
+pub fn peabiru_core::arrival_travel_time_matrix(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams) -> core::result::Result<peabiru_core::ExpandedMatrix, peabiru_core::RouteError>
+pub fn peabiru_core::build_from_bytes(&[u8], &[(&str, &[u8])], &peabiru_core::BuildOptions) -> core::result::Result<peabiru_core::Network, peabiru_core::NetworkError>
+pub fn peabiru_core::build_from_bytes_with_elevation(&[u8], &[(&str, &[u8])], &[u8], &peabiru_core::BuildOptions) -> core::result::Result<peabiru_core::Network, peabiru_core::NetworkError>
+pub fn peabiru_core::build_from_dir(impl core::convert::AsRef<std::path::Path>, &peabiru_core::BuildOptions) -> core::result::Result<peabiru_core::Network, peabiru_core::NetworkError>
+pub fn peabiru_core::build_network(impl core::convert::AsRef<std::path::Path>, &peabiru_core::BuildOptions) -> core::result::Result<peabiru_core::Network, peabiru_core::NetworkError>
+pub fn peabiru_core::detailed_itineraries(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::ItineraryParams) -> core::result::Result<alloc::vec::Vec<alloc::vec::Vec<peabiru_core::Itinerary>>, peabiru_core::RouteError>
+pub fn peabiru_core::detailed_itineraries_noted(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::ItineraryParams) -> core::result::Result<(alloc::vec::Vec<alloc::vec::Vec<peabiru_core::Itinerary>>, peabiru_core::ItineraryNotes), peabiru_core::RouteError>
+pub fn peabiru_core::expanded_travel_time_matrix(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams) -> core::result::Result<peabiru_core::ExpandedMatrix, peabiru_core::RouteError>
+pub fn peabiru_core::find_snap(&peabiru_core::Network, &[(f64, f64)], f64, peabiru_core::Mode) -> core::result::Result<alloc::vec::Vec<core::option::Option<peabiru_core::Snap>>, peabiru_core::RouteError>
+pub fn peabiru_core::gtfs_errors(&str, &[u8]) -> core::result::Result<alloc::vec::Vec<peabiru_core::GtfsFeedError>, peabiru_core::NetworkError>
+pub fn peabiru_core::gtfs_files_in_dir(impl core::convert::AsRef<std::path::Path>) -> core::io::error::Result<alloc::vec::Vec<std::path::PathBuf>>
+pub fn peabiru_core::isochrone_cutoffs(&[f64]) -> core::result::Result<alloc::vec::Vec<f64>, peabiru_core::RouteError>
+pub fn peabiru_core::isochrone_lines(usize, usize, &[core::option::Option<u32>], &[f64]) -> core::result::Result<alloc::vec::Vec<peabiru_core::IsochroneLine>, peabiru_core::RouteError>
+pub fn peabiru_core::isochrone_polygons(&peabiru_core::TravelTimeSurface, &[f64]) -> core::result::Result<alloc::vec::Vec<peabiru_core::IsochronePolygon>, peabiru_core::RouteError>
+pub fn peabiru_core::isochrone_trip_limit(&[f64]) -> core::result::Result<i32, peabiru_core::RouteError>
+pub fn peabiru_core::pareto_frontier(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams, &[f64]) -> core::result::Result<peabiru_core::ParetoFrontier, peabiru_core::RouteError>
+pub fn peabiru_core::r5r_trip_limits(&peabiru_core::DecayFunction, core::option::Option<&[i32]>, i32, core::option::Option<i32>, bool) -> core::result::Result<(i32, i32), peabiru_core::RouteError>
+pub fn peabiru_core::read_fare_structure(&[u8], &str) -> core::result::Result<peabiru_core::FareStructure, peabiru_core::RouteError>
+pub fn peabiru_core::setup_fare_structure(&peabiru_core::Network, f64, &str) -> core::result::Result<peabiru_core::FareStructure, peabiru_core::RouteError>
+pub fn peabiru_core::street_accessibility(&peabiru_core::Network, &[(f64, f64)], &peabiru_core::Destinations<'_>, peabiru_core::Mode, &peabiru_core::RouteParams, &[i32], &peabiru_core::AccessibilityParams) -> core::result::Result<peabiru_core::Accessibility, peabiru_core::RouteError>
+pub fn peabiru_core::street_edges(&peabiru_core::Network) -> peabiru_core::StreetEdges
+pub fn peabiru_core::street_travel_time_matrix(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], peabiru_core::Mode, &peabiru_core::RouteParams) -> core::result::Result<peabiru_core::StreetMatrix, peabiru_core::RouteError>
+pub fn peabiru_core::street_travel_time_surface(&peabiru_core::Network, &[(f64, f64)], peabiru_core::Mode, &peabiru_core::RouteParams, &[i32], i32) -> core::result::Result<peabiru_core::TravelTimeSurface, peabiru_core::RouteError>
+pub fn peabiru_core::street_vertices(&peabiru_core::Network) -> peabiru_core::StreetVertices
+pub fn peabiru_core::transit_accessibility(&peabiru_core::Network, &[(f64, f64)], &peabiru_core::Destinations<'_>, &peabiru_core::TransitParams, &peabiru_core::AccessibilityParams) -> core::result::Result<peabiru_core::Accessibility, peabiru_core::RouteError>
+pub fn peabiru_core::transit_routes(&peabiru_core::Network) -> core::result::Result<peabiru_core::TransitRoutes, peabiru_core::RouteError>
+pub fn peabiru_core::transit_service_dates(&peabiru_core::Network) -> core::result::Result<alloc::vec::Vec<u32>, peabiru_core::RouteError>
+pub fn peabiru_core::transit_stops(&peabiru_core::Network) -> peabiru_core::TransitStops
+pub fn peabiru_core::transit_travel_time_matrix(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams) -> core::result::Result<peabiru_core::TransitMatrix, peabiru_core::RouteError>
+pub fn peabiru_core::transit_travel_time_surface(&peabiru_core::Network, &[(f64, f64)], &peabiru_core::TransitParams, i32) -> core::result::Result<peabiru_core::TravelTimeSurface, peabiru_core::RouteError>
+pub fn peabiru_core::trip_options(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TripOptionsParams) -> core::result::Result<alloc::vec::Vec<alloc::vec::Vec<peabiru_core::TripOption>>, peabiru_core::RouteError>
+pub fn peabiru_core::validate_date(u32) -> core::result::Result<(), peabiru_core::RouteError>
+pub fn peabiru_core::validate_percentiles(&[i32]) -> core::result::Result<(), peabiru_core::RouteError>
+pub fn peabiru_core::write_fare_structure(&peabiru_core::FareStructure) -> core::result::Result<alloc::vec::Vec<u8>, peabiru_core::RouteError>
+pub fn peabiru_core::write_itineraries_csv(&str, &[(alloc::string::String, alloc::string::String)], &[((f64, f64), (f64, f64))], &[alloc::vec::Vec<peabiru_core::Itinerary>], bool, bool) -> core::io::error::Result<()>
+pub fn peabiru_core::write_trip_options_csv(&str, &[(alloc::string::String, alloc::string::String)], &[((f64, f64), (f64, f64))], &[alloc::vec::Vec<peabiru_core::TripOption>], bool, bool) -> core::io::error::Result<()>
+pub type peabiru_core::Polygon = alloc::vec::Vec<alloc::vec::Vec<[f64; 2]>>

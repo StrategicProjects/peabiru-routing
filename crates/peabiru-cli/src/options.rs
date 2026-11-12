@@ -6,7 +6,7 @@
 use crate::cli::{self, runtime_error, usage_error};
 use crate::expanded::field;
 use peabiru_core::{
-    read_fare_structure, trip_options, BuildOptions, Criterion, Mode, TransitData, TransitMode,
+    read_fare_structure, trip_options, BuildOptions, Criterion, Mode, TransitMode,
     TripOptionsParams,
 };
 use std::fmt::Write as _;
@@ -103,15 +103,12 @@ pub fn run(args: &[String]) {
         runtime_error(cmd, "origins and destinations must have as many rows");
     }
     let t0 = Instant::now();
-    let (net, layer) = cli::build_from_dir(cmd, dir, &BuildOptions::default())
+    let net = cli::build_from_dir(cmd, dir, &BuildOptions::default())
         .unwrap_or_else(|e| runtime_error(cmd, e));
-    let data = (!p.transit_modes.is_empty()).then(|| TransitData::new(&net, &layer));
-    let transit = data.as_ref().map(|d| (&layer, d));
     let t1 = Instant::now();
     let mut res = Vec::new();
     for _ in 0..repeats {
-        res =
-            trip_options(&net, transit, &opts, &dpts, &p).unwrap_or_else(|e| runtime_error(cmd, e));
+        res = trip_options(&net, &opts, &dpts, &p).unwrap_or_else(|e| runtime_error(cmd, e));
     }
     let t2 = Instant::now();
     let mut o = String::from(

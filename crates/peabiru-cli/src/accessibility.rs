@@ -21,7 +21,7 @@
 use crate::cli::{self, runtime_error, usage_error};
 use peabiru_core::{
     build_network, r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
-    AccessibilityParams, BuildOptions, DecayFunction, Destinations, Mode, RouteParams, TransitData,
+    AccessibilityParams, BuildOptions, DecayFunction, Destinations, Mode, RouteParams,
     TransitParams,
 };
 use std::time::Instant;
@@ -286,9 +286,7 @@ pub fn run(args: &[String]) {
     let build_s;
     if let Some(mode) = street_mode {
         let net = if is_dir {
-            cli::build_from_dir(CMD, net_path, &build)
-                .unwrap_or_else(|e| fail_io(e))
-                .0
+            cli::build_from_dir(CMD, net_path, &build).unwrap_or_else(|e| fail_io(e))
         } else {
             build_network(net_path, &build).unwrap_or_else(|e| fail_io(e))
         };
@@ -311,9 +309,7 @@ pub fn run(args: &[String]) {
             times.push(t.elapsed().as_secs_f64());
         }
     } else {
-        let (net, layer) =
-            cli::build_from_dir(CMD, net_path, &build).unwrap_or_else(|e| fail_io(e));
-        let data = TransitData::new(&net, &layer);
+        let net = cli::build_from_dir(CMD, net_path, &build).unwrap_or_else(|e| fail_io(e));
         build_s = t0.elapsed().as_secs_f64();
         tp.percentiles = percentiles.clone();
         tp.max_trip_duration = m;
@@ -321,7 +317,7 @@ pub fn run(args: &[String]) {
         for _ in 0..repeats {
             let t = Instant::now();
             result = Some(
-                transit_accessibility(&net, &layer, &data, &origins.coords, &destinations, &tp, &a)
+                transit_accessibility(&net, &origins.coords, &destinations, &tp, &a)
                     .unwrap_or_else(|e| fail(e)),
             );
             times.push(t.elapsed().as_secs_f64());

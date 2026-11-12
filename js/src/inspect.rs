@@ -70,7 +70,7 @@ pub fn find_snap(
 /// `[xmin, ymin, xmax, ymax]` of the street network (R5's envelope).
 #[wasm_bindgen]
 pub fn street_bbox(network: &Network) -> Vec<f64> {
-    network.net.bbox().to_vec()
+    network.net.street().bbox().to_vec()
 }
 
 /// The vertices of r5r's `street_network_to_sf()`: `[index (Int32Array),
@@ -96,8 +96,8 @@ pub fn street_vertices(network: &Network) -> Array {
 /// linked_to_street (Uint8Array)]`.
 #[wasm_bindgen]
 pub fn transit_stops(network: &Network) -> Array {
-    let s = match &network.transit {
-        Some(t) => transit_stops_core(&network.net, &t.layer),
+    let s = match network.net.transit() {
+        Some(_) => transit_stops_core(&network.net),
         None => Default::default(),
     };
     let index: Vec<i32> = s.stop_index.iter().map(|&i| i as i32).collect();
@@ -120,8 +120,8 @@ pub fn transit_stops(network: &Network) -> Array {
 /// `y` (Float64Array).
 #[wasm_bindgen]
 pub fn transit_routes(network: &Network) -> Result<Array, JsError> {
-    let r = match &network.transit {
-        Some(t) => transit_routes_core(&network.net, &t.layer).map_err(route_err)?,
+    let r = match network.net.transit() {
+        Some(_) => transit_routes_core(&network.net).map_err(route_err)?,
         None => Default::default(),
     };
     let (mut n_points, mut x, mut y) = (Vec::with_capacity(r.len()), Vec::new(), Vec::new());
@@ -153,8 +153,8 @@ pub fn transit_routes(network: &Network) -> Result<Array, JsError> {
 /// as r5r's `check_transit_availability()` discovers them.
 #[wasm_bindgen]
 pub fn transit_service_dates(network: &Network) -> Result<Vec<u32>, JsError> {
-    match &network.transit {
-        Some(t) => transit_service_dates_core(&t.layer).map_err(route_err),
+    match network.net.transit() {
+        Some(_) => transit_service_dates_core(&network.net).map_err(route_err),
         None => Ok(Vec::new()),
     }
 }

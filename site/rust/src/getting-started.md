@@ -35,16 +35,21 @@ the first argument to use your own data.
 ## Build a network
 
 `peabiru_core::build_from_dir` reads the directory, builds the street
-network and the transit layer, and links the stops to the streets:
+network and the transit layer, links the stops to the streets and finds
+the walking transfers between them, and returns a `Network`:
 
 ```rust,ignore
-use peabiru_core::{build_from_dir, BuildOptions, TransitData};
+use peabiru_core::{build_from_dir, BuildOptions};
 
-let (net, layer) = build_from_dir("r/inst/extdata/spo", &BuildOptions::default())?;
-// Walking transfers and egress distances, computed once per network and
-// shared by every public transport query:
-let data = TransitData::new(&net, &layer);
-println!("{} stops in {} feeds", layer.n_stops(), layer.feed_ids().len());
+let network = build_from_dir("r/inst/extdata/spo", &BuildOptions::default())?;
+for w in network.build_warnings() {
+    eprintln!("warning: {w}"); // feeds built from anyway, elevation voids, ...
+}
+let streets = network.street();
+println!("{} vertices, {} edges", streets.n_vertices(), streets.n_edges());
+if let Some(transit) = network.transit() {
+    println!("{} stops in {} feeds", transit.n_stops(), transit.feed_ids().len());
+}
 ```
 
 `BuildOptions::default()` uses all cores to decode the PBF file; set
@@ -59,9 +64,12 @@ fails when a GTFS feed has errors of priority `HIGH` (set
 programs without a file system (the JavaScript package uses it).
 
 The network is read-only data in memory: share it between threads by
-reference; every query function takes `&StreetNetwork` (and `&TransitLayer`,
-`&TransitData`). Its contents are private; methods such as `n_vertices()`,
-`n_stops()` or `feed_reports()` describe it.
+reference; every query function takes `&Network`, so the streets and the
+public transport layer linked to them always go together. Its contents are
+private; `network.street()` (`n_vertices()`, `bbox()`, ...) and
+`network.transit()` (`n_stops()`, `feed_reports()`, ...; `None` without
+GTFS feeds) describe it. Functions that route by public transport return
+`RouteError::Invalid` on a network without it.
 
 ## Points
 
@@ -81,7 +89,7 @@ use peabiru_core::{street_travel_time_matrix, Mode, RouteParams};
 
 let mut params = RouteParams::default();
 params.max_trip_duration_min = 60;
-let m = street_travel_time_matrix(&net, &points, &points, Mode::Bicycle, &params)?;
+let m = street_travel_time_matrix(&network, &points, &points, Mode::Bicycle, &params)?;
 println!("{:?} min from the first point to the second", m.get(0, 1));
 ```
 

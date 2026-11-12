@@ -16,9 +16,9 @@ pub(crate) mod testing;
 #[cfg(test)]
 mod tests;
 
-use crate::street::{Mode, StreetNetwork};
+use crate::street::Mode;
 use crate::transit::raptor::TransitMode;
-use crate::{CancelToken, FareStructure, Itinerary, RouteError, TransitData, TransitLayer};
+use crate::{CancelToken, FareStructure, Itinerary, RouteError};
 use std::sync::Arc;
 
 /// A criterion [`trip_options`] compares trips on.
@@ -292,12 +292,12 @@ impl TripOption {
 /// structure, cancellation, and a car search that R5 does not route
 /// reproducibly (see [`detailed_itineraries`](crate::detailed_itineraries)).
 pub fn trip_options(
-    net: &StreetNetwork,
-    transit: Option<(&TransitLayer, &TransitData)>,
+    network: &crate::Network,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TripOptionsParams,
 ) -> Result<Vec<Vec<TripOption>>, RouteError> {
+    let (net, transit) = (network.street(), network.transit_pair());
     crate::itinerary::trip_options_impl(net, transit, origins, destinations, p)
 }
 

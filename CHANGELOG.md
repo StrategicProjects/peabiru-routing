@@ -53,6 +53,24 @@ routing and network functions (without r5r's functions for Java).
 
 ### Rust crate and CLI
 
+- **Breaking:** `build_from_dir`, `build_from_bytes`,
+  `build_from_bytes_with_elevation` and `build_network` return a `Network`
+  (the street network and, with GTFS feeds, the transit layer linked to
+  it), and every routing and inspection function takes `&Network` in place
+  of the street network, transit layer and `TransitData` it took apart
+  (`TransitData` is no longer public). `Network::street()`,
+  `Network::transit()` (`None` without feeds) and
+  `Network::build_warnings()` (the feeds built from with
+  `ignore_gtfs_errors`, then the elevation raster's warnings) describe it.
+  Public transport functions return `RouteError::Invalid` on a network
+  without it. `pareto_frontier` routes by the access mode alone when
+  `TransitParams::transit_modes` is empty; `setup_fare_structure`,
+  `FareStructure::validate_for` and `WebMercatorGrid::for_network` take the
+  network too.
+- **Breaking:** `RouteError` no longer converts from `String` or `&str`;
+  build `RouteError::Invalid` explicitly.
+- A snapshot of the public API (`tools/public-api/peabiru-core.txt`),
+  checked in CI, so that changes to it are deliberate.
 - API: `find_snap`, `StreetNetwork::bbox`, `street_vertices`,
   `transit_stops`, `transit_routes`, `transit_service_dates`, `gtfs_errors`,
   `detailed_itineraries`, `write_itineraries_csv`, `Scenario` and its parts,

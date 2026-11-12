@@ -658,7 +658,8 @@ impl<'a> Query<'a> {
             )));
         }
         let active = layer.active_services(p.date, weekday(p.date));
-        let filtered = Filtered::new(layer, &active, &p.transit_modes)?;
+        let filtered =
+            Filtered::new(layer, &active, &p.transit_modes).map_err(RouteError::Invalid)?;
         let walk_speed = (p.walk_speed_kmh * 5.0 / 18.0) as f32;
         let link = |mode| -> Result<Links, RouteError> {
             Ok(match destinations {
@@ -1036,14 +1037,8 @@ impl TransitMatrix {
     }
 }
 
-/// Public transport travel-time matrix, as r5r's `travel_time_matrix()` with
-/// public transport in `mode` (by default `c("WALK", "TRANSIT")`; see
-/// [`TransitParams::transit_modes`], [`TransitParams::access_mode`] and
-/// [`TransitParams::egress_mode`]). Points are `(lat, lon)` degrees.
-/// [`RouteError::Invalid`] when the parameters are invalid (see
-/// [`TransitParams::validate`]), [`RouteError::Cancelled`] when `p.cancel`
-/// is cancelled before every origin is done.
-pub fn transit_travel_time_matrix(
+/// The work of [`crate::transit_travel_time_matrix`].
+pub(crate) fn transit_travel_time_matrix(
     net: &StreetNetwork,
     layer: &TransitLayer,
     data: &TransitData,

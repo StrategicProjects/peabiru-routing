@@ -15,10 +15,11 @@ use crate::street::link::{find_split, Split};
 use crate::street::p2p::{Router, NONE};
 use crate::street::{Mode, StreetNetwork};
 use crate::transit::matrix::weekday;
+use crate::transit::matrix::TransitData;
 use crate::transit::raptor::{
     self, route_type_mode, Filtered, PathArena, RaptorRequest, UNREACHED,
 };
-use crate::{RouteError, TransitData, TransitLayer};
+use crate::{RouteError, TransitLayer};
 
 /// What every pair of a call shares.
 pub(crate) struct Planner<'a> {

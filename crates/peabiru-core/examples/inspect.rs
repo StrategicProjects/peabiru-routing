@@ -21,13 +21,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     opts.n_threads = 2;
     // As r5r's build_network(), the build fails when a feed has GTFS errors
     // of priority HIGH; ignore_gtfs_errors builds what can be read anyway.
-    let (net, layer) = match build_from_dir(&dir, &opts) {
+    let net = match build_from_dir(&dir, &opts) {
         Ok(built) => built,
         Err(e) if e.high_priority_gtfs_errors().is_some() => {
             println!("refused: {e}");
             opts.ignore_gtfs_errors = true;
             let built = build_from_dir(&dir, &opts)?;
-            for w in built.1.r5r_warnings() {
+            for w in built.build_warnings() {
                 println!("built anyway: {w}");
             }
             built
@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // The box of the street network, [xmin, ymin, xmax, ymax].
-    let b = net.bbox();
+    let b = net.street().bbox();
     println!(
         "bbox: lon {:.4} to {:.4}, lat {:.4} to {:.4}",
         b[0], b[2], b[1], b[3]
@@ -71,9 +71,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Public transport: stops, one route row per trip pattern, service dates.
-    let stops = transit_stops(&net, &layer);
+    let stops = transit_stops(&net);
     let linked = stops.linked_to_street.iter().filter(|&&l| l).count();
-    let routes = transit_routes(&net, &layer)?;
+    let routes = transit_routes(&net)?;
     let mut by_mode: BTreeMap<&str, usize> = BTreeMap::new();
     for m in &routes.mode {
         *by_mode.entry(*m).or_default() += 1;
@@ -83,7 +83,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         stops.stop_index.len(),
         routes.len()
     );
-    let dates = transit_service_dates(&layer)?;
+    let dates = transit_service_dates(&net)?;
+    let layer = net.transit().ok_or("the directory has no GTFS feed")?;
     println!(
         "service from {} to {} ({} dates); on 2019-05-13, {} of {} services run",
         dates[0],

@@ -295,21 +295,8 @@ impl Reducer {
     }
 }
 
-/// Accessibility by public transport (r5r `accessibility()` with public
-/// transport in `mode`; the modes, access and egress as in
-/// [`transit_travel_time_matrix`](crate::transit_travel_time_matrix)). Opportunity counts that are zero,
-/// negative or NaN contribute nothing (`TravelTimeReducer.java:251-253`).
-/// `p.percentiles` are the travel-time percentiles; `p.max_trip_duration`
-/// and `p.max_walk_time` must already be what r5r hands to R5 (for the
-/// step function r5r sets `max_trip_duration` to the largest cutoff before
-/// deriving the walk limit; see [`r5r_trip_limits`]).
-///
-/// Every origin gets a value for every (opportunity, percentile, cutoff),
-/// 0 when nothing is reachable or the origin cannot be linked. Points are
-/// `(lat, lon)` degrees. [`RouteError::Invalid`] when the parameters,
-/// cutoffs or opportunity columns are invalid, [`RouteError::Cancelled`]
-/// when `p.cancel` is cancelled before every origin is done.
-pub fn transit_accessibility(
+/// The work of [`crate::transit_accessibility`].
+pub(crate) fn transit_accessibility(
     net: &StreetNetwork,
     layer: &TransitLayer,
     data: &TransitData,
@@ -323,7 +310,8 @@ pub fn transit_accessibility(
         a,
         destinations.opportunities,
         destinations.points.len(),
-    )?;
+    )
+    .map_err(RouteError::Invalid)?;
     let q = Query::new(net, layer, data, destinations.points, p)?;
     let per = r.per_origin();
     let rows = par_origins(p.n_threads, origins.len(), &p.cancel, |i, scratch| {
@@ -340,15 +328,8 @@ pub fn transit_accessibility(
     Ok(r.finish(origins.len(), rows.concat()))
 }
 
-/// Accessibility by a street mode alone (r5r `accessibility()` with `mode`
-/// one of `WALK`, `BICYCLE`, `CAR`): one unvarying travel time per
-/// destination, so every percentile gets the same value
-/// (`TravelTimeReducer.recordUnvaryingTravelTimeAtTarget`).
-/// `params.max_trip_duration_min` is the search limit r5r passes to R5,
-/// and `percentiles` are checked as
-/// [`validate_percentiles`](crate::validate_percentiles) does.
-/// Errors as [`transit_accessibility`].
-pub fn street_accessibility(
+/// The work of [`crate::street_accessibility`].
+pub(crate) fn street_accessibility(
     net: &StreetNetwork,
     origins: &[(f64, f64)],
     destinations: &Destinations,
@@ -362,7 +343,8 @@ pub fn street_accessibility(
         a,
         destinations.opportunities,
         destinations.points.len(),
-    )?;
+    )
+    .map_err(RouteError::Invalid)?;
     let per = r.per_origin();
     let rows = travel_time_seconds(
         net,
@@ -413,7 +395,9 @@ pub fn r5r_trip_limits(
     if let Some(cutoffs) = cutoffs {
         let top = cutoffs.iter().copied().max().unwrap_or(0);
         if m < top {
-            return Err("'max_trip_duration' cannot be shorter than 'max(cutoffs)'".into());
+            return Err(RouteError::Invalid(
+                "'max_trip_duration' cannot be shorter than 'max(cutoffs)'".into(),
+            ));
         }
         if *decay == DecayFunction::Step {
             m = top;

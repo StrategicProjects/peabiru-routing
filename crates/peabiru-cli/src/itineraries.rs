@@ -3,9 +3,7 @@
 //! (coordinates in shortest round-trip form).
 
 use crate::cli::{self, runtime_error, usage_error};
-use peabiru_core::{
-    detailed_itineraries_noted, BuildOptions, ItineraryParams, Mode, TransitData, TransitMode,
-};
+use peabiru_core::{detailed_itineraries_noted, BuildOptions, ItineraryParams, Mode, TransitMode};
 use std::fmt::Write as _;
 use std::time::Instant;
 
@@ -118,12 +116,10 @@ pub fn run(args: &[String]) {
         runtime_error(cmd, "origins and destinations must have as many rows");
     }
     let t0 = Instant::now();
-    let (net, layer) = cli::build_from_dir(cmd, dir, &BuildOptions::default())
+    let net = cli::build_from_dir(cmd, dir, &BuildOptions::default())
         .unwrap_or_else(|e| runtime_error(cmd, e));
-    let data = (!p.transit_modes.is_empty()).then(|| TransitData::new(&net, &layer));
-    let transit = data.as_ref().map(|d| (&layer, d));
     let t1 = Instant::now();
-    let (res, notes) = detailed_itineraries_noted(&net, transit, &opts, &dpts, &p)
+    let (res, notes) = detailed_itineraries_noted(&net, &opts, &dpts, &p)
         .unwrap_or_else(|e| runtime_error(cmd, e));
     for w in notes.warnings(opts.len()) {
         eprintln!("warning: {w}");

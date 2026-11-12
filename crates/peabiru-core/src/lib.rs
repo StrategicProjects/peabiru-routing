@@ -1,7 +1,7 @@
 //! Multimodal routing engine behind the `peabiru` packages for R, Python and
 //! JavaScript.
 //!
-//! The engine builds a routable network in memory from an OpenStreetMap
+//! The engine builds a routable [`Network`] in memory from an OpenStreetMap
 //! PBF extract (walk, bike, car), optionally GTFS feeds (public transport)
 //! and an elevation raster, and computes over it:
 //!
@@ -36,29 +36,35 @@
 //! ```no_run
 //! use peabiru_core::{
 //!     build_from_dir, street_travel_time_matrix, transit_travel_time_matrix, BuildOptions,
-//!     Mode, RouteParams, TransitData, TransitParams,
+//!     Mode, RouteParams, TransitParams,
 //! };
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // the São Paulo sample of the repository (r/inst/extdata/spo)
-//! let (net, layer) = build_from_dir("r/inst/extdata/spo", &BuildOptions::default())?;
+//! let network = build_from_dir("r/inst/extdata/spo", &BuildOptions::default())?;
+//! for w in network.build_warnings() {
+//!     eprintln!("warning: {w}");
+//! }
 //! let points = [(-23.5563, -46.6290), (-23.5577, -46.6321)]; // (lat, lon)
 //!
 //! // walking, r5r's defaults
-//! let walk = street_travel_time_matrix(&net, &points, &points, Mode::Walk, &RouteParams::default())?;
+//! let walk = street_travel_time_matrix(&network, &points, &points, Mode::Walk, &RouteParams::default())?;
 //! println!("walk: {:?} min", walk.get(0, 1));
 //!
 //! // walking and public transport, Monday 2019-05-13 from 14:00
-//! let data = TransitData::new(&net, &layer); // once per network
 //! let mut params = TransitParams::default();
 //! params.date = 20190513;
 //! params.departure_time = 14 * 3600;
 //! params.seed = Some(42);
-//! let transit = transit_travel_time_matrix(&net, &layer, &data, &points, &points, &params)?;
+//! let transit = transit_travel_time_matrix(&network, &points, &points, &params)?;
 //! println!("transit: {:?} min at percentiles {:?}", transit.get(0, 1), transit.percentiles());
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! A [`Network`] is built once and shared by every call (and by threads):
+//! every function takes it whole, so the streets and the public transport
+//! layer linked to them always go together.
 //!
 //! [`build_from_bytes`] builds the same network from data held in memory
 //! (the `.pbf` and the feeds' `.zip` files as bytes), for callers without
@@ -104,7 +110,7 @@
 //!
 //! What r5r's network functions report: where points snap to the streets
 //! ([`find_snap`]), the box of the street network
-//! ([`StreetNetwork::bbox`]), its vertices and edges ([`street_vertices`],
+//! ([`Network::street`], [`StreetNetwork::bbox`]), its vertices and edges ([`street_vertices`],
 //! [`street_edges`]), the transit stops and the routes of each trip
 //! pattern ([`transit_stops`], [`transit_routes`]), the dates with service
 //! ([`transit_service_dates`], [`TransitLayer::n_services_active_on`]) and
@@ -114,7 +120,8 @@
 //! or from one gtfs-lib cannot load: the build fails, and
 //! [`NetworkError::high_priority_gtfs_errors`] names the feeds. With
 //! [`BuildOptions::ignore_gtfs_errors`] it is built from what can be read,
-//! and [`TransitLayer::r5r_warnings`] says which feeds those are.
+//! and [`Network::build_warnings`] says which feeds those are (with the
+//! warnings about the elevation raster).
 //!
 //! # Itineraries
 //!
@@ -203,6 +210,7 @@ mod inspect;
 mod isochrone;
 mod itinerary;
 mod jcompat;
+mod network;
 mod options;
 mod osm;
 mod output;
@@ -217,46 +225,41 @@ pub use cancel::{CancelToken, RouteError};
 pub use elevation::Elevation;
 pub use error::NetworkError;
 pub use fares::{
-    read_fare_structure, setup_fare_structure, write_fare_structure, FarePerRoute, FarePerTransfer,
-    FarePerType, FareStructure,
+    read_fare_structure, write_fare_structure, FarePerRoute, FarePerTransfer, FarePerType,
+    FareStructure,
 };
 pub use gtfs::validate::{gtfs_errors, GtfsErrorPriority, GtfsFeedError};
-pub use inspect::{
-    find_snap, street_vertices, transit_routes, transit_service_dates, transit_stops, Snap,
-    StreetVertices, TransitRoutes, TransitStops,
-};
+pub use inspect::{Snap, StreetVertices, TransitRoutes, TransitStops};
 pub use isochrone::{
-    isochrone_cutoffs, isochrone_lines, isochrone_polygons, isochrone_trip_limit, street_edges,
-    street_travel_time_surface, transit_travel_time_surface, IsochroneLine, IsochronePolygon,
-    Polygon, StreetEdges, TravelTimeSurface, WebMercatorGrid,
+    isochrone_cutoffs, isochrone_lines, isochrone_polygons, isochrone_trip_limit, IsochroneLine,
+    IsochronePolygon, Polygon, StreetEdges, TravelTimeSurface, WebMercatorGrid,
 };
 pub use itinerary::{
-    detailed_itineraries, detailed_itineraries_noted, write_itineraries_csv, Itinerary,
-    ItineraryLeg, ItineraryNotes, ItineraryParams,
+    write_itineraries_csv, Itinerary, ItineraryLeg, ItineraryNotes, ItineraryParams,
+};
+pub use network::{
+    arrival_travel_time_matrix, build_from_bytes, build_from_bytes_with_elevation, build_from_dir,
+    build_network, detailed_itineraries, detailed_itineraries_noted, expanded_travel_time_matrix,
+    find_snap, pareto_frontier, setup_fare_structure, street_accessibility, street_edges,
+    street_travel_time_matrix, street_travel_time_surface, street_vertices, transit_accessibility,
+    transit_routes, transit_service_dates, transit_stops, transit_travel_time_matrix,
+    transit_travel_time_surface, Network,
 };
 pub use options::{trip_options, write_trip_options_csv, Criterion, TripOption, TripOptionsParams};
 pub use output::CsvOutput;
 pub use street::{
-    build_network, street_travel_time_matrix, BuildOptions, CarSpeeds, LtsChange, LtsLine, Mode,
-    RouteParams, Scenario, SpeedPolygon, StreetEngine, StreetMatrix, StreetNetwork,
+    BuildOptions, CarSpeeds, LtsChange, LtsLine, Mode, RouteParams, Scenario, SpeedPolygon,
+    StreetEngine, StreetMatrix, StreetNetwork,
 };
 pub use transit::accessibility::{
-    r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
-    AccessibilityParams, Destinations,
+    r5r_trip_limits, Accessibility, AccessibilityParams, Destinations,
 };
 pub use transit::decay::DecayFunction;
-pub use transit::expanded::{
-    arrival_departure, arrival_travel_time_matrix, expanded_travel_time_matrix, Breakdown,
-    ExpandedMatrix, ExpandedRow,
-};
+pub use transit::expanded::{arrival_departure, Breakdown, ExpandedMatrix, ExpandedRow};
 pub use transit::layer::{gtfs_files_in_dir, DroppedTrips, FeedReport, TransitLayer};
-pub use transit::matrix::{
-    transit_travel_time_matrix, validate_date, validate_percentiles, TransitData, TransitMatrix,
-    TransitParams,
-};
-pub use transit::pareto::{pareto_frontier, ParetoFrontier, ParetoRow};
+pub use transit::matrix::{validate_date, validate_percentiles, TransitMatrix, TransitParams};
+pub use transit::pareto::{ParetoFrontier, ParetoRow};
 pub use transit::raptor::TransitMode;
-pub use transit::{build_from_bytes, build_from_bytes_with_elevation, build_from_dir};
 
 /// Version of this crate, as published.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -283,13 +286,14 @@ pub mod unstable {
     pub use crate::osm::pbf::{read_pbf_file, tag, Extract, ReadOptions};
     pub use crate::street::scenario::{java_parse_float, java_parse_int, java_parse_long};
 
-    /// The network the street searches of a call with scenario `s` run on
-    /// (`None`: the scenario changes nothing).
-    pub fn scenario_network(
-        net: &crate::StreetNetwork,
+    /// The street edges of the network the street searches of a call with
+    /// scenario `s` run on (`None`: the scenario changes nothing).
+    pub fn scenario_street_edges(
+        network: &crate::Network,
         s: &crate::Scenario,
-    ) -> Result<Option<crate::StreetNetwork>, crate::RouteError> {
-        s.apply(net)
+    ) -> Result<Option<crate::StreetEdges>, crate::RouteError> {
+        Ok(s.apply(network.street())?
+            .map(|net| crate::isochrone::street_edges(&net)))
     }
     pub use crate::street::flags;
     pub use crate::street::labels::{cms_to_ms, lts_of};

@@ -9,8 +9,7 @@ mod common;
 
 use peabiru_core::{
     build_from_dir, isochrone_polygons, isochrone_trip_limit, street_travel_time_surface,
-    transit_travel_time_surface, BuildOptions, Mode, Polygon, RouteParams, TransitData,
-    TransitParams,
+    transit_travel_time_surface, BuildOptions, Mode, Polygon, RouteParams, TransitParams,
 };
 
 /// Area of polygons (shells minus holes) in km², on a local flat
@@ -37,8 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut opts = BuildOptions::default();
     opts.n_threads = 2;
-    let (net, layer) = build_from_dir(&dir, &opts)?;
-    let data = TransitData::new(&net, &layer);
+    let net = build_from_dir(&dir, &opts)?;
 
     let cutoffs = [5.0, 10.0, 15.0];
     // the Web Mercator zoom of the grid, 9 to 12
@@ -67,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p.max_trip_duration = limit;
     p.seed = Some(42);
     p.n_threads = 2;
-    let surface = transit_travel_time_surface(&net, &layer, &data, origin, &p, zoom)?;
+    let surface = transit_travel_time_surface(&net, origin, &p, zoom)?;
     report("Transit", &isochrone_polygons(&surface, &cutoffs)?);
     Ok(())
 }

@@ -88,8 +88,7 @@ pub fn trip_options_js(
     p.itineraries = itineraries;
     p.osm_link_ids = osm_link_ids;
     p.n_threads = 1;
-    let transit = network.transit.as_ref().map(|t| (&t.layer, &t.data));
-    let res = trip_options(&network.net, transit, &o, &d, &p).map_err(route_err)?;
+    let res = trip_options(&network.net, &o, &d, &p).map_err(route_err)?;
     let mut oi: [Vec<i32>; 4] = Default::default();
     let mut of: [Vec<f64>; 3] = Default::default();
     let mut os: [Vec<String>; 5] = Default::default();

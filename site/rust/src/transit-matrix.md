@@ -9,9 +9,7 @@ the departure window; then percentiles.
 
 ```rust,ignore
 pub fn transit_travel_time_matrix(
-    net: &StreetNetwork,
-    layer: &TransitLayer,
-    data: &TransitData,
+    network: &Network,
     origins: &[(f64, f64)],
     destinations: &[(f64, f64)],
     p: &TransitParams,

@@ -4,7 +4,7 @@
 use peabiru_core::{
     build_from_dir, expanded_travel_time_matrix, street_accessibility, street_travel_time_matrix,
     transit_accessibility, transit_travel_time_matrix, AccessibilityParams, BuildOptions,
-    CsvOutput, DecayFunction, Destinations, Mode, RouteParams, TransitData, TransitParams,
+    CsvOutput, DecayFunction, Destinations, Mode, RouteParams, TransitParams,
 };
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -80,8 +80,7 @@ fn same_in_slices(
 
 #[test]
 fn slices_of_the_origins_write_the_files_of_the_whole() {
-    let (net, layer) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
-    let data = TransitData::new(&net, &layer);
+    let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let (ids, pts) = points();
 
     let p = RouteParams::default();
@@ -106,7 +105,7 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
     t.seed = Some(42);
     t.n_threads = 2;
     same_in_slices("transit", &ids, &ids, &pts, |w, first, o| {
-        let m = transit_travel_time_matrix(&net, &layer, &data, o, &pts, &t).unwrap();
+        let m = transit_travel_time_matrix(&net, o, &pts, &t).unwrap();
         w.write_transit_matrix(first, &m).unwrap();
     });
 
@@ -119,7 +118,7 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
             &ids,
             &pts,
             |w, first, o| {
-                let m = expanded_travel_time_matrix(&net, &layer, &data, o, &pts, &e).unwrap();
+                let m = expanded_travel_time_matrix(&net, o, &pts, &e).unwrap();
                 w.write_expanded(first, &m, breakdown).unwrap();
             },
         );
@@ -135,7 +134,7 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
         standard_deviation_minutes: 5.0,
     };
     same_in_slices("access-transit", &ids, &[], &pts, |w, first, o| {
-        let acc = transit_accessibility(&net, &layer, &data, o, &dest, &t, &a).unwrap();
+        let acc = transit_accessibility(&net, o, &dest, &t, &a).unwrap();
         w.write_accessibility(first, &acc, &names).unwrap();
     });
     let files = same_in_slices("access-car", &ids, &[], &pts, |w, first, o| {
@@ -148,7 +147,7 @@ fn slices_of_the_origins_write_the_files_of_the_whole() {
 
 #[test]
 fn an_unwritable_file_is_an_error_naming_it() {
-    let (net, _) = build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let (_, pts) = points();
     let ids: Vec<String> = (0..pts.len()).map(|i| format!("no/such/dir/{i}")).collect();
     let dir = empty_dir("unwritable");

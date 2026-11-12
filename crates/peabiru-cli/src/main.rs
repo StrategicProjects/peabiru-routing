@@ -121,7 +121,7 @@ pub(crate) fn positional3<'a>(cmd: &str, args: &'a [String]) -> (&'a str, &'a st
 ///  [--tw 10] [--percentiles 50] [--max-walk 120] [--max-trip 120] [--max-rides 3]
 ///  [--draws 5] [--seed N] [--threads 0] [--repeats 1]`
 fn transit(args: &[String]) {
-    use peabiru_core::{transit_travel_time_matrix, BuildOptions, TransitData, TransitParams};
+    use peabiru_core::{transit_travel_time_matrix, BuildOptions, TransitParams};
     let cmd = "transit";
     let (dir, points, out) = positional3(cmd, args);
     let mut p = TransitParams::default();
@@ -161,16 +161,16 @@ fn transit(args: &[String]) {
     let t0 = Instant::now();
     let mut opts = BuildOptions::default();
     opts.n_threads = p.n_threads;
-    let (net, layer) =
-        cli::build_from_dir(cmd, dir, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
-    let data = TransitData::new(&net, &layer);
+    let net = cli::build_from_dir(cmd, dir, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
+    let empty = peabiru_core::TransitLayer::default();
+    let layer = net.transit().unwrap_or(&empty);
     let build_s = t0.elapsed().as_secs_f64();
     let mut times = Vec::new();
     let mut m = None;
     for _ in 0..repeats {
         let t = Instant::now();
         m = Some(
-            transit_travel_time_matrix(&net, &layer, &data, &pts, &pts, &p)
+            transit_travel_time_matrix(&net, &pts, &pts, &p)
                 .unwrap_or_else(|e| usage_error(cmd, e)),
         );
         times.push(t.elapsed().as_secs_f64());
@@ -224,7 +224,8 @@ fn dump_elevation(dir: &str, out: &str) {
     let cmd = "dump-elevation";
     let mut opts = BuildOptions::default();
     opts.elevation = cli::elevation(cmd).unwrap_or(peabiru_core::Elevation::Tobler);
-    let (net, _) = cli::build_from_dir(cmd, dir, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
+    let network = cli::build_from_dir(cmd, dir, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
+    let net = network.street();
     let tif = std::fs::read_dir(dir)
         .unwrap_or_else(|e| runtime_error(cmd, e))
         .filter_map(Result::ok)
@@ -233,7 +234,7 @@ fn dump_elevation(dir: &str, out: &str) {
         .unwrap_or_else(|| runtime_error(cmd, format!("{dir}: no .tif raster")));
     let bytes = std::fs::read(&tif).unwrap_or_else(|e| runtime_error(cmd, e));
     let (vertices, profiles) =
-        elevation_samples(&net, &bytes).unwrap_or_else(|e| runtime_error(cmd, e));
+        elevation_samples(net, &bytes).unwrap_or_else(|e| runtime_error(cmd, e));
     let file = |suffix: &str| {
         let p = format!("{out}_{suffix}.csv");
         std::io::BufWriter::new(
@@ -258,7 +259,7 @@ fn dump_elevation(dir: &str, out: &str) {
     let mut w = file("factors");
     writeln!(w, "edge,bits").unwrap_or_else(|e| fail(e));
     for e in 0..net.n_edges() {
-        let k = edge_slope(&net, e).unwrap_or(0.0);
+        let k = edge_slope(net, e).unwrap_or(0.0);
         writeln!(w, "{e},{:x}", k.to_bits()).unwrap_or_else(|e| fail(e));
     }
     w.flush().unwrap_or_else(|e| fail(e));
@@ -354,11 +355,11 @@ fn dump_edges(pbf: &str) {
     // a directory: the network with its GTFS stops linked, as r5r builds it
     let net = if std::path::Path::new(pbf).is_dir() {
         cli::build_from_dir(cmd, pbf, &BuildOptions::default())
-            .map(|(net, _)| net)
             .unwrap_or_else(|e| runtime_error(cmd, e))
     } else {
         build_network(pbf, &BuildOptions::default()).unwrap_or_else(|e| runtime_error(cmd, e))
     };
+    let net = net.street();
     let out = std::io::stdout();
     let mut w = std::io::BufWriter::new(out.lock());
     let fail = |e: std::io::Error| -> ! { runtime_error(cmd, format!("cannot write output: {e}")) };
@@ -373,7 +374,7 @@ fn dump_edges(pbf: &str) {
     )
     .unwrap_or_else(|e| fail(e));
     for e in 0..net.n_edges() {
-        let d = edge(&net, e);
+        let d = edge(net, e);
         let f = d.flags;
         write!(
             w,
@@ -392,7 +393,7 @@ fn dump_edges(pbf: &str) {
             f64::from(d.to.0) / 1e7
         )
         .unwrap_or_else(|e| fail(e));
-        if let Some(k) = peabiru_core::unstable::edge_slope(&net, e) {
+        if let Some(k) = peabiru_core::unstable::edge_slope(net, e) {
             // the factor's bits, as R5's ElevationCostField.edgeFactors
             write!(w, ",{:x}", k.to_bits()).unwrap_or_else(|e| fail(e));
         }
@@ -466,8 +467,9 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     let mut opts = BuildOptions::default();
     opts.n_threads = n_threads;
     let net = if is_dir {
-        let (net, layer) =
-            cli::build_from_dir(cmd, pbf, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
+        let net = cli::build_from_dir(cmd, pbf, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
+        let empty = peabiru_core::TransitLayer::default();
+        let layer = net.transit().unwrap_or(&empty);
         eprintln!(
             "feeds {:?}  stops {} (linked {})  patterns {}  frequencies {}",
             layer.feed_ids(),
@@ -527,9 +529,9 @@ fn ttm(pbf: &str, points: &str, mode: &str, out: &str, n_threads: usize, repeats
     cli::write_file(cmd, out, csv);
     println!(
         "vertices {}  edges {}  restrictions {}  build {:.3}s  route {:.3}s (median of {})  pairs {}  reached {}",
-        net.n_vertices(),
-        net.n_edges(),
-        net.n_restrictions(),
+        net.street().n_vertices(),
+        net.street().n_edges(),
+        net.street().n_restrictions(),
         build_s,
         route_s,
         times.len(),

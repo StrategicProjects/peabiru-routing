@@ -4,7 +4,7 @@
 use crate::cli::{self, runtime_error, usage_error};
 use peabiru_core::{
     arrival_departure, arrival_travel_time_matrix, expanded_travel_time_matrix, BuildOptions,
-    ExpandedRow, TransitData, TransitParams,
+    ExpandedRow, TransitParams,
 };
 use std::io::Write;
 use std::time::Instant;
@@ -82,9 +82,9 @@ pub fn run(args: &[String]) {
     let t0 = Instant::now();
     let mut opts = BuildOptions::default();
     opts.n_threads = p.n_threads;
-    let (net, layer) =
-        cli::build_from_dir(cmd, dir, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
-    let data = TransitData::new(&net, &layer);
+    let net = cli::build_from_dir(cmd, dir, &opts).unwrap_or_else(|e| runtime_error(cmd, e));
+    let empty = peabiru_core::TransitLayer::default();
+    let layer = net.transit().unwrap_or(&empty);
     let build_s = t0.elapsed().as_secs_f64();
     let origins = &pts[..n_origins.min(pts.len())];
 
@@ -104,9 +104,9 @@ pub fn run(args: &[String]) {
     let mut n_rows = 0usize;
     for (b, batch) in origins.chunks(ORIGIN_BATCH).enumerate() {
         let res = if arrival {
-            arrival_travel_time_matrix(&net, &layer, &data, batch, &pts, &p)
+            arrival_travel_time_matrix(&net, batch, &pts, &p)
         } else {
-            expanded_travel_time_matrix(&net, &layer, &data, batch, &pts, &p)
+            expanded_travel_time_matrix(&net, batch, &pts, &p)
         };
         let rows = res.unwrap_or_else(|e| usage_error(cmd, e));
         for (k, origin_rows) in rows.origins().enumerate() {

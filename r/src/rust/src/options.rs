@@ -88,8 +88,7 @@ fn rs_trip_options(
     p.itineraries = itineraries;
     p.osm_link_ids = osm_link_ids;
     p.n_threads = n_threads.max(0) as usize;
-    let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
-    let res = match interruptible(&p.cancel, || trip_options(&n.net, transit, &o, &d, &p))? {
+    let res = match interruptible(&p.cancel, || trip_options(&n.net, &o, &d, &p))? {
         Outcome::Done(v) => v,
         Outcome::Stopped(cond) => return super::stopped(cond),
     };
