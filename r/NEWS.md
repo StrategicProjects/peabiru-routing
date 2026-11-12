@@ -53,6 +53,12 @@ The package now exports all 22 functions of r5r 2.5.0, with r5r's formals
 * Street edge lengths are computed with Apache Commons Math's `FastMath`, as
   R5 computes them.
 * Park-and-ride areas link to the street as R5 links them.
+* `detailed_itineraries()` follows rides along GTFS shapes cut by
+  `shape_dist_traveled` as R5 cuts them, and plans car egress through turn
+  restrictions with two or more via ways as r5r does on a freshly built
+  network, with a warning naming the pairs whose result in r5r depends on
+  what ran before (both were errors).
+* `write_fare_structure()` deflates the archive, as r5r's does.
 * The reference documentation describes each function on its own terms,
   with a "Compatibility with r5r" section; new articles on itineraries,
   elevation, scenarios and inspecting a network, and "Coming from r5r" lists

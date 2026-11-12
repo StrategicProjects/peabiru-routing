@@ -204,22 +204,23 @@ These are errors that say so, where r5r computes something:
 - r5r takes one of several `.pbf` files in its data directory; here there
   is one `pbf` by construction.
 
-<!-- diff:refuse-itinerary-cases -->
-- `detailedItineraries()`: the few pairs whose itinerary in r5r depends on
-  something peabiru does not reproduce are an error naming the pair
-  (`not supported: ...`) rather than a different itinerary: a car search
-  that crosses a turn restriction with two or more via ways in a way that
-  matters (R5 reverses those via edges in place, so r5r's result depends
-  on the searches that ran before), and a ride along a GTFS shape cut by
-  `shape_dist_traveled`. See
-  [Detailed itineraries](itineraries.md#pairs-that-are-refused).
+<!-- diff:car-egress-history -->
+- `detailedItineraries()` with `modeEgress: "CAR"`: where a car search
+  crosses a turn restriction with two or more via ways, r5r's itineraries
+  can depend on the searches that ran before (R5 reverses those via edges
+  in place); peabiru returns what r5r gives on a freshly built network for
+  that pair alone with one thread, with a warning (`onWarning`) naming the
+  pairs some other order would change. In r5r a car matrix, accessibility
+  or Pareto frontier computed after such a call could differ too (none did
+  on Porto Alegre); peabiru's are those of a fresh network. See
+  [Detailed itineraries](itineraries.md#car-egress-and-turn-restrictions).
 
 ### Output details
 
 <!-- diff:write-fare-zip -->
 - `writeFareStructure()` writes the same CSV files as r5r's
-  `write_fare_structure()`, stored uncompressed in a `.zip`, so the bytes
-  of the archive differ from r5r's (which also holds file dates); each
+  `write_fare_structure()`, deflated in the same order, but the bytes of
+  the archive differ from r5r's (which also holds file dates); each
   package reads the other's files. As in r5r 2.5.0, `debugPath` and
   `debugInfo` are kept in the structure and no debug file is written.
 

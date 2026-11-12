@@ -210,15 +210,17 @@ ignoring the request:
 - [`pareto_frontier()`][peabiru.pareto_frontier] with `output_dir` (r5r
   writes CSV files): `UnsupportedError`.
 
-<!-- diff:refuse-itinerary-cases -->
-- [`detailed_itineraries()`][peabiru.detailed_itineraries]: the few pairs
-  whose r5r result depends on paths peabiru does not reproduce are an error
-  (`ValueError`, starting with `not supported:`) naming the pair, rather than
-  a different itinerary: a car search backwards (`mode_egress="CAR"`) through
-  a turn restriction with two or more via ways, when the itineraries change
-  with the order R5 leaves those via edges in (see
-  [Detailed itineraries](itineraries.md#car-egress-and-turn-restrictions)),
-  and a ride along a GTFS shape cut by `shape_dist_traveled`.
+<!-- diff:car-egress-history -->
+- [`detailed_itineraries()`][peabiru.detailed_itineraries] with
+  `mode_egress="CAR"`: where a car search crosses a turn restriction with two
+  or more via ways, r5r's itineraries can depend on the searches that ran
+  before (R5 reverses those via edges in place); peabiru returns what r5r
+  gives on a freshly built network for that pair alone with one thread, with
+  a warning naming the pairs some other order would change (see
+  [Detailed itineraries](itineraries.md#car-egress-and-turn-restrictions)).
+  In r5r a car matrix, accessibility or Pareto frontier computed after such
+  a call could differ too (none did on Porto Alegre); peabiru's are those of
+  a fresh network.
 
 (The expanded and arrival matrices by a street mode alone, above, are also
 a refusal.)
@@ -227,7 +229,7 @@ a refusal.)
 
 <!-- diff:write-fare-zip -->
 - [`write_fare_structure()`][peabiru.write_fare_structure] writes the same
-  CSV files as r5r into an uncompressed `.zip`, so the archive's bytes
+  CSV files as r5r, deflated in the same order, but the archive's bytes
   differ from r5r's (which also holds file dates); each package reads the
   other's files. As in r5r 2.5.0, `debug_path` and `debug_info` are kept in
   the structure and no debug file is written.

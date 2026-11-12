@@ -34,6 +34,14 @@ routing and network functions (without r5r's functions for Java).
   there. Park-and-ride areas link to the street as in R5; edge lengths use
   Apache Commons Math's `FastMath`.
 - Argument errors have r5r's messages, word for word.
+- Itineraries: rides along GTFS shapes whose stop times and points carry
+  `shape_dist_traveled` are cut by those distances, as R5 cuts them (they
+  were refused). With car egress through a turn restriction with two or
+  more via ways, every pair gets what r5r gives on a freshly built network
+  for that pair alone, with one warning per call naming the pairs whose
+  result in r5r depends on the searches that ran before (they were
+  refused).
+- `write_fare_structure()` deflates the archive, as r5r's does.
 
 ### Rust crate and CLI
 
@@ -42,7 +50,9 @@ routing and network functions (without r5r's functions for Java).
   `detailed_itineraries`, `write_itineraries_csv`, `Scenario` and its parts,
   `FareStructure` with `setup_`/`read_`/`write_fare_structure`,
   `pareto_frontier`, `Elevation` and `build_from_bytes_with_elevation`;
-  `BuildOptions::ignore_gtfs_errors` and `BuildOptions::elevation`.
+  `BuildOptions::ignore_gtfs_errors` and `BuildOptions::elevation`;
+  `detailed_itineraries_noted` and `ItineraryNotes` (the pairs to warn
+  about).
 - CLI: `isochrone`, `itineraries`, `dump-elevation`, `sample-raster`,
   `crs-transform`; `dump-edges` accepts a directory; `PEABIRU_ELEVATION`,
   `PEABIRU_IGNORE_GTFS_ERRORS`, `PEABIRU_SCENARIO`.

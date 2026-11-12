@@ -134,20 +134,18 @@ up to `maxFare`, `Infinity` by default) and the rows get `total_fare` and
 {{#include ../examples/output/itineraries.txt:28:}}
 ```
 
-## Pairs that are refused
+## Car egress and turn restrictions
 
-A few pairs are an error naming the pair (`not supported: ...`) rather
-than an itinerary that could differ from r5r's:
-
-- with `modeEgress: "CAR"`, a car search that crosses a turn restriction
-  with two or more via ways in a way that matters. R5 reverses the via
-  edges of such restrictions in place each time its backward egress search
-  checks one, so what r5r returns for that pair depends on the searches
-  that ran before it (in the same call, on other threads, or in earlier
-  calls). peabiru plans the pair for every order those via edges can be
-  in: when the itineraries are the same in all of them they are returned
-  (they are r5r's whatever ran before), otherwise the call rejects;
-- a ride along a GTFS shape that the feed cuts with `shape_dist_traveled`.
+With `modeEgress: "CAR"`, R5 reverses the via edges of turn restrictions
+with two or more via ways in place each time its backward egress search
+checks one, so what r5r returns for a pair whose car searches cross such a
+restriction can depend on the searches that ran before it (in the same
+call, on other threads, or in earlier calls). peabiru returns, for every
+pair, what r5r gives on a freshly built network for that pair alone with
+one thread, and warns once per call (`onWarning`), naming the pairs whose
+itineraries some other order of those via edges would change (on Porto
+Alegre, about 1 pair in 200). Rides along GTFS shapes cut by
+`shape_dist_traveled` follow R5's cut.
 
 The trips for which R5's fastest-path search cannot rebuild a path (r5r
 then routes the pair again with McRAPTOR) are routed the same way here.

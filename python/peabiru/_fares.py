@@ -269,8 +269,8 @@ def write_fare_structure(fare_structure: FareStructure, file_path: PathArg) -> P
     **Compatibility with r5r.** The arguments and the CSV files are those of
     ``write_fare_structure()`` in r5r 2.5.0, byte for byte (in the format of
     ``data.table::fwrite()``), so r5r's ``read_fare_structure()`` reads the
-    file and this package reads r5r's. Difference: the archive stores the
-    files uncompressed and without r5r's file dates, so its own bytes
+    file and this package reads r5r's. Difference: the archive deflates the
+    files as r5r's does but without r5r's file dates, so its own bytes
     differ from r5r's.
 
     Examples

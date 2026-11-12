@@ -387,7 +387,7 @@ export declare function detailedItineraries(
 ): Promise<{ type: "FeatureCollection"; features: ItineraryFeature[] } | ItineraryRow[]>;
 ```
 
-The legs of the trips between pairs of origins and destinations: each walk, ride by bicycle or car and public transport ride, with its duration, wait, distance, route and line. Each pair gets its fastest itinerary over the departure window (the trip by the street mode alone, or by public transport, whichever is faster) or, with `shortestPath: false`, the alternatives found by R5's multi-criteria router (McRAPTOR). One row per leg, as a GeoJSON [`FeatureCollection`](#FeatureCollection) or, with `dropGeometry`, an array of rows; pairs without an itinerary have none. Every option is in [`DetailedItinerariesOptions`](#DetailedItinerariesOptions) and [`RoutingOptions`](#RoutingOptions). Public transport needs feeds with timetables: a network with frequency-based trips is an error. The few pairs whose itinerary depends on what peabiru does not reproduce (a car search through a turn restriction with two or more via ways, where the order of earlier searches matters; a ride along a shape cut by `shape_dist_traveled`) reject with an error naming the pair.
+The legs of the trips between pairs of origins and destinations: each walk, ride by bicycle or car and public transport ride, with its duration, wait, distance, route and line. Each pair gets its fastest itinerary over the departure window (the trip by the street mode alone, or by public transport, whichever is faster) or, with `shortestPath: false`, the alternatives found by R5's multi-criteria router (McRAPTOR). One row per leg, as a GeoJSON [`FeatureCollection`](#FeatureCollection) or, with `dropGeometry`, an array of rows; pairs without an itinerary have none. Every option is in [`DetailedItinerariesOptions`](#DetailedItinerariesOptions) and [`RoutingOptions`](#RoutingOptions). Public transport needs feeds with timetables: a network with frequency-based trips is an error. With `modeEgress: "CAR"`, a pair whose itinerary in r5r may depend on the searches that ran before (a car search through a turn restriction with two or more via ways) gets r5r's itinerary on a fresh network, with a warning.
 
 ```js
 const back = { id: [...points.id].reverse(), lon: [...points.lon].reverse(), lat: [...points.lat].reverse() };
@@ -552,7 +552,7 @@ Compatibility with r5r: `read_fare_structure()`, from the file's bytes rather th
 export declare function writeFareStructure(fareStructure: FareStructure): Uint8Array;
 ```
 
-The bytes of a fare structure `.zip` file: one CSV file for the global settings and one per table, stored uncompressed. Synchronous; needs the module loaded. Throws when the structure is not one.
+The bytes of a fare structure `.zip` file: one CSV file for the global settings and one per table, deflated as r5r's are. Synchronous; needs the module loaded. Throws when the structure is not one.
 
 ```js
 const bytes = peabiru.writeFareStructure(await peabiru.setupFareStructure(network, 4.4));
