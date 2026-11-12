@@ -73,6 +73,13 @@ dtype: object
   `overwrite` and `temp_dir` are accepted but have no effect. A network
   cannot be pickled: build it again in each process.
 - **`build_network()` takes `n_threads`** (threads used to read the `.pbf`).
+- **Where r5r's result depends on the machine, peabiru's does not.** In an
+  elevation raster that is not in EPSG:4326, r5r reads one pixel or the
+  other for a street point within nanometres of a pixel boundary, depending
+  on the last bits of the JVM's sines and cosines; peabiru reads the one
+  Java's `StrictMath` gives, on every machine, and warns with the number of
+  such points. Voids and values beyond +/-3276.7 m, which r5r stores
+  wrapped around in silence, are stored the same way, with a warning.
 - **`verbose` and `progress`** are checked as r5r checks them, but peabiru
   prints no progress counter; `verbose=True` only reports the build of the
   network (on standard error).
@@ -159,9 +166,7 @@ Each of these raises `peabiru.UnsupportedError` instead of being ignored:
   systems whose GeoTools transform peabiru reproduces (SIRGAS 2000, SAD69,
   Corrego Alegre and their UTM zones used in Brazil, SIRGAS 2000 / Brazil
   Polyconic, WGS 84 / UTM, Pseudo-Mercator); a `.prj` file next to the
-  raster; a street point of a projected raster within 5e-8 m of the
-  boundary between two pixels of different values (r5r's result there
-  depends on the machine); a raster named `.tiff` (r5r fails on it) and
+  raster; a raster named `.tiff` (r5r fails on it) and
   more than one raster in the data directory (r5r reads the last one
   listed);
 - expanded and arrival matrices by a street mode alone (r5r takes the

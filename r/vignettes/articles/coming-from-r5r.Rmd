@@ -121,6 +121,13 @@ reference outputs are only valid for the machine that produced them.
   `saveRDS()`: build it again in a new session, which is quick.
   `overwrite` and `temp_dir` are accepted and have no effect.
 - **`build_network()` has `n_threads`**, used to read the `.pbf` file.
+- **Where r5r's result depends on the machine, peabiru's does not.** In an
+  elevation raster that is not in EPSG:4326, r5r reads one pixel or the other
+  for a street point within nanometres of a pixel boundary, depending on the
+  last bits of the JVM's sines and cosines; peabiru reads the one Java's
+  `StrictMath` gives, on every machine, and warns with the number of such
+  points. Voids and values beyond +/-3276.7 m, which r5r stores wrapped
+  around in silence, are stored the same way, with a warning.
 - **`verbose` and `progress` are checked but print nothing.**
 - **Argument errors have r5r's messages**, word for word (checkmate's and
   cli's, without depending on either; `bench/compare/error_parity.R` checks
@@ -149,8 +156,7 @@ row, which goes the other way.
 | `carspeed_scale` above the 32-bit float range (r5r hands R5 `Infinity`) | error |
 | `carspeed_scale` of `NA`, `NaN` or a length other than 1, which r5r's check lets through and then fails on with an internal R error | an error of peabiru's own that says so |
 | An elevation raster other than a one-band GeoTIFF, uncompressed or compressed with LZW, Deflate or PackBits, in EPSG:4326 or a system whose GeoTools transform peabiru reproduces (SIRGAS 2000, SAD69, Corrego Alegre and their UTM zones used in Brazil, SIRGAS 2000 / Brazil Polyconic, WGS 84 / UTM, Pseudo-Mercator); a `.prj` file next to it | error |
-| A street point of a raster in another system within 5e-8 m of the boundary between two pixels of different values, or of the raster's edge (r5r reads one or the other depending on the machine) | error |
-| Voids and values beyond +/-3276.7 m (r5r stores them wrapped around, silently) | the same values, with a warning |
+| A street point that `StrictMath` puts on a projected raster's outer edge (inside its envelope, past the last pixel; r5r fails there too) | error |
 | An elevation raster named `.tiff`, or more than one raster in the data directory (r5r fails on the first and reads the last one listed of the second) | error |
 | More than one `.pbf` in the data directory | error |
 | Expanded and arrival matrices with a street mode alone | error |

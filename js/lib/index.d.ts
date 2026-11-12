@@ -79,11 +79,11 @@ export interface BuildNetworkInput {
    * longitude and latitude (EPSG:4326), SIRGAS 2000 (4674), SAD69 (4618),
    * Corrego Alegre (4225), their UTM zones used in Brazil, SIRGAS 2000 /
    * Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) or
-   * Pseudo-Mercator (3857); other rasters are an error, and so is a
-   * street point within 5e-8 m of the boundary between two pixels of
-   * different values in a projected raster (r5r's own result there
-   * depends on the machine). Voids and values beyond +/-3276.7 m wrap
-   * around as in r5r, with a warning. A raster also stops
+   * Pseudo-Mercator (3857); other rasters are an error. Where r5r's
+   * pixel depends on the machine (a point within nanometres of a pixel
+   * boundary in a raster not in EPSG:4326), peabiru reads the one Java's
+   * StrictMath gives, on every machine, with a warning. Voids and values
+   * beyond +/-3276.7 m wrap around as in r5r, with a warning. A raster also stops
    * `travelTimeMatrix()` from swapping origins and destinations for
    * walking, as in r5r.
    */

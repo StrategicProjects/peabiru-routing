@@ -180,6 +180,9 @@ impl StreetNetwork {
     /// and a no-data value of -9999, which becomes 3108.2 m) or equal to
     /// the raster's declared no-data value. peabiru stores them as r5r
     /// does, so the slope costs are r5r's; r5r says nothing about them.
+    /// And, in a raster not in EPSG:4326, the samples within nanometres of
+    /// a boundary between pixels of different values, where r5r's pixel
+    /// depends on the machine and peabiru reads `StrictMath`'s.
     /// The core never prints them; the packages turn them into warnings.
     pub fn elevation_warnings(&self) -> &[String] {
         &self.elevation_warnings

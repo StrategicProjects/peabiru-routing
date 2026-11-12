@@ -1555,6 +1555,52 @@ mod tests {
         assert_eq!(Raster::parse(&tiny(3, 3, &[])).map(|r| r.nodata), Ok(None));
     }
 
+    #[test]
+    fn near_a_pixel_boundary_strictmath_decides_and_the_sample_is_counted() {
+        // tiny(5, 4) in SIRGAS 2000: pixels 0.001 degrees wide from -46.65
+        let b = with_keys(&[(1024, 2), (2048, 4674)]);
+        let c = crs::lookup(4674).unwrap();
+        let lat = -23.5215;
+        // the WGS 84 longitude that SIRGAS 2000 puts on the boundary between
+        // columns 1 and 2 (Newton steps; the transform is nearly the identity)
+        let target = -46.65 + 2.0 * 0.001;
+        let mut lon = target;
+        for _ in 0..4 {
+            lon += target - c.apply(lon, lat).0;
+        }
+        let near = |d: f64| crate::elevation::read_points(&b, &[(lon + d, lat)]).unwrap();
+        // on the boundary: read as StrictMath's point falls, and flagged
+        let on = near(0.0);
+        let [Ok((v, true))] = on[..] else {
+            panic!("{on:?}")
+        };
+        assert!(v == 6.0 || v == 7.0, "{v}");
+        // a micrometre away it is not ambiguous
+        assert!(
+            matches!(near(1e-11)[..], [Ok((7.0, false))]),
+            "{:?}",
+            near(1e-11)
+        );
+        assert!(
+            matches!(near(-1e-11)[..], [Ok((6.0, false))]),
+            "{:?}",
+            near(-1e-11)
+        );
+    }
+
+    #[test]
+    fn strictmath_on_the_outer_edge_is_still_an_error() {
+        // in WGS 84, the envelope's east edge itself is inside the envelope
+        // but rounds past the last pixel: GeoTools throws, r5r fails
+        let b = tiny(5, 4, &[]);
+        let east = (5.0 - 0.5) * 0.001 + (-46.65 + 0.5 * 0.001);
+        let r = crate::elevation::read_points(&b, &[(east, -23.5215)]).unwrap();
+        assert!(
+            matches!(&r[..], [Err(e)] if e.contains("outer edge")),
+            "{r:?}"
+        );
+    }
+
     /// splitmix64
     fn next(state: &mut u64) -> u64 {
         *state = state.wrapping_add(0x9e37_79b9_7f4a_7c15);

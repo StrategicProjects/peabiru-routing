@@ -296,7 +296,9 @@ fn sample_raster(tif: &str, points: &str, out: &str) {
     let mut csv = String::new();
     for v in values {
         match v {
-            Ok(x) => csv.push_str(&format!("{:x}\n", x.to_bits())),
+            Ok((x, false)) => csv.push_str(&format!("{:x}\n", x.to_bits())),
+            // within nanometres of a pixel boundary: r5r's value depends on the machine
+            Ok((x, true)) => csv.push_str(&format!("{:x} AMBIGUOUS\n", x.to_bits())),
             Err(_) => csv.push_str("ERR\n"),
         }
     }

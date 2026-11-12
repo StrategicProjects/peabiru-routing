@@ -240,14 +240,19 @@ pub mod unstable {
         crate::elevation::samples_of(net, raster).map(|s| (s.vertex_dm, s.profile_dm))
     }
 
+    /// A sample of [`raster_samples`]: the value read and whether the point
+    /// is ambiguous (within nanometres of a pixel boundary, where r5r's
+    /// pixel depends on the machine), or why R5 fails there.
+    pub type RasterSample = Result<(f64, bool), String>;
+
     /// R5's `RasterDataSourceSampler.readElevation` on a GeoTIFF raster, for
     /// each `(lon, lat)`: the value of the nearest pixel, 0 outside the
-    /// raster, or why R5 (or this reader) fails there. An error for a
-    /// raster that cannot be read.
+    /// raster (as Java's StrictMath places the point), or why R5 (or this
+    /// reader) fails there. An error for a raster that cannot be read.
     pub fn raster_samples(
         raster: &[u8],
         points: &[(f64, f64)],
-    ) -> Result<Vec<Result<f64, String>>, String> {
+    ) -> Result<Vec<RasterSample>, String> {
         crate::elevation::read_points(raster, points)
     }
 

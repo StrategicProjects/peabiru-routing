@@ -128,13 +128,19 @@ def build_network(
     error that says what to change, and so are a ``.prj`` file next to it
     (r5r would use its system instead), a raster whose name ends in
     ``.tiff`` (r5r fails to read it) and more than one raster (r5r reads the
-    last one the file system lists). In a system other than EPSG:4326, a
-    street point that falls within 5e-8 m (or 2e-13 degrees) of the boundary
-    between two pixels of different values, or of the raster's edge, is an
-    error: r5r reads one or the other depending on the machine it runs on
-    (the last bits of Java's sines and cosines), so peabiru does not guess
-    (reprojecting the raster to EPSG:4326 avoids it; it is rare, about one
-    point in a hundred million for 30 m pixels). Voids and values beyond +/-3276.7 m are
+    last one the file system lists).
+    In a system other than EPSG:4326, r5r's own result depends on the
+    machine it runs on for a street point within nanometres (5e-8 m, or
+    2e-13 degrees) of the boundary between two pixels of different values,
+    or of the raster's edge: the last bits of Java's sines and cosines
+    decide which pixel it reads. peabiru reads the pixel Java's
+    ``StrictMath`` gives, the same on every machine, and warns once
+    (``UserWarning``) with the number of such points (about one in a hundred
+    million for 30 m pixels; reprojecting the raster to EPSG:4326 removes
+    the ambiguity). A point that ``StrictMath`` itself puts on the raster's
+    outer edge (inside its envelope, past the last pixel) remains an error,
+    since there r5r fails on every machine and there is no pixel to read.
+    Voids and values beyond +/-3276.7 m are
     stored wrapped around as r5r stores them (R5 keeps decimetres in 16-bit
     integers: SRTM's -32768 voids become 0 m, -9999 becomes 3108.2 m), so
     the slope costs are r5r's, with a warning (``UserWarning``) that r5r

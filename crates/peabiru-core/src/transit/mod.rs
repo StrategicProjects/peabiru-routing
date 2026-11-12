@@ -218,11 +218,14 @@ pub fn build_from_bytes(
 /// Alegre 1970-72 (4225), their UTM zones used in Brazil, SIRGAS 2000 /
 /// Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) and WGS 84 /
 /// Pseudo-Mercator (3857). Other rasters are an error that says what to
-/// change. In a system other than EPSG:4326, a sample that falls within a
-/// few hundredths of a micrometre of the boundary between two pixels with
-/// different values (or of the raster's edge) is an error: r5r reads one
-/// or the other depending on the machine it runs on (see
-/// [`NetworkError`]).
+/// change. In a system other than EPSG:4326, r5r reads one pixel or the
+/// other for a sample within nanometres of the boundary between two pixels
+/// of different values (or of the raster's edge), depending on the machine
+/// it runs on; peabiru reads the one Java's `StrictMath` gives, on every
+/// machine, and counts such samples in
+/// [`StreetNetwork::elevation_warnings`](crate::StreetNetwork::elevation_warnings).
+/// A sample that `StrictMath` itself puts on the outer edge (inside the
+/// envelope, past the last pixel) is an error, as it is in r5r.
 pub fn build_from_bytes_with_elevation(
     pbf: &[u8],
     feeds: &[(&str, &[u8])],

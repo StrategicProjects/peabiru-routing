@@ -116,18 +116,22 @@ pub(crate) struct Samples {
 
 /// `RasterDataSourceSampler.readElevation`: the raster value at the pixel
 /// nearest `(lon, lat)` once in the raster's coordinate reference system,
-/// 0 outside the raster.
-fn read_elevation(r: &Raster<'_>, lon: f64, lat: f64) -> ElevResult<f64> {
+/// 0 outside the raster. A sample where r5r's own result depends on the
+/// machine (see below) is read as Java's `StrictMath` reads it and counted
+/// in `s.ambiguous`.
+fn read_elevation(r: &Raster<'_>, lon: f64, lat: f64, s: &mut Suspect) -> ElevResult<f64> {
     let (x, y) = r.crs.apply(lon, lat);
-    let edge = || {
-        format!(
-            "the point ({lon}, {lat}) lies on the outer edge of the raster, where GeoTools \
-             finds no pixel and r5r fails to build the network; extend the raster by a pixel"
-        )
-    };
     let m = match read_at(r, x, y) {
         Ok(m) => m,
-        Err(None) => return Err(edge()),
+        // StrictMath's own point is inside the envelope but past the last
+        // pixel: GeoTools throws there and r5r fails, even on a JVM whose
+        // sines are StrictMath's; there is no pixel to read
+        Err(None) => {
+            return Err(format!(
+                "the point ({lon}, {lat}) lies on the outer edge of the raster, where GeoTools \
+                 finds no pixel and r5r fails to build the network; extend the raster by a pixel"
+            ))
+        }
         Err(Some(e)) => return Err(e),
     };
     if let Some(margin) = r.crs.margin() {
@@ -137,8 +141,9 @@ fn read_elevation(r: &Raster<'_>, lon: f64, lat: f64) -> ElevResult<f64> {
         // fall in are those at the corners of a square of side `2 margin`
         // (much smaller than a pixel): if they all give the elevation R5
         // stores (in decimetres), the answer is the same on every machine.
-        // Near the envelope's edge R5 may also fail, on the sliver past the
-        // last pixel: always ambiguous.
+        // Near the envelope's edge r5r elsewhere may also read 0 m outside
+        // or fail on the sliver past the last pixel: always ambiguous.
+        // peabiru keeps StrictMath's pixel, the same on every machine.
         let near = r.georef.near_boundary(x, y, margin);
         if near != Near::No {
             let dm = |m: f64| java_round(m * 10.0) as i16;
@@ -148,16 +153,7 @@ fn read_elevation(r: &Raster<'_>, lon: f64, lat: f64) -> ElevResult<f64> {
                     read_at(r, x + sx * margin, y + sy * margin).is_ok_and(|c| dm(c) == dm(m))
                 });
             if !same {
-                return Err(format!(
-                    "the point ({lon}, {lat}) falls within {margin:e} {} of the boundary between \
-                     two pixels of the raster with different elevations (or of its edge) once \
-                     in {}: r5r reads one or the other depending on the machine it runs on (the \
-                     last bits of Java's sines and cosines), so peabiru does not guess; \
-                     reproject the raster to EPSG:4326 (gdalwarp -t_srs EPSG:4326), which needs \
-                     no transform, or shift it by a fraction of a pixel",
-                    r.crs.unit(),
-                    r.crs.label()
-                ));
+                s.ambiguous += 1;
             }
         }
     }
@@ -183,12 +179,17 @@ pub(crate) struct Suspect {
     pub(crate) wrapped: usize,
     /// Equal to the raster's declared no-data value.
     pub(crate) nodata: usize,
+    /// Within nanometres of a boundary between pixels of different values
+    /// (or of the raster's edge), where r5r reads one or the other
+    /// depending on the machine it runs on.
+    pub(crate) ambiguous: usize,
 }
 
 impl Suspect {
     fn add(&mut self, o: Suspect) {
         self.wrapped += o.wrapped;
         self.nodata += o.nodata;
+        self.ambiguous += o.ambiguous;
     }
 }
 
@@ -238,7 +239,7 @@ fn sample_pair(
                 let frac = to_next / length;
                 cur_lon += dx * frac;
                 cur_lat += dy * frac;
-                let m = read_elevation(r, cur_lon, cur_lat)?;
+                let m = read_elevation(r, cur_lon, cur_lat, s)?;
                 out.push(to_dm(m, r.nodata, s));
                 remaining -= to_next;
                 to_next = SPACING_M;
@@ -270,7 +271,8 @@ pub(crate) fn sample(
             .map(|v| {
                 let lon = f64::from(net.v_lon[v]) / FIXED;
                 let lat = f64::from(net.v_lat[v]) / FIXED;
-                Ok(to_dm(read_elevation(r, lon, lat)?, r.nodata, &mut s))
+                let m = read_elevation(r, lon, lat, &mut s)?;
+                Ok(to_dm(m, r.nodata, &mut s))
             })
             .collect::<ElevResult<Vec<i16>>>()?;
         Ok((v, s))
@@ -307,11 +309,11 @@ pub(crate) fn sample(
     ))
 }
 
-/// The warning for the suspect samples of a raster (`None` without any).
-fn suspect_warning(s: Suspect, n: usize, nodata: Option<f64>) -> Option<String> {
-    if s.wrapped == 0 && s.nodata == 0 {
-        return None;
-    }
+/// The warnings for the suspect samples of a raster: one about the
+/// values (wrapped, no-data), one about the samples whose pixel depends
+/// on the machine; none without any.
+fn suspect_warnings(s: Suspect, n: usize, nodata: Option<f64>, crs: &str) -> Vec<String> {
+    let mut out = Vec::new();
     let mut parts = Vec::new();
     if s.wrapped > 0 {
         parts.push(format!(
@@ -333,11 +335,25 @@ fn suspect_warning(s: Suspect, n: usize, nodata: Option<f64>) -> Option<String> 
             }
         ));
     }
-    Some(format!(
-        "of the {n} elevation samples on the network, {}; the slope costs are r5r's, but \
-         probably not what you want there: fill the voids or crop the raster",
-        parts.join(", and ")
-    ))
+    if !parts.is_empty() {
+        out.push(format!(
+            "of the {n} elevation samples on the network, {}; the slope costs are r5r's, but \
+             probably not what you want there: fill the voids or crop the raster",
+            parts.join(", and ")
+        ));
+    }
+    if s.ambiguous > 0 {
+        out.push(format!(
+            "{} of the {n} elevation samples on the network lie within nanometres of a \
+             boundary between pixels of different values (or of the raster's edge) once in \
+             {crs}: r5r reads one pixel or the other there depending on the machine it runs on \
+             (the last bits of Java's sines and cosines); peabiru reads the one Java's \
+             StrictMath gives, on every machine. Reprojecting the raster to EPSG:4326 \
+             (gdalwarp -t_srs EPSG:4326) removes the ambiguity",
+            s.ambiguous
+        ));
+    }
+    out
 }
 
 /// `ToblerCalculator.tobler`.
@@ -419,20 +435,25 @@ pub(crate) fn apply(
     let n = s.vertex_dm.len() + s.profile_dm.iter().map(Vec::len).sum::<usize>();
     net.edge_slope = edge_factors(net, &s, model);
     net.elevation = model;
-    net.elevation_warnings = suspect_warning(suspect, n, r.nodata).into_iter().collect();
+    net.elevation_warnings = suspect_warnings(suspect, n, r.nodata, &r.crs.label());
     net.forget_kept();
     Ok(())
 }
 
-/// [`read_elevation`] at each point of `points`, for comparing with R5's.
+/// [`read_elevation`] at each point of `points`, for comparing with R5's:
+/// the value and whether the point is ambiguous (its pixel depends on the
+/// machine r5r runs on).
 pub(crate) fn read_points(
     raster: &[u8],
     points: &[(f64, f64)],
-) -> ElevResult<Vec<ElevResult<f64>>> {
+) -> ElevResult<Vec<ElevResult<(f64, bool)>>> {
     let r = Raster::parse(raster)?;
     Ok(points
         .iter()
-        .map(|&(lon, lat)| read_elevation(&r, lon, lat))
+        .map(|&(lon, lat)| {
+            let mut s = Suspect::default();
+            read_elevation(&r, lon, lat, &mut s).map(|m| (m, s.ambiguous > 0))
+        })
         .collect())
 }
 
@@ -480,13 +501,31 @@ mod tests {
             s,
             Suspect {
                 wrapped: 4,
-                nodata: 2
+                nodata: 2,
+                ambiguous: 0
             }
         );
-        let w = suspect_warning(s, 100, Some(0.0)).unwrap();
-        assert!(w.starts_with("of the 100 elevation samples on the network, 4 with a value"));
-        assert!(w.contains("and 2 equal to the raster's no-data value (0)"));
-        assert_eq!(suspect_warning(Suspect::default(), 100, None), None);
+        let w = suspect_warnings(s, 100, Some(0.0), "EPSG:4326 (WGS 84)");
+        assert_eq!(w.len(), 1);
+        assert!(w[0].starts_with("of the 100 elevation samples on the network, 4 with a value"));
+        assert!(w[0].contains("and 2 equal to the raster's no-data value (0)"));
+        assert!(suspect_warnings(Suspect::default(), 100, None, "").is_empty());
+        let a = Suspect {
+            ambiguous: 3,
+            ..Suspect::default()
+        };
+        let w = suspect_warnings(a, 100, None, "EPSG:31982 (SIRGAS 2000 / UTM zone 22S)");
+        assert_eq!(w.len(), 1);
+        assert!(w[0].starts_with("3 of the 100 elevation samples on the network lie within"));
+        assert!(w[0].contains("once in EPSG:31982 (SIRGAS 2000 / UTM zone 22S): r5r reads"));
+        assert!(w[0].contains("StrictMath"));
+        // both kinds: two warnings
+        let both = Suspect {
+            wrapped: 1,
+            nodata: 0,
+            ambiguous: 1,
+        };
+        assert_eq!(suspect_warnings(both, 100, None, "x").len(), 2);
     }
 
     #[test]

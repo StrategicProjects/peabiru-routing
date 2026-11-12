@@ -30,8 +30,9 @@
 //! such a difference only matters when a point falls within a few
 //! nanometres of the boundary between two pixels or of the raster's edge.
 //! [`Crs::margin`] bounds how far GeoTools' point may be from
-//! [`Crs::apply`]'s, and the sampler turns a point that close to a
-//! boundary between different values into an error rather than guess.
+//! [`Crs::apply`]'s; the sampler reads the pixel `StrictMath` gives (the
+//! same on every machine) and counts the samples that close to a boundary
+//! between different values, for a warning.
 //!
 //! The table of systems ([`lookup`]) is the subset of the EPSG registry
 //! that GeoTools' database gives for Brazilian and world-wide data, with
@@ -462,18 +463,11 @@ impl Crs {
         }
     }
 
-    /// The unit of the system's coordinates, for messages.
-    pub(crate) fn unit(&self) -> &'static str {
-        if self.projection.is_some() {
-            "m"
-        } else {
-            "degrees"
-        }
-    }
-
     /// How far GeoTools' result may be from [`Crs::apply`]'s on some JVM
     /// (see the module notes), in the system's units; `None` for WGS 84
-    /// longitude and latitude, where nothing is computed.
+    /// longitude and latitude, where nothing is computed. A sample this
+    /// close to a boundary between pixels of different values is read as
+    /// `StrictMath` reads it and counted for the build's warning.
     pub(crate) fn margin(&self) -> Option<f64> {
         match (self.datum, self.projection) {
             (Datum::Wgs84, None) => None,
