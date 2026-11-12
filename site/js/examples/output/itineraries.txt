@@ -1,0 +1,34 @@
+FeatureCollection 7 legs
+from_id              to_id                option  departure_time  total_duration  segment  mode  segment_duration  wait  distance  route
+public_market        santa_casa_hospital  1       14:00:00        13.1            1        WALK  13.1              0     792
+bus_central_station  townhall             1       14:06:00        10.9            1        WALK  3.6               0     206
+bus_central_station  townhall             1       14:06:00        10.9            2        BUS   4                 1.4   1475      2441
+bus_central_station  townhall             1       14:06:00        10.9            3        WALK  1.9               0     111
+gasometer_museum     piratini_palace      1       14:01:00        12.6            1        WALK  4.1               0     224
+gasometer_museum     piratini_palace      1       14:01:00        12.6            2        BUS   4.1               1.6   1001      C1
+gasometer_museum     piratini_palace      1       14:01:00        12.6            3        WALK  2.8               0     168
+LineString 31 points, from [ -51.21991736742854, -30.02369764232731 ]
+option 1: 14:00:00, 23.4 min, WALK
+option 2: 14:04:18, 10.8 min, WALK > BUS 255 > WALK
+option 3: 14:05:51, 11 min, WALK > BUS 2441 > WALK
+option 4: 14:02:02, 12 min, WALK > BUS 346 > WALK
+option 5: 14:09:26, 12.2 min, WALK > BUS 2821 > WALK
+option 6: 14:00:43, 13.1 min, WALK > BUS 397 > WALK
+option 7: 14:06:46, 13.5 min, WALK > BUS 525 > WALK
+with suboptimalMinutes: 3, 14 options
+from_id              to_id                mode     total_duration  total_distance
+public_market        santa_casa_hospital  BICYCLE  6.6             752
+public_market        townhall             BICYCLE  1.3             185
+public_market        piratini_palace      BICYCLE  7.5             1118
+bus_central_station  santa_casa_hospital  BICYCLE  16.8            1220
+bus_central_station  townhall             BICYCLE  23.1            1510
+bus_central_station  piratini_palace      BICYCLE  24.1            2602
+OpenStreetMap ways: [237136949, 244633510, 362303079, 244757080, 244633514, 477174192, 326309693, 130584734, 287533432, 451653170, 451653568, 37779162, 412174594, 318074943, 208354790]
+street edges: [28012, 29003, 29001, 39926, 29188, 29008, 29010, 29012, 49702, 49704, 34557, 13363, 31964, 46208, 46944, 8715, 40935, 33846, 33848, 18324]
+option 1: 23.4 min, fare 0 (WALK; paid after each leg: 0)
+option 2: 10.8 min, fare 4.8 (WALK > BUS 255 > WALK; paid after each leg: 0, 4.8, 4.8)
+option 3: 11 min, fare 4.8 (WALK > BUS 2441 > WALK; paid after each leg: 0, 4.8, 4.8)
+option 4: 12 min, fare 4.8 (WALK > BUS 346 > WALK; paid after each leg: 0, 4.8, 4.8)
+option 5: 12.2 min, fare 4.8 (WALK > BUS 2821 > WALK; paid after each leg: 0, 4.8, 4.8)
+option 6: 13.1 min, fare 4.8 (WALK > BUS 397 > WALK; paid after each leg: 0, 4.8, 4.8)
+option 7: 13.5 min, fare 4.8 (WALK > BUS 525 > WALK; paid after each leg: 0, 4.8, 4.8)
