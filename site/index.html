@@ -183,6 +183,43 @@
       <span class="ex"><a href="r/articles/recife-caruaru.html">R</a> · <a href="python/example-recife-caruaru/">Python</a> · <a href="demo/">demo</a></span></figcaption>
     </figure>
   </div>
+  <h3 id="gallery-terrain">Terrain, and more of Pernambuco</h3>
+  <p>What slopes change on foot and by bicycle: the Recife metropolitan region as one network of 3.7
+  million people, five more municipalities of Pernambuco, and two cities of hills, Salvador and
+  Olinda. The Copernicus elevation model is checked against the ground first: at 30 m it reads the
+  roofs, which costs a flat district of towers a minute of walking that is not there, so the
+  results use its 90 m version and are on the low side. Streets only: no open GTFS feed was found
+  for Recife or Salvador.</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/terrain.html#cities-of-hills-salvador-and-olinda"><img src="assets/figures/terrain-iso-salvador.svg" width="576" height="619" loading="lazy" alt="Four maps of central Salvador with the areas reached from the Praça Municipal within 10, 20 and 30 minutes on foot and by bicycle, flat on the left and with the slopes on the right, where the 30-minute area is 16% smaller on foot and 19% by bicycle."></a>
+      <figcaption><strong>Salvador's escarpment.</strong> With the slopes, the area reached in 30
+      minutes from the Praça Municipal shrinks by 16% on foot and 19% by bicycle.
+      <span class="ex"><a href="r/articles/terrain.html#cities-of-hills-salvador-and-olinda">R</a> · <a href="python/example-terrain/#isochrones-from-the-centre">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/terrain.html#six-municipalities-flat-and-with-slopes"><img src="assets/figures/terrain-pe-shares.svg" width="576" height="403" loading="lazy" alt="Dot plots of the share of residents within 15 minutes of the nearest public school and health unit, walking and cycling, flat and with slopes, for six municipalities of Pernambuco: on foot each loses up to 4 percentage points."></a>
+      <figcaption><strong>Where hills cost the most.</strong> Within 15 minutes' walk of a health
+      unit, Jaboatão loses 3 points with the slopes, Recife 2, Petrolina 1.
+      <span class="ex"><a href="r/articles/terrain.html#six-municipalities-flat-and-with-slopes">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/terrain.html#the-metropolitan-region-as-one-network"><img src="assets/figures/terrain-rmr-penalty.svg" width="576" height="619" loading="lazy" alt="A map of Recife and its neighbours covered by hexagons coloured by the minutes slopes add to the walk to the nearest health unit: nothing on the coastal plain, 2 to 6 minutes on the hills of the north and the west."></a>
+      <figcaption><strong>Minutes the slopes add.</strong> On foot to the nearest health unit, across
+      the metropolitan region: 8% of its residents lose 2 minutes or more, on the hills.
+      <span class="ex"><a href="r/articles/terrain.html#the-metropolitan-region-as-one-network">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/terrain.html#the-metropolitan-region-as-one-network"><img src="assets/figures/terrain-rmr-border.svg" width="576" height="374" loading="lazy" alt="Bars, one per municipality of the Recife metropolitan region, of the share of residents whose nearest school or health unit on foot is in another municipality: 12% and 9% in Paulista, close to zero in the outer municipalities."></a>
+      <figcaption><strong>Across the border.</strong> For 148 thousand residents of the region (4%)
+      the nearest health unit on foot is in another municipality.
+      <span class="ex"><a href="r/articles/terrain.html#the-metropolitan-region-as-one-network">R</a></span></figcaption>
+    </figure>
+  </div>
+  <p class="muted">Terrain: drawn by <code>site/figures/terrain.R</code>. Elevation: Copernicus DEM
+  GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under
+  COPERNICUS by the European Union and ESA; Salvador's population: IBGE, Censo 2022, tracts of
+  Bahia; the other sources are those of Recife and Caruaru.</p>
   <p class="muted">The figures are drawn by <code>site/figures/figures.R</code> and
   <code>site/figures/pernambuco.R</code> from the results of the R package; the examples in the
   other languages print the same numbers. Map data © OpenStreetMap contributors (ODbL); GTFS:

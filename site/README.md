@@ -153,6 +153,30 @@ The examples:
 - Rust: `site/rust/src/isochrones.md`, with
   `crates/peabiru-core/examples/isochrone.rs`.
 
+### Terrain, and more of Pernambuco
+
+`bash site/figures/make.sh --terrain` runs `site/figures/terrain.R` (about
+ten minutes): slope costs from an elevation raster in Pernambuco (the Região Metropolitana do
+Recife as one network, Recife, Olinda, Jaboatão dos Guararapes, Caruaru,
+Garanhuns, Petrolina) and in two cities of hills (Salvador, Olinda). It
+reuses `pernambuco-data.R` (`prepare_city()` for the new cities, which adds
+the census tracts of Bahia and CNES rows by state, about 120 MB more, and
+`prepare_dem()`, which cuts the Copernicus DEM over each city straight
+from its tiles on AWS with GDAL: GLO-90 into `<city>/network-dem90/`, used
+for every figure, and GLO-30 into `<city>/network-dem/`, used only to show
+what its roofs cost (`tr_dem_sensitivity`), each next to a link to the
+street extract; `<city>/network/` stays the network without elevation) and the helpers of `pernambuco.R` (sourced, nothing runs). It
+draws `terrain-*.svg`, prints the checks of the elevation model
+(`tr_dem_check`, `tr_dem_sensitivity`) and the size of the metropolitan
+network (`tr_rmr_size`),
+and knits `r/vignettes/articles/terrain.Rmd` from its `.Rmd.orig`, which
+sources `pernambuco-data.R` (from GitHub by default; `PEABIRU_PE_SCRIPT`
+points it at the local file). The Python page
+`python/docs/example-terrain.md` repeats the cities of hills; it needs
+osmium, `gdalwarp` and `PEABIRU_EXAMPLE_DATA`. Nothing is added to the demo:
+the metropolitan region does not fit in 3 MB (8.9 MB stripped as the demo's
+extracts are).
+
 The pages refer to the figures at `../assets/figures/` (raw HTML `<img>` in
 the MkDocs pages, so that `mkdocs build --strict` does not look for them in
 `python/docs/`); `site/check_links.py` checks them in `_site/`.
