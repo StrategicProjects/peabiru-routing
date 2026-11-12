@@ -8,8 +8,10 @@
 
 Multimodal routing on [OpenStreetMap](https://www.openstreetmap.org) street
 networks and [GTFS](https://gtfs.org) public transport: travel-time
-matrices, accessibility, and minute-by-minute (expanded) and arrival-time
-matrices, by walking, cycling, driving and public transport.
+matrices, accessibility, minute-by-minute (expanded) and arrival-time
+matrices, isochrones, detailed itineraries and transit fares, by walking,
+cycling, driving and public transport, with slope costs from an elevation
+raster and scenarios of car speeds and traffic stress.
 
 The routing engine is written in Rust and runs inside the Python process:
 no Java is needed, the network is built once in memory and reused by every
@@ -53,11 +55,16 @@ access = peabiru.accessibility(
 | `accessibility(...)` | cumulative or decay-weighted access to opportunities |
 | `expanded_travel_time_matrix(...)` | travel times minute by minute, with a breakdown of each trip |
 | `arrival_travel_time_matrix(...)` | the latest trip that arrives by a given time |
+| `isochrone(...)` | the areas or street segments reached within each cutoff |
+| `detailed_itineraries(...)` | the legs of each trip, with their lines |
+| `setup_fare_structure(...)`, `pareto_frontier(...)` | transit fares, and the trade-off between travel time and fare |
+| `find_snap(...)`, `street_network_to_sf(...)`, `get_gtfs_errors(...)`, ... | where points snap, the streets, stops and routes of a network, the errors of its GTFS feeds |
 
 Points are `pandas.DataFrame`s with `id`, `lon` and `lat` (or, with
 geopandas installed, a `GeoDataFrame` of points in EPSG:4326); results are
-`pandas.DataFrame`s in long format. What peabiru does not support
-yet (R5's own fare calculators, ...) raises `peabiru.UnsupportedError`; nothing is silently
+`pandas.DataFrame`s in long format (`GeoDataFrame`s for geometries). A
+request peabiru cannot honour exactly (R5's own fare calculators, expanded
+matrices by a street mode alone, ...) is an error; nothing is silently
 ignored.
 
 ## Install

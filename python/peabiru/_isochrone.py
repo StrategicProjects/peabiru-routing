@@ -76,7 +76,7 @@ def isochrone(
     draws_per_minute: Number = 5,
     seed: Optional[Number] = None,
     percentiles: Optional[Union[int, Sequence[int]]] = None,
-    n_threads: Optional[Number] = None,
+    n_threads: Optional[Number] = math.inf,
     verbose: bool = False,
     progress: bool = True,
     sample_size: Any = _UNSET,
@@ -87,31 +87,24 @@ def isochrone(
     (``polygon_output=False``) reached from each origin within each cutoff,
     by one street mode (``"WALK"``, ``"BICYCLE"`` or ``"CAR"``) or by
     public transport (see [`travel_time_matrix()`][peabiru.travel_time_matrix]).
-    Arguments and defaults are those of ``r5r::isochrone()`` (r5r 2.5.0).
 
-    Polygon isochrones are made as r5r makes them: travel times from each
-    origin to the centres of a regular grid of Web Mercator pixels covering
-    the network (see ``zoom``; these are R5's travel times exactly), then
-    the band from 0 to each cutoff traced over the grid by marching squares
-    and grouped into polygons with holes, as the R package isoband does for
-    r5r (vertex for vertex). r5r then passes the polygons to
-    ``sf::st_make_valid()``, which rebuilds them with the s2 library
-    (snapping vertices to 1e-7 degrees, re-orienting rings, turning a single
-    polygon into a ``POLYGON``); peabiru does not reproduce that step: the
-    geometries are isoband's ``MultiPolygon`` (shells as traced, holes
-    reversed), which cover the same area. Pass them to
+    Polygon isochrones are made from travel times from each origin to the
+    centres of a regular grid of Web Mercator pixels covering the network
+    (see ``zoom``): the band from 0 to each cutoff is traced over the grid
+    by marching squares and grouped into polygons with holes, as the R
+    package isoband does (a port of it, vertex for vertex). The geometries
+    are ``MultiPolygon``s (shells as traced, holes reversed); pass them to
     ``shapely.make_valid()`` if your tools need valid geometries (rings of
     one polygon may touch at a vertex).
 
     Line isochrones are the travel times from each origin to the centroid
-    of every street segment (r5r routes to ``sf::st_centroid()`` of each
-    edge of ``street_network_to_sf()``; peabiru's centroids agree to within
-    about 1e-14 degrees), each segment in the band of the smallest cutoff at
-    or above its travel time.
+    of every street segment of
+    [`street_network_to_sf()`][peabiru.street_network_to_sf], each segment
+    in the band of the smallest cutoff at or above its travel time.
 
-    As in r5r, ``max_trip_duration`` is ignored: the trip limit is the
-    largest cutoff (plus 10 minutes for polygons, so that the outer band is
-    interpolated like the inner ones).
+    ``max_trip_duration`` is ignored: the trip limit is the largest cutoff
+    (plus 10 minutes for polygons, so that the outer band is interpolated
+    like the inner ones).
 
     Needs geopandas
     (``pip install 'peabiru[geo]'``).
@@ -158,7 +151,7 @@ def isochrone(
     max_car_time : int or float, default math.inf
         The maximum driving time in minutes.
     max_trip_duration : int, default 120
-        Ignored, as in r5r: the trip limit comes from the cutoffs.
+        Ignored: the trip limit comes from the cutoffs.
     walk_speed : float, default 3.6
         Walking speed in km/h.
     bike_speed : float, default 12
@@ -171,20 +164,19 @@ def isochrone(
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
         A seed for the Monte Carlo draws; with frequency-based GTFS the
-        results are reproducible (and equal to r5r's) only with a seed.
+        results are reproducible only with a seed.
     percentiles : int or sequence of int, optional
         Up to 5 distinct values from 1 to 99: the travel-time percentiles to
         make polygons for. ``None`` (the default) means 50. Must be ``None``
         for line isochrones.
-    n_threads : int or math.inf, optional
-        The number of threads; ``None`` (the default) or ``math.inf`` use
-        all cores.
+    n_threads : int or math.inf, default math.inf
+        The number of threads; ``math.inf`` (or ``None``) uses all cores.
     verbose : bool, default False
-        Checked as in r5r; has no effect.
+        Only checked; it has no effect.
     progress : bool, default True
-        Checked as in r5r; peabiru prints no progress counter.
+        Only checked; peabiru prints no progress counter.
     sample_size : optional
-        Deprecated in r5r and ignored: giving it only warns.
+        Deprecated and ignored: giving it only warns.
 
     Returns
     -------
@@ -194,12 +186,30 @@ def isochrone(
         geometry column ``polygons`` (a ``MultiPolygon``, empty when nothing
         is reached), one row per origin, percentile (ascending) and cutoff
         (descending). With ``polygon_output=False``: ``id``, ``edge_index``
-        (a string, as in r5r), ``osm_id`` (int64), ``isochrone``,
+        (a string), ``osm_id`` (int64), ``isochrone``,
         ``travel_time_p50`` (``Int32``), the segment's ``from_vertex``,
         ``to_vertex``, ``street_class``, ``length`` (metres), ``walk``,
         ``car``, ``car_speed`` (km/h), ``bicycle``, ``bicycle_lts`` and the
         geometry column ``geometry`` (a ``LineString``); rows by origin,
         then by band and travel time, both descending.
+
+    Notes
+    -----
+    **Compatibility with r5r.** The arguments (names, order and defaults),
+    their checks and messages, the columns and the row order are those of
+    ``isochrone()`` in r5r 2.5.0, and the travel times are R5 7.6's (ported
+    from Conveyal's R5). The polygons are those r5r gets from isoband,
+    vertex for vertex on the same platform (rings follow the C++ library
+    isoband is built with: libc++ on macOS, libstdc++ on Linux and
+    Windows); r5r then passes them to ``sf::st_make_valid()``, which
+    rebuilds them with the s2 library (snapping vertices to 1e-7 degrees,
+    re-orienting rings, turning a single polygon into a ``POLYGON``). That
+    step is not reproduced: the polygons cover the same areas as r5r's but
+    are always ``MultiPolygon``s. Line isochrones route to the centroids
+    r5r takes with ``sf::st_centroid()``, to within about 1e-14 degrees.
+    Other differences: no ``r5r_core`` argument; a GeoDataFrame instead of
+    an ``sf`` data frame, with ``osm_id`` as ``int64``. See [Coming from
+    r5py / r5r](coming-from-r5.md).
 
     Examples
     --------

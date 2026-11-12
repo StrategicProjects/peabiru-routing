@@ -151,5 +151,6 @@ print(trips[["option", "total_duration", "total_fare", "segment", "mode",
 10       3            49.2         7.2        5  WALK              7.2
 ```
 
-Without a fare structure, `suboptimal_minutes` keeps alternatives up to
-that many minutes slower than the best.
+With a fare structure `suboptimal_minutes` must be 0; without one, it
+keeps more alternatives (see
+[Detailed itineraries](itineraries.md#alternatives)).
