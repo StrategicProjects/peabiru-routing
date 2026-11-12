@@ -1077,8 +1077,6 @@ function destinationIds(d) {
   }
 }
 
-// the engine's parameter names that are not the options'
-const CORE_NAMES = { walk_speed_kmh: "walkSpeed", bike_speed_kmh: "bikeSpeed", max_trip_duration_min: "maxTripDuration" };
 const snakeCase = (s) => s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 /**
@@ -1092,7 +1090,6 @@ function engineError(e) {
     "shortestPath", "allToAll", "dropGeometry", "osmLinkIds", "opportunitiesColnames", "decayFunction", "decayValue",
     "cutoffs", "breakdown", "arrivalDatetime", "zoom", "polygonOutput", "radius", "baseFare"].map(snakeCase));
   let message = e.message.replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/g, (w) => {
-    if (Object.hasOwn(CORE_NAMES, w)) return CORE_NAMES[w];
     return options.has(w) ? w.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()) : w;
   });
   if (/^not supported: /.test(message) && !(e instanceof UnsupportedError)) return new UnsupportedError(message);

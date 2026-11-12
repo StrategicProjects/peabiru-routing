@@ -213,10 +213,10 @@ pub(crate) fn trip_options_impl(
     let ip = itinerary_params(p);
     ip.check().map_err(RouteError::Invalid)?;
     let criteria = Criteria::of(&p.resolved_criteria()?);
-    if p.walk_resolution_s < 1 {
+    if p.walk_resolution < 1 {
         return Err(RouteError::Invalid(format!(
             "walk_resolution must be at least 1 second, got {}",
-            p.walk_resolution_s
+            p.walk_resolution
         )));
     }
     if origins.len() != destinations.len() {
@@ -338,8 +338,8 @@ fn itinerary_params(p: &TripOptionsParams) -> ItineraryParams {
         max_bike_time: p.max_bike_time,
         max_car_time: p.max_car_time,
         max_trip_duration: p.max_trip_duration,
-        walk_speed_kmh: p.walk_speed_kmh,
-        bike_speed_kmh: p.bike_speed_kmh,
+        walk_speed: p.walk_speed,
+        bike_speed: p.bike_speed,
         max_rides: p.max_rides,
         max_lts: p.max_lts,
         shortest_path: false,
@@ -523,7 +523,7 @@ fn plan_pair(
                 );
                 let arrivals = sn.coarse_frontier(
                     &arrivals,
-                    p.walk_resolution_s,
+                    p.walk_resolution,
                     crate::options::TIME_RESOLUTION_S,
                 );
                 for a in arrivals {

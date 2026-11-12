@@ -88,7 +88,7 @@ differs:
 use peabiru_core::{street_travel_time_matrix, Mode, RouteParams};
 
 let mut params = RouteParams::default();
-params.max_trip_duration_min = 60;
+params.max_trip_duration = 60;
 let m = street_travel_time_matrix(&network, &points, &points, Mode::Bicycle, &params)?;
 println!("{:?} min from the first point to the second", m.get(0, 1));
 ```

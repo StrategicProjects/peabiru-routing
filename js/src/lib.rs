@@ -243,10 +243,10 @@ fn parse_transit_modes(modes: &str) -> Result<Vec<TransitMode>, JsError> {
 
 fn route_params(walk_speed: f64, bike_speed: f64, max_lts: i32, max_trip: i32) -> RouteParams {
     let mut p = RouteParams::default();
-    p.walk_speed_kmh = walk_speed;
-    p.bike_speed_kmh = bike_speed;
+    p.walk_speed = walk_speed;
+    p.bike_speed = bike_speed;
     p.max_lts = max_lts;
-    p.max_trip_duration_min = max_trip;
+    p.max_trip_duration = max_trip;
     p
 }
 
@@ -272,7 +272,7 @@ fn transit_params(
 ) -> Result<TransitParams, JsError> {
     let mut p = TransitParams::default();
     p.transit_modes = parse_transit_modes(modes)?;
-    p.access_mode = street_mode(access_mode)?;
+    p.mode = street_mode(access_mode)?;
     p.egress_mode = street_mode(egress_mode)?;
     p.date = date;
     p.departure_time = departure_time;
@@ -282,8 +282,8 @@ fn transit_params(
     p.max_bike_time = max_bike_time;
     p.max_car_time = max_car_time;
     p.max_trip_duration = max_trip_duration;
-    p.walk_speed_kmh = walk_speed;
-    p.bike_speed_kmh = bike_speed;
+    p.walk_speed = walk_speed;
+    p.bike_speed = bike_speed;
     p.max_lts = max_lts;
     p.max_rides = max_rides;
     p.draws_per_minute = draws_per_minute;

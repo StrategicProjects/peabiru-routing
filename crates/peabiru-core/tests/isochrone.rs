@@ -23,7 +23,7 @@ fn ring_area(r: &[[f64; 2]]) -> f64 {
 fn street_surface_is_the_matrix_to_the_cell_centres() {
     let net = build_from_dir(SPO, &BuildOptions::default()).unwrap();
     let mut p = RouteParams::default();
-    p.max_trip_duration_min = 25;
+    p.max_trip_duration = 25;
     p.n_threads = 2;
     let s = street_travel_time_surface(&net, &[ORIGIN], Mode::Walk, &p, &[75, 25], 11).unwrap();
     let g = *s.grid();
@@ -102,7 +102,7 @@ fn lines_are_the_edges_reached_banded() {
         }
     }
     let mut p = RouteParams::default();
-    p.max_trip_duration_min = 12;
+    p.max_trip_duration = 12;
     let dest = edges.centroid_points();
     let m = street_travel_time_matrix(&net, &[ORIGIN], &dest, Mode::Walk, &p).unwrap();
     let lines = isochrone_lines(1, edges.len(), m.as_slice(), &[0.0, 6.0, 12.0]).unwrap();
@@ -137,7 +137,7 @@ fn surface_of(
     match mode {
         Some(m) => {
             let mut p = RouteParams::default();
-            p.max_trip_duration_min = 30;
+            p.max_trip_duration = 30;
             p.n_threads = threads;
             if m == Mode::Bicycle {
                 p.max_lts = 3;

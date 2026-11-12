@@ -127,9 +127,9 @@ pub struct TripOptionsParams {
     /// are left out.
     pub max_trip_duration: i32,
     /// Walking speed, km/h (default 3.6).
-    pub walk_speed_kmh: f64,
+    pub walk_speed: f64,
     /// Cycling speed, km/h (default 12).
-    pub bike_speed_kmh: f64,
+    pub bike_speed: f64,
     /// Most vehicles boarded (default 3).
     pub max_rides: usize,
     /// Highest level of traffic stress a cyclist rides on, 1 to 4
@@ -153,7 +153,7 @@ pub struct TripOptionsParams {
     /// trips a few seconds apart are not both returned. Of trips equal in
     /// those terms the one with the least exact total time, then transfers,
     /// walking and fare is kept. The values returned are exact.
-    pub walk_resolution_s: i32,
+    pub walk_resolution: i32,
     /// Build each option's legs ([`TripOption::itinerary`], default true).
     pub itineraries: bool,
     /// Fill in the street edges, OpenStreetMap ids and stops of the legs,
@@ -183,14 +183,14 @@ impl Default for TripOptionsParams {
             max_bike_time: 120,
             max_car_time: 120,
             max_trip_duration: 120,
-            walk_speed_kmh: 3.6,
-            bike_speed_kmh: 12.0,
+            walk_speed: 3.6,
+            bike_speed: 12.0,
             max_rides: 3,
             max_lts: 2,
             fare_structure: None,
             max_fare: f64::INFINITY,
             max_options: 0,
-            walk_resolution_s: 60,
+            walk_resolution: 60,
             itineraries: true,
             osm_link_ids: false,
             scenario: crate::Scenario::default(),
@@ -301,7 +301,7 @@ impl TripOption {
 /// on the chosen criteria, the one with the least total time, then
 /// transfers, time on foot and fare is kept. Of that exact set, the trips
 /// are then compared with total time to a tenth of a minute and walking to
-/// [`TripOptionsParams::walk_resolution_s`] (a minute by default), and those
+/// [`TripOptionsParams::walk_resolution`] (a minute by default), and those
 /// beaten in those terms are left out; the values returned are exact. There are no random draws:
 /// frequency-based trips are boarded at their expected times (half a
 /// headway of waiting; the scheduled departures with `exact_times = 1`),

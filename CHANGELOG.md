@@ -69,6 +69,15 @@ routing and network functions (without r5r's functions for Java).
   network too.
 - **Breaking:** `RouteError` no longer converts from `String` or `&str`;
   build `RouteError::Invalid` explicitly.
+- **Breaking:** one name per concept in the parameter structs, the R and
+  Python packages' argument name, with the unit in the field's
+  documentation: `RouteParams::max_trip_duration_min` is
+  `max_trip_duration` (minutes), as in `TransitParams`, `ItineraryParams`
+  and `TripOptionsParams`; `walk_speed_kmh` and `bike_speed_kmh` are
+  `walk_speed` and `bike_speed` (km/h) in all four;
+  `TripOptionsParams::walk_resolution_s` is `walk_resolution` (seconds);
+  `TransitParams::access_mode` is `mode`, as in `ItineraryParams` and
+  `TripOptionsParams`. The engine's error messages use the new names.
 - `output_dir` (R, Python, the CLI's `--output-dir`; the core's
   `CsvOutput::new`, now fallible, `write_itineraries_csv` and
   `write_trip_options_csv`): an id that cannot name a file in the

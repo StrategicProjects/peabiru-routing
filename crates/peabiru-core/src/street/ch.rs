@@ -720,7 +720,7 @@ fn hierarchy(
     let key = Key::of(g, params.max_lts);
     let kept = net.hierarchies.get(key);
     let mut extent = kept.as_ref().map(|e| e.extent);
-    let limit_s = f64::from(params.max_trip_duration_min) * 60.0;
+    let limit_s = f64::from(params.max_trip_duration) * 60.0;
     let auto = params.engine == StreetEngine::Auto;
     let searched = if auto && kept.is_none() {
         net.hierarchies.searched(key)
@@ -794,7 +794,7 @@ fn matrix(
     params: &RouteParams,
 ) -> Result<Vec<Option<u32>>, RouteError> {
     let mode = g.mode;
-    let m = params.max_trip_duration_min;
+    let m = params.max_trip_duration;
     let limit = (m * 60) as u32;
     let nd = destinations.len();
     let mut out = vec![None; origins.len() * nd];
@@ -921,10 +921,10 @@ mod tests {
 
     fn params(walk: f64, bike: f64, max_lts: i32, minutes: i32, n_threads: usize) -> RouteParams {
         RouteParams {
-            walk_speed_kmh: walk,
-            bike_speed_kmh: bike,
+            walk_speed: walk,
+            bike_speed: bike,
             max_lts,
-            max_trip_duration_min: minutes,
+            max_trip_duration: minutes,
             n_threads,
             ..RouteParams::default()
         }
@@ -1106,7 +1106,7 @@ mod tests {
                 for minutes in [1, 4, 15, 120] {
                     for n_threads in [1, 3] {
                         let p = RouteParams {
-                            max_trip_duration_min: minutes,
+                            max_trip_duration: minutes,
                             n_threads,
                             engine: StreetEngine::Hierarchy,
                             ..p.clone()
@@ -1150,7 +1150,7 @@ mod tests {
             .enumerate()
         {
             let p = RouteParams {
-                max_trip_duration_min: minutes,
+                max_trip_duration: minutes,
                 n_threads,
                 ..p0.clone()
             };

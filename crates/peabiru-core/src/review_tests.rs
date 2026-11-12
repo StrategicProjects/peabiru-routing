@@ -20,8 +20,8 @@ fn street_vertex_times_rejects_zero_walk_speed_without_panicking() {
     let mut sc = Vec::new();
     let o = find_split(&net, -23.5563, -46.6290, Mode::Walk, &mut sc).unwrap();
     let r = catch_unwind(|| street_vertex_times(&net, &o, &[Some(o)], Mode::Walk, 0.0, 600));
-    let r = r.expect("street_vertex_times panicked on walk_speed_kmh = 0");
-    assert!(r.unwrap_err().to_string().contains("walk_speed_kmh"));
+    let r = r.expect("street_vertex_times panicked on walk_speed = 0");
+    assert!(r.unwrap_err().to_string().contains("walk_speed"));
     let (times, direct) = street_vertex_times(&net, &o, &[Some(o)], Mode::Walk, 3.6, 600).unwrap();
     assert_eq!(times.len(), net.n_vertices());
     assert_eq!(direct.len(), 1);

@@ -87,8 +87,8 @@
 //!
 //! ```
 //! let mut p = peabiru_core::RouteParams::default();
-//! p.walk_speed_kmh = 4.5;
-//! p.max_trip_duration_min = 60;
+//! p.walk_speed = 4.5;
+//! p.max_trip_duration = 60;
 //! ```
 //!
 //! The structs are `#[non_exhaustive]`, so later versions can add fields

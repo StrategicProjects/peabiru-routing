@@ -87,14 +87,14 @@ pub(crate) fn trip_options_py<'py>(
     p.max_bike_time = max_bike_time;
     p.max_car_time = max_car_time;
     p.max_trip_duration = max_trip_duration;
-    p.walk_speed_kmh = walk_speed;
-    p.bike_speed_kmh = bike_speed;
+    p.walk_speed = walk_speed;
+    p.bike_speed = bike_speed;
     p.max_rides = max_rides;
     p.max_lts = max_lts;
     p.fare_structure = super::fares::fare_arg(fare.as_ref())?;
     p.max_fare = max_fare;
     p.max_options = max_options;
-    p.walk_resolution_s = walk_resolution;
+    p.walk_resolution = walk_resolution;
     p.itineraries = itineraries;
     p.osm_link_ids = osm_link_ids;
     p.n_threads = n_threads;
