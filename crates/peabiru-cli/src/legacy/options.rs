@@ -3,8 +3,8 @@
 //! option), `<prefix>_departures.csv` (one row per option and departure
 //! minute) and `<prefix>_legs.csv` (the legs, geometry as WKT).
 
-use crate::cli::{self, runtime_error, usage_error};
-use crate::expanded::field;
+use super::cli::{self, runtime_error, usage_error};
+use super::expanded::field;
 use peabiru_core::{
     read_fare_structure, trip_options, BuildOptions, Criterion, Mode, TransitMode,
     TripOptionsParams,
@@ -40,7 +40,7 @@ pub fn run(args: &[String]) {
     }
     let (dir, origins, dests, out) = (&args[0], &args[1], &args[2], &args[3]);
     let mut p = TripOptionsParams::default();
-    p.scenario = crate::cli::scenario(cmd);
+    p.scenario = super::cli::scenario(cmd);
     let mut repeats = 1;
     let mut i = 4;
     while i < args.len() {
@@ -97,8 +97,8 @@ pub fn run(args: &[String]) {
         }
         i += 2;
     }
-    let (oid, opts) = crate::read_points(cmd, origins);
-    let (did, dpts) = crate::read_points(cmd, dests);
+    let (oid, opts) = super::read_points(cmd, origins);
+    let (did, dpts) = super::read_points(cmd, dests);
     if opts.len() != dpts.len() {
         runtime_error(cmd, "origins and destinations must have as many rows");
     }

@@ -18,7 +18,7 @@
 //! (no `cutoff` with `fixed_exponential`), one row per origin, opportunity,
 //! percentile and cutoff in that order, with every double written in full.
 
-use crate::cli::{self, runtime_error, usage_error};
+use super::cli::{self, runtime_error, usage_error};
 use peabiru_core::{
     build_network, r5r_trip_limits, street_accessibility, transit_accessibility, Accessibility,
     AccessibilityParams, BuildOptions, DecayFunction, Destinations, Mode, RouteParams,
@@ -163,7 +163,7 @@ fn decay_function(name: &str, value: Option<f64>, cutoffs: &Option<Vec<i32>>) ->
 }
 
 pub fn run(args: &[String]) {
-    let (net_path, points_path, out) = crate::positional3(CMD, args);
+    let (net_path, points_path, out) = super::positional3(CMD, args);
     let mut mode = "WALK".to_string();
     let mut opportunities: Vec<String> = Vec::new();
     let mut decay = "step".to_string();

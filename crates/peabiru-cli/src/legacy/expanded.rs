@@ -1,7 +1,7 @@
 //! `peabiru expanded`: r5r's `expanded_travel_time_matrix()` and, with
 //! `--arrival`, `arrival_travel_time_matrix()`, written as r5r's CSV.
 
-use crate::cli::{self, runtime_error, usage_error};
+use super::cli::{self, runtime_error, usage_error};
 use peabiru_core::{
     arrival_departure, arrival_travel_time_matrix, expanded_travel_time_matrix, BuildOptions,
     ExpandedRow, TransitParams,
@@ -23,7 +23,7 @@ fn hhmmss(s: i32) -> String {
 
 pub fn run(args: &[String]) {
     let cmd = "expanded";
-    let (dir, points, out) = crate::positional3(cmd, args);
+    let (dir, points, out) = super::positional3(cmd, args);
     let mut p = TransitParams::default();
     p.scenario = cli::scenario(cmd);
     let (mut arrival, mut breakdown, mut n_origins) = (false, false, usize::MAX);
@@ -78,7 +78,7 @@ pub fn run(args: &[String]) {
         p.departure_time = t;
         p.time_window = p.max_trip_duration;
     }
-    let (ids, pts) = crate::read_points(cmd, points);
+    let (ids, pts) = super::read_points(cmd, points);
     let t0 = Instant::now();
     let mut opts = BuildOptions::default();
     opts.n_threads = p.n_threads;

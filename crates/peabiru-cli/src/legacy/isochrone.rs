@@ -1,7 +1,7 @@
 //! `peabiru isochrone`: polygon or line isochrones, as r5r's `isochrone()`,
 //! for testing the core against r5r.
 
-use crate::cli::{self, runtime_error, usage_error};
+use super::cli::{self, runtime_error, usage_error};
 use peabiru_core::unstable::{isochrone_polygons_in, CxxLibrary};
 use peabiru_core::{
     build_network, isochrone_lines, isochrone_trip_limit, street_edges, street_travel_time_matrix,
@@ -31,7 +31,7 @@ fn ring_wkt(out: &mut String, ring: &[[f64; 2]]) {
 }
 
 pub fn run(args: &[String]) {
-    let (net_path, points_path, out) = crate::positional3(CMD, args);
+    let (net_path, points_path, out) = super::positional3(CMD, args);
     let mut mode = "TRANSIT".to_string();
     let mut cutoffs: Vec<f64> = vec![0.0, 15.0, 30.0];
     let mut zoom = 10;
@@ -126,7 +126,7 @@ pub fn run(args: &[String]) {
     if street_mode == Some(Mode::Walk) && walk_limit < limit {
         limit = walk_limit;
     }
-    let (ids, pts) = crate::read_points(CMD, points_path);
+    let (ids, pts) = super::read_points(CMD, points_path);
     let is_dir = std::path::Path::new(net_path).is_dir();
     let mut build = BuildOptions::default();
     build.n_threads = tp.n_threads;

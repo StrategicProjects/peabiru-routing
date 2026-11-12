@@ -272,6 +272,15 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod unstable {
     pub use crate::fares::zipio::{fwrite_csv, fwrite_csv_native, zip_deflated, FwriteColumn};
     pub use crate::gdal::{gdal_geojson_coordinate, gdal_geojson_text};
+
+    /// The files of [`write_fare_structure`](crate::write_fare_structure)'s
+    /// archive, by name, with the platform's line ends.
+    pub fn fare_structure_files(
+        s: &crate::FareStructure,
+    ) -> Result<Vec<(&'static str, String)>, crate::RouteError> {
+        let csvs = crate::fares::zipio::fare_csvs(s, crate::output::LINE_END)?;
+        Ok(crate::fares::zipio::FILES.iter().copied().zip(csvs).collect())
+    }
     pub use crate::isochrone::CxxLibrary;
     /// [`isochrone_polygons`](crate::isochrone_polygons) with the rings in
     /// the order isoband gives them when built with `lib`, whatever the

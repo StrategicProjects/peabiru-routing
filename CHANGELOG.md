@@ -71,6 +71,25 @@ routing and network functions (without r5r's functions for Java).
   build `RouteError::Invalid` explicitly.
 - A snapshot of the public API (`tools/public-api/peabiru-core.txt`),
   checked in CI, so that changes to it are deliberate.
+- **The command-line tool, redesigned** to be published as the crate
+  `peabiru-cli` (binary `peabiru`): one command per function of the
+  packages (`info`/`build`, `matrix`, `expanded`, `arrival`,
+  `accessibility`, `isochrone`, `itineraries`, `pareto`, `options`,
+  `snap`, `network`, `fares setup|read|write`, `completions`), named
+  options with the packages' argument names in kebab-case, defaults and
+  checks (`--departure 2019-05-13T14:00`, `--mode WALK,BUS`,
+  `--max-walk-time Inf`, `--fare-structure fares.zip`, `--elevation`,
+  `--new-carspeeds`, `--walk-resolution`, ...), networks as directories or
+  a `.pbf` with `--gtfs` and `--tif`, CSV and GeoJSON output, `--output-dir`
+  as r5r's, help with examples for every command, exit status 0/1/2 and
+  130 on Ctrl-C. What the environment variables switched
+  (`PEABIRU_ELEVATION`, `PEABIRU_IGNORE_GTFS_ERRORS`, `PEABIRU_SCENARIO`,
+  `PEABIRU_STREET_MATRIX`) is now an option (`--elevation`,
+  `--ignore-gtfs-errors`, `--new-carspeeds`/`--new-lts`,
+  `--street-engine`). Every command gives the R package's values
+  (`bench/compare/cli_parity.R`). The old positional spellings
+  (`ttm`, `transit`, `dump-edges`, ...) still run for the repository's
+  scripts, undocumented, also as `peabiru dev <command>`.
 - API: `find_snap`, `StreetNetwork::bbox`, `street_vertices`,
   `transit_stops`, `transit_routes`, `transit_service_dates`, `gtfs_errors`,
   `detailed_itineraries`, `write_itineraries_csv`, `Scenario` and its parts,

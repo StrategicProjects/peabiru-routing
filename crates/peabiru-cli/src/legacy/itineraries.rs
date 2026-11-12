@@ -2,7 +2,7 @@
 //! origin `i` to destination `i`, written as CSV with the geometry as WKT
 //! (coordinates in shortest round-trip form).
 
-use crate::cli::{self, runtime_error, usage_error};
+use super::cli::{self, runtime_error, usage_error};
 use peabiru_core::{detailed_itineraries_noted, BuildOptions, ItineraryParams, Mode, TransitMode};
 use std::fmt::Write as _;
 use std::time::Instant;
@@ -41,11 +41,11 @@ struct LegRow<'a> {
 impl LegRow<'_> {
     /// Ids come from the user's points and routes from GTFS, so text
     /// fields are quoted as RFC 4180 wants when they hold a comma, quote or
-    /// line break ([`crate::expanded::field`]). A leading `=`, `+`, `-` or
+    /// line break ([`super::expanded::field`]). A leading `=`, `+`, `-` or
     /// `@` is left as it is: this is a benchmark driver's file, not a
     /// spreadsheet export.
     fn write(&self, s: &mut String) {
-        use crate::expanded::field;
+        use super::expanded::field;
         let _ = write!(
             s,
             "{},{},{},{},{},{},{},{},{},{},{},{}",
@@ -74,7 +74,7 @@ pub fn run(args: &[String]) {
     let mut p = ItineraryParams::default();
     // r5r's test switch r5r.failFastRaptor: every pair to McRAPTOR
     p.fail_fast_raptor = std::env::var_os("PEABIRU_FAIL_FAST_RAPTOR").is_some_and(|v| v == "1");
-    p.scenario = crate::cli::scenario(cmd);
+    p.scenario = super::cli::scenario(cmd);
     let mut i = 4;
     while i < args.len() {
         let name = args[i].as_str();
@@ -110,8 +110,8 @@ pub fn run(args: &[String]) {
         }
         i += 2;
     }
-    let (oid, opts) = crate::read_points(cmd, origins);
-    let (did, dpts) = crate::read_points(cmd, dests);
+    let (oid, opts) = super::read_points(cmd, origins);
+    let (did, dpts) = super::read_points(cmd, dests);
     if opts.len() != dpts.len() {
         runtime_error(cmd, "origins and destinations must have as many rows");
     }
