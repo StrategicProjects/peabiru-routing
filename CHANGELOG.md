@@ -119,6 +119,10 @@ routing and network functions (without r5r's functions for Java).
 
 ### JavaScript
 
+- `network.buildWarnings()`: the warnings of the build, which are peabiru's
+  own (elevation voids, samples on a pixel boundary, ...) as well as r5r's;
+  `network.r5rWarnings()`, its former name, is a deprecated alias that
+  returns the same list.
 - New functions: `detailedItineraries()`, `setupFareStructure()`,
   `readFareStructure()`, `writeFareStructure()`, `paretoFrontier()`,
   `findSnap()`, `streetNetworkBbox()`, `streetNetworkToSf()`,

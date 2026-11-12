@@ -190,7 +190,7 @@ impl Network {
 
     /// Warnings about the network build: one per feed that r5r refuses to
     /// build a network from, then those about the elevation raster.
-    pub fn r5r_warnings(&self) -> Array {
+    pub fn build_warnings(&self) -> Array {
         let w = self.net.build_warnings();
         w.iter().map(|s| JsValue::from_str(s)).collect()
     }

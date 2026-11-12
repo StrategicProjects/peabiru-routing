@@ -28,9 +28,10 @@ network, including the connectors of transit stops; `elevation` is the
 slope cost function (see [Elevation](elevation.md)); `feeds` the GTFS feed
 ids, in loading order; `stops`, `patterns` (trip patterns) and `services`
 the sizes of the public transport network; `frequencies` whether any trip
-is frequency-based. `network.r5rWarnings()` lists the warnings of the
-build (about the elevation raster), and `network.workers` the number of
-[workers](threads.md).
+is frequency-based. `network.buildWarnings()` lists the warnings of the
+build (about the elevation raster; `r5rWarnings()`, its name in version
+0.0.1, is kept as a deprecated alias that returns the same list), and
+`network.workers` the number of [workers](threads.md).
 
 ## Where points snap
 

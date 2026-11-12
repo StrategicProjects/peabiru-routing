@@ -79,6 +79,6 @@ test("rasters in other coordinate reference systems, and voids with a warning", 
   });
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /[0-9]+ with a value beyond \+\/-3276\.7 m/);
-  assert.deepEqual(voids.r5rWarnings(), warnings);
+  assert.deepEqual(voids.buildWarnings(), warnings);
   for (const n of [utm, voids]) n.free();
 });

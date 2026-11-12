@@ -84,7 +84,7 @@ function handle(data, post) {
           services,
           frequencies: frequencies === 1,
         },
-        warnings: Array.from(network.r5r_warnings()),
+        warnings: Array.from(network.build_warnings()),
       });
     } catch (e) {
       post({ type: "failed", error: errorOf(e) });
