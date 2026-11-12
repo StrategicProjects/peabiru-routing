@@ -1,0 +1,108 @@
+---
+title: "Fares and Pareto frontiers"
+description: >
+  Fare structures, travel times within a budget, the trade-off between time
+  and fare, and alternative itineraries with their fares, as in r5r.
+---
+
+```{r setup, include = FALSE}
+source("setup.R")
+```
+
+peabiru computes transit fares as r5r 2.5.0 does. A *fare structure*
+describes how much each ride costs and which transfers are discounted; the
+routing functions take it as `fare_structure`, and the results are r5r's,
+number for number. With one, public transport is routed with R5's
+multi-criteria router (McRAPTOR), which keeps at each stop the trips that are
+faster or cheaper than the others, over `time_window * draws_per_minute`
+departure times sampled in the window.
+
+## The fare structure
+
+`setup_fare_structure()` builds one where every route, fare type and
+transfer costs the same; edit it to follow the fare rules of the city.
+
+```{r structure}
+fares <- setup_fare_structure(network, base_fare = 4.4, by = "MODE")
+fares$fares_per_type
+head(fares$fares_per_transfer, 3)
+```
+
+The rules, as r5r's `RuleBasedInRoutingFareCalculator` applies them: the
+first ride costs its route's fare (the type's `fare`, or the route's own
+`route_fare` when the type has `use_route_fare`); a ride of the same type as
+the one before is free when the type has `unlimited_transfers`; otherwise,
+while fewer than `max_discounted_transfers` discounts were used, a ride
+boarded within `transfer_time_allowance` minutes of the previous boarding,
+with a row of `fares_per_transfer` for the two types (and not on the same
+route, unless the type has `allow_same_route_transfer`), brings the two
+rides to that row's `fare`; any other ride costs its full fare. The total is
+capped at `fare_cap`.
+
+```{r edit}
+fares$fares_per_transfer$fare <- 6.6   # two rides together
+fares$transfer_time_allowance <- 60L   # within an hour
+```
+
+`write_fare_structure()` and `read_fare_structure()` write and read r5r's
+`.zip` file: the same CSV files, so a structure goes from one package to
+the other.
+
+```{r files}
+path <- tempfile(fileext = ".zip")
+write_fare_structure(fares, path)
+identical(read_fare_structure(path), fares)
+```
+
+## Routing with fares
+
+`max_fare` keeps, for each pair, the fastest trip that costs no more than
+it, in `travel_time_matrix()`, `accessibility()` and
+`detailed_itineraries()`:
+
+```{r matrix}
+ttm <- travel_time_matrix(
+  network, points, points,
+  mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+  fare_structure = fares, max_fare = 4.4,
+  draws_per_minute = 1, seed = 42
+)
+head(ttm)
+```
+
+`pareto_frontier()` gives, for each pair, the travel time at each fare
+cutoff where it changes. `monetary_cost` is the cutoff as R5 reads it, a
+Java `float`, as r5r reports it.
+
+```{r pareto}
+pf <- pareto_frontier(
+  network, points[1:3, ], points,
+  mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+  fare_structure = fares, fare_cutoffs = c(0, 4.4, 6.6), seed = 42
+)
+head(pf)
+```
+
+In this sample, whose GTFS is frequency-based, r5r's fare router finds no
+trip faster than walking: with fares its travel times are the walking times,
+and peabiru's are the same. With scheduled feeds, such as r5r's Porto
+Alegre sample, the frontier lists the faster trips that cost more.
+
+## Alternative itineraries
+
+`detailed_itineraries(shortest_path = FALSE)` lists the alternatives McRAPTOR
+finds, one per sequence of routes, up to `suboptimal_minutes` slower than
+the best; with a fare structure, each with its fare (`total_fare`) and the
+fare paid by the end of each leg (`cumulative_fare`). As in r5r, networks
+whose GTFS has frequency-based trips cannot be used with public transport
+there, so this sample's itineraries are by street:
+
+```{r itineraries}
+trips <- detailed_itineraries(
+  network, points[1:2, ], points[3:4, ], mode = "WALK",
+  departure_datetime = departure, fare_structure = fares,
+  drop_geometry = TRUE
+)
+trips[, c("from_id", "to_id", "option", "total_duration", "total_fare",
+          "mode", "cumulative_fare")]
+```

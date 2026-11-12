@@ -73,8 +73,14 @@ minutes for each street mode (\code{Inf}, the default, means the trip limit).}
 \item{max_lts}{An integer from 1 to 4, the highest level of traffic stress
 a cyclist will ride on.}
 
-\item{fare_structure, max_fare}{Fares; not supported yet (\code{fare_structure}
-must be \code{NULL} and \code{max_fare} \code{Inf}).}
+\item{fare_structure}{A fare structure (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}) or
+\code{NULL} (the default): no fares. It must have a row for every route of
+the network, as in r5r; R5's own fare calculators (a structure with a
+\code{type}) are not supported.}
+
+\item{max_fare}{A number, the highest fare of a trip (\code{Inf}, the default:
+no limit), in the currency of the fare structure; a finite value needs
+a \code{fare_structure}.}
 
 \item{new_carspeeds}{A scenario of car speeds, as in r5r: \code{NULL}, a data
 frame with columns \code{osm_id}, \code{max_speed} and \code{speed_type} (\code{"scale"}, a
@@ -156,8 +162,13 @@ bicycle or car is searched from every stop with R5's defaults (up to
 5 km by bicycle at any level of traffic stress, up to 30 minutes by
 car) and must stay within \code{max_bike_time} or \code{max_car_time}.
 
-Not supported yet, and an error when requested: fares (\code{fare_structure},
-\code{max_fare}).
+With a \code{fare_structure} (see \code{\link[=setup_fare_structure]{setup_fare_structure()}}), public transport
+is routed as r5r routes it then: with R5's multi-criteria router
+(McRAPTOR) over \code{time_window * draws_per_minute} departure times sampled
+in the window, keeping at each stop the fastest trip whose fare is within
+\code{max_fare}. As in r5r, combinations of \code{time_window} and
+\code{draws_per_minute} that R5's sampler cannot meet (exactly 200 draws, or
+too many draws for the window) are an error.
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")

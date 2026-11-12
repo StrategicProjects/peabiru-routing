@@ -16,8 +16,13 @@
 #' 5 km by bicycle at any level of traffic stress, up to 30 minutes by
 #' car) and must stay within `max_bike_time` or `max_car_time`.
 #'
-#' Not supported yet, and an error when requested: fares (`fare_structure`,
-#' `max_fare`).
+#' With a `fare_structure` (see [setup_fare_structure()]), public transport
+#' is routed as r5r routes it then: with R5's multi-criteria router
+#' (McRAPTOR) over `time_window * draws_per_minute` departure times sampled
+#' in the window, keeping at each stop the fastest trip whose fare is within
+#' `max_fare`. As in r5r, combinations of `time_window` and
+#' `draws_per_minute` that R5's sampler cannot meet (exactly 200 draws, or
+#' too many draws for the window) are an error.
 #'
 #' @param r5r_network A network built with [build_network()].
 #' @param origins,destinations A `data.frame` with columns `id`, `lon` and
@@ -43,8 +48,13 @@
 #' @param max_rides An integer, the maximum number of public transport rides.
 #' @param max_lts An integer from 1 to 4, the highest level of traffic stress
 #'   a cyclist will ride on.
-#' @param fare_structure,max_fare Fares; not supported yet (`fare_structure`
-#'   must be `NULL` and `max_fare` `Inf`).
+#' @param fare_structure A fare structure (see [setup_fare_structure()]) or
+#'   `NULL` (the default): no fares. It must have a row for every route of
+#'   the network, as in r5r; R5's own fare calculators (a structure with a
+#'   `type`) are not supported.
+#' @param max_fare A number, the highest fare of a trip (`Inf`, the default:
+#'   no limit), in the currency of the fare structure; a finite value needs
+#'   a `fare_structure`.
 #' @param new_carspeeds A scenario of car speeds, as in r5r: `NULL`, a data
 #'   frame with columns `osm_id`, `max_speed` and `speed_type` (`"scale"`, a
 #'   factor for the car speed of the way's edges, or `"km/h"`, a speed; 0
@@ -186,7 +196,7 @@ travel_time_matrix <- function(r5r_network,
 
   assert_count(time_window, "time_window", positive = TRUE)
   percentiles <- assign_percentiles(percentiles)
-  check_draws(draws_per_minute)
+  check_draws(draws_per_minute, time_window, mcraptor = !is.null(fare_structure))
   seed <- seed_args(seed)
   check_speed(walk_speed, "walk")
   check_speed(bike_speed, "bike")
@@ -194,7 +204,7 @@ travel_time_matrix <- function(r5r_network,
   check_max_lts(max_lts)
   threads <- assign_n_threads(n_threads)
   check_messages(verbose, progress)
-  check_fares(fare_structure, max_fare)
+  check_fares(fare_structure, max_fare, r5r_network)
   check_output_dir(output_dir)
   scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
 
@@ -210,7 +220,7 @@ travel_time_matrix <- function(r5r_network,
       departure$yyyymmdd, departure$seconds, as.integer(time_window),
       percentiles, max_walk_time, max_trip_duration, as.double(walk_speed),
       as.integer(max_rides), as.integer(draws_per_minute), seed$has, seed$value,
-      threads, scenario, output
+      threads, scenario, output, fare_structure, as.double(max_fare)
     ))
     if (!is.null(output_dir)) return(output_dir)
     times <- res[-(1:2)]

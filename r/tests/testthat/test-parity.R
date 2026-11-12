@@ -207,3 +207,38 @@ test_that("detailed itineraries equal r5r's", {
   expect_error(suppressMessages(do.call(detailed_itineraries, c(list(n$pb), tr))), "frequencies")
   expect_error(suppressMessages(do.call(r5r::detailed_itineraries, c(list(n$r5), tr))), "frequencies")
 })
+
+# ---- fares (the other fare tests are in test-fares.R) ----------------------
+
+test_that("fare structures equal r5r's, and each reads the other's files", {
+  n <- r5r_network()
+  for (by in c("MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC")) {
+    pb <- setup_fare_structure(n$pb, 4.8, by = by)
+    r5 <- r5r::setup_fare_structure(n$r5, 4.8, by = by)
+    r5[4:6] <- lapply(r5[4:6], as.data.frame)
+    expect_identical(pb, r5)
+  }
+  fs <- r5r::setup_fare_structure(n$r5, 3.75)
+  zr <- tempfile(fileext = ".zip")
+  zp <- tempfile(fileext = ".zip")
+  r5r::write_fare_structure(fs, zr)
+  write_fare_structure(read_fare_structure(zr), zp)
+  a <- r5r::read_fare_structure(zp)
+  b <- r5r::read_fare_structure(zr)
+  expect_identical(lapply(a, function(x) if (is.data.frame(x)) as.data.frame(x) else x),
+                   lapply(b, function(x) if (is.data.frame(x)) as.data.frame(x) else x))
+})
+
+test_that("travel times with fares and the Pareto frontier equal r5r's", {
+  n <- r5r_network()
+  pts <- n$points[1:40, ]
+  fs <- r5r::setup_fare_structure(n$r5, 4.4)
+  fs$fares_per_transfer$fare <- 6.6
+  expect_same_as_r5r("travel_time_matrix", origins = pts, destinations = pts,
+                     mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+                     fare_structure = fs, max_fare = 6.6, draws_per_minute = 2,
+                     seed = 42)
+  expect_same_as_r5r("pareto_frontier", origins = pts[1:10, ], destinations = pts,
+                     mode = c("WALK", "TRANSIT"), departure_datetime = departure,
+                     fare_structure = fs, fare_cutoffs = c(0, 4.4, 6.6, 8.8), seed = 42)
+})

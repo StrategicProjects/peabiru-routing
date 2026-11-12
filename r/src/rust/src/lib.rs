@@ -26,6 +26,7 @@ use peabiru_core::{
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+mod fares;
 mod inspect;
 mod itinerary;
 mod scenario;
@@ -606,6 +607,8 @@ fn rs_transit_ttm(
     n_threads: i32,
     scenario: Robj,
     output: Robj,
+    fare_structure: Robj,
+    max_fare: f64,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let t = transit(n)?;
@@ -630,6 +633,8 @@ fn rs_transit_ttm(
         seed_of(has_seed, seed),
         n_threads,
     )?;
+    p.fare_structure = fares::fare_args(&fare_structure)?;
+    p.max_fare = max_fare;
     p.scenario = scenario::scenario_of(&scenario)?;
     if let Some(out) = Output::of(&output)? {
         let w = out.writer(n_threads);
@@ -723,6 +728,8 @@ fn rs_accessibility(
     n_threads: i32,
     scenario: Robj,
     output: Robj,
+    fare_structure: Robj,
+    max_fare: f64,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
@@ -779,6 +786,8 @@ fn rs_accessibility(
             seed_of(has_seed, seed),
             n_threads,
         )?;
+        p.fare_structure = fares::fare_args(&fare_structure)?;
+        p.max_fare = max_fare;
         p.scenario = scenario::scenario_of(&scenario)?;
         done!(interruptible(&p.cancel, || {
             let mut all = None;
@@ -1206,5 +1215,6 @@ extendr_module! {
     fn rs_scenario_street_edges;
     fn rs_isochrone_lines;
     use inspect;
+    use fares;
     use itinerary;
 }

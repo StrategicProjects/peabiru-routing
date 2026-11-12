@@ -33,6 +33,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+mod fares;
 mod inspect;
 mod itinerary;
 mod scenario;
@@ -491,6 +492,8 @@ fn transit_ttm<'py>(
     n_threads: usize,
     scenario: Option<Bound<'py, PyDict>>,
     output: Output,
+    fare: Option<Bound<'py, PyDict>>,
+    max_fare: f64,
 ) -> PyResult<(Col<'py>, Col<'py>, Vec<Col<'py>>)> {
     let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
@@ -520,6 +523,8 @@ fn transit_ttm<'py>(
         seed,
         n_threads,
     );
+    p.fare_structure = fares::fare_arg(fare.as_ref())?;
+    p.max_fare = max_fare;
     p.scenario = scenario.clone();
     if let Some(out) = &output {
         let w = csv_writer(out, n_threads);
@@ -617,6 +622,8 @@ fn accessibility<'py>(
     n_threads: usize,
     scenario: Option<Bound<'py, PyDict>>,
     output: Output,
+    fare: Option<Bound<'py, PyDict>>,
+    max_fare: f64,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let scenario = scenario::scenario_of(scenario.as_ref())?;
     let n = network.get();
@@ -679,6 +686,8 @@ fn accessibility<'py>(
         n_threads,
     );
     p.cancel = cancel.clone();
+    p.fare_structure = fares::fare_arg(fare.as_ref())?;
+    p.max_fare = max_fare;
     p.scenario = scenario.clone();
     let mut params = route_params(
         walk_speed,
@@ -1146,5 +1155,6 @@ fn _peabiru(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(isochrone_lines, m)?)?;
     m.add_function(wrap_pyfunction!(itinerary::itineraries, m)?)?;
     inspect::register(m)?;
+    fares::register(m)?;
     Ok(())
 }

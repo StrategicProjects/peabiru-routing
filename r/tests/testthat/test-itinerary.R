@@ -88,7 +88,7 @@ test_that("unsupported options are errors", {
   di <- function(...) detailed_itineraries(net, pts[1, ], pts[2, ], departure_datetime = departure, ...)
   expect_error(di(mode = "WALK", osm_link_ids = TRUE, drop_geometry = TRUE), "drop_geometry")
   expect_error(di(mode = "WALK", suboptimal_minutes = 5), "Must be 0")
-  expect_error(di(mode = "WALK", fare_structure = list()), "not supported")
+  expect_error(di(mode = "WALK", fare_structure = list(type = "boston")), "not supported")
   # an empty data frame is not a valid new_lts, as in r5r
   expect_error(di(mode = "WALK", new_lts = data.frame()), "Names must include")
   # the fixture's GTFS is frequency-based, which r5r refuses here

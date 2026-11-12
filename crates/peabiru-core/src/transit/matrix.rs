@@ -6,9 +6,11 @@
 //! `PerTargetPropagater`, `TravelTimeReducer`).
 
 use super::egress::{mode_egress_tables, Targets};
+use super::mcraptor::{self, Dominance, DrawOut, McRaptor, McRequest};
 use super::raptor::{self, Filtered, RaptorRequest, StopTimes, TransitMode, UNREACHED};
 use super::walk;
 use super::TransitLayer;
+use crate::fares::{FareCalculator, FareStructure};
 use crate::isochrone::linkage::{grid_links, Links};
 use crate::street::link::{find_split, link_points};
 use crate::street::router::{
@@ -110,6 +112,17 @@ pub struct TransitParams {
     /// clone of it (see [`CancelToken`]); the default is a fresh token,
     /// which nothing cancels unless a clone of it is kept.
     pub cancel: CancelToken,
+    /// r5r's `fare_structure` (default `None`): with one, public transport
+    /// is routed as r5r routes it then, with R5's multi-criteria router
+    /// (McRAPTOR) over `time_window x draws_per_minute` sampled departure
+    /// times instead of RAPTOR at every minute, keeping per stop the
+    /// fastest trip within `max_fare`. The structure must cover every
+    /// route of the network ([`FareStructure::validate_for`]).
+    pub fare_structure: Option<Arc<FareStructure>>,
+    /// r5r's `max_fare` (default infinity: no limit), in the currency of
+    /// the fare structure, read as a Java `float`; a finite value needs a
+    /// `fare_structure`.
+    pub max_fare: f64,
     /// Car speeds and levels of traffic stress changed for this call
     /// (r5r's `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
     /// changes nothing. As in R5, it changes the street search from the
@@ -230,7 +243,61 @@ impl TransitParams {
         if self.transit_modes.is_empty() {
             return Err("transit_modes must hold at least one public transport mode".into());
         }
+        check_max_fare(self.max_fare, self.fare_structure.is_some())?;
         self.scenario.check()
+    }
+}
+
+/// r5r's `set_max_fare()`: a number >= 0, finite only with a fare
+/// structure.
+pub(crate) fn check_max_fare(max_fare: f64, fares: bool) -> Result<(), String> {
+    if max_fare.is_nan() || max_fare < 0.0 {
+        return Err(format!("max_fare must be a number >= 0, got {max_fare}"));
+    }
+    if max_fare.is_finite() && !fares {
+        return Err(format!(
+            "max_fare requires a fare_structure: max_fare is {max_fare} but there is no \
+             fare_structure, so no fares are calculated and the limit would be ignored"
+        ));
+    }
+    Ok(())
+}
+
+/// r5r's `request.maxFare`: `Math.round(maxFare * 100.0f)` of the float
+/// r5r sets, `Integer.MAX_VALUE` for an infinite `max_fare`.
+pub(crate) fn max_fare_cents(max_fare: f64) -> i32 {
+    let f = if max_fare.is_finite() {
+        max_fare as f32
+    } else {
+        i32::MAX as f32
+    };
+    (f64::from(f * 100.0f32) + 0.5).floor() as i32
+}
+
+/// What the fare path of a query needs: the calculator, the patterns
+/// McRAPTOR may ride and the services running on the date.
+pub(crate) struct FareSetup {
+    pub(crate) calc: FareCalculator,
+    pub(crate) allowed: Vec<bool>,
+    pub(crate) active: Vec<bool>,
+}
+
+impl FareSetup {
+    pub(crate) fn new(
+        fs: &FareStructure,
+        layer: &TransitLayer,
+        date: u32,
+        modes: &[TransitMode],
+    ) -> Result<Self, RouteError> {
+        let calc = FareCalculator::new(fs, layer)?;
+        let active = layer.active_services(date, weekday(date));
+        let allowed =
+            mcraptor::allowed_patterns(layer, &active, modes).map_err(RouteError::Invalid)?;
+        Ok(FareSetup {
+            calc,
+            allowed,
+            active,
+        })
     }
 }
 
@@ -256,6 +323,8 @@ impl Default for TransitParams {
             seed: None,
             n_threads: 0,
             cancel: CancelToken::default(),
+            fare_structure: None,
+            max_fare: f64::INFINITY,
             scenario: crate::Scenario::default(),
         }
     }
@@ -435,6 +504,12 @@ pub(crate) struct Query<'a> {
     max_t: i32,
     /// `(int)(walkSpeed * 1000)`, mm/s.
     walk_mms: i32,
+    /// With a fare structure, McRAPTOR's setup.
+    fares: Option<FareSetup>,
+    /// `request.maxFare`, cents.
+    max_fare: i32,
+    /// `(double) (walkSpeed * 1000)`, McRAPTOR's walking speed.
+    walk_mms_f: f64,
 }
 
 /// The street search from an origin of a public transport query (R5
@@ -670,6 +745,10 @@ impl<'a> Query<'a> {
                 .collect()
             }
         };
+        let fares = match &p.fare_structure {
+            Some(fs) => Some(FareSetup::new(fs, layer, p.date, &p.transit_modes)?),
+            None => None,
+        };
         let scen = crate::street::scenario::scenario_network(
             net,
             &p.scenario,
@@ -688,6 +767,9 @@ impl<'a> Query<'a> {
             egress,
             max_t: p.max_trip_duration * 60,
             walk_mms,
+            fares,
+            max_fare: max_fare_cents(p.max_fare),
+            walk_mms_f: f64::from(walk_speed * 1000.0f32),
         })
     }
 
@@ -700,10 +782,23 @@ impl<'a> Query<'a> {
     /// records nothing for the origin).
     pub(crate) fn route_origin(
         &self,
+        origin: (f64, f64),
+        scratch: &mut Scratch,
+        per_destination: impl FnMut(usize, &mut [i32]),
+    ) -> Result<bool, RouteError> {
+        self.route_origin_fare(origin, scratch, self.max_fare, per_destination)
+    }
+
+    /// [`Query::route_origin`] with `request.maxFare` set to `max_fare`
+    /// cents (r5r's `pareto_frontier()` routes once per fare cutoff).
+    /// Errors are McRAPTOR's exceptions.
+    pub(crate) fn route_origin_fare(
+        &self,
         (lat, lon): (f64, f64),
         scratch: &mut Scratch,
+        max_fare: i32,
         mut per_destination: impl FnMut(usize, &mut [i32]),
-    ) -> bool {
+    ) -> Result<bool, RouteError> {
         let (net, layer, p) = (self.scen.as_ref().unwrap_or(self.net), self.layer, self.p);
         let Scratch {
             split,
@@ -724,10 +819,45 @@ impl<'a> Query<'a> {
             direct,
             access,
         ) {
-            return false;
+            return Ok(false);
         }
         let transit = !access.is_empty();
-        if transit {
+        if let (true, Some(f)) = (transit, &self.fares) {
+            // R5TravelTimeComputer with a fare calculator: McRAPTOR and
+            // FareDominatingList, times collated per draw
+            let req = McRequest {
+                from_time: p.departure_time,
+                to_time: p.departure_time + p.time_window * 60,
+                max_trip_s: self.max_t,
+                max_rides: p.max_rides,
+                suboptimal_minutes: 0,
+                max_fare,
+                monte_carlo_draws: p.time_window * p.draws_per_minute,
+                walk_mms: self.walk_mms_f,
+                seed: p.seed,
+                origin: (lat, lon),
+            };
+            let mut router = McRaptor::new(
+                layer,
+                &self.data.transfers,
+                &f.allowed,
+                &f.active,
+                &req,
+                Dominance::Fare(&f.calc),
+                None,
+                McRaptor::departure_seed(p.seed, (lat, lon)),
+            );
+            stop_times.reset(layer.stop_ids.len(), req.monte_carlo_draws.max(0) as usize);
+            let mut k = 0;
+            router
+                .route(access, &p.cancel, |_, out| {
+                    if let DrawOut::Times(t) = out {
+                        stop_times.set_iteration(k, t);
+                        k += 1;
+                    }
+                })
+                .map_err(RouteError::Invalid)?;
+        } else if transit {
             let req = RaptorRequest {
                 from_time: p.departure_time,
                 time_window: p.time_window,
@@ -753,7 +883,7 @@ impl<'a> Query<'a> {
         for (j, &d) in direct.iter().enumerate() {
             if p.cancel.is_cancelled() {
                 // the caller discards the origin
-                return true;
+                return Ok(true);
             }
             // PerTargetPropagater.propagate: start from the non-transit time,
             // improve it by vehicle arrival + egress walk. Only the least
@@ -788,7 +918,7 @@ impl<'a> Query<'a> {
             }
             per_destination(j, tt);
         }
-        true
+        Ok(true)
     }
 }
 
@@ -951,11 +1081,12 @@ pub fn transit_travel_time_matrix(
                     }
                 }
             }
-        });
-        row
+        })?;
+        Ok::<_, RouteError>(row)
     })?;
     let mut minutes = Vec::with_capacity(origins.len() * nd * np);
     for row in rows {
+        let row: Vec<Option<u32>> = row?;
         minutes.extend_from_slice(&row);
     }
     Ok(TransitMatrix {

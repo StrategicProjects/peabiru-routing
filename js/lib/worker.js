@@ -13,9 +13,12 @@ import {
   Network,
   accessibility,
   expanded,
+  fare_check,
+  fare_setup,
   find_snap,
   isochrone_polygons,
   itineraries,
+  pareto,
   street_bbox,
   street_edges,
   street_ttm,
@@ -41,6 +44,9 @@ const FUNCTIONS = {
   transit_stops,
   transit_routes,
   transit_service_dates,
+  fare_setup,
+  fare_check,
+  pareto,
 };
 
 let network = null;

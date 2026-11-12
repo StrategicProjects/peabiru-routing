@@ -160,10 +160,9 @@ for (let i = 0; i < ttm.from_id.length; i++) {
 ## What is not supported
 
 What peabiru does not support yet throws `peabiru.UnsupportedError`; it is
-never silently ignored: fares
-(`fareStructure`, `maxFare`), `outputDir`, expanded and arrival matrices by a street mode
-alone, and in `detailedItineraries()` `shortestPath: false` with public
-transport.
+never silently ignored: `outputDir`, expanded and arrival matrices by a
+street mode alone, and R5's own fare calculators (a `fareStructure` with a
+`type`).
 
 ## Elevation
 

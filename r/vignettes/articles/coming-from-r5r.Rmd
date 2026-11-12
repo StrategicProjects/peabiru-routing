@@ -151,7 +151,7 @@ row, which goes the other way.
 
 | r5r feature | In peabiru |
 |---|---|
-| Fares: `fare_structure`, `max_fare` | error |
+| R5's own fare calculators (a `fare_structure` with a `type`) | error |
 | Scenarios whose car speeds R5 keeps as 16-bit cm/s that wrap around or reach 0 or less (a negative factor or speed in `new_carspeeds`, a `scale` of `Inf` or 0 in its polygons, `carspeed_scale` far above 1); r5r then routes on the wrapped speeds, or fails dividing by zero | error |
 | `carspeed_scale` above the 32-bit float range (r5r hands R5 `Infinity`) | error |
 | `carspeed_scale` of `NA`, `NaN` or a length other than 1, which r5r's check lets through and then fails on with an internal R error | an error of peabiru's own that says so |
@@ -177,13 +177,18 @@ its polygons equal r5r's on the same platform (from one platform to another,
 r5r's own polygons differ in that order and in the last bits of some
 latitudes).
 
-`detailed_itineraries()` returns r5r's itineraries for the fastest trip
-(`shortest_path = TRUE`); `shortest_path = FALSE` with public transport
-is an error.
+`detailed_itineraries()` returns r5r's itineraries, the fastest trip
+(`shortest_path = TRUE`) and the alternatives (`shortest_path = FALSE`), with
+and without fares.
 
-These r5r functions have no peabiru counterpart yet:
-`pareto_frontier()` and the fare structure helpers
-(`setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()`).
+Fares are r5r's: the fare structure functions (`setup_fare_structure()`,
+`read_fare_structure()`, `write_fare_structure()`, whose files each package
+reads from the other), `fare_structure` and `max_fare` in the routing
+functions, and `pareto_frontier()`. `write_fare_structure()` writes the same
+CSV files as r5r into an uncompressed `.zip`, so the archive's bytes differ
+from r5r's (which also holds the files' dates). r5r's `debug_path` and
+`debug_info` are kept in the structure, and, as in r5r 2.5.0, no debug file
+is written.
 
 ## Expanded matrices with a street mode
 

@@ -120,7 +120,7 @@ test_that("arguments are checked as r5r checks them", {
   expect_error(ttm(max_lts = 5), "between 1 and 4")
   expect_error(ttm(seed = 1.5), "integerish")
   expect_error(travel_time_matrix(network, pts, pts, n_threads = 0), ">= 1")
-  expect_error(ttm(max_fare = 5), "requires a 'fare_structure'")
+  expect_error(ttm(max_fare = 5), "requires a `fare_structure`")
   expect_error(ttm(departure_datetime = "2019-05-13 14:00"), "POSIXct")
   expect_error(travel_time_matrix(list(), pts, pts), "peabiru_network")
 })
@@ -132,7 +132,7 @@ test_that("what the core does not support is an error, never ignored", {
     travel_time_matrix(network, pts, pts, departure_datetime = departure,
                        n_threads = 2, ...)
   }
-  expect_error(ttm(fare_structure = list()), "fare_structure.*not supported")
+  expect_error(ttm(fare_structure = list(type = "boston")), "R5.*not supported")
   # TRANSIT with other transit modes is all transit modes, as in r5r
   expect_identical(
     ttm(mode = c("WALK", "TRANSIT", "BUS"), seed = 1),

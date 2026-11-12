@@ -9,6 +9,7 @@
 - [Accessibility](accessibility.md)
 - [Expanded and arrival matrices](expanded.md)
 - [Isochrones](isochrones.md)
+- [Fares and Pareto frontiers](fares.md)
 - [The command line](cli.md)
 - [Parity with r5r](parity.md)
 

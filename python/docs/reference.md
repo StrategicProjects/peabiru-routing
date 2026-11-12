@@ -30,6 +30,16 @@ All functions are available at the top level of the package
 
 ::: peabiru.detailed_itineraries
 
+## Fares
+
+::: peabiru.setup_fare_structure
+
+::: peabiru.read_fare_structure
+
+::: peabiru.write_fare_structure
+
+::: peabiru.pareto_frontier
+
 ## Inspecting a network
 
 ::: peabiru.find_snap

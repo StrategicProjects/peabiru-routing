@@ -59,11 +59,14 @@ crossed South America from the Atlantic to the Andes.
 Public transport can be any subset of the transit modes (`"BUS"`,
 `"RAIL"`, ...), reached by walking, bicycle or car and left the same ways.
 
-Detailed itineraries give the legs of the fastest trip, with their lines.
+Detailed itineraries give the legs of the fastest trip, or of the
+alternatives (`shortest_path = FALSE`), with their lines. Fares follow r5r's
+fare structures (`setup_fare_structure()`, `read_fare_structure()`,
+`write_fare_structure()`) in the matrices, accessibility, itineraries and
+`pareto_frontier()`.
 
-Not implemented yet: fares, and the alternative
-itineraries of `detailed_itineraries(shortest_path = FALSE)` with public
-transport. Asking for any of them is an error; nothing is silently ignored.
+Not implemented yet: R5's own fare calculators (a fare structure with a
+`type`). Asking for them is an error; nothing is silently ignored.
 
 **Status:** version 0.0.1, early development. The interfaces may still
 change.

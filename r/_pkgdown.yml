@@ -77,6 +77,15 @@ reference:
 - title: Accessibility
   contents:
   - accessibility
+- title: Fares
+  desc: >
+    Fare structures (how much each ride and transfer costs), which the routing
+    functions take, and the trade-off between travel time and fare.
+  contents:
+  - setup_fare_structure
+  - read_fare_structure
+  - write_fare_structure
+  - pareto_frontier
 - title: Isochrones
   desc: >
     The areas or street segments reached from each origin within each cutoff.
@@ -117,6 +126,7 @@ articles:
   - articles/travel-time-matrices
   - articles/accessibility
   - articles/expanded-and-arrival
+  - articles/fares
   - articles/coming-from-r5r
 - title: Examples
   navbar: Examples

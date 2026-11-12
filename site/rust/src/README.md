@@ -43,8 +43,9 @@ Version 0.0.1, on [crates.io](https://crates.io/crates/peabiru-core). Implemente
 bicycle, car), public transport matrices (any subset of the transit modes,
 reached and left on foot, by bicycle or by car) with percentiles and Monte
 Carlo draws, accessibility with five decay functions, expanded and arrival matrices,
-isochrones, and detailed itineraries (the fastest trip). Not yet:
-alternative itineraries, fares and Pareto frontiers. The results
+isochrones, detailed itineraries (the fastest trip or the
+alternatives), fares and Pareto frontiers, with elevation. Not yet: R5's own
+fare calculators. The results
 are checked against r5r's on every scenario in the repository; see
 [Parity with r5r](parity.md).
 

@@ -1,4 +1,4 @@
-"""detailed_itineraries(), as r5r's (2.5.0) without fares."""
+"""detailed_itineraries(), as r5r's (2.5.0)."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from ._assign import (
     assign_mode,
     assign_n_threads,
     assign_points_input,
-    check_fares,
+    check_draws,
     check_max_lts,
     check_messages,
     check_output_dir,
@@ -27,6 +27,7 @@ from ._assign import (
     check_transit_availability_on_date,
 )
 from ._checks import assert_count, assert_flag, core_errors, unsupported
+from ._fares import fare_arg
 from ._network import Network, assert_network
 from ._routing import _f64, _i32, _street_limits, _strings
 
@@ -98,11 +99,12 @@ def detailed_itineraries(
     and the result are those of ``r5r::detailed_itineraries()`` (r5r
     2.5.0), with the same values: the direct trip by the street mode and,
     with public transport, the fastest trip over the departure window
-    (``shortest_path=True``).
+    (``shortest_path=True``) or, with ``shortest_path=False``, the
+    alternatives R5's multi-criteria router (McRAPTOR) finds, one per
+    sequence of routes; with a ``fare_structure``, the trips are routed
+    with fares and get ``total_fare`` and ``cumulative_fare`` columns.
 
-    Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]:
-    ``shortest_path=False`` with public transport (r5r routes it with R5's
-    McRAPTOR) and fares. As in r5r, networks
+    As in r5r, networks
     whose GTFS has frequency-based trips cannot be used with public
     transport. With ``mode_egress="CAR"``, a pair whose itineraries in r5r
     depend on the searches that ran before (R5 reverses the via edges of
@@ -120,12 +122,18 @@ def detailed_itineraries(
     mode, mode_egress, departure_datetime, time_window, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, verbose, progress
         As in [`travel_time_matrix()`][peabiru.travel_time_matrix].
     suboptimal_minutes : int, default 0
-        Must be 0 with ``shortest_path=True``.
+        With ``shortest_path=False``, how many minutes slower than the best
+        an alternative may be; must be 0 with ``shortest_path=True`` or a
+        ``fare_structure``.
     shortest_path : bool, default True
         Whether to return only the fastest itinerary.
     all_to_all : bool, default False
         Whether to route from every origin to every destination.
-    fare_structure, max_fare, new_carspeeds, carspeed_scale, new_lts
+    fare_structure : dict, optional
+        A fare structure (see [`setup_fare_structure()`][peabiru.setup_fare_structure]).
+    max_fare : float, default math.inf
+        The highest fare of a trip; a finite value needs a ``fare_structure``.
+    new_carspeeds, carspeed_scale, new_lts
         Not supported yet (the defaults only).
     drop_geometry : bool, default False
         Whether to return a ``pandas.DataFrame`` without the lines.
@@ -210,22 +218,27 @@ def detailed_itineraries(
             "To set osm_link_ids to `True`, the parameter 'drop_geometry' must also be `False`"
         )
     assert_count(time_window, "time_window", positive=True)
+    check_draws(1, time_window,
+                mcraptor=mode_list.transit and not (shortest_path and fare_structure is None))
     check_speed(walk_speed, "walk")
     check_speed(bike_speed, "bike")
     assert_count(max_rides, "max_rides", positive=True)
     check_max_lts(max_lts)
     threads = assign_n_threads(n_threads)
     check_messages(verbose, progress)
-    check_fares(fare_structure, max_fare)
+    fares = fare_arg(fare_structure, max_fare, r5r_network)
     out_dir = check_output_dir(output_dir)
     assert_count(suboptimal_minutes, "suboptimal_minutes")
+    if fare_structure is not None and suboptimal_minutes > 0:
+        raise ValueError(
+            "Assertion on 'suboptimal_minutes' failed: Must be 0 when calculating fares "
+            "with detailed_itineraries()."
+        )
     if shortest_path and suboptimal_minutes > 0:
         raise ValueError(
             "Assertion on 'suboptimal_minutes' failed: Must be 0 when 'shortest_path' is True."
         )
     scenario = scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
-    if not shortest_path and mode_list.transit:
-        unsupported("'shortest_path=False' with public transport (McRAPTOR)")
     if out_dir is None and not drop_geometry:
         try:
             import geopandas as gpd
@@ -247,6 +260,7 @@ def detailed_itineraries(
             float(walk_speed), float(bike_speed), int(max_rides), int(max_lts),
             bool(shortest_path), threads, scenario, bool(drop_geometry), bool(osm_link_ids),
             None if out_dir is None else (out_dir, [str(i) for i in o.ids], [str(i) for i in d.ids]),
+            int(suboptimal_minutes), fares, float(max_fare),
         )
     if r is None:
         return output_dir
@@ -262,8 +276,10 @@ def detailed_itineraries(
         "departure_time": _strings(np.array(r["departure_time"], dtype=object)),
         "total_duration": _f64(r["total_duration"]).copy(),
         "total_distance": _i32(r["total_distance"]).copy(),
+        **({"total_fare": _f64(r["total_fare"]).copy()} if fares is not None else {}),
         "segment": _i32(r["segment"]).copy(),
         "mode": _strings(np.array(r["mode"], dtype=object)),
+        **({"cumulative_fare": _f64(r["cumulative_fare"]).copy()} if fares is not None else {}),
         "segment_duration": _f64(r["segment_duration"]).copy(),
         "wait": _f64(r["wait"]).copy(),
         "distance": _i32(r["distance"]).copy(),

@@ -28,6 +28,41 @@ nets <- list(
 pts <- read.csv(file.path(ext, "poa_hexgrid.csv"))[c(10, 300, 900), ]
 pts$jobs <- c(1L, 2L, 3L)
 dt <- as.POSIXct("2019-05-13 14:00:00")
+# r5r's fare structure of Porto Alegre, and broken copies of it (each a
+# check of r5r's assert_fare_structure(), or a value R5 then fails on)
+fs <- r5r::read_fare_structure(file.path(ext, "fares/fares_poa.zip"))
+fs_zip <- file.path(tempdir(), "error_parity_fares.zip")
+file.copy(file.path(ext, "fares/fares_poa.zip"), fs_zip, overwrite = TRUE)
+fs_edit <- function(f) { s <- fs; s <- f(s); s }
+fs_bad <- list(
+  fs_df = data.frame(a = 1), fs_unnamed = list(1), fs_null_elem = fs_edit(function(s) { s["fare_cap"] <- list(NULL); s }),
+  fs_dup = c(fs, list(fare_cap = 1)), fs_extra = c(fs, list(foo = 1)),
+  fs_missing = fs_edit(function(s) { s$fare_cap <- NULL; s }),
+  fs_cap_neg = fs_edit(function(s) { s$fare_cap <- -1; s }),
+  fs_cap_na = fs_edit(function(s) { s$fare_cap <- NA; s }),
+  fs_cap_chr = fs_edit(function(s) { s$fare_cap <- "a"; s }),
+  fs_allow_2 = fs_edit(function(s) { s$transfer_time_allowance <- c(1, 2); s }),
+  fs_types_list = fs_edit(function(s) { s$fares_per_type <- list(1); s }),
+  fs_type_num = fs_edit(function(s) { s$fares_per_type <- transform(as.data.frame(s$fares_per_type), type = seq_along(type)); s }),
+  fs_type_dup = fs_edit(function(s) { s$fares_per_type <- transform(as.data.frame(s$fares_per_type), type = type[1]); s }),
+  fs_type_nocol = fs_edit(function(s) { s$fares_per_type <- as.data.frame(s$fares_per_type)[-1]; s }),
+  fs_unl_na = fs_edit(function(s) { s$fares_per_type <- transform(as.data.frame(s$fares_per_type), unlimited_transfers = NA); s }),
+  fs_fare_neg = fs_edit(function(s) { s$fares_per_type <- transform(as.data.frame(s$fares_per_type), fare = -1); s }),
+  fs_fare_inf = fs_edit(function(s) { s$fares_per_type <- transform(as.data.frame(s$fares_per_type), fare = Inf); s }),
+  fs_leg_bad = fs_edit(function(s) { s$fares_per_transfer <- transform(as.data.frame(s$fares_per_transfer), first_leg = "ZZ"); s }),
+  fs_leg_na = fs_edit(function(s) { s$fares_per_transfer <- transform(as.data.frame(s$fares_per_transfer), second_leg = NA_character_); s }),
+  fs_leg_empty = fs_edit(function(s) { s$fares_per_transfer <- transform(as.data.frame(s$fares_per_transfer), second_leg = ""); s }),
+  fs_transfer_none = fs_edit(function(s) { s$fares_per_transfer <- data.frame(); s }),
+  fs_route_num = fs_edit(function(s) { s$fares_per_route <- transform(as.data.frame(s$fares_per_route), route_id = 1); s }),
+  fs_route_fare_na = fs_edit(function(s) { s$fares_per_route <- transform(as.data.frame(s$fares_per_route), route_fare = NA_real_); s }),
+  fs_fare_type_bad = fs_edit(function(s) { s$fares_per_route <- transform(as.data.frame(s$fares_per_route), fare_type = "ZZ"); s }),
+  fs_route_missing = fs_edit(function(s) { s$fares_per_route <- s$fares_per_route[-1, ]; s }),
+  fs_extra_col = fs_edit(function(s) { s$fares_per_route <- transform(as.data.frame(s$fares_per_route), zone = 1); s }),
+  fs_debug_num = fs_edit(function(s) { s$debug_settings <- 1; s }),
+  fs_debug_names = fs_edit(function(s) { s$debug_settings <- list(output_file = "", x = 1); s }),
+  fs_debug_na = fs_edit(function(s) { s$debug_settings$output_file <- NA; s }),
+  fs_trip_info_2 = fs_edit(function(s) { s$debug_settings$trip_info <- c("a", "b"); s })
+)
 
 # Values tried for every argument.
 generic <- list(
@@ -67,12 +102,23 @@ specific <- list(
   start_date = list(text = "x"), end_date = list(text = "x"),
   radius = list(neg = -1, big = 1e10),
   data_path = list(missing = file.path(tempdir(), "nope"), file = file.path(ext, "poa_osm.pbf")),
-  elevation = list(bad = "FLAT", lower = "tobler")
+  elevation = list(bad = "FLAT", lower = "tobler"),
+  fare_structure = fs_bad,
+  max_fare = list(m48 = 4.8),
+  fare_cutoffs = list(dup = c(1, 1), unsorted = c(5, 1), one = 4.8),
+  base_fare = list(b48 = 4.8),
+  by = list(lower = "mode", bad = "ZONE", two = c("MODE", "GENERIC"), agency = "AGENCY_NAME"),
+  debug_path = list(csv = file.path(tempdir(), "error_parity_debug.csv"), txt = "debug.txt"),
+  debug_info = list(bad = "ALL", lower = "route"),
+  file_path = list(missing = file.path(tempdir(), "nope.zip"), dir = tempdir(),
+                   pbf = file.path(ext, "poa_osm.pbf"), upper = toupper(fs_zip),
+                   new = file.path(tempdir(), "error_parity_new.zip")),
+  encoding = list(bad = "latin1", lower = "utf-8", latin = "Latin-1"),
+  suboptimal_minutes = list(five = 5)
 )
 # Arguments not tried, with why.
 untried <- c(
   r5r_core = "deprecated alias of r5r_network",
-  fare_structure = "fares are another job", max_fare = "fares are another job",
   new_carspeeds = "checked by the scenario battery", carspeed_scale = "checked by the scenario battery",
   new_lts = "checked by the scenario battery", output_dir = "writes files",
   temp_dir = "rebuilds the network", overwrite = "rebuilds the network",
@@ -104,7 +150,13 @@ base <- function(net) list(
   transit_network_to_sf = list(r5r_network = net),
   check_transit_availability = list(r5r_network = net, dates = "2019-05-13"),
   get_gtfs_errors = list(r5r_network = net),
-  build_network = list(data_path = data_dir)
+  build_network = list(data_path = data_dir),
+  setup_fare_structure = list(r5r_network = net, base_fare = 4.8),
+  read_fare_structure = list(file_path = fs_zip),
+  write_fare_structure = list(fare_structure = fs, file_path = file.path(tempdir(), "error_parity_out.zip")),
+  pareto_frontier = list(r5r_network = net, origins = pts, destinations = pts,
+    mode = c("WALK", "TRANSIT"), departure_datetime = dt, max_trip_duration = 30,
+    fare_structure = fs, fare_cutoffs = c(0, 4.8, 9.6))
 )
 
 # Differences kept on purpose: "function:argument:value" (a regex) and why.
@@ -123,7 +175,15 @@ deliberate <- c(
   "expanded_travel_time_matrix:mode:(lower|NULL_)" =
     "peabiru does not compute an expanded matrix with a street mode alone (see the documentation)",
   "arrival_travel_time_matrix:mode:(lower|NULL_)" =
-    "peabiru does not compute an arrival matrix with a street mode alone (see the documentation)"
+    "peabiru does not compute an arrival matrix with a street mode alone (see the documentation)",
+  "write_fare_structure:fare_structure:(NULL_|list|df|fs_df|fs_unnamed)" =
+    "r5r checks nothing and fails in data.table::fwrite() (an internal R error); peabiru says which table it cannot write",
+  "write_fare_structure:fare_structure:(fs_null_elem|fs_missing|fs_allow_2|fs_debug_names|fs_trip_info_2)" =
+    "r5r checks nothing and writes settings tables data.table recycles to the wrong length; peabiru refuses them",
+  "write_fare_structure:file_path:NULL_" =
+    "r5r lets NULL through its check and fails in zip::zip() (an internal R error)",
+  "read_fare_structure:two_files:combination" =
+    "r5r's check takes several files and zip::unzip() then fails (an internal R error)"
 )
 # r5r raises its cli::cli_abort() errors as 'rlang' conditions; peabiru,
 # which imports nothing, raises the same message as a simpleError
@@ -201,13 +261,36 @@ combos <- list(
   "accessibility:fixed_exponential_without_value" =
     list(fun = "accessibility", args = list(decay_function = "fixed_exponential", cutoffs = NULL)),
   "isochrone:lines_with_percentiles" =
-    list(fun = "isochrone", args = list(polygon_output = FALSE, percentiles = 50))
+    list(fun = "isochrone", args = list(polygon_output = FALSE, percentiles = 50)),
+  "travel_time_matrix:fares_200_draws" =
+    list(fun = "travel_time_matrix", args = list(fare_structure = fs, time_window = 20, draws_per_minute = 10)),
+  "travel_time_matrix:fares_too_many_draws" =
+    list(fun = "travel_time_matrix", args = list(fare_structure = fs, time_window = 1, draws_per_minute = 60)),
+  "accessibility:fares_200_draws" =
+    list(fun = "accessibility", args = list(mode = c("WALK", "TRANSIT"), fare_structure = fs, time_window = 200, draws_per_minute = 1)),
+  "pareto_frontier:200_draws" =
+    list(fun = "pareto_frontier", args = list(time_window = 200)),
+  "pareto_frontier:no_fare_structure" =
+    list(fun = "pareto_frontier", args = list(fare_structure = NULL)),
+  "pareto_frontier:missing_fare_cutoffs" =
+    list(fun = "pareto_frontier", args = list(fare_cutoffs = NULL), drop = TRUE),
+  "pareto_frontier:missing_fare_structure" =
+    list(fun = "pareto_frontier", args = list(fare_structure = NULL), drop = TRUE),
+  "detailed_itineraries:fares_and_suboptimal" =
+    list(fun = "detailed_itineraries", args = list(mode = c("WALK", "TRANSIT"), shortest_path = FALSE, fare_structure = fs, suboptimal_minutes = 5)),
+  "detailed_itineraries:alternatives_200_draws" =
+    list(fun = "detailed_itineraries", args = list(mode = c("WALK", "TRANSIT"), shortest_path = FALSE, time_window = 200)),
+  "setup_fare_structure:debug_info_without_path" =
+    list(fun = "setup_fare_structure", args = list(debug_info = "MODE")),
+  "read_fare_structure:two_files" =
+    list(fun = "read_fare_structure", args = list(file_path = c(fs_zip, fs_zip)))
 )
 for (key in grep(only, names(combos), value = TRUE)) {
   cmb <- combos[[key]]
   res <- lapply(c("peabiru", "r5r"), function(pkg) {
     a <- base(nets[[pkg]])[[cmb$fun]]
     for (n in names(cmb$args)) a[n] <- list(cmb$args[[n]])
+    if (identical(cmb$drop, TRUE)) a[names(cmb$args)] <- NULL
     run(pkg, cmb$fun, a)
   })
   p <- res[[1]]; r <- res[[2]]
@@ -215,9 +298,12 @@ for (key in grep(only, names(combos), value = TRUE)) {
     if (identical(p$msg, r$msg) && identical(p$cls, r$cls)) "same" else
       if (identical(p$msg, r$msg)) "class-differs" else "message-differs"
   } else if (p$ok) "r5r-error-only" else "peabiru-error-only"
-  why <- if (same == "class-differs" && cli_class(r$cls)) {
-    "same message; r5r's is an rlang condition (cli), peabiru's a simpleError"
-  } else ""
+  why <- names(deliberate)[vapply(names(deliberate), function(d)
+    grepl(paste0("^", d, "$"), paste0(key, ":combination")), TRUE)]
+  why <- if (length(why) && !same %in% c("same", "both-ok")) deliberate[[why[1]]] else ""
+  if (!nzchar(why) && same == "class-differs" && cli_class(r$cls)) {
+    why <- "same message; r5r's is an rlang condition (cli), peabiru's a simpleError"
+  }
   parts <- strsplit(key, ":", fixed = TRUE)[[1]]
   rows[[key]] <- data.frame(fun = parts[1], arg = parts[2], value = "combination",
     outcome = same, deliberate = why,

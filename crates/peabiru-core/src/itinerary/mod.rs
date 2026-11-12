@@ -1,5 +1,4 @@
-//! Detailed itineraries, as r5r 2.5.0's `detailed_itineraries()` without
-//! fares.
+//! Detailed itineraries, as r5r 2.5.0's `detailed_itineraries()`.
 //!
 //! r5r routes each origin-destination pair on its own with its
 //! `TripPlanner` (`FastDetailedItineraryPlanner`): a direct trip by the
@@ -9,13 +8,15 @@
 //! access search reaches to the stops an egress search (r5r's
 //! `R5REgressRouter`) reaches, rebuilt leg by leg: the access and egress
 //! street paths, the walks between stops routed again on the streets, and
-//! the rides drawn along the GTFS shapes. With `shortest_path = FALSE` r5r
-//! routes public transport with R5's McRAPTOR instead, which is not ported
-//! here: that case is an error.
+//! the rides drawn along the GTFS shapes. With `shortest_path = FALSE` or
+//! a fare structure r5r routes public transport with R5's McRAPTOR instead
+//! (see `mc`), and so does it for a pair whose FastRaptor path cannot be
+//! read back.
 
 pub(crate) mod geom;
 mod hops;
 mod links;
+mod mc;
 mod transit;
 mod via;
 mod wkt;
@@ -24,9 +25,10 @@ use crate::street::link::find_split;
 use crate::street::p2p::{Req, Router};
 use crate::street::{Mode, StreetNetwork};
 use crate::transit::raptor::TransitMode;
-use crate::{CancelToken, RouteError, TransitData, TransitLayer};
+use crate::{CancelToken, FareStructure, RouteError, TransitData, TransitLayer};
 use geom::{clock, edge_line, line_length_m, minutes_1dp, without_repeats, Line};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 /// Parameters of [`detailed_itineraries`], with r5r's defaults but for the
 /// date and departure time. Fill it in by changing the fields of
@@ -49,8 +51,10 @@ pub struct ItineraryParams {
     pub departure_time: i32,
     /// Departure window in minutes (default 10).
     pub time_window: i32,
-    /// r5r's `suboptimal_minutes` (default 0); only 0 is supported, with
-    /// `shortest_path`.
+    /// r5r's `suboptimal_minutes` (default 0): with `shortest_path =
+    /// false`, how many minutes slower than the best an alternative may be
+    /// and still be kept; it must be 0 with `shortest_path` or a
+    /// `fare_structure`.
     pub suboptimal_minutes: i32,
     /// Longest walk, bicycle and car leg in minutes (default 120 each):
     /// r5r's `max_walk_time` and friends, where `Inf` is
@@ -72,9 +76,17 @@ pub struct ItineraryParams {
     /// Highest level of traffic stress a cyclist rides on, 1 to 4
     /// (default 2).
     pub max_lts: i32,
-    /// r5r's `shortest_path` (default true): the fastest itinerary only.
-    /// `false` is not supported yet with public transport.
+    /// r5r's `shortest_path` (default true): the fastest itinerary only;
+    /// `false` gives the alternatives McRAPTOR finds (one per sequence of
+    /// routes).
     pub shortest_path: bool,
+    /// r5r's `fare_structure` (default `None`): with public transport the
+    /// trips are routed with McRAPTOR and fares (R5's
+    /// `FareDominatingList`), and the itineraries get their fares.
+    pub fare_structure: Option<Arc<FareStructure>>,
+    /// r5r's `max_fare` (default infinity), read as a Java `float`; a
+    /// finite value needs a `fare_structure`.
+    pub max_fare: f64,
     /// Worker threads; 0 means all cores.
     pub n_threads: usize,
     /// Stops the computation when cancelled.
@@ -110,6 +122,8 @@ impl Default for ItineraryParams {
             max_rides: 3,
             max_lts: 2,
             shortest_path: true,
+            fare_structure: None,
+            max_fare: f64::INFINITY,
             n_threads: 0,
             cancel: CancelToken::default(),
             osm_link_ids: false,
@@ -152,10 +166,16 @@ impl ItineraryParams {
                 self.suboptimal_minutes
             ));
         }
+        if self.fare_structure.is_some() && self.suboptimal_minutes > 0 {
+            return Err(
+                "suboptimal_minutes must be 0 when calculating fares with detailed_itineraries()"
+                    .into(),
+            );
+        }
         if self.shortest_path && self.suboptimal_minutes > 0 {
             return Err("suboptimal_minutes must be 0 when shortest_path is true".into());
         }
-        Ok(())
+        crate::transit::matrix::check_max_fare(self.max_fare, self.fare_structure.is_some())
     }
 
     fn req(&self) -> Req {
@@ -203,6 +223,9 @@ pub struct ItineraryLeg {
     pub distance: i32,
     /// GTFS `route_id` of a ride, empty for a street leg.
     pub route: String,
+    /// With a fare structure, r5r's `cumulative_fare`: the fare paid up to
+    /// the end of the leg (0 before the first ride); `None` without one.
+    pub cumulative_fare: Option<f64>,
     /// The leg's line as `(lon, lat)` degrees, as r5r's `geometry`
     /// column holds it (the values read back from the WKT text JTS writes,
     /// see [`wkt`](Self::wkt)).
@@ -266,6 +289,8 @@ pub struct Itinerary {
     pub total_duration: f64,
     /// Metres, the sum of the legs' distances (r5r's `total_distance`).
     pub total_distance: i32,
+    /// With a fare structure, r5r's `total_fare`; `None` without one.
+    pub total_fare: Option<f64>,
     /// The legs in order (r5r's `segment` 1, 2, ...).
     pub legs: Vec<ItineraryLeg>,
 }
@@ -287,7 +312,7 @@ struct Leg {
 }
 
 impl Leg {
-    fn finish(self) -> ItineraryLeg {
+    fn finish(self, fare: Option<i32>) -> ItineraryLeg {
         let raw = without_repeats(&self.line);
         let geometry = raw
             .iter()
@@ -301,6 +326,7 @@ impl Leg {
             wait: minutes_1dp(self.wait),
             distance: self.distance,
             route: self.route,
+            cumulative_fare: fare.map(|f| f64::from(f) / 100.0),
             geometry,
             raw,
             osm_ids: self.links.osm,
@@ -323,6 +349,9 @@ struct Trip {
     /// Seconds after `augment` (r5r's `total_duration`).
     duration: i32,
     legs: Vec<Leg>,
+    /// With a fare structure: the total fare and each leg's cumulative
+    /// fare, cents.
+    fares: Option<(i32, Vec<i32>)>,
 }
 
 /// The line of a street path: the full geometry of every edge it
@@ -394,6 +423,7 @@ fn direct_trip(
             distance,
             links,
         }],
+        fares: None,
     })
 }
 
@@ -426,6 +456,16 @@ pub fn detailed_itineraries(
             destinations.len()
         )));
     }
+    // r5r reads the fare structure in as soon as it is given (for the
+    // network's routes, whatever the modes)
+    let calc = match (&p.fare_structure, transit) {
+        (Some(fs), Some((layer, _))) => Some(crate::fares::FareCalculator::new(fs, layer)?),
+        (Some(fs), None) => {
+            fs.validate()?;
+            None
+        }
+        _ => None,
+    };
     // the scenario's network for every street leg (r5r's TripPlanner routes
     // on getTransportNetwork(), the scenario copy)
     let by_car = p.mode == Mode::Car || (!p.transit_modes.is_empty() && p.egress_mode == Mode::Car);
@@ -439,14 +479,7 @@ pub fn detailed_itineraries(
                 "public transport itineraries need the network's transit layer".into(),
             ));
         };
-        if !p.shortest_path {
-            return Err(RouteError::Invalid(
-                "shortest_path = FALSE with public transport is not supported yet (r5r \
-                 routes it with R5's McRAPTOR, which peabiru does not have)"
-                    .into(),
-            ));
-        }
-        Some(transit::Planner::new(net, layer, data, p)?)
+        Some(transit::Planner::new(net, layer, data, p, calc.as_ref())?)
     };
     let n = origins.len();
     let next = AtomicUsize::new(0);
@@ -508,13 +541,24 @@ fn plan(
         return Ok(Vec::new());
     }
     let mut trips = Vec::new();
-    if let Some(t) = direct_trip(net, p, o, d, scratch, via) {
-        trips.push(t);
-    }
+    let direct = direct_trip(net, p, o, d, scratch, via);
     if let Some(planner) = planner {
-        if let Some(t) = planner.fastest_trip(o, d, scratch, via)? {
-            trips.push(t);
+        if !p.shortest_path || planner.fares.is_some() {
+            return planner.mc_plan(o, d, direct, planner.fares.as_ref(), scratch, via);
         }
+        match planner.fastest_trip(o, d, scratch, via) {
+            Ok(t) => {
+                trips.extend(direct);
+                trips.extend(t);
+            }
+            // r5r routes the pair again with McRAPTOR
+            Err(e) if transit::is_fallback(&e) => {
+                return planner.mc_plan(o, d, direct, None, scratch, via);
+            }
+            Err(e) => return Err(e),
+        }
+    } else {
+        trips.extend(direct);
     }
     let limit = p.trip_limit_min() * 60;
     trips.retain(|t| t.sort_duration <= limit);
@@ -531,6 +575,13 @@ fn plan(
             trips = vec![t];
         }
     }
+    // with a fare structure r5r reports the fare columns, 0 for a trip
+    // without public transport
+    if p.fare_structure.is_some() {
+        for t in &mut trips {
+            t.fares.get_or_insert_with(|| (0, vec![0; t.legs.len()]));
+        }
+    }
     Ok(trips)
 }
 
@@ -541,6 +592,10 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
         .enumerate()
         .map(|(k, t)| {
             let total_distance = t.legs.iter().map(|l| l.distance).sum();
+            let (total_fare, leg_fares) = match t.fares {
+                Some((total, legs)) => (Some(f64::from(total) / 100.0), Some(legs)),
+                None => (None, None),
+            };
             Itinerary {
                 pair,
                 option: k as u32 + 1,
@@ -549,7 +604,13 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
                 total_duration_s: t.duration,
                 total_duration: minutes_1dp(t.duration),
                 total_distance,
-                legs: t.legs.into_iter().map(Leg::finish).collect(),
+                total_fare,
+                legs: t
+                    .legs
+                    .into_iter()
+                    .enumerate()
+                    .map(|(k, l)| l.finish(leg_fares.as_ref().map(|f| f[k])))
+                    .collect(),
             }
         })
         .collect()
@@ -581,10 +642,15 @@ pub fn write_itineraries_csv(
         }
         let (from, to) = (&ids[k].0, &ids[k].1);
         let ((olat, olon), (dlat, dlon)) = points[k];
-        let mut s = String::from(
+        let fares = its[0].total_fare.is_some();
+        let mut s = String::from(if fares {
             "from_id,from_lat,from_lon,to_id,to_lat,to_lon,option,departure_time,\
-             total_duration,total_distance,segment,mode,segment_duration,wait,distance,route",
-        );
+             total_duration,total_distance,total_fare,segment,mode,cumulative_fare,\
+             segment_duration,wait,distance,route"
+        } else {
+            "from_id,from_lat,from_lon,to_id,to_lat,to_lon,option,departure_time,\
+             total_duration,total_distance,segment,mode,segment_duration,wait,distance,route"
+        });
         if osm_link_ids {
             s.push_str(",osm_id_list,edge_id_list,board_stop_id,alight_stop_id");
         }
@@ -609,8 +675,17 @@ pub fn write_itineraries_csv(
                 csv_field(&it.departure_time, &mut s);
                 s.push(',');
                 java_double(it.total_duration, &mut s);
-                s.push_str(&format!(",{},{},", it.total_distance, j + 1));
+                s.push_str(&format!(",{},", it.total_distance));
+                if let Some(f) = it.total_fare {
+                    java_double(f, &mut s);
+                    s.push(',');
+                }
+                s.push_str(&format!("{},", j + 1));
                 csv_field(&l.mode, &mut s);
+                if let Some(f) = l.cumulative_fare {
+                    s.push(',');
+                    java_double(f, &mut s);
+                }
                 for v in [l.segment_duration, l.wait] {
                     s.push(',');
                     java_double(v, &mut s);

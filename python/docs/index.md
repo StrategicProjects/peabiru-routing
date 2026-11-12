@@ -163,7 +163,7 @@ print(access.head())
 
 Anything peabiru does not implement yet is an error
 ([`UnsupportedError`](reference.md#peabiru.UnsupportedError)), never
-silently ignored: fares, and expanded or arrival matrices by a street mode alone. The full list is under
+silently ignored: R5's own fare calculators, and expanded or arrival matrices by a street mode alone. The full list is under
 [Not supported yet](coming-from-r5.md#not-supported-yet).
 
 ## Sample data

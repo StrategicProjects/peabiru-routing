@@ -6,10 +6,15 @@
 #' result are those of `r5r::detailed_itineraries()` (r5r 2.5.0), with the
 #' same values: the direct trip by the street mode and, with public
 #' transport, the fastest trip over the departure window
-#' (`shortest_path = TRUE`).
+#' (`shortest_path = TRUE`) or, with `shortest_path = FALSE`, the
+#' alternatives R5's multi-criteria router (McRAPTOR) finds over
+#' `time_window` sampled departure times, one per sequence of routes (the
+#' fastest of each), up to `suboptimal_minutes` slower than the best. With a
+#' `fare_structure` the trips are routed with fares (and only those within
+#' `max_fare` kept), and the result gets `total_fare` and `cumulative_fare`
+#' columns.
 #'
-#' Not supported yet, and an error: `shortest_path = FALSE` with public
-#' transport (r5r routes it with R5's McRAPTOR) and fares. As in r5r, networks
+#' As in r5r, networks
 #' whose GTFS has frequency-based trips cannot be used with public
 #' transport.
 #'
@@ -25,7 +30,9 @@
 #'
 #' @inheritParams travel_time_matrix
 #' @param suboptimal_minutes An integer, 0 (the default): with
-#'   `shortest_path = TRUE`, r5r requires 0.
+#'   `shortest_path = FALSE`, how many minutes slower than the best an
+#'   alternative may be. It must be 0 with `shortest_path = TRUE` and with a
+#'   `fare_structure`, as in r5r.
 #' @param shortest_path A logical. Whether to return only the fastest
 #'   itinerary (`TRUE`, the default).
 #' @param all_to_all A logical. Whether to route from every origin to
@@ -49,7 +56,10 @@
 #'   `to_id`, `to_lat`, `to_lon`, `option`, `departure_time`,
 #'   `total_duration` (minutes), `total_distance` (metres), `segment`,
 #'   `mode`, `segment_duration`, `wait` (minutes), `distance` (metres),
-#'   `route` and, with `osm_link_ids`, the four id columns. Pairs without an itinerary have no rows. With `output_dir`,
+#'   `route` and, with `osm_link_ids`, the four id columns; with a
+#'   `fare_structure`, also `total_fare` (after `total_distance`) and
+#'   `cumulative_fare` (after `mode`), the fare paid up to the end of the
+#'   leg. Pairs without an itinerary have no rows. With `output_dir`,
 #'   one CSV file per pair with itineraries is written,
 #'   `from_<origin id>_to_<destination id>.csv`, byte for byte as r5r writes
 #'   it (the geometry as r5r's WKT text), and `output_dir` is returned.
@@ -149,23 +159,26 @@ detailed_itineraries <- function(r5r_network,
                          "must also be `FALSE`"))
   }
   assert_count(time_window, "time_window", positive = TRUE)
+  check_draws(1L, time_window,
+              mcraptor = mode_list$transit && !(shortest_path && is.null(fare_structure)))
   check_speed(walk_speed, "walk")
   check_speed(bike_speed, "bike")
   assert_count(max_rides, "max_rides", positive = TRUE)
   check_max_lts(max_lts)
   threads <- assign_n_threads(n_threads)
   check_messages(verbose, progress)
-  check_fares(fare_structure, max_fare)
+  check_fares(fare_structure, max_fare, r5r_network)
   check_output_dir(output_dir)
   assert_count(suboptimal_minutes, "suboptimal_minutes")
+  if (!is.null(fare_structure) && suboptimal_minutes > 0) {
+    stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when calculating ",
+         "fares with detailed_itineraries().", call. = FALSE)
+  }
   if (shortest_path && suboptimal_minutes > 0) {
     stop("Assertion on 'suboptimal_minutes' failed: Must be 0 when ",
          "'shortest_path' is TRUE.", call. = FALSE)
   }
   scenario <- scenario_spec(new_carspeeds, carspeed_scale, new_lts, r5r_network)
-  if (!shortest_path && mode_list$transit) {
-    unsupported("'shortest_path = FALSE' with public transport (McRAPTOR)")
-  }
   if (is.null(output_dir) && !drop_geometry && !requireNamespace("sf", quietly = TRUE)) {
     stop("Package 'sf' is needed for the geometry of detailed itineraries; ",
          "install it or use 'drop_geometry = TRUE'.", call. = FALSE)
@@ -180,19 +193,23 @@ detailed_itineraries <- function(r5r_network,
     departure$yyyymmdd, departure$seconds, as.integer(time_window),
     max_walk_time, max_bike_time, max_car_time, max_trip_duration,
     as.double(walk_speed), as.double(bike_speed), as.integer(max_rides),
-    as.integer(max_lts), shortest_path, threads, drop_geometry, scenario, osm_link_ids, output
+    as.integer(max_lts), shortest_path, threads, drop_geometry, scenario, osm_link_ids, output,
+    as.integer(suboptimal_minutes), fare_structure, as.double(max_fare)
   ))
   if (!is.null(output_dir)) return(output_dir)
 
   i <- res$pair
-  out <- new_df(list(
+  # the fare columns are NULL without a fare structure, and left out
+  out <- new_df(Filter(Negate(is.null), list(
     from_id = origins$id[i], from_lat = origins$lat[i], from_lon = origins$lon[i],
     to_id = destinations$id[i], to_lat = destinations$lat[i], to_lon = destinations$lon[i],
     option = res$option, departure_time = res$departure_time,
     total_duration = res$total_duration, total_distance = res$total_distance,
-    segment = res$segment, mode = res$mode, segment_duration = res$segment_duration,
+    total_fare = res$total_fare,
+    segment = res$segment, mode = res$mode, cumulative_fare = res$cumulative_fare,
+    segment_duration = res$segment_duration,
     wait = res$wait, distance = res$distance, route = res$route
-  ))
+  )))
   if (osm_link_ids) {
     out$osm_id_list <- res$osm_id_list
     out$edge_id_list <- res$edge_id_list

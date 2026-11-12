@@ -28,11 +28,12 @@ JavaScript packages and the command-line tool of the same name.
 | `expanded_travel_time_matrix()` | the trip of every departure minute, with its breakdown |
 | `arrival_travel_time_matrix()` | the latest trip that arrives by a given time |
 | `isochrone()` | the areas or street segments reached within each cutoff |
-| `detailed_itineraries()` | the legs of each trip, with their lines (fastest trip; no fares) |
+| `detailed_itineraries()` | the legs of each trip, with their lines (the fastest trip, or the alternatives) |
+| `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` | fare structures, which the routing functions take as `fare_structure` |
+| `pareto_frontier()` | the trade-off between travel time and fare |
 
-Not implemented yet: fares, and the alternative
-itineraries of `detailed_itineraries(shortest_path = FALSE)` with public
-transport. Asking for them stops with an error; nothing is silently ignored.
+Not implemented yet: R5's own fare calculators (a fare structure with a
+`type`). Asking for them stops with an error; nothing is silently ignored.
 
 ## Installation
 

@@ -15,6 +15,11 @@ import wasmInit, {
   accessibility as rawAccessibility,
   core_version as rawCoreVersion,
   expanded as rawExpanded,
+  fare_check as rawFareCheck,
+  fare_read as rawFareRead,
+  fare_setup as rawFareSetup,
+  fare_write as rawFareWrite,
+  pareto as rawPareto,
   find_snap as rawFindSnap,
   gtfs_errors as rawGtfsErrors,
   isochrone_lines as rawIsochroneLines,
@@ -45,6 +50,9 @@ const RAW = {
   transit_stops: rawTransitStops,
   transit_routes: rawTransitRoutes,
   transit_service_dates: rawTransitServiceDates,
+  fare_setup: rawFareSetup,
+  fare_check: rawFareCheck,
+  pareto: rawPareto,
 };
 
 /** Version of this package. */
@@ -492,15 +500,6 @@ function checkMaxLts(maxLts) {
   }
 }
 
-function checkFares(fareStructure, maxFare) {
-  if (fareStructure !== null && fareStructure !== undefined) unsupported("'fareStructure' (fare calculation)");
-  assertNumber(maxFare, "maxFare", { lower: 0 });
-  if (Number.isFinite(maxFare)) {
-    throw new RangeError(
-      `'maxFare' requires a 'fareStructure': 'maxFare' is ${maxFare} but 'fareStructure' is null, so no fares are calculated and the limit would be ignored. Leave 'maxFare' as Infinity.`,
-    );
-  }
-}
 
 // r5r set_new_congestion() and set_new_lts(), with the checks of
 // congestion_poly2geojson(), dt_to_speed_map(), lts_lines2shp() and
@@ -731,6 +730,15 @@ function commonChecks(o) {
   // seeds them from the clock): a seed drawn at random here.
   if (o.seed === null || o.seed === undefined) return (Math.random() * 4294967296) | 0;
   return Math.round(o.seed);
+}
+
+/**
+ * The seed handed to the core: with a fare structure and no `seed`, none
+ * (R5's McRAPTOR then samples its departure times from the origin alone, as
+ * in r5r with `seed = NULL`); otherwise commonChecks()'s.
+ */
+function mcSeed(seed, opt, fares) {
+  return fares !== null && (opt.seed === null || opt.seed === undefined) ? null : seed;
 }
 
 /** r5r check_transit_availability_on_date(). */
@@ -1412,7 +1420,8 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
   assertCount(opt.timeWindow, "timeWindow", true);
   const pcts = assignPercentiles(opt.percentiles);
   const seed = commonChecks(opt);
-  checkFares(opt.fareStructure, opt.maxFare);
+  checkMcDraws(opt.drawsPerMinute, opt.timeWindow, opt.fareStructure !== null && opt.fareStructure !== undefined);
+  const fares = await fareArg(opt.fareStructure, opt.maxFare, network, opt.signal);
   checkOutputDir(opt.outputDir);
   const scenario = scenarioSpec(opt, network, warn);
 
@@ -1424,7 +1433,7 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
         olat, olon, d.lat, d.lon, modeList.transitMode, modeList.accessMode, modeList.egressMode,
         opt.bikeSpeed, Math.round(opt.maxLts), lim.bike, lim.car, departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow),
         Int32Array.from(pcts), lim.walk, lim.trip, opt.walkSpeed, Math.round(opt.maxRides),
-        Math.round(opt.drawsPerMinute), seed, scenario,
+        Math.round(opt.drawsPerMinute), mcSeed(seed, opt, fares), scenario, fares, opt.maxFare,
       ],
       opt.nThreads, opt.signal,
     );
@@ -1450,6 +1459,244 @@ export async function travelTimeMatrix(network, origins, destinations, options) 
     out[`travel_time_p${pad(p)}`] = t;
   });
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Fare structures (r5r R/fare_structure.R)
+
+const FARE_TYPE_COLS = ["type", "unlimited_transfers", "allow_same_route_transfer", "use_route_fare", "fare"];
+const FARE_TRANSFER_COLS = ["first_leg", "second_leg", "fare"];
+const FARE_ROUTE_COLS = ["agency_id", "agency_name", "route_id", "route_short_name", "route_long_name", "mode", "route_fare", "fare_type"];
+const FARE_ELEMENTS = [
+  "max_discounted_transfers", "transfer_time_allowance", "fare_cap", "fares_per_type", "fares_per_transfer", "fares_per_route", "debug_settings",
+];
+
+/** The core's flat object as r5r's fare structure (tables as objects of columns). */
+function fareFromCore(c) {
+  return {
+    max_discounted_transfers: c.max_discounted_transfers,
+    transfer_time_allowance: c.transfer_time_allowance,
+    fare_cap: c.fare_cap,
+    fares_per_type: Object.fromEntries(FARE_TYPE_COLS.map((k) => [k, c[k]])),
+    fares_per_transfer: { first_leg: c.first_leg, second_leg: c.second_leg, fare: c.transfer_fare },
+    fares_per_route: Object.fromEntries(FARE_ROUTE_COLS.map((k) => [k, c[k]])),
+    debug_settings: { output_file: c.output_file, trip_info: c.trip_info },
+  };
+}
+
+/** A table's column as an array (null for missing), or []. */
+function fareColumn(table, key) {
+  const v = table[key];
+  if (v === undefined) return [];
+  return Array.from(v, (x) => (x === undefined || (typeof x === "number" && Number.isNaN(x)) ? null : x));
+}
+
+/** r5r's fare structure as the core's flat object. */
+function fareToCore(fs) {
+  const t = fs.fares_per_type, tr = fs.fares_per_transfer, r = fs.fares_per_route;
+  const num = (x) => (x === null || x === undefined ? NaN : Number(x));
+  return {
+    max_discounted_transfers: num(fs.max_discounted_transfers),
+    transfer_time_allowance: num(fs.transfer_time_allowance),
+    fare_cap: num(fs.fare_cap),
+    ...Object.fromEntries(FARE_TYPE_COLS.map((k) => [k, fareColumn(t, k)])),
+    first_leg: fareColumn(tr, "first_leg"),
+    second_leg: fareColumn(tr, "second_leg"),
+    transfer_fare: fareColumn(tr, "fare"),
+    ...Object.fromEntries(FARE_ROUTE_COLS.map((k) => [k, fareColumn(r, k)])),
+    output_file: String(fs.debug_settings.output_file),
+    trip_info: String(fs.debug_settings.trip_info),
+  };
+}
+
+/** r5r's assert_fare_structure(): the element names here, the values and tables in the core. */
+function assertFareStructure(fs) {
+  if (fs === null || typeof fs !== "object" || Array.isArray(fs)) fail("fareStructure", "Must be of type 'list'", TypeError);
+  if ("type" in fs) unsupported("A fare calculator of R5 (a fare structure with a 'type')");
+  const names = Object.keys(fs).sort();
+  if (names.join() !== [...FARE_ELEMENTS].sort().join()) {
+    fail("names(fareStructure)", `Must have exactly the names {'${FARE_ELEMENTS.join("','")}'}`);
+  }
+  for (const n of ["max_discounted_transfers", "transfer_time_allowance", "fare_cap"]) {
+    assertNumber(fs[n], `fareStructure$${n}`, { lower: 0 });
+  }
+  const known = { fares_per_type: FARE_TYPE_COLS, fares_per_transfer: FARE_TRANSFER_COLS, fares_per_route: FARE_ROUTE_COLS };
+  for (const [n, cols] of Object.entries(known)) {
+    if (fs[n] === null || typeof fs[n] !== "object") fail(`fareStructure$${n}`, "Must be an object of columns", TypeError);
+    // r5r hands the columns to Java, which fails on a column it does not know
+    const extra = Object.keys(fs[n]).filter((k) => !cols.includes(k));
+    if (extra.length) throw new RangeError(`fareStructure$${n} has column(s) r5r cannot read: ${extra.join(", ")} (r5r fails reading the structure in Java).`);
+  }
+  const ds = fs.debug_settings;
+  if (ds === null || typeof ds !== "object" || Object.keys(ds).sort().join() !== "output_file,trip_info") {
+    fail("fareStructure$debug_settings", "Must have exactly the names {'output_file','trip_info'}");
+  }
+  assertString(ds.output_file, "fareStructure$debug_settings$output_file");
+  assertString(ds.trip_info, "fareStructure$debug_settings$trip_info");
+}
+
+/**
+ * r5r's set_fare_structure() and set_max_fare(): the structure checked and,
+ * as in r5r, read in for the network's routes whatever the modes; a finite
+ * maxFare needs a structure. Resolves to the core's flat object, or null.
+ */
+async function fareArg(fareStructure, maxFare, network, signal) {
+  let core = null;
+  if (fareStructure !== null && fareStructure !== undefined) {
+    assertFareStructure(fareStructure);
+    core = fareToCore(fareStructure);
+    await network._one("fare_check", [core], signal);
+  }
+  assertNumber(maxFare, "maxFare", { lower: 0 });
+  if (Number.isFinite(maxFare) && core === null) {
+    throw new RangeError(
+      `'maxFare' requires a 'fareStructure': 'maxFare' is ${maxFare} but 'fareStructure' is null, so no fares are calculated and the limit would be ignored. Pass a fare structure (see setupFareStructure()) or leave 'maxFare' as Infinity.`,
+    );
+  }
+  return core;
+}
+
+/**
+ * r5r set_monte_carlo_draws(): with McRAPTOR (a fare structure, or the
+ * alternatives of detailedItineraries()), the draws R5 cannot sample are
+ * rejected as r5r rejects them.
+ */
+function checkMcDraws(drawsPerMinute, timeWindow, mcraptor) {
+  if (!mcraptor) return;
+  const dpm = Math.round(drawsPerMinute);
+  const draws = Math.trunc(timeWindow * dpm);
+  if (draws === 200) {
+    throw new RangeError(
+      `A 'timeWindow' of ${timeWindow} minutes with ${dpm} draw(s) per minute gives exactly 200 Monte Carlo draws, which R5's McRaptor algorithm does not accept. Use a slightly different 'timeWindow', e.g. ${timeWindow + 1}. See https://github.com/ipea/r5r/issues/602.`,
+    );
+  }
+  const m = Math.floor(60 / dpm);
+  const mu = (m - 1) / 2 + Math.floor(m / 2);
+  const span = 60 * timeWindow;
+  let p = 0;
+  if (m >= 2) {
+    const sd = Math.sqrt((span * (m * m - 1)) / 12 / mu ** 3);
+    const z = ((span - (m - 1) / 2) / mu + 1 - draws) / sd;
+    p = Math.exp((-z * z) / 2) / Math.sqrt(2 * Math.PI) / sd;
+  }
+  if (p < 5e-5) {
+    throw new RangeError(
+      `'drawsPerMinute' = ${dpm} with a 'timeWindow' of ${timeWindow} minutes is not supported with a 'fareStructure'. R5's McRaptor algorithm cannot sample this many departure times and could run indefinitely. Use a lower 'drawsPerMinute' or a shorter 'timeWindow'. See https://github.com/ipea/r5r/issues/602.`,
+    );
+  }
+}
+
+/**
+ * A fare structure as r5r's setup_fare_structure(): every route, fare type
+ * and transfer between two types costs `baseFare` (read as a Java float, as
+ * in r5r), with one fare type per mode (`by: "MODE"`), per agency
+ * (`"AGENCY_ID"`, `"AGENCY_NAME"`) or one for all routes (`"GENERIC"`).
+ */
+export async function setupFareStructure(network, baseFare, options = {}) {
+  const o = optionsObject(options);
+  for (const k of Object.keys(o)) {
+    if (!["by", "debugPath", "debugInfo"].includes(k)) throw new TypeError(`unknown option '${k}'`);
+  }
+  assertNetwork(network);
+  if (typeof baseFare !== "number") fail("baseFare", "Must be of type 'numeric'", TypeError);
+  if (Number.isNaN(baseFare)) fail("baseFare", "Contains missing values (element 1)");
+  if (baseFare < 0) fail("baseFare", "Element 1 is not >= 0");
+  const options_ = ["MODE", "AGENCY_ID", "AGENCY_NAME", "GENERIC"];
+  const by = o.by === undefined ? "MODE" : o.by;
+  assertString(by, "by");
+  const byU = by.toUpperCase();
+  if (!options_.includes(byU)) fail("by", `Must be a subset of {'${options_.join("','")}'}, but has additional elements {'${byU}'}`);
+  let debugPath = o.debugPath === undefined ? null : o.debugPath;
+  let debugInfo = o.debugInfo === undefined ? null : o.debugInfo;
+  if (debugPath !== null) {
+    assertString(debugPath, "debugPath");
+    if (!debugPath.endsWith(".csv")) fail("debugPath", "Must comply to pattern '\\.csv$'");
+  }
+  if (debugPath === null && debugInfo !== null) throw new RangeError("Please specify a file to write debug info to with 'debugPath'.");
+  if (debugPath !== null && debugInfo === null) debugInfo = "ROUTE";
+  if (debugInfo !== null) {
+    assertString(debugInfo, "debugInfo");
+    debugInfo = debugInfo.toUpperCase();
+    if (!["MODE", "ROUTE", "MODE_ROUTE"].includes(debugInfo)) {
+      fail("debugInfo", `Must be a subset of {'MODE','ROUTE','MODE_ROUTE'}, but has additional elements {'${debugInfo}'}`);
+    }
+  }
+  const fs = fareFromCore(await network._one("fare_setup", [baseFare, byU]));
+  fs.debug_settings = debugPath !== null ? { output_file: debugPath, trip_info: debugInfo } : { output_file: "", trip_info: "MODE" };
+  return fs;
+}
+
+/**
+ * A fare structure read from the bytes of a `.zip` file, as r5r's
+ * read_fare_structure() (encoding "UTF-8", "unknown" or "Latin-1").
+ */
+export function readFareStructure(bytes, encoding = "UTF-8") {
+  needInit();
+  const b = bytesOf(bytes, "bytes");
+  if (!["unknown", "UTF-8", "Latin-1"].includes(encoding)) {
+    fail("encoding", `Must be a subset of {'unknown','UTF-8','Latin-1'}, but has additional elements {'${encoding}'}`);
+  }
+  return fareFromCore(rawFareRead(b, encoding));
+}
+
+/**
+ * The bytes of a fare structure `.zip` file, as r5r's write_fare_structure()
+ * writes it: the same five CSV files, stored uncompressed.
+ */
+export function writeFareStructure(fareStructure) {
+  needInit();
+  assertFareStructure(fareStructure);
+  return rawFareWrite(fareToCore(fareStructure));
+}
+
+/**
+ * The Pareto frontier of travel time and fare between origins and
+ * destinations, as r5r's pareto_frontier().
+ */
+export async function paretoFrontier(network, origins, destinations, options) {
+  const opt = withDefaults(
+    options,
+    { fareStructure: null, fareCutoffs: null },
+    [...COMMON.filter((k) => !["drawsPerMinute", "newCarspeeds", "carspeedScale", "newLts"].includes(k)), "departureDatetime", "timeWindow", "percentiles"],
+  );
+  if (opt.fareStructure === null || opt.fareStructure === undefined) {
+    throw new RangeError("'fareStructure' is required. Create one with setupFareStructure() or readFareStructure().");
+  }
+  if (opt.fareCutoffs === null || opt.fareCutoffs === undefined) {
+    throw new RangeError("'fareCutoffs' is required. Pass the monetary cutoffs of the frontier, e.g. the fares of your 'fareStructure'.");
+  }
+  const warn = warner(opt);
+  const o = pointsInput(origins, "origins", warn);
+  const d = pointsInput(destinations, "destinations", warn);
+  const modeList = assignMode(opt.mode, opt.modeEgress);
+  const departure = assignDeparture(opt.departureDatetime, modeList);
+  assertNetwork(network);
+  if (modeList.transit) await checkTransitAvailabilityOnDate(network, departure, warn, opt.signal);
+  const lim = streetLimits(opt, modeList);
+  assertCount(opt.timeWindow, "timeWindow", true);
+  const pcts = assignPercentiles(opt.percentiles);
+  checkMcDraws(1, opt.timeWindow, modeList.transit);
+  const seed = commonChecks({ ...opt, drawsPerMinute: 1 });
+  const core = await fareArg(opt.fareStructure, Infinity, network, opt.signal);
+  checkOutputDir(opt.outputDir);
+  const cutoffs = numberList(opt.fareCutoffs, "fareCutoffs", "numeric");
+  if (!cutoffs.length) fail("fareCutoffs", "Must have length >= 1, but has length 0");
+  if (cutoffs.some(Number.isNaN)) fail("fareCutoffs", "Contains missing values");
+  if (cutoffs.some((v) => v < 0)) fail("fareCutoffs", "Element is not >= 0");
+  if (new Set(cutoffs).size !== cutoffs.length) fail("fareCutoffs", "Contains duplicated values");
+  const parts = await network._route(
+    "pareto", o,
+    (olat, olon) => [
+      olat, olon, d.lat, d.lon, modeList.accessMode, modeList.transit ? modeList.transitMode : "",
+      modeList.transit ? modeList.egressMode : modeList.accessMode, departure.yyyymmdd, departure.seconds,
+      Math.round(opt.timeWindow), Int32Array.from(pcts), lim.walk, lim.bike, lim.car, lim.trip, opt.walkSpeed,
+      opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides), mcSeed(seed, opt, core), core, Float64Array.from(cutoffs),
+    ],
+    opt.nThreads, opt.signal,
+  );
+  const [from, to, percentile, tt, cost] = merge(parts);
+  for (let i = 0; i < tt.length; i++) if (tt[i] > lim.trip) tt[i] = NA_INT32;
+  return { from_id: ids(from, o.ids), to_id: ids(to, d.ids), percentile, travel_time: tt, monetary_cost: cost };
 }
 
 const DECAY_FUNCTIONS = ["step", "exponential", "fixed_exponential", "linear", "logistic"];
@@ -1549,7 +1796,8 @@ export async function accessibility(network, origins, destinations, options) {
   assertCount(opt.timeWindow, "timeWindow", true);
   const pcts = assignPercentiles(opt.percentiles);
   const seed = commonChecks(opt);
-  checkFares(opt.fareStructure, opt.maxFare);
+  checkMcDraws(opt.drawsPerMinute, opt.timeWindow, opt.fareStructure !== null && opt.fareStructure !== undefined);
+  const fares = await fareArg(opt.fareStructure, opt.maxFare, network, opt.signal);
   checkOutputDir(opt.outputDir);
   const scenario = scenarioSpec(opt, network, warn);
 
@@ -1560,7 +1808,7 @@ export async function accessibility(network, origins, destinations, options) {
       modeList.directModes, modeList.transitMode, modeList.egressMode, fun, value, Int32Array.from(cutoffs),
       Int32Array.from(pcts), departure.yyyymmdd, departure.seconds, Math.round(opt.timeWindow), lim.walk,
       lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed, Math.round(opt.maxLts), Math.round(opt.maxRides),
-      Math.round(opt.drawsPerMinute), seed, scenario,
+      Math.round(opt.drawsPerMinute), mcSeed(seed, opt, fares), scenario, fares, opt.maxFare,
     ],
     opt.nThreads, opt.signal,
   );
@@ -1775,15 +2023,18 @@ export async function detailedItineraries(network, origins, destinations, option
   checkSpeed(opt.bikeSpeed, "bike");
   assertCount(opt.maxRides, "maxRides", true);
   checkMaxLts(opt.maxLts);
+  checkMcDraws(1, opt.timeWindow, modeList.transit && !(opt.shortestPath && (opt.fareStructure === null || opt.fareStructure === undefined)));
   checkThreads(opt.nThreads);
-  checkFares(opt.fareStructure, opt.maxFare);
+  const fares = await fareArg(opt.fareStructure, opt.maxFare, network, opt.signal);
   checkOutputDir(opt.outputDir);
   assertCount(opt.suboptimalMinutes, "suboptimalMinutes");
+  if (fares !== null && opt.suboptimalMinutes > 0) {
+    throw new RangeError("Assertion on 'suboptimalMinutes' failed: Must be 0 when calculating fares with detailedItineraries().");
+  }
   if (opt.shortestPath && opt.suboptimalMinutes > 0) {
     throw new RangeError("Assertion on 'suboptimalMinutes' failed: Must be 0 when 'shortestPath' is true.");
   }
   const scenario = scenarioSpec(opt, network, warn);
-  if (!opt.shortestPath && modeList.transit) unsupported("'shortestPath: false' with public transport (McRAPTOR)");
   let start = 0;
   const parts = await network._route(
     "itineraries", o,
@@ -1795,6 +2046,7 @@ export async function detailedItineraries(network, origins, destinations, option
         modeList.directModes, modeList.transitMode, modeList.egressMode, departure.yyyymmdd, departure.seconds,
         Math.round(opt.timeWindow), lim.walk, lim.bike, lim.car, lim.trip, opt.walkSpeed, opt.bikeSpeed,
         Math.round(opt.maxRides), Math.round(opt.maxLts), opt.shortestPath, scenario, opt.osmLinkIds,
+        Math.round(opt.suboptimalMinutes), fares, opt.maxFare,
       ];
     },
     opt.nThreads, opt.signal,
@@ -1802,7 +2054,7 @@ export async function detailedItineraries(network, origins, destinations, option
   const rows = [];
   for (const { offset, result } of parts) {
     const [pair, option, totalDistance, segment, distance, nPoints, totalDuration, segmentDuration, wait, x, y, dep, mode, route,
-      osmIds, edgeIds, boardStop, alightStop] = result;
+      osmIds, edgeIds, boardStop, alightStop, totalFare, cumulativeFare] = result;
     let at = 0;
     for (let k = 0; k < pair.length; k++) {
       const i = pair[k] + offset;
@@ -1810,7 +2062,10 @@ export async function detailedItineraries(network, origins, destinations, option
         from_id: o.ids[i], from_lat: o.lat[i], from_lon: o.lon[i],
         to_id: d.ids[i], to_lat: d.lat[i], to_lon: d.lon[i],
         option: option[k], departure_time: dep[k], total_duration: totalDuration[k],
-        total_distance: totalDistance[k], segment: segment[k], mode: mode[k],
+        total_distance: totalDistance[k],
+        ...(fares !== null ? { total_fare: totalFare[k] } : {}),
+        segment: segment[k], mode: mode[k],
+        ...(fares !== null ? { cumulative_fare: cumulativeFare[k] } : {}),
         segment_duration: segmentDuration[k], wait: wait[k], distance: distance[k], route: route[k],
       };
       if (opt.osmLinkIds) {

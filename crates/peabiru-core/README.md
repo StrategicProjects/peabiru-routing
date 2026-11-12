@@ -73,7 +73,7 @@ repository also has a Rust guide, in Markdown, under
 [`site/rust/src`](https://github.com/StrategicProjects/peabiru-routing/tree/main/site/rust/src).
 
 **Status**: version 0.0.1, early development; the interfaces may still
-change. Fares are not implemented.
+change. R5's own fare calculators are not implemented.
 
 ## Licence and credits
 

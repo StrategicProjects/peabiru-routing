@@ -34,6 +34,7 @@ import pytest
 
 import peabiru
 import peabiru._data
+import peabiru._fares
 import peabiru._network
 import peabiru._network_tools
 import peabiru._routing
@@ -114,7 +115,8 @@ def FENCE_START(text: str, block) -> int:
 
 @pytest.mark.parametrize(
     "module",
-    [peabiru, peabiru._data, peabiru._network, peabiru._network_tools, peabiru._routing],
+    [peabiru, peabiru._data, peabiru._fares, peabiru._network, peabiru._network_tools,
+     peabiru._routing],
     ids=lambda m: m.__name__,
 )
 def test_docstring_examples(module):

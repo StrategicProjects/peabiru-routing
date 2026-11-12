@@ -179,7 +179,7 @@ head(read.csv(file.path(out, list.files(out)[1])), 3)
 ## What is not supported yet
 
 Options that peabiru does not implement yet stop with an error rather than
-being ignored, such as fares.
+being ignored, such as R5's own fare calculators.
 For example:
 
 ```{r, error = TRUE}

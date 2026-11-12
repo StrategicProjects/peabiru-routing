@@ -493,16 +493,16 @@ impl Filtered {
 }
 
 /// Random offsets of every frequency entry (R5 `FrequencyRandomOffsets`).
-struct Offsets {
+pub(crate) struct Offsets {
     /// Frequency patterns in Trove `TIntObjectHashMap` iteration order.
     order: Vec<usize>,
     /// `offsets[pattern][trip]` per frequency entry (empty for scheduled trips).
-    offsets: Vec<Vec<Vec<i32>>>,
+    pub(crate) offsets: Vec<Vec<Vec<i32>>>,
     mt: MersenneTwister,
 }
 
 impl Offsets {
-    fn new(layer: &TransitLayer, mt: MersenneTwister) -> Self {
+    pub(crate) fn new(layer: &TransitLayer, mt: MersenneTwister) -> Self {
         let mut keys = TroveIntKeys::new();
         let mut offsets = vec![Vec::new(); layer.patterns.len()];
         for (pi, p) in layer.patterns.iter().enumerate() {
@@ -523,7 +523,7 @@ impl Offsets {
         }
     }
 
-    fn randomize(&mut self, layer: &TransitLayer) {
+    pub(crate) fn randomize(&mut self, layer: &TransitLayer) {
         for &pi in &self.order {
             for (ti, t) in layer.patterns[pi].trips.iter().enumerate() {
                 for (e, f) in t.frequencies.iter().enumerate() {
@@ -1264,6 +1264,26 @@ impl StopTimes {
     #[inline]
     pub(crate) fn min(&self, stop: usize) -> i32 {
         self.min[stop]
+    }
+
+    /// Empty the buffer for `n_iter` iterations of `n_stops` stops, all
+    /// `UNREACHED`.
+    pub(crate) fn reset(&mut self, n_stops: usize, n_iter: usize) {
+        self.n_iter = n_iter;
+        self.data.clear();
+        self.data.resize(n_iter * n_stops, UNREACHED);
+        self.min.clear();
+        self.min.resize(n_stops, UNREACHED);
+    }
+
+    /// Set iteration `k` from its per-stop values.
+    pub(crate) fn set_iteration(&mut self, k: usize, values: &[i32]) {
+        for (s, &t) in values.iter().enumerate() {
+            self.data[s * self.n_iter + k] = t;
+            if t < self.min[s] {
+                self.min[s] = t;
+            }
+        }
     }
 }
 

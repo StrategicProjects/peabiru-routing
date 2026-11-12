@@ -184,9 +184,10 @@ pub fn transit_travel_time_surface(
                 let v = tt[percentile_index(pc, len).min(len - 1)];
                 row[k * n + j] = if v == UNREACHED { UNREACHED } else { v / 60 };
             }
-        });
-        row
+        })?;
+        Ok(row)
     })?;
+    let rows = rows.into_iter().collect::<Result<Vec<_>, RouteError>>()?;
     Ok(TravelTimeSurface {
         grid,
         percentiles,

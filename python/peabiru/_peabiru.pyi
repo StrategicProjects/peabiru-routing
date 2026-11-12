@@ -31,7 +31,7 @@ def transit_ttm(
     date: int, departure_time: int, time_window: int, percentiles: List[int],
     max_walk_time: int, max_trip_duration: int, walk_speed: float,
     max_rides: int, draws_per_minute: int, seed: Optional[int], n_threads: int,
-    scenario: Scenario, output: Output,
+    scenario: Scenario, output: Output, fare: Optional[Dict[str, Any]], max_fare: float,
 ) -> Tuple[bytes, bytes, List[bytes]]: ...
 def accessibility(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
@@ -41,7 +41,8 @@ def accessibility(
     max_walk_time: int, max_bike_time: int, max_car_time: int,
     max_trip_duration: int, walk_speed: float, bike_speed: float,
     max_lts: int, max_rides: int, draws_per_minute: int, seed: Optional[int],
-    n_threads: int, scenario: Scenario, output: Output,
+    n_threads: int, scenario: Scenario, output: Output, fare: Optional[Dict[str, Any]],
+    max_fare: float,
 ) -> bytes: ...
 def expanded(
     network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes,
@@ -71,7 +72,21 @@ def itineraries(
     walk_speed: float, bike_speed: float, max_rides: int, max_lts: int, shortest_path: bool,
     n_threads: int, scenario: Scenario, drop_geometry: bool, osm_link_ids: bool,
     output: Optional[Tuple[str, List[str], List[str]]],
+    suboptimal_minutes: int = 0, fare: Optional[Dict[str, Any]] = None,
+    max_fare: float = ...,
 ) -> Optional[Dict[str, Any]]: ...
+def fare_setup(network: Network, base_fare: float, by: str) -> Dict[str, Any]: ...
+def fare_read(bytes: bytes, encoding: str) -> Dict[str, Any]: ...
+def fare_write(fare: Dict[str, Any]) -> bytes: ...
+def fare_check(network: Network, fare: Dict[str, Any]) -> None: ...
+def pareto(
+    network: Network, olat: bytes, olon: bytes, dlat: bytes, dlon: bytes, mode: str,
+    transit_modes: str, egress_mode: str, date: int, departure_time: int, time_window: int,
+    percentiles: List[int], max_walk_time: int, max_bike_time: int, max_car_time: int,
+    max_trip_duration: int, walk_speed: float, bike_speed: float, max_lts: int,
+    max_rides: int, seed: Optional[int], n_threads: int, fare: Dict[str, Any],
+    fare_cutoffs: List[float],
+) -> Dict[str, bytes]: ...
 def find_snap(
     network: Network, lat: bytes, lon: bytes, radius: float, mode: str,
 ) -> Dict[str, bytes]: ...

@@ -69,9 +69,12 @@ As in r5r:
 - a walk between stops is routed again on the streets for its line and
   distance; its duration is the one public transport routing used.
 
-Not supported yet, and an [`UnsupportedError`][peabiru.UnsupportedError]:
-`shortest_path=False` with public transport (r5r then uses R5's McRAPTOR
-to list alternatives) and fares. As in r5r, a network whose GTFS has frequency-based
+With `shortest_path=False` the result lists the alternatives R5's
+McRAPTOR finds, one per sequence of routes, up to `suboptimal_minutes`
+slower than the best; with a fare structure, each with its fares (see
+[Fares](fares.md)).
+
+As in r5r, a network whose GTFS has frequency-based
 trips cannot be used with public transport here.
 
 With `mode_egress="CAR"`, R5 reverses the via edges of turn restrictions

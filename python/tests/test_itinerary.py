@@ -99,7 +99,7 @@ def test_unsupported_options(network, points, departure):
     with pytest.raises(ValueError, match="Must be 0"):
         di(mode="WALK", suboptimal_minutes=5)
     with pytest.raises(peabiru.UnsupportedError):
-        di(mode="WALK", fare_structure={})
+        di(mode="WALK", fare_structure={"type": "boston"})
     # the sample's GTFS is frequency-based, which r5r refuses here
     with pytest.raises(ValueError, match="frequencies"):
         di(mode=["WALK", "TRANSIT"])

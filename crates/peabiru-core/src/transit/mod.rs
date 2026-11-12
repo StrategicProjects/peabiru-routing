@@ -7,6 +7,8 @@ pub(crate) mod egress;
 pub(crate) mod expanded;
 pub(crate) mod layer;
 pub(crate) mod matrix;
+pub(crate) mod mcraptor;
+pub(crate) mod pareto;
 pub(crate) mod raptor;
 pub(crate) mod walk;
 
