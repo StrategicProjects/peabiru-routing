@@ -98,3 +98,7 @@ pair 1: 183 alternatives
 
 The alternatives start with the direct walk (no routes); their departure
 times are the ones McRAPTOR samples in the window.
+
+## Trip options
+
+To see every trip worth considering between two points, faster or cheaper, with fewer transfers or less walking, and not only the fastest one, see `trip_options`, peabiru's own multi-criteria planner: [Trip options](trip-options.md).

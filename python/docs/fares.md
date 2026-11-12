@@ -154,3 +154,7 @@ print(trips[["option", "total_duration", "total_fare", "segment", "mode",
 With a fare structure `suboptimal_minutes` must be 0; without one, it
 keeps more alternatives (see
 [Detailed itineraries](itineraries.md#alternatives)).
+
+## Trip options
+
+To see every trip worth considering between two points, faster or cheaper, with fewer transfers or less walking, and not only the fastest one, see [`trip_options()`][peabiru.trip_options], peabiru's own multi-criteria planner: [Trip options](trip-options.md).

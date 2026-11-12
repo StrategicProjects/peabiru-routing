@@ -347,6 +347,28 @@ fn properties_on_sao_paulo() {
 }
 
 #[test]
+fn cancelled_calls_stop() {
+    let (net, layer) = crate::build_from_dir(SPO, &BuildOptions::default()).unwrap();
+    let data = TransitData::new(&net, &layer);
+    let pts = read_points(&format!("{SPO}/spo_points.csv"));
+    let p = TripOptionsParams {
+        transit_modes: TransitMode::ALL.to_vec(),
+        date: 20190513,
+        departure_time: 14 * 3600,
+        ..Default::default()
+    };
+    p.cancel.cancel();
+    let r = trip_options(&net, Some((&layer, &data)), &pts, &pts, &p);
+    assert!(matches!(r, Err(RouteError::Cancelled)), "{r:?}");
+    // and the fare criterion without a fare structure is an error
+    let mut q = p.clone();
+    q.cancel = CancelToken::default();
+    q.criteria = vec![Criterion::Fare];
+    let r = trip_options(&net, Some((&layer, &data)), &pts[..1], &pts[..1], &q);
+    assert!(matches!(r, Err(RouteError::Invalid(m)) if m.contains("FARE")));
+}
+
+#[test]
 #[ignore = "needs PEABIRU_OPTIONS_POA and PEABIRU_OPTIONS_POA_FARES"]
 fn properties_on_porto_alegre() {
     let dir = std::env::var("PEABIRU_OPTIONS_POA").expect("dir");

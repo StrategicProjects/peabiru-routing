@@ -102,3 +102,7 @@ to beira_rio_stadium: 77 min for 0.00 32 min for 5.00
 to ufrgs: 21 min for 0.00 16 min for 5.00
 to pucrs: 114 min for 0.00 44 min for 5.00 35 min for 10.00
 ```
+
+## Trip options
+
+To see every trip worth considering between two points, faster or cheaper, with fewer transfers or less walking, and not only the fastest one, see `trip_options`, peabiru's own multi-criteria planner: [Trip options](trip-options.md).

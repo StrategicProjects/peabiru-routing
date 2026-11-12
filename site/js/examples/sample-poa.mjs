@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 // ANCHOR: poaFile
 const POA = "https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/";
@@ -16,7 +16,7 @@ export async function poaFile(name) {
   if (!existsSync(path)) {
     const response = await fetch(POA + name);
     if (!response.ok) throw new Error(`${POA + name}: HTTP ${response.status}`);
-    mkdirSync(dir, { recursive: true });
+    mkdirSync(dirname(path), { recursive: true });
     writeFileSync(`${path}.part`, new Uint8Array(await response.arrayBuffer()));
     renameSync(`${path}.part`, path);
   }

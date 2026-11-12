@@ -823,7 +823,15 @@ export interface TripOptions {
  * each origin-destination pair, the trips that no other trip beats on all
  * the chosen criteria at once, at each departure minute of the window,
  * merged into options. Frequency-based routes are boarded at their expected
- * times (half a headway): no random draws.
+ * times (half a headway): no random draws. See the guide "Trip options".
+ *
+ * ```js
+ * const res = await peabiru.tripOptions(network, { id: ["a"], lon: [-46.6290], lat: [-23.5563] },
+ *   { id: ["c"], lon: [-46.6355], lat: [-23.5601] }, {
+ *     departureDatetime: "2019-05-13 14:00:00", timeWindow: 3, itineraries: false,
+ *   });
+ * console.log(res.options.map((o) => `${o.total_time} min, ${o.walk_time} on foot: ${o.description}`));
+ * ```
  */
 export declare function tripOptions(
   network: Network,

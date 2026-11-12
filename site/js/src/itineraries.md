@@ -151,3 +151,7 @@ than an itinerary that could differ from r5r's:
 
 The trips for which R5's fastest-path search cannot rebuild a path (r5r
 then routes the pair again with McRAPTOR) are routed the same way here.
+
+## Trip options
+
+To see every trip worth considering between two points, faster or cheaper, with fewer transfers or less walking, and not only the fastest one, see `tripOptions()`, peabiru's own multi-criteria planner: [Trip options](trip-options.md).

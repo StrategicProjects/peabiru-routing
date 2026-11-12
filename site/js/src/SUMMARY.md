@@ -6,6 +6,7 @@
 - [Routing functions](routing.md)
 - [Detailed itineraries](itineraries.md)
 - [Fares](fares.md)
+- [Trip options](trip-options.md)
 - [Elevation](elevation.md)
 - [Scenarios](scenarios.md)
 - [Inspecting a network and GTFS errors](network.md)

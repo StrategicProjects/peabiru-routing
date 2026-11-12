@@ -22,10 +22,11 @@ read_snapshot <- function() {
   split(snap, snap$fun)
 }
 
-test_that("peabiru exports every function of r5r 2.5.0, and only core_version() besides", {
+test_that("peabiru exports every function of r5r 2.5.0, and only core_version() and trip_options() besides", {
   snap <- read_snapshot()
   exports <- getNamespaceExports("peabiru")
-  expect_setequal(setdiff(exports, names(snap)), "core_version")
+  # trip_options() is peabiru's own planner, with no r5r counterpart
+  expect_setequal(setdiff(exports, names(snap)), c("core_version", "trip_options"))
   expect_length(setdiff(names(snap), exports), 0)
   expect_length(snap, 22)
 })
