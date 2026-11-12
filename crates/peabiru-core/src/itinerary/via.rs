@@ -43,6 +43,8 @@ pub(crate) struct ViaOrders {
     /// (see `Router::via_fresh`).
     fresh: Option<HashMap<u64, bool>>,
     used: Vec<bool>,
+    /// Set by the plan when r5r would plan the pair again with McRAPTOR.
+    pub(crate) mcraptor_fallback: bool,
 }
 
 impl ViaOrders {

@@ -74,6 +74,8 @@ pub fn run(args: &[String]) {
     }
     let (dir, origins, dests, out) = (&args[0], &args[1], &args[2], &args[3]);
     let mut p = ItineraryParams::default();
+    // r5r's test switch r5r.failFastRaptor: every pair to McRAPTOR
+    p.fail_fast_raptor = std::env::var_os("PEABIRU_FAIL_FAST_RAPTOR").is_some_and(|v| v == "1");
     p.scenario = crate::cli::scenario(cmd);
     let mut i = 4;
     while i < args.len() {
@@ -125,6 +127,18 @@ pub fn run(args: &[String]) {
         .unwrap_or_else(|e| runtime_error(cmd, e));
     for w in notes.warnings(opts.len()) {
         eprintln!("warning: {w}");
+    }
+    if !notes.mcraptor_fallbacks.is_empty() {
+        let pairs: Vec<String> = notes
+            .mcraptor_fallbacks
+            .iter()
+            .map(|i| (i + 1).to_string())
+            .collect();
+        eprintln!(
+            "{} pairs planned again with McRAPTOR (FastRaptor's path failed): {}",
+            pairs.len(),
+            pairs.join(",")
+        );
     }
     let t2 = Instant::now();
     let mut s = String::from(

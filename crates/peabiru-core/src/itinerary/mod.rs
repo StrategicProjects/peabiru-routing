@@ -101,6 +101,11 @@ pub struct ItineraryParams {
     /// trip, access, egress, walks between stops) on the scenario's
     /// network, and so does this.
     pub scenario: crate::Scenario,
+    /// For tests: fail every FastRaptor trip, as r5r does with the Java
+    /// system property `r5r.failFastRaptor`, so that each pair with public
+    /// transport that reaches stops is planned again with McRAPTOR.
+    #[doc(hidden)]
+    pub fail_fast_raptor: bool,
 }
 
 impl Default for ItineraryParams {
@@ -128,6 +133,7 @@ impl Default for ItineraryParams {
             cancel: CancelToken::default(),
             osm_link_ids: false,
             scenario: crate::Scenario::default(),
+            fail_fast_raptor: false,
         }
     }
 }
@@ -464,6 +470,12 @@ pub struct ItineraryNotes {
     /// pair peabiru returns the itineraries r5r gives on a freshly built
     /// network for that pair alone with one thread.
     pub history_dependent: Vec<usize>,
+    /// The pairs (indices, ascending) whose fastest public transport trip
+    /// FastRaptor found but whose path r5r cannot read back
+    /// (`Trip(Path, ...)` fails), so that r5r plans them again with
+    /// McRAPTOR (`FastDetailedItineraryPlanner`), and so does peabiru. Not
+    /// a warning: r5r only logs it.
+    pub mcraptor_fallbacks: Vec<usize>,
 }
 
 impl ItineraryNotes {
@@ -525,7 +537,7 @@ pub fn detailed_itineraries_noted(
     // a car egress search runs backwards, which in R5 reverses the via
     // edges of turn restrictions in place (see `via`)
     let free = !p.transit_modes.is_empty() && p.egress_mode == Mode::Car;
-    type Chunk = Result<Vec<(usize, Vec<Itinerary>, bool)>, RouteError>;
+    type Chunk = Result<Vec<(usize, (Vec<Itinerary>, bool), bool)>, RouteError>;
     let chunks: Vec<Chunk> = crate::sys::scoped(0..threads, |_| {
         let mut out = Vec::new();
         let mut scratch = Vec::new();
@@ -544,7 +556,7 @@ pub fn detailed_itineraries_noted(
                     &mut scratch,
                     via,
                 )?;
-                Ok(finish(i, trips))
+                Ok((finish(i, trips), via.mcraptor_fallback))
             })?;
             out.push((i, its, depends));
         }
@@ -553,21 +565,28 @@ pub fn detailed_itineraries_noted(
     cancel.check()?;
     let mut slots: Vec<Option<Vec<Itinerary>>> = (0..n).map(|_| None).collect();
     let mut dependent = Vec::new();
+    let mut fallbacks = Vec::new();
     for chunk in chunks {
-        for (i, v, depends) in chunk? {
+        for (i, (v, fell_back), depends) in chunk? {
             slots[i] = Some(v);
             if depends {
                 dependent.push(i);
             }
+            if fell_back {
+                fallbacks.push(i);
+            }
         }
     }
     dependent.sort_unstable();
+    fallbacks.sort_unstable();
     let its = slots
         .into_iter()
         .map(|s| s.expect("every pair is planned"))
         .collect();
-    let mut notes = ItineraryNotes::default();
-    notes.history_dependent = dependent;
+    let notes = ItineraryNotes {
+        history_dependent: dependent,
+        mcraptor_fallbacks: fallbacks,
+    };
     Ok((its, notes))
 }
 
@@ -624,6 +643,7 @@ fn plan(
             // r5r plans the pair again with McRAPTOR, from the direct trip
             // on (which the egress search may have changed, see `via`)
             Err(e) if transit::is_fallback(&e) => {
+                via.mcraptor_fallback = true;
                 let direct = direct_trip(net, p, o, d, scratch, via);
                 return planner.mc_plan(o, d, direct, None, scratch, via);
             }

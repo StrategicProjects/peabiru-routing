@@ -17,7 +17,8 @@ use peabiru_core::{
 /// with `drop_geometry`). With `output`
 /// (`list(dir, from_ids, to_ids)`) the files are written instead and
 /// only `list(warnings)` returned. `warnings`: the texts R shows as
-/// warnings.
+/// warnings. `fail_fast_raptor`: r5r's test switch `r5r.failFastRaptor`
+/// (option `peabiru.fail_fast_raptor`).
 /// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]
@@ -50,6 +51,7 @@ fn rs_detailed_itineraries(
     suboptimal_minutes: i32,
     fare_structure: Robj,
     max_fare: f64,
+    fail_fast_raptor: bool,
 ) -> Result<Robj> {
     let n = network(&ptr)?;
     let (o, d) = (points(olat, olon), points(dlat, dlon));
@@ -77,6 +79,7 @@ fn rs_detailed_itineraries(
     p.max_fare = max_fare;
     p.n_threads = n_threads.max(0) as usize;
     p.osm_link_ids = osm_link_ids;
+    p.fail_fast_raptor = fail_fast_raptor;
     let transit = n.transit.as_ref().map(|t| (&t.layer, &t.data));
     let (res, notes) = match interruptible(&p.cancel, || {
         detailed_itineraries_noted(&n.net, transit, &o, &d, &p)

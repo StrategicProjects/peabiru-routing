@@ -197,7 +197,9 @@ detailed_itineraries <- function(r5r_network,
     max_walk_time, max_bike_time, max_car_time, max_trip_duration,
     as.double(walk_speed), as.double(bike_speed), as.integer(max_rides),
     as.integer(max_lts), shortest_path, threads, drop_geometry, scenario, osm_link_ids, output,
-    as.integer(suboptimal_minutes), fare_structure, as.double(max_fare)
+    as.integer(suboptimal_minutes), fare_structure, as.double(max_fare),
+    # for tests, as r5r's Java system property r5r.failFastRaptor
+    isTRUE(getOption("peabiru.fail_fast_raptor"))
   ))
   for (w in res$warnings) warning(w, call. = FALSE)
   if (!is.null(output_dir)) return(output_dir)

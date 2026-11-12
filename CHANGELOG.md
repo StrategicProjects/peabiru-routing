@@ -53,7 +53,11 @@ routing and network functions (without r5r's functions for Java).
   `pareto_frontier`, `Elevation` and `build_from_bytes_with_elevation`;
   `BuildOptions::ignore_gtfs_errors` and `BuildOptions::elevation`;
   `detailed_itineraries_noted` and `ItineraryNotes` (the pairs to warn
-  about).
+  about, and the pairs planned again with McRAPTOR because FastRaptor's
+  path could not be read back, as r5r does). The CLI's `itineraries` reports
+  those pairs on stderr, and `PEABIRU_FAIL_FAST_RAPTOR=1` fails every
+  FastRaptor trip, as r5r's test switch `r5r.failFastRaptor` does, to
+  compare the fallback with r5r's.
 - CLI: `isochrone`, `itineraries`, `dump-elevation`, `sample-raster`,
   `crs-transform`; `dump-edges` accepts a directory; `PEABIRU_ELEVATION`,
   `PEABIRU_IGNORE_GTFS_ERRORS`, `PEABIRU_SCENARIO`.
