@@ -1,7 +1,7 @@
 # Trip options
 
-[`trip_options()`][peabiru.trip_options] is peabiru's own trip planner, with
-no counterpart in r5r: for each origin and destination it gives every trip
+[`trip_options()`][peabiru.trip_options] is peabiru's own trip planner:
+for each origin and destination it gives every trip
 worth considering, the ones that no other trip beats on all the chosen
 criteria at once. Where [`detailed_itineraries()`][peabiru.detailed_itineraries]
 answers "what is the fastest way there?", `trip_options()` answers "what
@@ -37,12 +37,12 @@ values reported stay exact. Rounding cannot make a trip look better than
 one that beats it to the second, so the result is the same as comparing
 every trip at that resolution.
 
-The trips are those of r5r's network semantics (the same access and egress
+The trips follow the rules of the other functions (the same access and egress
 searches, transfers between stops and boarding rules as
 `detailed_itineraries()`), so the times agree with the other functions.
 
-The examples use r5r's sample data of Porto Alegre and the fare structure
-r5r ships for it, downloaded once into the temporary directory, as in the
+The examples use the sample data of Porto Alegre from the r5r project and
+its fare structure, downloaded once into the temporary directory, as in the
 [Fares](fares.md) guide.
 
 ```python
@@ -77,7 +77,7 @@ departure = dt.datetime(2019, 5, 13, 14, 0)
 
 With time and fare as the criteria, the options of this pair over the ten
 minutes from 14:00 are a ride on the T4 bus, a faster trip with a transfer
-to the T1D (two fares, with r5r's integration discount: R$ 7.20 instead of
+to the T1D (two fares, with the integration discount: R$ 7.20 instead of
 R$ 9.60), and walking, which is free:
 
 ```python
@@ -174,13 +174,13 @@ the slowest one.
 
 ## Frequency-based routes
 
-GTFS `frequencies.txt` gives a headway, not departure times. r5r draws
-random departures (Monte Carlo); `trip_options()` does not: a
+GTFS `frequencies.txt` gives a headway, not departure times. The other
+functions draw random departures (Monte Carlo); `trip_options()` does not: a
 frequency-based vehicle is boarded at its expected time, half a headway
 after the traveller is ready to board (or after the period starts), within
 the period, and with `exact_times = 1` at the first scheduled departure.
 The results do not change from call to call, and differ on purpose from
-r5r's draws. The Sao Paulo sample shipped with the package runs by
+those draws. The Sao Paulo sample shipped with the package runs by
 frequency:
 
 ```python
@@ -204,12 +204,12 @@ print(res.options[["option", "total_time", "transfers", "walk_time", "n_departur
       6        60.0          2       15.7             5 WALK > BUS 5290-10 > BUS 5290-10 > BUS 2002-10 > WALK
 ```
 
-## Compared with r5r's functions
+## Compared with the other functions
 
-- [`pareto_frontier()`][peabiru.pareto_frontier] (r5r's) gives, for each
+- [`pareto_frontier()`][peabiru.pareto_frontier] gives, for each
   fare cutoff, the percentiles of the travel time over Monte Carlo draws of
   departure times: a summary of time against budget, without the trips.
-- [`detailed_itineraries()`][peabiru.detailed_itineraries] (r5r's) gives the
+- [`detailed_itineraries()`][peabiru.detailed_itineraries] gives the
   fastest trip, or with `shortest_path=False` R5's alternatives (one per
   sequence of routes, the fastest of each).
 - `trip_options()` gives the trade-offs themselves, trip by trip, with their

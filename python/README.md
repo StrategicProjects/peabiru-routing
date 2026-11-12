@@ -99,27 +99,19 @@ uv pip install "mkdocs>=1.6" "mkdocs-material>=9.5" "mkdocstrings[python]>=0.26"
 .venv/bin/mkdocs build --strict                    # documentation site in site/
 ```
 
-## Compatibility with r5r
+## The engine
 
-The functions, their arguments, defaults and results follow the R package
-[r5r](https://ipea.github.io/r5r/) 2.5.0: the engine is a Rust port of
-[R5](https://github.com/conveyal/r5) 7.6, the engine r5r drives, and is
-checked against r5r call for call, with identical results, including the
-last bit of accessibility values. The comparison (needs R with r5r 2.5.0
-and a JDK 21) runs from the repository root:
-
-```sh
-JAVA_HOME=/path/to/jdk21 python/.venv/bin/python bench/compare/py_parity.py poa spo
-```
+The engine is a Rust port of [R5](https://github.com/conveyal/r5) 7.6
+(Conveyal, MIT). How its results are checked is described in
+[the comparison with r5r](https://strategicprojects.github.io/peabiru-routing/python/coming-from-r5/).
 
 ## Sample data
 
-`peabiru.sample_data_path()` is a small network cut from r5r's Sao Paulo
-sample data. Its `spo_osm.pbf` contains map data (c) OpenStreetMap
-contributors, available under the
+`peabiru.sample_data_path()` is a small network of Sao Paulo, cut from the
+sample data of the r5r project. Its `spo_osm.pbf` contains map data (c)
+OpenStreetMap contributors, available under the
 [Open Database License](https://www.openstreetmap.org/copyright), and
-`spo_gtfs.zip` is the SPTrans GTFS feed shipped with r5r, without
-`shapes.txt`. Their sources are detailed in `LICENSE-THIRD-PARTY`.
+`spo_gtfs.zip` is a GTFS feed of SPTrans, without `shapes.txt`. Their sources are detailed in `LICENSE-THIRD-PARTY`.
 
 ## License
 

@@ -1,6 +1,6 @@
 //! Python bindings of the peabiru routing core.
 //!
-//! Everything that mirrors r5r's R wrapper (argument checks, defaults,
+//! Everything about the arguments (their checks, defaults,
 //! datetime handling, trip limits, column assembly) lives in the Python
 //! code of the package (`peabiru/_routing.py`); these functions only take
 //! already validated values, run the core with the GIL released and hand
@@ -56,7 +56,7 @@ fn runtime_err(msg: impl std::fmt::Display) -> PyErr {
 }
 
 /// The error of a failed build; for feeds with errors of priority `HIGH`,
-/// r5r's message, pointing to `lister` to see them.
+/// a message pointing to `lister` to see them.
 fn build_error(e: &peabiru_core::NetworkError, lister: &str) -> String {
     match e.high_priority_gtfs_errors() {
         None => e.to_string(),
@@ -145,7 +145,7 @@ fn interruptible<T: Send>(
 }
 
 /// Where and for which ids to write CSV files instead of returning the
-/// result (r5r's `output_dir`): the `output` argument of a routing
+/// result (`output_dir`): the `output` argument of a routing
 /// function, `None` or `(dir, origin ids, destination ids)`.
 type Output = Option<(String, Vec<String>, Vec<String>)>;
 
@@ -235,15 +235,14 @@ impl Network {
         Ok(d)
     }
 
-    /// Warnings about the network build: one per GTFS feed that r5r
-    /// refuses to build a network from, then those about the elevation
-    /// raster.
-    fn r5r_warnings(&self) -> Vec<String> {
+    /// Warnings about the network build: those about the GTFS feeds, then
+    /// those about the elevation raster.
+    fn build_warnings(&self) -> Vec<String> {
         self.net.build_warnings()
     }
 
     /// Number of services in the network and of those active on `date`
-    /// (`yyyymmdd`), as r5r's `getTransitServiceAvailability`.
+    /// (`yyyymmdd`).
     fn transit_availability(&self, date: u32) -> PyResult<(usize, usize)> {
         validate_date(date).map_err(value_err)?;
         let Some(t) = self.net.transit() else {
@@ -308,7 +307,7 @@ fn transit_street_mode(mode: &str) -> PyResult<Mode> {
     }
 }
 
-/// The transit modes of r5r's `transit_mode` string (`"BUS;RAIL"`, or
+/// The transit modes of a `transit_mode` string (`"BUS;RAIL"`, or
 /// every mode and `TRANSIT` for `"TRANSIT"`); `TRANSIT` itself selects no
 /// route.
 fn parse_transit_modes(modes: &str) -> PyResult<Vec<TransitMode>> {
@@ -454,8 +453,8 @@ fn route_params(
 }
 
 /// Public transport travel-time matrix: the reported pairs as `from`, `to`
-/// and one int32 buffer per percentile (ascending), with `i32::MIN` where
-/// r5r gives NA; origin-major. With `output` (see [`Output`]) the files
+/// and one int32 buffer per percentile (ascending), with `i32::MIN` for
+/// NA; origin-major. With `output` (see [`Output`]) the files
 /// are written instead and the buffers are empty.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
@@ -725,13 +724,13 @@ fn accessibility<'py>(
 
 /// Expanded (or, with `arrival`, arrival) travel-time matrix as a dict of
 /// columns: `from`, `to` (0-based int32), `departure` (int32 seconds after
-/// midnight), `draw` (int32), the breakdown times (f64, NaN where r5r
-/// gives NA), `n_rides` (int32, `i32::MIN` for NA), `total_time` (f64),
+/// midnight), `draw` (int32), the breakdown times (f64, NaN for
+/// NA), `n_rides` (int32, `i32::MIN` for NA), `total_time` (f64),
 /// and `routes` dictionary-encoded as `route_codes` (int32, -1 for NA) into
 /// the list of strings `route_levels`. For an arrival search the
 /// parameters must already be the departure side (date and time of
 /// `arrival - max_trip_duration`, `time_window = max_trip_duration`), as
-/// r5r's R wrapper sets them. With `output` (see [`Output`]) the files are
+/// the Python side sets them. With `output` (see [`Output`]) the files are
 /// written instead (with the breakdown columns when `breakdown`) and the
 /// dict is empty.
 #[pyfunction]
@@ -912,12 +911,12 @@ impl ExpandedColumns {
 }
 
 /// Polygon isochrones as a dict of buffers the Python side assembles into
-/// geometries: per row (origin, percentile, cutoff; r5r's order) `origin`
+/// geometries: per row (origin, percentile, cutoff; in this order) `origin`
 /// (0-based int32), `isochrone` (f64), `percentile` and `n_polygons`
 /// (int32); per polygon `n_rings`; per ring `n_points` (int32); per point
 /// `x` (longitude) and `y` (latitude), f64. `mode` is the street mode (of
 /// the access to public transport when `transit_modes` is not empty); `max_trip_duration` is the search
-/// limit (r5r: the largest cutoff plus 10).
+/// limit (the largest cutoff plus 10).
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn isochrone_polygons<'py>(
@@ -1035,11 +1034,11 @@ fn isochrone_polygons<'py>(
     Ok(out)
 }
 
-/// The street edges of r5r's `street_network_to_sf()$edges` as a dict of
+/// The street edges of `street_network_to_sf()` as a dict of
 /// buffers: `edge_index`, `from_vertex`, `to_vertex`, `bicycle_lts`
-/// (int32), `osm_id` (f64, as r5r reports it), `length`, `car_speed` (f64),
+/// (int32), `osm_id` (f64), `length`, `car_speed` (f64),
 /// `walk`, `car`, `bicycle` (int32 0/1), `street_class` (a list of
-/// strings), the centroid r5r routes to as `lat`, `lon` (f64, NaN without
+/// strings), the centroid line isochrones route to as `lat`, `lon` (f64, NaN without
 /// one), and the line of each edge as `n_points` (int32) and flat `x`, `y`
 /// (f64).
 #[pyfunction]
@@ -1102,7 +1101,7 @@ fn street_edges<'py>(
 
 /// Line isochrones from a matrix of median minutes (int32, `i32::MIN`
 /// where not reported), `n_origins` rows of `n_edges` values,
-/// origin-major: the rows in r5r's order as `(origin, edge, travel_time)`
+/// origin-major: the rows as `(origin, edge, travel_time)`
 /// int32 buffers (0-based) and `isochrone` f64.
 #[pyfunction]
 fn isochrone_lines<'py>(

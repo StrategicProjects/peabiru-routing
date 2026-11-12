@@ -9,8 +9,8 @@ million residents on HSY's grid) from open data, and measures access to jobs by 
 transport at the morning peak.
 
 The code blocks make one script; the output under each is what it prints,
-computed on 2026-11-12, and the numbers are those of the [R
-example](../../r/articles/helsinki.html), which also explains why Helsinki
+computed on 2026-11-12, and the numbers are those of the
+<a href="../../r/articles/helsinki.html">R example</a>, which also explains why Helsinki
 was chosen among the candidate cities and why Lisbon was dropped. It
 downloads about 880 MB into `PEABIRU_EXAMPLE_DATA` and needs
 [geopandas](https://geopandas.org) 1.0 or later and
@@ -242,7 +242,7 @@ CAR {45.0: 1312.9, 30.0: 478.3, 15.0: 26.0}
 ```
 
 The polygons are repaired here with GEOS, which leaves their areas as
-contoured; the R package repairs them as r5r does (`sf::st_make_valid()`),
+contoured; the R package repairs them with `sf::st_make_valid()`,
 which with sf's spherical geometry on enlarges the 30-minute driving
 polygon to 523.8 km², so the R example switches it off for this call and
 prints the same areas. Driving is free flow: no congestion.

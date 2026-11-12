@@ -1,4 +1,4 @@
-"""isochrone(): r5r's columns, order and checks on the bundled sample."""
+"""isochrone(): columns, order and checks on the bundled sample."""
 
 import datetime as dt
 import warnings
@@ -28,7 +28,7 @@ def iso(network, origins, **kw):
     return peabiru.isochrone(network, origins, n_threads=2, **kw)
 
 
-def test_polygons_have_r5r_columns_and_order(network, points):
+def test_polygons_columns_and_order(network, points):
     o = points.iloc[:2]
     x = iso(network, o, mode="WALK", cutoffs=[20, 0, 10, 10], percentiles=[50, 25])
     assert isinstance(x, gpd.GeoDataFrame)
@@ -48,7 +48,7 @@ def test_polygons_have_r5r_columns_and_order(network, points):
         )
 
 
-def test_lines_have_r5r_columns_and_order(network, points):
+def test_lines_columns_and_order(network, points):
     o = points.iloc[:2]
     x = iso(network, o, mode="WALK", cutoffs=[0, 5, 10], polygon_output=False)
     assert list(x.columns) == [
@@ -111,7 +111,7 @@ def test_arguments_are_checked(network, points):
                    seed=1)) > 0
     with pytest.raises(ValueError, match="departure_datetime"):
         peabiru.isochrone(network, o, mode="TRANSIT")
-    with pytest.warns(UserWarning, match="sample_size"):
+    with pytest.raises(TypeError, match="sample_size"):
         iso(network, o, mode="WALK", cutoffs=[0, 5], sample_size=0.5)
     # max_trip_duration is ignored
     with warnings.catch_warnings():

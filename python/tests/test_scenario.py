@@ -1,5 +1,5 @@
-"""Scenarios: new_carspeeds, carspeed_scale and new_lts (parity with r5r is
-in bench/compare/py_parity.py)."""
+"""Scenarios: new_carspeeds, carspeed_scale and new_lts (the values are
+compared with a reference in bench/compare/py_parity.py)."""
 
 import warnings
 
@@ -55,7 +55,7 @@ def test_lts_scenarios(network, points, ways):
     )
 
 
-def test_scenario_arguments_are_checked_as_in_r5r(network, points):
+def test_scenario_arguments_are_checked(network, points):
     def call(**kw):
         return ttm(network, points, mode="CAR", **kw)
 
@@ -63,7 +63,7 @@ def test_scenario_arguments_are_checked_as_in_r5r(network, points):
         call(new_carspeeds=1)
     with pytest.raises(ValueError, match="Element 1 is not >= 0"):
         call(carspeed_scale=-1)
-    # r5r's check lets NaN through, then fails with an internal R error
+    # NaN passes the numeric check: an error of its own
     with pytest.raises(ValueError, match="must be a number that is not NaN"):
         call(carspeed_scale=float("nan"))
     with pytest.raises(TypeError, match="Must be of type 'numeric', not 'str'"):

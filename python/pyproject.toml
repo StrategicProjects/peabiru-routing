@@ -20,7 +20,7 @@ authors = [
     { name = "Júlia Nascimento Barreto", email = "juliabarreto@gd.seplag.pe.gov.br" },
 ]
 maintainers = [{ name = "André Leite", email = "leite@castlab.org" }]
-keywords = ["routing", "accessibility", "gtfs", "openstreetmap", "transport", "r5", "r5r"]
+keywords = ["routing", "accessibility", "gtfs", "openstreetmap", "transport", "transit", "isochrones", "r5"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",

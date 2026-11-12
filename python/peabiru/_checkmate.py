@@ -1,6 +1,6 @@
 """A port of the R package's port of checkmate (r/R/checkmate.R), so that
-Python accepts and rejects what r5r accepts and rejects, with the same
-messages in Python's terms.
+Python accepts and rejects what the R package accepts and rejects, with the
+same messages in Python's terms.
 
 Values are read as R vectors: ``None`` is ``NULL``; a bool, int, float or
 str is a vector of one; a list, tuple, numpy array or pandas Series is a
@@ -448,7 +448,7 @@ def check_choice(x: Any, choices: Sequence[str], null_ok: bool = False) -> Res:
 
 
 def to_upper_unique(x: Any) -> Any:
-    """r5r's toupper(unique(x)) on a mode: strings upper-cased, repeats
+    """R's toupper(unique(x)) on a mode: strings upper-cased, repeats
     dropped, None an empty list (R's character(0)); anything else as it is
     (R would turn numbers and logicals into text: Python reports their
     type)."""

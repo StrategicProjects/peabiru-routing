@@ -1,14 +1,13 @@
 # Fares
 
-peabiru computes transit fares as r5r 2.5.0 does: a *fare structure*
+peabiru computes transit fares from a *fare structure*, which
 describes how much each ride costs and which transfers are discounted, and
 the routing functions take it as `fare_structure`. With one, public
 transport is routed with R5's multi-criteria router (McRAPTOR), which keeps
-at each stop the trips that are faster or cheaper than the others, and the
-results are r5r's, number for number.
+at each stop the trips that are faster or cheaper than the others.
 
-The examples use the sample data of Porto Alegre from r5r 2.5.0, with the
-fare structure r5r ships for it, downloaded once into the temporary
+The examples use the sample data of Porto Alegre from the r5r project, with
+its fare structure, downloaded once into the temporary
 directory (about 2 MB); its GTFS feeds only have service in the afternoon,
 hence the 14:00 departure.
 
@@ -42,9 +41,9 @@ departure = dt.datetime(2019, 5, 13, 14, 0)
 [`setup_fare_structure()`][peabiru.setup_fare_structure] builds one where
 every route, fare type and transfer costs the same; edit it to follow the
 fare rules of the city. [`read_fare_structure()`][peabiru.read_fare_structure]
-reads one written by r5r's `write_fare_structure()` or by
-[`write_fare_structure()`][peabiru.write_fare_structure]; the files are the
-same, so a structure goes from one package to the other.
+reads one written by
+[`write_fare_structure()`][peabiru.write_fare_structure], here or in the R
+package.
 
 ```python
 fares = peabiru.read_fare_structure(fares_zip)
@@ -68,7 +67,7 @@ A bus ride costs 4.80 and a train ride 4.50; two buses within 60 minutes
 cost 7.20 together, a bus and a train 8.37; one discounted transfer per
 trip; the trains have unlimited transfers between them. Every GTFS route
 gets its fare type in `fares_per_route` (matched by `agency_id` and
-`route_id`); a route missing from it is an error, as in r5r.
+`route_id`); a route missing from it is an error.
 
 ## Travel times within a budget
 
@@ -91,9 +90,9 @@ travel_time_p50_any    52.2
 ```
 
 With fares, McRAPTOR samples `time_window * draws_per_minute` departure
-times in the window instead of routing at every minute, as R5 does; r5r
-rejects the combinations its sampler cannot meet (exactly 200 draws, or too
-many for the window), and so does peabiru.
+times in the window instead of routing at every minute, as R5 does; the
+combinations its sampler cannot meet (exactly 200 draws, or too many for
+the window) are errors.
 
 ## The Pareto frontier
 
@@ -116,8 +115,8 @@ print(pf[pf["to_id"] == pf["to_id"].iloc[3]].to_string())
 4  89a901291abffff  89a901295b7ffff          50           45           8.37
 ```
 
-`monetary_cost` is the cutoff as R5 reads it, a Java `float`, as r5r
-reports it (4.8 is 4.800000190734863).
+`monetary_cost` is the cutoff as R5 reads it, a Java `float` (4.8 is
+4.800000190734863).
 
 ## Alternative itineraries and their fares
 

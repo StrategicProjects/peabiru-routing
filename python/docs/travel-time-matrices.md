@@ -251,7 +251,7 @@ from_id
 ## Writing results to files
 
 With `output_dir`, an existing directory, the result is written there
-instead of being returned, as r5r writes it: one CSV file per origin, named
+instead of being returned: one CSV file per origin, named
 `from_<origin id>.csv`, and the function returns `output_dir` (a string or
 a `pathlib.Path`, as given). The origins are routed a slice at a time and
 each slice is written before the next one is routed, so a matrix too large
@@ -277,18 +277,17 @@ True
 ['from_id,to_id,travel_time_p50', '89a8100c007ffff,89a8100c00fffff,4', '89a8100c007ffff,89a8100c007ffff,1']
 ```
 
-The files are byte for byte those r5r writes for the same call: the columns
+The files hold the columns
 of the result (accessibility files also keep `cutoff` under
-`"fixed_exponential"`, as r5r's placeholder `0`), fields holding `,` or `"`
+`"fixed_exponential"`, as the placeholder `0`), fields holding `,` or `"`
 quoted, a missing value as an empty field, decimals as Java writes them
 (`2.0`, `1.0E-4`), lines ended by `\n` (`\r\n` on Windows). An origin with
 no row gets no file (accessibility writes one for every origin). The file
 names are built from the ids, so an id that cannot name a file in the
 directory (one with a path separator `/` or `\`, or NUL, and on Windows
-`< > : " | ? *`) raises `ValueError` before anything is routed or written
-(r5r fails on it in Java, or writes a file of another name). An existing
+`< > : " | ? *`) raises `ValueError` before anything is routed or written. An existing
 file of the same name is replaced, other
-files are left alone. As in r5r, `"WALK"` is then routed from the origins
+files are left alone. `"WALK"` is then routed from the origins
 even when there are fewer destinations, and the rule that blanks out trips
 over `max_trip_duration` in a returned result is not applied to the files.
 

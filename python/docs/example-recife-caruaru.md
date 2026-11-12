@@ -2,7 +2,7 @@
 
 <!-- docs-test: needs osmium, env PEABIRU_EXAMPLE_DATA -->
 
-The other examples use the small samples that come with r5r. This one
+The other examples use small sample networks. This one
 starts from nothing, as a study of a real city would: it downloads the
 streets of two cities of Pernambuco, Brazil, from OpenStreetMap, places
 their residents on a grid with the census, takes the public schools and the
@@ -267,7 +267,7 @@ A few things to know about these registers, seen while preparing them:
 - Schools and health units sit close to the streets of the extract: the
   median distance to the nearest street is 7 to 16 m, and a single school
   in each city is more than 300 m from one (418 m in Recife, 574 m in
-  Caruaru), well within the 1.6 km at which peabiru, like r5r, links a
+  Caruaru), well within the 1.6 km at which peabiru links a
   point to the street network.
 
 ## Travel time to the nearest school and health unit
@@ -325,8 +325,7 @@ with free-flowing traffic, nearly everyone is within 15 minutes of both.
 
 Recife's driving shares stop at 99.2% for a reason worth knowing: from 17
 cells of Boa Viagem (about 12 thousand residents on this grid) there is no
-car route to the rest of the network on this extract, in peabiru and in r5r
-2.5.0 alike, although the streets connect on foot and by bicycle. Removing
+car route to the rest of the network on this extract, although the streets connect on foot and by bicycle. Removing
 every turn restriction from the extract does not reconnect them; the cause
 is in how the OpenStreetMap data of that area is read for cars, and is not
 identified yet. Checks like this one (cells or units that a mode never
@@ -403,7 +402,7 @@ One number here depends on more than routing: the 20-minute driving polygon
 of Caruaru has dozens of holes (pockets of the grid not reached in time) that
 touch each other. `isochrone()` returns the polygons as traced, and
 `make_valid()` (GEOS, in metres) repairs them keeping those holes: 248.9 km².
-The R package returns its polygons made valid as r5r does, with
+The R package returns its polygons made valid with
 `sf::st_make_valid()` on longitude and latitude (s2), which merges many of
 the holes into the polygon: 285.9 km² in the
 <a href="../../r/articles/recife-caruaru.html">R example</a>. The other polygons agree
@@ -447,7 +446,7 @@ fig.savefig("recife-health.png", dpi=110, bbox_inches="tight")
   and of the CNES rows (`CO_UF`), and the Geofabrik region.
 - **Large matrices on disk.** With `output_dir`,
   [`travel_time_matrix()`](reference.md#peabiru.travel_time_matrix) and
-  `accessibility()` write one CSV file per origin, as r5r does, instead of
+  `accessibility()` write one CSV file per origin instead of
   returning a data frame: the 4,489 × 216 driving matrix of Caruaru never
   has to fit in memory.
 - **Gradual access.** `decay_function="logistic"` (or `"exponential"`,

@@ -1,7 +1,6 @@
 """find_snap(), street_network_bbox(), street_network_to_sf(),
 transit_network_to_sf(), check_transit_availability() and get_gtfs_errors().
-Their values are compared with r5r's by the R package's parity tests (the
-core is the same); these check the Python layer."""
+The values are the core's, tested there; these check the Python layer."""
 
 import datetime as dt
 import os

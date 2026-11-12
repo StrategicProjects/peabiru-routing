@@ -1,4 +1,4 @@
-//! Bindings of r5r's network functions (`find_snap()`,
+//! Bindings of the network inspection functions (`find_snap()`,
 //! `street_network_bbox()`, `street_network_to_sf()`,
 //! `transit_network_to_sf()`, `check_transit_availability()`,
 //! `get_gtfs_errors()`): as in the rest of the extension, the Python code
@@ -18,7 +18,7 @@ fn bool_bytes<'py>(py: Python<'py>, v: &[bool]) -> Bound<'py, PyBytes> {
     PyBytes::new(py, &b)
 }
 
-/// Snaps of r5r's `find_snap()` as `snap_lat`, `snap_lon`, `distance`
+/// Snaps of `find_snap()` as `snap_lat`, `snap_lon`, `distance`
 /// (f64, NaN where not found) and `found` (bool bytes).
 #[pyfunction]
 fn find_snap<'py>(
@@ -55,7 +55,7 @@ fn street_bbox(network: &Network) -> [f64; 4] {
     network.net.street().bbox()
 }
 
-/// The vertices of r5r's `street_network_to_sf()`, as columns.
+/// The vertices of `street_network_to_sf()`, as columns.
 #[pyfunction]
 fn street_vertices<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'py, PyDict>> {
     let v = street_vertices_core(&network.net);
@@ -69,7 +69,7 @@ fn street_vertices<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'p
     Ok(d)
 }
 
-/// The stops of r5r's `transit_network_to_sf()`, as columns (NaN
+/// The stops of `transit_network_to_sf()`, as columns (NaN
 /// coordinates for stops not linked to the streets).
 #[pyfunction]
 fn transit_stops<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'py, PyDict>> {
@@ -89,7 +89,7 @@ fn transit_stops<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'py,
     Ok(d)
 }
 
-/// The routes of r5r's `transit_network_to_sf()`, as columns, with the
+/// The routes of `transit_network_to_sf()`, as columns, with the
 /// line of each row as `n_points` (int32) and flat `x`, `y` (f64).
 #[pyfunction]
 fn transit_routes<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'py, PyDict>> {
@@ -120,7 +120,7 @@ fn transit_routes<'py>(py: Python<'py>, network: &Network) -> PyResult<Bound<'py
 }
 
 /// The operating dates of the network's services (`yyyymmdd`, ascending),
-/// as r5r's `check_transit_availability()` discovers them.
+/// as `check_transit_availability()` discovers them.
 #[pyfunction]
 fn transit_service_dates(network: &Network) -> PyResult<Vec<u32>> {
     match network.net.transit() {
@@ -151,7 +151,7 @@ fn gtfs_files(dir: &str) -> PyResult<Vec<String>> {
 }
 
 /// The errors gtfs-lib reports for the feeds at `paths`, read in this
-/// order, as the columns of r5r's `gtfs_errors.csv`.
+/// order, as the columns of `get_gtfs_errors()`.
 #[pyfunction]
 fn gtfs_errors<'py>(py: Python<'py>, paths: Vec<String>) -> PyResult<Bound<'py, PyDict>> {
     let rows = py.detach(|| -> Result<_, String> {

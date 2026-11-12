@@ -13,7 +13,7 @@ shown under each is what it prints. The map at the end needs
 
 ## The data
 
-The Porto Alegre sample of r5r 2.5.0 (an OpenStreetMap extract, the bus and
+The sample data of Porto Alegre from the r5r project (an OpenStreetMap extract, the bus and
 train GTFS feeds, and a grid of 1,227 hexagonal cells with their population,
 jobs and schools), downloaded once into the temporary directory:
 

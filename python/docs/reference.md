@@ -42,7 +42,7 @@ All functions are available at the top level of the package
 
 ## Trip options
 
-peabiru's own multi-criteria planner (no r5r counterpart).
+A multi-criteria planner: every trip worth considering.
 
 ::: peabiru.trip_options
 

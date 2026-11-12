@@ -1,4 +1,4 @@
-"""trip_options(): peabiru's own multi-criteria planner (no r5r reference).
+"""trip_options(): the multi-criteria planner.
 The core checks the search against an exhaustive enumeration; these check
 the Python side: columns, types, the merge over the window, the legs, the
 limits and the argument checks."""

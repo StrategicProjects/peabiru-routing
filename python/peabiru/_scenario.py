@@ -1,10 +1,9 @@
-"""Scenarios: r5r's ``set_new_congestion()`` and ``set_new_lts()``.
+"""Scenarios: ``new_carspeeds``, ``carspeed_scale`` and ``new_lts``.
 
-The checks of r5r's ``congestion_poly2geojson()``, ``dt_to_speed_map()``,
-``lts_lines2shp()`` and ``dt_to_lts_map()``, and the dictionary the engine
-reads (``src/scenario.rs``): the data frame columns as text, the way r5r
-hands them to R5 (``as.character()``, read again by Java), and the
-geometries of the GeoDataFrames flattened.
+The checks of the tables, and the dictionary the engine reads
+(``src/scenario.rs``): the data frame columns as text, as R's
+``as.character()`` writes them and Java reads them again (the way R5
+receives a scenario), and the geometries of the GeoDataFrames flattened.
 """
 
 from __future__ import annotations
@@ -137,9 +136,9 @@ def _check_wgs84(gdf: Any, what: str) -> None:
 
 
 def _assert_scale(x: Any, name: str = "carspeed_scale") -> None:
-    """r5r's check of carspeed_scale (checkmate::assert_numeric(lower = 0,
-    finite = TRUE)), then a clear error for NaN, which that check lets
-    through and r5r then fails on with an internal R error."""
+    """The check of carspeed_scale (checkmate::assert_numeric(lower = 0,
+    finite = TRUE)), then an error for NaN, which that check lets
+    through."""
     if x is None:
         fail_assert(name, "Must be of type 'numeric', not 'None'", TypeError)
     if not is_number(x):
@@ -151,8 +150,7 @@ def _assert_scale(x: Any, name: str = "carspeed_scale") -> None:
         fail_assert(name, "Must be finite")
     if math.isnan(x):
         raise ValueError(
-            f"'{name}' must be a number that is not NaN (r5r 2.5.0 fails on this value "
-            "with an internal R error)"
+            f"'{name}' must be a number that is not NaN"
         )
 
 
@@ -161,13 +159,13 @@ def _is_geodataframe(x: Any) -> bool:
 
 
 def _elevation_warning(network: Any) -> None:
-    """r5r's warning when a scenario is used: R5's scenario copy of the
-    network has no slope costs (r5r issue #555). r5r gives it for every
-    scenario; here only on a network with elevation, where it is true."""
+    """The warning when a scenario is used on a network with elevation:
+    R5's scenario copy of the network has no slope costs, and neither has
+    the engine's."""
     if network is not None and getattr(network, "elevation", "NONE") != "NONE":
         warnings.warn(
-            "A scenario was used for this calculation. This may affect results for WALK "
-            "or BICYCLE due to missing elevation. See issue #555.",
+            "A scenario was used for this calculation: WALK and BICYCLE are routed "
+            "without the slope costs of the network's elevation.",
             stacklevel=4,
         )
 
@@ -176,7 +174,7 @@ def scenario_spec(
     new_carspeeds: Any, carspeed_scale: Any, new_lts: Any, network: Any = None
 ) -> Optional[Dict[str, Any]]:
     """The scenario of a routing call (see the module), ``None`` when it
-    changes nothing; warns as r5r does when ``network`` has elevation."""
+    changes nothing; warns when ``network`` has elevation."""
     for value, name in ((new_carspeeds, "new_carspeeds"), (new_lts, "new_lts")):
         if value is not None and not isinstance(value, pd.DataFrame):
             fail_assert(

@@ -47,7 +47,7 @@ def test_slope_costs_from_a_raster(tmp_path, network, points):
 
 def test_a_scenario_drops_the_slope_costs_with_a_warning(tmp_path, network, points):
     tobler = peabiru.build_network(_dir(tmp_path), n_threads=2)
-    with pytest.warns(UserWarning, match="due to missing elevation. See issue #555"):
+    with pytest.warns(UserWarning, match="without the slope costs of the network's elevation"):
         s = peabiru.travel_time_matrix(
             tobler, points, points, mode="WALK", carspeed_scale=0.9, n_threads=2
         )
@@ -59,7 +59,7 @@ def test_a_scenario_drops_the_slope_costs_with_a_warning(tmp_path, network, poin
         )
 
 
-def test_rasters_r5r_cannot_read_are_errors(tmp_path):
+def test_rasters_that_cannot_be_read_are_errors(tmp_path):
     a = tmp_path / "a"
     a.mkdir()
     with pytest.raises(RuntimeError, match="ends in .tiff"):

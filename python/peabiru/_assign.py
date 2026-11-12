@@ -1,7 +1,6 @@
-"""Input handling mirrored from r5r 2.5.0 (``R/assign.R``, ``R/set.R``,
-``R/utils.R``), as the R package of peabiru does: the same checks, defaults
-and conversions, so that a call gives what r5r gives for the same
-arguments."""
+"""Input handling shared by the routing functions: the checks, defaults
+and conversions of their arguments, the same as in the R package of
+peabiru."""
 
 from __future__ import annotations
 
@@ -31,7 +30,7 @@ from ._checks import (
     unsupported,
 )
 
-R5R_TRANSIT_MODES = [
+TRANSIT_MODES = [
     "TRANSIT",
     "TRAM",
     "SUBWAY",
@@ -42,7 +41,7 @@ R5R_TRANSIT_MODES = [
     "GONDOLA",
     "FUNICULAR",
 ]
-R5R_DIRECT_MODES = ["WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK"]
+DIRECT_MODES = ["WALK", "BICYCLE", "CAR", "BICYCLE_RENT", "CAR_PARK"]
 
 
 @dataclass
@@ -77,7 +76,7 @@ def _is_string_column(col: pd.Series) -> bool:
 
 
 def assign_points_input(df: Any, name: str, unique_ids: bool = True) -> Points:
-    """r5r assign_points_input(): a DataFrame (or a GeoDataFrame of points)
+    """Points of a routing call: a DataFrame (or a GeoDataFrame of points)
     with id, lon, lat."""
     if _is_geodataframe(df):
         if len(df) > 0 and not (df.geom_type == "Point").all():
@@ -119,7 +118,7 @@ def assign_points_input(df: Any, name: str, unique_ids: bool = True) -> Points:
     lat = df["lat"].to_numpy(dtype=np.float64, na_value=np.nan)
 
     id_col = df["id"]
-    # a missing id stays missing (None), as as.character(NA) is NA in r5r;
+    # a missing id stays missing (None), as R's as.character(NA) is NA;
     # under pandas < 3 astype(str) turns it into the text "nan" or "<NA>"
     id_missing = id_col.isna().to_numpy(dtype=bool)
     if not _is_string_column(id_col):
@@ -158,12 +157,11 @@ class ModeList:
 
 
 def check_destination_ids(d: "Points") -> None:
-    """r5r's Java side fails on a missing destination id
-    (NullPointerException): an error here, as in the R package."""
+    """A destination without an id cannot be reported: an error, as in
+    the R package."""
     if any(i is None or (isinstance(i, float) and math.isnan(i)) for i in d.ids):
         raise ValueError(
-            "'destinations$id' cannot be missing (r5r 2.5.0 fails on a missing "
-            "destination id in Java)."
+            "'destinations$id' cannot be missing."
         )
 
 
@@ -183,9 +181,9 @@ def _val(values: Sequence[Any]) -> str:
 
 
 def assign_mode(mode: Any, mode_egress: Any) -> ModeList:
-    """r5r assign_mode()."""
-    all_modes = R5R_TRANSIT_MODES + R5R_DIRECT_MODES
-    # as in r5r, unique() and toupper() come before the checks, so a
+    """The modes of a call: access, transit and egress."""
+    all_modes = TRANSIT_MODES + DIRECT_MODES
+    # upper case and repeats dropped come before the checks, so a
     # repeated mode is accepted
     mode = cm.to_upper_unique(mode)
     cm.cm_assert_and(
@@ -199,21 +197,21 @@ def assign_mode(mode: Any, mode_egress: Any) -> ModeList:
     cm.cm_assert(cm.check_names(mode_egress, subset_of=["WALK", "BICYCLE", "CAR"]), "mode_egress")
     egress = str(scalar(mode_egress))
 
-    direct = [m for m in modes if m in R5R_DIRECT_MODES]
-    transit = [m for m in modes if m in R5R_TRANSIT_MODES]
+    direct = [m for m in modes if m in DIRECT_MODES]
+    transit = [m for m in modes if m in TRANSIT_MODES]
     if len(direct) > 1:
         raise ValueError(
             "Please use only 1 of {" + ",".join(f"'{m}'" for m in direct) + "} when routing."
         )
     if "CAR_PARK" in direct or "BICYCLE_RENT" in direct:
-        raise ValueError("CAR_PARK and BICYCLE_RENT are currently unsupported by r5r.")
+        raise ValueError("CAR_PARK and BICYCLE_RENT are not supported.")
 
     access = list(direct)
     if not transit:
         transit_modes: List[str] = [""]
         egress_mode = ""
     else:
-        transit_modes = list(R5R_TRANSIT_MODES) if "TRANSIT" in transit else transit
+        transit_modes = list(TRANSIT_MODES) if "TRANSIT" in transit else transit
         if not direct:
             access = direct = ["WALK"]
         egress_mode = egress
@@ -244,7 +242,7 @@ def _is_datetime(x: Any) -> bool:
 def assign_departure(
     datetime: Any, mode_list: ModeList, name: str = "departure_datetime"
 ) -> Departure:
-    """r5r assign_departure(): the date and the clock time of the datetime
+    """The departure: the date and the clock time of the datetime
     in its own time zone (or as given, when naive), with no conversion."""
     if datetime is None:
         if not mode_list.transit:
@@ -280,7 +278,7 @@ def minus_minutes(datetime: _dt.datetime, minutes: int) -> _dt.datetime:
 def assign_max_street_time(
     max_time: Any, speed: Any, max_trip_duration: Any, mode: str
 ) -> int:
-    """r5r assign_max_street_time()"""
+    """The limit of a street mode, in whole minutes."""
     var = f"max_{mode}_time"
     assert_number(max_time, var, lower=1)
     max_time = scalar(max_time)
@@ -303,7 +301,7 @@ def assign_max_trip_duration(
     max_bike_time: int,
     max_car_time: int,
 ) -> int:
-    """r5r assign_max_trip_duration(): with a street mode alone, the mode's
+    """The trip limit: with a street mode alone, the mode's
     own limit caps the trip."""
     assert_count(max_trip_duration, "max_trip_duration", positive=True)
     mtd = int(round(scalar(max_trip_duration)))
@@ -318,7 +316,7 @@ def assign_max_trip_duration(
 
 
 def assign_opportunities(df: pd.DataFrame, colnames: Any) -> Tuple[List[str], List[bytes]]:
-    """r5r assign_opportunities(): numeric columns, NA counted as 0."""
+    """The opportunity columns: numeric columns, NA counted as 0."""
     cm.cm_assert(
         cm.check_character(colnames, min_len=1, unique=True, any_missing=False),
         "opportunities_colnames",
@@ -347,7 +345,7 @@ DECAY_FUNCTIONS = ["step", "exponential", "fixed_exponential", "linear", "logist
 
 
 def assign_decay_function(decay_function: Any, decay_value: Any) -> Tuple[str, float]:
-    """r5r assign_decay_function()"""
+    """The decay function and its value, checked together."""
     cm.cm_assert_and(
         "decay_function",
         cm.check_string(decay_function),
@@ -380,12 +378,12 @@ def assign_decay_function(decay_function: Any, decay_value: Any) -> Tuple[str, f
     # R5 takes the linear width as whole minutes, under one hour
     if decay_function == "linear":
         assert_integerish(decay_value, "decay_value", lower=1, upper=59)
-    # r5r passes the placeholder 0 when decay_value is NULL (R5 ignores it)
+    # the placeholder 0 when decay_value is None (the function ignores it)
     return decay_function, 0.0 if decay_value is None else float(decay_value)
 
 
 def assign_cutoffs(cutoffs: Any, decay_function: str) -> List[int]:
-    """r5r set_cutoffs(): the cutoffs R5 receives (ascending, or the
+    """The cutoffs the engine receives (ascending, or the
     placeholder 0 for fixed_exponential)."""
     values = assert_integerish(
         cutoffs, "cutoffs", lower=1, upper=120, min_len=1, max_len=12, unique=True, none_ok=True
@@ -404,7 +402,7 @@ def assign_cutoffs(cutoffs: Any, decay_function: str) -> List[int]:
 
 
 def assign_percentiles(percentiles: Any) -> List[int]:
-    """r5r set_percentiles(): ascending, as the output columns.
+    """The percentiles: ascending, as the output columns.
 
     An empty list is an error for every mode (R5 fails on it too; without
     the check a street matrix would come back with no travel time column).
@@ -417,7 +415,7 @@ def assign_percentiles(percentiles: Any) -> List[int]:
 
 
 def assign_n_threads(n_threads: Any) -> int:
-    """r5r set_n_threads(): None or math.inf mean all cores (0 for the
+    """The threads: None or math.inf mean all cores (0 for the
     core)."""
     if n_threads is None:
         return 0
@@ -430,7 +428,7 @@ def assign_n_threads(n_threads: Any) -> int:
 
 
 def check_speed(speed: Any, mode: str) -> None:
-    """r5r set_speed()"""
+    """A walking or cycling speed in km/h, above zero."""
     name = f"{mode}_speed"
     assert_number(speed, name, finite=True)
     if scalar(speed) <= 0:
@@ -438,7 +436,7 @@ def check_speed(speed: Any, mode: str) -> None:
 
 
 def check_max_lts(max_lts: Any) -> None:
-    """r5r set_max_lts()"""
+    """The level of traffic stress, 1 to 4."""
     assert_count(max_lts, "max_lts", positive=True)
     max_lts = scalar(max_lts)
     if max_lts < 1 or max_lts > 4:
@@ -449,7 +447,7 @@ def check_max_lts(max_lts: Any) -> None:
 
 
 def check_output_dir(output_dir: Any) -> Optional[str]:
-    """r5r set_output_dir(): checkmate::assert_string() and
+    """The output directory: checkmate::assert_string() and
     checkmate::assert_directory_exists(). A string or a path-like object;
     returns the directory to write to as a string (``~`` expanded), or
     ``None``."""
@@ -469,9 +467,9 @@ def check_output_dir(output_dir: Any) -> Optional[str]:
 
 
 def check_draws(draws_per_minute: Any, time_window: Any = 1, mcraptor: bool = False) -> None:
-    """r5r set_monte_carlo_draws(): with McRAPTOR (a fare structure, or the
-    alternatives of detailed_itineraries()), the draws R5 cannot sample are
-    rejected as r5r rejects them."""
+    """The Monte Carlo draws: with McRAPTOR (a fare structure, or the
+    alternatives of detailed_itineraries()), the draws R5's router cannot
+    sample are rejected."""
     assert_count(draws_per_minute, "draws_per_minute", positive=True)
     if not mcraptor:
         return
@@ -481,8 +479,7 @@ def check_draws(draws_per_minute: Any, time_window: Any = 1, mcraptor: bool = Fa
         raise ValueError(
             f"A 'time_window' of {_num(time_window)} minutes with {dpm} draw(s) per minute "
             "gives exactly 200 Monte Carlo draws, which R5's McRaptor algorithm does not "
-            f"accept. Use a slightly different 'time_window', e.g. {_num(tw + 1)}. See "
-            "https://github.com/ipea/r5r/issues/602."
+            f"accept. Use a slightly different 'time_window', e.g. {_num(tw + 1)}."
         )
     m = 60 // dpm
     mu = (m - 1) / 2 + m // 2
@@ -497,8 +494,7 @@ def check_draws(draws_per_minute: Any, time_window: Any = 1, mcraptor: bool = Fa
             f"'draws_per_minute' = {dpm} with a 'time_window' of {_num(time_window)} minutes "
             "is not supported with a 'fare_structure'. R5's McRaptor algorithm cannot "
             "sample this many departure times and could run indefinitely. Use a lower "
-            "'draws_per_minute' or a shorter 'time_window'. See "
-            "https://github.com/ipea/r5r/issues/602."
+            "'draws_per_minute' or a shorter 'time_window'."
         )
 
 
@@ -508,14 +504,14 @@ def seed_arg(seed: Any) -> Optional[int]:
 
 
 def check_messages(verbose: Any, progress: Any) -> None:
-    """'progress' and 'verbose' are checked as r5r does; peabiru prints no
-    progress counter and has no Java log to make verbose."""
+    """'progress' and 'verbose' are checked; peabiru prints no progress
+    counter."""
     assert_flag(verbose, "verbose")
     assert_flag(progress, "progress")
 
 
 def check_transit_availability_on_date(network: Any, departure: Departure) -> None:
-    """r5r check_transit_availability_on_date() (R/utils.R): R5 counts the
+    """Warns when few services run on the date: R5 counts the
     services active on the date over all services."""
     total, active = network._core.transit_availability(departure.yyyymmdd)
     pct = 0.0 if total == 0 else active / total
@@ -534,10 +530,10 @@ def check_transit_availability_on_date(network: Any, departure: Departure) -> No
 
 
 def swap_od(origins: Points, destinations: Points, mode_list: ModeList, network: Any) -> bool:
-    """r5r reverse_if_direct_mode() (R/set.R): with WALK alone, more origins
-    than destinations and no elevation raster in the data directory, r5r
-    routes from the destinations and swaps the columns back afterwards. The
-    two directions can differ, so the swap is reproduced."""
+    """With WALK alone, more origins than destinations and no elevation
+    raster in the data directory, the matrix is routed from the destinations
+    and the columns swapped back afterwards (fewer searches). The two
+    directions can differ, so the rule is part of the result."""
     return (
         not mode_list.transit
         and mode_list.direct_modes == "WALK"
@@ -547,7 +543,7 @@ def swap_od(origins: Points, destinations: Points, mode_list: ModeList, network:
 
 
 def seconds_to_hhmmss(s: np.ndarray) -> np.ndarray:
-    """Utils.getTimeFromSeconds in r5r's Java: HH:MM:SS, hours not wrapped
+    """Seconds since midnight as HH:MM:SS, hours not wrapped
     at 24. Formats each distinct value once."""
     levels, inverse = np.unique(s, return_inverse=True)
     text = np.array(

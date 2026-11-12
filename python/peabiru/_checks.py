@@ -1,7 +1,7 @@
 """Argument checks.
 
-r5r validates its arguments with checkmate; these are Python equivalents of
-the few checkmate assertions it uses (as the R package of peabiru does), so
+The R package of peabiru validates its arguments in the style of
+checkmate; these are Python equivalents of the few assertions it uses, so
 that the same inputs are accepted and rejected, with the same messages.
 Python's ``None`` plays R's ``NULL`` and ``math.inf`` plays ``Inf``.
 """
@@ -24,7 +24,7 @@ _TOL = math.sqrt(np.finfo(float).eps)
 
 
 class UnsupportedError(NotImplementedError):
-    """An option of r5r that peabiru does not support yet.
+    """A request that peabiru does not support.
 
     peabiru never ignores an argument it cannot honour: requesting it raises
     this error (a subclass of ``NotImplementedError``).
@@ -144,8 +144,7 @@ def assert_integerish(
     unique: bool = False,
     none_ok: bool = False,
 ) -> Optional[List[int]]:
-    """checkmate::assert_integerish(any.missing = FALSE, ...), as r5r calls
-    it; returns the values as ints (or None)."""
+    """checkmate::assert_integerish(any.missing = FALSE, ...); returns the values as ints (or None)."""
     cm.cm_assert(
         cm.check_integerish(x, lower=lower, upper=upper, any_missing=False, min_len=min_len,
                             max_len=max_len, unique=unique, null_ok=none_ok),

@@ -21,10 +21,8 @@ written in Rust; no Java is needed. A request peabiru cannot honour exactly
 is an error ([`UnsupportedError`][peabiru.UnsupportedError] for the few
 options it refuses), never silently ignored.
 
-The functions have the names, arguments and defaults of the R package r5r
-(2.5.0), and the engine is a port of Conveyal's R5 7.6, the engine r5r
-drives, so the results are the same; see "Coming from r5py / r5r" in the
-documentation for the differences.
+The engine is a port of Conveyal's R5 7.6 to Rust; the R package of the
+same name has the same functions and gives the same results.
 """
 
 from ._checks import UnsupportedError
