@@ -9,7 +9,7 @@ to Opportunities Project, and then, in Porto Alegre, asks what is left of
 that access when the fare is limited.
 
 It is the Python half of a larger example: the
-[R article](../../r/articles/capitals.html) does the same for São Paulo and
+<a href="../../r/articles/capitals.html">R article</a> does the same for São Paulo and
 Rio de Janeiro too, compares the three cities, and explains which capitals
 were left out and why. The numbers printed here for Belo Horizonte and
 Porto Alegre are the ones of that article; they were computed on 2026-11-12.
@@ -30,7 +30,7 @@ extract, [osmium](https://osmcode.org/osmium-tool/).
 | Municipal boundary | [IBGE, malhas municipais](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3) (API, version 3) | public data, IBGE |
 | Cells, population, income | Ipea, [Access to Opportunities Project](https://www.ipea.gov.br/acessooportunidades/en/), data release v1.0.0 of [aopdata](https://github.com/ipeaGIT/aopdata): H3 cells of resolution 9 with the residents and the household income per person of the **Censo 2010** | the aopdata repository is MIT; no separate licence for the data is stated. Ipea asks for the citations at the end of this page |
 | Jobs, schools, health facilities | the same release, land use of **2019**: formal jobs (RAIS), public schools, public health facilities, per cell | same |
-| Porto Alegre | the sample data of [r5r 2.5.0](https://github.com/ipea/r5r/tree/v2.5.0/r-package/inst/extdata/poa): OpenStreetMap extract, GTFS of EPTC and Trensurb of May 2019, grid, and a fare structure | r5r is MIT; map data ODbL |
+| Porto Alegre | the sample data of [r5r 2.5.0](https://github.com/ipea/r5r/tree/v2.5.0/r-package/inst/extdata/poa): OpenStreetMap extract, GTFS of EPTC and Trensurb of May 2019, grid, and a fare structure | r5r is under GPL (>= 3) or MIT, at the user's choice; map data ODbL |
 
 The public transport is of November 2026; the residents and their income
 are those of 2010 (the Censo 2022 has no income by census tract yet) and the
@@ -233,16 +233,16 @@ print(result.to_string(float_format="{:g}".format))
 
 ```text
        jobs_60  schools_30  health_30
-1        31.90        3.40       3.20
-2        33.10        4.10       3.50
-3        46.50        4.90       4.70
-4        49.50        5.10       4.70
-5        58.20        5.60       6.30
-6        59.80        6.00       7.70
-7        67.90        6.60      10.60
-8        76.40        7.60      13.70
-9        81.40        8.60      18.10
-10       82.20        7.40      21.50
+1         31.9         3.4        3.2
+2         33.1         4.1        3.5
+3         46.5         4.9        4.7
+4         49.5         5.1        4.7
+5         58.2         5.6        6.3
+6         59.8           6        7.7
+7         67.9         6.6       10.6
+8         76.4         7.6       13.7
+9         81.4         8.6       18.1
+10        82.2         7.4       21.5
 palma     2.04        1.66       5.32
 ```
 
@@ -264,7 +264,7 @@ Belo Horizonte's feed has the fares by line, but its
 [rules](https://prefeitura.pbh.gov.br/sumob/onibus/tipos-de-linha-e-servicos)
 cannot be written faithfully in r5r's format (a transfer inside a MOVE
 station costs nothing, a second ride within 90 minutes costs half the
-cheaper fare); the [R article](../../r/articles/capitals.html#time-against-fare)
+cheaper fare); the <a href="../../r/articles/capitals.html#time-against-fare">R article</a>
 has the details. So this part uses **Porto Alegre**: the sample data of r5r
 2.5.0 (the centre and the neighbourhoods around it, as of May 2019) and the
 fare structure r5r ships for it. The feeds only have service in the
@@ -350,12 +350,12 @@ print(by_quintile.to_string(float_format="{:g}".format))
 
 ```text
      jobs_any_fare  kept_one_fare  kept_two_fares
-1         232415.0           73.7            95.9
-2         243639.0           75.9            96.6
-3         277392.0           81.2            97.8
-4         303605.0           85.8            98.7
-5         316121.0           89.0            98.9
-all       288518.0           84.1            98.2
+1           232415           73.7            95.9
+2           243639           75.9            96.6
+3           277392           81.2            97.8
+4           303605           85.8            98.7
+5           316121             89            98.9
+all         288518           84.1            98.2
 ```
 
 <figure markdown="span">
@@ -394,6 +394,9 @@ for origin, destination, trip in pairs:
 ```
 
 ```text
+Cavalhada to Praia de Belas: R$ 0.00: 78 min, R$ 4.80: 30 min, R$ 7.20: 29 min
+Praia de Belas to Navegantes: R$ 4.50: 99 min, R$ 4.80: 89 min, R$ 7.20: 48 min, R$ 12.00: 47 min
+Petrópolis to Teresópolis: R$ 0.00: 106 min, R$ 4.80: 90 min, R$ 7.20: 74 min, R$ 12.00: 69 min
 ```
 
 <figure markdown="span">
@@ -427,6 +430,10 @@ print(res.options[["option", "total_time", "fare", "transfers", "walk_time",
 ```
 
 ```text
+ option  total_time  fare  transfers  walk_time                                description
+      1        52.6  12.0          2        9.3 WALK > BUS 441 > BUS 4924 > BUS 173 > WALK
+      2        56.8   7.2          1       20.9            WALK > BUS 441 > BUS 187 > WALK
+      3        86.2   4.8          0       64.8                      WALK > BUS 375 > WALK
 ```
 
 <figure markdown="span">
