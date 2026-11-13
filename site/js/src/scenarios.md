@@ -60,16 +60,17 @@ overlaps most):
 {{#include ../examples/output/scenarios.txt:6}}
 ```
 
-R5 stores car speeds as 16-bit integers of centimetres per second, so a
+Car speeds are kept as 16-bit integers of centimetres per second, so a
 factor or speed that would come out as 0 or less there (a negative factor
 or speed, a polygon `scale` of `Infinity` or 0, a `carspeedScale` far above
-1) is an error, as are polygons that are not valid and ties between
-polygons that peabiru cannot settle exactly as R5 does.
+1) is an error, as are polygons that are not valid and a tie with no
+winner: two polygons of the same priority and different scales that
+overlap a way by the same length (give one of them a higher priority).
 
 ## Levels of traffic stress
 
 Cyclists ride on streets up to `maxLts` (2 by default) of the four levels
-of traffic stress R5 gives every street. `newLts` changes those levels: as
+of traffic stress every street gets. `newLts` changes those levels: as
 a table with columns `osm_id` and `lts` (an integer from 1 to 4), for the
 edges of the ways it lists; or as a GeoJSON `FeatureCollection` of
 `LineString`s with properties `line_id`, `lts` (1 to 4) and `priority`,
@@ -90,5 +91,4 @@ A scenario changes the street search from the origins: the trip without
 public transport, and the way to the stops by bicycle or car. It does not
 change the trip from the last stop to the destination. On a network built
 with an [elevation raster](elevation.md), a call with a scenario routes
-without the slope costs (R5's copy of the network for the scenario has
-none), with a warning that says so.
+without the slope costs, with a warning that says so.

@@ -179,8 +179,9 @@ for (let i = 0; i < ttm.from_id.length; i++) {
 
 What peabiru does not do throws `peabiru.UnsupportedError`; it is never
 silently ignored: `outputDir` (there is no file system to write to),
-expanded and arrival matrices by a street mode alone, and R5's own fare
-calculators (a `fareStructure` with a `type`). A GTFS feed with errors of
+expanded and arrival matrices by a street mode alone, and a
+`fareStructure` that names a fare calculator (a `type`) instead of fare
+rules. A GTFS feed with errors of
 priority `HIGH` is refused by `buildNetwork()`
 (`getGtfsErrors()` lists them).
 
@@ -197,19 +198,20 @@ reproduces exactly: SIRGAS 2000 (4674), SAD69 (4618), Corrego Alegre 1970-72
 (5880), WGS 84 / UTM (32601-32660, 32701-32760) and WGS 84 / Pseudo-Mercator
 (3857), north up, uncompressed or compressed with LZW, Deflate or PackBits;
 other rasters are an error. peabiru's result does not depend on the
-machine: in a system other than EPSG:4326, what R5 (the Java engine
-peabiru's model comes from) reads depends on the machine it
-runs on for a street point within nanometres (5e-8 m, or 2e-13 degrees) of
+machine: in a system other than EPSG:4326, for a street point within
+nanometres (5e-8 m, or 2e-13 degrees) of
 the boundary between two pixels of different values, or of the raster's
-edge: the last bits of Java's sines and cosines decide which pixel it reads.
-peabiru reads the pixel Java's StrictMath gives, the same on every machine,
+edge, the last bits of the projection's sines and cosines decide which
+pixel is read. peabiru computes them with its own fdlibm functions, so it
+reads the same pixel on every machine,
 and warns once (`onWarning`) with the number of such points (about one in a
 hundred million for 30 m pixels; reprojecting the raster to EPSG:4326
-removes the ambiguity). A point that StrictMath itself puts on the raster's
-outer edge (inside its envelope, past the last pixel) remains an error,
+removes the ambiguity). A point that falls on the raster's
+outer edge (inside its envelope, past the last pixel) is an error,
 since there is no pixel to read there.
-Voids and values beyond +/-3276.7 m wrap around as in
-R5 (SRTM's -32768 becomes 0 m, -9999 becomes 3108.2 m), with a warning to
+Elevations are kept in decimetres in 16-bit integers, so voids and values
+beyond +/-3276.7 m wrap around (SRTM's -32768 becomes 0 m, -9999 becomes
+3108.2 m), with a warning to
 `onWarning`. A raster also stops
 `travelTimeMatrix()` from swapping origins and destinations for walking, and
 a call with a scenario routes without the slope costs.
@@ -363,8 +365,9 @@ workers against the calling thread.
 ## Licence and credits
 
 MIT (`LICENSE`) for peabiru's own code; the authors are listed in
-`package.json`. The routing logic is ported from Conveyal's
-[R5](https://github.com/conveyal/r5) 7.6 (MIT), and parts from Apache
+`package.json`. The routing model follows Conveyal's
+[R5](https://github.com/conveyal/r5) (MIT), from which the routing logic is
+ported, with parts from Apache
 Commons Math (Apache-2.0; its Mersenne Twister is BSD-3-Clause) and other
 works; their notices are in `LICENSE-THIRD-PARTY`. See the
 [comparison with r5r](https://strategicprojects.github.io/peabiru-routing/js/differences.html)

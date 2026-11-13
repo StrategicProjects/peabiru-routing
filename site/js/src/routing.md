@@ -180,5 +180,6 @@ Both need public transport; with a street mode alone they throw
 
 What peabiru does not do throws
 [`UnsupportedError`](api.md#UnsupportedError): `outputDir`, expanded and
-arrival matrices by a street mode alone, and R5's own fare calculators.
+arrival matrices by a street mode alone, and a fare structure that names a
+fare calculator (a `type`) instead of fare rules.
 `verbose` and `progress` are checked; peabiru prints nothing.

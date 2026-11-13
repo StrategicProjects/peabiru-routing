@@ -83,7 +83,8 @@ export declare function coreVersion(): string;
 /**
  * The error thrown when a call asks for something peabiru does not do: an
  * `outputDir`, an expanded or arrival matrix by a street mode alone, or a
- * fare structure that names one of R5's own fare calculators (a `type`).
+ * fare structure that names a fare calculator (a `type`) instead of fare
+ * rules.
  * peabiru never ignores an option it cannot honour.
  *
  * ```js
@@ -138,8 +139,8 @@ export interface BuildNetworkInput {
    * 327xx) or Pseudo-Mercator (3857); other rasters are an error. Voids
    * and values beyond +/-3276.7 m are stored wrapped around, as 16-bit
    * decimetres, with a warning; in a projected raster, a street point
-   * within nanometres of a pixel boundary reads the pixel Java's
-   * StrictMath gives, with a warning. With a raster, `travelTimeMatrix()`
+   * within nanometres of a pixel boundary reads the same pixel on every
+   * machine, with a warning. With a raster, `travelTimeMatrix()`
    * never routes walking trips from the destinations.
    */
   tif?: Bytes;
@@ -316,8 +317,8 @@ export interface RoutingOptions {
    * FeatureCollection of Polygons or MultiPolygons with properties
    * `poly_id` (string), `scale` and `priority` (integer): each edge takes
    * the factor of the polygon it meets with the highest priority (on a
-   * tie, the one it overlaps most). A speed that R5's 16-bit cm/s would
-   * bring to 0 or less is an error.
+   * tie, the one it overlaps most). Speeds are kept as 16-bit cm/s: one
+   * that would come to 0 or less, or pass that range, is an error.
    */
   newCarspeeds?: ScenarioTable | GeoJsonFeatureCollection | null;
   /** The factor for the car speeds of the edges `newCarspeeds` leaves out, at least 0 (default 1). */
@@ -379,7 +380,7 @@ export interface TravelTimeMatrixOptions extends RoutingOptions {
   percentiles?: number | number[];
   /**
    * A fare structure (see `setupFareStructure()`), or null (default): no
-   * fares. With one, public transport is routed with R5's multi-criteria
+   * fares. With one, public transport is routed with the multi-criteria
    * router (McRAPTOR) over `timeWindow * drawsPerMinute` sampled
    * departure times.
    */
@@ -666,16 +667,15 @@ export interface ItineraryFeature {
  * duration, wait, distance, route and line. Each pair gets its fastest
  * itinerary over the departure window (the trip by the street mode alone,
  * or by public transport, whichever is faster) or, with
- * `shortestPath: false`, the alternatives found by R5's multi-criteria
+ * `shortestPath: false`, the alternatives found by the multi-criteria
  * router (McRAPTOR). One row per leg, as a GeoJSON `FeatureCollection` or,
  * with `dropGeometry`, an array of rows; pairs without an itinerary have
  * none. Every option is in `DetailedItinerariesOptions` and
  * `RoutingOptions`. Public transport needs feeds with timetables: a
  * network with frequency-based trips is an error. With `modeEgress:
- * "CAR"`, a pair whose itinerary in R5 may depend on the searches that ran
- * before (a car search through a turn restriction with two or more via
- * ways) always gets the itinerary of a freshly built network, with a
- * warning.
+ * "CAR"`, a pair whose egress crosses a turn restriction with two or more
+ * via ways, which can be read in either order, always gets the itinerary
+ * of a freshly built network routing that pair alone, with a warning.
  *
  * ```js
  * const back = { id: [...points.id].reverse(), lon: [...points.lon].reverse(), lat: [...points.lat].reverse() };
@@ -943,7 +943,7 @@ export interface ParetoFrontierOptions
 /**
  * Columns of a Pareto frontier: one row per origin, destination,
  * percentile and fare cutoff at which the travel time changes.
- * `monetary_cost` is the cutoff as R5 reads it, a 32-bit float (4.4 is
+ * `monetary_cost` is the cutoff as the router reads it, a 32-bit float (4.4 is
  * 4.400000095367432).
  */
 export interface ParetoFrontierTable {
@@ -957,7 +957,7 @@ export interface ParetoFrontierTable {
 /**
  * The trade-off between travel time and fare: for each origin, destination
  * and percentile, the travel time within each fare cutoff, one row per
- * cutoff at which it changes. Routed with R5's multi-criteria router
+ * cutoff at which it changes. Routed with the multi-criteria router
  * (McRAPTOR) over one departure time per minute of the window. Every
  * option is in `ParetoFrontierOptions` and `RoutingOptions`.
  *
@@ -1121,7 +1121,7 @@ export interface SnapTable {
   /** Where the point snaps; NaN where it does not. */
   snap_lat: Float64Array;
   snap_lon: Float64Array;
-  /** Metres from the point to where it snaps (haversine on R5's sphere of radius 6,367,450 m); NaN where it does not snap. */
+  /** Metres from the point to where it snaps (haversine on a sphere of radius 6,367,450 m); NaN where it does not snap. */
   distance: Float64Array;
   found: boolean[];
 }
@@ -1151,7 +1151,7 @@ export interface Point {
 }
 
 /**
- * The bounding box of the street network: R5's envelope of the street
+ * The bounding box of the street network: the envelope of the street
  * layer, which covers every OpenStreetMap node of the ways streets were
  * made from. `output` is `"polygon"` (the default, a Polygon whose ring
  * starts at the south-west corner and goes counter-clockwise), `"bbox"`
@@ -1236,7 +1236,7 @@ export interface TransitRouteProperties {
   route_id: string;
   long_name: string | null;
   short_name: string | null;
-  /** R5's mode of the GTFS `route_type`, such as `"BUS"`. */
+  /** The mode of the GTFS `route_type`, such as `"BUS"`. */
   mode: string;
 }
 
@@ -1309,7 +1309,7 @@ export interface GtfsErrorsTable {
 }
 
 /**
- * The errors gtfs-lib (R5's GTFS library) reports when it loads GTFS
+ * The errors the validator gtfs-lib (Conveyal) reports when it loads GTFS
  * feeds, one row per error, feed by feed in the order gtfs-lib finds them.
  * A Network does not keep its feeds: pass them as `buildNetwork()` takes
  * them (an array of `{name, data}`, or an object with a `gtfs` array).

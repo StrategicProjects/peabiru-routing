@@ -56,7 +56,7 @@ The columns:
 | `route` | the GTFS `route_id` of a ride; empty for a street leg |
 | `osm_id_list`, `edge_id_list`, `board_stop_id`, `alight_stop_id` | with `osmLinkIds: true` only (see below) |
 
-The lines are drawn as R5 draws them:
+How the lines are drawn:
 
 - a street leg's line holds the whole of its first and last street
   segments, not only the parts walked or driven; the leg from the last stop
@@ -68,7 +68,7 @@ The lines are drawn as R5 draws them:
 
 ## Alternatives
 
-With `shortestPath: false` the result lists the itineraries R5's
+With `shortestPath: false` the result lists the itineraries the
 multi-criteria router (McRAPTOR) keeps over the departure window, one per
 sequence of routes, with the trip by the street mode alone first:
 
@@ -141,18 +141,17 @@ up to `maxFare`, `Infinity` by default) and the rows get `total_fare` and
 
 ## Car egress and turn restrictions
 
-With `modeEgress: "CAR"`, R5 reverses the via edges of turn restrictions
-with two or more via ways in place each time its backward egress search
-checks one, so what R5 returns for a pair whose car searches cross such a
-restriction can depend on the searches that ran before it (in the same
-call, on other threads, or in earlier calls). peabiru returns, for every
-pair, the itineraries of a freshly built network for that pair alone with
-one thread, and warns once per call (`onWarning`), naming the pairs whose
-itineraries some other order of those via edges would change (on Porto
-Alegre, about 1 pair in 200). Rides along GTFS shapes cut by
-`shape_dist_traveled` follow R5's cut.
+With `modeEgress: "CAR"`, the egress is searched backwards from the
+destination, and a turn restriction with two or more via ways can be read
+in either order of those ways. peabiru fixes the order: every pair gets
+the itineraries of a freshly built network routing that pair alone with
+one thread, whatever the other pairs, the threads or the earlier calls,
+and a warning, once per call (`onWarning`), names the pairs whose
+itineraries the other order of those via ways would change (on Porto
+Alegre, about 1 pair in 200). Rides along GTFS shapes are cut by
+`shape_dist_traveled` where the feed has it.
 
-The trips for which R5's fastest-path search cannot rebuild a path are
+The trips for which the fastest-path search cannot rebuild a path are
 routed again with McRAPTOR.
 
 ## Trip options
