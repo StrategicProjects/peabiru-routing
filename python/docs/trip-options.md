@@ -210,7 +210,7 @@ print(res.options[["option", "total_time", "transfers", "walk_time", "n_departur
   fare cutoff, the percentiles of the travel time over Monte Carlo draws of
   departure times: a summary of time against budget, without the trips.
 - [`detailed_itineraries()`][peabiru.detailed_itineraries] gives the
-  fastest trip, or with `shortest_path=False` R5's alternatives (one per
+  fastest trip, or with `shortest_path=False` the alternatives (one per
   sequence of routes, the fastest of each).
 - `trip_options()` gives the trade-offs themselves, trip by trip, with their
   legs, on any of four criteria. With `criteria=["TIME"]` and

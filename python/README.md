@@ -63,9 +63,9 @@ access = peabiru.accessibility(
 Points are `pandas.DataFrame`s with `id`, `lon` and `lat` (or, with
 geopandas installed, a `GeoDataFrame` of points in EPSG:4326); results are
 `pandas.DataFrame`s in long format (`GeoDataFrame`s for geometries). A
-request peabiru cannot honour exactly (R5's own fare calculators, expanded
-matrices by a street mode alone, ...) is an error; nothing is silently
-ignored.
+request peabiru does not support (a fare structure that names a fare
+calculator instead of fare rules, expanded matrices by a street mode
+alone, ...) is an error that says so; nothing is silently ignored.
 
 ## Install
 
@@ -101,8 +101,9 @@ uv pip install "mkdocs>=1.6" "mkdocs-material>=9.5" "mkdocstrings[python]>=0.26"
 
 ## The engine
 
-The engine is a Rust port of [R5](https://github.com/conveyal/r5) 7.6
-(Conveyal, MIT). How its results are checked is described in
+The engine is written in Rust; its routing model follows Conveyal's
+[R5](https://github.com/conveyal/r5) (MIT). How the two relate, and how the
+results are checked, is described in
 [the comparison with r5r](https://strategicprojects.github.io/peabiru-routing/python/coming-from-r5/).
 
 ## Sample data

@@ -15,7 +15,7 @@ They are accepted by [`travel_time_matrix()`][peabiru.travel_time_matrix],
 [`detailed_itineraries()`][peabiru.detailed_itineraries]. A scenario
 changes the street search from the origins (the trip without public
 transport, and access to it by bicycle or car) but not the egress from the
-stops, as in R5, whose scenarios these are. The examples use the sample
+stops. The examples use the sample
 network; the OpenStreetMap ids come from its primary roads:
 
 ```python
@@ -133,15 +133,17 @@ get level 1 too.
 
 ## What is an error
 
-A scenario that R5 would corrupt is an error rather than a result:
+Car speeds are kept as 16-bit integers of centimetres per second. A
+scenario that does not fit them is an error rather than a result:
 
-- a car speed that R5's 16-bit centimetres per second would wrap or bring
+- a car speed that would pass that range or come
   to 0 or less (a negative factor or speed, a polygon `scale` of `math.inf`
   or 0, a `carspeed_scale` far above 1), and a `carspeed_scale` beyond the
   32-bit float range;
 - a `carspeed_scale` of NaN;
-- a polygon that is not valid, and ties between polygons that peabiru
-  cannot settle exactly as R5 does.
+- a polygon that is not valid, and a tie with no winner: two polygons of
+  the same priority and different scales that overlap a way by the same
+  length (give one of them a higher priority).
 
 ```python
 backwards = pd.DataFrame({"osm_id": primary_ids, "max_speed": -1.0, "speed_type": "scale"})

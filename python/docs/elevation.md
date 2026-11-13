@@ -11,8 +11,6 @@ times never change. The cost function is chosen with `elevation`:
 - `"MINETTI"`: Minetti's energy cost of walking on slopes;
 - `"NONE"`: no slope costs, even with a raster.
 
-The slope costs are those of Conveyal's R5 7.6, ported to Rust.
-
 The examples use the sample network with three small synthetic rasters
 made for the package's tests (smooth hills between 743 and 834 m over the
 sample area, not measured data), downloaded once into the temporary
@@ -122,8 +120,8 @@ In a projected system, which pixel a street point falls in is computed
 with sines and cosines. For a point within nanometres (5e-8 m, or 2e-13
 degrees) of the boundary between two pixels of different values, or of the
 raster's edge, the answer depends on the last bits of the trigonometry.
-peabiru reads the pixel that Java's `StrictMath` gives (R5 is written in
-Java), the same on every machine, and warns once with the
+peabiru computes it with its own fdlibm functions, so it reads the same
+pixel on every machine, and warns once with the
 number of such points: about one in a hundred million for 30 m pixels.
 Reprojecting the raster to EPSG:4326 removes the ambiguity. The sample has
 none, so building it gives no warning:
@@ -139,12 +137,12 @@ print(len(caught), "warnings")
 0 warnings
 ```
 
-A point that `StrictMath` itself puts on the raster's outer edge (inside
+A point that falls on the raster's outer edge (inside
 its envelope, past the last pixel) is an error: there is no pixel to read.
 
 ## Voids and out-of-range values
 
-Elevations are kept, as in R5, in decimetres in 16-bit integers. Voids and
+Elevations are kept in decimetres in 16-bit integers. Voids and
 values beyond +/-3276.7 m therefore wrap around: SRTM's -32768 voids become
 0 m, -9999 becomes 3108.2 m, and a NaN no-data value is stored as 0 m. The
 slope costs are computed on the wrapped values; peabiru warns,
@@ -195,7 +193,7 @@ RuntimeError: the raster has a hills.prj file next to it, whose coordinate ...
 
 A routing call with a scenario (`new_carspeeds`, `carspeed_scale` or
 `new_lts`, see [Scenarios](scenarios.md)) runs on a copy of the network
-without the slope costs, as in R5, with a warning:
+without the slope costs, with a warning:
 
 ```python
 tobler = networks["TOBLER"]

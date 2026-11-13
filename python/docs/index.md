@@ -165,8 +165,9 @@ print(access.head())
 
 ## What peabiru refuses
 
-A request peabiru cannot honour exactly is an error, never silently
-ignored: R5's own fare calculators, expanded or arrival matrices by a street
+A request peabiru does not support is an error that says so, never
+silently ignored: a fare structure that names a fare calculator (a `type`)
+instead of fare rules, expanded or arrival matrices by a street
 mode alone and `pareto_frontier()` with `output_dir` raise
 [`UnsupportedError`](reference.md#peabiru.UnsupportedError); some elevation
 rasters, more than one `.pbf` file and a few itinerary pairs are errors too.

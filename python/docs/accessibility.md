@@ -118,9 +118,9 @@ print(a.head(3))
 
 Accessibility values are doubles (`float64`). The travel time given to the
 decay function is the percentile in seconds, not rounded to minutes, and the
-exponential is a port of Apache Commons Math's `FastMath.exp()` (which is not
-correctly rounded, and is reproduced as such) rather than the C library's,
-so the values do not depend on the platform's maths library.
+exponential is table-based (a translation of Apache Commons Math's
+`FastMath.exp()`) rather than the C library's, so the values do not depend
+on the platform's maths library.
 
 ## Street modes
 

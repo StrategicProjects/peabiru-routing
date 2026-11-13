@@ -156,7 +156,7 @@ def setup_fare_structure(
     """Set up a fare structure to calculate the monetary costs of trips.
 
     Every route, fare type and transfer between two types costs
-    ``base_fare`` (read as a Java float, as R5 reads it), with one fare type
+    ``base_fare`` (read as a 32-bit float), with one fare type
     per mode (``by="MODE"``), per agency (``"AGENCY_ID"``,
     ``"AGENCY_NAME"``) or one for all routes (``"GENERIC"``). Edit the
     result to follow the fare rules of the study area, and pass it to the
@@ -408,11 +408,12 @@ def pareto_frontier(
     """Travel time and monetary cost Pareto frontier.
 
     For every value of ``fare_cutoffs``, in the order given, the travel
-    times of R5's fare router (McRAPTOR over ``time_window`` sampled
+    times of the multi-criteria router (McRAPTOR over ``time_window`` sampled
     departure times) when no trip may cost more than the cutoff; a
     destination and percentile gets a row at each cutoff where its travel
     time changes and is below ``max_trip_duration``. ``monetary_cost`` is
-    the cutoff as R5 reads it, a Java float (4.8 is 4.800000190734863).
+    the cutoff as the router reads it, a 32-bit float (4.8 is
+    4.800000190734863).
 
     Parameters
     ----------

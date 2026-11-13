@@ -70,7 +70,7 @@ Of note:
 ## Alternatives
 
 With `shortest_path=False`, each pair gets, besides the trip by the street
-mode alone, the alternatives R5's multi-criteria router (McRAPTOR) finds
+mode alone, the alternatives the multi-criteria router (McRAPTOR) finds
 over the departure window, one per sequence of routes. `suboptimal_minutes`
 (which must be 0 with `shortest_path=True`) keeps search branches up to
 that many minutes slower than the best one, so higher values return more
@@ -191,16 +191,15 @@ print(bike[["mode", "distance", "osm_id_list"]].to_string())
 
 ## Car egress and turn restrictions
 
-With `mode_egress="CAR"`, R5 reverses the via edges of turn restrictions
-with two or more via ways in place each time its backward egress search
-checks one, so what R5 finds for a pair whose car searches cross such a
-restriction can depend on the searches that ran before (in the same call,
-on other threads, or in earlier calls). peabiru returns, for every pair,
-the itineraries of a freshly built network for that pair alone with one
-thread, and warns once per call, naming the pairs whose itineraries some
-other order of those via edges would change (on Porto Alegre, about 1 pair
-in 200). Rides along GTFS shapes cut by `shape_dist_traveled` follow
-R5's cut. Networks whose
+With `mode_egress="CAR"`, the egress is searched backwards from the
+destination, and a turn restriction with two or more via ways can be read
+in either order of those ways. peabiru fixes the order: every pair gets
+the itineraries of a freshly built network routing that pair alone with one
+thread, whatever the other pairs, the threads or the earlier calls, and a
+warning, once per call, names the pairs whose itineraries the
+other order of those via ways would change (on Porto Alegre, about 1 pair
+in 200). Rides along GTFS shapes are cut by `shape_dist_traveled` where
+the feed has it. Networks whose
 GTFS has frequency-based trips cannot be used with public transport here:
 convert the frequencies to stop times first (with gtfstools'
 `frequencies_to_stop_times()` in R, for instance).

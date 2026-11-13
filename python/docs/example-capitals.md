@@ -364,8 +364,8 @@ all         288518           84.1            98.2
 </figure>
 
 With fares the router samples departures in the window
-(`draws_per_minute=1`: one per minute) instead of trying every minute, as R5
-does. One bus fare, which pays a single ride, keeps 84% of the jobs that the
+(`draws_per_minute=1`: one per minute) instead of trying every minute.
+One bus fare, which pays a single ride, keeps 84% of the jobs that the
 average resident of the sample reaches at any fare, and two fares 98%; the
 loss is larger where incomes are lower: in the poorest fifth, one fare keeps
 74%, in the richest 89%. The sample is the centre of the city only, so read

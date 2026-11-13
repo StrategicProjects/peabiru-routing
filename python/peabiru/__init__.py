@@ -17,12 +17,13 @@ travel time against fare;
 [`transit_network_to_sf()`][peabiru.transit_network_to_sf],
 [`check_transit_availability()`][peabiru.check_transit_availability] and
 [`get_gtfs_errors()`][peabiru.get_gtfs_errors] inspect a network. The routing engine is
-written in Rust; no Java is needed. A request peabiru cannot honour exactly
+written in Rust; no Java is needed. A request peabiru does not support
 is an error ([`UnsupportedError`][peabiru.UnsupportedError] for the few
 options it refuses), never silently ignored.
 
-The engine is a port of Conveyal's R5 7.6 to Rust; the R package of the
-same name has the same functions and gives the same results.
+The routing model follows Conveyal's R5 (see "Compared with r5r and r5py"
+in the documentation); the R package of the same name has the same
+functions and gives the same results.
 """
 
 from ._checks import UnsupportedError

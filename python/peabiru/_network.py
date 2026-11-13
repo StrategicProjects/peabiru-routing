@@ -144,13 +144,13 @@ def build_network(
 
     In a projected system, a street point within nanometres (5e-8 m, or
     2e-13 degrees) of the boundary between two pixels of different values,
-    or of the raster's edge, reads the pixel that Java's ``StrictMath``
-    gives, the same on every machine, and a ``UserWarning`` gives the number
-    of such points (about one in a hundred million for 30 m pixels;
+    or of the raster's edge, reads the pixel that peabiru's own fdlibm
+    functions give, the same on every machine, and a ``UserWarning`` gives
+    the number of such points (about one in a hundred million for 30 m pixels;
     reprojecting the raster to EPSG:4326 removes the ambiguity). A point
-    that ``StrictMath`` puts on the raster's outer edge (inside its
+    that falls on the raster's outer edge (inside its
     envelope, past the last pixel) is an error: there is no pixel to read.
-    Elevations are kept, as in R5, in decimetres in 16-bit integers, so
+    Elevations are kept in decimetres in 16-bit integers, so
     voids and values beyond +/-3276.7 m wrap around (SRTM's -32768 voids
     become 0 m, -9999 becomes 3108.2 m, a NaN no-data value becomes 0 m);
     a ``UserWarning`` counts them and the samples equal to the raster's
@@ -208,13 +208,12 @@ def build_network(
 
     Notes
     -----
-    The network is that of Conveyal's R5 7.6, ported to Rust. Nothing is
+    Nothing is
     written to ``data_path``; ``temp_dir`` and ``overwrite`` are checked and
     have no effect (there is no file to keep or to rebuild). More than one
     ``.pbf`` file is an error. In a projected raster, the pixel read for a
-    point within nanometres of a pixel boundary is the one Java's
-    ``StrictMath`` gives, on every machine, with a warning that counts such
-    points.
+    point within nanometres of a pixel boundary is the same on every
+    machine, with a warning that counts such points.
 
     Examples
     --------

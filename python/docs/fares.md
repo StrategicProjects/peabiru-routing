@@ -3,7 +3,7 @@
 peabiru computes transit fares from a *fare structure*, which
 describes how much each ride costs and which transfers are discounted, and
 the routing functions take it as `fare_structure`. With one, public
-transport is routed with R5's multi-criteria router (McRAPTOR), which keeps
+transport is routed with the multi-criteria router (McRAPTOR), which keeps
 at each stop the trips that are faster or cheaper than the others.
 
 The examples use the sample data of Porto Alegre from the r5r project, with
@@ -90,7 +90,7 @@ travel_time_p50_any    52.2
 ```
 
 With fares, McRAPTOR samples `time_window * draws_per_minute` departure
-times in the window instead of routing at every minute, as R5 does; the
+times in the window instead of routing at every minute; the
 combinations its sampler cannot meet (exactly 200 draws, or too many for
 the window) are errors.
 
@@ -115,7 +115,7 @@ print(pf[pf["to_id"] == pf["to_id"].iloc[3]].to_string())
 4  89a901291abffff  89a901295b7ffff          50           45           8.37
 ```
 
-`monetary_cost` is the cutoff as R5 reads it, a Java `float` (4.8 is
+`monetary_cost` is the cutoff as the router reads it, a 32-bit float (4.8 is
 4.800000190734863).
 
 ## Alternative itineraries and their fares
