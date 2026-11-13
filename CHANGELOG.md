@@ -3,6 +3,14 @@
 Changes of the Rust crate `peabiru-core`, the command-line tool, and the
 Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
+## JavaScript package 0.1.1
+
+- The npm package 0.1.0 was uploaded with a WebAssembly module built before
+  the version was set: it routes as 0.1.0 does, but `coreVersion()` gave
+  `"0.0.1"`. 0.1.1 is the same package with the module of the 0.1.0 core
+  (`coreVersion()` is `"0.1.0"`, `version` is `"0.1.1"`). Nothing else
+  changed, and the other packages stay at 0.1.0.
+
 ## 0.1.0
 
 The R, Python and JavaScript packages have the same routing and network

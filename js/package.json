@@ -1,6 +1,6 @@
 {
   "name": "peabiru",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Multimodal routing on OpenStreetMap and GTFS networks in WebAssembly: travel-time matrices, accessibility, isochrones and itineraries in the browser and in Node",
   "keywords": [
     "routing",

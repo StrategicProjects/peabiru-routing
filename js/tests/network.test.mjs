@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as peabiru from "../lib/index.js";
+import { readFileSync } from "node:fs";
 import { read, sampleNetwork, samplePoints } from "./helpers.mjs";
 
 test("the module loads and gives its versions", async () => {
   await peabiru.init();
-  assert.equal(peabiru.coreVersion(), peabiru.version);
+  // the package and the Rust core it is built from have their own versions:
+  // the package's is package.json's, the core's the crate's in Cargo.lock
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(peabiru.version, pkg.version);
+  const lock = readFileSync(new URL("../Cargo.lock", import.meta.url), "utf8");
+  const core = /name = "peabiru-core"\nversion = "([^"]+)"/.exec(lock)[1];
+  assert.equal(peabiru.coreVersion(), core);
   assert.equal(peabiru.NA_INT32, -(2 ** 31));
 });
 
