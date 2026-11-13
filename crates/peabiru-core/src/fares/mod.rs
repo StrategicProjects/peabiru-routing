@@ -255,7 +255,7 @@ fn jackson_float(text: &str) -> f32 {
 /// that must fit, or a decimal truncated toward zero
 /// (`ACCEPT_FLOAT_AS_INT`) when within range.
 fn jackson_int(text: &str, name: &str) -> Result<i32, String> {
-    let out_of_range = || format!("{name} ({text}) is out of the range of a Java int");
+    let out_of_range = || format!("{name} ({text}) is out of the range of a 32-bit integer");
     if text.contains(['.', 'e', 'E']) {
         let d: f64 = text.parse().map_err(|_| out_of_range())?;
         if d < f64::from(i32::MIN) || d > f64::from(i32::MAX) {

@@ -193,7 +193,9 @@ deliberate <- c(
   ".*:(origins|destinations|points):sf_utm" =
     "peabiru reprojects an sf in another CRS to WGS 84, with a message; r5r refuses it",
   ".*:(origins|destinations|points):sf_nocrs" =
-    "an sf without a CRS: peabiru's error says how to set it (r5r's asks for WGS 84)"
+    "an sf without a CRS: peabiru's error says how to set it (r5r's asks for WGS 84)",
+  "(travel_time_matrix|accessibility):fares_(200|too_many)_draws:combination|pareto_frontier:200_draws:combination|detailed_itineraries:alternatives_200_draws:combination" =
+    "the same refusal, worded by peabiru's own multi-criteria router (r5r's message names R5's McRaptor algorithm)"
 )
 # r5r's message as peabiru words it: the argument `network`, and without
 # r5r's name or the link to its issue tracker. Messages that are equal only

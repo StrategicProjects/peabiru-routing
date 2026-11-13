@@ -412,9 +412,9 @@ impl Filtered {
         // every search that reaches a stop. peabiru fails the request.
         if let Some((trip, h)) = layer.non_positive_headway() {
             return Err(format!(
-                "trip '{trip}' runs by frequency with a headway_secs of {h}; R5 fails the \
-                 public transport search of any network with such an entry (commons-math \
-                 NotStrictlyPositiveException)"
+                "trip '{trip}' runs by frequency with a headway_secs of {h}; public \
+                 transport cannot be routed on a network with such an entry: give it a \
+                 positive headway_secs in frequencies.txt and build the network again"
             ));
         }
         let mut f = Filtered {

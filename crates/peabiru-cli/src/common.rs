@@ -484,7 +484,7 @@ pub fn check_draws(dpm: i32, tw: i32, mcraptor: bool) -> Res<()> {
     if draws == 200 {
         return Err(usage(format!(
             "a --time-window of {tw} minutes with {dpm} draws per minute gives exactly 200 \
-             Monte Carlo draws, which R5's McRaptor algorithm does not accept; use a slightly \
+             Monte Carlo draws, which the multi-criteria router does not accept; use a slightly \
              different --time-window"
         )));
     }
@@ -500,7 +500,7 @@ pub fn check_draws(dpm: i32, tw: i32, mcraptor: bool) -> Res<()> {
     if p < 5e-5 {
         return Err(usage(format!(
             "--draws-per-minute {dpm} with a --time-window of {tw} minutes is not supported \
-             with a fare structure: R5's McRaptor algorithm cannot sample this many departure \
+             with a fare structure: the multi-criteria router cannot sample this many departure \
              times; use fewer draws or a shorter window"
         )));
     }

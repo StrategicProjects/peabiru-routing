@@ -581,19 +581,19 @@ impl<'a> McRaptor<'a> {
         let r = self.req;
         if r.monte_carlo_draws == 200 {
             return Err(
-                "Monte Carlo draws set to UI default, this is probably not what you want \
-                        (R5's McRAPTOR refuses exactly 200 draws)"
+                "the multi-criteria router does not accept exactly 200 Monte Carlo draws; \
+                        use a slightly different time window or number of draws per minute"
                     .into(),
             );
         }
         if r.monte_carlo_draws <= 0 {
-            return Err("McRAPTOR needs at least one Monte Carlo draw".into());
+            return Err("the multi-criteria router needs at least one Monte Carlo draw".into());
         }
         let mean = (r.to_time - r.from_time) / r.monte_carlo_draws;
         if mean < 2 {
             return Err(format!(
-                "McRAPTOR cannot sample {} departure times in a window of {} s (R5 would \
-                 fail or loop forever)",
+                "the multi-criteria router cannot sample {} departure times in a window of {} s; \
+                 use fewer draws per minute",
                 r.monte_carlo_draws,
                 r.to_time - r.from_time
             ));
@@ -611,8 +611,8 @@ impl<'a> McRaptor<'a> {
             }
         }
         Err(format!(
-            "R5's McRAPTOR cannot sample exactly {} departure times in this window: it would \
-             retry forever",
+            "the multi-criteria router cannot sample exactly {} departure times in this \
+             window; use fewer draws per minute",
             r.monte_carlo_draws
         ))
     }
@@ -807,7 +807,11 @@ impl<'a> McRaptor<'a> {
             return Ok(false);
         }
         if back != NONE && back_time > time {
-            return Err("Attempt to decrement time in state! (R5 McRAPTOR)".into());
+            return Err(
+                "internal error in the multi-criteria router: a state is earlier than the one it \
+                        comes from"
+                    .into(),
+            );
         }
         let id = self.arena.len() as u32;
         let si = stop as usize;
@@ -981,9 +985,11 @@ impl<'a> McRaptor<'a> {
                 let (from, to) = self.before_range[stop as usize];
                 for &(s, s_time) in &before[from as usize..to as usize] {
                     if pattern.has_frequencies && pattern.has_schedules {
-                        return Err("McRAPTOR router does not support frequencies and \
-                                    schedules in the same trip pattern!"
-                            .into());
+                        return Err(
+                            "the multi-criteria router does not support frequencies and \
+                                    schedules in the same trip pattern"
+                                .into(),
+                        );
                     }
                     if pattern.has_schedules {
                         for (ti, t) in pattern.trips.iter().enumerate() {

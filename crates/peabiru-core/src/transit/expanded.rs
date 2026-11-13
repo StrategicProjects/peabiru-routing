@@ -684,7 +684,7 @@ fn transit_breakdown(
         .first()
         .map(|l| access_time[l.board_stop as usize])
         .filter(|&t| t >= 0)
-        .ok_or("path without access to its first boarding stop (R5 fails here too)")?;
+        .ok_or("path without access to its first boarding stop")?;
     // `TransitPath::wait_times`, summed
     let mut ready = departure + access;
     let mut wait: i32 = 0;
@@ -692,7 +692,7 @@ fn transit_breakdown(
         ready += l.transfer_time;
         let w = l.board_time - ready;
         if w < 0 {
-            return Err("path with a negative wait (R5 fails here too)".into());
+            return Err("path with a negative wait".into());
         }
         wait += w;
         ready = l.board_time + l.ride_time;

@@ -219,7 +219,7 @@ def test_unsupported_options_are_errors(network, points, departure):
         return ttm(network, points, departure_datetime=departure, **kw)
 
     U = peabiru.UnsupportedError
-    with pytest.raises(U, match="R5.*not supported"):
+    with pytest.raises(U, match="fare structure with a 'type' .*is not supported by peabiru"):
         call(fare_structure={"type": "boston"})
     # TRANSIT with other transit modes is all transit modes
     pd.testing.assert_frame_equal(

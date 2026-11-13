@@ -418,7 +418,7 @@ impl<'a> Table<'a, '_> {
                     f,
                     format!(
                         "{}.txt line {}: {col} '{s}' is not a date written YYYYMMDD, and \
-                         gtfs-lib fails reading it (DateTimeParseException)",
+                         the feed cannot be read",
                         self.name, self.row
                     ),
                 );
@@ -752,7 +752,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                     f,
                     format!(
                         "calendar_dates.txt line {}: a second empty date for service '{}' makes \
-                     gtfs-lib fail (NullPointerException)",
+                     the feed unreadable",
                         t.row,
                         id.as_deref().unwrap_or("null")
                     ),
@@ -782,8 +782,8 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
     if f.services.contains_key(&None) {
         fails(
             f,
-            "a calendar or calendar_dates row without service_id makes gtfs-lib fail \
-                  storing the services (NullPointerException)"
+            "a calendar or calendar_dates row without service_id makes the feed \
+                  unreadable (its services cannot be stored)"
                 .to_string(),
         );
     }
@@ -829,8 +829,8 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
     if f.fares.contains_key(&None) {
         fails(
             f,
-            "a fare_attributes or fare_rules row without fare_id makes gtfs-lib fail \
-                  storing the fares (NullPointerException)"
+            "a fare_attributes or fare_rules row without fare_id makes the feed \
+                  unreadable (its fares cannot be stored)"
                 .to_string(),
         );
     }
@@ -1003,8 +1003,8 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
             fails(
                 f,
                 format!(
-                    "frequencies.txt line {}: a trip_id missing from trips.txt makes gtfs-lib \
-                 fail (NullPointerException)",
+                    "frequencies.txt line {}: a trip_id missing from trips.txt makes the feed \
+                 unreadable",
                     t.row
                 ),
             );
@@ -1056,8 +1056,8 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
             fails(
                 f,
                 format!(
-                    "location_group_stops.txt line {}: a row without stop_id makes gtfs-lib \
-                     fail (NullPointerException)",
+                    "location_group_stops.txt line {}: a row without stop_id makes the feed \
+                     unreadable",
                     t.row
                 ),
             );
@@ -1070,7 +1070,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                     f,
                     format!(
                         "location_group_stops.txt line {}: a location_group_id missing from \
-                         location_groups.txt makes gtfs-lib fail (NullPointerException)",
+                         location_groups.txt makes the feed unreadable",
                         t.row
                     ),
                 );
@@ -1092,8 +1092,8 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
     if f.flex_groups.contains(&None) {
         fails(
             f,
-            "a location_groups row without location_group_id makes gtfs-lib fail storing the \
-             groups (NullPointerException)"
+            "a location_groups row without location_group_id makes the feed unreadable (its \
+             groups cannot be stored)"
                 .to_string(),
         );
     }
@@ -1189,7 +1189,7 @@ fn load_all(f: &mut Feed, a: &Archive) -> Result<(), String> {
                     f,
                     format!(
                         "stop_times.txt line {}: a GTFS-Flex stop time without trip_id makes \
-                         gtfs-lib fail (NullPointerException)",
+                         the feed unreadable",
                         t.row
                     ),
                 );
@@ -1380,15 +1380,15 @@ fn find_patterns_failure(f: &Feed) -> Option<String> {
         if let Some(shape) = &f.trips[first].shape {
             if f.shapes.get(shape).is_some_and(|p| p.len() == 1) {
                 return Some(format!(
-                    "shape '{shape}' of trip '{first}' has a single point, and gtfs-lib fails \
-                     drawing it (IllegalArgumentException)"
+                    "shape '{shape}' of trip '{first}' has a single point, and cannot be \
+                     drawn as a line (a shape needs at least two points)"
                 ));
             }
         }
         if stops.len() > 1 && stops.contains(&None) {
             return Some(format!(
-                "a stop time of trip '{first}' has no stop_id, and gtfs-lib fails looking it \
-                 up (NullPointerException)"
+                "a stop time of trip '{first}' has no stop_id, and its stop cannot be looked \
+                 up"
             ));
         }
         // namePatterns()
@@ -1397,21 +1397,21 @@ fn find_patterns_failure(f: &Feed) -> Option<String> {
         };
         let (Some(from), Some(to)) = (from, to) else {
             return Some(format!(
-                "a stop time of trip '{first}' has no stop_id, and gtfs-lib fails looking it \
-                 up (NullPointerException)"
+                "a stop time of trip '{first}' has no stop_id, and its stop cannot be looked \
+                 up"
             ));
         };
         if stops.contains(&None) {
             return Some(format!(
-                "a stop time of trip '{first}' has no stop_id, and gtfs-lib fails looking it \
-                 up (NullPointerException)"
+                "a stop time of trip '{first}' has no stop_id, and its stop cannot be looked \
+                 up"
             ));
         }
         for (end, s) in [("first", from), ("last", to)] {
             if stop(s).is_some_and(|r| !r.named) {
                 return Some(format!(
                     "stop '{}', the {end} stop of trip '{first}', has no stop_name, and \
-                     gtfs-lib fails naming the trip's pattern (NullPointerException)",
+                     the trip's pattern cannot be named",
                     f.stop_names[s as usize]
                 ));
             }
@@ -1712,7 +1712,9 @@ mod tests {
             "calendar_dates.txt",
             "service_id,date,exception_type\nS,20190230,1\n".into(),
         )]);
-        assert!(date.unwrap_err().contains("DateTimeParseException"));
+        assert!(date
+            .unwrap_err()
+            .contains("is not a date written YYYYMMDD, and the feed cannot be read"));
         let name = check(&[(
             "stops.txt",
             "stop_id,stop_name,stop_lat,stop_lon\nS1,,-23.55,-46.63\nS2,Two,-23.56,-46.64\n".into(),
@@ -1796,7 +1798,9 @@ mod tests {
         assert_eq!((multi[0].1, multi[0].3.as_deref()), (-1, Some("geometry")));
         // a feature gtfs-lib cannot stream
         let bad = check(&[("locations.geojson", "{\"name\":\"x\"}".to_string())]);
-        assert!(bad.unwrap_err().contains("Failed to parse GeoJSON"));
+        assert!(bad
+            .unwrap_err()
+            .contains("locations.geojson is not GeoJSON of the shape"));
         // a group without id, or one a stop of the feed is put in without
         // the group existing, makes gtfs-lib fail
         for (groups, members) in [
@@ -1813,7 +1817,7 @@ mod tests {
                 ("location_groups.txt", groups.to_string()),
                 ("location_group_stops.txt", members.to_string()),
             ]);
-            assert!(e.unwrap_err().contains("NullPointerException"));
+            assert!(e.unwrap_err().contains("makes the feed unreadable"));
         }
     }
 

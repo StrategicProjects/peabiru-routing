@@ -60,7 +60,7 @@ for (name in names(cities)) {
     write.csv(d[c("id", "lon", "lat")], pd, row.names = FALSE)
     err <- system2(bin, c("itineraries", dir, po, pd, file.path(dir, "out.csv"), "--transit", "TRANSIT",
                           "--date", "2019-05-13", "--time", "14:00:00"), stdout = FALSE, stderr = TRUE)
-    hit <- grep("planned again with McRAPTOR", err, value = TRUE)
+    hit <- grep("planned again with the multi-criteria router", err, value = TRUE)
     message(sprintf("%s: peabiru's CLI, no switch: %s", name, if (length(hit)) hit else "0 pairs take the fallback"))
   }
   message(sprintf("%s: r5r without the switch (count the 'routing it with McRAPTOR' lines below)", name))

@@ -77,7 +77,7 @@ pub(crate) fn scenario_of(spec: &JsValue) -> Result<Scenario, JsError> {
                 .map(|v| {
                     java_parse_float(v).ok_or_else(|| {
                         err(format!(
-                            "'newCarspeeds': max_speed '{v}' is not a number as Java reads it"
+                            "'newCarspeeds': max_speed '{v}' is not a number"
                         ))
                     })
                 })

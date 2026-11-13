@@ -55,8 +55,8 @@ fn usage_text() -> String {
          peabiru accessibility <dir|file.osm.pbf> <points.csv> <out.csv> --opportunities a,b [options]\n       \
          peabiru dump-edges <file.osm.pbf | dir>   (CSV of the directed street edges;\n                                             a directory links its GTFS stops)\n       \
          peabiru dump-elevation <dir> <out prefix>   (elevation samples and slope factors)\n       \
-         peabiru sample-raster <file.tif> <points> <out>   (R5's readElevation at points)\n       \
-         peabiru crs-transform <epsg code> <points> <out>   (GeoTools' transform of a raster CRS)\n       \
+         peabiru sample-raster <file.tif> <points> <out>   (the elevation read at points)\n       \
+         peabiru crs-transform <epsg code> <points> <out>   (the transform of a raster CRS)\n       \
          (PEABIRU_ELEVATION=TOBLER|MINETTI|NONE: elevation of the networks built from a\n        directory; without it .tif rasters are ignored)\n       \
          {}\n       {}\n       {}\n       {}",
         expanded::USAGE,

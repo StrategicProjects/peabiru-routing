@@ -173,7 +173,8 @@ impl<K: PartialEq> JavaHashMap<K> {
             if n < 64 {
                 self.resize();
             } else {
-                return Err("a java.util.HashMap bucket holds more than 8 keys".into());
+                return Err("more than 8 names fall in the same hash bucket, and the order of the entries cannot \
+                            be determined".into());
             }
         }
         // `++size > threshold` (0.75 of the table)
@@ -243,7 +244,7 @@ fn next_prime(n: i32) -> i32 {
     let i = PRIMES.partition_point(|&p| p < n);
     *PRIMES
         .get(i)
-        .expect("Trove capacity beyond the prime table")
+        .expect("hash table capacity beyond the prime table")
 }
 
 /// Key layout of a Trove 3 `TIntIntHashMap` / `TIntObjectHashMap` with no
@@ -310,7 +311,7 @@ impl TroveIntKeys {
                 Some(k) if k == key => return Err(index as usize),
                 _ => {}
             }
-            assert!(index != start, "Trove table full");
+            assert!(index != start, "hash table full");
         }
     }
 

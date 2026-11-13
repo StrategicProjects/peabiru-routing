@@ -251,7 +251,9 @@ pub(crate) fn ride_line(
             for w in locs.windows(2) {
                 let a = Loc::new(w[0].0 as i64, f64::from(w[0].1));
                 let b = Loc::new(w[1].0 as i64, f64::from(w[1].1));
-                hops.push(extract(shape, a, b).ok_or("a GTFS shape JTS cannot cut")?);
+                hops.push(
+                    extract(shape, a, b).ok_or("a GTFS shape that cannot be cut at its stops")?,
+                );
             }
             for hop in &hops[from..to] {
                 out.extend_from_slice(hop);

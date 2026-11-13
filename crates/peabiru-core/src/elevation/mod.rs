@@ -345,10 +345,11 @@ fn suspect_warnings(s: Suspect, n: usize, nodata: Option<f64>, crs: &str) -> Vec
         out.push(format!(
             "{} of the {n} elevation samples on the network lie within nanometres of a \
              boundary between pixels of different values (or of the raster's edge) once in \
-             {crs}: which pixel R5 reads there depends on the machine it runs on \
-             (the last bits of Java's sines and cosines); peabiru reads the one Java's \
-             StrictMath gives, on every machine. Reprojecting the raster to EPSG:4326 \
-             (gdalwarp -t_srs EPSG:4326) removes the ambiguity",
+             {crs}: which pixel such a sample falls in depends on the last bits of the \
+             projection's sines and cosines, which differ between machines; peabiru \
+             computes them the same way on every machine, so the result is reproducible, \
+             but the choice between the two pixels is arbitrary. Reprojecting the raster \
+             to EPSG:4326 (gdalwarp -t_srs EPSG:4326) removes the ambiguity",
             s.ambiguous
         ));
     }
@@ -516,10 +517,10 @@ mod tests {
         let w = suspect_warnings(a, 100, None, "EPSG:31982 (SIRGAS 2000 / UTM zone 22S)");
         assert_eq!(w.len(), 1);
         assert!(w[0].starts_with("3 of the 100 elevation samples on the network lie within"));
-        assert!(
-            w[0].contains("once in EPSG:31982 (SIRGAS 2000 / UTM zone 22S): which pixel R5 reads")
-        );
-        assert!(w[0].contains("StrictMath"));
+        assert!(w[0].contains(
+            "once in EPSG:31982 (SIRGAS 2000 / UTM zone 22S): which pixel such a sample falls in"
+        ));
+        assert!(w[0].contains("the same way on every machine"));
         // both kinds: two warnings
         let both = Suspect {
             wrapped: 1,
