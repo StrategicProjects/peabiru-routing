@@ -76,9 +76,7 @@ pub(crate) fn scenario_of(spec: &JsValue) -> Result<Scenario, JsError> {
                 .iter()
                 .map(|v| {
                     java_parse_float(v).ok_or_else(|| {
-                        err(format!(
-                            "'newCarspeeds': max_speed '{v}' is not a number"
-                        ))
+                        err(format!("'newCarspeeds': max_speed '{v}' is not a number"))
                     })
                 })
                 .collect::<Result<Vec<f32>, JsError>>()?;
