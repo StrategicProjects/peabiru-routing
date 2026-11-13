@@ -71,7 +71,7 @@ source usable.
 In a projected raster, a street point within nanometres (5e-8 m, or
 2e-13 degrees) of the boundary between two pixels, or of the raster's
 edge, falls on one side or the other depending on the last bits of a
-sine or cosine. peabiru computes them with its own fdlibm functions, so
+sine or cosine. peabiru computes them itself, bit for bit the same way, so
 it reads the same pixel on every
 machine, and warns once with the number of such points (about one in a
 hundred million for 30 m pixels). A point that falls on

@@ -120,7 +120,7 @@ In a projected system, which pixel a street point falls in is computed
 with sines and cosines. For a point within nanometres (5e-8 m, or 2e-13
 degrees) of the boundary between two pixels of different values, or of the
 raster's edge, the answer depends on the last bits of the trigonometry.
-peabiru computes it with its own fdlibm functions, so it reads the same
+peabiru computes it itself, bit for bit the same way, so it reads the same
 pixel on every machine, and warns once with the
 number of such points: about one in a hundred million for 30 m pixels.
 Reprojecting the raster to EPSG:4326 removes the ambiguity. The sample has

@@ -77,8 +77,8 @@ value.
 In a system other than EPSG:4326 the pixel read for a street point
 within nanometres (5e-8 m, or 2e-13 degrees) of the boundary between two
 pixels, or of the raster's edge, depends on the last bits of the sines
-and cosines of the projection. peabiru computes them with its own
-'fdlibm' functions, so the result is the same on every machine, and warns
+and cosines of the projection. peabiru computes them itself, bit
+for bit the same way, so the result is the same on every machine, and warns
 once with the number of such points (about one in a hundred million for
 30 m pixels; reprojecting the raster to EPSG:4326 removes the
 ambiguity). A point that falls on the raster's outer edge (inside its

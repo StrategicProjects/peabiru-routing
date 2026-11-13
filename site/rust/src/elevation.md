@@ -59,7 +59,7 @@ into warnings.
   nanometres of the boundary between two pixels of different values (or of
   the raster's edge), the last bits of the projection's sines and cosines
   decide which pixel is read, and those can differ from one mathematical
-  library to another. peabiru computes them with its own fdlibm functions
+  library to another. peabiru computes them itself, bit for bit the same way,
   and counts such samples in the
   warnings, so its results do not depend on the machine. A sample that
   falls on the raster's outer edge (inside its envelope,

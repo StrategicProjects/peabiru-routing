@@ -144,8 +144,8 @@ def build_network(
 
     In a projected system, a street point within nanometres (5e-8 m, or
     2e-13 degrees) of the boundary between two pixels of different values,
-    or of the raster's edge, reads the pixel that peabiru's own fdlibm
-    functions give, the same on every machine, and a ``UserWarning`` gives
+    or of the raster's edge, reads the pixel that peabiru's own sines and
+    cosines give, the same on every machine, and a ``UserWarning`` gives
     the number of such points (about one in a hundred million for 30 m pixels;
     reprojecting the raster to EPSG:4326 removes the ambiguity). A point
     that falls on the raster's outer edge (inside its

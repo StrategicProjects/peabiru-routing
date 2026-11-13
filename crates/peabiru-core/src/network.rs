@@ -228,8 +228,8 @@ pub fn build_from_bytes(
 /// change. In a system other than EPSG:4326, the pixel read for a sample
 /// within nanometres of the boundary between two pixels of different
 /// values (or of the raster's edge) depends on the last bits of the
-/// projection's sines and cosines; peabiru computes them with its own
-/// fdlibm functions, so it reads the same pixel on every
+/// projection's sines and cosines; peabiru computes them itself, bit
+/// for bit the same way, so it reads the same pixel on every
 /// machine, and counts such samples in
 /// [`StreetNetwork::elevation_warnings`] (and so in
 /// [`Network::build_warnings`]). A sample that falls on
