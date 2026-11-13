@@ -19,6 +19,10 @@ the R session: no Java is needed, and the network is built once, in memory,
 and reused by every call. The same engine is behind the Python and
 JavaScript packages and the command-line tool of the same name.
 
+Website: <https://strategicprojects.github.io/peabiru-routing/> (this
+package's documentation is at
+<https://strategicprojects.github.io/peabiru-routing/r/>).
+
 <a href="https://strategicprojects.github.io/peabiru-routing/r/articles/isochrones.html"><img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/isochrones-by-mode.svg" width="480" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes walking, cycling, driving and by public transport."></a>
 
 | Function | What it computes |
@@ -44,13 +48,22 @@ rules; nothing is silently ignored.
 
 ## Installation
 
-Not on CRAN yet. From a clone of
-[the repository](https://github.com/StrategicProjects/peabiru-routing), with
-Rust (rustc >= 1.81) installed:
+From GitHub, with [Rust](https://rustup.rs) installed (`cargo` and
+`rustc` 1.81 or later):
 
-```sh
-R CMD INSTALL r
+```r
+# install.packages("pak")
+pak::pak("StrategicProjects/peabiru-routing@r-package")
+
+# or, with remotes
+# install.packages("remotes")
+remotes::install_github("StrategicProjects/peabiru-routing@r-package")
 ```
+
+The branch `r-package` holds the released package with the sources of the
+routing engine, so nothing else is downloaded while it compiles (about a
+minute). The development version is in the directory `r/` of the branch
+`main`: clone the repository and run `R CMD INSTALL r`.
 
 ## Example
 

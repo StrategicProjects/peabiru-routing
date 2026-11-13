@@ -63,7 +63,8 @@ Copyright: The peabiru authors. The package includes code derived from
     crates by other authors, listed with their licences in inst/AUTHORS;
     the licence texts of those linked into the package's library are in
     inst/LICENSE-RUST-CRATES.
-URL: https://github.com/StrategicProjects/peabiru-routing
+URL: https://strategicprojects.github.io/peabiru-routing/r/,
+    https://github.com/StrategicProjects/peabiru-routing
 BugReports: https://github.com/StrategicProjects/peabiru-routing/issues
 Encoding: UTF-8
 Language: en-GB

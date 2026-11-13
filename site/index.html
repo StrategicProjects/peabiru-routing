@@ -356,8 +356,8 @@
   <div class="snippets">
     <div class="snippet">
       <h3>R <span class="tag ok">works today</span></h3>
-<pre><code><span class="c"># Not on CRAN yet. From a clone of the repository (needs Rust &gt;= 1.81):</span>
-<span class="c">#   R CMD INSTALL r</span>
+<pre><code><span class="c"># needs Rust &gt;= 1.81 (https://rustup.rs)</span>
+<span class="c"># pak::pak("StrategicProjects/peabiru-routing@r-package")</span>
 library(peabiru)
 
 data_path &lt;- system.file("extdata/spo", package = "peabiru")
