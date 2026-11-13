@@ -175,19 +175,17 @@
 //!
 //! # Routing model and credits
 //!
-//! The routing model follows that of Conveyal's
-//! [R5](https://github.com/conveyal/r5) (MIT), from which the routing logic
-//! is ported; the repository checks the results against reference outputs
-//! (see the [comparison with r5r](https://strategicprojects.github.io/peabiru-routing/rust/parity.html)).
-//! The few places where results depend on the platform
+//! The routing model is that of Conveyal's
+//! [R5](https://github.com/conveyal/r5) 7.6 (MIT), ported to Rust: the
+//! results are R5's, value for value, which the repository checks against
+//! reference outputs. The few places where results depend on the platform
 //! (the order in which the operating system lists GTFS feeds, the C++
 //! library isoband was built with) are documented with the functions
 //! concerned.
 //!
 //! Polygon isochrones are a translation of the isoband algorithm (MIT);
 //! parts of Apache Commons Math 3.0 (Apache-2.0) and fdlibm 5.3 are
-//! translated, so that the numbers are the same on every platform. The
-//! notices of these and of
+//! translated so that the numbers are R5's. The notices of these and of
 //! the other works the crate derives from are in `LICENSE-THIRD-PARTY`.
 
 #![warn(missing_docs)]

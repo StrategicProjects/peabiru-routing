@@ -52,7 +52,7 @@ fn pixel_center_lat(y: i32, zoom: i32) -> f64 {
 }
 
 /// A block of Web Mercator pixels at one zoom level: the destinations of a
-/// travel-time surface. Pixel numbers are
+/// travel-time surface, as R5's `WebMercatorExtents`. Pixel numbers are
 /// absolute (world) numbers at the zoom level, `x` growing eastward and
 /// `y` southward; cell `i` is pixel `(west + i % width, north + i / width)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,10 +66,11 @@ pub struct WebMercatorGrid {
 
 impl WebMercatorGrid {
     /// The grid polygon isochrones are interpolated from: the pixels
-    /// covering the street network's envelope (the
+    /// covering the street network's envelope (R5
+    /// `WebMercatorExtents.forWgsEnvelope(streetLayer.envelope, zoom)`; the
     /// envelope holds every OpenStreetMap node of the ways streets were
     /// made from). `zoom` must be 9 to 12, and the grid at most 5,000,000
-    /// cells; [`RouteError::Invalid`] otherwise, and for a
+    /// cells, as R5 requires; [`RouteError::Invalid`] otherwise, and for a
     /// network without streets.
     pub fn for_network(network: &crate::Network, zoom: i32) -> Result<Self, RouteError> {
         Self::for_street(network.street(), zoom)
@@ -92,8 +93,7 @@ impl WebMercatorGrid {
     }
 
     /// A grid of `width` x `height` pixels whose north-west pixel is
-    /// `(west, north)` at `zoom`, with the checks of
-    /// [`for_network`](Self::for_network).
+    /// `(west, north)` at `zoom` (R5's constructor, with its checks).
     pub fn new(
         west: i32,
         north: i32,
@@ -154,7 +154,8 @@ impl WebMercatorGrid {
     }
 
     /// `(lat, lon)` degrees of the centre of cell `i` (row by row from the
-    /// north-west), the point routed to.
+    /// north-west), as R5 routes to it (`pixelToCenterLat`,
+    /// `pixelToCenterLon`).
     pub fn cell_center(&self, i: usize) -> (f64, f64) {
         let w = self.width as usize;
         let x = self.west + (i % w) as i32;

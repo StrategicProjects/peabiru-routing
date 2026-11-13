@@ -82,10 +82,10 @@ pub struct ItineraryParams {
     /// routes).
     pub shortest_path: bool,
     /// The fare structure (default `None`): with public transport the
-    /// trips are routed with McRAPTOR and fares, and the itineraries get
-    /// their fares.
+    /// trips are routed with McRAPTOR and fares (R5's
+    /// `FareDominatingList`), and the itineraries get their fares.
     pub fare_structure: Option<Arc<FareStructure>>,
-    /// The highest fare (default infinity), read as a 32-bit float; a
+    /// The highest fare (default infinity), read as a Java `float`; a
     /// finite value needs a `fare_structure`.
     pub max_fare: f64,
     /// Worker threads; 0 means all cores.
@@ -261,8 +261,8 @@ impl ItineraryLeg {
         s
     }
 
-    /// `osm_id_list`: [`osm_ids`](Self::osm_ids) as a bracketed
-    /// list, `[id1, id2, ...]`, or `[]`.
+    /// `osm_id_list`: [`osm_ids`](Self::osm_ids) as Java prints a
+    /// set, `[id1, id2, ...]`, or `[]`.
     pub fn osm_id_list(&self) -> String {
         links::list_text(&self.osm_ids)
     }
@@ -435,13 +435,12 @@ fn direct_trip(
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ItineraryNotes {
-    /// The pairs (indices, ascending) whose itineraries depend on the
-    /// order in which the via ways of a turn restriction are read: with car
-    /// egress, searched backwards, a restriction with two or more via
-    /// ways can be read in either order. For every
+    /// The pairs (indices, ascending) whose itineraries in R5 depend on the
+    /// searches that ran before them in the session: with car egress, R5
+    /// reverses the via edges of turn restrictions with two or more via
+    /// ways in place on every check of a backward car search. For every
     /// pair peabiru returns the itineraries of a freshly built network for
-    /// that pair alone with one thread; these are the pairs the other
-    /// order would change.
+    /// that pair alone with one thread.
     pub history_dependent: Vec<usize>,
     /// The pairs (indices, ascending) whose fastest public transport trip
     /// FastRaptor found but whose path cannot be read back
@@ -682,7 +681,7 @@ fn finish(pair: usize, trips: Vec<Trip>) -> Vec<Itinerary> {
 
 /// Write itineraries to CSV files (`output_dir`): one file per pair with
 /// itineraries, `<dir>/from_<origin id>_to_<destination id>.csv`, with
-/// the number formats of [`CsvOutput`](crate::CsvOutput): with `osm_link_ids` (the
+/// Java's number formats (`RDataFrame.saveToCsv`): with `osm_link_ids` (the
 /// itineraries routed with it) `osm_id_list`, `edge_id_list`,
 /// `board_stop_id` and `alight_stop_id` after `route`, and the `geometry`
 /// column (the WKT text of [`ItineraryLeg::wkt`]) last unless

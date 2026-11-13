@@ -85,7 +85,7 @@ impl StreetEdges {
         self.edges.is_empty()
     }
 
-    /// `edge_index`: the directed edge index in the network.
+    /// `edge_index`: the directed edge index in the network (R5's).
     pub fn edge_index(&self, i: usize) -> u32 {
         self.edges[i]
     }
@@ -132,7 +132,7 @@ impl StreetEdges {
         self.flags[i] & ALLOWS_CAR != 0
     }
 
-    /// `car_speed` in km/h (the double of a 32-bit float).
+    /// `car_speed` in km/h, as R5 reports it (`getSpeedKph`, a `float`).
     pub fn car_speed_kph(&self, i: usize) -> f64 {
         f64::from(((f64::from(self.speed_cms[i]) / 100.0) * 3.6) as f32)
     }

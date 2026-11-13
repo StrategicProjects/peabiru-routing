@@ -12,9 +12,10 @@ pub const UNREACHED: i32 = i32::MAX;
 const DEPARTURE_STEP_SEC: i32 = 60;
 const MINIMUM_BOARD_WAIT_SEC: i32 = 60;
 
-/// A public transport mode, as the packages' `mode` names them. `AIR` is
-/// not offered (nor part of `"TRANSIT"`). A route's mode follows from its
-/// GTFS `route_type` (basic and extended types).
+/// A public transport mode, as the packages' `mode` names them: R5's
+/// `TransitModes` without `AIR`, which is not offered (nor part of
+/// `"TRANSIT"`). A route's mode follows from its GTFS `route_type`, as
+/// R5's `TransitLayer.getTransitModes` maps it (basic and extended types).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum TransitMode {
@@ -37,7 +38,7 @@ pub enum TransitMode {
 }
 
 impl TransitMode {
-    /// Every mode: the packages' `"TRANSIT"`, the default of
+    /// Every mode, in R5's order: the packages' `"TRANSIT"`, the default of
     /// [`TransitParams::transit_modes`](crate::TransitParams::transit_modes).
     pub const ALL: &'static [TransitMode] = &[
         TransitMode::Tram,

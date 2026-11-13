@@ -59,10 +59,11 @@ pub enum CarSpeeds {
 
 /// A polygon of [`CarSpeeds::ByPolygon`]: a
 /// multipolygon in `[lon, lat]` degrees, a factor for the car speeds of
-/// the edges it meets and a priority. The coordinates are used as given.
-/// The R, Python and JavaScript packages first round them as GDAL writes
-/// GeoJSON (15 decimals of each coordinate, a tail that looks like
-/// round-off trimmed); do the same to get their results.
+/// the edges it meets and a priority. R5 reads the polygons from
+/// GeoJSON, written by GDAL with 15 decimals of each coordinate (and a
+/// tail that looks like round-off trimmed): give the coordinates as R5
+/// reads them back (the R package makes the same round trip; the Python
+/// and JavaScript packages round to 15 decimals).
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct SpeedPolygon {
@@ -138,7 +139,7 @@ pub struct Scenario {
     /// New car speeds (`new_carspeeds`).
     pub car_speeds: CarSpeeds,
     /// The factor for the car speeds of the edges `car_speeds` does not
-    /// change (`carspeed_scale`, default 1).
+    /// change (`carspeed_scale`, default 1). R5 reads it as a `float`.
     pub car_speed_scale: f32,
     /// New levels of traffic stress (`new_lts`).
     pub lts: LtsChange,

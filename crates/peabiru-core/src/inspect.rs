@@ -20,7 +20,7 @@ pub struct Snap {
     /// Longitude of the snapped point, degrees.
     pub lon: f64,
     /// Distance from the point to the snapped point, metres (haversine on
-    /// a sphere of radius 6,367,450 m).
+    /// R5's sphere of radius 6,367,450 m).
     pub distance_m: f64,
 }
 
@@ -61,9 +61,10 @@ pub(crate) fn find_snap(
 
 impl StreetNetwork {
     /// The bounding box of the street network as
-    /// `[xmin, ymin, xmax, ymax]` (longitude, latitude degrees).
-    /// It covers every OpenStreetMap node of the ways street edges were
-    /// made from, even edges then dropped, so it can be a little
+    /// `[xmin, ymin, xmax, ymax]` (longitude, latitude degrees): R5's
+    /// `StreetLayer.envelope`.
+    /// It covers every OpenStreetMap node of the ways R5 tried to make
+    /// street edges from, even edges it then dropped, so it can be a little
     /// larger than the box of the edges. A network without streets gives
     /// JTS's empty envelope, `[0, 0, -1, -1]`.
     pub fn bbox(&self) -> [f64; 4] {
@@ -199,7 +200,7 @@ pub struct TransitRoutes {
     pub long_name: Vec<Option<String>>,
     /// `route_short_name`.
     pub short_name: Vec<Option<String>>,
-    /// `mode`: the transit mode of the GTFS `route_type` (`"BUS"`,
+    /// `mode`: R5's transit mode of the GTFS `route_type` (`"BUS"`,
     /// `"RAIL"`, `"SUBWAY"`, `"TRAM"`, `"FERRY"`, `"CABLE_CAR"`,
     /// `"GONDOLA"`, `"FUNICULAR"` or `"AIR"`).
     pub mode: Vec<&'static str>,

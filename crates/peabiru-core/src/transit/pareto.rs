@@ -25,7 +25,7 @@ pub struct ParetoRow {
     /// Whole minutes, below `max_trip_duration`.
     pub travel_time: i32,
     /// The fare cutoff at which this travel time is first reached, as the
-    /// double of the 32-bit float it is read into (`4.8` is
+    /// double of the Java `float` it is read into (`4.8` is
     /// `4.800000190734863`).
     pub monetary_cost: f64,
 }

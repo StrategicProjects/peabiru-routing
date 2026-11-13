@@ -11,8 +11,9 @@ use crate::{CancelToken, RouteError};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-/// Street mode, for street-only routing. Non-exhaustive: a later version
-/// may add further street modes (bike or car rental and parking).
+/// Street mode, for street-only routing. Non-exhaustive:
+/// R5 has further street modes (bike or car rental and parking) that a
+/// later version may add.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Mode {
@@ -21,7 +22,7 @@ pub enum Mode {
     /// `BICYCLE`, at [`RouteParams::bike_speed`] on streets up to
     /// [`RouteParams::max_lts`], walking where cycling is not allowed.
     Bicycle,
-    /// `CAR`, at the speed limits of OpenStreetMap (or default speeds by
+    /// `CAR`, at the speed limits of OpenStreetMap (or R5's defaults by
     /// road type), with turn costs and turn restrictions.
     Car,
 }
@@ -55,7 +56,7 @@ pub enum StreetEngine {
     /// otherwise the search.
     #[default]
     Auto,
-    /// A street search from every origin.
+    /// A street search from every origin, as R5 does.
     Search,
     /// A contraction hierarchy of the mode's street graph, built on first
     /// use and kept with the network for later calls. Cars on a network
@@ -125,9 +126,9 @@ pub(crate) fn check_speed(name: &str, v: f64) -> Result<(), String> {
 }
 
 impl RouteParams {
-    /// Check the parameters: speeds must give at least 1 mm/s,
-    /// `max_lts` must be 1 to 4, the trip limit must
-    /// be a positive number of minutes that fits 32-bit seconds. Every
+    /// Check the parameters: speeds must give at least 1 mm/s (R5's
+    /// bound), `max_lts` must be 1 to 4, the trip limit must
+    /// be a positive number of minutes that fits R5's `int` seconds. Every
     /// street routing function calls it first; [`RouteError::Invalid`]
     /// says what is wrong.
     pub fn validate(&self) -> Result<(), RouteError> {

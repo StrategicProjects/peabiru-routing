@@ -94,15 +94,13 @@ walks through them; its sources are under
 [`site/rust/src`](https://github.com/StrategicProjects/peabiru-routing/tree/main/site/rust/src).
 
 **Status**: early development; the interfaces may still change before 1.0.
-Not supported: a fare structure that names a fare calculator (a `type`)
-instead of fare rules; like every request the crate does not support, it
-is an error.
+R5's own fare calculators are not ported (fares follow a rule-based fare
+structure).
 
 ## Licence and credits
 
-MIT (`LICENSE-MIT`). The routing model follows Conveyal's
-[R5](https://github.com/conveyal/r5) (MIT), from which the routing logic is
-ported. Polygon isochrones are a
+MIT (`LICENSE-MIT`). The routing logic is ported from Conveyal's
+[R5](https://github.com/conveyal/r5) 7.6 (MIT). Polygon isochrones are a
 translation of the isoband algorithm (MIT). `fastmath.rs`,
 `fastmath_trig.rs` and part of `jcompat.rs` are translations of parts of
 Apache Commons Math 3.0 (Apache-2.0), and `fdlibm.rs` of fdlibm 5.3. The

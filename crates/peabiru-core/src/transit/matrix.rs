@@ -48,7 +48,7 @@ pub struct TransitParams {
     /// Travel-time percentiles: 1 to 5 values in 1..=99 (see
     /// [`validate_percentiles`]). Any order and repeats are accepted; the
     /// results list them in ascending order, a repeated value once per
-    /// occurrence (they are sorted before the
+    /// occurrence (R5 wants them ascending, so they are sorted before the
     /// search). The expanded and arrival matrices do not
     /// use them but check them all the same, so keep the default there.
     pub percentiles: Vec<i32>,
@@ -64,21 +64,21 @@ pub struct TransitParams {
     /// mode of the trip without it: the street mode next to the transit
     /// modes in the packages' `mode` (default [`Mode::Walk`]). By bicycle or car the
     /// search goes on on foot from wherever the vehicle got, within the
-    /// same time limit, so that stops in
+    /// same time limit, as R5 does (`keepRoutingOnFoot`), so that stops in
     /// pedestrian-only areas are reached too; the trip without public
     /// transport keeps those walking ends as well.
     pub mode: Mode,
     /// The street mode from public transport to the destinations, the
-    /// packages' `mode_egress` (default [`Mode::Walk`]). By bicycle or car
-    /// every stop is linked again by that mode and searched up to 5 km by bicycle,
-    /// or below 30 minutes by car, at default speeds and any level of
-    /// traffic stress; the egress then must stay below `max_bike_time` or
+    /// packages' `mode_egress` (default [`Mode::Walk`]). By bicycle or car R5 links
+    /// every stop again by that mode and searches up to 5 km by bicycle,
+    /// or below 30 minutes by car, with its default request (any level of
+    /// traffic stress); the egress then must stay below `max_bike_time` or
     /// `max_car_time`, at `bike_speed` by bicycle.
     pub egress_mode: Mode,
     /// Cycling speed, km/h (default 12), for bicycle access and egress.
     pub bike_speed: f64,
     /// Highest level of traffic stress a cyclist rides on, 1 to 4 (default
-    /// 2), for bicycle access (bicycle egress ignores it, see
+    /// 2), for bicycle access (R5's bicycle egress ignores it, see
     /// `egress_mode`).
     pub max_lts: i32,
     /// Longest bicycle access in minutes, the walk after it included, and
@@ -99,8 +99,8 @@ pub struct TransitParams {
     /// (default 5).
     pub draws_per_minute: i32,
     /// Seed of the Monte Carlo draws: with the same seed the results are
-    /// the same. `None` (the default) seeds
-    /// from the clock, so frequency-based results vary from
+    /// the same, those of R5 seeded with it. `None` (the default) seeds
+    /// from the clock, as R5 does, so frequency-based results vary from
     /// call to call (on WebAssembly, which has no clock, from a counter:
     /// they vary from call to call but repeat from one run of the program
     /// to the next).
@@ -113,28 +113,29 @@ pub struct TransitParams {
     /// which nothing cancels unless a clone of it is kept.
     pub cancel: CancelToken,
     /// The fare structure (default `None`): with one, public transport
-    /// is routed with the multi-criteria router
+    /// is routed with R5's multi-criteria router
     /// (McRAPTOR) over `time_window x draws_per_minute` sampled departure
     /// times instead of RAPTOR at every minute, keeping per stop the
     /// fastest trip within `max_fare`. The structure must cover every
     /// route of the network ([`FareStructure::validate_for`]).
     pub fare_structure: Option<Arc<FareStructure>>,
     /// The highest fare of a trip (default infinity: no limit), in the currency of
-    /// the fare structure, read as a 32-bit float; a finite value needs a
+    /// the fare structure, read as a Java `float`; a finite value needs a
     /// `fare_structure`.
     pub max_fare: f64,
     /// Car speeds and levels of traffic stress changed for this call
     /// (the packages' `new_carspeeds`, `carspeed_scale`, `new_lts`); the default
-    /// changes nothing. It changes the street search from the
+    /// changes nothing. As in R5, it changes the street search from the
     /// origins (access and direct trips) but not the egress from the stops.
     pub scenario: crate::Scenario,
 }
 
 impl TransitParams {
-    /// Check the parameters before routing: the percentiles (see
-    /// [`validate_percentiles`]); counts that are positive and fit 32-bit
-    /// integers; a walk speed of at least 1 mm/s; and what keeps the
-    /// arithmetic in 32-bit seconds: minutes times 60 must fit, and so must the
+    /// Check the parameters before routing. The bounds are those of R5
+    /// (percentiles: `AnalysisWorkerTask.validatePercentiles`; counts:
+    /// positive, within R5's `int` fields; walk speed: at least 1 mm/s, as
+    /// `TravelTimeComputer` requires), plus what keeps the arithmetic in
+    /// R5's `int` seconds: minutes times 60 must fit, and so must the
     /// departure plus the window plus `max_trip_duration`, the latest clock
     /// time a search can hold. A departure is at most 7 days after
     /// midnight of the service day. Every public transport function calls
@@ -332,9 +333,10 @@ impl Default for TransitParams {
 /// `AnalysisWorkerTask.MAX_PERCENTILES`.
 pub const MAX_PERCENTILES: usize = 5;
 
-/// Check travel-time percentiles: 1 to 5 of them, each in
-/// 1..=99, in any
-/// order and with repeats (the results sort them). Street
+/// Check travel-time percentiles as R5 does
+/// (`AnalysisWorkerTask.validatePercentiles`): 1 to 5 of them, each in
+/// 1..=99. R5 wants them ascending and accepts equal neighbours, so in any
+/// order and with repeats they pass here (the results sort them). Street
 /// modes have one travel time, reported for every percentile; they take
 /// the same check, so that an empty list is an error there too.
 pub fn validate_percentiles(percentiles: &[i32]) -> Result<(), RouteError> {
@@ -959,8 +961,8 @@ pub(crate) fn par_origins<T: Send>(
 /// percentile is within `max_trip_duration`.
 ///
 /// The percentiles are in ascending order, whatever the order of
-/// [`TransitParams::percentiles`]; a repeated percentile
-/// gets one value per occurrence (see [`validate_percentiles`]).
+/// [`TransitParams::percentiles`]; a repeated percentile, which R5
+/// accepts, gets one value per occurrence (see [`validate_percentiles`]).
 /// The values are held in one buffer, origin by origin, destination by
 /// destination, percentile by percentile, which
 /// [`into_vec`](TransitMatrix::into_vec) hands over without copying.

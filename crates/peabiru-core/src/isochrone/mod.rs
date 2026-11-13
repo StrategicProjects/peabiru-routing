@@ -40,10 +40,10 @@ use crate::transit::raptor::UNREACHED;
 use crate::{RouteError, TransitLayer, TransitParams};
 
 /// Travel times from each origin to every cell of a Web Mercator grid, in
-/// whole minutes at each percentile:
+/// whole minutes at each percentile, as R5's travel-time surface:
 /// `i32::MAX` where a cell is not
 /// reached. The minutes are not capped at the trip limit: a street time
-/// includes the partial edges at both ends and may pass it.
+/// includes the partial edges at both ends and may pass it, as in R5.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TravelTimeSurface {
     grid: WebMercatorGrid,
