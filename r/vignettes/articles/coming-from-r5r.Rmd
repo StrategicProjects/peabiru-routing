@@ -128,6 +128,27 @@ platform it runs on:
   was built with (libc++ on macOS, libstdc++ on Linux and Windows).
   peabiru reproduces both.
 
+## Speed and memory {#speed}
+
+The two packages give the same results on the tasks below, so what is left to
+compare is what they cost. The charts show the time and the peak memory of
+peabiru's R package and of r5r 2.5.0 on the same inputs and parameters, for
+the two sample cities, between all pairs of their grid points: the median of
+the timed runs, with 4 threads, in a container limited to 4 CPUs and 10 GiB
+on a Linux server (measured on 12 November 2026).
+
+```{r, echo = FALSE, out.width = "100%", fig.alt = "Dot chart for Porto Alegre, 1,227 by 1,227 points and 4 threads, of the time and peak memory of peabiru's R package and of r5r in seven tasks: building the network, walking, cycling, driving and public transport matrices, accessibility and the expanded matrix. peabiru takes from 0.2 to 4.6 seconds and 160 to 494 MiB, r5r from 3.8 to 24 seconds and 1.2 to 3.1 GiB."}
+fig("r5r-poa-t4.svg")
+```
+
+```{r, echo = FALSE, out.width = "100%", fig.alt = "The same dot chart for the Sao Paulo sample: time and peak memory of peabiru's R package and of r5r in the same seven tasks, with 4 threads."}
+fig("r5r-spo-t4.svg")
+```
+
+Both charts are drawn from the data of the
+[benchmarks page](../../benchmarks.html), which has the method, the machine,
+the runs with one thread and the other packages measured.
+
 ## Differences
 
 Everything below is deliberate. Nothing that r5r accepts is silently

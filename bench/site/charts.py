@@ -85,13 +85,13 @@ WHY = {
                  "the same.",
     "peabiru-py": "The Python package calls the same Rust core as the command line, so its "
                   "matrices are the same.",
-    "r5r": "Same model: peabiru ports R5's street and transit logic, so the difference is zero "
+    "r5r": "The same routing model, so the difference is zero "
            "(also checked pair by pair, for many more parameters, by the parity suites in "
            "<code>bench/compare/</code>).",
     "r5py": "The same R5 engine (its own 7.5.1 build), so street matrices are expected to agree. "
             "It has no seed and always uses 60 Monte Carlo draws, so transit on a frequency-based "
             "feed (São Paulo) changes from run to run.",
-    "dodgr": "Its own network model: points snap to the nearest vertex (R5 snaps to the nearest "
+    "dodgr": "Its own network model: points snap to the nearest vertex (peabiru snaps to the nearest "
              "point of an edge and adds the walk to it), its own rules for which ways each mode "
              "may use, routes chosen by preference-weighted time, car speeds from its own table "
              "per road class, waits at traffic lights, and no turn restrictions here.",
