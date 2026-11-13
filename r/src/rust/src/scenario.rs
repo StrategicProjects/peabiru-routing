@@ -75,9 +75,7 @@ pub(crate) fn scenario_of(spec: &Robj) -> Result<Scenario> {
                 .iter()
                 .map(|v| {
                     java_parse_float(v).ok_or_else(|| {
-                        err(format!(
-                            "'new_carspeeds': max_speed '{v}' is not a number"
-                        ))
+                        err(format!("'new_carspeeds': max_speed '{v}' is not a number"))
                     })
                 })
                 .collect::<Result<Vec<f32>>>()?;
@@ -124,11 +122,8 @@ pub(crate) fn scenario_of(spec: &Robj) -> Result<Scenario> {
             let values = strings(spec, "lts_values")?
                 .iter()
                 .map(|v| {
-                    java_parse_int(v).ok_or_else(|| {
-                        err(format!(
-                            "'new_lts': lts '{v}' is not an integer"
-                        ))
-                    })
+                    java_parse_int(v)
+                        .ok_or_else(|| err(format!("'new_lts': lts '{v}' is not an integer")))
                 })
                 .collect::<Result<Vec<i32>>>()?;
             s.lts = LtsChange::ByWay(ids.into_iter().zip(values).collect());
