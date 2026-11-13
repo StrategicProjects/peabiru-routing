@@ -8,6 +8,8 @@
 DATA defaults to site/data. Writes:
   <site>/assets/charts/bench-<city>-t<threads>.svg   time and peak memory per
                                                      task and engine
+  <site>/assets/charts/r5r-<city>-t<threads>.svg     the same for peabiru's R
+                                                     package and r5r alone
   and regenerates the blocks between
       <!-- BEGIN bench:NAME -->  and  <!-- END bench:NAME -->
   in <site>/index.html and <site>/benchmarks.html (NAME: headline, meta,
@@ -286,9 +288,13 @@ def chart(meta, idx, city, threads, engines, out):
     fams = [f for f in FAMILY_LABEL if any(FAMILY.get(r["engine"], "other") == f
                                            for _, rows in blocks for r in rows)]
     for f in fams:
+        # a family with a single engine in the chart is named by that engine
+        members = sorted({r["engine"] for _, rows in blocks for r in rows
+                          if FAMILY.get(r["engine"], "other") == f})
+        name = label(members[0]) if len(members) == 1 else FAMILY_LABEL[f]
         legend.append(f'<circle class="f-{f}" cx="{lx + 6}" cy="54" r="5.5"/>'
-                      f'<text class="t s" x="{lx + 17}" y="58.5">{esc(FAMILY_LABEL[f])}</text>')
-        lx += 40 + 7.2 * len(FAMILY_LABEL[f])
+                      f'<text class="t s" x="{lx + 17}" y="58.5">{esc(name)}</text>')
+        lx += 40 + 7.2 * len(name)
     light = "\n    ".join(f".f-{f} {{ fill: {c[0]}; }}" for f, c in FAMILY_COLOR.items())
     dark = "\n      ".join(f".f-{f} {{ fill: {c[1]}; }}" for f, c in FAMILY_COLOR.items())
     thr = f"{threads} thread{'s' if threads > 1 else ''}"
@@ -602,6 +608,13 @@ def main():
     for c in meta["cities"]:
         for n in sorted({k[3] for k in idx}):
             chart(meta, idx, c, n, engines, outdir / f"bench-{c}-t{n}.svg")
+    # peabiru's R package next to r5r alone, with the most threads measured:
+    # the figure of the R article that compares the two
+    for old in outdir.glob("r5r-*.svg"):
+        old.unlink()
+    most = max(k[3] for k in idx)
+    for c in meta["cities"]:
+        chart(meta, idx, c, most, ["peabiru-r", "r5r"], outdir / f"r5r-{c}-t{most}.svg")
     replace_blocks(site / "index.html", {"headline": headline(meta, idx, engines)})
     replace_blocks(site / "benchmarks.html", {
         "headline": headline(meta, idx, engines, link=False),
