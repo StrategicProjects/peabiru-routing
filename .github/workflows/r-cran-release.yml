@@ -40,11 +40,15 @@ jobs:
           r-version: ${{ matrix.r }}
           use-public-rspm: true
       - uses: r-lib/actions/setup-pandoc@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
-      - name: Install what the build and the check need
-        # sf and data.table (Suggests) are left out: examples and tests must
-        # do without them
-        run: install.packages(c("rextendr", "tibble", "testthat", "knitr", "rmarkdown"))
-        shell: Rscript {0}
+      # the package's Imports, and what the build and the check need; sf and
+      # data.table (Suggests) are left out: examples and tests must do
+      # without them. (pak installs the system libraries too, which R-devel
+      # needs: its packages are compiled from source)
+      - uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          working-directory: r
+          dependencies: '"hard"'
+          extra-packages: any::rextendr, any::testthat, any::knitr, any::rmarkdown
       - name: Build the tarball
         run: bash tools/build_r_release.sh "$RUNNER_TEMP/cran"
       - name: R CMD check --as-cran
