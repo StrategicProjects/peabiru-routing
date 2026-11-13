@@ -1,17 +1,3 @@
-<!--
-MAINTAINER NOTES (delete this block before submitting)
-
-Checked on 2026-11-13 against the release tarball peabiru_0.1.0.tar.gz built by
-`bash tools/build_r_release.sh <dir>` from the branch `cran-0.1.0` (the R
-package of `main` on the core as published on crates.io, 0.1.0): the numbers
-below are that tarball's.
-
-Still to do before submitting: win-builder (R-devel and R-release) and a
-Linux check (R-hub) with that same file; list them under "Test environments"
-and remove the sentence that says they were not run. The CI of the
-repository runs `R CMD check --as-cran` on a rehearsal tarball on Ubuntu at
-every push (job `r-cran`), which is not a substitute for them.
--->
 
 ## Submission
 
@@ -24,8 +10,12 @@ This is a new submission.
 * the same machine, rustc 1.81.0 (the minimum stated in
   `SystemRequirements`): the package's Rust code built offline from the
   vendored sources
-
-win-builder, R-hub and Linux have not been run yet.
+* win-builder, x86_64-w64-mingw32 (cargo and rustc 1.92.0): R Under
+  development (unstable) (2026-11-12 r90881 ucrt) and R version 4.6.2
+  (2026-10-29 ucrt)
+* GitHub Actions, Ubuntu 26.04 (x86_64-pc-linux-gnu): R Under development (unstable),
+  R version 4.6.2 (2026-10-29) and R version 4.5.3 (2026-03-11), with
+  `R CMD check --as-cran --no-manual`
 
 ## R CMD check results
 
@@ -36,7 +26,11 @@ win-builder, R-hub and Linux have not been run yet.
       Maintainer: 'André Leite <leite@castlab.org>'
       New submission
 
-  This is the first submission of the package.
+  This is the first submission of the package. The words the check lists
+  as possibly misspelled in DESCRIPTION are the names of the authors of the
+  works cited (Delling, Pajor, Werneck, Geisberger, Schultes, Vetter, van
+  der Linden, van Eggermond), the name of the organisation that develops
+  'R5' ("Conveyal's") and the term "isochrones".
 
 On the local machine the check also reports "Skipping checking HTML
 validation: 'tidy' doesn't look like recent enough HTML Tidy", which is about
