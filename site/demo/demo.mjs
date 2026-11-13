@@ -93,7 +93,7 @@ const rampColor = (i, n) => {
 };
 const EMPTY = { type: "FeatureCollection", features: [] };
 
-let state = { city: null, network: null, streets: EMPTY, bounds: null, origin: null, isochrones: null };
+let state = { city: null, network: null, streets: EMPTY, bounds: null, hull: null, origin: null, snap: null, isochrones: null };
 
 // The background: OpenFreeMap's light or dark style, or nothing at all (the
 // streets of the network are then the whole map).
@@ -159,6 +159,83 @@ function decorate() {
       },
     }, based ? labels : "iso"); // alone, the streets go under the isochrones
   }
+  // where the network of the demo ends: what lies outside is dimmed, with a
+  // dashed line around the streets
+  if (!map.getSource("limit")) map.addSource("limit", { type: "geojson", data: limitData() });
+  if (!map.getLayer("outside")) {
+    map.addLayer({
+      id: "outside",
+      type: "fill",
+      source: "limit",
+      filter: ["==", ["geometry-type"], "Polygon"],
+      paint: { "fill-color": css("--pb-bg") || "#faf6ef", "fill-opacity": based ? 0.62 : 0 },
+    });
+    map.addLayer({
+      id: "limit",
+      type: "line",
+      source: "limit",
+      filter: ["==", ["geometry-type"], "LineString"],
+      paint: { "line-color": dark() ? "#e98a5c" : "#b4532a", "line-width": 1.6, "line-dasharray": [2, 2], "line-opacity": 0.9 },
+    });
+  }
+  // from the point clicked to the street it starts from
+  if (!map.getSource("snap")) map.addSource("snap", { type: "geojson", data: snapData() });
+  if (!map.getLayer("snap")) {
+    map.addLayer({
+      id: "snap",
+      type: "line",
+      source: "snap",
+      paint: { "line-color": css("--pb-ink") || "#1f2a2e", "line-width": 1.5, "line-dasharray": [1, 1.5] },
+    });
+  }
+}
+
+// The limit of the network: the convex hull of its streets, as a line, and
+// the rest of the world as a polygon with that hole.
+function limitData() {
+  if (!state.hull) return EMPTY;
+  const world = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
+  return {
+    type: "FeatureCollection",
+    features: [
+      { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [world, state.hull] } },
+      { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: state.hull } },
+    ],
+  };
+}
+
+function snapData() {
+  if (!state.snap || !state.origin) return EMPTY;
+  return { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [state.origin, state.snap] } };
+}
+
+/** The convex hull of the points of the lines (Andrew's monotone chain), as a closed ring. */
+function hullOf(lines) {
+  const pts = [];
+  for (const f of lines.features) for (const p of f.geometry.coordinates) pts.push(p);
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (points) => {
+    const h = [];
+    for (const p of points) {
+      while (h.length >= 2 && cross(h[h.length - 2], h[h.length - 1], p) <= 0) h.pop();
+      h.push(p);
+    }
+    h.pop();
+    return h;
+  };
+  const ring = [...half(pts), ...half([...pts].reverse())];
+  return ring.length >= 3 ? [...ring, ring[0]] : null;
+}
+
+/** Whether the point is inside the ring (ray casting). */
+function inside([x, y], ring) {
+  let hit = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
 }
 
 function isoData() {
@@ -174,6 +251,8 @@ function isoData() {
 function draw() {
   map.getSource("streets")?.setData(state.streets);
   map.getSource("iso")?.setData(isoData());
+  map.getSource("limit")?.setData(limitData());
+  map.getSource("snap")?.setData(snapData());
   if (state.origin) marker.setLngLat(state.origin).addTo(map); else marker.remove();
 }
 
@@ -191,15 +270,21 @@ function restyle() {
 map.on("load", () => { decorate(); draw(); });
 
 function legend() {
-  if (!state.isochrones) { legendEl.textContent = ""; return; }
-  const n = state.isochrones.length;
-  legendEl.replaceChildren(...[...state.isochrones].reverse().map((f, i) => {
+  const items = [...(state.isochrones ?? [])].reverse().map((f, i, all) => {
     const span = document.createElement("span");
     const sw = document.createElement("i");
-    sw.style.background = rampColor(i, n);
+    sw.style.background = rampColor(i, all.length);
     span.append(sw, `${f.properties.isochrone} min`);
     return span;
-  }));
+  });
+  if (state.hull) {
+    const span = document.createElement("span");
+    const sw = document.createElement("i");
+    sw.className = "dash";
+    span.append(sw, "limit of this network");
+    items.push(span);
+  }
+  legendEl.replaceChildren(...items);
 }
 
 // ---------------------------------------------------------------- routing
@@ -226,7 +311,8 @@ async function update() {
     });
     state.isochrones = iso.features; // one MultiPolygon per cutoff, largest first
     const ms = Math.round(performance.now() - t0);
-    statusEl.textContent = `${mode().join(" + ").toLowerCase()} from ${lat.toFixed(4)}, ${lon.toFixed(4)}` +
+    const far = state.snapDistance > 40 ? `, ${Math.round(state.snapDistance)} m from the nearest street` : "";
+    statusEl.textContent = `${mode().join(" + ").toLowerCase()} from ${lat.toFixed(4)}, ${lon.toFixed(4)}${far}` +
       `${transit ? ` at ${timeInput.value}` : ""}: computed in ${ms} ms. Click the map to move the origin.`;
   } catch (e) {
     state.isochrones = null;
@@ -253,9 +339,10 @@ async function loadCity(city) {
   cutoffSel.replaceChildren(...c.cutoffs.map((v) => new Option(v.replaceAll(",", ", "), v)));
   form.querySelectorAll("select, input").forEach((el) => { el.disabled = true; });
   state.network?.free();
-  state = { city, network: null, streets: EMPTY, bounds: null, origin: c.origin, isochrones: null };
+  state = { city, network: null, streets: EMPTY, bounds: null, hull: null, origin: c.origin, snap: null, isochrones: null };
   legend();
   draw();
+  map.setMaxBounds(null);
   map.jumpTo({ center: c.origin, zoom: 12 });
   try {
     statusEl.textContent = city === "poa" ? "Downloading the Porto Alegre files (2 MB) and building the network…"
@@ -265,6 +352,10 @@ async function loadCity(city) {
     const info = state.network.info();
     state.streets = await streetsOf(state.network, c.origin);
     state.bounds = boundsOf(state.streets);
+    state.hull = hullOf(state.streets);
+    // the map can be dragged around the network, not away from it
+    const [w, s0, e, n] = state.bounds.toArray().flat();
+    map.setMaxBounds([[w - (e - w), s0 - (n - s0)], [e + (e - w), n + (n - s0)]]);
     fit(false);
     statusEl.textContent = `Network built in ${Math.round(performance.now() - t0)} ms: ` +
       `${info.edges.toLocaleString("en")} street edges` +
@@ -281,11 +372,42 @@ async function loadCity(city) {
 
 // ---------------------------------------------------------------- events
 
-map.on("click", (e) => {
+// ANCHOR: click
+// A click moves the origin only where there is a street to start from:
+// findSnap() says where the point meets the network, as the routing will.
+const miss = document.createElement("div");
+miss.className = "miss-pin";
+const missMarker = new maplibregl.Marker({ element: miss });
+let missTimer;
+
+map.on("click", async (e) => {
   if (!state.network) return;
-  state.origin = [e.lngLat.lng, e.lngLat.lat];
+  const point = [e.lngLat.lng, e.lngLat.lat];
+  const street = mode().find((m) => m !== "TRANSIT"); // public transport starts on foot
+  const outside = state.hull && !inside(point, state.hull);
+  const snap = outside ? null
+    : await peabiru.findSnap(state.network, { id: ["o"], lon: [point[0]], lat: [point[1]] }, { mode: street });
+  if (!snap?.found[0]) {
+    clearTimeout(missTimer);
+    missMarker.setLngLat(point).addTo(map);
+    missTimer = setTimeout(() => missMarker.remove(), 2600);
+    statusEl.textContent = (outside
+      ? "That point is outside the network of this demo (beyond the dashed line): "
+      : `No street ${street === "CAR" ? "a car can use" : street === "BICYCLE" ? "a bicycle can use" : "to walk on"} near that point: `) +
+      "the origin stays where it was. Click on or near a street inside the line.";
+    statusEl.classList.add("error");
+    return;
+  }
+  state.origin = point;
+  state.snap = [snap.snap_lon[0], snap.snap_lat[0]];
+  state.snapDistance = snap.distance[0];
   update();
 });
+map.on("mousemove", (e) => {
+  const out = state.hull && !inside([e.lngLat.lng, e.lngLat.lat], state.hull);
+  map.getCanvas().style.cursor = out ? "not-allowed" : "crosshair";
+});
+// ANCHOR_END: click
 document.querySelector("#fit").addEventListener("click", () => fit());
 citySel.addEventListener("change", () => loadCity(citySel.value));
 basemapInput.addEventListener("change", restyle);

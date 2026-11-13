@@ -82,6 +82,16 @@ public transport the feeds' date and the chosen time make the departure;
 {{#include ../../demo/demo.mjs:isochrone}}
 ```
 
+**Only where there is a street.** A network ends somewhere, and a point far
+from every street has nowhere to start from. Before moving the origin, the
+page asks `findSnap()` where the point meets the network, as the routing
+will; where it does not (or beyond the limit drawn around the network), the
+origin stays and the page says why:
+
+```js
+{{#include ../../demo/demo.mjs:click}}
+```
+
 The rest of the file hands the GeoJSON to [MapLibre GL JS](https://maplibre.org/)
 as two layers, the streets and the isochrones, placed over the land and the
 buildings of the background map and under its roads and labels, so the map

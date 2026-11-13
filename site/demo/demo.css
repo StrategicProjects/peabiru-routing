@@ -104,6 +104,17 @@
 .fit:hover { border-color: var(--pb-route); color: var(--pb-route-strong); }
 .fit:focus-visible { outline: 2px solid var(--pb-route); outline-offset: 2px; }
 
+/* a click with no street to start from: a cross that fades away */
+.miss-pin { width: 22px; height: 22px; position: relative; animation: miss 2.6s ease-out forwards; pointer-events: none; }
+.miss-pin::before, .miss-pin::after {
+  content: ""; position: absolute; left: 10px; top: 0; width: 2.5px; height: 22px; border-radius: 2px;
+  background: var(--pb-route); box-shadow: 0 0 0 1.5px var(--pb-card);
+}
+.miss-pin::before { rotate: 45deg; }
+.miss-pin::after { rotate: -45deg; }
+@keyframes miss { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .miss-pin { animation: none; } }
+
 /* the origin, and MapLibre's own controls in the colours of the page */
 .origin-pin {
   width: 14px; height: 14px; border-radius: 50%; background: var(--pb-ink);
@@ -123,6 +134,7 @@
 .legend:empty { display: none; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.legend i.dash { width: 18px; height: 0; border-radius: 0; border-top: 2px dashed var(--pb-route); }
 .status { color: var(--pb-ink-soft); font-size: 15px; min-height: 1.6em; margin: 10px 0 0; }
 .status.error { color: var(--pb-route); }
 .notes { padding-top: 24px; max-width: 75ch; }

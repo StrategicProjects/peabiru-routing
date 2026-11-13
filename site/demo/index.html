@@ -79,7 +79,10 @@
     loading (they say which part of the map is on screen, never where you clicked). Switch it
     off and the map is the street network peabiru built, as returned by
     <code>isochrone(…, { polygonOutput: false })</code>: the thin lines that also show, under the
-    background map, where the network ends. Public transport uses the median of the departures in the
+    background map, where the network ends. The demo's networks are small on purpose (they are
+    downloaded when the page opens), so the map is dimmed beyond the dashed line that surrounds
+    each one, and a click only moves the origin where <code>findSnap()</code> finds a street to
+    start from; otherwise the page says so and keeps the previous origin. Public transport uses the median of the departures in the
     10 minutes from the chosen time; the Porto Alegre bus feed only has trips from late morning
     to early evening, so pick a time between 12:00 and 17:00 there. Recife and Caruaru have
     streets only: no open GTFS feed was found for either, so public transport is not offered
