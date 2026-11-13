@@ -1,0 +1,80 @@
+# The R package's release tarball, as it is submitted to CRAN, checked on
+# Linux with three versions of R. Run by hand (Actions > r-cran-release > Run
+# workflow) on the branch or tag from which the tarball is built: one in
+# which crates/peabiru-core is the version published on crates.io, since
+# tools/build_r_release.sh refuses any other (the CI job r-cran rehearses the
+# same path at every push, with the core of the commit).
+#
+# The tarball built here is kept as an artifact, with the check logs.
+#
+# Actions are pinned to commit hashes; Dependabot proposes the updates
+# (.github/dependabot.yml).
+name: r-cran-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag to build the tarball from
+        type: string
+        default: cran-0.1.0
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: R ${{ matrix.r }} on ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        r: [devel, release, oldrel-1]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          r-version: ${{ matrix.r }}
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-pandoc@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+      - name: Install what the build and the check need
+        # sf and data.table (Suggests) are left out: examples and tests must
+        # do without them
+        run: install.packages(c("rextendr", "tibble", "testthat", "knitr", "rmarkdown"))
+        shell: Rscript {0}
+      - name: Build the tarball
+        run: bash tools/build_r_release.sh "$RUNNER_TEMP/cran"
+      - name: R CMD check --as-cran
+        # no LaTeX on the runner (--no-manual). setup-r exports NOT_CRAN=true,
+        # with which the package would build as in development: emptied, so
+        # that the tarball is built and tested as on CRAN
+        env:
+          NOT_CRAN: ""
+          _R_CHECK_FORCE_SUGGESTS_: "false"
+          _R_CHECK_CRAN_INCOMING_REMOTE_: "false"
+        run: |
+          cd "$RUNNER_TEMP/cran"
+          sha256sum peabiru_*.tar.gz
+          R CMD check --as-cran --no-manual peabiru_*.tar.gz
+          log=peabiru.Rcheck/00check.log
+          grep -n "offline\|^Using " peabiru.Rcheck/00install.out
+          grep -q "cargo build -j 2 --offline" peabiru.Rcheck/00install.out ||
+            { echo "the package was not built offline with two jobs"; exit 1; }
+          grep "^Status: " "$log"
+          if grep -Eq "^Status: .*(WARNING|ERROR)" "$log"; then
+            echo "R CMD check gave a WARNING or an ERROR"; exit 1
+          fi
+      - name: Check log
+        if: always()
+        run: cat "$RUNNER_TEMP/cran/peabiru.Rcheck/00check.log" || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: cran-${{ matrix.r }}
+          path: |
+            ${{ runner.temp }}/cran/peabiru_*.tar.gz
+            ${{ runner.temp }}/cran/peabiru.Rcheck/00check.log
+            ${{ runner.temp }}/cran/peabiru.Rcheck/00install.out
