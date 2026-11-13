@@ -24,8 +24,8 @@ home:
     public transport on OpenStreetMap and GTFS networks, computed by a Rust
     engine inside the R session, without Java.
   links:
-  - text: peabiru home (all languages)
-    href: ../index.html
+  - text: peabiru website (all languages)
+    href: https://strategicprojects.github.io/peabiru-routing/
   - text: Python docs
     href: ../python/index.html
   - text: JavaScript guide
