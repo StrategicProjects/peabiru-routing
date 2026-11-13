@@ -24,7 +24,7 @@
 * Fares: `setup_fare_structure()`, `read_fare_structure()`,
   `write_fare_structure()`, and `fare_structure` and `max_fare` in
   `travel_time_matrix()`, `accessibility()` and `detailed_itineraries()`,
-  routed with R5's multi-criteria router (McRAPTOR); `pareto_frontier()`.
+  routed with the multi-criteria router (McRAPTOR); `pareto_frontier()`.
 * Network inspection: `find_snap()`, `street_network_bbox()`,
   `street_network_to_sf()`, `transit_network_to_sf()`,
   `check_transit_availability()` and `get_gtfs_errors()`.
@@ -45,12 +45,12 @@
   transform is reproduced exactly (SIRGAS 2000, SAD69, Corrego Alegre and
   their UTM zones, SIRGAS 2000 / Brazil Polyconic, WGS 84 / UTM,
   Pseudo-Mercator). Where the pixel a street point falls in depends on the
-  last bits of the projection, peabiru reads the one Java's `StrictMath`
-  gives, the same on every machine, with a warning; voids and values beyond
-  +/-3276.7 m are stored wrapped around, as R5 stores them, with a warning.
-* 'GTFS' feeds are read as R5's gtfs-lib reads them, including the feeds it
-  loads with missing columns, short times or empty dates, and GTFS-Flex
-  `locations.geojson`; feeds with errors of priority `"HIGH"` are refused
+  last bits of the projection, peabiru reads the same pixel on every
+  machine, with a warning; voids and values beyond +/-3276.7 m are stored
+  wrapped around, with a warning.
+* 'GTFS' feeds with missing optional columns, short times or empty dates
+  are read, and so is GTFS-Flex `locations.geojson`; feeds with errors of
+  priority `"HIGH"` are refused
   (and `get_gtfs_errors()` lists the errors).
 
 ## Changes
@@ -85,11 +85,12 @@
 * Isochrone polygons follow the C++ library 'isoband' is built with on each
   platform, so that on each system they are the polygons 'isoband' gives
   there.
-* Street edge lengths are computed with Apache Commons Math's `FastMath`, as
-  R5 computes them.
-* Park-and-ride areas link to the street as R5 links them.
+* Street edge lengths are computed with a translation of Apache Commons
+  Math's `FastMath`, the same on every platform.
+* Park-and-ride areas link to the first vertex of the street edge they
+  meet.
 * `detailed_itineraries()` follows rides along GTFS shapes cut by
-  `shape_dist_traveled` as R5 cuts them, and plans car egress through turn
+  `shape_dist_traveled`, and plans car egress through turn
   restrictions with two or more via ways in a fixed order (that of a
   freshly built network), with a warning naming the pairs whose itinerary
   another order would change (both were errors).

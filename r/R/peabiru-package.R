@@ -13,12 +13,11 @@
 #' [street_network_bbox()], [street_network_to_sf()],
 #' [transit_network_to_sf()], [check_transit_availability()] and
 #' [get_gtfs_errors()]. The routing engine is written in 'Rust' and runs
-#' inside the R session; no 'Java' is needed. What the engine cannot do
-#' exactly is an error, never silently ignored.
+#' inside the R session; no 'Java' is needed. What the package does not
+#' support is an error that says so, never silently ignored.
 #'
-#' The routing model is that of Conveyal's 'R5' engine (version 7.6), ported
-#' to 'Rust'; see the references. The article "Compared with r5r" on the
-#' package website says how the package relates to that R interface of R5.
+#' The routing model follows that of Conveyal's 'R5' engine; see the
+#' references, and the article "Compared with r5r" on the package website.
 #'
 #' @section Class of the results:
 #' The tables the functions return are tibbles by default. The option

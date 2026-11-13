@@ -193,9 +193,9 @@ car speeds and traffic stress; it inspects networks with `find_snap()`,
 `check_transit_availability()` and `get_gtfs_errors()`. The articles on the
 package website show each of them.
 
-What the engine cannot compute exactly as R5 does stops with an error that
-says so, rather than being ignored or approximated, such as R5's own fare
-calculators (a fare structure with a `type`):
+What peabiru does not support is an error that says so, never ignored or
+approximated: for instance a fare structure that names a fare calculator
+(a `type`) instead of fare rules:
 
 ```{r, error = TRUE}
 fares <- setup_fare_structure(network, base_fare = 4.4)

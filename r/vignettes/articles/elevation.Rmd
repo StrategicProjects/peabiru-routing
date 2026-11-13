@@ -87,15 +87,15 @@ those of the original.
 In a projected system, which pixel a street point falls in is decided by
 sines and cosines of the projection. For a point within nanometres of the
 boundary between two pixels, the last bits of those functions decide, and
-they differ between Java virtual machines and processors. peabiru
-computes them as Java's `StrictMath` does, so a network gives the same
+they differ between mathematical libraries and processors. peabiru
+computes them with its own fdlibm functions, so a network gives the same
 results on every machine, and warns with the number of such points when
 there are any (about one in a hundred million for 30 m pixels).
 Reprojecting the raster to EPSG:4326 removes the question.
 
 ## Voids and no-data values
 
-Elevations are kept, as R5 keeps them, in decimetres in 16-bit integers, so
+Elevations are kept in decimetres in 16-bit integers, so
 values beyond +/-3276.7 m wrap around: SRTM's voids (-32768) become 0 m,
 a no-data value of -9999 becomes 3108.2 m, and a `NaN` no-data value 0 m.
 peabiru stores them that way and warns, counting them. The raster below is

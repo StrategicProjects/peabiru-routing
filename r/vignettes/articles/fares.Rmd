@@ -12,7 +12,7 @@ source("setup.R")
 peabiru computes the fare of each public transport trip from a *fare
 structure*, which describes how much each ride costs and which transfers
 are discounted; the routing functions take it as `fare_structure`. With
-one, public transport is routed with R5's
+one, public transport is routed with the
 multi-criteria router (McRAPTOR), which keeps at each stop the trips that are
 faster or cheaper than the others, over `time_window * draws_per_minute`
 departure times sampled in the window.
@@ -28,7 +28,7 @@ fares$fares_per_type
 head(fares$fares_per_transfer, 3)
 ```
 
-The rules (those of R5's rule-based in-routing fare calculator): the
+The rules: the
 first ride costs its route's fare (the type's `fare`, or the route's own
 `route_fare` when the type has `use_route_fare`); a ride of the same type as
 the one before is free when the type has `unlimited_transfers`; otherwise,
@@ -71,7 +71,7 @@ head(ttm)
 ```
 
 `pareto_frontier()` gives, for each pair, the travel time at each fare
-cutoff where it changes. `monetary_cost` is the cutoff as R5 reads it, a
+cutoff where it changes. `monetary_cost` is the cutoff as the router reads it, a
 32-bit float.
 
 ```{r pareto}

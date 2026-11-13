@@ -33,8 +33,8 @@ needs_sf <- function(fun) {
 #' @return A table with the original points (`point_id`, `lat`,
 #'   `lon`), their snapped coordinates on the street network (`snap_lat`,
 #'   `snap_lon`), the distance in meters between the point and its snapped
-#'   location (`distance`, haversine on a sphere of radius 6,367,450 m, as
-#'   R5 measures it) and whether the point snapped (`found`). Points that
+#'   location (`distance`, haversine on a sphere of radius 6,367,450 m)
+#'   and whether the point snapped (`found`). Points that
 #'   could not be snapped have `NA` coordinates and distance and
 #'   `found = FALSE`.
 #'
@@ -412,8 +412,8 @@ check_transit_availability <- function(network,
 
 #' Get GTFS errors encountered in network building
 #'
-#' The errors that the 'GTFS' library of 'R5' (Conveyal's gtfs-lib) reports
-#' when it reads the network's feeds. [build_network()] refuses to build a
+#' The errors found in the network's 'GTFS' feeds, as the validator
+#' 'gtfs-lib' (Conveyal) reports them. [build_network()] refuses to build a
 #' network when any error has priority `"HIGH"`; this lists them, also for
 #' a directory a network could not be built from.
 #'

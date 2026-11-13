@@ -52,7 +52,7 @@ rush_hour <- car(carspeed_scale = 0.7)
 mean(rush_hour$travel_time_p50)
 ```
 
-Car speeds are kept, as in R5, as 16-bit centimetres per second, so a
+Car speeds are kept as 16-bit centimetres per second, so a
 factor or a speed that would bring a speed to 0 or less, or beyond that
 range, is an error rather than a wrapped-around speed.
 

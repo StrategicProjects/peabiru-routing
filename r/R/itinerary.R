@@ -5,7 +5,7 @@
 #' waiting time, distance, route and geometry: the direct trip by the street
 #' mode and, with public transport, the fastest trip over the departure
 #' window (`shortest_path = TRUE`) or, with `shortest_path = FALSE`, the
-#' alternatives R5's multi-criteria router (McRAPTOR) finds over
+#' alternatives the multi-criteria router (McRAPTOR) finds over
 #' `time_window` sampled departure times, one per sequence of routes (the
 #' fastest of each), up to `suboptimal_minutes` slower than the best. A
 #' pair's options are ordered by the trip by the street mode alone
@@ -22,14 +22,14 @@
 #' that run).
 #'
 #' @section Egress by car and turn restrictions:
-#' With `mode_egress = "CAR"`, the backward egress search of R5 (the engine
-#' the routing is ported from) reads the via ways of a turn restriction with
-#' two or more of them in an order that depends on the searches that ran
-#' before. peabiru fixes that order: every pair gets the itinerary of a
-#' freshly built network routing that pair alone, whatever the other pairs,
-#' the threads or the earlier calls, and a warning, once per call, names
-#' the pairs whose itineraries another order of those via ways would change
-#' (on Porto Alegre, about 1 pair in 200).
+#' With `mode_egress = "CAR"`, the egress is searched backwards from the
+#' destination, and a turn restriction with two or more via ways can be
+#' read in either order of those ways. peabiru fixes the order: every pair
+#' gets the itinerary of a freshly built network routing that pair alone,
+#' whatever the other pairs, the threads or the earlier calls, and a
+#' warning, once per call, names the pairs whose itineraries the other
+#' order of those via ways would change (on Porto Alegre, about 1 pair in
+#' 200).
 #'
 #' @inheritParams travel_time_matrix
 #' @param suboptimal_minutes An integer, 0 (the default): with

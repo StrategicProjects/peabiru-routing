@@ -59,7 +59,7 @@ plot(trip["mode"], main = NULL, key.pos = 1, lwd = 3)
 
 ## Alternatives
 
-With `shortest_path = FALSE` the trips are routed with R5's multi-criteria
+With `shortest_path = FALSE` the trips are routed with the multi-criteria
 router (McRAPTOR) over `time_window` departure times sampled in the window,
 and each sequence of routes gives one option, the fastest of its kind.
 `suboptimal_minutes` keeps the options up to that many minutes slower than

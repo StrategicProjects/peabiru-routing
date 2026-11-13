@@ -239,7 +239,7 @@ and riding (`mode = c("WALK", "TRANSIT")`; walking at 3.6 km/h, the
 default), leaving at each minute from 07:00 to 07:59; the travel time to
 each destination is the median of those 60 departures (`percentiles = 50`).
 São Paulo's feed and nearly all of Rio de Janeiro's give headways instead
-of timetables; for those lines peabiru, like R5, draws the departures at
+of timetables; for those lines peabiru draws the departures at
 random (Monte Carlo), and `seed` makes the draws, and so the result,
 repeatable.
 
@@ -525,7 +525,7 @@ discounted, `max_fare` keeps the fastest trip within a budget, and
 `pareto_frontier()` gives the travel time at each budget.
 
 **Why not in the three cities above.** With fares, public transport is
-routed by R5's multi-criteria router, which does not handle lines given by
+routed by the multi-criteria router, which does not handle lines given by
 frequency (`detailed_itineraries()` refuses them, and with a fare
 structure the travel times fall back to walking):
 that excludes São Paulo and Rio de Janeiro, whose feeds do carry the fares
@@ -660,8 +660,7 @@ fig("fare-budget-poa.svg")
 ```
 
 With fares the router samples departures in the window
-(`draws_per_minute = 1`: one per minute) instead of trying every minute, as
-R5 does.
+(`draws_per_minute = 1`: one per minute) instead of trying every minute.
 
 ### The frontier of a trip
 
@@ -749,9 +748,8 @@ foot. `res$itineraries` has the legs of each option, as an `sf` of lines
 unless `drop_geometry = TRUE`.
 
 One thing to know when reading the two side by side: `trip_options()` and
-`detailed_itineraries()` search the walk to the first stop as R5's trip
-planner does, and `pareto_frontier()` and the matrices as R5's matrix
-router does. For the trip across town above, the one-fare trip of the
+`detailed_itineraries()` do not search the walk to the first stop in the
+same way as `pareto_frontier()` and the matrices do. For the trip across town above, the one-fare trip of the
 frontier starts with a walk of 70 minutes to a direct line; neither
 `detailed_itineraries()` nor `trip_options()` lists it (for the 14:05
 departure, `travel_time_matrix()` gives 89 minutes with `max_rides = 1`,

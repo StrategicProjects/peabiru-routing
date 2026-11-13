@@ -27,7 +27,7 @@
 #'
 #' @section Level of traffic stress:
 #' Each street is given a level of traffic stress (LTS) for cyclists from
-#' its 'OpenStreetMap' tags, as R5 assigns it: 1 is tolerable for
+#' its 'OpenStreetMap' tags: 1 is tolerable for
 #' children (quiet streets, separated cycle tracks), 2 for most adults, 3
 #' for confident cyclists, 4 only for the strong and fearless. A cyclist
 #' rides only on streets up to `max_lts` and walks the bicycle elsewhere
@@ -52,13 +52,14 @@
 #' effect on these draws); with timetables only, the draws change nothing.
 #'
 #' With a `fare_structure` (see [setup_fare_structure()]) public transport
-#' is routed with R5's multi-criteria router (McRAPTOR), over
+#' is routed with the multi-criteria router (McRAPTOR), over
 #' `time_window * draws_per_minute` departure times sampled at random in
 #' the window (the same for an origin in every call with the same `seed`),
 #' keeping at each stop the fastest trip whose fare is within `max_fare`.
-#' R5's sampler cannot draw exactly 200 departure times, nor many per minute
-#' over a long window (such as 8 per minute in a 10-minute window, or 5 in a
-#' window of 150 minutes or more): those combinations are an error.
+#' A few numbers of draws cannot be sampled: exactly 200 departure times,
+#' or many per minute over a long window (such as 8 per minute in a
+#' 10-minute window, or 5 in a window of 150 minutes or more). Those
+#' combinations are an error.
 #'
 #' @section Walking with more origins than destinations:
 #' With `"WALK"` alone, more origins than destinations and a network built
@@ -119,11 +120,13 @@
 #'   with columns `poly_id` (character), `scale`
 #'   (numeric) and `priority` (integer): each street edge takes the factor
 #'   of the polygon it meets with the highest priority (ties: the one it
-#'   overlaps most). Polygons that are not valid are an error, and so are
-#'   ties that cannot be settled exactly as R5 settles them.
+#'   overlaps most). Polygons that are not valid are an error, and so is
+#'   a tie with no winner: two polygons of the same priority and different
+#'   scales that overlap a way by the same length (give one of them a
+#'   higher priority).
 #' @param carspeed_scale A number of at least 0, the factor for the car
 #'   speeds of the edges `new_carspeeds` leaves out (all of them when it is
-#'   `NULL`). Defaults to 1. R5 keeps car speeds as 16-bit centimetres per
+#'   `NULL`). Defaults to 1. Car speeds are kept as 16-bit centimetres per
 #'   second: a factor or speed that would bring a speed to 0 or less, or
 #'   past that range, is an error.
 #' @param new_lts A scenario of levels of traffic stress: `NULL` (the

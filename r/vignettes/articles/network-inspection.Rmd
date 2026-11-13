@@ -80,8 +80,8 @@ check_transit_availability(network, start_date = "2019-05-11",
 
 ## GTFS errors
 
-`get_gtfs_errors()` lists the errors the 'GTFS' library of R5 (gtfs-lib)
-finds in the feeds. This feed has a few of priority `"MEDIUM"`
+`get_gtfs_errors()` lists the errors found in the feeds, as the validator
+gtfs-lib reports them. This feed has a few of priority `"MEDIUM"`
 (duplicated keys), which do not stop a network from being built:
 
 ```{r errors}
