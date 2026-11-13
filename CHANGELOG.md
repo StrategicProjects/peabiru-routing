@@ -3,6 +3,16 @@
 Changes of the Rust crate `peabiru-core`, the command-line tool, and the
 Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
+## Unreleased
+
+- Credits: the descriptions, the READMEs and the documentation now state
+  up front that peabiru is a Rust port of Conveyal's R5 routing engine with an
+  interface modelled on r5r (Ipea), from whose Java code the fare calculator
+  and parts of the trip planner are translated; `CITATION.cff` lists R5 and
+  r5r as references; and the documentation says that peabiru is not
+  affiliated with or endorsed by Conveyal, Ipea or the r5r team. No change in
+  the code.
+
 ## JavaScript package 0.1.1
 
 - The npm package 0.1.0 was uploaded with a WebAssembly module built before

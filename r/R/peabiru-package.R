@@ -16,8 +16,12 @@
 #' inside the R session; no 'Java' is needed. What the package does not
 #' support is an error that says so, never silently ignored.
 #'
-#' The routing model follows that of Conveyal's 'R5' engine; see the
-#' references, and the article "Compared with r5r" on the package website.
+#' The routing engine is a 'Rust' port of Conveyal's 'R5' routing engine, and
+#' the functions are modelled on those of the 'r5r' package (Ipea), from
+#' whose 'Java' code the fare calculator and parts of the trip planner are
+#' translated; see the references, and the article "Compared with r5r" on
+#' the package website. peabiru is an independent project, not affiliated
+#' with or endorsed by Conveyal, Ipea or the r5r team.
 #'
 #' @section Class of the results:
 #' The tables the functions return are tibbles by default. The option
@@ -67,6 +71,10 @@
 #' Geisberger, R., Sanders, P., Schultes, D. and Vetter, C. (2012). Exact
 #' routing in large road networks using contraction hierarchies.
 #' *Transportation Science*, 46(3), 388-404. \doi{10.1287/trsc.1110.0401}
+#'
+#' Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V. and Conway,
+#' M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport Networks
+#' with R5 in R. *Findings*. \doi{10.32866/001c.21262}
 #'
 #' @section Sample data:
 #' `system.file("extdata/spo", package = "peabiru")` holds a small network

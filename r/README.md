@@ -14,7 +14,10 @@
 Travel-time matrices, accessibility, isochrones and detailed itineraries by
 walking, cycling, driving and public transport, with fares, slope costs and
 scenarios, on networks built from an OpenStreetMap extract, GTFS public
-transport feeds and an optional elevation raster. The routing engine is written in Rust and runs inside
+transport feeds and an optional elevation raster. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
+interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
+Java code the fare calculator and parts of the trip planner are translated.
+The routing engine is written in Rust and runs inside
 the R session: no Java is needed, and the network is built once, in memory,
 and reused by every call. The same engine is behind the Python and
 JavaScript packages and the command-line tool of the same name.
@@ -108,8 +111,14 @@ geometry and `geom_sf()` maps.
 ## Licence and credits
 
 MIT. The routing model follows Conveyal's R5 (MIT), from which the routing
-logic is ported; the sample
-network is cut from the São Paulo sample data of the r5r project (Ipea).
+logic is ported. The functions are modelled on those of
+[r5r](https://github.com/ipea/r5r) (MIT, Ipea): the fare calculator and parts
+of the trip planner are translated from its Java code, many functions share
+their names, arguments and result layouts with r5r's, and the sample
+network is cut from the São Paulo sample data of the r5r project.
+
+peabiru is an independent project, not affiliated with or endorsed by
+Conveyal, Ipea or the r5r team.
 
 The notices of the works peabiru derives from are in
 `inst/LICENSE-THIRD-PARTY`. The package's compiled code also contains Rust

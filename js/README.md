@@ -9,7 +9,10 @@ slope costs from an elevation raster and scenarios of car speeds and
 traffic stress.
 
 The routing engine is the Rust core of the peabiru packages for R and
-Python, compiled to WebAssembly. It runs in browsers, in bundlers and in
+Python, compiled to WebAssembly. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
+interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
+Java code the fare calculator and parts of the trip planner are translated.
+It runs in browsers, in bundlers and in
 Node (18 or later), with no server and no Java, and gives the same numbers
 as the native packages.
 
@@ -367,10 +370,15 @@ workers against the calling thread.
 MIT (`LICENSE`) for peabiru's own code; the authors are listed in
 `package.json`. The routing model follows Conveyal's
 [R5](https://github.com/conveyal/r5) (MIT), from which the routing logic is
-ported, with parts from Apache
+ported; the fare calculator and parts of the trip planner are translated
+from the Java code of [r5r](https://github.com/ipea/r5r) (MIT), on whose
+functions the interface is modelled; with parts from Apache
 Commons Math (Apache-2.0; its Mersenne Twister is BSD-3-Clause) and other
 works; their notices are in `LICENSE-THIRD-PARTY`. See the
 [comparison with r5r](https://strategicprojects.github.io/peabiru-routing/js/differences.html)
 for what the package shares with it and what differs. The WebAssembly module
 also contains the Rust crates listed, with their licences, in
 `LICENSE-RUST-CRATES`.
+
+peabiru is an independent project, not affiliated with or endorsed by
+Conveyal, Ipea or the r5r team.

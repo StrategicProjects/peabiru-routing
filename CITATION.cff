@@ -6,7 +6,9 @@ abstract: >-
   peabiru computes travel-time matrices and accessibility on multimodal
   transport networks (walk, bicycle, car and public transport) built from
   OpenStreetMap extracts and GTFS feeds. Its routing engine is a Rust port of
-  Conveyal's R5 and needs no Java runtime. The same engine is distributed as the Rust crate
+  Conveyal's R5, with an interface modelled on r5r (Ipea), from whose Java
+  code the fare calculator and parts of the trip planner are translated, and
+  needs no Java runtime. The same engine is distributed as the Rust crate
   peabiru-core and as the R and Python packages peabiru.
 authors:
   - given-names: André
@@ -47,3 +49,53 @@ keywords:
   - RAPTOR
   - R5
   - Rust
+references:
+  - type: software
+    title: "R5: Rapid Realistic Routing on Real-world and Reimagined networks"
+    authors:
+      - name: Conveyal LLC
+    version: "7.6"
+    license: MIT
+    repository-code: "https://github.com/conveyal/r5"
+    notes: "The routing engine of peabiru is a port of R5 to Rust."
+  - type: article
+    title: "Evidence-based transit and land use sketch planning using interactive accessibility methods on combined schedule and headway-based networks"
+    authors:
+      - family-names: Conway
+        given-names: M. W.
+      - family-names: Byrd
+        given-names: A.
+      - family-names: Linden
+        name-particle: van der
+        given-names: M.
+    journal: "Transportation Research Record"
+    volume: 2653
+    issue: 1
+    start: 45
+    end: 53
+    year: 2017
+    doi: 10.3141/2653-06
+  - type: software
+    title: "r5r"
+    authors:
+      - name: r5r contributors
+    version: "2.5.0"
+    license: MIT
+    repository-code: "https://github.com/ipea/r5r"
+    notes: "The interface of peabiru is modelled on r5r, and its fare calculator and parts of its trip planner are translated from r5r's Java code."
+  - type: article
+    title: "r5r: Rapid Realistic Routing on Multimodal Transport Networks with R5 in R"
+    authors:
+      - family-names: Pereira
+        given-names: R. H. M.
+      - family-names: Saraiva
+        given-names: M.
+      - family-names: Herszenhut
+        given-names: D.
+      - family-names: Braga
+        given-names: C. K. V.
+      - family-names: Conway
+        given-names: M. W.
+    journal: "Findings"
+    year: 2021
+    doi: 10.32866/001c.21262

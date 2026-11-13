@@ -9,7 +9,11 @@
 peabiru computes travel-time matrices and accessibility on multimodal
 transport networks (walking, cycling, driving and public transport) built
 from an [OpenStreetMap](https://www.openstreetmap.org) extract and
-[GTFS](https://gtfs.org) feeds.
+[GTFS](https://gtfs.org) feeds. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
+interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
+Java code the fare calculator and parts of the trip planner are translated.
+peabiru is an independent project, not affiliated with or endorsed by
+Conveyal, Ipea or the r5r team.
 
 The routing engine is written in Rust and runs inside the Python process:
 no Java is needed, the network is built once in memory and reused by every

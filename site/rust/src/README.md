@@ -14,8 +14,10 @@ network in memory from an OpenStreetMap extract (`.pbf`), GTFS public
 transport feeds (`.zip`) and, optionally, an elevation raster (`.tif`), and
 computes travel-time matrices, accessibility, per-trip (expanded and
 arrival) matrices, isochrones, detailed itineraries, fares and Pareto
-frontiers on it, by walking, cycling, driving and public transport. It
-needs no Java runtime, keeps nothing on disk, and spreads the origins of
+frontiers on it, by walking, cycling, driving and public transport. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
+interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
+Java code the fare calculator and parts of the trip planner are translated.
+It needs no Java runtime, keeps nothing on disk, and spreads the origins of
 each query over threads.
 
 The crate is the engine behind four front-ends:
@@ -74,8 +76,14 @@ breaking your code. It may still change before 1.0. The
 ## Credits
 
 The routing model follows Conveyal's [R5](https://github.com/conveyal/r5)
-(MIT, © Conveyal), from which the routing logic is ported. Polygon isochrones port the
+(MIT, © Conveyal), from which the routing logic is ported. The fare calculator and parts of
+the trip planner are translated from the Java code of
+[r5r](https://github.com/ipea/r5r) (MIT, © r5r contributors; developed at
+Ipea). Polygon isochrones port the
 algorithm of the R package isoband (MIT); the exponential of the decay
 functions and other numerics are translated from Apache Commons Math 3 (Apache-2.0),
 and the trigonometry of the raster projections from fdlibm. The
 notices are in `LICENSE-THIRD-PARTY`.
+
+peabiru is an independent project, not affiliated with or endorsed by
+Conveyal, Ipea or the r5r team.

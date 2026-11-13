@@ -1,3 +1,13 @@
+# peabiru (development version)
+
+* Credits: the `Title` and `Description`, the README and the package help
+  page now state up front that the engine is a 'Rust' port of Conveyal's 'R5'
+  routing engine and that the functions are modelled on those of 'r5r'
+  (Ipea), from whose 'Java' code the fare calculator and parts of the trip
+  planner are translated; the reference of 'r5r' (Pereira et al., 2021) is
+  cited; and the README says that peabiru is not affiliated with or endorsed
+  by Conveyal, Ipea or the r5r team. No change in the code.
+
 # peabiru 0.1.0
 
 ## Breaking changes

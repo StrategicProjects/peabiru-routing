@@ -1,6 +1,6 @@
 [package]
 name = "peabiru-cli"
-description = "Command-line tool of the peabiru routing engine: travel-time matrices, accessibility, isochrones, itineraries and fares on OpenStreetMap and GTFS, from CSV to CSV and GeoJSON"
+description = "Command-line tool of the peabiru routing engine, a Rust port of Conveyal's R5 with an interface modelled on r5r: travel-time matrices, accessibility, isochrones, itineraries and fares on OpenStreetMap and GTFS, from CSV to CSV and GeoJSON"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

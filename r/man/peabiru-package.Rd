@@ -23,8 +23,12 @@ inside the R session; no 'Java' is needed. What the package does not
 support is an error that says so, never silently ignored.
 }
 \details{
-The routing model follows that of Conveyal's 'R5' engine; see the
-references, and the article "Compared with r5r" on the package website.
+The routing engine is a 'Rust' port of Conveyal's 'R5' routing engine, and
+the functions are modelled on those of the 'r5r' package (Ipea), from
+whose 'Java' code the fare calculator and parts of the trip planner are
+translated; see the references, and the article "Compared with r5r" on
+the package website. peabiru is an independent project, not affiliated
+with or endorsed by Conveyal, Ipea or the r5r team.
 }
 \section{Class of the results}{
 
@@ -89,10 +93,15 @@ transit routing. \emph{Transportation Science}, 49(3), 591-604.
 Geisberger, R., Sanders, P., Schultes, D. and Vetter, C. (2012). Exact
 routing in large road networks using contraction hierarchies.
 \emph{Transportation Science}, 46(3), 388-404. \doi{10.1287/trsc.1110.0401}
+
+Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V. and Conway,
+M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport Networks
+with R5 in R. \emph{Findings}. \doi{10.32866/001c.21262}
 }
 \seealso{
 Useful links:
 \itemize{
+  \item \url{https://strategicprojects.github.io/peabiru-routing/r/}
   \item \url{https://github.com/StrategicProjects/peabiru-routing}
   \item Report bugs at \url{https://github.com/StrategicProjects/peabiru-routing/issues}
 }
@@ -115,7 +124,8 @@ Other contributors:
 \itemize{
   \item Conveyal LLC ('R5' routing engine, from which the routing logic is ported) [copyright holder]
   \item The Apache Software Foundation ('Apache Commons Math', parts of which are translated in the 'Rust' core) [copyright holder]
-  \item Ipea - Institute for Applied Economic Research (Sample data, taken from the 'r5r' package) [copyright holder]
+  \item Ipea - Institute for Applied Economic Research ('r5r' package: 'Java' code translated in the 'Rust' core (fare calculator, parts of the trip planner), the function names, arguments and result layouts, and the sample data) [copyright holder]
+  \item r5r contributors (Copyright holders named in the license of the 'r5r' package) [copyright holder]
   \item Makoto Matsumoto (Mersenne Twister generator, translated in the 'Rust' core) [copyright holder]
   \item Takuji Nishimura (Mersenne Twister generator, translated in the 'Rust' core) [copyright holder]
   \item CERN - European Organization for Nuclear Research (Table of prime numbers from the 'Colt' library, in the 'Rust' core) [copyright holder]

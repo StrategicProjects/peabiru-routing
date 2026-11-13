@@ -9,7 +9,10 @@
 
 The Rust engine of [peabiru](https://github.com/StrategicProjects/peabiru-routing):
 multimodal routing on street networks from OpenStreetMap and public
-transport from GTFS, in memory, without a Java runtime. It builds a network
+transport from GTFS, in memory, without a Java runtime. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
+interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
+Java code the fare calculator and parts of the trip planner are translated.
+It builds a network
 from one `.pbf` extract, any number of GTFS feeds and, optionally, an
 elevation raster, and computes
 
@@ -102,9 +105,14 @@ is an error.
 
 MIT (`LICENSE-MIT`). The routing model follows Conveyal's
 [R5](https://github.com/conveyal/r5) (MIT), from which the routing logic is
-ported. Polygon isochrones are a
+ported. The fare calculator and parts of the trip planner are translated
+from the Java code of [r5r](https://github.com/ipea/r5r) (MIT, © r5r
+contributors; developed at Ipea). Polygon isochrones are a
 translation of the isoband algorithm (MIT). `fastmath.rs`,
 `fastmath_trig.rs` and part of `jcompat.rs` are translations of parts of
 Apache Commons Math 3.0 (Apache-2.0), and `fdlibm.rs` of fdlibm 5.3. The
 notices and licence texts of these and of the other works the crate derives
 from are in `LICENSE-THIRD-PARTY`.
+
+peabiru is an independent project, not affiliated with or endorsed by
+Conveyal, Ipea or the r5r team.

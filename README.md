@@ -22,7 +22,11 @@ A multimodal routing engine written in Rust, for R, Python, JavaScript, Rust
 and the shell. It builds a network in memory from an OpenStreetMap extract,
 GTFS feeds and, optionally, an elevation raster, and computes travel-time
 matrices, accessibility, isochrones, detailed itineraries and fares by
-walking, cycling, driving and public transport. It needs no Java runtime,
+walking, cycling, driving and public transport. It is a Rust port of
+Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
+interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
+Java code the fare calculator and parts of the trip planner are translated.
+It needs no Java runtime,
 keeps nothing on disk, and the network is built once and shared by every
 query and thread.
 
@@ -259,7 +263,12 @@ site/build.sh                                       # documentation sites, into 
 peabiru is distributed under the MIT licence ([`LICENSE-MIT`](LICENSE-MIT)).
 To cite it, see [`CITATION.cff`](CITATION.cff).
 
-Its routing logic is ported from R5 (MIT, © Conveyal). Polygon isochrones
+Its routing logic is ported from [R5](https://github.com/conveyal/r5) (MIT, © Conveyal).
+The fare calculator and parts of the trip planner are translated from
+the Java code of [r5r](https://github.com/ipea/r5r) (MIT, © r5r contributors;
+developed at Ipea), and many functions share their names, arguments and
+result layouts with r5r's.
+Polygon isochrones
 port the algorithm of isoband (MIT), and parts of Apache Commons Math 3
 (Apache-2.0) and fdlibm 5.3 are translated, so that the numbers are the
 same on every platform.
@@ -268,6 +277,10 @@ derives from are in [`LICENSE-THIRD-PARTY`](LICENSE-THIRD-PARTY), which is
 distributed with every package. The sample network in the R and Python
 packages contains map data © OpenStreetMap contributors, under the
 [Open Database License](https://www.openstreetmap.org/copyright).
+
+peabiru is an independent project, not affiliated with or endorsed by
+Conveyal, Ipea or the r5r team.
+The port was written with the assistance of AI coding tools.
 
 The Python extension module, the R package's library, the WebAssembly module
 of the JavaScript package and the command-line tool also contain code from

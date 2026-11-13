@@ -12,6 +12,9 @@ matrices, accessibility, minute-by-minute (expanded) and arrival-time
 matrices, isochrones, detailed itineraries and transit fares, by walking,
 cycling, driving and public transport, with slope costs from an elevation
 raster and scenarios of car speeds and traffic stress.
+It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
+interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
+Java code the fare calculator and parts of the trip planner are translated.
 
 The routing engine is written in Rust and runs inside the Python process:
 no Java is needed, the network is built once in memory and reused by every
@@ -101,8 +104,11 @@ uv pip install "mkdocs>=1.6" "mkdocs-material>=9.5" "mkdocstrings[python]>=0.26"
 
 ## The engine
 
-The engine is written in Rust; its routing model follows Conveyal's
-[R5](https://github.com/conveyal/r5) (MIT). How the two relate, and how the
+The engine is written in Rust; it is a port of Conveyal's
+[R5](https://github.com/conveyal/r5) (MIT), and the fare calculator and
+parts of the trip planner are translated from the Java code of
+[r5r](https://github.com/ipea/r5r) (MIT), on whose functions the
+interface is modelled. How they relate, and how the
 results are checked, is described in
 [the comparison with r5r](https://strategicprojects.github.io/peabiru-routing/python/coming-from-r5/).
 
@@ -116,9 +122,12 @@ OpenStreetMap contributors, available under the
 
 ## License
 
-MIT. peabiru ports R5 (MIT, Conveyal) and parts of Apache Commons Math
-(Apache-2.0); their notices and licence texts are in `LICENSE-THIRD-PARTY`,
+MIT. peabiru ports R5 (MIT, Conveyal), parts of r5r (MIT, r5r contributors)
+and parts of Apache Commons Math (Apache-2.0); their notices and licence texts are in `LICENSE-THIRD-PARTY`,
 shipped with the package. The compiled extension module also contains code
 from the Rust crates pyo3, miniz_oxide and others (MIT, Apache-2.0 and
 similar licences); their licences are in `LICENSE-RUST-CRATES`, also shipped
 with the package.
+
+peabiru is an independent project, not affiliated with or endorsed by
+Conveyal, Ipea or the r5r team.

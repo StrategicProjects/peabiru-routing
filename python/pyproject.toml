@@ -6,7 +6,7 @@ build-backend = "maturin"
 
 [project]
 name = "peabiru"
-description = "Multimodal routing on OpenStreetMap and GTFS networks: travel-time matrices and accessibility, with a Rust engine and no Java"
+description = "Multimodal routing on OpenStreetMap and GTFS networks, a Rust port of Conveyal's R5 routing engine with an interface modelled on r5r: travel-time matrices and accessibility, no Java"
 readme = "README.md"
 license = "MIT AND Apache-2.0 AND BSD-3-Clause"
 license-files = ["LICENSE-MIT", "LICENSE-THIRD-PARTY", "LICENSE-RUST-CRATES"]
