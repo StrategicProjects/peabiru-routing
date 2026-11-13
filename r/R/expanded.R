@@ -11,7 +11,7 @@
 #'
 #' A street mode alone is an error: use [travel_time_matrix()], whose
 #' travel times do not depend on the departure minute. At most 5,000
-#' destinations are accepted (R5's limit).
+#' destinations are accepted.
 #'
 #' With more than one 'GTFS' feed, a few trips can differ between operating
 #' systems (another stop or route with the same travel time): the feeds are

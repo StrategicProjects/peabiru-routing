@@ -174,7 +174,7 @@ def travel_time_matrix(
     A bicycle or car trip to public transport goes on on foot from wherever
     the vehicle got, within the same ``max_bike_time`` or ``max_car_time``,
     and the trip without public transport keeps those walking ends too.
-    Egress by bicycle or car is searched from every stop with R5's defaults
+    Egress by bicycle or car is searched from every stop with fixed limits
     (up to 5 km by bicycle at any level of traffic stress, up to 30 minutes
     by car) and must stay within ``max_bike_time`` or ``max_car_time``.
 
@@ -259,9 +259,10 @@ def travel_time_matrix(
         search from the origins (the trip without public transport, access
         by bicycle or car) but not the egress from the stops, and a network
         with elevation is routed without its slope costs, with a warning. A
-        car speed that R5's 16-bit cm/s would turn into 0 or less, a polygon
-        that is not valid, and ties between polygons that peabiru cannot
-        settle exactly as R5 does are errors.
+        car speed that would become 0 or less, or pass the range of the
+        16-bit cm/s speeds are kept in, a polygon that is not valid, and a
+        tie with no winner (two polygons of the same priority and different
+        scales that overlap a way by the same length) are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
@@ -296,7 +297,7 @@ def travel_time_matrix(
 
     Notes
     -----
-    The routing is a port of Conveyal's R5 7.6. With a ``seed``, the Monte
+    With a ``seed``, the Monte
     Carlo draws of frequency-based GTFS are reproducible.
 
     Examples
@@ -534,9 +535,10 @@ def accessibility(
         search from the origins (the trip without public transport, access
         by bicycle or car) but not the egress from the stops, and a network
         with elevation is routed without its slope costs, with a warning. A
-        car speed that R5's 16-bit cm/s would turn into 0 or less, a polygon
-        that is not valid, and ties between polygons that peabiru cannot
-        settle exactly as R5 does are errors.
+        car speed that would become 0 or less, or pass the range of the
+        16-bit cm/s speeds are kept in, a polygon that is not valid, and a
+        tie with no winner (two polygons of the same priority and different
+        scales that overlap a way by the same length) are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
@@ -570,8 +572,9 @@ def accessibility(
 
     Notes
     -----
-    The decay functions are those of Conveyal's R5 7.6, and use the
-    ``FastMath.exp()`` of Apache Commons Math that R5 calls.
+    The weights are computed with a table-based exponential (a translation
+    of ``FastMath.exp()`` of Apache Commons Math), so the sums are the
+    same, to the last bit, on every machine.
 
     Examples
     --------
@@ -709,7 +712,7 @@ def expanded_travel_time_matrix(
     [`travel_time_matrix()`][peabiru.travel_time_matrix] for street modes).
     A trip without public transport has the street mode as ``routes``
     (``"[WALK]"``, ``"[BICYCLE]"`` or ``"[CAR]"``). At most 5,000
-    destinations are accepted, R5's limit.
+    destinations are accepted.
 
     Parameters
     ----------
@@ -780,9 +783,10 @@ def expanded_travel_time_matrix(
         search from the origins (the trip without public transport, access
         by bicycle or car) but not the egress from the stops, and a network
         with elevation is routed without its slope costs, with a warning. A
-        car speed that R5's 16-bit cm/s would turn into 0 or less, a polygon
-        that is not valid, and ties between polygons that peabiru cannot
-        settle exactly as R5 does are errors.
+        car speed that would become 0 or less, or pass the range of the
+        16-bit cm/s speeds are kept in, a polygon that is not valid, and a
+        tie with no winner (two polygons of the same priority and different
+        scales that overlap a way by the same length) are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional
@@ -918,7 +922,7 @@ def arrival_travel_time_matrix(
 
     The mode must include public transport, as in
     [`expanded_travel_time_matrix()`][peabiru.expanded_travel_time_matrix];
-    at most 5,000 destinations are accepted, R5's limit.
+    at most 5,000 destinations are accepted.
 
     Parameters
     ----------
@@ -989,9 +993,10 @@ def arrival_travel_time_matrix(
         search from the origins (the trip without public transport, access
         by bicycle or car) but not the egress from the stops, and a network
         with elevation is routed without its slope costs, with a warning. A
-        car speed that R5's 16-bit cm/s would turn into 0 or less, a polygon
-        that is not valid, and ties between polygons that peabiru cannot
-        settle exactly as R5 does are errors.
+        car speed that would become 0 or less, or pass the range of the
+        16-bit cm/s speeds are kept in, a polygon that is not valid, and a
+        tie with no winner (two polygons of the same priority and different
+        scales that overlap a way by the same length) are errors.
     draws_per_minute : int, default 5
         The Monte Carlo draws per departure minute for frequency-based GTFS.
     seed : int, optional

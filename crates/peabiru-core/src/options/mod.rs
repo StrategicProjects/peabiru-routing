@@ -140,7 +140,7 @@ pub struct TripOptionsParams {
     /// The fare structure (default `None`): needed for the fare
     /// criterion, and gives every option its fare.
     pub fare_structure: Option<Arc<FareStructure>>,
-    /// Highest fare (default infinity), read as a Java `float` as the
+    /// Highest fare (default infinity), read as a 32-bit float as the
     /// other functions do; a finite value needs a `fare_structure`. The
     /// options are the trips not dominated among those within the limit.
     pub max_fare: f64,
@@ -295,8 +295,8 @@ impl TripOption {
 /// dominated on the chosen criteria at each departure minute of the
 /// window, merged over the window into options.
 ///
-/// At each minute the result is the exact Pareto set of the trips with
-/// R5's network semantics (the direct trip by the street mode, and public
+/// At each minute the result is the exact Pareto set of the trips the
+/// network allows (the direct trip by the street mode, and public
 /// transport trips from the stops of the access search to those of the
 /// egress search, boarding at least 60 s after reaching a stop), one trip
 /// per vector of values: a trip is dominated when another is no worse on
@@ -314,7 +314,7 @@ impl TripOption {
 /// `detailed_itineraries()`.
 ///
 /// Errors: invalid parameters, the fare criterion without a fare
-/// structure, cancellation, and a car search that R5 does not route
+/// structure, cancellation, and a car search that cannot be routed
 /// reproducibly (see [`detailed_itineraries`](crate::detailed_itineraries)).
 pub fn trip_options(
     network: &crate::Network,
@@ -335,8 +335,8 @@ pub fn trip_options(
 /// `last_departure`, `description`) and the leg's (`segment`, `mode`,
 /// `cumulative_fare` with a fare structure, `segment_duration`, `wait`,
 /// `distance`, `route`, the four id columns with `osm_link_ids`, and the
-/// `geometry` as WKT unless `drop_geometry`). Numbers are written as Java
-/// prints a `double`, as the other files of the package are. `ids` and
+/// `geometry` as WKT unless `drop_geometry`). Numbers are written as in
+/// the files of [`CsvOutput`](crate::CsvOutput). `ids` and
 /// `points` are those of the pairs given to [`trip_options`].
 ///
 /// The file names are built from the ids: an id holding a path separator

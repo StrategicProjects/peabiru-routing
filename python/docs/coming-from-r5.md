@@ -14,6 +14,17 @@ move a script over.
   r5r 2.5.0 runs: the street network built from OpenStreetMap, the transit
   layer built from GTFS, the searches, the Monte Carlo draws of
   frequency-based feeds, the decay functions, the fare router.
+- **The fine print of the model.** Details that other pages state as plain
+  facts about peabiru are R5's: the multi-criteria router (McRAPTOR) used
+  with fares and for alternative itineraries, and its sampling of departure
+  times; the fare rules (R5's rule-based in-routing fare calculator), with
+  fares read as 32-bit floats; the levels of traffic stress; the limits
+  (5,000 destinations for the expanded and arrival matrices, egress
+  searched up to 5 km by bicycle or 30 minutes by car); elevations in
+  16-bit decimetres and car speeds in 16-bit centimetres per second; the
+  checks of the GTFS feeds (those of gtfs-lib, R5's GTFS library); and the
+  numbers in the files of `output_dir`, written as Java writes a `double`
+  (`2.0`, `1.0E-4`).
 - **The vocabulary.** The functions peabiru has in common with r5r have
   the same names, and their arguments the same names, order and defaults,
   apart from the items listed below.

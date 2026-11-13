@@ -114,7 +114,7 @@ pub(crate) enum FeedCheck {
 }
 
 /// The public transport of a network: the stops, trip patterns and
-/// timetables of its GTFS feeds, loaded as R5 7.6 loads them, with each stop
+/// timetables of its GTFS feeds, with each stop
 /// linked to the street network it was built with. Made by
 /// [`build_from_dir`](crate::build_from_dir), together with that street
 /// network; read-only once built.
@@ -169,8 +169,7 @@ pub(crate) struct RouteInfo {
     pub route_type: i32,
 }
 
-/// Trips left out of the timetable while loading, by reason. R5 leaves out
-/// the same trips (most of them without a word).
+/// Trips left out of the timetable while loading, by reason.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct DroppedTrips {
@@ -521,8 +520,7 @@ fn route_info(route: &crate::gtfs::feed::Route, agencies: &BTreeMap<&str, &str>)
 
 impl TransitLayer {
     /// The id of each feed, in loading order: the `feed_id` of its
-    /// `feed_info.txt`, or else the file name without `.zip` (as R5 names
-    /// them). Empty when the network has no public transport.
+    /// `feed_info.txt`, or else the file name without `.zip`. Empty when the network has no public transport.
     pub fn feed_ids(&self) -> &[String] {
         &self.feed_ids
     }
@@ -1145,8 +1143,8 @@ pub(crate) fn has_suffix(name: &std::ffi::OsStr, suffix: &str) -> bool {
 }
 
 /// The `.zip` files of a directory (lower-case extension only)
-/// in the order the operating system lists them, which is the order R5
-/// (Java `File.listFiles`) loads feeds in.
+/// in the order the operating system lists them, which is the order
+/// [`build_from_dir`](crate::build_from_dir) loads feeds in.
 pub fn gtfs_files_in_dir(
     dir: impl AsRef<std::path::Path>,
 ) -> std::io::Result<Vec<std::path::PathBuf>> {

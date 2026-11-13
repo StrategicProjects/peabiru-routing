@@ -113,11 +113,11 @@ a higher percentile beyond the limit is missing (`<NA>`).
 Instead of `"TRANSIT"`, `mode` can name some of the transit modes
 (`"TRAM"`, `"SUBWAY"`, `"RAIL"`, `"BUS"`, `"FERRY"`, `"CABLE_CAR"`,
 `"GONDOLA"`, `"FUNICULAR"`), and its street mode, walking by default, can be
-`"BICYCLE"` or `"CAR"`; `mode_egress` is the mode from the last stop. As in
-R5, a bicycle or car trip to the stops goes on on foot from where the
+`"BICYCLE"` or `"CAR"`; `mode_egress` is the mode from the last stop.
+A bicycle or car trip to the stops goes on on foot from where the
 vehicle got, within the same `max_bike_time` or `max_car_time`; egress by
 bicycle or car is limited by `max_bike_time` or `max_car_time` (and searched
-up to 5 km by bicycle or 30 minutes by car, as R5 does):
+up to 5 km by bicycle or 30 minutes by car):
 
 ```python
 kw = dict(departure_datetime=dt.datetime(2019, 5, 13, 14, 0), seed=1, n_threads=2)
@@ -280,8 +280,8 @@ True
 The files hold the columns
 of the result (accessibility files also keep `cutoff` under
 `"fixed_exponential"`, as the placeholder `0`), fields holding `,` or `"`
-quoted, a missing value as an empty field, decimals as Java writes them
-(`2.0`, `1.0E-4`), lines ended by `\n` (`\r\n` on Windows). An origin with
+quoted, a missing value as an empty field, decimals written as in `2.0`
+and `1.0E-4`, lines ended by `\n` (`\r\n` on Windows). An origin with
 no row gets no file (accessibility writes one for every origin). The file
 names are built from the ids, so an id that cannot name a file in the
 directory (one with a path separator `/` or `\`, or NUL, and on Windows

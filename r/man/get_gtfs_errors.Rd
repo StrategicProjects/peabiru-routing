@@ -21,8 +21,8 @@ concerned, for duplicate keys and suspect stop locations) and
 Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
 \description{
-The errors that the 'GTFS' library of 'R5' (Conveyal's gtfs-lib) reports
-when it reads the network's feeds. \code{\link[=build_network]{build_network()}} refuses to build a
+The errors found in the network's 'GTFS' feeds, as the validator
+'gtfs-lib' (Conveyal) reports them. \code{\link[=build_network]{build_network()}} refuses to build a
 network when any error has priority \code{"HIGH"}; this lists them, also for
 a directory a network could not be built from.
 }

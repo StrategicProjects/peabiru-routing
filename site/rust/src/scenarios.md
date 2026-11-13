@@ -37,8 +37,7 @@ polygons) are rejected with `RouteError::Invalid`.
 
 The scenario applies to the street searches from the origins
 (direct trips and the access to public transport); the egress from the
-stops and the walking transfers use the network as built, because R5 copies
-them from it. Detailed itineraries route every street leg on the scenario.
+stops and the walking transfers use the network as built. Detailed itineraries route every street leg on the scenario.
 
 ## Example
 

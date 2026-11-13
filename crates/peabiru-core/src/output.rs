@@ -84,8 +84,7 @@ const MIN_CHUNK_ORIGINS: usize = 64;
 /// Writes routing results to a directory, one CSV file per origin.
 ///
 /// Each origin's table is saved to a file of its own as soon as the origin
-/// is routed, and nothing is kept in memory (the ported
-/// `R5DataFrameProcess.tryRunProcess` and `RDataFrame.saveToCsv`):
+/// is routed, and nothing is kept in memory:
 ///
 /// - the file is `<output_dir>/from_<origin id>.csv` (plain concatenation,
 ///   the id is not sanitized), written only when the origin has at least
@@ -94,8 +93,9 @@ const MIN_CHUNK_ORIGINS: usize = 64;
 ///   each ended by the platform's line separator (`\n`, `\r\n` on Windows);
 /// - a field holding `,`, `"`, `\n` or `\r` is quoted, with `"` doubled; a
 ///   missing value is an empty field;
-/// - integers are written in decimal, doubles as Java's
-///   `Double.toString` writes them (`0.0`, `2.1`, `1.0E-4`).
+/// - integers are written in decimal, doubles with at least one decimal
+///   and, below 0.001 or from 10,000,000, with an exponent (`0.0`, `2.1`,
+///   `1.0E-4`).
 ///
 /// The values are the tables as routed, with nothing done to them
 /// afterwards: the WALK origin/destination swap is not made, and the

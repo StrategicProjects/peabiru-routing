@@ -118,14 +118,13 @@ impl Network {
 }
 
 /// Read an OpenStreetMap `.pbf` file and build the street network for
-/// walking, cycling and driving, as R5 7.6 builds it, without
+/// walking, cycling and driving, without
 /// public transport ([`Network::transit`] is `None`; see [`build_from_dir`]
 /// for a network with GTFS feeds).
 ///
 /// A file that cannot be read or decoded, or that gives no street edge at
 /// all (empty, a header only, or no routable way), is an error naming the
-/// file. R5 fails on such a file too, with an
-/// `ArrayIndexOutOfBoundsException` from `StreetLayer.loadFromOsm`.
+/// file.
 /// [`BuildOptions::elevation`] needs a raster, so it is not used here
 /// (see [`build_from_bytes_with_elevation`]).
 pub fn build_network(
@@ -145,7 +144,7 @@ pub fn build_network(
 /// Files are recognised by their extension in lower case only (`.pbf`,
 /// `.zip`); with several `.pbf` files the last one listed is
 /// used, and the feeds are loaded in the order the operating system lists
-/// them, which is the order R5 loads them in. A directory without GTFS
+/// them (see [`build_from_bytes`]). A directory without GTFS
 /// feeds gives a network without public transport ([`Network::transit`] is
 /// `None`), good for street routing only.
 ///
@@ -173,7 +172,7 @@ pub fn build_from_dir(dir: impl AsRef<Path>, opts: &BuildOptions) -> Result<Netw
 /// The feeds are loaded in the order of `feeds`. That order matters: the
 /// stops, patterns and, where two feeds offer equally good trips, the
 /// routes chosen follow it. [`build_from_dir`] loads them in the order the
-/// operating system lists the directory (as R5 does), which differs from
+/// operating system lists the directory, which differs from
 /// one file system to another; to reproduce a network built from a
 /// directory, pass the feeds in the order of its
 /// [`TransitLayer::feed_reports`].
@@ -221,18 +220,19 @@ pub fn build_from_bytes(
 /// or 32 or 64-bit floats, uncompressed or compressed with LZW,
 /// Deflate or PackBits, north up, georeferenced by a tie point and a pixel
 /// scale (what GDAL writes), in WGS 84 longitude and latitude (EPSG:4326)
-/// or in another system whose GeoTools coordinate transform (the one R5
-/// uses) peabiru reproduces: SIRGAS 2000 (4674), SAD69 (4618), Corrego
+/// or in another system whose coordinate transform peabiru computes
+/// itself: SIRGAS 2000 (4674), SAD69 (4618), Corrego
 /// Alegre 1970-72 (4225), their UTM zones used in Brazil, SIRGAS 2000 /
 /// Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) and WGS 84 /
 /// Pseudo-Mercator (3857). Other rasters are an error that says what to
-/// change. In a system other than EPSG:4326, R5 reads one pixel or the
-/// other for a sample within nanometres of the boundary between two pixels
-/// of different values (or of the raster's edge), depending on the machine
-/// it runs on; peabiru reads the one Java's `StrictMath` gives, on every
+/// change. In a system other than EPSG:4326, the pixel read for a sample
+/// within nanometres of the boundary between two pixels of different
+/// values (or of the raster's edge) depends on the last bits of the
+/// projection's sines and cosines; peabiru computes them with its own
+/// fdlibm functions, so it reads the same pixel on every
 /// machine, and counts such samples in
 /// [`StreetNetwork::elevation_warnings`] (and so in
-/// [`Network::build_warnings`]). A sample that `StrictMath` itself puts on
+/// [`Network::build_warnings`]). A sample that falls on
 /// the outer edge (inside the envelope, past the last pixel) is an error.
 pub fn build_from_bytes_with_elevation(
     pbf: &[u8],
@@ -368,7 +368,7 @@ pub fn street_accessibility(
 ///
 /// [`RouteError::Invalid`] when the network has no public transport, the
 /// parameters are invalid (see [`TransitParams::validate`]) or there are
-/// more than 5,000 destinations (R5's limit for paths);
+/// more than 5,000 destinations;
 /// [`RouteError::Cancelled`] when `p.cancel` is cancelled before every
 /// origin is done.
 pub fn expanded_travel_time_matrix(
@@ -428,7 +428,7 @@ pub fn arrival_travel_time_matrix(
 ///
 /// Most of a first call from a few origins is linking the grid's cells to
 /// the streets. The network keeps those links for later surfaces on the
-/// same grid and mode (as R5 keeps its linkages; public transport
+/// same grid and mode (public transport
 /// surfaces walk, so they share the walking ones): up to 9 grids and
 /// modes, the least recently used dropped first beyond 64 MiB, at 40
 /// bytes a cell (6.2 MiB for the Porto Alegre sample at zoom 12, 0.4 MiB
@@ -476,7 +476,8 @@ pub fn street_edges(network: &Network) -> StreetEdges {
 /// Detailed itineraries between each origin and the destination of the
 /// same index (`origins[i]` to `destinations[i]`, `(lat, lon)` degrees; pair the
 /// points beforehand for every origin to every destination): per pair its
-/// itineraries, in R5's order, none when no trip is found.
+/// itineraries (the trip by the street mode alone first, then by number
+/// of legs and duration), none when no trip is found.
 ///
 /// Without public transport (`p.transit_modes` empty) the itinerary is the
 /// street path by `p.mode`. With it, the network must have public transport;
@@ -486,7 +487,7 @@ pub fn street_edges(network: &Network) -> StreetEdges {
 /// `p.fare_structure` is given.
 /// Errors: invalid parameters, a network with frequency-based trips,
 /// cancellation, and the rare cases noted in the error
-/// message that R5 does not route reproducibly. The notes of
+/// message that cannot be routed reproducibly. The notes of
 /// [`detailed_itineraries_noted`] are dropped.
 pub fn detailed_itineraries(
     network: &Network,
@@ -515,7 +516,7 @@ pub fn detailed_itineraries_noted(
 }
 
 /// The trade-off between travel time and fare. For every cutoff of `fare_cutoffs`, in the order given, the
-/// travel times are those of R5's fare router (McRAPTOR, see
+/// travel times are those of the multi-criteria router (McRAPTOR, see
 /// [`TransitParams::fare_structure`]) with `max_fare` set to the cutoff
 /// (`p.max_fare` is not used); a destination and percentile gets a row at
 /// each cutoff where its travel time differs from that of the previous
@@ -554,7 +555,7 @@ pub fn pareto_frontier(
 /// Where each point (`(lat, lon)` degrees) snaps to the streets `mode` may
 /// use: the nearest point of an edge within
 /// `radius_m` metres, looked for first within 300 m when `radius_m` is
-/// larger (R5 `StreetLayer.findSplit`). `None` for a point with no such
+/// larger. `None` for a point with no such
 /// edge. [`RouteError::Invalid`] for a negative or non-finite radius.
 pub fn find_snap(
     network: &Network,
@@ -566,10 +567,10 @@ pub fn find_snap(
 }
 
 /// The street vertices at an end of some edge (see [`StreetVertices`]),
-/// in the iteration order of the Java `HashSet<Integer>` they would be
-/// collected in while walking the edges, which makes the order the same
-/// on every platform: by bucket of the set's final table (the hash of
-/// an `Integer` spread as `h ^ (h >>> 16)`), and within a bucket in the
+/// in the iteration order of the hash set they are
+/// collected in while walking the edges, which is the same
+/// on every platform: by bucket of the set's final table (the vertex
+/// index spread as `h ^ (h >>> 16)`), and within a bucket in the
 /// order they were added.
 pub fn street_vertices(network: &Network) -> StreetVertices {
     crate::inspect::street_vertices(&network.street)
@@ -588,7 +589,7 @@ pub fn transit_stops(network: &Network) -> TransitStops {
 
 /// The transit routes of a network (see [`TransitRoutes`]), none for a
 /// network without public transport. [`RouteError::Invalid`] for a route
-/// type R5 does not know.
+/// type that is not a GTFS route type (basic or extended).
 pub fn transit_routes(network: &Network) -> Result<TransitRoutes, RouteError> {
     match network.transit() {
         Some(layer) => crate::inspect::transit_routes(&network.street, layer),
@@ -614,9 +615,9 @@ pub fn transit_service_dates(network: &Network) -> Result<Vec<u32>, RouteError> 
 /// "MODE"`), per agency id (`"AGENCY_ID"`, or `"AGENCY"`) or name
 /// (`"AGENCY_NAME"`), or a single `GENERIC` type (anything else); every
 /// route, type and transfer between two types costs `base_fare`, read as a
-/// Java `float`. The routes are in the network's route order (none
-/// without public transport), the types and transfers in the order of
-/// Java `HashSet`s.
+/// 32-bit float. The routes are in the network's route order (none
+/// without public transport), the types and transfers in a fixed order
+/// (that of a hash set of their names, not alphabetical).
 pub fn setup_fare_structure(
     network: &Network,
     base_fare: f64,

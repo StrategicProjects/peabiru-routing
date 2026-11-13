@@ -37,10 +37,10 @@ JavaScript packages and the command-line tool of the same name.
 
 
 The routing functions also take scenarios of car speeds (`new_carspeeds`,
-`carspeed_scale`) and of traffic stress for cyclists (`new_lts`). What the
-engine cannot compute exactly as R5 does, such as R5's own fare calculators
-(a fare structure with a `type`), stops with an error; nothing is silently
-ignored.
+`carspeed_scale`) and of traffic stress for cyclists (`new_lts`). What
+peabiru does not support stops with an error that says so, for instance a
+fare structure that names a fare calculator (a `type`) instead of fare
+rules; nothing is silently ignored.
 
 ## Installation
 
@@ -94,7 +94,8 @@ geometry and `geom_sf()` maps.
 
 ## Licence and credits
 
-MIT. The routing logic is ported from R5 (MIT, © Conveyal); the sample
+MIT. The routing model follows Conveyal's R5 (MIT), from which the routing
+logic is ported; the sample
 network is cut from the São Paulo sample data of the r5r project (Ipea).
 
 The notices of the works peabiru derives from are in

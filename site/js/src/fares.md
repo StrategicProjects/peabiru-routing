@@ -3,7 +3,7 @@
 A *fare structure* describes how much each ride costs and which transfers
 are discounted; the routing functions take it as
 `fareStructure`. With one, public transport is
-routed with R5's multi-criteria router (McRAPTOR), which keeps at each stop
+routed with the multi-criteria router (McRAPTOR), which keeps at each stop
 the trips that are faster or cheaper than the others, over
 `timeWindow * drawsPerMinute` departure times sampled in the window.
 
@@ -46,7 +46,7 @@ cost more.
 {{#include ../examples/fares.mjs:files}}
 ```
 
-`monetary_cost` is the cutoff as R5 reads it, a Java `float` (4.4 is
+`monetary_cost` is the cutoff as the router reads it, a 32-bit float (4.4 is
 4.400000095367432).
 
 ## Trip options

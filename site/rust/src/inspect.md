@@ -15,8 +15,8 @@ These functions report what the network holds (the packages'
 | `transit_service_dates(network)` | the dates on which some service runs |
 | `network.transit()?.n_services_active_on(date)` | how many services run on a date |
 
-The rows come in R5's order, which for the street vertices is that of a
-Java `HashSet`, reproduced.
+The rows come in a fixed order, the same on every machine (for the street
+vertices, that of a hash set of their indices, not ascending).
 
 ## GTFS errors
 

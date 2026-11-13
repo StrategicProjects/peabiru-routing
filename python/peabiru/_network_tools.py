@@ -71,7 +71,7 @@ def find_snap(
     pandas.DataFrame
         ``point_id``, ``lat`` and ``lon`` (the points), ``snap_lat`` and
         ``snap_lon`` (where they snap), ``distance`` (metres, haversine on
-        R5's sphere of radius 6,367,450 m) and ``found``. Points that do not
+        a sphere of radius 6,367,450 m) and ``found``. Points that do not
         snap have NaN coordinates and distance and ``found`` False.
 
     Examples
@@ -112,7 +112,7 @@ def find_snap(
 def street_network_bbox(network: Network, output: str = "polygon") -> Any:
     """The bounding box of the street network.
 
-    R5's envelope of the street layer, which covers every OpenStreetMap node of the ways streets were made from
+    The envelope of the street layer, which covers every OpenStreetMap node of the ways streets were made from
     (it can be a little larger than the box of the edges of
     [`street_network_to_sf()`][peabiru.street_network_to_sf]).
 
@@ -171,7 +171,7 @@ def street_network_to_sf(network: Network) -> Dict[str, Any]:
 
     The vertices at the ends of street edges and every directed street edge
     (the connectors of transit stops and park-and-rides left out), in the
-    order of R5's street layer.
+    order they have in the network.
 
     Parameters
     ----------
@@ -436,7 +436,7 @@ def check_transit_availability(
 def get_gtfs_errors(network: Union[Network, PathLike]) -> pd.DataFrame:
     """The errors gtfs-lib reports in the network's GTFS feeds.
 
-    The errors that R5's GTFS library (Conveyal's gtfs-lib) reports when it
+    The errors that the validator gtfs-lib (Conveyal) reports when it
     reads the feeds, with every check of gtfs-lib's table loaders and of its
     post-load validation. [`build_network()`][peabiru.build_network] refuses
     feeds with errors of priority ``"HIGH"``; this function lists them, from

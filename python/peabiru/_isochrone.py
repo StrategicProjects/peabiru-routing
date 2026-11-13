@@ -192,8 +192,9 @@ def isochrone(
 
     Notes
     -----
-    The travel times are those of the routing engine (a port of Conveyal's
-    R5 7.6). The polygons are contoured with the isoband algorithm, whose
+    The travel times are those of
+    [`travel_time_matrix()`][peabiru.travel_time_matrix]. The polygons are
+    contoured with the isoband algorithm, whose
     rings follow the C++ library isoband is built with on each platform
     (libc++ on macOS, libstdc++ on Linux and Windows). They are returned as
     contoured, always as ``MultiPolygon``s, and are not made valid: pass

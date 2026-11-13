@@ -25,7 +25,7 @@
 #' Trips are built as in the other routing functions, so that their times
 #' agree with [detailed_itineraries()]: a direct trip by the street mode, and
 #' trips that reach a stop of the access search, ride and walk between
-#' stops (as R5's transfer tables allow), and leave a stop of the egress
+#' stops (the transfers of the other functions), and leave a stop of the egress
 #' search; each ride boards at least a minute after its stop is reached,
 #' on the vehicle that gets to the alighting stop first.
 #'
@@ -70,7 +70,7 @@
 #' [pareto_frontier()] gives, for each fare cutoff, the percentiles of the
 #' travel time over Monte Carlo draws of departure times;
 #' [detailed_itineraries()] gives the fastest trip, or with
-#' `shortest_path = FALSE` R5's alternatives, one per sequence of routes.
+#' `shortest_path = FALSE` the alternatives, one per sequence of routes.
 #' `trip_options()` gives the trade-offs themselves: the trips that are
 #' faster, cheaper, with fewer transfers or less walking than the others,
 #' each with its legs. With `criteria = "TIME"` and `time_window = 1` its

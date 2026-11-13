@@ -10,7 +10,7 @@ Pass the bytes of the GeoTIFF file as `tif` to
 - `"NONE"`: the raster is read but no slope cost is applied.
 
 Case does not matter. Without `tif` the function is `"NONE"`, whatever
-`elevation` says. As in R5, each directed street edge gets one factor (the
+`elevation` says. Each directed street edge gets one factor (the
 function averaged over samples every 10 m along it), which multiplies the
 time of walking or cycling along the whole edge; driving times never
 change.
@@ -54,8 +54,8 @@ systems, given by its EPSG code in the file:
 - WGS 84 / UTM (32601-32660, 32701-32760);
 - WGS 84 / Pseudo-Mercator (3857).
 
-These are the systems whose transforms peabiru reproduces exactly as R5's
-GeoTools computes them; any other raster is an error that says why (as is
+These are the systems whose transforms peabiru computes itself, the same
+on every machine; any other raster is an error that says why (as is
 a raster that is not a GeoTIFF). Reprojecting a raster to EPSG:4326 (with
 GDAL's `gdalwarp -t_srs EPSG:4326`, or `terra::project()` in R) makes any
 source usable.
@@ -71,19 +71,19 @@ source usable.
 In a projected raster, a street point within nanometres (5e-8 m, or
 2e-13 degrees) of the boundary between two pixels, or of the raster's
 edge, falls on one side or the other depending on the last bits of a
-sine or cosine. R5's result there depends on the machine it runs on;
-peabiru reads the pixel that Java's `StrictMath` gives, the same on every
+sine or cosine. peabiru computes them with its own fdlibm functions, so
+it reads the same pixel on every
 machine, and warns once with the number of such points (about one in a
-hundred million for 30 m pixels). A point that `StrictMath` itself puts on
+hundred million for 30 m pixels). A point that falls on
 the raster's outer edge (inside its envelope, past the last pixel) is an
 error, since there is no pixel to read.
 
 ## Voids and large values
 
-R5 keeps elevations as 16-bit integers of decimetres, so values beyond
+Elevations are kept as 16-bit integers of decimetres, so values beyond
 +/-3276.7 m wrap around: an SRTM void of -32768 becomes 0 m, -9999 becomes
-3108.2 m, and a NaN no-data value is stored as 0 m. peabiru stores them as
-R5 does, and warns, counting
+3108.2 m, and a NaN no-data value is stored as 0 m. peabiru stores them
+that way and warns, counting
 those samples and the ones equal to the raster's no-data value. The
 warning goes to `onWarning` (by default `console.warn`) and stays with the
 network, in `network.buildWarnings()`:

@@ -22,9 +22,10 @@
 #' - `"logistic"`: a logistic curve with its median at the cutoff and
 #'   standard deviation `decay_value` minutes, scaled to 1 at `t = 0`.
 #'
-#' The weights are those of R5, computed with the exponential of Apache
-#' Commons Math (`FastMath.exp()`) that R5 calls, so the sums are R5's to the
-#' last bit. Except with `"step"`, `max_trip_duration` may not be shorter
+#' The weights are computed with a table-based exponential (a translation
+#' of `FastMath.exp()` of Apache Commons Math), so the sums are the same,
+#' to the last bit, on every machine. Except with `"step"`,
+#' `max_trip_duration` may not be shorter
 #' than the largest cutoff.
 #'
 #' With a `fare_structure`, public transport is routed with fares as in

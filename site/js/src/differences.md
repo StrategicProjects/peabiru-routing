@@ -12,6 +12,18 @@ move a script over. It compares the JavaScript package with r5r 2.5.0
   the same street network built from OpenStreetMap, the same linking of
   stops and points, the same public transport search with percentiles and
   Monte Carlo draws, the same fare rules, slope costs and scenarios.
+- **The fine print of the model is R5's too.** Details that other pages
+  state as plain facts about peabiru come from it: the multi-criteria
+  router (McRAPTOR) used with fares and for alternative itineraries; the
+  fare rules (R5's rule-based in-routing fare calculator), with fares read
+  as 32-bit floats; the levels of traffic stress; elevations in 16-bit
+  decimetres and car speeds in 16-bit centimetres per second; the limit of
+  5,000 destinations for the expanded and arrival matrices; how the lines
+  of itineraries are drawn; the exponential of the decay functions (Apache
+  Commons Math's `FastMath.exp`, which R5 calls); the transforms of
+  projected elevation rasters (those of GeoTools, with the sines and
+  cosines of Java's `StrictMath`); and the checks of the GTFS feeds (those
+  of gtfs-lib, R5's GTFS library).
 - **The results are the same.** The repository compares peabiru with r5r
   on its test networks (Porto Alegre and São Paulo, and the whole city of
   Porto Alegre) on every push: travel-time matrices, accessibility,

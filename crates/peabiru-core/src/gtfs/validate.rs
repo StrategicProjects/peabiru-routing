@@ -1420,7 +1420,7 @@ fn find_patterns_failure(f: &Feed) -> Option<String> {
     None
 }
 
-/// The errors conveyal gtfs-lib (as in R5 7.6) records while loading the
+/// The errors the validator gtfs-lib (Conveyal) records while loading the
 /// GTFS feed whose `.zip` is `zip` (one feed; call it once per feed).
 /// `name` names the feed in errors.
 ///

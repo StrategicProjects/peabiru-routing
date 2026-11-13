@@ -68,7 +68,7 @@ SIRGAS 2000 / Brazil Polyconic (5880), WGS 84 / UTM (32601-32660,
 error that says what to change, and so are a \code{.prj} file next to the
 raster, a raster whose name ends in \code{.tiff} and more than one raster.
 
-Elevations are kept, as R5 keeps them, in decimetres in 16-bit integers:
+Elevations are kept in decimetres in 16-bit integers:
 voids and values beyond +/-3276.7 m wrap around (SRTM's -32768 voids
 become 0 m, -9999 becomes 3108.2 m, a \code{NaN} no-data value 0 m), with a
 warning counting them and the samples equal to the raster's no-data
@@ -77,8 +77,8 @@ value.
 In a system other than EPSG:4326 the pixel read for a street point
 within nanometres (5e-8 m, or 2e-13 degrees) of the boundary between two
 pixels, or of the raster's edge, depends on the last bits of the sines
-and cosines of the projection. peabiru computes them as Java's
-\code{StrictMath} does, so the result is the same on every machine, and warns
+and cosines of the projection. peabiru computes them with its own
+'fdlibm' functions, so the result is the same on every machine, and warns
 once with the number of such points (about one in a hundred million for
 30 m pixels; reprojecting the raster to EPSG:4326 removes the
 ambiguity). A point that falls on the raster's outer edge (inside its
@@ -103,8 +103,8 @@ The network is not built when a 'GTFS' feed has errors of priority
 \code{"HIGH"} (a reference to a stop, route, trip, service or agency that does
 not exist, a number that cannot be read, tables in a subfolder of the
 \code{.zip}, routes without any agency): the error names the feeds and points
-to \code{\link[=get_gtfs_errors]{get_gtfs_errors()}}, which lists the errors. A feed that the 'GTFS'
-library of R5 fails to load at all is an error too.
+to \code{\link[=get_gtfs_errors]{get_gtfs_errors()}}, which lists the errors. A feed that cannot be
+loaded at all is an error too.
 }
 
 \section{The network object}{

@@ -2,8 +2,8 @@
 
 GTFS feeds often have errors: a trip that stops at a stop the feed does not
 have, two services with the same id, a time that cannot be read.
-[`get_gtfs_errors()`][peabiru.get_gtfs_errors] lists them as R5's GTFS
-library (Conveyal's gtfs-lib) reports them, with every check of its table
+[`get_gtfs_errors()`][peabiru.get_gtfs_errors] lists them as the validator
+gtfs-lib (Conveyal) reports them, with every check of its table
 loaders and of its validation after loading, and
 [`build_network()`][peabiru.build_network] refuses feeds with errors of
 priority `"HIGH"`.

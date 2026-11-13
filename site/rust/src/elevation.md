@@ -20,13 +20,13 @@ with.
 
 When the network is built, every vertex is sampled at its coordinates and
 every street segment of at least 10 m every 10 m along its line, at the
-nearest pixel (no interpolation, as GeoTools reads a coverage for R5);
+nearest pixel (no interpolation);
 points outside the raster get 0 m. Each sample is kept in whole decimetres
-in a 16-bit integer, as R5 keeps it. Each directed edge gets a factor: the
+in a 16-bit integer. Each directed edge gets a factor: the
 slope cost averaged over its segments, weighted by their length, minus 1.
 Walking or cycling along a whole edge takes `t + round(t * factor)` seconds
 (at least 1); the partial edges at the origin and the destination keep their
-plain times, as in R5.
+plain times.
 
 ## Rasters
 
@@ -49,20 +49,20 @@ The core never prints them; the R, Python and JavaScript packages turn them
 into warnings.
 
 - **Voids and values out of range.** A sample beyond +/-3276.7 m does not fit
-  in 16-bit decimetres, and R5 stores it wrapped around: an SRTM void of
+  in 16-bit decimetres and is stored wrapped around: an SRTM void of
   -32768 becomes 0 m, a no-data value of -9999 becomes 3108.2 m. peabiru
-  stores the same values, as the routing model does, and says how many
+  says how many
   samples were affected; samples equal to the raster's declared no-data
   value are counted too. Fill the voids or crop the raster.
 - **Samples on a pixel boundary.** In a raster that is not in EPSG:4326,
   the point is projected before the pixel is found. For a sample within
   nanometres of the boundary between two pixels of different values (or of
-  the raster's edge), R5 reads one pixel or the other depending on the
-  machine it runs on (Java's `Math` functions may differ in the last bit
-  from one machine to another). peabiru reads the pixel Java's
-  `StrictMath` gives, on every machine, and counts such samples in the
+  the raster's edge), the last bits of the projection's sines and cosines
+  decide which pixel is read, and those can differ from one mathematical
+  library to another. peabiru computes them with its own fdlibm functions
+  and counts such samples in the
   warnings, so its results do not depend on the machine. A sample that
-  `StrictMath` itself puts on the raster's outer edge (inside its envelope,
+  falls on the raster's outer edge (inside its envelope,
   past the last pixel) is an error.
 
 ## Example

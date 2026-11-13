@@ -224,7 +224,7 @@ c(today = health_by_car(), half_speed = health_by_car(new_carspeeds = slow_centr
   closed = health_by_car(new_carspeeds = closed))
 ```
 
-And access to public transport by car: in R5, and so in peabiru, a car
+And access to public transport by car: a car
 trip with `mode = c("CAR", "TRANSIT")` may drive to any stop and board
 there, or drive all the way. In this sample the direct drive is always
 faster, before and after (one departure per pair, a cell in 25):
@@ -317,12 +317,12 @@ none$max_discounted_transfers <- 0L
 The jobs within 45 minutes by public transport, on average over the
 residents, with one fare to spend (`max_fare = 4.8`) and with R\$ 7.20,
 under each structure. With a fare structure, public transport is routed by
-R5's multi-criteria router, which is far slower than the one-criterion
+the multi-criteria router, which is far slower than the one-criterion
 router used without fares (compare the first timing with the others). The
 two are different algorithms and their travel times differ a little, in
 both directions, so the reference for the budgets is the second row: the
 multi-criteria router with a budget that never binds. (The difference
-belongs to the routing model, R5's, not to this example; see the
+belongs to the routing model, not to this example; see the
 [comparison with r5r](coming-from-r5r.html).)
 
 ```{r fare-access}

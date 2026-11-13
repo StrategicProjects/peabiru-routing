@@ -45,7 +45,7 @@ default). A point that does not snap is not routed.
 ```
 
 The columns are `point_id`, `lat`, `lon`, `snap_lat`, `snap_lon`,
-`distance` (metres, haversine on R5's sphere of radius 6,367,450 m) and
+`distance` (metres, haversine on a sphere of radius 6,367,450 m) and
 `found`; `snap_lat`, `snap_lon` and `distance` are `NaN` where a point does
 not snap.
 
@@ -128,9 +128,9 @@ date.
 
 ## GTFS errors
 
-R5 reads GTFS feeds with gtfs-lib, which reports what it finds wrong in
-them. [`getGtfsErrors()`](api.md#getGtfsErrors) reads the feeds again and
-returns those errors, one row per error, feed by feed in the order
+GTFS feeds are checked when a network is built, with the checks of the
+validator gtfs-lib (Conveyal). [`getGtfsErrors()`](api.md#getGtfsErrors)
+reads the feeds again and returns the errors, one row per error, feed by feed in the order
 gtfs-lib finds them: `file` (the table, without `.txt`), `line` (the
 record, the header being line 1; 0 for a whole table), `type` (gtfs-lib's
 class of error), `field`, `id` (the key concerned, for duplicate keys and

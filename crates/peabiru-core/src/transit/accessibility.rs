@@ -368,8 +368,8 @@ pub(crate) fn street_accessibility(
 
 /// The trip limits of `accessibility()`, derived from what the user asked.
 /// Given the user's `max_trip_duration` and `max_walk_time` (`None` = `Inf`)
-/// in minutes, returns `(max_trip_duration, max_walk_time)` as R5 receives
-/// them:
+/// in minutes, returns the `(max_trip_duration, max_walk_time)` to route
+/// with:
 /// - `max_trip_duration` may not be below the largest cutoff (an error);
 /// - with the `step` function it becomes the largest cutoff;
 /// - `max_walk_time = Inf` then becomes that `max_trip_duration`;

@@ -1878,7 +1878,7 @@ function checkMcDraws(drawsPerMinute, timeWindow, mcraptor) {
 
 /**
  * A fare structure to start from: every route, fare type and transfer
- * between two types costs `baseFare` (read as a Java float, R5's number
+ * between two types costs `baseFare` (read as a 32-bit float, the number
  * type for fares), with one fare type per mode (`by: "MODE"`), per agency
  * (`"AGENCY_ID"`, `"AGENCY_NAME"`) or one for all routes (`"GENERIC"`).
  */
@@ -2738,7 +2738,7 @@ export async function findSnap(network, points, options) {
 
 /**
  * The bounding box of the street network:
- * R5's envelope of the street layer. `output` is "polygon" (a GeoJSON
+ * The envelope of the street layer. `output` is "polygon" (a GeoJSON
  * Polygon, the default), "bbox" (`[xmin, ymin, xmax, ymax]`, a GeoJSON
  * bbox) or "vector" (`{xmin, ymin, xmax, ymax}`).
  */
@@ -2769,7 +2769,7 @@ function lineCoordinates(nPoints, x, y) {
  * `vertices` (Points with `index`, `park_and_ride`, `bike_sharing`) and
  * `edges` (LineStrings with `edge_index`, `osm_id`, `from_vertex`,
  * `to_vertex`, `street_class`, `length` in metres, `walk`, `car`,
- * `car_speed` in km/h, `bicycle`, `bicycle_lts`), in R5's order.
+ * `car_speed` in km/h, `bicycle`, `bicycle_lts`), in the network's order.
  */
 export async function streetNetworkToSf(network, options) {
   const opt = optionsObject(options);
@@ -2941,7 +2941,7 @@ export async function checkTransitAvailability(network, options) {
 }
 
 /**
- * The errors gtfs-lib (R5's GTFS library) reports in GTFS feeds. A Network does not keep its feeds, so pass
+ * The errors the validator gtfs-lib (Conveyal) reports in GTFS feeds. A Network does not keep its feeds, so pass
  * them as buildNetwork() takes them: an array of `{name, data}`, or an
  * object with a `gtfs` array. Columns `file`, `line`, `type`, `field`,
  * `id` and `priority`, feed by feed in the order gtfs-lib finds them.

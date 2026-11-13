@@ -25,8 +25,8 @@ fare_tables <- c("fares_per_type", "fares_per_transfer", "fares_per_route")
 #' Creates a basic fare structure that describes how transit fares should be
 #' calculated in [travel_time_matrix()], [accessibility()],
 #' [detailed_itineraries()] and [pareto_frontier()]: every route, fare type
-#' and transfer costs `base_fare` (read as a 32-bit float, the type R5 keeps
-#' fares in). The structure can then be edited to follow the fare rules of
+#' and transfer costs `base_fare` (read as a 32-bit float, the type fares
+#' are kept in). The structure can then be edited to follow the fare rules of
 #' the study area.
 #'
 #' The structure is a list:
@@ -52,10 +52,9 @@ fare_tables <- c("fares_per_type", "fares_per_transfer", "fares_per_route")
 #' `fares_per_transfer` for the two types (and not on the same route, unless
 #' the type has `allow_same_route_transfer`) brings the two rides to that
 #' row's `fare`; any other ride costs its full fare. The total is capped at
-#' `fare_cap`. These are the rules of R5's `RuleBasedInRoutingFareCalculator`,
-#' ported to the 'Rust' core. R5's other fare calculators (a structure
-#' with an element `type`) are not available: the routing functions stop
-#' with an error on one.
+#' `fare_cap`. Fare rules of this kind are the ones supported: a structure
+#' that names a fare calculator instead (an element `type`) is an error in
+#' the routing functions.
 #'
 #' @param network A network built with [build_network()].
 #' @param base_fare A number, at least 0: the fare of every route, type and
@@ -369,7 +368,7 @@ check_fares <- function(fare_structure, max_fare, network) {
 #'
 #' Fits the Pareto frontier of travel time and fare between each origin and
 #' each destination: for every value of `fare_cutoffs`, in the order given,
-#' the travel times of R5's fare router (McRAPTOR, over `time_window`
+#' the travel times of the multi-criteria router (McRAPTOR, over `time_window`
 #' sampled departure times) when no trip may cost more than the cutoff; a
 #' destination and percentile gets a row at each cutoff where its travel
 #' time changes and is below `max_trip_duration`. `monetary_cost` is the

@@ -336,7 +336,8 @@ with a fare structure the multi-criteria router is used, far slower than
 the one used without fares. The two are different algorithms and their
 travel times differ a little, in both directions, so the reference for the
 budgets is the second row: the multi-criteria router with a budget that
-never binds. (The difference is that of R5's two routers.)
+never binds. (The difference is that of the two routers, not of this
+example.)
 
 ```python
 def jobs_by_transit(**fare_args):

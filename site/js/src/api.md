@@ -61,7 +61,7 @@ The input of `buildNetwork()`.
 
 - `pbf: Bytes`: The OpenStreetMap extract: the bytes of a `.pbf` file.
 - `gtfs?: GtfsFeed[]`: The GTFS feeds, loaded in this order (default: none, a street network only). A feed with errors of priority `HIGH` (see `getGtfsErrors()`) is refused: the build rejects with an `Error` naming it.
-- `tif?: Bytes`: An elevation raster, the bytes of a GeoTIFF file (default: none): walking and cycling times then get the slope costs of `elevation`. One band, north up, uncompressed or compressed with LZW, Deflate or PackBits, in WGS 84 longitude and latitude (EPSG:4326), SIRGAS 2000 (4674), SAD69 (4618), Corrego Alegre (4225), their UTM zones used in Brazil, SIRGAS 2000 / Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) or Pseudo-Mercator (3857); other rasters are an error. Voids and values beyond +/-3276.7 m are stored wrapped around, as 16-bit decimetres, with a warning; in a projected raster, a street point within nanometres of a pixel boundary reads the pixel Java's StrictMath gives, with a warning. With a raster, `travelTimeMatrix()` never routes walking trips from the destinations.
+- `tif?: Bytes`: An elevation raster, the bytes of a GeoTIFF file (default: none): walking and cycling times then get the slope costs of `elevation`. One band, north up, uncompressed or compressed with LZW, Deflate or PackBits, in WGS 84 longitude and latitude (EPSG:4326), SIRGAS 2000 (4674), SAD69 (4618), Corrego Alegre (4225), their UTM zones used in Brazil, SIRGAS 2000 / Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) or Pseudo-Mercator (3857); other rasters are an error. Voids and values beyond +/-3276.7 m are stored wrapped around, as 16-bit decimetres, with a warning; in a projected raster, a street point within nanometres of a pixel boundary reads the same pixel on every machine, with a warning. With a raster, `travelTimeMatrix()` never routes walking trips from the destinations.
 - `elevation?: string`: The slope cost function when `tif` is given: `"TOBLER"` (default, Tobler's hiking function), `"MINETTI"` (Minetti's energy cost of walking) or `"NONE"`, in any case. Without `tif` it is `"NONE"`.
 - `onWarning?: WarningHandler`: Receives the warnings of the build (about the raster); by default `console.warn`.
 - `nThreads?: number | null`: Workers to route on. `1` (default): no workers, everything runs on the calling thread. A whole number above 1: a pool of that many workers (Web Workers in browsers, `worker_threads` in Node), each holding its own copy of the network, all built at once. `0`, `null` or `Infinity`: one worker per core (`navigator.hardwareConcurrency`, or Node's `os.availableParallelism()`). Each worker costs about the memory of a network built on the calling thread.
@@ -183,7 +183,7 @@ Also takes every option of [`RoutingOptions`](#RoutingOptions).
 - `departureDatetime?: DateTime | null`: Required with public transport; the current time otherwise (default null).
 - `timeWindow?: number`: Minutes of departure times, from `departureDatetime` on (default 10).
 - `percentiles?: number | number[]`: 1 to 5 distinct whole numbers from 1 to 99 (default 50): the percentiles of the travel times over the window.
-- `fareStructure?: FareStructure | null`: A fare structure (see `setupFareStructure()`), or null (default): no fares. With one, public transport is routed with R5's multi-criteria router (McRAPTOR) over `timeWindow * drawsPerMinute` sampled departure times.
+- `fareStructure?: FareStructure | null`: A fare structure (see `setupFareStructure()`), or null (default): no fares. With one, public transport is routed with the multi-criteria router (McRAPTOR) over `timeWindow * drawsPerMinute` sampled departure times.
 - `maxFare?: number`: The highest fare of a trip (default Infinity); a finite value needs a `fareStructure`.
 
 ### TravelTimeMatrix {#TravelTimeMatrix}
@@ -384,7 +384,7 @@ export declare function detailedItineraries(
 ): Promise<{ type: "FeatureCollection"; features: ItineraryFeature[] } | ItineraryRow[]>;
 ```
 
-The legs of the trips between pairs of origins and destinations: each walk, ride by bicycle or car and public transport ride, with its duration, wait, distance, route and line. Each pair gets its fastest itinerary over the departure window (the trip by the street mode alone, or by public transport, whichever is faster) or, with `shortestPath: false`, the alternatives found by R5's multi-criteria router (McRAPTOR). One row per leg, as a GeoJSON [`FeatureCollection`](#FeatureCollection) or, with `dropGeometry`, an array of rows; pairs without an itinerary have none. Every option is in [`DetailedItinerariesOptions`](#DetailedItinerariesOptions) and [`RoutingOptions`](#RoutingOptions). Public transport needs feeds with timetables: a network with frequency-based trips is an error. With `modeEgress: "CAR"`, a pair whose itinerary in R5 may depend on the searches that ran before (a car search through a turn restriction with two or more via ways) always gets the itinerary of a freshly built network, with a warning.
+The legs of the trips between pairs of origins and destinations: each walk, ride by bicycle or car and public transport ride, with its duration, wait, distance, route and line. Each pair gets its fastest itinerary over the departure window (the trip by the street mode alone, or by public transport, whichever is faster) or, with `shortestPath: false`, the alternatives found by the multi-criteria router (McRAPTOR). One row per leg, as a GeoJSON [`FeatureCollection`](#FeatureCollection) or, with `dropGeometry`, an array of rows; pairs without an itinerary have none. Every option is in [`DetailedItinerariesOptions`](#DetailedItinerariesOptions) and [`RoutingOptions`](#RoutingOptions). Public transport needs feeds with timetables: a network with frequency-based trips is an error. With `modeEgress: "CAR"`, a pair whose egress crosses a turn restriction with two or more via ways, which can be read in either order, always gets the itinerary of a freshly built network routing that pair alone, with a warning.
 
 ```js
 const back = { id: [...points.id].reverse(), lon: [...points.lon].reverse(), lat: [...points.lat].reverse() };
@@ -563,7 +563,7 @@ export declare function paretoFrontier(
 ): Promise<ParetoFrontierTable>;
 ```
 
-The trade-off between travel time and fare: for each origin, destination and percentile, the travel time within each fare cutoff, one row per cutoff at which it changes. Routed with R5's multi-criteria router (McRAPTOR) over one departure time per minute of the window. Every option is in [`ParetoFrontierOptions`](#ParetoFrontierOptions) and [`RoutingOptions`](#RoutingOptions).
+The trade-off between travel time and fare: for each origin, destination and percentile, the travel time within each fare cutoff, one row per cutoff at which it changes. Routed with the multi-criteria router (McRAPTOR) over one departure time per minute of the window. Every option is in [`ParetoFrontierOptions`](#ParetoFrontierOptions) and [`RoutingOptions`](#RoutingOptions).
 
 ```js
 const frontier = await peabiru.paretoFrontier(network, points, points, {
@@ -600,7 +600,7 @@ Options of `paretoFrontier()`.
 export interface ParetoFrontierTable
 ```
 
-Columns of a Pareto frontier: one row per origin, destination, percentile and fare cutoff at which the travel time changes. `monetary_cost` is the cutoff as R5 reads it, a 32-bit float (4.4 is 4.400000095367432).
+Columns of a Pareto frontier: one row per origin, destination, percentile and fare cutoff at which the travel time changes. `monetary_cost` is the cutoff as the router reads it, a 32-bit float (4.4 is 4.400000095367432).
 
 - `from_id: (string | null)[]`
 - `to_id: (string | null)[]`
@@ -798,7 +798,7 @@ Where points snap to the streets: one row per point.
 - `lon: Float64Array`
 - `snap_lat: Float64Array`: Where the point snaps; NaN where it does not.
 - `snap_lon: Float64Array`
-- `distance: Float64Array`: Metres from the point to where it snaps (haversine on R5's sphere of radius 6,367,450 m); NaN where it does not snap.
+- `distance: Float64Array`: Metres from the point to where it snaps (haversine on a sphere of radius 6,367,450 m); NaN where it does not snap.
 - `found: boolean[]`
 
 ### streetNetworkBbox {#streetNetworkBbox}
@@ -811,7 +811,7 @@ export declare function streetNetworkBbox(network: Network, output: "bbox"): Pro
 export declare function streetNetworkBbox(network: Network, output?: "polygon"): Promise<Polygon>;
 ```
 
-The bounding box of the street network: R5's envelope of the street layer, which covers every OpenStreetMap node of the ways streets were made from. `output` is `"polygon"` (the default, a Polygon whose ring starts at the south-west corner and goes counter-clockwise), `"bbox"` (the GeoJSON bbox `[xmin, ymin, xmax, ymax]`) or `"vector"` (an object).
+The bounding box of the street network: the envelope of the street layer, which covers every OpenStreetMap node of the ways streets were made from. `output` is `"polygon"` (the default, a Polygon whose ring starts at the south-west corner and goes counter-clockwise), `"bbox"` (the GeoJSON bbox `[xmin, ymin, xmax, ymax]`) or `"vector"` (an object).
 
 ```js
 console.log(await peabiru.streetNetworkBbox(network, "vector"));
@@ -957,7 +957,7 @@ Properties of a transit route (one per trip pattern); null where blank.
 - `route_id: string`
 - `long_name: string | null`
 - `short_name: string | null`
-- `mode: string`: R5's mode of the GTFS `route_type`, such as `"BUS"`.
+- `mode: string`: The mode of the GTFS `route_type`, such as `"BUS"`.
 
 ### checkTransitAvailability {#checkTransitAvailability}
 
@@ -1012,7 +1012,7 @@ Services active on each date.
 export declare function getGtfsErrors(feeds: GtfsFeed[] | { gtfs: GtfsFeed[] }): Promise<GtfsErrorsTable>;
 ```
 
-The errors gtfs-lib (R5's GTFS library) reports when it loads GTFS feeds, one row per error, feed by feed in the order gtfs-lib finds them. A Network does not keep its feeds: pass them as `buildNetwork()` takes them (an array of `{name, data}`, or an object with a `gtfs` array). Loads the module first if needed. Rejects with an Error naming the cause for a feed on which gtfs-lib fails instead, and for a `locations.geojson` (GTFS-Flex zones) that is not in UTF-8. GTFS-Flex zones and location groups are read as gtfs-lib reads them, for its errors; on-demand trips are not routed.
+The errors the validator gtfs-lib (Conveyal) reports when it loads GTFS feeds, one row per error, feed by feed in the order gtfs-lib finds them. A Network does not keep its feeds: pass them as `buildNetwork()` takes them (an array of `{name, data}`, or an object with a `gtfs` array). Loads the module first if needed. Rejects with an Error naming the cause for a feed on which gtfs-lib fails instead, and for a `locations.geojson` (GTFS-Flex zones) that is not in UTF-8. GTFS-Flex zones and location groups are read as gtfs-lib reads them, for its errors; on-demand trips are not routed.
 
 ```js
 const errors = await peabiru.getGtfsErrors(gtfs);
@@ -1092,7 +1092,7 @@ Options shared by the routing functions, with their defaults.
 - `bikeSpeed?: number`: Cycling speed, km/h (default 12).
 - `maxRides?: number`: Most public transport vehicles boarded in a trip (default 3).
 - `maxLts?: number`: Highest level of traffic stress a cyclist rides on, 1 to 4 (default 2).
-- `newCarspeeds?: ScenarioTable | GeoJsonFeatureCollection | null`: A scenario of car speeds (default null): a table (an object of columns or an array of rows) with `osm_id`, `max_speed` and `speed_type` (`"scale"`, a factor for the car speed of the way's edges, or `"km/h"`, a speed; 0 closes the way to cars), or a GeoJSON FeatureCollection of Polygons or MultiPolygons with properties `poly_id` (string), `scale` and `priority` (integer): each edge takes the factor of the polygon it meets with the highest priority (on a tie, the one it overlaps most). A speed that R5's 16-bit cm/s would bring to 0 or less is an error.
+- `newCarspeeds?: ScenarioTable | GeoJsonFeatureCollection | null`: A scenario of car speeds (default null): a table (an object of columns or an array of rows) with `osm_id`, `max_speed` and `speed_type` (`"scale"`, a factor for the car speed of the way's edges, or `"km/h"`, a speed; 0 closes the way to cars), or a GeoJSON FeatureCollection of Polygons or MultiPolygons with properties `poly_id` (string), `scale` and `priority` (integer): each edge takes the factor of the polygon it meets with the highest priority (on a tie, the one it overlaps most). Speeds are kept as 16-bit cm/s: one that would come to 0 or less, or pass that range, is an error.
 - `carspeedScale?: number`: The factor for the car speeds of the edges `newCarspeeds` leaves out, at least 0 (default 1).
 - `newLts?: ScenarioTable | GeoJsonFeatureCollection | null`: A scenario of levels of traffic stress (default null): a table with `osm_id` and `lts` (integer, 1 to 4), or a GeoJSON FeatureCollection of LineStrings with properties `line_id`, `lts` (1 to 4) and `priority` (not used): each edge takes the level of the closest line among those whose bounding box meets its own. A scenario changes the street search from the origins but not the egress from the stops; on a network with elevation, a call with a scenario routes without slope costs, with a warning.
 - `drawsPerMinute?: number`: Monte Carlo draws per departure minute for frequency-based GTFS (default 5).
@@ -1155,7 +1155,7 @@ console.log(reached, "of", ttm.from_id.length);
 export declare class UnsupportedError extends Error
 ```
 
-The error thrown when a call asks for something peabiru does not do: an `outputDir`, an expanded or arrival matrix by a street mode alone, or a fare structure that names one of R5's own fare calculators (a `type`). peabiru never ignores an option it cannot honour.
+The error thrown when a call asks for something peabiru does not do: an `outputDir`, an expanded or arrival matrix by a street mode alone, or a fare structure that names a fare calculator (a `type`) instead of fare rules. peabiru never ignores an option it cannot honour.
 
 ```js
 try {

@@ -60,8 +60,9 @@ follows the repository. Implemented:
   errors of priority `HIGH`;
 - CSV output, one file per origin.
 
-Not ported: R5's own fare calculators (only the rule-based fare
-structure). For how the results are checked, see the
+Not supported: a fare structure that names a fare calculator (a `type`)
+instead of fare rules; it is an error, like every request the crate does
+not support. For how the results are checked, see the
 [comparison with r5r](parity.md).
 
 The API is a small set of functions and types at the root of the crate;
@@ -72,9 +73,9 @@ breaking your code. It may still change before 1.0. The
 
 ## Credits
 
-The routing logic is a port of Conveyal's [R5](https://github.com/conveyal/r5)
-(MIT, © Conveyal). Polygon isochrones port the
+The routing model follows Conveyal's [R5](https://github.com/conveyal/r5)
+(MIT, © Conveyal), from which the routing logic is ported. Polygon isochrones port the
 algorithm of the R package isoband (MIT); the exponential of the decay
-functions and other numerics reproduce Apache Commons Math 3 (Apache-2.0),
-and the trigonometry of the raster projections fdlibm, as R5 uses them. The
+functions and other numerics are translated from Apache Commons Math 3 (Apache-2.0),
+and the trigonometry of the raster projections from fdlibm. The
 notices are in `LICENSE-THIRD-PARTY`.

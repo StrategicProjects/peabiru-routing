@@ -175,14 +175,15 @@ impl StreetNetwork {
     }
 
     /// Warnings about the elevation raster the network was built with
-    /// (empty without one): samples whose value R5 stores wrapped around
+    /// (empty without one): samples whose value is stored wrapped around
+    /// in 16-bit decimetres
     /// (beyond +/-3276.7 m, such as SRTM's -32768 voids, which become 0 m,
     /// and a no-data value of -9999, which becomes 3108.2 m) or equal to
-    /// the raster's declared no-data value. peabiru stores them as R5
-    /// does, so the slope costs are R5's; R5 says nothing about them.
+    /// the raster's declared no-data value.
     /// And, in a raster not in EPSG:4326, the samples within nanometres of
-    /// a boundary between pixels of different values, where R5's pixel
-    /// depends on the machine and peabiru reads `StrictMath`'s.
+    /// a boundary between pixels of different values, where the pixel read
+    /// depends on the last bits of the projection (peabiru reads the same
+    /// one on every machine).
     /// The core never prints them; the packages turn them into warnings.
     pub fn elevation_warnings(&self) -> &[String] {
         &self.elevation_warnings

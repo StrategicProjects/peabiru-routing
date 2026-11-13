@@ -106,7 +106,7 @@ Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} giv
 \description{
 Fits the Pareto frontier of travel time and fare between each origin and
 each destination: for every value of \code{fare_cutoffs}, in the order given,
-the travel times of R5's fare router (McRAPTOR, over \code{time_window}
+the travel times of the multi-criteria router (McRAPTOR, over \code{time_window}
 sampled departure times) when no trip may cost more than the cutoff; a
 destination and percentile gets a row at each cutoff where its travel
 time changes and is below \code{max_trip_duration}. \code{monetary_cost} is the

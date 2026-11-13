@@ -95,11 +95,11 @@ pub struct FarePerRoute {
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct FareStructure {
-    /// Most transfers with a discount (default 1; `Inf` becomes -1 in
-    /// Java, where no transfer is ever discounted).
+    /// Most transfers with a discount (default 1; `Inf` is read as -1,
+    /// with which no transfer is ever discounted).
     pub max_discounted_transfers: f64,
     /// Minutes between the boardings of a discounted transfer (default
-    /// 120; `Inf` becomes -1 in Java, where no transfer is ever discounted).
+    /// 120; `Inf` is read as -1, with which no transfer is ever discounted).
     pub transfer_time_allowance: f64,
     /// Highest total fare of a trip (`Inf`, the default, or 0: no cap).
     pub fare_cap: f64,
@@ -393,8 +393,9 @@ impl FareStructure {
     }
 
     /// [`FareStructure::validate`], then the checks made as soon as a
-    /// structure is given for a network (`setFareCalculator`, even for
-    /// a street-only trip): its numbers as Java reads them, and a row of
+    /// structure is given for a network (even for
+    /// a street-only trip): its numbers as they are read (fares into
+    /// 32-bit floats, counts into 32-bit integers), and a row of
     /// `fares_per_route` for the `agency_id` and `route_id` of every
     /// route the network's trip patterns run on. For a network without
     /// public transport, the same as [`FareStructure::validate`].

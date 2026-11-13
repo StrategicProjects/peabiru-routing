@@ -99,16 +99,16 @@ def detailed_itineraries(
     trip by the street mode alone and, with public transport, the fastest
     trip over the departure window (``shortest_path=True``: only the
     fastest of all is kept) or, with ``shortest_path=False``, the
-    alternatives R5's multi-criteria router (McRAPTOR) finds, one per
+    alternatives the multi-criteria router (McRAPTOR) finds, one per
     sequence of routes (more of them with ``suboptimal_minutes``).
     With a ``fare_structure``, the trips are routed with fares and get
     ``total_fare`` and ``cumulative_fare`` columns (see [Fares](fares.md)).
 
     Networks whose GTFS has frequency-based trips cannot be used with
     public transport here. With ``mode_egress="CAR"``, a pair whose
-    itineraries in R5 depend on the searches that ran before (R5
-    reverses the via edges of some turn restrictions in place) gets the
-    itineraries of a freshly built network, with a warning; see [Detailed
+    egress crosses a turn restriction with two or more via ways, which can
+    be read in either order, gets the itineraries of a freshly built
+    network routing that pair alone, with a warning; see [Detailed
     itineraries](itineraries.md).
 
     Parameters
@@ -176,8 +176,7 @@ def detailed_itineraries(
 
     Notes
     -----
-    The paths are those of the routing engine (a port of Conveyal's R5
-    7.6). With ``drop_geometry=True`` the result is a DataFrame.
+    With ``drop_geometry=True`` the result is a DataFrame.
 
     Examples
     --------

@@ -51,8 +51,9 @@ draws, accessibility with five decay functions, expanded and arrival
 matrices, isochrones, detailed itineraries (the fastest trip or the
 alternatives), fares and Pareto frontiers, elevation, scenarios of car
 speeds and traffic stress, and the functions that inspect a network and
-its GTFS errors. What it does not do (R5's own fare calculators, writing
-results to files) throws `UnsupportedError`; nothing is silently ignored.
+its GTFS errors. What it does not support (a fare structure that names a
+fare calculator instead of fare rules, writing results to files) throws
+`UnsupportedError`; nothing is silently ignored.
 The API may still change.
 
 ## The examples
@@ -69,7 +70,8 @@ fails if any of them prints something other than the output shown here.
 
 ## Credits
 
-The routing logic is a port of Conveyal's [R5](https://github.com/conveyal/r5)
-(MIT, © Conveyal); the exponential of the decay functions reproduces Apache
-Commons Math 3 (Apache-2.0), which R5 uses. The sample network contains map data © OpenStreetMap
+The routing model follows Conveyal's [R5](https://github.com/conveyal/r5)
+(MIT, © Conveyal), from which the routing logic is ported (see the
+[comparison with r5r](differences.md)); the exponential of the decay
+functions is translated from Apache Commons Math 3 (Apache-2.0). The sample network contains map data © OpenStreetMap
 contributors, under the [Open Database License](https://www.openstreetmap.org/copyright).

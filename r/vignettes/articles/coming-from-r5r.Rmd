@@ -24,7 +24,11 @@ on the Python and JavaScript sites.
 - **The routing model.** peabiru's engine is a port of R5 7.6, the engine
   r5r 2.5.0 drives: the same street and public transport model, the same
   rules for linking points and stops to streets, the same Monte Carlo
-  draws for frequency-based feeds, the same fare calculator.
+  draws for frequency-based feeds, the same levels of traffic stress for
+  cyclists, the same multi-criteria router (McRAPTOR) for fares and
+  alternatives, the same rule-based fare calculator (R5's
+  `RuleBasedInRoutingFareCalculator`), the same checks of the GTFS feeds
+  (those of gtfs-lib, R5's GTFS library).
 - **Function and argument names.** Of the 22 functions r5r 2.5.0 exports,
   17 exist in peabiru under the same name, with the same arguments in the
   same order and the same defaults; the other five manage Java and have no

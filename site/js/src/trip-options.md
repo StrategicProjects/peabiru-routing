@@ -121,7 +121,7 @@ differ on purpose from the results of the draws.
   travel time over Monte Carlo draws of departure times: a summary of time
   against budget, without the trips.
 - `detailedItineraries()` gives the fastest trip, or with
-  `shortestPath: false` R5's alternatives (one per sequence of routes).
+  `shortestPath: false` the alternatives (one per sequence of routes).
 - `tripOptions()` gives the trade-offs themselves, trip by trip, with their
   legs. With `criteria: ["TIME"]` and `timeWindow: 1`, its first option has
   the total time of `detailedItineraries()`'s fastest trip for that minute.
