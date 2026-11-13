@@ -25,10 +25,10 @@ cargo publish -p peabiru-cli
 ```
 
 Before the core is published, the CLI's package can be checked against the
-packaged core: `cargo package -p peabiru-cli --no-verify`, then extract both
-`.crate` files from `target/package/`, add to the CLI's `Cargo.toml` an empty
-`[workspace]` and `[patch.crates-io] peabiru-core = { path =
-"../peabiru-core-<version>" }`, and `cargo build --release` there.
+packaged core with `cargo package -p peabiru-core -p peabiru-cli --locked`:
+cargo packages both and verifies the CLI against the packaged core. (The
+CLI alone, even with `--no-verify`, fails resolving `peabiru-core =
+"^X.Y.Z"` from crates.io until that version is there.)
 
 Checks before publishing: `python3 tools/third_party_notices.py --check`
 (the licences of the crates in each binary), `bash tools/public_api.sh`
@@ -43,6 +43,14 @@ Then, as for 0.0.1: the GitHub release (tag `vX.Y.Z`, which runs
 environment), Zenodo (from the release), and the R package for CRAN with
 `bash tools/build_r_release.sh <new dir>` (it pins the core to the
 published version and vendors the crates, so it needs step 1 done).
+
+If the npm upload fails with `404 Not Found - PUT
+https://registry.npmjs.org/peabiru`, look at the trusted publisher on
+npmjs.com (package peabiru > Settings > Trusted Publisher): a configuration
+that went unused can show "Status: Expired". Delete it and create it again
+with the same four values (they are in the header of
+`.github/workflows/npm-release.yml`). A release whose npm job failed is
+re-run with Actions > npm-release > Run workflow, with "publish" ticked.
 
 ## 3. The R package for CRAN
 
