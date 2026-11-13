@@ -3,7 +3,12 @@
 Changes of the Rust crate `peabiru-core`, the command-line tool, and the
 Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
-## Unreleased
+## 0.1.2
+
+The crates, the Python package and the JavaScript package, all with the same
+number again (0.1.1 was a version of the JavaScript package only). A release
+of metadata and documentation: the code is that of 0.1.0. The R package
+stays at 0.1.0.
 
 - Credits: the descriptions, the READMEs and the documentation now state
   up front that peabiru is a Rust port of Conveyal's R5 routing engine with an

@@ -1,6 +1,6 @@
 {
   "name": "peabiru",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Multimodal routing on OpenStreetMap and GTFS networks in WebAssembly, a Rust port of Conveyal's R5 routing engine with an interface modelled on r5r: travel-time matrices, accessibility, isochrones and itineraries in the browser and in Node",
   "keywords": [
     "routing",
