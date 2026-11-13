@@ -103,7 +103,7 @@ fn raster_in_dir(dir: &Path, mut rasters: Vec<PathBuf>) -> Result<Option<Named>,
                     one,
                     format!(
                         "the raster has a {} file next to it, whose coordinate reference \
-                         system would take the place of the GeoTIFF's (as in GeoTools), and which \
+                         system would take the place of the GeoTIFF's, and which \
                          peabiru does not read; remove it (the GeoTIFF's own system is then \
                          used)",
                         prj.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned())
@@ -359,7 +359,11 @@ mod tests {
             assert!(e.to_string().starts_with("a.zip: shape 'P'"), "{e}");
             // R5 fails on it too, when it draws the shape of the pattern
             let e = build(spo, &[("a.zip", &one_point)], true, threads).unwrap_err();
-            assert!(e.to_string().contains("IllegalArgumentException"), "{e}");
+            assert!(
+                e.to_string()
+                    .contains("a transit network cannot be built from the feed"),
+                "{e}"
+            );
         }
     }
 
@@ -404,8 +408,7 @@ mod tests {
         let e = build(spo, &[("a.zip", &no_route)], false, 1).unwrap_err();
         assert_eq!(
             e.to_string(),
-            "a.zip: trip 'T1' has no route_id, and R5 fails building its transit layer from the \
-             feed (NullPointerException)"
+            "a.zip: trip 'T1' has no route_id, and a transit network cannot be built from the feed"
         );
     }
 }

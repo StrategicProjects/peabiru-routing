@@ -285,7 +285,7 @@ impl<'a> Planner<'a> {
             let pat = &layer.patterns[pattern];
             let mode = match route_type_mode(pat.route_type) {
                 Some(Some(m)) => m.name().to_string(),
-                _ => return Err(fallback("a route type R5 has no mode for")),
+                _ => return Err(fallback("a route type without a transit mode")),
             };
             let line = ride_line(net, layer, pattern, from_pos, to_pos)
                 .map_err(|why| RouteError::Invalid(format!("not supported: {why}")))?;
@@ -451,7 +451,8 @@ pub(super) fn fallback(why: &str) -> RouteError {
 }
 
 const FALLBACK: &str =
-    "not supported: this trip is routed with McRAPTOR because FastRaptor's path fails ";
+    "not supported: this trip is routed with the multi-criteria router because the fastest-trip \
+     router's path fails ";
 
 /// Whether `e` is [`fallback`]'s.
 pub(super) fn is_fallback(e: &RouteError) -> bool {

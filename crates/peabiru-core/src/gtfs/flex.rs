@@ -549,8 +549,8 @@ pub(crate) fn read_locations(bytes: &[u8]) -> Result<Locations, LocationsError> 
         Ok(ids) => Ok(Locations::Zones(ids)),
         Err(Stop::Unsupported) => Ok(Locations::Unsupported),
         Err(Stop::Fail(why)) => Err(LocationsError::Fails(format!(
-            "locations.geojson is not GeoJSON of the shape gtfs-lib reads ({why}), and gtfs-lib \
-             fails reading it (\"Failed to parse GeoJSON.\")"
+            "locations.geojson is not GeoJSON of the shape a GTFS-Flex feed must have ({why}), \
+             and the feed cannot be read"
         ))),
     }
 }

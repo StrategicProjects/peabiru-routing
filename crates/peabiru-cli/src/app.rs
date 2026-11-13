@@ -407,7 +407,7 @@ pub struct InfoArgs {
     /// Last date of --start-date's range
     #[arg(long, value_name = "DATE", requires = "start_date")]
     pub end_date: Option<String>,
-    /// The errors gtfs-lib records loading each feed (get_gtfs_errors());
+    /// The errors found loading each feed (get_gtfs_errors());
     /// the network is not built, so feeds it refuses can be inspected
     #[arg(long, conflicts_with_all = ["service_dates", "dates", "start_date"])]
     pub gtfs_errors: bool,

@@ -574,10 +574,11 @@ fn history_warning(pairs: &[usize], n: usize) -> String {
     }
     format!(
         "{} of {} pairs ({} {}) have car searches that cross a turn restriction with two or \
-         more via ways, whose via edges R5 reverses in place on every check of a backward car \
-         search: in R5 the itineraries for them may depend on the searches that ran before in \
-         the session (other pairs, earlier calls, threads). peabiru always returns those of a \
-         freshly built network for the pair alone with one thread.",
+         more via ways, where the result of a backward car search depends on the order the via \
+         ways are checked in. peabiru always returns the itineraries of a freshly built \
+         network for the pair alone with one thread, so they do not depend on the searches \
+         that ran before (other pairs, earlier calls, threads); check the itineraries of \
+         these pairs if the restriction matters to your analysis.",
         pairs.len(),
         n,
         if pairs.len() == 1 { "pair" } else { "pairs" },

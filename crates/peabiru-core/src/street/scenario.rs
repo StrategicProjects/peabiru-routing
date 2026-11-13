@@ -177,9 +177,8 @@ impl Scenario {
             // a finite double above the float range: R5 reads the factor
             // as a Java float, which is then Infinity
             return Err(
-                "carspeed_scale is too large for the 32-bit float R5 reads it as \
-                        (it becomes Infinity there, and R5's car speeds overflow, which \
-                        peabiru does not reproduce)"
+                "carspeed_scale is too large: it is read as a 32-bit float, in which it \
+                        becomes infinite; use a smaller factor"
                     .into(),
             );
         }
@@ -226,9 +225,9 @@ impl Scenario {
                     if !p.polygons.iter().all(|poly| jts::polygon_is_simple(poly)) {
                         return Err(format!(
                             "new_carspeeds: polygon {} is not valid (a ring crosses or touches \
-                             itself or another ring, or a hole is outside its shell); R5's \
-                             geometry library may fail on it or give results peabiru cannot \
-                             reproduce, so it is refused (sf::st_make_valid() can repair it)",
+                             itself or another ring, or a hole is outside its shell); the \
+                             ways such a polygon covers cannot be told reliably, so it is \
+                             refused (sf::st_make_valid() can repair it)",
                             i + 1
                         ));
                     }
@@ -444,8 +443,8 @@ fn speeds_by_polygon(
                     if (lw - lc).abs() <= 1e-9 * lw.max(lc) {
                         return Err(RouteError::Invalid(format!(
                             "new_carspeeds: polygons {} and {} have the same priority, different \
-                             scales and overlap OSM way {} by the same length; R5 settles such a \
-                             tie by a computation peabiru does not reproduce exactly, so the \
+                             scales and overlap OSM way {} by the same length; such a tie \
+                             has no well-defined winner, so the \
                              scenario is not supported (give one of them a higher priority)",
                             w + 1,
                             c + 1,
@@ -529,9 +528,10 @@ pub(crate) fn check_car_speeds(net: &StreetNetwork) -> Result<(), RouteError> {
     if let Some(&e) = bad.first() {
         return Err(RouteError::Invalid(format!(
             "the scenario leaves {} street edges open to cars with a speed of 0 or less (such \
-             as an edge of OSM way {}, at {} cm/s): R5 keeps car speeds in cm/s as 16-bit \
+             as an edge of OSM way {}, at {} cm/s): car speeds are kept in cm/s as 16-bit \
              integers, so a factor or speed that brings a speed below 1 cm/s, or above \
-             32767 cm/s (about 1180 km/h), makes R5 fail or route with negative times; use \
+             32767 cm/s (about 1180 km/h), cannot be represented and would give wrong or \
+             negative travel times; use \
              another factor or speed, or a factor or speed of 0 to close the road",
             bad.len(),
             osm_id(net, e),

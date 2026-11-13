@@ -480,11 +480,12 @@ fn java_frequency_order(entries: &[FrequencyEntry]) -> Option<Vec<FrequencyEntry
     Some(out)
 }
 
-/// An error for a feed that R5 fails building from: `why`, and the
-/// exception R5 throws.
-fn r5_fails(why: String, exception: &str) -> GtfsError {
+/// An error for a feed that R5 fails building from: `why`. The exception
+/// R5 throws is named at each call, for reference; the message does not
+/// carry it.
+fn r5_fails(why: String, _exception: &str) -> GtfsError {
     GtfsError::R5Fails(format!(
-        "{why}, and R5 fails building its transit layer from the feed ({exception})"
+        "{why}, and a transit network cannot be built from the feed"
     ))
 }
 
@@ -1029,9 +1030,9 @@ impl TransitLayer {
             if let Some(f) = freqs.get(trip_id) {
                 let Some(ordered) = java_frequency_order(f) else {
                     return Err(GtfsError::R5Fails(format!(
-                        "the frequency entries of trip '{trip_id}' have start times so far apart \
-                         that gtfs-lib's comparison of them overflows, and the order R5 keeps \
-                         them in cannot be reproduced"
+                        "the frequency entries of trip '{trip_id}' have start times that cannot \
+                         be put in order (2^31 seconds or more apart, or unreadable ones \
+                         mixed with others); correct their start_time in frequencies.txt"
                     )));
                 };
                 // TripSchedule.create: the trip is left out when every entry
@@ -1082,9 +1083,9 @@ impl TransitLayer {
             if let (Some(lo), Some(hi)) = (first.clone().min(), first.max()) {
                 if hi - lo >= 1 << 31 {
                     return Err(GtfsError::R5Fails(format!(
-                        "the trips of route '{}' leave at times so far apart that R5's \
-                         comparison of them overflows, and the order it sorts them in cannot \
-                         be reproduced",
+                        "the trips of route '{}' leave at times so far apart (2^31 \
+                         seconds or more) that they cannot be sorted; correct their \
+                         stop times",
                         p.route_id
                     )));
                 }

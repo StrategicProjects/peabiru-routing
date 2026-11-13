@@ -131,7 +131,8 @@ pub fn run(args: &[String]) {
             .map(|i| (i + 1).to_string())
             .collect();
         eprintln!(
-            "{} pairs planned again with McRAPTOR (FastRaptor's path failed): {}",
+            "{} pairs planned again with the multi-criteria router (the fastest-trip router's path \
+             failed): {}",
             pairs.len(),
             pairs.join(",")
         );

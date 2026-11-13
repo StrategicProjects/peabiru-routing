@@ -48,7 +48,7 @@ pub(crate) fn scenario_of(spec: Option<&Bound<'_, PyDict>>) -> PyResult<Scenario
                 .map(|v| {
                     java_parse_float(v).ok_or_else(|| {
                         PyValueError::new_err(format!(
-                            "'new_carspeeds': max_speed '{v}' is not a number as Java reads it"
+                            "'new_carspeeds': max_speed '{v}' is not a number"
                         ))
                     })
                 })
