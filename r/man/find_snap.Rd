@@ -25,8 +25,8 @@ points to the network. Defaults to \code{WALK}, also allows \code{BICYCLE} and
 A table with the original points (\code{point_id}, \code{lat},
 \code{lon}), their snapped coordinates on the street network (\code{snap_lat},
 \code{snap_lon}), the distance in meters between the point and its snapped
-location (\code{distance}, haversine on a sphere of radius 6,367,450 m, as
-R5 measures it) and whether the point snapped (\code{found}). Points that
+location (\code{distance}, haversine on a sphere of radius 6,367,450 m)
+and whether the point snapped (\code{found}). Points that
 could not be snapped have \code{NA} coordinates and distance and
 \code{found = FALSE}.
 

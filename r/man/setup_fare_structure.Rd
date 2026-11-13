@@ -36,8 +36,8 @@ Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} giv
 Creates a basic fare structure that describes how transit fares should be
 calculated in \code{\link[=travel_time_matrix]{travel_time_matrix()}}, \code{\link[=accessibility]{accessibility()}},
 \code{\link[=detailed_itineraries]{detailed_itineraries()}} and \code{\link[=pareto_frontier]{pareto_frontier()}}: every route, fare type
-and transfer costs \code{base_fare} (read as a 32-bit float, the type R5 keeps
-fares in). The structure can then be edited to follow the fare rules of
+and transfer costs \code{base_fare} (read as a 32-bit float, the type fares
+are kept in). The structure can then be edited to follow the fare rules of
 the study area.
 }
 \details{
@@ -66,10 +66,9 @@ free when the type has \code{unlimited_transfers}; otherwise, while fewer than
 \code{fares_per_transfer} for the two types (and not on the same route, unless
 the type has \code{allow_same_route_transfer}) brings the two rides to that
 row's \code{fare}; any other ride costs its full fare. The total is capped at
-\code{fare_cap}. These are the rules of R5's \code{RuleBasedInRoutingFareCalculator},
-ported to the 'Rust' core. R5's other fare calculators (a structure
-with an element \code{type}) are not available: the routing functions stop
-with an error on one.
+\code{fare_cap}. Fare rules of this kind are the ones supported: a structure
+that names a fare calculator instead (an element \code{type}) is an error in
+the routing functions.
 }
 \examples{
 data_path <- system.file("extdata/spo", package = "peabiru")

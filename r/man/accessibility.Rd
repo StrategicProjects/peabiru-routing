@@ -117,12 +117,14 @@ or \code{MULTIPOLYGON}s (in any CRS, reprojected to WGS 84 as \code{origins})
 with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
-overlaps most). Polygons that are not valid are an error, and so are
-ties that cannot be settled exactly as R5 settles them.}
+overlaps most). Polygons that are not valid are an error, and so is
+a tie with no winner: two polygons of the same priority and different
+scales that overlap a way by the same length (give one of them a
+higher priority).}
 
 \item{carspeed_scale}{A number of at least 0, the factor for the car
 speeds of the edges \code{new_carspeeds} leaves out (all of them when it is
-\code{NULL}). Defaults to 1. R5 keeps car speeds as 16-bit centimetres per
+\code{NULL}). Defaults to 1. Car speeds are kept as 16-bit centimetres per
 second: a factor or speed that would bring a speed to 0 or less, or
 past that range, is an error.}
 
@@ -203,9 +205,10 @@ without cutoffs; 0 from two hours on.
 standard deviation \code{decay_value} minutes, scaled to 1 at \code{t = 0}.
 }
 
-The weights are those of R5, computed with the exponential of Apache
-Commons Math (\code{FastMath.exp()}) that R5 calls, so the sums are R5's to the
-last bit. Except with \code{"step"}, \code{max_trip_duration} may not be shorter
+The weights are computed with a table-based exponential (a translation
+of \code{FastMath.exp()} of Apache Commons Math), so the sums are the same,
+to the last bit, on every machine. Except with \code{"step"},
+\code{max_trip_duration} may not be shorter
 than the largest cutoff.
 
 With a \code{fare_structure}, public transport is routed with fares as in

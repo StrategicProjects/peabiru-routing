@@ -125,12 +125,14 @@ or \code{MULTIPOLYGON}s (in any CRS, reprojected to WGS 84 as \code{origins})
 with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
-overlaps most). Polygons that are not valid are an error, and so are
-ties that cannot be settled exactly as R5 settles them.}
+overlaps most). Polygons that are not valid are an error, and so is
+a tie with no winner: two polygons of the same priority and different
+scales that overlap a way by the same length (give one of them a
+higher priority).}
 
 \item{carspeed_scale}{A number of at least 0, the factor for the car
 speeds of the edges \code{new_carspeeds} leaves out (all of them when it is
-\code{NULL}). Defaults to 1. R5 keeps car speeds as 16-bit centimetres per
+\code{NULL}). Defaults to 1. Car speeds are kept as 16-bit centimetres per
 second: a factor or speed that would bring a speed to 0 or less, or
 past that range, is an error.}
 
@@ -224,7 +226,7 @@ least total time, then transfers, minutes on foot and fare is kept.
 Trips are built as in the other routing functions, so that their times
 agree with \code{\link[=detailed_itineraries]{detailed_itineraries()}}: a direct trip by the street mode, and
 trips that reach a stop of the access search, ride and walk between
-stops (as R5's transfer tables allow), and leave a stop of the egress
+stops (the transfers of the other functions), and leave a stop of the egress
 search; each ride boards at least a minute after its stop is reached,
 on the vehicle that gets to the alighting stop first.
 
@@ -273,7 +275,7 @@ discount are kept apart until they cannot get one any more.
 \code{\link[=pareto_frontier]{pareto_frontier()}} gives, for each fare cutoff, the percentiles of the
 travel time over Monte Carlo draws of departure times;
 \code{\link[=detailed_itineraries]{detailed_itineraries()}} gives the fastest trip, or with
-\code{shortest_path = FALSE} R5's alternatives, one per sequence of routes.
+\code{shortest_path = FALSE} the alternatives, one per sequence of routes.
 \code{trip_options()} gives the trade-offs themselves: the trips that are
 faster, cheaper, with fewer transfers or less walking than the others,
 each with its legs. With \code{criteria = "TIME"} and \code{time_window = 1} its

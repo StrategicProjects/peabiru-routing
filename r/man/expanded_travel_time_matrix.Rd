@@ -88,12 +88,14 @@ or \code{MULTIPOLYGON}s (in any CRS, reprojected to WGS 84 as \code{origins})
 with columns \code{poly_id} (character), \code{scale}
 (numeric) and \code{priority} (integer): each street edge takes the factor
 of the polygon it meets with the highest priority (ties: the one it
-overlaps most). Polygons that are not valid are an error, and so are
-ties that cannot be settled exactly as R5 settles them.}
+overlaps most). Polygons that are not valid are an error, and so is
+a tie with no winner: two polygons of the same priority and different
+scales that overlap a way by the same length (give one of them a
+higher priority).}
 
 \item{carspeed_scale}{A number of at least 0, the factor for the car
 speeds of the edges \code{new_carspeeds} leaves out (all of them when it is
-\code{NULL}). Defaults to 1. R5 keeps car speeds as 16-bit centimetres per
+\code{NULL}). Defaults to 1. Car speeds are kept as 16-bit centimetres per
 second: a factor or speed that would bring a speed to 0 or less, or
 past that range, is an error.}
 
@@ -164,7 +166,7 @@ mode as \code{routes} (\code{"[WALK]"}, \code{"[BICYCLE]"} or \code{"[CAR]"}).
 \details{
 A street mode alone is an error: use \code{\link[=travel_time_matrix]{travel_time_matrix()}}, whose
 travel times do not depend on the departure minute. At most 5,000
-destinations are accepted (R5's limit).
+destinations are accepted.
 
 With more than one 'GTFS' feed, a few trips can differ between operating
 systems (another stop or route with the same travel time): the feeds are
