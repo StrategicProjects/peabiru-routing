@@ -1,20 +1,16 @@
 <!--
 MAINTAINER NOTES (delete this block before submitting)
 
-This file was drafted on 2026-11-12 from a REHEARSAL tarball
-(`bash tools/build_r_release.sh <dir> --local-core`, package version 0.1.0,
-core from the working tree). Every statement marked [RE-VERIFY] below must be
-checked again on the real release tarball
-(`bash tools/build_r_release.sh <dir>`, after the core is on crates.io) and
-the mark removed. Also before submitting:
+Checked on 2026-11-13 against the release tarball peabiru_0.1.0.tar.gz built by
+`bash tools/build_r_release.sh <dir>` from the branch `cran-0.1.0` (the R
+package of `main` on the core as published on crates.io, 0.1.0): the numbers
+below are that tarball's.
 
-- win-builder (R-devel and R-release), R-hub or another Linux check, and
-  macOS builder have NOT been run. Run them and list them under "Test
-  environments"; remove the sentence that says they were not run.
-- Version in DESCRIPTION, the heading of NEWS.md and the numbers below
-  (sizes, times, counts of tests) are those of the rehearsal.
-- The tarball submitted must not be named *-LOCAL-CORE-NOT-FOR-CRAN* and its
-  DESCRIPTION must not have the field Config/peabiru/local-core.
+Still to do before submitting: win-builder (R-devel and R-release) and a
+Linux check (R-hub) with that same file; list them under "Test environments"
+and remove the sentence that says they were not run. The CI of the
+repository runs `R CMD check --as-cran` on a rehearsal tarball on Ubuntu at
+every push (job `r-cran`), which is not a substitute for them.
 -->
 
 ## Submission
@@ -24,17 +20,16 @@ This is a new submission.
 ## Test environments
 
 * local macOS Tahoe 26.7.2 (aarch64-apple-darwin23), R 4.6.0, cargo 1.100.0,
-  rustc 1.100.0: `R CMD check --as-cran` [RE-VERIFY]
+  rustc 1.100.0: `R CMD check --as-cran`
 * the same machine, rustc 1.81.0 (the minimum stated in
   `SystemRequirements`): the package's Rust code built offline from the
-  vendored sources [RE-VERIFY]
+  vendored sources
 
-win-builder, R-hub and Linux have not been run yet. [RE-VERIFY: run them and
-list them here]
+win-builder, R-hub and Linux have not been run yet.
 
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note [RE-VERIFY]
+0 errors | 0 warnings | 1 note
 
 * checking CRAN incoming feasibility ... NOTE
 
@@ -47,16 +42,16 @@ On the local machine the check also reports "Skipping checking HTML
 validation: 'tidy' doesn't look like recent enough HTML Tidy", which is about
 the machine (macOS ships an old HTML Tidy), not about the package.
 
-The installed size is 5.4 Mb (libs 4.5 Mb, the statically linked Rust
-library); the source tarball is 1.5 MB, of which 1.1 MB are the vendored
-Rust sources (`src/rust/vendor.tar.xz`). [RE-VERIFY]
+The installed size is 5.3 Mb (libs 4.5 Mb, the statically linked Rust
+library); the source tarball is 1.5 MB, of which 1.0 MB are the vendored
+Rust sources (`src/rust/vendor.tar.xz`).
 
 ## Rust
 
 The package's compiled code is written in Rust and follows CRAN's policy for
 packages using Rust (<https://cran.r-project.org/web/packages/using_rust.html>):
 
-* **No downloads.** All Rust dependencies (15 crates [RE-VERIFY], the
+* **No downloads.** All Rust dependencies (15 crates, the
   package's own routing engine 'peabiru-core' among them, at the version
   published on crates.io) are vendored in `src/rust/vendor.tar.xz`. The
   build runs `cargo build --offline` against them, with `CARGO_HOME` set to
@@ -69,7 +64,7 @@ packages using Rust (<https://cran.r-project.org/web/packages/using_rust.html>):
   is older than the minimum.
 * **Minimum Rust version.** `SystemRequirements: Cargo (Rust's package
   manager), rustc >= 1.81`. The vendored sources were built with rustc 1.81
-  as well as with the current stable. [RE-VERIFY]
+  as well as with the current stable.
 * **Authorship and licences.** `inst/AUTHORS` lists every vendored crate
   with its authors, licence and repository; the authors of the crates are
   credited in `Authors@R` (role `cph`, pointing to `inst/AUTHORS`). The
@@ -77,7 +72,7 @@ packages using Rust (<https://cran.r-project.org/web/packages/using_rust.html>):
   `inst/LICENSE-RUST-CRATES`; the notices of the works from which parts of
   the routing engine are derived are in `inst/LICENSE-THIRD-PARTY`. The
   vendored crates are under MIT, Apache-2.0, 0BSD, Zlib or Unicode-3.0
-  licences (each crate's expression is in `inst/AUTHORS`). [RE-VERIFY]
+  licences (each crate's expression is in `inst/AUTHORS`).
 * `cleanup` removes the generated `src/Makevars`, the unpacked vendored
   sources and the cargo build directory.
 
@@ -94,7 +89,7 @@ its default (all cores) the package uses two threads when
 They use only the small sample network shipped in `inst/extdata` (a few
 blocks of São Paulo, 170 kB), write only under `tempdir()` and do not use the
 network. Examples take under one second each and the tests about ten seconds
-on the local machine. [RE-VERIFY] There are no `\dontrun{}` or `\donttest{}`
+on the local machine. There are no `\dontrun{}` or `\donttest{}`
 examples; the examples that return 'sf' objects run only when 'sf' is
 installed.
 
