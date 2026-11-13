@@ -67,13 +67,18 @@
   <div class="grid3">
     <div class="card">
       <h3>Travel-time matrices</h3>
-      <p>Walking, cycling (with traffic stress), driving (with turn costs and restrictions),
-      and walking plus public transport over a departure window, with percentiles.</p>
+      <p>Walking, cycling (with traffic stress), driving (with turn costs and restrictions), and
+      walking plus public transport over a departure window, with percentiles.</p>
     </div>
     <div class="card">
       <h3>Accessibility</h3>
-      <p>Opportunities reachable from each origin, cumulative or weighted by a decay
-      function: step, exponential, fixed exponential, linear or logistic.</p>
+      <p>Opportunities reachable from each origin, cumulative or weighted by a decay function:
+      step, exponential, fixed exponential, linear or logistic.</p>
+    </div>
+    <div class="card">
+      <h3>Isochrones</h3>
+      <p>The area reached within each cutoff, as polygons traced from a travel-time surface, or
+      as the street segments reached, by any mode.</p>
     </div>
     <div class="card">
       <h3>Trip by trip</h3>
@@ -81,21 +86,29 @@
       waiting, riding, transfers and egress; arrival-time matrices.</p>
     </div>
     <div class="card">
-      <h3>Isochrones</h3>
-      <p>The area reached within each cutoff, as polygons traced from a travel-time surface,
-      or the street segments reached.</p>
+      <h3>Itineraries</h3>
+      <p>Detailed itineraries leg by leg, with their lines and geometry: the fastest trip of
+      each pair, or the alternatives within some minutes of it.</p>
     </div>
     <div class="card">
-      <h3>Itineraries and fares</h3>
-      <p>Detailed itineraries leg by leg, with their lines: the fastest trip or the
-      alternatives. Fare structures, travel times within a budget, and the Pareto frontier of
-      time and fare. And peabiru's own trip planner, <code>trip_options()</code>: every trip
-      worth considering on time, fare, transfers and walking, with its legs.</p>
+      <h3>Trip options</h3>
+      <p>peabiru's own trip planner, <code>trip_options()</code>: every trip worth considering
+      on time, fare, transfers and walking, with its legs.</p>
     </div>
     <div class="card">
-      <h3>Scenarios and terrain</h3>
-      <p>Car speeds and cyclists' traffic stress changed per call, without rebuilding the
-      network; walking and cycling times that follow the slope of the streets.</p>
+      <h3>Fares</h3>
+      <p>Fare structures with discounted transfers and a cap: travel times and access within a
+      budget, and the Pareto frontier of time and fare.</p>
+    </div>
+    <div class="card">
+      <h3>Scenarios</h3>
+      <p>Car speeds and cyclists' traffic stress changed per call, by street or by polygon,
+      without rebuilding the network: a what-if is one call.</p>
+    </div>
+    <div class="card">
+      <h3>Terrain</h3>
+      <p>Walking and cycling times that follow the slope of the streets, read from an elevation
+      raster in any common projection, by Tobler's or Minetti's cost.</p>
     </div>
   </div>
   <p>Public transport can be any subset of its modes, reached and left on foot, by bicycle or

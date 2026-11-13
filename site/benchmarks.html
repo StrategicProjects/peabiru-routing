@@ -35,8 +35,7 @@
   same parameters where a package lets them be set, and for every package the time, the memory
   and how far its answers are from peabiru's. The numbers below are generated from
   <a href="data/benchmarks.json"><code>data/benchmarks.json</code></a>
-  (<a href="data/benchmarks.csv">CSV</a>), written by <code>bench/site/run.py</code>; the
-  container in <code>bench/docker/</code> reproduces them.</p>
+  (<a href="data/benchmarks.csv">CSV</a>).</p>
   <p class="lead">This run was made in a container limited to 4 CPUs and 10 GiB on a Linux server that
   was doing other work at the same time, so read the times as a comparison between packages within one
   run, not as absolute figures; the date, the machine and its load are listed under the methodology.
@@ -161,7 +160,8 @@ Measured 2026-11-12.</p>
 <section aria-labelledby="others">
   <h2 id="others">Other routing tools</h2>
   <p>These tools are not timed here: they answer a different question, run as a server, or could
-  not be run on these inputs. Rows checked against each project's documentation in November 2026.</p>
+  not be run on these inputs. (R5, Conveyal's engine, is timed above through r5r and r5py, the
+  two packages that run it.) Rows checked against each project's documentation in November 2026.</p>
   <div class="table-wrap">
   <table class="features">
     <thead><tr><th scope="col">Tool</th><th scope="col">Written in</th><th scope="col">Streets</th><th scope="col">Public transport</th><th scope="col">Main outputs</th><th scope="col">Why not timed</th></tr></thead>
