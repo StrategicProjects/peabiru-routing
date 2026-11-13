@@ -1,5 +1,6 @@
 // The isochrone demo of the documentation site: build a network in the
-// browser, draw its streets, and draw isochrones from the point clicked.
+// browser and draw isochrones from the point clicked, on a map that can be
+// dragged and zoomed (MapLibre GL JS, loaded by the page as `maplibregl`).
 // site/build.sh copies the npm package (js/lib and js/pkg) next to this file,
 // in peabiru/, the São Paulo sample in data/spo/, and the streets of Recife
 // and Caruaru (site/demo/data/pe/, written by site/figures/make.sh
@@ -65,20 +66,19 @@ async function streetsOf(network, [lon, lat]) {
     cutoffs: [120],
     polygonOutput: false,
   });
-  return lines.features.map((f) => ({ cls: f.properties.street_class, xy: f.geometry.coordinates }));
+  return lines; // a GeoJSON FeatureCollection of LineStrings, with `street_class`
 }
 // ANCHOR_END: streets
 
-// ---------------------------------------------------------------- drawing
+// ---------------------------------------------------------------- the map
 
-const canvas = document.querySelector("#map");
-const ctx = canvas.getContext("2d");
 const statusEl = document.querySelector("#status");
 const legendEl = document.querySelector("#legend");
 const form = document.querySelector("#controls");
 const citySel = document.querySelector("#city");
 const cutoffSel = document.querySelector("#cutoffs");
 const timeInput = document.querySelector("#time");
+const basemapInput = document.querySelector("#basemap");
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const dark = () => matchMedia("(prefers-color-scheme: dark)").matches;
@@ -87,99 +87,116 @@ const RAMP = {
   light: ["#7a3318", "#a84b25", "#cf7445", "#e8a57b", "#f0c19d", "#f5d3b6"],
   dark: ["#f7c9a6", "#ee9c6e", "#d46f3d", "#a2502a", "#87432a", "#6a3820"],
 };
+const rampColor = (i, n) => {
+  const ramp = RAMP[dark() ? "dark" : "light"];
+  return ramp[Math.round((i * (ramp.length - 2)) / Math.max(n - 1, 1))];
+};
+const EMPTY = { type: "FeatureCollection", features: [] };
 
-let state = { city: null, network: null, streets: [], origin: null, isochrones: null, view: null };
+let state = { city: null, network: null, streets: EMPTY, bounds: null, origin: null, isochrones: null };
 
-const merc = ([lon, lat]) => [
-  (lon * Math.PI) / 180,
-  Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)),
-];
+// The background: OpenFreeMap's light or dark style, or nothing at all (the
+// streets of the network are then the whole map).
+function mapStyle() {
+  if (basemapInput.checked) return `https://tiles.openfreemap.org/styles/${dark() ? "dark" : "positron"}`;
+  return {
+    version: 8,
+    sources: {},
+    layers: [{ id: "paper", type: "background", paint: { "background-color": css("--pb-card") || "#fffdf9" } }],
+  };
+}
 
-function fitView() {
-  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
-  for (const s of state.streets) {
-    for (const p of s.xy) {
-      const [x, y] = merc(p);
-      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
-    }
+const map = new maplibregl.Map({
+  container: "map",
+  style: mapStyle(),
+  center: CITIES[citySel.value].origin,
+  zoom: 11,
+  attributionControl: { compact: true },
+  dragRotate: false,
+  pitchWithRotate: false,
+});
+map.touchZoomRotate.disableRotation();
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+map.getCanvas().style.cursor = "crosshair";
+
+const pin = document.createElement("div");
+pin.className = "origin-pin";
+const marker = new maplibregl.Marker({ element: pin });
+
+// The layers of this page, put back after every change of style: the
+// isochrones and the streets of the network, over the land, the water and the
+// buildings of the background map and under its roads and its labels.
+function decorate() {
+  const based = basemapInput.checked;
+  const layers = map.getStyle().layers;
+  const labels = (layers.find((l) => /^(tunnel|highway|road|aeroway)/.test(l.id)) ??
+    layers.find((l) => l.type === "symbol"))?.id;
+  if (!map.getSource("streets")) map.addSource("streets", { type: "geojson", data: state.streets });
+  if (!map.getSource("iso")) map.addSource("iso", { type: "geojson", data: isoData() });
+  if (!map.getLayer("iso")) {
+    map.addLayer({
+      id: "iso",
+      type: "fill",
+      source: "iso",
+      paint: { "fill-color": ["get", "fill"], "fill-opacity": based ? 0.62 : 0.78, "fill-antialias": false },
+    }, labels);
   }
-  const w = canvas.clientWidth, h = canvas.clientHeight, pad = 12;
-  const k = Math.min((w - 2 * pad) / (x1 - x0), (h - 2 * pad) / (y1 - y0));
-  const ox = (w - k * (x1 - x0)) / 2, oy = (h - k * (y1 - y0)) / 2;
-  state.view = {
-    toPx: (p) => { const [x, y] = merc(p); return [ox + k * (x - x0), oy + k * (y1 - y)]; },
-    toLonLat: (px, py) => {
-      const x = (px - ox) / k + x0, y = y1 - (py - oy) / k;
-      return [(x * 180) / Math.PI, (Math.atan(Math.sinh(y)) * 180) / Math.PI];
-    },
+  if (!map.getLayer("streets")) {
+    const wide = ["match", ["get", "street_class"], "MOTORWAY", 2.2, "PRIMARY", 1.8, "SECONDARY", 1.3, "TERTIARY", 1, 0.5];
+    map.addLayer({
+      id: "streets",
+      type: "line",
+      source: "streets",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        // alone, the streets are the map; over a background map they are a
+        // faint trace of the network that is routed
+        "line-color": based ? (dark() ? "#e98a5c" : "#8f3f1d") : (dark() ? "#3b4749" : "#d9cfbf"),
+        "line-opacity": based ? 0.16 : 1,
+        "line-width": based ? ["interpolate", ["linear"], ["zoom"], 10, 0.4, 15, 1.2]
+          : ["interpolate", ["linear"], ["zoom"], 10, ["*", wide, 0.8], 15, ["*", wide, 2.4]],
+      },
+    }, based ? labels : "iso"); // alone, the streets go under the isochrones
+  }
+}
+
+function isoData() {
+  if (!state.isochrones) return EMPTY;
+  const n = state.isochrones.length;
+  // largest first (as returned), so that the shorter times are drawn on top
+  return {
+    type: "FeatureCollection",
+    features: state.isochrones.map((f, i) => ({ ...f, properties: { ...f.properties, fill: rampColor(n - 1 - i, n) } })),
   };
 }
 
 function draw() {
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
-  }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = css("--pb-surface");
-  ctx.fillRect(0, 0, w, h);
-  if (!state.view) return;
-  const { toPx } = state.view;
-
-  // streets, thin to thick
-  const width = { MOTORWAY: 2.2, PRIMARY: 1.8, SECONDARY: 1.3, TERTIARY: 1, OTHER: 0.5 };
-  ctx.strokeStyle = dark() ? "#3b4749" : "#d9cfbf";
-  ctx.lineCap = "round";
-  for (const cls of ["OTHER", "TERTIARY", "SECONDARY", "PRIMARY", "MOTORWAY"]) {
-    ctx.lineWidth = width[cls];
-    ctx.beginPath();
-    for (const s of state.streets) {
-      if (s.cls !== cls) continue;
-      s.xy.forEach((p, i) => { const [x, y] = toPx(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
-    }
-    ctx.stroke();
-  }
-
-  // isochrones, largest first (as returned), with the shorter times on top
-  if (state.isochrones) {
-    const ramp = RAMP[dark() ? "dark" : "light"];
-    const n = state.isochrones.length;
-    state.isochrones.forEach((f, i) => {
-      ctx.beginPath();
-      for (const polygon of f.geometry.coordinates) {
-        for (const ring of polygon) {
-          ring.forEach((p, j) => { const [x, y] = toPx(p); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
-          ctx.closePath();
-        }
-      }
-      ctx.globalAlpha = 0.78;
-      ctx.fillStyle = ramp[Math.round(((n - 1 - i) * (ramp.length - 2)) / Math.max(n - 1, 1))];
-      ctx.fill("evenodd");
-      ctx.globalAlpha = 1;
-    });
-  }
-  if (state.origin) {
-    const [x, y] = toPx(state.origin);
-    ctx.beginPath();
-    ctx.arc(x, y, 6, 0, 2 * Math.PI);
-    ctx.fillStyle = css("--pb-ink");
-    ctx.fill();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = css("--pb-surface");
-    ctx.stroke();
-  }
+  map.getSource("streets")?.setData(state.streets);
+  map.getSource("iso")?.setData(isoData());
+  if (state.origin) marker.setLngLat(state.origin).addTo(map); else marker.remove();
 }
+
+function boundsOf(lines) {
+  const b = new maplibregl.LngLatBounds();
+  for (const f of lines.features) for (const p of f.geometry.coordinates) b.extend(p);
+  return b;
+}
+const fit = (animate = true) => state.bounds && map.fitBounds(state.bounds, { padding: 28, animate });
+
+function restyle() {
+  map.once("style.load", () => { decorate(); draw(); }); // before setStyle: an inline style loads at once
+  map.setStyle(mapStyle(), { diff: false });
+}
+map.on("load", () => { decorate(); draw(); });
 
 function legend() {
   if (!state.isochrones) { legendEl.textContent = ""; return; }
-  const ramp = RAMP[dark() ? "dark" : "light"];
   const n = state.isochrones.length;
   legendEl.replaceChildren(...[...state.isochrones].reverse().map((f, i) => {
     const span = document.createElement("span");
     const sw = document.createElement("i");
-    sw.style.background = ramp[Math.round((i * (ramp.length - 2)) / Math.max(n - 1, 1))];
+    sw.style.background = rampColor(i, n);
     span.append(sw, `${f.properties.isochrone} min`);
     return span;
   }));
@@ -236,9 +253,10 @@ async function loadCity(city) {
   cutoffSel.replaceChildren(...c.cutoffs.map((v) => new Option(v.replaceAll(",", ", "), v)));
   form.querySelectorAll("select, input").forEach((el) => { el.disabled = true; });
   state.network?.free();
-  state = { city, network: null, streets: [], origin: c.origin, isochrones: null, view: null };
+  state = { city, network: null, streets: EMPTY, bounds: null, origin: c.origin, isochrones: null };
   legend();
   draw();
+  map.jumpTo({ center: c.origin, zoom: 12 });
   try {
     statusEl.textContent = city === "poa" ? "Downloading the Porto Alegre files (2 MB) and building the network…"
       : "Building the network…";
@@ -246,7 +264,8 @@ async function loadCity(city) {
     state.network = await networkFrom(c.files);
     const info = state.network.info();
     state.streets = await streetsOf(state.network, c.origin);
-    fitView();
+    state.bounds = boundsOf(state.streets);
+    fit(false);
     statusEl.textContent = `Network built in ${Math.round(performance.now() - t0)} ms: ` +
       `${info.edges.toLocaleString("en")} street edges` +
       (info.stops ? `, ${info.stops.toLocaleString("en")} stops.` : " (streets only).");
@@ -262,23 +281,19 @@ async function loadCity(city) {
 
 // ---------------------------------------------------------------- events
 
-canvas.addEventListener("click", (e) => {
-  if (!state.view || !state.network) return;
-  const r = canvas.getBoundingClientRect();
-  state.origin = state.view.toLonLat(e.clientX - r.left, e.clientY - r.top);
+map.on("click", (e) => {
+  if (!state.network) return;
+  state.origin = [e.lngLat.lng, e.lngLat.lat];
   update();
 });
+document.querySelector("#fit").addEventListener("click", () => fit());
 citySel.addEventListener("change", () => loadCity(citySel.value));
+basemapInput.addEventListener("change", restyle);
 form.addEventListener("change", (e) => {
-  if (e.target !== citySel) update();
+  if (e.target !== citySel && e.target !== basemapInput) update();
 });
 form.addEventListener("submit", (e) => e.preventDefault());
-let resizeTimer;
-window.addEventListener("resize", () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (state.streets.length) fitView(); draw(); }, 100);
-});
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { legend(); draw(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { legend(); restyle(); });
 
 loadCity(citySel.value).catch((e) => {
   statusEl.textContent = `Could not start: ${e.message || e}`;

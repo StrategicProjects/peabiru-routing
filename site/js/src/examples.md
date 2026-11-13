@@ -45,12 +45,12 @@ The other packages give the same polygons; drawn for Porto Alegre, from the
 
 The [isochrone demo](../demo/) of this site is a single page that builds a
 network in the browser and draws isochrones from wherever you click, without
-a server and without map tiles. Its code,
+a server: the routing never leaves the page. Its code,
 [`site/demo/demo.mjs`](https://github.com/StrategicProjects/peabiru-routing/blob/main/site/demo/demo.mjs),
 has three parts that matter.
 
 <figure>
-  <a href="../demo/"><img src="../assets/figures/demo-poa.webp" alt="The isochrone demo page: a map of the streets of Porto Alegre with three nested isochrones, 10, 20 and 30 minutes by walking and public transport, stretching along the bus corridors from the clicked point." width="1000" height="615" style="max-width: 100%; height: auto;"></a>
+  <a href="../demo/"><img src="../assets/figures/demo-poa.webp" alt="The isochrone demo page: a map of Porto Alegre with three nested isochrones, 10, 20 and 30 minutes by walking and public transport, stretching along the bus corridors from the clicked point." width="1000" height="651" style="max-width: 100%; height: auto;"></a>
   <figcaption>The demo with the Porto Alegre network, walking and public transport at 14:00.</figcaption>
 </figure>
 
@@ -63,9 +63,12 @@ bytes to `buildNetwork()`:
 {{#include ../../demo/demo.mjs:load}}
 ```
 
-**The streets, from the network itself.** Instead of map tiles, the
-background is every street segment a car reaches from the centre within two
-hours, which on a city extract is every street, with its class:
+**The streets, from the network itself.** The page can show a background
+map (tiles of OpenFreeMap, to recognise the city), but it does not need one:
+switched off, the map is every street segment a car reaches from the centre
+within two hours, which on a city extract is every street, with its class.
+Over the background map the same lines show, faintly, where the network
+ends:
 
 ```js
 {{#include ../../demo/demo.mjs:streets}}
@@ -79,9 +82,10 @@ public transport the feeds' date and the chosen time make the departure;
 {{#include ../../demo/demo.mjs:isochrone}}
 ```
 
-The rest of the file projects longitude and latitude to Web Mercator and
-draws the lines and the polygons (with the even-odd rule, for the holes) on
-a `<canvas>`. Everything runs on the page's thread; for long computations,
+The rest of the file hands the GeoJSON to [MapLibre GL JS](https://maplibre.org/)
+as two layers, the streets and the isochrones, placed over the land and the
+buildings of the background map and under its roads and labels, so the map
+can be dragged and zoomed. Everything runs on the page's thread; for long computations,
 `buildNetwork({ useWorkers: true })` moves the routing to workers (see
 [Threads and workers](threads.md)).
 

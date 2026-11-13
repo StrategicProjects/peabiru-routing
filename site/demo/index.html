@@ -8,6 +8,7 @@
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/brand.css">
 <link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="demo.css">
 </head>
 <body>
@@ -27,9 +28,9 @@
 
 <main class="wrap demo">
   <h1>Isochrones in the browser</h1>
-  <p class="lead">Everything on this map is computed here, in your browser, by the peabiru npm
+  <p class="lead">The isochrones on this map are computed here, in your browser, by the peabiru npm
   package compiled to WebAssembly: the network is built from an OpenStreetMap extract and GTFS
-  feeds, and every click routes from the point you chose. Nothing is sent to a server.</p>
+  feeds, and every click routes from the point you chose. No routing request leaves the page.</p>
 
   <form class="controls" id="controls" aria-label="Isochrone options">
     <label>City
@@ -53,11 +54,16 @@
     <label>Departure (Monday 13 May 2019)
       <input id="time" type="time" value="14:00" step="60">
     </label>
+    <label class="switch" title="Tiles of OpenFreeMap under the isochrones; without them the map is the street network peabiru built">
+      <input id="basemap" type="checkbox" checked>
+      <span>Background map</span>
+    </label>
   </form>
 
   <div class="map-wrap">
-    <canvas id="map" role="img" aria-label="Map of the streets of the selected city; isochrones appear around the point you click."></canvas>
+    <div id="map" role="application" aria-label="Map of the selected city, which can be dragged and zoomed; isochrones appear around the point you click."></div>
     <div class="legend" id="legend" aria-live="polite"></div>
+    <button type="button" class="fit" id="fit" title="Show the whole network">Whole network</button>
   </div>
   <p class="status" id="status" role="status">Loading the WebAssembly module…</p>
 
@@ -65,10 +71,15 @@
     <h2 id="how">How this page works</h2>
     <p>The page loads the <a href="../js/">peabiru npm package</a> as a plain ES module, fetches
     the <code>.pbf</code> and GTFS <code>.zip</code> files of the city, and calls
-    <code>buildNetwork()</code> once. The street background is the street network itself, as
-    returned by <code>isochrone(…, { polygonOutput: false })</code>, so no map tiles are needed.
-    Each click calls <code>isochrone()</code> with the chosen mode and cutoffs and draws the
-    GeoJSON polygons on a canvas. Public transport uses the median of the departures in the
+    <code>buildNetwork()</code> once. Each click calls <code>isochrone()</code> with the chosen
+    mode and cutoffs and hands the GeoJSON polygons to
+    <a href="https://maplibre.org/">MapLibre GL JS</a>, which draws them and lets the map be
+    dragged and zoomed. The background map is there to recognise the city: its tiles come from
+    <a href="https://openfreemap.org/">OpenFreeMap</a>, the only requests the page makes after
+    loading (they say which part of the map is on screen, never where you clicked). Switch it
+    off and the map is the street network peabiru built, as returned by
+    <code>isochrone(…, { polygonOutput: false })</code>: the thin lines that also show, under the
+    background map, where the network ends. Public transport uses the median of the departures in the
     10 minutes from the chosen time; the Porto Alegre bus feed only has trips from late morning
     to early evening, so pick a time between 12:00 and 17:00 there. Recife and Caruaru have
     streets only: no open GTFS feed was found for either, so public transport is not offered
@@ -79,13 +90,15 @@
     hills are faster than in reality. The code is in
     <a href="https://github.com/StrategicProjects/peabiru-routing/tree/main/site/demo">site/demo</a>,
     and the <a href="../js/examples.html">JavaScript guide</a> walks through it.</p>
-    <p class="muted">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL).
+    <p class="muted">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL);
+    background map by <a href="https://openfreemap.org/">OpenFreeMap</a>, © <a href="https://openmaptiles.org/">OpenMapTiles</a>.
     GTFS: SPTrans (São Paulo), EPTC and Trensurb (Porto Alegre), as cut for the sample data of
     <a href="https://github.com/ipea/r5r">r5r</a>, from whose repository the Porto Alegre files are
     downloaded when chosen. Recife and Caruaru: cut from Geofabrik's extract of the Nordeste of
     2026-11-01 (Recife with its municipal boundary, from IBGE).</p>
   </section>
 </main>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module" src="demo.mjs"></script>
 </body>
 </html>

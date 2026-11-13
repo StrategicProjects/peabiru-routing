@@ -21,7 +21,7 @@ url = f"http://127.0.0.1:{server.server_address[1]}/demo/"
 done = "document.querySelector('#status').textContent.includes('computed')"
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = p.chromium.launch(channel="chrome")
     page = browser.new_page(viewport={"width": 1100, "height": 900}, color_scheme="light")
     page.goto(url)
     page.wait_for_function(done, timeout=60_000)
