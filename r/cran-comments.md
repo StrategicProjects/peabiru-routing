@@ -2,7 +2,7 @@
 MAINTAINER NOTES (delete this block before submitting)
 
 This file was drafted on 2026-11-12 from a REHEARSAL tarball
-(`bash tools/build_r_release.sh <dir> --local-core`, package version 0.0.1,
+(`bash tools/build_r_release.sh <dir> --local-core`, package version 0.1.0,
 core from the working tree). Every statement marked [RE-VERIFY] below must be
 checked again on the real release tarball
 (`bash tools/build_r_release.sh <dir>`, after the core is on crates.io) and

@@ -73,7 +73,7 @@ every function return base data frames instead, and
 `options(peabiru.output = "data.table")` `data.table`s; the rows, columns
 and values are the same whatever the class.
 The article
-["peabiru with sf and the tidyverse"](https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/sf-tidyverse.Rmd)
+["peabiru with sf and the tidyverse"](https://strategicprojects.github.io/peabiru-routing/r/articles/sf-tidyverse.html)
 goes from points to maps with sf, dplyr and ggplot2.
 
 Walking is at `walk_speed` (3.6 km/h by default). Cycling is at `bike_speed`

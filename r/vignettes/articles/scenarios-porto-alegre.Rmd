@@ -25,7 +25,7 @@ network: it is one more row among the destinations.
 This example asks four such questions of Porto Alegre, on a small sample
 of the city, and times each one: a what-if is one routing call
 on the network as built, with nothing to edit and rebuild. It was computed on 2026-11-12 with
-peabiru 0.0.1; the output shown is what the code
+peabiru 0.1.0; the output shown is what the code
 printed. The same steps in Python are in the [Python
 example](../../python/example-scenarios/).
 

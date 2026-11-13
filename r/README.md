@@ -19,7 +19,7 @@ the R session: no Java is needed, and the network is built once, in memory,
 and reused by every call. The same engine is behind the Python and
 JavaScript packages and the command-line tool of the same name.
 
-<a href="https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/isochrones.Rmd"><img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/isochrones-by-mode.svg" width="480" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes walking, cycling, driving and by public transport."></a>
+<a href="https://strategicprojects.github.io/peabiru-routing/r/articles/isochrones.html"><img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/isochrones-by-mode.svg" width="480" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes walking, cycling, driving and by public transport."></a>
 
 | Function | What it computes |
 |---|---|
@@ -76,7 +76,7 @@ The functions return tibbles by default (`sf` tibbles for the results with
 a geometry). `options(peabiru.output = "data.frame")` gives base data
 frames and `options(peabiru.output = "data.table")` `data.table`s; the
 rows, columns and values are the same whatever the class. There is also a
-[comparison with r5r](https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/coming-from-r5r.Rmd).
+[comparison with r5r](https://strategicprojects.github.io/peabiru-routing/r/articles/coming-from-r5r.html).
 
 
 ## Documentation
@@ -87,7 +87,7 @@ the repository and open `_site/r/index.html`. It has a getting-started
 vignette and articles on travel-time matrices, accessibility, expanded and
 arrival matrices, detailed itineraries, fares, elevation, scenarios,
 inspecting a network, how the engine works, and benchmarks. To go from points to maps with sf, dplyr and ggplot2, start with
-["peabiru with sf and the tidyverse"](https://github.com/StrategicProjects/peabiru-routing/blob/main/r/vignettes/articles/sf-tidyverse.Rmd):
+["peabiru with sf and the tidyverse"](https://strategicprojects.github.io/peabiru-routing/r/articles/sf-tidyverse.html):
 an sf grid in any coordinate reference system, the routing functions with
 the native pipe, dplyr on the tibbles they return, joins back to the
 geometry and `geom_sf()` maps.

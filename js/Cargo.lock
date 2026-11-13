@@ -41,14 +41,14 @@ dependencies = [
 
 [[package]]
 name = "peabiru-core"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "miniz_oxide",
 ]
 
 [[package]]
 name = "peabiru-js"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "js-sys",
  "peabiru-core",

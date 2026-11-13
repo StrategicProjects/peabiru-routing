@@ -1,13 +1,13 @@
 # The command line
 
-The `peabiru` binary (crate `peabiru-cli`, to be published on crates.io
-with version 0.1.0) runs the engine from the shell: every function of the
+The `peabiru` binary (crate
+[`peabiru-cli`](https://crates.io/crates/peabiru-cli) on crates.io) runs the engine from the shell: every function of the
 R, Python and JavaScript packages is a command, with their argument names
 in kebab-case, their defaults and their checks, so that a transport analyst
 can work without R or Python and get the same numbers.
 
 ```sh
-cargo install peabiru-cli            # once published; Rust 1.81 or later
+cargo install peabiru-cli            # Rust 1.81 or later
 cargo build --release -p peabiru-cli # from the repository: target/release/peabiru
 peabiru --help                       # the commands
 peabiru matrix --help                # a command's options, with examples

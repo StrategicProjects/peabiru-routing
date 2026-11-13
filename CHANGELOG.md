@@ -3,7 +3,7 @@
 Changes of the Rust crate `peabiru-core`, the command-line tool, and the
 Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
-## Development version
+## 0.1.0
 
 The R, Python and JavaScript packages have the same routing and network
 functions. peabiru is described in its own terms: each package has one page

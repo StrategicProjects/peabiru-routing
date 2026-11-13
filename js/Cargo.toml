@@ -1,7 +1,7 @@
 [package]
 name = "peabiru-js"
 description = "WebAssembly bindings of the peabiru routing core, for the npm package peabiru"
-version = "0.0.1"
+version = "0.1.0"
 authors = [
     "André Leite <leite@castlab.org>",
     "Marcos Wasiliew <marcos.wasiliew@gmail.com>",
@@ -19,7 +19,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-peabiru-core = { path = "../crates/peabiru-core", version = "0.0.1" }
+peabiru-core = { path = "../crates/peabiru-core", version = "0.1.0" }
 # The JavaScript glue (exported functions and classes, errors as JS Error).
 wasm-bindgen = "0.2.130"
 # Typed arrays and plain arrays handed to JavaScript without serde. Its

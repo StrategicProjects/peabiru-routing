@@ -6,7 +6,7 @@ The crate is on [crates.io](https://crates.io/crates/peabiru-core):
 
 ```toml
 [dependencies]
-peabiru-core = "0.0.1"
+peabiru-core = "0.1"
 ```
 
 The minimum supported Rust version is 1.81.

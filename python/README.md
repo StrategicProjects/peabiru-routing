@@ -18,7 +18,7 @@ no Java is needed, the network is built once in memory and reused by every
 call, and the results are `pandas.DataFrame`s. The same Rust core powers
 the R package of the same name.
 
-<a href="https://github.com/StrategicProjects/peabiru-routing/blob/main/python/docs/example-isochrones.md"><img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/isochrones-by-mode.svg" width="480" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes walking, cycling, driving and by public transport."></a>
+<a href="https://strategicprojects.github.io/peabiru-routing/python/example-isochrones/"><img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/isochrones-by-mode.svg" width="480" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes walking, cycling, driving and by public transport."></a>
 
 Worked examples (isochrones, access to jobs on a grid, how much a trip
 varies) are in the [documentation](https://strategicprojects.github.io/peabiru-routing/python/).
