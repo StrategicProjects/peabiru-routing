@@ -56,9 +56,9 @@ An unlimited walk (`max_walk_time = Inf` in R) corresponds to
 and `max_car_time`.
 
 By bicycle or car, the access search goes on on foot from wherever the
-vehicle got, within the same time limit, as R5 does, so that stops in
+vehicle got, within the same time limit, so that stops in
 pedestrian-only areas are reached too. A bicycle or car egress links every
-stop again by that mode, as R5 does.
+stop again by that mode.
 
 ## Example
 

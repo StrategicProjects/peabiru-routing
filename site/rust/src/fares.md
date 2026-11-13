@@ -38,14 +38,15 @@ let m = peabiru_core::transit_travel_time_matrix(&network, &o, &d, &p)?;
 ```
 
 With a fare structure, public transport is routed by
-R5's multi-criteria router (`McRaptorSuboptimalPathProfileRouter`, ported
-with its tie-breaking and iteration orders) with R5's `FareDominatingList`
-and the `RuleBasedInRoutingFareCalculator`, over `time_window x
+the multi-criteria router (McRAPTOR), which keeps at each stop the trips
+that are faster or cheaper than the others (compared by fare paid and
+transfer allowance left) and prices them with the rule-based fare
+calculator, over `time_window x
 draws_per_minute` departure times sampled in the window (seeded from the
 origin), instead of RAPTOR at every minute. The numbers
-are read as the calculator reads them: written
-with four decimals, fares read into `float`s and counts into
-`int`s, and the calculator works in integer cents.
+of a structure are read as written
+with four decimals, fares into 32-bit floats and counts into
+32-bit integers, and the calculator works in integer cents.
 
 `pareto_frontier` routes the matrix once per fare
 cutoff, and per destination and percentile a row at each cutoff where the
@@ -54,8 +55,9 @@ travel time changes. `detailed_itineraries` takes the same structure in
 does with `shortest_path = false`); its itineraries get `total_fare` and
 each leg `cumulative_fare` (see [Detailed itineraries](itineraries.md)).
 
-The fare structure is the rule-based one. R5's own fare calculators for other cities (a JSON structure with a `type`)
-are not ported.
+Fares follow the rules of the structure. A structure that names a fare
+calculator instead (a JSON structure with a `type`) is not supported: it is
+an error.
 
 ## Example
 

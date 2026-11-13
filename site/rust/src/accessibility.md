@@ -20,8 +20,8 @@ destination times a decay weight of the travel time.
   fastest).
 
 The travel time given to the decay function is the percentile in seconds,
-not rounded to minutes, and the exponential is a port of `FastMath.exp` from
-Apache Commons Math 3 rather than the platform's `exp`, so the values do not
+not rounded to minutes, and the exponential is table-based (translated from
+`FastMath.exp` of Apache Commons Math 3) rather than the platform's `exp`, so the values do not
 depend on the C library.
 
 The packages adjust the trip limits before routing: with

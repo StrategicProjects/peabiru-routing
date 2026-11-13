@@ -17,8 +17,9 @@ const ZERO_EPSILON: f64 = 0.001;
 
 /// A decay function and its parameter (the packages' `decay_function`
 /// and `decay_value`): how much an opportunity reached in `t` counts
-/// towards accessibility, given a cutoff. The weights are bit-identical to
-/// R5's. Non-exhaustive: R5 may gain other functions.
+/// towards accessibility, given a cutoff. The weights are the same, to the
+/// last bit, on every platform. Non-exhaustive: other functions may be
+/// added.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum DecayFunction {

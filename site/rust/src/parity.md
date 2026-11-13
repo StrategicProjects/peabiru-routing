@@ -19,6 +19,18 @@ checked to be **identical** to r5r's, not close to them: matrices pair by
 pair, accessibility bit for bit, expanded and arrival matrices column by
 column and in row order, itineraries and isochrones by their coordinates.
 
+Other pages of this guide state as plain facts about peabiru details that
+are R5's: the multi-criteria router is a port of its
+`McRaptorSuboptimalPathProfileRouter`, with its tie-breaking and iteration
+orders, its `FareDominatingList` and its `RuleBasedInRoutingFareCalculator`
+(fares read into Java `float`s, counts into `int`s); elevations are kept in
+16-bit decimetres and car speeds in 16-bit centimetres per second as R5
+keeps them; rasters are read at the nearest pixel as GeoTools reads a
+coverage for R5; the expanded and arrival matrices take at most 5,000
+destinations, R5's limit for paths; a scenario leaves the egress and the
+transfers as built because R5 copies them from the network; the street
+vertices are listed in the order of a Java `HashSet`.
+
 Equality down to the last bit depends on details that look incidental:
 reading ways and feeds in R5's order, keeping the first of two equal states as
 R5's priority queue does, mixing `float` and `double` as the Java code does,

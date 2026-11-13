@@ -77,8 +77,9 @@ errors of each feed; feeds with errors of priority `HIGH` are refused.
 Results can be written to CSV files, one per origin (`output_dir`, in R and
 Python).
 
-R5's own fare calculators (a fare structure with a `type`) are not ported.
-Asking for them is an error; nothing is silently ignored.
+What peabiru does not support is an error that says so; nothing is
+silently ignored. A fare structure that names a fare calculator (a `type`)
+instead of fare rules is one such case.
 
 **Status:** early development. The interfaces may still change.
 
@@ -215,8 +216,8 @@ cargo build --release -p peabiru-cli                # command-line tool
 
 ## Correctness
 
-The routing model is that of Conveyal's [R5](https://github.com/conveyal/r5)
-7.6, ported to Rust. The repository keeps reference results for every
+The routing model follows that of Conveyal's
+[R5](https://github.com/conveyal/r5). The repository keeps reference results for every
 function on the sample networks of Porto Alegre and São Paulo, and
 [`bench/compare`](bench/compare) checks peabiru against them value by value,
 on Linux, macOS and Windows, on every push to `main`. Each package has one
@@ -260,7 +261,8 @@ To cite it, see [`CITATION.cff`](CITATION.cff).
 
 Its routing logic is ported from R5 (MIT, © Conveyal). Polygon isochrones
 port the algorithm of isoband (MIT), and parts of Apache Commons Math 3
-(Apache-2.0) and fdlibm 5.3 are translated so that the numbers are R5's.
+(Apache-2.0) and fdlibm 5.3 are translated, so that the numbers are the
+same on every platform.
 The notices and licence texts of these and of the other works peabiru
 derives from are in [`LICENSE-THIRD-PARTY`](LICENSE-THIRD-PARTY), which is
 distributed with every package. The sample network in the R and Python

@@ -40,9 +40,10 @@ The command line has it as `peabiru options`.
 The search (`options/search.rs`) is McRAPTOR (Delling, Pajor and Werneck,
 "Round-Based Public Transit Routing") from each departure minute, with Pareto
 bags of labels: arrival time, rides, seconds on foot and fare state. It runs
-on R5's network semantics, so that its times agree with the other functions:
-the access and egress stop searches of the itinerary planner, R5's transfer
-tables, a minimum boarding wait of 60 s, the trip limit of R5's RAPTOR. A
+on the same network semantics as the other functions, so that its times
+agree with theirs: the access and egress stop searches of the itinerary
+planner, the same transfer tables, a minimum boarding wait of 60 s, the
+same trip limit as RAPTOR. A
 ride takes the vehicle that reaches the alighting stop first.
 
 - **Fares** are not additive (discounts within an allowance, unlimited
@@ -51,9 +52,9 @@ ride takes the vehicle that reaches the alighting stop first.
   fare states are equivalent (same type, discounts, full fare and route of
   the last ride, same time and discount deadline), or a later deadline is
   provably no worse, or one has paid less by more than the other could still
-  save. R5's own `FareDominatingList` (paid fare and transfer allowance) is
-  not sound for every structure; on the Porto Alegre sample's structure the two give
-  the same frontiers.
+  save. The simpler comparison the fare router of `pareto_frontier` makes
+  (paid fare and transfer allowance) is not sound for every structure; on
+  the Porto Alegre sample's structure the two give the same frontiers.
 - **Frequency-based trips** are boarded at their expected times (half a
   headway of waiting; the scheduled departures with `exact_times = 1`), so
   a trip is still a path and the search is exact on those values. There are
