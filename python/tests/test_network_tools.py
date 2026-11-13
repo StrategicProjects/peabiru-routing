@@ -145,5 +145,5 @@ def test_get_gtfs_errors_of_a_feed_gtfs_lib_fails_on(tmp_path):
             z.writestr(n, data)
         if "calendar_dates.txt" not in src.namelist():
             z.writestr("calendar_dates.txt", "service_id,date,exception_type\nUSD,20190230,1\n")
-    with pytest.raises(RuntimeError, match="DateTimeParseException"):
+    with pytest.raises(RuntimeError, match="is not a date written YYYYMMDD, and the feed cannot be read"):
         peabiru.get_gtfs_errors(tmp_path)

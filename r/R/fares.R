@@ -219,7 +219,7 @@ assert_fare_structure <- function(fare_structure) {
   fs <- fare_structure
   cm_assert(check_list_cm(fs, any.missing = FALSE), "fare_structure")
   if ("type" %in% names(fs)) {
-    unsupported("A fare calculator of R5 (a fare structure with a 'type')")
+    unsupported("A fare structure with a 'type' (a named fare calculator instead of fare rules)")
   }
   element_names <- c("max_discounted_transfers", "transfer_time_allowance", "fare_cap",
                      "fares_per_type", "fares_per_transfer", "fares_per_route",

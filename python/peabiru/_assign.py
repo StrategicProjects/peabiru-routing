@@ -478,7 +478,7 @@ def check_draws(draws_per_minute: Any, time_window: Any = 1, mcraptor: bool = Fa
     if draws == 200:
         raise ValueError(
             f"A 'time_window' of {_num(time_window)} minutes with {dpm} draw(s) per minute "
-            "gives exactly 200 Monte Carlo draws, which R5's McRaptor algorithm does not "
+            "gives exactly 200 Monte Carlo draws, which the multi-criteria router does not "
             f"accept. Use a slightly different 'time_window', e.g. {_num(tw + 1)}."
         )
     m = 60 // dpm
@@ -492,7 +492,7 @@ def check_draws(draws_per_minute: Any, time_window: Any = 1, mcraptor: bool = Fa
     if p < 5e-5:
         raise ValueError(
             f"'draws_per_minute' = {dpm} with a 'time_window' of {_num(time_window)} minutes "
-            "is not supported with a 'fare_structure'. R5's McRaptor algorithm cannot "
+            "is not supported with a 'fare_structure'. The multi-criteria router cannot "
             "sample this many departure times and could run indefinitely. Use a lower "
             "'draws_per_minute' or a shorter 'time_window'."
         )

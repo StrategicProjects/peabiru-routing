@@ -132,7 +132,8 @@ test_that("what the core does not support is an error, never ignored", {
     travel_time_matrix(network, pts, pts, departure_datetime = departure,
                        n_threads = 2, ...)
   }
-  expect_error(ttm(fare_structure = list(type = "boston")), "R5.*not supported")
+  expect_error(ttm(fare_structure = list(type = "boston")),
+               "fare structure with a 'type' .*is not supported by peabiru")
   # TRANSIT with other transit modes is all transit modes
   expect_identical(
     ttm(mode = c("WALK", "TRANSIT", "BUS"), seed = 1),

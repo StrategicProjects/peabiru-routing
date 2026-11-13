@@ -335,7 +335,7 @@ def assert_fare_structure(fare_structure: Any) -> None:
     if not isinstance(fare_structure, dict):
         fail_assert("fare_structure", "Must be of type 'list'", TypeError)
     if "type" in fare_structure:
-        unsupported("A fare calculator of R5 (a fare structure with a 'type')")
+        unsupported("A fare structure with a 'type' (a named fare calculator instead of fare rules)")
     if sorted(fare_structure) != sorted(_ELEMENTS):
         fail_assert("names(fare_structure)", "Must have exactly the names {'" + "','".join(_ELEMENTS) + "'}")
     for n in ("max_discounted_transfers", "transfer_time_allowance", "fare_cap"):

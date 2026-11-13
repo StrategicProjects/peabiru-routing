@@ -1802,7 +1802,7 @@ function fareToCore(fs) {
 /** The checks of a fare structure: the element names here, the values and tables in the core. */
 function assertFareStructure(fs) {
   if (fs === null || typeof fs !== "object" || Array.isArray(fs)) fail("fareStructure", "Must be of type 'list'", TypeError);
-  if ("type" in fs) unsupported("A fare calculator of R5 (a fare structure with a 'type')");
+  if ("type" in fs) unsupported("A fare structure with a 'type' (a named fare calculator instead of fare rules)");
   const names = Object.keys(fs).sort();
   if (names.join() !== [...FARE_ELEMENTS].sort().join()) {
     fail("names(fareStructure)", `Must have exactly the names {'${FARE_ELEMENTS.join("','")}'}`);
@@ -1857,7 +1857,7 @@ function checkMcDraws(drawsPerMinute, timeWindow, mcraptor) {
   const draws = Math.trunc(timeWindow * dpm);
   if (draws === 200) {
     throw new RangeError(
-      `A 'timeWindow' of ${timeWindow} minutes with ${dpm} draw(s) per minute gives exactly 200 Monte Carlo draws, which R5's McRaptor algorithm does not accept. Use a slightly different 'timeWindow', e.g. ${timeWindow + 1}.`,
+      `A 'timeWindow' of ${timeWindow} minutes with ${dpm} draw(s) per minute gives exactly 200 Monte Carlo draws, which the multi-criteria router does not accept. Use a slightly different 'timeWindow', e.g. ${timeWindow + 1}.`,
     );
   }
   const m = Math.floor(60 / dpm);
@@ -1871,7 +1871,7 @@ function checkMcDraws(drawsPerMinute, timeWindow, mcraptor) {
   }
   if (p < 5e-5) {
     throw new RangeError(
-      `'drawsPerMinute' = ${dpm} with a 'timeWindow' of ${timeWindow} minutes is not supported with a 'fareStructure'. R5's McRaptor algorithm cannot sample this many departure times and could run indefinitely. Use a lower 'drawsPerMinute' or a shorter 'timeWindow'.`,
+      `'drawsPerMinute' = ${dpm} with a 'timeWindow' of ${timeWindow} minutes is not supported with a 'fareStructure'. The multi-criteria router cannot sample this many departure times and could run indefinitely. Use a lower 'drawsPerMinute' or a shorter 'timeWindow'.`,
     );
   }
 }

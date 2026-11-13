@@ -344,8 +344,8 @@ check_draws <- function(draws_per_minute, time_window = 1L, mcraptor = FALSE) {
         message = cli_text(paste0(
           "A `time_window` of ", time_window, " minutes with ", draws_per_minute,
           if (draws_per_minute == 1) " draw" else " draws",
-          " per minute gives exactly 200 Monte Carlo draws, which R5's McRaptor ",
-          "algorithm does not accept."
+          " per minute gives exactly 200 Monte Carlo draws, which the ",
+          "multi-criteria router does not accept."
         ), c(i = paste0(
           "Use a slightly different `time_window`, e.g. ", time_window + 1, "."
         ))),
@@ -363,7 +363,7 @@ check_draws <- function(draws_per_minute, time_window = 1L, mcraptor = FALSE) {
         "`draws_per_minute` = ", draws_per_minute, " with a `time_window` of ",
         time_window, " minutes is not supported with a `fare_structure`."
       ), c(
-        i = paste0("R5's McRaptor algorithm cannot sample this many departure times ",
+        i = paste0("The multi-criteria router cannot sample this many departure times ",
                    "and could run indefinitely."),
         i = "Use a lower `draws_per_minute` or a shorter `time_window`."
       ))
