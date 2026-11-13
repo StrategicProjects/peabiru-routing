@@ -3,6 +3,7 @@
 import datetime as dt
 import math
 import os
+import re
 from pathlib import Path
 
 import numpy as np
@@ -151,7 +152,7 @@ def test_output_dir_is_checked(network, points, tmp_path):
     missing = tmp_path / "nope"
     with pytest.raises(
         FileNotFoundError,
-        match=f"Assertion on 'output_dir' failed: Directory '{missing}' does not exist.",
+        match=re.escape(f"Assertion on 'output_dir' failed: Directory '{missing}' does not exist."),
     ):
         call(str(missing))
     with pytest.raises(FileNotFoundError, match="Directory '' does not exist"):

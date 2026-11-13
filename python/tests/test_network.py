@@ -116,11 +116,17 @@ FEED = {
 }
 
 
+def quoted(path):
+    """The path as the message writes it: between double quotes, backslashes
+    and quotes escaped (a Windows path can be pasted as it is printed)."""
+    return '"' + path.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
 def refused(path, feeds):
     """The message of a build refused for errors of priority HIGH."""
     return (
         f"High priority GTFS errors found; network build failed ({feeds}). "
-        f'Use peabiru.get_gtfs_errors("{os.path.realpath(path)}") to see them.'
+        f"Use peabiru.get_gtfs_errors({quoted(os.path.realpath(path))}) to see them."
     )
 
 

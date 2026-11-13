@@ -5,7 +5,9 @@
 # built and tested but not uploaded.
 #
 # Run by hand (Actions > python-release > Run workflow) it only builds and
-# tests: nothing is uploaded.
+# tests: nothing is uploaded, unless the "publish" box is ticked, which uploads
+# the version in the repository after the same approval in the pypi
+# environment (for a version whose release already exists).
 #
 # The upload uses PyPI's trusted publishing, with no API token. The publisher
 # registered on PyPI must match this file:
@@ -26,6 +28,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Upload the version in the repository to PyPI (needs approval)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -159,7 +166,7 @@ jobs:
   publish:
     name: upload to PyPI
     # a pre-release is built and tested, but not uploaded
-    if: github.event_name == 'release' && !github.event.release.prerelease
+    if: (github.event_name == 'release' && !github.event.release.prerelease) || inputs.publish
     needs: [wheels, sdist, test, sdist-build]
     runs-on: ubuntu-latest
     environment: pypi
