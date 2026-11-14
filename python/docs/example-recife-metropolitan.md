@@ -262,8 +262,9 @@ within half an hour by public transport; with 45 minutes, 26 and 79.
 
 ## Isochrones from the centre
 
-From Praça do Derby, where the bus corridors of the west and the north meet
-on their way to the centre of Recife. [`isochrone()`][peabiru.isochrone]
+From Praça do Derby, between the centre of Recife and its west and north:
+74 of the feed's 400 routes stop within 400 m of the square on a weekday.
+[`isochrone()`][peabiru.isochrone]
 traces the areas on a grid of points, and the points just off the coast are
 reached from the seafront, so the polygons are cut at the coast (the
 municipal boundaries) before their area is measured. Walking is at 3.6 km/h

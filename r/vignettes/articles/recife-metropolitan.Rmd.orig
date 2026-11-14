@@ -113,7 +113,7 @@ source(file.path(scripts, "pernambuco-data.R"))   # prepare_city(), fetch()
 source(file.path(scripts, "rmr-data.R"))          # prepare_rmr(), the feed
 rmr <- prepare_rmr()
 
-c(MB = round(file.size(rmr$feed) / 1e6, 1), sha256 = substr(tools::sha256sum(rmr$feed), 1, 16))
+c(MB = round(file.size(rmr$feed) / 1e6, 1), sha256 = substr(unname(tools::sha256sum(rmr$feed)), 1, 16))
 feed <- rmr_feed_summary(rmr$feed)
 str(feed[c("publisher", "version", "agencies", "routes", "stops", "stations", "trips",
            "frequencies", "transfer_rules")], give.attr = FALSE)
@@ -211,8 +211,9 @@ live('fig("speeds-rmr.svg")', 'echo = FALSE, fig.alt = "Lines of the median sche
 
 ## Isochrones by mode
 
-From Praça do Derby, where the bus corridors of the west and the north meet
-on their way to the centre of Recife. `isochrone()` traces the areas on a
+From Praça do Derby, between the centre of Recife and its west and north:
+74 of the feed's 400 routes stop within 400 m of the square on a weekday.
+`isochrone()` traces the areas on a
 grid of points, and the points just off the coast are reached from the
 seafront, so the polygons are cut at the coast (the municipal boundaries)
 before their area is measured. (`isochrone()` warns when making a traced

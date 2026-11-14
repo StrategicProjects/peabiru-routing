@@ -61,7 +61,9 @@ not on the open-data portals of the city, the state or CBTU, nor in the
 Mobility Database. Caruaru has none either. So this example routes on the
 streets, and leaves public transport out rather than approximate it. With a
 GTFS feed, the same code takes `mode = c("WALK", "TRANSIT")` and a departure
-time.
+time: the [Recife metropolitan region example](recife-metropolitan.html)
+does that, with the feed the consortium publishes on its own site (found
+after this page was written; it states no licence).
 
 ## The data
 

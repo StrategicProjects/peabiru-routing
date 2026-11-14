@@ -29,10 +29,12 @@ gdal`, `apt install osmium-tool gdal-bin`, or conda-forge).
 </figure>
 
 !!! note "Streets only"
-    No open GTFS feed was found for Salvador or for the Recife metropolitan
-    region (Grande Recife Consórcio de Transporte, CBTU): neither state has a
-    feed in the Mobility Database, and the agencies' portals publish none.
-    So this example routes on the streets.
+    No open GTFS feed was found for Salvador, and neither Bahia nor
+    Pernambuco has one in the Mobility Database. So this example routes on
+    the streets. (Grande Recife publishes a feed on its own site, found
+    after this page was written: the
+    [Recife metropolitan region example](example-recife-metropolitan.md)
+    routes on it.)
 
 ## The data
 

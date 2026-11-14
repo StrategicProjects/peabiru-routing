@@ -37,7 +37,10 @@ each block is what it prints; it was computed on 2026-11-11. It needs
     Mobility Database. Caruaru has none either. So this example routes on
     the streets, and leaves public transport out rather than approximate
     it. With a GTFS feed, the same code takes `mode=["WALK", "TRANSIT"]`
-    and a departure time.
+    and a departure time: the
+    [Recife metropolitan region example](example-recife-metropolitan.md)
+    does that, with the feed the consortium publishes on its own site
+    (found after this page was written; it states no licence).
 
 ## The data
 

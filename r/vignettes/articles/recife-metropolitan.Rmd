@@ -82,9 +82,9 @@ source(file.path(scripts, "pernambuco-data.R"))   # prepare_city(), fetch()
 source(file.path(scripts, "rmr-data.R"))          # prepare_rmr(), the feed
 rmr <- prepare_rmr()
 
-c(MB = round(file.size(rmr$feed) / 1e6, 1), sha256 = substr(tools::sha256sum(rmr$feed), 1, 16))
-#>                                               MB sha256.rmr-data/raw/granderecife-v2026.10.26.zip 
-#>                                           "38.3"                               "1b0657fb8f6bcb70"
+c(MB = round(file.size(rmr$feed) / 1e6, 1), sha256 = substr(unname(tools::sha256sum(rmr$feed)), 1, 16))
+#>                 MB             sha256 
+#>             "38.3" "1b0657fb8f6bcb70"
 feed <- rmr_feed_summary(rmr$feed)
 str(feed[c("publisher", "version", "agencies", "routes", "stops", "stations", "trips",
            "frequencies", "transfer_rules")], give.attr = FALSE)
@@ -125,7 +125,7 @@ time, transfers and walking are measured here, and money is not.
 ``` r
 threads <- 4   # of the 10 of the laptop; the default is all of them
 (seconds <- system.time(network <- build_network(rmr$network, n_threads = threads))[["elapsed"]])
-#> [1] 5.638
+#> [1] 6.998
 network
 #> <peabiru_network>
 #>   data path: rmr-data/network
@@ -141,7 +141,7 @@ check_transit_availability(network, dates = as.Date("2026-11-10"))
 #> 1 2026-11-10           1143             395      0.346
 ```
 
-One street extract of 21 MB and one feed, built in 6
+One street extract of 21 MB and one feed, built in 7
 seconds on a laptop busy with other work; the feed has no error. `pct_active` is low because the feed keeps a service for each
 route and kind of day (weekday, Saturday, Sunday and holiday): on a Tuesday
 the weekday ones run.
@@ -222,8 +222,9 @@ fig("speeds-rmr.svg")
 
 ## Isochrones by mode
 
-From Praça do Derby, where the bus corridors of the west and the north meet
-on their way to the centre of Recife. `isochrone()` traces the areas on a
+From Praça do Derby, between the centre of Recife and its west and north:
+74 of the feed's 400 routes stop within 400 m of the square on a weekday.
+`isochrone()` traces the areas on a
 grid of points, and the points just off the coast are reached from the
 seafront, so the polygons are cut at the coast (the municipal boundaries)
 before their area is measured. (`isochrone()` warns when making a traced
@@ -338,7 +339,7 @@ seconds <- system.time(
 )[["elapsed"]]
 c(origins = nrow(cells), destinations = nrow(destinations), seconds = round(seconds))
 #>      origins destinations      seconds 
-#>        13096        14990           48
+#>        13096        14990           34
 ```
 
 
@@ -382,7 +383,7 @@ transport either; for a health unit,
 
 On the laptop this was written on (Apple M2 Pro, 4 of its 10 threads, busy
 with other work at the time) the three calls, each from 13,096
-origins to 14,990 destinations, took 48
+origins to 14,990 destinations, took 34
 seconds together.
 
 ```{r, echo = FALSE, fig.alt = "Two maps of the conurbation of Recife with the cells of a grid coloured by the number of public schools reached within 30 minutes at the morning peak, walking and with public transport: with public transport the cells along the corridors that lead to the centre of Recife reach 80 or more."}
