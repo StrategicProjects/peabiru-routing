@@ -36,6 +36,7 @@ use std::time::Duration;
 mod fares;
 mod inspect;
 mod itinerary;
+mod location;
 mod options;
 mod scenario;
 
@@ -1148,6 +1149,8 @@ fn _peabiru(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(isochrone_lines, m)?)?;
     m.add_function(wrap_pyfunction!(itinerary::itineraries, m)?)?;
     m.add_function(wrap_pyfunction!(options::trip_options_py, m)?)?;
+    m.add_function(wrap_pyfunction!(location::locate_facilities, m)?)?;
+    m.add_function(wrap_pyfunction!(location::floating_catchment, m)?)?;
     inspect::register(m)?;
     fares::register(m)?;
     Ok(())

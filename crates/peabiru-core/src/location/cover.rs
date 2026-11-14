@@ -66,7 +66,7 @@ impl Cover<'_> {
         self.covered_by(j)
             .filter(|&i| !self.fixed[i] && self.count[i] == 0)
             .map(|i| values[i])
-            .sum()
+            .fold(0.0, |a, b| a + b)
     }
 
     fn open(&mut self, j: usize, position: usize) {
@@ -94,7 +94,7 @@ impl Cover<'_> {
         (0..self.fixed.len())
             .filter(|&i| self.fixed[i] || self.count[i] > 0)
             .map(|i| self.p.demand[i])
-            .sum()
+            .fold(0.0, |a, b| a + b)
     }
 }
 
@@ -245,8 +245,8 @@ pub(super) fn solve(p: &Problem) -> Result<LocationSolution, RouteError> {
         objective,
         covered_before,
         covered,
-        total_demand: p.demand.iter().sum(),
-        unservable_demand: unservable.iter().map(|&i| p.demand[i]).sum(),
+        total_demand: p.demand.iter().fold(0.0, |a, b| a + b),
+        unservable_demand: unservable.iter().fold(0.0, |a, &i| a + p.demand[i]),
         unservable,
         n_swaps,
     })
@@ -267,7 +267,7 @@ fn substitute(c: &mut Cover, chosen: &mut [usize]) -> Result<usize, RouteError> 
                 c.covered_by(j)
                     .filter(|&i| !c.fixed[i] && c.count[i] == 1 && c.who[i] == r as u32 + 1)
                     .map(|i| p.demand[i])
-                    .sum()
+                    .fold(0.0, |a, b| a + b)
             })
             .collect();
         let closed: Vec<usize> = p

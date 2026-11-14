@@ -16,7 +16,10 @@ travel time against fare;
 [`street_network_to_sf()`][peabiru.street_network_to_sf],
 [`transit_network_to_sf()`][peabiru.transit_network_to_sf],
 [`check_transit_availability()`][peabiru.check_transit_availability] and
-[`get_gtfs_errors()`][peabiru.get_gtfs_errors] inspect a network. The routing engine is
+[`get_gtfs_errors()`][peabiru.get_gtfs_errors] inspect a network;
+[`locate_facilities()`][peabiru.locate_facilities] chooses where to open
+facilities and [`floating_catchment()`][peabiru.floating_catchment] compares
+supply with demand around each place. The routing engine is
 written in Rust; no Java is needed. A request peabiru does not support
 is an error ([`UnsupportedError`][peabiru.UnsupportedError] for the few
 options it refuses), never silently ignored.
@@ -36,6 +39,12 @@ from ._fares import (
 )
 from ._isochrone import isochrone
 from ._itinerary import detailed_itineraries
+from ._location import (
+    FacilityLocation,
+    FloatingCatchment,
+    floating_catchment,
+    locate_facilities,
+)
 from ._network import Network, build_network
 from ._options import TripOptions, trip_options
 from ._network_tools import (
@@ -75,6 +84,8 @@ def core_version() -> str:
 
 
 __all__ = [
+    "FacilityLocation",
+    "FloatingCatchment",
     "Network",
     "TripOptions",
     "UnsupportedError",
@@ -87,8 +98,10 @@ __all__ = [
     "detailed_itineraries",
     "expanded_travel_time_matrix",
     "find_snap",
+    "floating_catchment",
     "get_gtfs_errors",
     "isochrone",
+    "locate_facilities",
     "pareto_frontier",
     "read_fare_structure",
     "sample_data_path",

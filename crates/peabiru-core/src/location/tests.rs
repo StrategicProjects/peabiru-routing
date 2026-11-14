@@ -245,6 +245,8 @@ fn max_cover_by_hand() {
     assert!(none.sites.is_empty());
     assert_eq!(none.unservable, [0, 1, 2, 3, 4, 5]);
     assert_eq!(none.unservable_demand, 6.0);
+    // zero, not the negative zero of an empty sum
+    assert!(none.objective.is_sign_positive() && none.covered_before.is_sign_positive());
 
     // with a floor on the gain the second greedy site is not worth it
     q.cutoff = 10.0;

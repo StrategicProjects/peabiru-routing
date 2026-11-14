@@ -140,7 +140,7 @@ pub fn floating_catchment(
             .iter()
             .zip(times)
             .map(|(&i, &t)| demand[i as usize] * weight(t))
-            .sum();
+            .fold(0.0, |a, b| a + b);
         catchment_demand[j] = around;
         if around > 0.0 {
             ratio[j] = supply[j] / around;

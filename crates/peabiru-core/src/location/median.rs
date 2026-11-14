@@ -304,8 +304,8 @@ pub(super) fn solve(p: &Problem) -> Result<LocationSolution, RouteError> {
         objective: s.objective(&current),
         covered_before: f64::NAN,
         covered: f64::NAN,
-        total_demand: p.demand.iter().sum(),
-        unservable_demand: unservable.iter().map(|&i| p.demand[i]).sum(),
+        total_demand: p.demand.iter().fold(0.0, |a, b| a + b),
+        unservable_demand: unservable.iter().fold(0.0, |a, &i| a + p.demand[i]),
         unservable,
         n_swaps,
     })
