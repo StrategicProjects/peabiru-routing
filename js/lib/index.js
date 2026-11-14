@@ -61,7 +61,7 @@ const RAW = {
 };
 
 /** Version of this package. */
-export const version = "0.1.2";
+export const version = "0.1.5";
 
 /** Missing value in the Int32Array columns of the results. */
 export const NA_INT32 = -2147483648;

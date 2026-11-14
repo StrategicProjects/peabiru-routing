@@ -72,7 +72,7 @@ crossed South America from the Atlantic to the Andes.
   accessibility and itineraries, travel times within a budget
   (`max_fare`), and the trade-off between time and money
   (`pareto_frontier()`).
-- **Where to build** (development version, to be released as 0.2.0):
+- **Where to build** (since 0.1.5):
   `locate_facilities()` sites new schools, health units or any facility by
   maximal covering, set covering, p-median or p-center on the network's
   travel times, counting the units that already exist, and

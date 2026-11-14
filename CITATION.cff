@@ -35,7 +35,7 @@ authors:
     family-names: Nascimento Barreto
     email: juliabarreto@gd.seplag.pe.gov.br
     orcid: "https://orcid.org/0009-0004-2851-7770"
-version: 0.1.2
+version: 0.1.5
 doi: 10.5281/zenodo.24125477
 license: MIT
 repository-code: "https://github.com/StrategicProjects/peabiru-routing"

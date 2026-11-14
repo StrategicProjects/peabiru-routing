@@ -3,7 +3,7 @@
 Changes of the Rust crate `peabiru-core`, the command-line tool, and the
 Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
-## Development version
+## 0.1.5
 
 ### Facility location (all packages)
 

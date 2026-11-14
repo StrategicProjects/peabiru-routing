@@ -1,4 +1,4 @@
-# peabiru (development version)
+# peabiru 0.1.5
 
 * New function `locate_facilities()`: where to open new facilities among
   candidate sites, by maximal covering, location set covering, p-median or

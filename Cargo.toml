@@ -9,7 +9,7 @@ default-members = ["crates/peabiru-core", "crates/peabiru-cli"]
 exclude = ["r"]
 
 [workspace.package]
-version = "0.1.2"
+version = "0.1.5"
 authors = [
     "André Leite <leite@castlab.org>",
     "Marcos Wasiliew <marcos.wasiliew@gmail.com>",
@@ -25,7 +25,7 @@ repository = "https://github.com/StrategicProjects/peabiru-routing"
 homepage = "https://strategicprojects.github.io/peabiru-routing/"
 
 [workspace.dependencies]
-peabiru-core = { path = "crates/peabiru-core", version = "0.1.2" }
+peabiru-core = { path = "crates/peabiru-core", version = "0.1.5" }
 
 [profile.release]
 lto = true
