@@ -189,8 +189,10 @@ def test_bad_arguments(network, points):
     with pytest.raises(TypeError, match="routing arguments"):
         peabiru.locate_facilities(
             None, points, others, travel_times=pd.DataFrame(), model="max_cover", cutoff=10,
-            mode="WALK",
+            seed=1,
         )
+    with pytest.raises(TypeError, match="use 'percentile'"):
+        peabiru.locate_facilities(network, points, others, percentiles=25, **ok)
     bad = points.assign(population=-1.0)
     with pytest.raises(ValueError, match="not negative"):
         peabiru.locate_facilities(network, bad, others, demand_colname="population", **ok)

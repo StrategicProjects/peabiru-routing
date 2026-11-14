@@ -135,7 +135,8 @@ def _pairs(
         )
         with warnings.catch_warnings():
             # the points were checked (and warned about) already
-            warnings.simplefilter("ignore")
+            warnings.filterwarnings("ignore", message=".*missing lon/lat.*")
+            warnings.filterwarnings("ignore", message=".*forcefully cast.*")
             travel_times = travel_time_matrix(
                 network, rows.df, sites, percentiles=percentile,
                 max_trip_duration=max_trip_duration, **routing,
@@ -185,6 +186,12 @@ def _check_source(network: Any, travel_times: Any, routing: Dict[str, Any], func
                 + "."
             )
         return False
+    for refused in ("percentiles", "output_dir"):
+        if refused in routing:
+            raise TypeError(
+                f"{function}() does not take '{refused}'"
+                + (" (use 'percentile')." if refused == "percentiles" else ".")
+            )
     if network is None:
         raise ValueError(f"{function}() needs a 'network' or a table of 'travel_times'.")
     assert_network(network)
@@ -209,6 +216,9 @@ def locate_facilities(
     n_facilities: Any = 1,
     cutoff: Any = None,
     demand_colname: Optional[str] = None,
+    mode: Any = "WALK",
+    mode_egress: str = "WALK",
+    departure_datetime: Optional[Any] = None,
     percentile: Any = 50,
     max_trip_duration: Any = None,
     travel_times: Any = None,
@@ -281,6 +291,10 @@ def locate_facilities(
         pupils...): finite and not negative. Without it every point
         weighs 1. In ``"set_cover"`` and ``"p_center"`` a point with
         weight 0 is not demand, and the others count the same.
+    mode, mode_egress, departure_datetime
+        How the demand points travel to the sites, as in
+        [`travel_time_matrix()`][peabiru.travel_time_matrix] (default: on
+        foot).
     percentile : int, default 50
         The travel-time percentile used (public transport over a time
         window).
@@ -311,9 +325,9 @@ def locate_facilities(
         Threads (default: all cores).
     **routing
         Any other argument of
-        [`travel_time_matrix()`][peabiru.travel_time_matrix]: ``mode``,
-        ``mode_egress``, ``departure_datetime``, ``time_window``,
-        ``walk_speed``, ``max_walk_time``, ``seed`` and so on.
+        [`travel_time_matrix()`][peabiru.travel_time_matrix]:
+        ``time_window``, ``walk_speed``, ``max_walk_time``, ``seed`` and
+        so on (not ``percentiles`` or ``output_dir``).
 
     Returns
     -------
@@ -405,7 +419,10 @@ def locate_facilities(
     if max_trip_duration is None:
         max_trip_duration = max(1, math.ceil(cutoff)) if covering else 120
     if routed:
-        routing = dict(routing, n_threads=n_threads)
+        routing = dict(
+            routing, mode=mode, mode_egress=mode_egress,
+            departure_datetime=departure_datetime, n_threads=n_threads,
+        )
     pi, pj, pt = _pairs(
         network, d, sites, travel_times, percentile, int(max_trip_duration), routing, function
     )
@@ -476,6 +493,9 @@ def floating_catchment(
     decay_value: Optional[float] = None,
     demand_colname: Optional[str] = None,
     supply_colname: Optional[str] = None,
+    mode: Any = "WALK",
+    mode_egress: str = "WALK",
+    departure_datetime: Optional[Any] = None,
     percentile: Any = 50,
     max_trip_duration: Any = None,
     travel_times: Any = None,
@@ -525,6 +545,10 @@ def floating_catchment(
     demand_colname, supply_colname : str, optional
         The columns with the weight of each demand point and the capacity
         of each facility; without them each counts 1.
+    mode, mode_egress, departure_datetime
+        How the demand points travel to the facilities, as in
+        [`travel_time_matrix()`][peabiru.travel_time_matrix] (default: on
+        foot).
     percentile : int, default 50
         The travel-time percentile used.
     max_trip_duration : int, optional
@@ -591,6 +615,11 @@ def floating_catchment(
     cap = _weights(s, supply_colname, "supply", "supply_colname")
     if max_trip_duration is None:
         max_trip_duration = max(1, math.ceil(cut)) if fun == "step" else 120
+    if routed:
+        routing = dict(
+            routing, mode=mode, mode_egress=mode_egress,
+            departure_datetime=departure_datetime,
+        )
     pi, pj, pt = _pairs(
         network, d, s, travel_times, percentile, int(max_trip_duration), routing, function
     )
