@@ -1,0 +1,173 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg role="img" aria-labelledby="title desc" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='547.20pt' height='432.00pt' viewBox='0 0 547.2 432.0'>
+<title id="title">Percentiles of the travel time by public transport from the integrated terminals of the Recife metropolitan region to Praça do Derby</title>
+<desc id="desc">For each of the 26 integrated terminals of Grande Recife, sorted by median travel time to Praça do Derby at the morning peak, a range bar from the 5th to the 95th percentile of the travel times over an hour of departures, a thicker bar from the 25th to the 75th, and a dot at the median. Medians go from 13 minutes (TI Joana Bezerra) to 97 (TI Igarassu); the 5th and 95th percentiles are 4 to 26 minutes apart.</desc>
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+@media (prefers-color-scheme: dark) {
+[style*="fill: #FFFDF9;"] { fill: #1D2427 !important; }
+[style*="fill: #1F2A2E;"] { fill: #ECE6DA !important; }
+[style*="fill: #4A5A5F;"] { fill: #A9B4B6 !important; }
+[style*="stroke: #1F2A2E;"] { stroke: #ECE6DA !important; }
+[style*="stroke: #ECE4D6;"] { stroke: #2C3538 !important; }
+[style*="stroke: #B4532A;"] { stroke: #E98A5C !important; }
+[style*="stroke: #C98A1D;"] { stroke: #F0B54A !important; }
+}
+</style>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.0;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect x='0.5' y='0.5' width='546.2' height='431.0' rx='9' style='fill: #FFFDF9; stroke: #E1D8C8; stroke-width: 1;'/>
+<defs>
+  <clipPath id='cpMC4wMHw1NDcuMjB8MC4wMHw0MzIuMDA='>
+    <rect x='0.0' y='0.0' width='547.2' height='432.0' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw1NDcuMjB8MC4wMHw0MzIuMDA=)'>
+<rect x='0.0' y='0.0' width='547.2' height='432.0' style='stroke-width: 0.9; stroke: none; fill: #FFFDF9;' />
+</g>
+<defs>
+  <clipPath id='cpODguMjV8NTMxLjI2fDc2LjYxfDM3Ni45MA=='>
+    <rect x='88.2' y='76.6' width='443.0' height='300.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpODguMjV8NTMxLjI2fDc2LjYxfDM3Ni45MA==)'>
+<rect x='88.2' y='76.6' width='443.0' height='300.2' style='stroke-width: 0.9; stroke: none;' />
+<path d='M88.2 376.9l0-300.3M206.5 376.9l0-300.3M324.9 376.9l0-300.3M443.2 376.9l0-300.3' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<line x1='131.6' y1='83.4' x2='147.4' y2='83.4' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='151.3' y1='94.9' x2='167.1' y2='94.9' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='171.0' y1='106.4' x2='202.6' y2='106.4' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='175.0' y1='117.8' x2='198.6' y2='117.8' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='175.0' y1='129.3' x2='198.6' y2='129.3' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='182.9' y1='140.8' x2='210.5' y2='140.8' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='194.7' y1='152.2' x2='218.4' y2='152.2' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='210.5' y1='163.7' x2='261.7' y2='163.7' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='222.3' y1='175.1' x2='269.6' y2='175.1' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='234.1' y1='186.6' x2='257.8' y2='186.6' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='226.3' y1='198.1' x2='273.6' y2='198.1' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='238.1' y1='209.5' x2='285.4' y2='209.5' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='257.8' y1='221.0' x2='285.4' y2='221.0' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='253.9' y1='232.4' x2='289.4' y2='232.4' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='246.0' y1='243.9' x2='293.3' y2='243.9' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='238.1' y1='255.4' x2='309.1' y2='255.4' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='273.6' y1='266.8' x2='324.9' y2='266.8' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='289.4' y1='278.3' x2='313.0' y2='278.3' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='265.7' y1='289.8' x2='344.6' y2='289.8' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='289.4' y1='301.2' x2='328.8' y2='301.2' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='277.5' y1='312.7' x2='348.5' y2='312.7' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='309.1' y1='324.1' x2='348.5' y2='324.1' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='328.8' y1='335.6' x2='380.1' y2='335.6' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='344.6' y1='347.1' x2='395.9' y2='347.1' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='411.6' y1='358.5' x2='514.2' y2='358.5' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='451.1' y1='370.0' x2='486.6' y2='370.0' style='stroke-width: 2.5; stroke: #C98A1D;' />
+<line x1='139.5' y1='83.4' x2='143.4' y2='83.4' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='155.3' y1='94.9' x2='163.1' y2='94.9' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='178.9' y1='106.4' x2='186.8' y2='106.4' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='182.9' y1='117.8' x2='190.8' y2='117.8' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='186.8' y1='129.3' x2='194.7' y2='129.3' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='190.8' y1='140.8' x2='206.5' y2='140.8' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='202.6' y1='152.2' x2='214.4' y2='152.2' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='222.3' y1='163.7' x2='246.0' y2='163.7' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='230.2' y1='175.1' x2='257.8' y2='175.1' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='242.0' y1='186.6' x2='249.9' y2='186.6' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='234.1' y1='198.1' x2='261.7' y2='198.1' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='246.0' y1='209.5' x2='269.6' y2='209.5' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='261.7' y1='221.0' x2='277.5' y2='221.0' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='261.7' y1='232.4' x2='277.5' y2='232.4' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='257.8' y1='243.9' x2='281.5' y2='243.9' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='257.8' y1='255.4' x2='293.3' y2='255.4' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='285.4' y1='266.8' x2='309.1' y2='266.8' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='297.2' y1='278.3' x2='309.1' y2='278.3' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='285.4' y1='289.8' x2='328.8' y2='289.8' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='301.2' y1='301.2' x2='320.9' y2='301.2' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='293.3' y1='312.7' x2='332.7' y2='312.7' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='324.9' y1='324.1' x2='336.7' y2='324.1' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='340.6' y1='335.6' x2='368.2' y2='335.6' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='356.4' y1='347.1' x2='384.0' y2='347.1' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='439.2' y1='358.5' x2='490.5' y2='358.5' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<line x1='459.0' y1='370.0' x2='478.7' y2='370.0' style='stroke-width: 6.8; stroke: #B4532A; stroke-linecap: butt;' />
+<circle cx='139.5' cy='83.4' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='159.2' cy='94.9' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='182.9' cy='106.4' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='186.8' cy='117.8' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='190.8' cy='129.3' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='198.6' cy='140.8' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='210.5' cy='152.2' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='234.1' cy='163.7' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='242.0' cy='175.1' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='246.0' cy='186.6' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='246.0' cy='198.1' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='257.8' cy='209.5' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='269.6' cy='221.0' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='269.6' cy='232.4' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='269.6' cy='243.9' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='277.5' cy='255.4' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='297.2' cy='266.8' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='301.2' cy='278.3' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='305.1' cy='289.8' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='309.1' cy='301.2' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='313.0' cy='312.7' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='328.8' cy='324.1' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='356.4' cy='335.6' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='372.2' cy='347.1' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='466.8' cy='358.5' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+<circle cx='470.8' cy='370.0' r='2.9' style='stroke-width: 1.2; stroke: #1F2A2E; fill: #FFFDF9;' />
+</g>
+<g clip-path='url(#cpMC4wMHw1NDcuMjB8MC4wMHw0MzIuMDA=)'>
+<text x='83.7' y='372.7' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Igarassu</text>
+<text x='83.7' y='361.2' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Cabo</text>
+<text x='83.7' y='349.7' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Rio Doce</text>
+<text x='83.7' y='338.3' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Abreu e Lima</text>
+<text x='83.7' y='326.8' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Pelópidas Silveira</text>
+<text x='83.7' y='315.4' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI TIP</text>
+<text x='83.7' y='303.9' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Camaragibe</text>
+<text x='83.7' y='292.4' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Jaboatão</text>
+<text x='83.7' y='281.0' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Cosme e Damião</text>
+<text x='83.7' y='269.5' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Cajueiro Seco</text>
+<text x='83.7' y='258.0' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Cavaleiro</text>
+<text x='83.7' y='246.6' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Prazeres</text>
+<text x='83.7' y='235.1' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Macaxeira</text>
+<text x='83.7' y='223.7' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Xambá</text>
+<text x='83.7' y='212.2' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Barro</text>
+<text x='83.7' y='200.7' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Tancredo Neves</text>
+<text x='83.7' y='189.3' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI PE-15</text>
+<text x='83.7' y='177.8' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Aeroporto</text>
+<text x='83.7' y='166.4' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Santa Luzia</text>
+<text x='83.7' y='154.9' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Caxangá</text>
+<text x='83.7' y='143.4' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Largo da Paz</text>
+<text x='83.7' y='132.0' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI CDU</text>
+<text x='83.7' y='120.5' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Recife</text>
+<text x='83.7' y='109.0' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Afogados</text>
+<text x='83.7' y='97.6' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Getulio Vargas</text>
+<text x='83.7' y='86.1' text-anchor='end' style='font-size: 7.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>TI Joana Bezerra</text>
+<text x='88.2' y='387.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0</text>
+<text x='206.5' y='387.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>30</text>
+<text x='324.9' y='387.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>60</text>
+<text x='443.2' y='387.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>90</text>
+<text x='88.2' y='398.4' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Travel time (minutes)</text>
+<text x='15.9' y='37.1' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Door to door by public transport, leaving at each minute from 07:00 to 07:59 on Tuesday 10 November</text>
+<text x='15.9' y='47.9' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>2026. Thin bar: 5th to 95th percentile of the 60 travel times; thick bar: 25th to 75th; dot: median.</text>
+<text x='15.9' y='58.7' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>The spread comes from the timetable, the wait for the next departure and the connections it makes: 4</text>
+<text x='15.9' y='69.5' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>minutes from TI Joana Bezerra, 26 from TI Cabo</text>
+<text x='15.9' y='22.5' style='font-size: 12.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>One trip, many travel times: from each integrated terminal to Praça do Derby</text>
+<text x='15.9' y='410.1' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Streets © OpenStreetMap contributors (ODbL), Geofabrik extract of 2026-11-01. Timetables: Grande Recife Consórcio de Transporte</text>
+<text x='15.9' y='418.6' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Metropolitano, GTFS v2026.10.26.</text>
+</g>
+</g>
+</svg>

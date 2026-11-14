@@ -8,6 +8,15 @@
 #   bash site/figures/make.sh --terrain    # only the terrain ones
 #   bash site/figures/make.sh --capitals   # only the ones of the capitals
 #   bash site/figures/make.sh --scenarios  # only the scenario and Helsinki ones
+#   bash site/figures/make.sh --rmr        # only the Recife metropolitan region ones
+#
+# --rmr runs site/figures/rmr.R: the Recife metropolitan region with its
+# public transport, the first block of the gallery. It uses the streets, grid
+# and units of pernambuco-data.R (same cache) and the GTFS feed of Grande
+# Recife Consórcio de Transporte Metropolitano (rmr-data.R: downloaded from
+# the consortium, or put by hand in <PEABIRU_RMR_CACHE>/raw/), and knits
+# r/vignettes/articles/recife-metropolitan.Rmd from its .Rmd.orig (about two
+# minutes in all). Names after it select figures of rmr.R (rmr_iso_modes, ...).
 #
 # --terrain runs site/figures/terrain.R: elevation in Pernambuco (the Recife
 # metropolitan region as one network, five more municipalities) and in two
@@ -56,6 +65,7 @@ pe=0
 capitals=0
 terrain=0
 sc=0
+rmr=0
 names=()
 for a in "$@"; do
   case "$a" in
@@ -64,6 +74,7 @@ for a in "$@"; do
     --capitals) capitals=1 ;;
     --terrain) terrain=1 ;;
     --scenarios) sc=1 ;;
+    --rmr) rmr=1 ;;
     *) names+=("$a") ;;
   esac
 done
@@ -78,6 +89,21 @@ fi
 if [ -n "$lib" ]; then
   R_LIBS="$(cd "$lib" && pwd)${R_LIBS:+:$R_LIBS}"
   export R_LIBS
+fi
+
+if [ "$rmr" = 1 ]; then
+  Rscript "$here/rmr.R" ${names[@]+"${names[@]}"}
+  if [ ${#names[@]} -eq 0 ]; then
+    # the article sources the two data scripts of this checkout and reuses
+    # their caches
+    (cd "$root/r/vignettes/articles" &&
+      PEABIRU_PE_CACHE="$(Rscript -e 'source("'"$here"'/pernambuco-data.R"); cat(pe_cache())')" \
+      PEABIRU_RMR_CACHE="$(Rscript -e 'source("'"$here"'/pernambuco-data.R"); source("'"$here"'/rmr-data.R"); cat(rmr_cache())')" \
+      PEABIRU_FIGURES_DIR="$here" \
+      Rscript -e 'knitr::knit("recife-metropolitan.Rmd.orig", "recife-metropolitan.Rmd", quiet = TRUE)')
+  fi
+  du -ch "$root"/site/assets/figures/*-rmr.svg | tail -1
+  exit 0
 fi
 
 if [ "$capitals" = 1 ]; then
