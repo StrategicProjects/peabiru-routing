@@ -1,5 +1,17 @@
 # peabiru (development version)
 
+* New function `locate_facilities()`: where to open new facilities among
+  candidate sites, by maximal covering, location set covering, p-median or
+  p-center, on the travel times from the demand points to the sites by any
+  mode (those of `travel_time_matrix()`, or a table given in `travel_times`).
+  Existing facilities count first. The models are solved by a greedy
+  construction followed by vertex substitution, with no solver; the result
+  has the new sites with what each adds, the potential of every candidate,
+  the facility and travel time of every demand point, and a summary. See
+  the article "Facility location".
+* New function `floating_catchment()`: the two-step floating catchment area
+  (supply per unit of demand at each demand point) and its enhanced form,
+  with any of the decay functions of `accessibility()`.
 * Credits: the `Title` and `Description`, the README and the package help
   page now state up front that the engine is a 'Rust' port of Conveyal's 'R5'
   routing engine and that the functions are modelled on those of 'r5r'

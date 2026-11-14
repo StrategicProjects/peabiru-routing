@@ -163,6 +163,13 @@ fn a_table_holds_the_reachable_pairs() {
     .unwrap();
     assert_eq!(d, t);
 
+    let m = CostTable::from_minutes(3, 2, &[None, Some(2), None, None, None, Some(4)]).unwrap();
+    assert_eq!(
+        (m.get(0, 1), m.get(2, 1), m.n_pairs()),
+        (Some(2.0), Some(4.0), 2)
+    );
+    assert!(CostTable::from_minutes(3, 2, &[None; 5]).is_err());
+
     let bad = |r: Result<CostTable, RouteError>, what: &str| match r {
         Err(RouteError::Invalid(m)) => assert!(m.contains(what), "{m}"),
         other => panic!("{other:?}"),

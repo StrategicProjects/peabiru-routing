@@ -99,6 +99,14 @@ reference:
     fare, transfers and walking.
   contents:
   - trip_options
+- title: Facility location
+  desc: >
+    Where to open new facilities (maximal covering, set covering, p-median,
+    p-center), and supply against demand around each place (two-step
+    floating catchment area).
+  contents:
+  - locate_facilities
+  - floating_catchment
 - title: Inspecting a network
   desc: >
     Where points snap, the street and transit networks as `sf`, the dates with
@@ -126,6 +134,7 @@ articles:
   - articles/itineraries
   - articles/fares
   - articles/trip-options
+  - articles/facility-location
   - articles/elevation
   - articles/scenarios
   - articles/network-inspection

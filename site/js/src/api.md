@@ -629,9 +629,9 @@ Where to open new facilities: among the candidate sites, the ones that serve the
 The models are solved by a greedy construction followed by vertex substitution: good and reproducible solutions, not proven optimal. The solver runs on the calling thread. See the guide "Facility location".
 
 ```js
-const found = await peabiru.locateFacilities(network, points, candidates, {
-  existing: schools, model: "max_cover", nFacilities: 2, cutoff: 12,
-  demandColname: "population", mode: "WALK",
+// one new facility among the points, to cover the most jobs within 10 minutes on foot
+const found = await peabiru.locateFacilities(network, points, points, {
+  model: "max_cover", nFacilities: 1, cutoff: 10, demandColname: "jobs", mode: "WALK",
 });
 console.log(found.sites.id, found.summary.covered / found.summary.total_demand);
 ```
@@ -691,8 +691,9 @@ export declare function floatingCatchment(
 Supply against demand around each place, by the two-step floating catchment area: the supply of each facility is divided by the demand within its catchment, and each demand point adds up the ratios of the facilities within its catchment. With a decay function other than `"step"`, nearer pairs weigh more in both steps. The sum of demand times [`accessibility`](#accessibility) equals the supply of the facilities that have any demand in their catchment. See the guide "Facility location".
 
 ```js
-const fca = await peabiru.floatingCatchment(network, points, schools, {
-  cutoff: 20, demandColname: "population", supplyColname: "schools", mode: "WALK",
+const clinic = { id: ["clinic"], lon: [-46.6321], lat: [-23.5577], places: [300] };
+const fca = await peabiru.floatingCatchment(network, points, clinic, {
+  cutoff: 20, demandColname: "jobs", supplyColname: "places", mode: "WALK",
 });
 console.log(fca.demand.id, fca.demand.accessibility);
 ```

@@ -49,6 +49,8 @@ peabiru matrix --help                # a command's options, with examples
 | `itineraries` | `detailed_itineraries()` | `--all-to-all`, `--shortest-path false` (alternatives), `--suboptimal-minutes`, fares, `--osm-link-ids`, `--drop-geometry` |
 | `pareto` | `pareto_frontier()` | `--fare-structure`, `--fare-cutoffs` |
 | `options` | `trip_options()` | `--criteria`, `--max-options`, `--walk-resolution`; the options to `-o`, `--legs FILE`, `--departures FILE` |
+| `locate` | `locate_facilities()` | `--demand`, `--candidates`, `--existing`, `--demand-column`, `--model max_cover\|set_cover\|p_median\|p_center`, `--n-facilities`, `--cutoff`, `--no-swap`; `--table sites\|candidates\|demand`; the summary on standard error |
+| `catchment` | `floating_catchment()` | `--demand`, `--supply`, `--demand-column`, `--supply-column`, `--cutoff`, `--decay-function`, `--decay-value`; `--table demand\|supply` |
 | `snap` | `find_snap()` | `--points`, `--radius`, `--mode` |
 | `network` | `street_network_to_sf()`, `transit_network_to_sf()`, `street_network_bbox()` | `--layer edges\|vertices\|stops\|routes\|bbox` |
 | `fares setup\|read\|write` | `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` | `.zip` files of five CSV tables; `read --output-dir` writes its CSV files, `write` makes the `.zip` from them |

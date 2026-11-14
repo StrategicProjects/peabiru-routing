@@ -154,6 +154,27 @@ impl CostTable {
         CostTable::from_pairs(n_demand, n_sites, &demand, &site, &times)
     }
 
+    /// A table from the whole minutes of a travel-time matrix, demand
+    /// point by demand point (`minutes[demand * n_sites + site]`, `None`
+    /// for an unreachable pair): the slice a
+    /// [`StreetMatrix`](crate::StreetMatrix) gives with `as_slice()`
+    /// when the demand points are its origins and the sites its
+    /// destinations, or a [`TransitMatrix`](crate::TransitMatrix) computed
+    /// for one percentile.
+    ///
+    /// Errors: a slice that is not `n_demand * n_sites` long.
+    pub fn from_minutes(
+        n_demand: usize,
+        n_sites: usize,
+        minutes: &[Option<u32>],
+    ) -> Result<CostTable, RouteError> {
+        let dense: Vec<f64> = minutes
+            .iter()
+            .map(|m| m.map_or(f64::NAN, f64::from))
+            .collect();
+        CostTable::from_dense(n_demand, n_sites, &dense)
+    }
+
     /// Number of demand points (rows).
     pub fn n_demand(&self) -> usize {
         self.n_demand

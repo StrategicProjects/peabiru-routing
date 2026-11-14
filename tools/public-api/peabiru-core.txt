@@ -131,6 +131,33 @@ impl core::marker::Unpin for peabiru_core::GtfsErrorPriority
 impl core::marker::UnsafeUnpin for peabiru_core::GtfsErrorPriority
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::GtfsErrorPriority
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::GtfsErrorPriority
+#[non_exhaustive] pub enum peabiru_core::LocationModel
+pub peabiru_core::LocationModel::MaxCover
+pub peabiru_core::LocationModel::PCenter
+pub peabiru_core::LocationModel::PMedian
+pub peabiru_core::LocationModel::SetCover
+impl peabiru_core::LocationModel
+pub fn peabiru_core::LocationModel::from_name(&str) -> core::option::Option<peabiru_core::LocationModel>
+pub fn peabiru_core::LocationModel::name(self) -> &'static str
+impl core::clone::Clone for peabiru_core::LocationModel
+pub fn peabiru_core::LocationModel::clone(&self) -> Self
+impl core::cmp::Eq for peabiru_core::LocationModel
+impl core::cmp::PartialEq for peabiru_core::LocationModel
+pub fn peabiru_core::LocationModel::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::LocationModel
+pub fn peabiru_core::LocationModel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for peabiru_core::LocationModel
+pub fn peabiru_core::LocationModel::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for peabiru_core::LocationModel
+impl core::marker::StructuralPartialEq for peabiru_core::LocationModel
+impl core::marker::Forget for peabiru_core::LocationModel
+impl core::marker::Freeze for peabiru_core::LocationModel
+impl core::marker::Send for peabiru_core::LocationModel
+impl core::marker::Sync for peabiru_core::LocationModel
+impl core::marker::Unpin for peabiru_core::LocationModel
+impl core::marker::UnsafeUnpin for peabiru_core::LocationModel
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::LocationModel
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::LocationModel
 #[non_exhaustive] pub enum peabiru_core::LtsChange
 pub peabiru_core::LtsChange::ByLine(alloc::vec::Vec<peabiru_core::LtsLine>)
 pub peabiru_core::LtsChange::ByWay(alloc::vec::Vec<(i64, i32)>)
@@ -353,6 +380,31 @@ impl core::marker::Unpin for peabiru_core::CancelToken
 impl core::marker::UnsafeUnpin for peabiru_core::CancelToken
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::CancelToken
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::CancelToken
+pub struct peabiru_core::CostTable
+impl peabiru_core::CostTable
+pub fn peabiru_core::CostTable::from_dense(usize, usize, &[f64]) -> core::result::Result<peabiru_core::CostTable, peabiru_core::RouteError>
+pub fn peabiru_core::CostTable::from_minutes(usize, usize, &[core::option::Option<u32>]) -> core::result::Result<peabiru_core::CostTable, peabiru_core::RouteError>
+pub fn peabiru_core::CostTable::from_pairs(usize, usize, &[u32], &[u32], &[f64]) -> core::result::Result<peabiru_core::CostTable, peabiru_core::RouteError>
+pub fn peabiru_core::CostTable::get(&self, usize, usize) -> core::option::Option<f64>
+pub fn peabiru_core::CostTable::max_minutes(&self) -> f64
+pub fn peabiru_core::CostTable::n_demand(&self) -> usize
+pub fn peabiru_core::CostTable::n_pairs(&self) -> usize
+pub fn peabiru_core::CostTable::n_sites(&self) -> usize
+impl core::clone::Clone for peabiru_core::CostTable
+pub fn peabiru_core::CostTable::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::CostTable
+pub fn peabiru_core::CostTable::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::CostTable
+pub fn peabiru_core::CostTable::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::CostTable
+impl core::marker::Forget for peabiru_core::CostTable
+impl core::marker::Freeze for peabiru_core::CostTable
+impl core::marker::Send for peabiru_core::CostTable
+impl core::marker::Sync for peabiru_core::CostTable
+impl core::marker::Unpin for peabiru_core::CostTable
+impl core::marker::UnsafeUnpin for peabiru_core::CostTable
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::CostTable
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::CostTable
 pub struct peabiru_core::CsvOutput<'a>
 impl<'a> peabiru_core::CsvOutput<'a>
 pub fn peabiru_core::CsvOutput<'a>::new(&str, &'a [alloc::string::String], &'a [alloc::string::String], usize) -> core::result::Result<Self, peabiru_core::RouteError>
@@ -590,6 +642,44 @@ impl core::marker::Unpin for peabiru_core::FeedReport
 impl core::marker::UnsafeUnpin for peabiru_core::FeedReport
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::FeedReport
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::FeedReport
+#[non_exhaustive] pub struct peabiru_core::FloatingCatchment
+pub peabiru_core::FloatingCatchment::catchment_demand: alloc::vec::Vec<f64>
+pub peabiru_core::FloatingCatchment::index: alloc::vec::Vec<f64>
+pub peabiru_core::FloatingCatchment::ratio: alloc::vec::Vec<f64>
+pub peabiru_core::FloatingCatchment::unreached_supply: f64
+impl core::clone::Clone for peabiru_core::FloatingCatchment
+pub fn peabiru_core::FloatingCatchment::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::FloatingCatchment
+pub fn peabiru_core::FloatingCatchment::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::FloatingCatchment
+pub fn peabiru_core::FloatingCatchment::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::FloatingCatchment
+impl core::marker::Forget for peabiru_core::FloatingCatchment
+impl core::marker::Freeze for peabiru_core::FloatingCatchment
+impl core::marker::Send for peabiru_core::FloatingCatchment
+impl core::marker::Sync for peabiru_core::FloatingCatchment
+impl core::marker::Unpin for peabiru_core::FloatingCatchment
+impl core::marker::UnsafeUnpin for peabiru_core::FloatingCatchment
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::FloatingCatchment
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::FloatingCatchment
+#[non_exhaustive] pub struct peabiru_core::FloatingCatchmentParams
+pub peabiru_core::FloatingCatchmentParams::cancel: peabiru_core::CancelToken
+pub peabiru_core::FloatingCatchmentParams::cutoff: f64
+pub peabiru_core::FloatingCatchmentParams::decay: peabiru_core::DecayFunction
+impl core::clone::Clone for peabiru_core::FloatingCatchmentParams
+pub fn peabiru_core::FloatingCatchmentParams::clone(&self) -> Self
+impl core::default::Default for peabiru_core::FloatingCatchmentParams
+pub fn peabiru_core::FloatingCatchmentParams::default() -> Self
+impl core::fmt::Debug for peabiru_core::FloatingCatchmentParams
+pub fn peabiru_core::FloatingCatchmentParams::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::FloatingCatchmentParams
+impl core::marker::Freeze for peabiru_core::FloatingCatchmentParams
+impl core::marker::Send for peabiru_core::FloatingCatchmentParams
+impl core::marker::Sync for peabiru_core::FloatingCatchmentParams
+impl core::marker::Unpin for peabiru_core::FloatingCatchmentParams
+impl core::marker::UnsafeUnpin for peabiru_core::FloatingCatchmentParams
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::FloatingCatchmentParams
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::FloatingCatchmentParams
 pub struct peabiru_core::GtfsFeedError
 impl peabiru_core::GtfsFeedError
 pub fn peabiru_core::GtfsFeedError::error_type(&self) -> &'static str
@@ -773,6 +863,62 @@ impl core::marker::Unpin for peabiru_core::ItineraryParams
 impl core::marker::UnsafeUnpin for peabiru_core::ItineraryParams
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ItineraryParams
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ItineraryParams
+#[non_exhaustive] pub struct peabiru_core::LocationParams
+pub peabiru_core::LocationParams::cancel: peabiru_core::CancelToken
+pub peabiru_core::LocationParams::cutoff: f64
+pub peabiru_core::LocationParams::existing: alloc::vec::Vec<usize>
+pub peabiru_core::LocationParams::min_gain: f64
+pub peabiru_core::LocationParams::model: peabiru_core::LocationModel
+pub peabiru_core::LocationParams::n_facilities: usize
+pub peabiru_core::LocationParams::n_threads: usize
+pub peabiru_core::LocationParams::swap: bool
+pub peabiru_core::LocationParams::unreachable_time: core::option::Option<f64>
+impl core::clone::Clone for peabiru_core::LocationParams
+pub fn peabiru_core::LocationParams::clone(&self) -> Self
+impl core::default::Default for peabiru_core::LocationParams
+pub fn peabiru_core::LocationParams::default() -> Self
+impl core::fmt::Debug for peabiru_core::LocationParams
+pub fn peabiru_core::LocationParams::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Forget for peabiru_core::LocationParams
+impl core::marker::Freeze for peabiru_core::LocationParams
+impl core::marker::Send for peabiru_core::LocationParams
+impl core::marker::Sync for peabiru_core::LocationParams
+impl core::marker::Unpin for peabiru_core::LocationParams
+impl core::marker::UnsafeUnpin for peabiru_core::LocationParams
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::LocationParams
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::LocationParams
+#[non_exhaustive] pub struct peabiru_core::LocationSolution
+pub peabiru_core::LocationSolution::assigned_minutes: alloc::vec::Vec<f64>
+pub peabiru_core::LocationSolution::assigned_site: alloc::vec::Vec<core::option::Option<usize>>
+pub peabiru_core::LocationSolution::covered: f64
+pub peabiru_core::LocationSolution::covered_before: f64
+pub peabiru_core::LocationSolution::cumulative: alloc::vec::Vec<f64>
+pub peabiru_core::LocationSolution::marginal: alloc::vec::Vec<f64>
+pub peabiru_core::LocationSolution::model: peabiru_core::LocationModel
+pub peabiru_core::LocationSolution::n_swaps: usize
+pub peabiru_core::LocationSolution::objective: f64
+pub peabiru_core::LocationSolution::objective_before: f64
+pub peabiru_core::LocationSolution::objective_greedy: f64
+pub peabiru_core::LocationSolution::potential: alloc::vec::Vec<f64>
+pub peabiru_core::LocationSolution::sites: alloc::vec::Vec<usize>
+pub peabiru_core::LocationSolution::total_demand: f64
+pub peabiru_core::LocationSolution::unservable: alloc::vec::Vec<usize>
+pub peabiru_core::LocationSolution::unservable_demand: f64
+impl core::clone::Clone for peabiru_core::LocationSolution
+pub fn peabiru_core::LocationSolution::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::LocationSolution
+pub fn peabiru_core::LocationSolution::eq(&self, &Self) -> bool
+impl core::fmt::Debug for peabiru_core::LocationSolution
+pub fn peabiru_core::LocationSolution::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::LocationSolution
+impl core::marker::Forget for peabiru_core::LocationSolution
+impl core::marker::Freeze for peabiru_core::LocationSolution
+impl core::marker::Send for peabiru_core::LocationSolution
+impl core::marker::Sync for peabiru_core::LocationSolution
+impl core::marker::Unpin for peabiru_core::LocationSolution
+impl core::marker::UnsafeUnpin for peabiru_core::LocationSolution
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::LocationSolution
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::LocationSolution
 #[non_exhaustive] pub struct peabiru_core::LtsLine
 pub peabiru_core::LtsLine::lts: i32
 pub peabiru_core::LtsLine::points: alloc::vec::Vec<[f64; 2]>
@@ -1338,12 +1484,14 @@ pub fn peabiru_core::detailed_itineraries(&peabiru_core::Network, &[(f64, f64)],
 pub fn peabiru_core::detailed_itineraries_noted(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::ItineraryParams) -> core::result::Result<(alloc::vec::Vec<alloc::vec::Vec<peabiru_core::Itinerary>>, peabiru_core::ItineraryNotes), peabiru_core::RouteError>
 pub fn peabiru_core::expanded_travel_time_matrix(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams) -> core::result::Result<peabiru_core::ExpandedMatrix, peabiru_core::RouteError>
 pub fn peabiru_core::find_snap(&peabiru_core::Network, &[(f64, f64)], f64, peabiru_core::Mode) -> core::result::Result<alloc::vec::Vec<core::option::Option<peabiru_core::Snap>>, peabiru_core::RouteError>
+pub fn peabiru_core::floating_catchment(&peabiru_core::CostTable, &[f64], &[f64], &peabiru_core::FloatingCatchmentParams) -> core::result::Result<peabiru_core::FloatingCatchment, peabiru_core::RouteError>
 pub fn peabiru_core::gtfs_errors(&str, &[u8]) -> core::result::Result<alloc::vec::Vec<peabiru_core::GtfsFeedError>, peabiru_core::NetworkError>
 pub fn peabiru_core::gtfs_files_in_dir(impl core::convert::AsRef<std::path::Path>) -> core::io::error::Result<alloc::vec::Vec<std::path::PathBuf>>
 pub fn peabiru_core::isochrone_cutoffs(&[f64]) -> core::result::Result<alloc::vec::Vec<f64>, peabiru_core::RouteError>
 pub fn peabiru_core::isochrone_lines(usize, usize, &[core::option::Option<u32>], &[f64]) -> core::result::Result<alloc::vec::Vec<peabiru_core::IsochroneLine>, peabiru_core::RouteError>
 pub fn peabiru_core::isochrone_polygons(&peabiru_core::TravelTimeSurface, &[f64]) -> core::result::Result<alloc::vec::Vec<peabiru_core::IsochronePolygon>, peabiru_core::RouteError>
 pub fn peabiru_core::isochrone_trip_limit(&[f64]) -> core::result::Result<i32, peabiru_core::RouteError>
+pub fn peabiru_core::locate_facilities(&peabiru_core::CostTable, &[f64], &peabiru_core::LocationParams) -> core::result::Result<peabiru_core::LocationSolution, peabiru_core::RouteError>
 pub fn peabiru_core::pareto_frontier(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams, &[f64]) -> core::result::Result<peabiru_core::ParetoFrontier, peabiru_core::RouteError>
 pub fn peabiru_core::read_fare_structure(&[u8], &str) -> core::result::Result<peabiru_core::FareStructure, peabiru_core::RouteError>
 pub fn peabiru_core::setup_fare_structure(&peabiru_core::Network, f64, &str) -> core::result::Result<peabiru_core::FareStructure, peabiru_core::RouteError>

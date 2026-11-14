@@ -925,9 +925,9 @@ export interface FacilityLocation {
  * solver runs on the calling thread. See the guide "Facility location".
  *
  * ```js
- * const found = await peabiru.locateFacilities(network, points, candidates, {
- *   existing: schools, model: "max_cover", nFacilities: 2, cutoff: 12,
- *   demandColname: "population", mode: "WALK",
+ * // one new facility among the points, to cover the most jobs within 10 minutes on foot
+ * const found = await peabiru.locateFacilities(network, points, points, {
+ *   model: "max_cover", nFacilities: 1, cutoff: 10, demandColname: "jobs", mode: "WALK",
  * });
  * console.log(found.sites.id, found.summary.covered / found.summary.total_demand);
  * ```
@@ -981,8 +981,9 @@ export interface FloatingCatchment {
  * in their catchment. See the guide "Facility location".
  *
  * ```js
- * const fca = await peabiru.floatingCatchment(network, points, schools, {
- *   cutoff: 20, demandColname: "population", supplyColname: "schools", mode: "WALK",
+ * const clinic = { id: ["clinic"], lon: [-46.6321], lat: [-23.5577], places: [300] };
+ * const fca = await peabiru.floatingCatchment(network, points, clinic, {
+ *   cutoff: 20, demandColname: "jobs", supplyColname: "places", mode: "WALK",
  * });
  * console.log(fca.demand.id, fca.demand.accessibility);
  * ```

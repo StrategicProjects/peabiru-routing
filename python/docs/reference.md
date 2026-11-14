@@ -48,6 +48,18 @@ A multi-criteria planner: every trip worth considering.
 
 ::: peabiru.TripOptions
 
+## Facility location
+
+Where to open facilities, and supply against demand around each place.
+
+::: peabiru.locate_facilities
+
+::: peabiru.FacilityLocation
+
+::: peabiru.floating_catchment
+
+::: peabiru.FloatingCatchment
+
 ## Inspecting a network
 
 ::: peabiru.find_snap

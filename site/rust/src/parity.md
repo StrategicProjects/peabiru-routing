@@ -49,7 +49,8 @@ reproducing R5's random number stream, and using Apache Commons Math's
   packages derive from their arguments.
 - `Elevation::None` is the default of `BuildOptions`; r5r applies Tobler's
   function whenever its data directory has a raster.
-- [`trip_options`](trip-options.md) has no counterpart in r5r.
+- [`trip_options`](trip-options.md) has no counterpart in r5r; neither have
+  [`locate_facilities` and `floating_catchment`](facility-location.md).
 - R5's own fare calculators (a JSON structure with a `type`) are not ported;
   fares follow the rule-based fare structure.
 - `gtfs_errors` lists the errors in a fixed order (table, then line); r5r's
