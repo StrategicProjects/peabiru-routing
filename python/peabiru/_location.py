@@ -338,7 +338,7 @@ def locate_facilities(
     Examples
     --------
     Two new schools among the 27 sample points, so that the most
-    residents are within a 15-minute walk of a school:
+    residents are within a 12-minute walk of a school:
 
     >>> import peabiru
     >>> network = peabiru.build_network(peabiru.sample_data_path())
@@ -347,15 +347,15 @@ def locate_facilities(
     >>> others = points[points["schools"] == 0]
     >>> found = peabiru.locate_facilities(
     ...     network, points, others, existing=schools,
-    ...     model="max_cover", n_facilities=2, cutoff=15,
+    ...     model="max_cover", n_facilities=2, cutoff=12,
     ...     demand_colname="population", mode="WALK",
     ... )
     >>> list(found.sites.columns)
     ['id', 'lon', 'lat', 'order', 'marginal', 'cumulative']
-    >>> len(found.sites) <= 2
-    True
-    >>> found.summary["covered"] >= found.summary["covered_before"]
-    True
+    >>> list(found.sites["id"])
+    ['89a8100c03bffff', '89a8100c383ffff']
+    >>> found.summary["covered_before"], found.summary["covered"]
+    (37876.0, 46217.0)
     """
     function = "locate_facilities"
     routed = _check_source(network, travel_times, routing, function)

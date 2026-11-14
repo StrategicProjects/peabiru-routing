@@ -145,13 +145,13 @@
 #' network <- build_network(data_path, n_threads = 2)
 #' points <- read.csv(file.path(data_path, "spo_points.csv"))
 #'
-#' # two new schools, so that the most residents are within a 15-minute
+#' # two new schools, so that the most residents are within a 12-minute
 #' # walk of a school
 #' schools <- points[points$schools > 0, ]
 #' others <- points[points$schools == 0, ]
 #' found <- locate_facilities(
 #'   network, points, others, existing = schools,
-#'   model = "max_cover", n_facilities = 2, cutoff = 15,
+#'   model = "max_cover", n_facilities = 2, cutoff = 12,
 #'   demand_colname = "population", mode = "WALK", n_threads = 2
 #' )
 #' found$sites

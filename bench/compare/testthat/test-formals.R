@@ -8,7 +8,8 @@
 not_in_peabiru <- c("setup_r5", "stop_r5", "download_r5", "r5r_cache", "r5r_sitrep")
 
 # peabiru's functions r5r does not have.
-only_in_peabiru <- c("core_version", "trip_options")
+only_in_peabiru <- c("core_version", "trip_options", "locate_facilities",
+                     "floating_catchment")
 
 # r5r's arguments under another name in peabiru (every function).
 renamed <- c(r5r_network = "network")
