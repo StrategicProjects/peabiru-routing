@@ -10,7 +10,7 @@ use peabiru_core::{
 };
 
 /// The decay function of `--decay-function` and `--decay-value`, checked.
-fn decay(name: &str, value: Option<&str>) -> Res<DecayFunction> {
+pub(crate) fn decay(name: &str, value: Option<&str>) -> Res<DecayFunction> {
     let name = name.trim();
     let v = value.map(|v| number("decay-value", v)).transpose()?;
     if let Some(x) = v {
