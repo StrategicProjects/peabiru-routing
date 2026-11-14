@@ -124,6 +124,43 @@
   and routes, the dates with service, and the errors of each GTFS feed.</p>
 </section>
 
+<section aria-labelledby="location">
+  <h2 id="location">Where to build <span class="tag dev">development version</span></h2>
+  <div class="two">
+    <div>
+      <p>Travel times say who is far from a school or a health unit. The next question is where a
+      new one should go. <code>locate_facilities()</code> answers it on the same network, by any
+      mode, with the classical models of facility location:</p>
+      <ul class="check">
+        <li><strong>Maximal covering</strong>: with a given number of new units, the sites that
+        bring the most people within a travel time (Church and ReVelle, 1974)</li>
+        <li><strong>Set covering</strong>: the fewest units for everyone to be within it (Toregas
+        et al., 1971)</li>
+        <li><strong>p-median</strong> and <strong>p-center</strong>: the sites that shorten the
+        average trip, or the longest one (Hakimi, 1964)</li>
+        <li><strong>Floating catchment areas</strong>, with <code>floating_catchment()</code>:
+        where supply is short for the demand around it (Luo and Wang, 2003)</li>
+      </ul>
+      <p>The units that already exist count first, so only the people they leave out pull the new
+      sites. The result is made to be mapped: what each candidate place would add, the sites in
+      the order they were chosen, and who each one serves. Solved by heuristics with known
+      guarantees, with no solver to install; in R, Python, JavaScript, Rust and the command line.</p>
+      <p>These models are peabiru's own: they are not part of R5 or r5r. They are in the
+      development version, to be released as 0.2.0; until then, from a clone of the repository.
+      Guides: <a href="r/articles/facility-location.html">R</a> ·
+      <a href="python/facility-location/">Python</a> ·
+      <a href="js/facility-location.html">JavaScript</a> ·
+      <a href="rust/facility-location.html">Rust</a>.</p>
+    </div>
+    <figure class="shot">
+      <a href="r/articles/facility-location.html"><img src="assets/figures/location-rmr.svg" width="518" height="677" loading="lazy" alt="A map of the conurbation of Recife with the cells of a grid coloured by the residents, now more than 15 minutes on foot from a primary health care unit, that a new unit there would bring within 15 minutes, and ten numbered sites chosen by maximal covering, four of them close together in the south of Recife."></a>
+      <figcaption><strong>Ten new health units.</strong> In the Recife metropolitan region 74% of
+      the residents are within 15 minutes on foot of a primary health care unit; ten units at the
+      numbered sites would bring 173,902 more people within reach.</figcaption>
+    </figure>
+  </div>
+</section>
+
 <section aria-labelledby="gallery">
   <h2 id="gallery">Gallery</h2>
   <p>Every figure here is computed by peabiru; each one links to complete examples, in the
@@ -527,6 +564,7 @@ Measured 2026-11-12; <a href="benchmarks.html">methodology, all tasks and how th
         <li>Slope costs from elevation (Tobler, Minetti); car speed and traffic stress scenarios</li>
         <li><code>find_snap()</code>, <code>street_network_bbox()</code>, <code>street_network_to_sf()</code>, <code>transit_network_to_sf()</code>, <code>check_transit_availability()</code>, <code>get_gtfs_errors()</code></li>
         <li>Monte Carlo draws for frequency-based feeds, reproducible with a <code>seed</code>; CSV output with <code>output_dir</code> (R and Python)</li>
+        <li>In the development version: <code>locate_facilities()</code> (maximal covering, set covering, p-median, p-center) and <code>floating_catchment()</code></li>
       </ul>
     </div>
     <div>

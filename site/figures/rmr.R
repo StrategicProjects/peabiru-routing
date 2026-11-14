@@ -904,6 +904,90 @@ figures$rmr_speeds <- function() {
              at(4), at(7), at(12), at(17), at(22)))
 }
 
+# ------------------------------------------------------------------ where a new health unit would serve most
+# Maximal covering (Church and ReVelle, 1974) with locate_facilities(): the
+# demand is every inhabited cell with its residents, the candidates are the
+# same cells, the existing units count first, and a resident is covered
+# within 15 minutes on foot.
+location_cutoff <- 15
+location_n <- 10
+location <- function() {
+  f <- file.path(results, c("location-candidates.csv", "location-sites.csv", "location-summary.csv"))
+  if (!all(file.exists(f))) {
+    r <- timed("locate_facilities, max_cover", locate_facilities(
+      get_net(), demand = cells[, c("id", "lon", "lat", "population")],
+      candidates = cells[, c("id", "lon", "lat")],
+      # the cells and the units are numbered apart: keep their ids distinct
+      existing = transform(health[, c("id", "lon", "lat")], id = paste0("unit-", id)),
+      model = "max_cover", n_facilities = location_n, cutoff = location_cutoff,
+      demand_colname = "population", mode = "WALK", n_threads = threads))
+    write.csv(as.data.frame(r$candidates), f[1], row.names = FALSE)
+    write.csv(as.data.frame(r$sites), f[2], row.names = FALSE)
+    write.csv(as.data.frame(r$summary), f[3], row.names = FALSE)
+  }
+  list(candidates = read.csv(f[1], colClasses = c(id = "character")),
+       sites = read.csv(f[2], colClasses = c(id = "character")), summary = read.csv(f[3]))
+}
+location_breaks <- c(500, 2500, 5000, 10000, 15000, 20000, Inf)
+location_labels <- c("500–2,499", "2,500–4,999", "5,000–9,999", "10,000–14,999", "15,000–19,999",
+                     "20,000 or more")
+
+figures$rmr_location <- function() {
+  l <- location()
+  s <- l$summary
+  cat(sprintf("covered today %s of %s (%s); with %d new units %s (%s); swaps %d\n",
+              num(s$covered_before), num(s$total_demand), pct(s$covered_before / s$total_demand, 1),
+              nrow(l$sites), num(s$covered), pct(s$covered / s$total_demand, 1), s$n_swaps))
+  print(transform(l$sites[, c("order", "id", "marginal", "cumulative")], marginal = round(marginal),
+                  cumulative = round(cumulative)), row.names = FALSE)
+  cat(sprintf("largest potential %s; cells with 500 or more: %d\n", num(max(l$candidates$potential)),
+              sum(l$candidates$potential >= 500)))
+  polys <- merge(cell_polygons(), l$candidates[, c("id", "potential")], by = "id")
+  polys <- in_extent(polys[polys$potential >= location_breaks[1], ], core_extent)
+  layer <- dissolve(polys, cut(polys$potential, location_breaks, labels = location_labels, right = FALSE))
+  pts <- function(d) st_transform(st_as_sf(d, coords = c("lon", "lat"), crs = 4326), 3857)
+  units <- pts(health)
+  units <- units[lengths(st_intersects(units, st_as_sfc(core_extent))) > 0, ]
+  sites <- pts(l$sites)
+  inside <- lengths(st_intersects(sites, st_as_sfc(core_extent))) > 0
+  cat(sprintf("sites inside the map: %d of %d\n", sum(inside), nrow(sites)))
+  xy <- st_coordinates(sites)
+  sites$x <- xy[, 1]; sites$y <- xy[, 2]
+  gain <- sum(l$sites$marginal)
+  p <- ggplot() +
+    map_layers(core_extent) +
+    geom_sf(data = layer, aes(fill = class), colour = NA, alpha = 0.92) +
+    geom_sf(data = units, shape = 21, size = 0.55, stroke = 0.2, fill = light("panel"), colour = light("ink")) +
+    geom_point(data = sites[inside, ], aes(x, y), shape = 21, size = 4.6, stroke = 0.9,
+               fill = light("panel"), colour = light("ink")) +
+    geom_text(data = sites[inside, ], aes(x, y, label = order), size = 2.9, fontface = "bold",
+              colour = light("ink"), family = "Helvetica Neue") +
+    scale_fill_manual(values = setNames(ramp_access$light, location_labels), drop = FALSE,
+                      name = "Residents a new unit there would bring within 15 minutes") +
+    guides(fill = guide_legend(nrow = 2, title.position = "top")) +
+    pe_coords(core_extent) +
+    labs(title = "Where a new health unit would serve the most people",
+         subtitle = wrap(sprintf(paste(
+           "Recife metropolitan region, on foot: %s of %s residents live within 15 minutes of one of the %s",
+           "primary health care units (CNES, small dots). Each cell is coloured by the residents now beyond 15 minutes that a unit",
+           "there would cover. The numbers are the %d sites chosen one after the other by maximal covering:",
+           "together they would bring %s more residents within reach (%s)"),
+           pct(s$covered_before / s$total_demand), num(s$total_demand), num(nrow(health)), nrow(l$sites),
+           num(gain), pct(s$covered / s$total_demand)), 76),
+         caption = wrap_credit(paste(credit_osm, credit_ibge,
+                                     "Health units: CNES, Ministério da Saúde."), 100)) +
+    theme_peabiru(map = TRUE) + legend_top + small_caption
+  save_svg(p, "location-rmr", width = 7.2, height = 9.4,
+           title = "Where a new primary health care unit would serve the most people, Recife metropolitan region",
+           desc = sprintf(paste(
+             "A map of the conurbation of Recife with the cells of a grid coloured by the residents, now more",
+             "than 15 minutes on foot from a primary health care unit, that a new unit in the cell would bring",
+             "within 15 minutes, and %d numbered sites chosen by maximal covering. Today %s of the region's",
+             "residents are within 15 minutes of a unit; the %d sites would raise that to %s."),
+             nrow(l$sites), pct(s$covered_before / s$total_demand), nrow(l$sites),
+             pct(s$covered / s$total_demand)))
+}
+
 # ------------------------------------------------------------------ run
 if (sys.nframe() == 0L) {
   wanted <- commandArgs(TRUE)
