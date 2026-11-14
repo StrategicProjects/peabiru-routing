@@ -50,8 +50,8 @@ a server: the routing never leaves the page. Its code,
 has three parts that matter.
 
 <figure>
-  <a href="../demo/"><img src="../assets/figures/demo-poa.webp" alt="The isochrone demo page: a map of Porto Alegre with three nested isochrones, 10, 20 and 30 minutes by walking and public transport, stretching along the bus corridors from the clicked point." width="1000" height="651" style="max-width: 100%; height: auto;"></a>
-  <figcaption>The demo with the Porto Alegre network, walking and public transport at 14:00.</figcaption>
+  <a href="../demo/"><img src="../assets/figures/demo-recife.webp" alt="The isochrone demo page: a map of Recife with three nested isochrones, 10, 20 and 30 minutes by bicycle, around the clicked point, and a dashed line where the network of the demo ends." width="1000" height="651" style="max-width: 100%; height: auto;"></a>
+  <figcaption>The demo with the streets of Recife, cycling.</figcaption>
 </figure>
 
 **Loading a network from URLs.** The page imports the package as an ES

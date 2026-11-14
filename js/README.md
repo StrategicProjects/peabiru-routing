@@ -23,7 +23,7 @@ as the native packages.
 
 **Status**: early development; the interfaces may still change.
 
-[<img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/demo-poa.webp" width="560" alt="An isochrone map of Porto Alegre computed in the browser: three nested areas reached by walking and public transport from a clicked point.">](https://strategicprojects.github.io/peabiru-routing/demo/)
+[<img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/demo-recife.webp" width="560" alt="The isochrone demo page: a map of Recife with three nested isochrones, 10, 20 and 30 minutes by bicycle, around the clicked point, and a dashed line where the network of the demo ends.">](https://strategicprojects.github.io/peabiru-routing/demo/)
 
 Try it: the [isochrone demo](https://strategicprojects.github.io/peabiru-routing/demo/) builds a network and routes in the
 page, with this package and no server ([how it works](https://strategicprojects.github.io/peabiru-routing/js/examples.html)).

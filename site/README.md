@@ -80,7 +80,7 @@ The gallery of the home page and the worked examples show real output.
 `site/figures/figures.R` (the peabiru R package with ggplot2, sf and
 svglite, on the Porto Alegre sample of r5r 2.5.0, downloaded once into a
 cache directory, and the São Paulo sample of the package); `--demo` also
-retakes `demo-poa.webp`, a screenshot of the demo page (needs the site
+retakes `demo-recife.webp`, a screenshot of the demo page (needs the site
 built, playwright and cwebp). The SVGs carry their alt text (`<title>`,
 `<desc>`) and switch to the dark palette with `prefers-color-scheme`, like
 the diagrams. Run it after a release that changes results, then rebuild.

@@ -1,5 +1,5 @@
-"""Screenshot of the isochrone demo with the Porto Alegre network, walking
-and public transport at 14:00, from a point east of the centre.
+"""Screenshot of the isochrone demo with the streets of Recife, cycling, from a
+point by Praça do Derby.
 
     python3 site/figures/demo_screenshot.py SITE_DIR OUT.png
 
@@ -25,15 +25,19 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={"width": 1100, "height": 900}, color_scheme="light")
     page.goto(url)
     page.wait_for_function(done, timeout=60_000)
-    page.check("input[value='WALK,TRANSIT']", force=True)
-    page.select_option("#city", "poa")
+    page.select_option("#city", "recife")
     page.wait_for_function(
-        f"{done} && document.querySelector('#status').textContent.includes('-30.')",
+        f"{done} && document.querySelector('#status').textContent.includes('-8.')",
         timeout=120_000,
     )
+    page.check("input[value='BICYCLE']", force=True)
+    page.wait_for_function(f"{done} && document.querySelector('#status').textContent.includes('bicycle')", timeout=60_000)
     box = page.locator("#map").bounding_box()
-    page.mouse.click(box["x"] + box["width"] * 0.6, box["y"] + box["height"] * 0.4)
-    page.wait_for_timeout(2000)
+    page.mouse.move(box["x"] + box["width"] * 0.62, box["y"] + box["height"] * 0.52)
+    page.mouse.wheel(0, -500)
+    page.wait_for_timeout(2500)
+    page.mouse.click(box["x"] + box["width"] * 0.62, box["y"] + box["height"] * 0.52)
+    page.wait_for_timeout(3000)
     print(page.text_content("#status"))
     page.locator(".map-wrap").screenshot(path=out)
     browser.close()

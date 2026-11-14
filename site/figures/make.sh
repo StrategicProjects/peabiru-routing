@@ -52,7 +52,7 @@
 # The R package is taken from PEABIRU_R_LIB, R's libraries, or else
 # installed from r/ into .claude/scratch/site-rlib (as site/build.sh does).
 #
-# --demo writes demo-poa.webp, a screenshot of site/demo with the Porto Alegre
+# --demo writes demo-recife.webp, a screenshot of site/demo with the streets of Recife
 # network; it needs the npm package built (sh js/build.sh) and the site built
 # (site/build.sh), Python with playwright (pip install playwright; playwright
 # install chromium) and cwebp.
@@ -154,9 +154,9 @@ else
 fi
 
 if [ "$demo" = 1 ]; then
-  png="$root/site/assets/figures/demo-poa.png"
+  png="$root/site/assets/figures/demo-recife.png"
   python3 "$here/demo_screenshot.py" "$root/_site" "$png"
-  cwebp -quiet -q 78 "$png" -o "$root/site/assets/figures/demo-poa.webp"
+  cwebp -quiet -q 78 "$png" -o "$root/site/assets/figures/demo-recife.webp"
   rm "$png"
 fi
 du -ch "$root"/site/assets/figures/* | tail -1
