@@ -31,7 +31,7 @@ Website: <https://strategicprojects.github.io/peabiru-routing/> (this
 package's documentation is at
 <https://strategicprojects.github.io/peabiru-routing/r/>).
 
-<a href="https://strategicprojects.github.io/peabiru-routing/r/articles/isochrones.html"><img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/isochrones-by-mode.svg" width="480" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes walking, cycling, driving and by public transport."></a>
+<a href="https://strategicprojects.github.io/peabiru-routing/r/articles/recife-metropolitan.html"><img src="https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/assets/figures/isochrones-rmr.svg" width="480" alt="Four maps of central Recife, one per mode, with the areas reached from Praça do Derby within 15, 30 and 45 minutes walking, cycling, driving and by public transport."></a>
 
 | Function | What it computes |
 |---|---|

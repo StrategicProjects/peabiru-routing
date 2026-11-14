@@ -45,8 +45,8 @@ query and thread.
 The name comes from the Peabiru, the pre-Columbian network of trails that
 crossed South America from the Atlantic to the Andes.
 
-<p align="center"><a href="https://strategicprojects.github.io/peabiru-routing/#gallery"><img src="site/assets/figures/isochrones-by-mode.svg" width="520" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes walking, cycling, driving and by public transport."></a><br>
-<sub>Isochrones from one park in Porto Alegre, by mode (<a href="https://strategicprojects.github.io/peabiru-routing/#gallery">gallery of examples</a>; <a href="https://strategicprojects.github.io/peabiru-routing/demo/">try it in the browser</a>).</sub></p>
+<p align="center"><a href="https://strategicprojects.github.io/peabiru-routing/#gallery"><img src="site/assets/figures/isochrones-rmr.svg" width="520" alt="Four maps of central Recife, one per mode, with the areas reached from Praça do Derby within 15, 30 and 45 minutes walking, cycling, driving and by public transport."></a><br>
+<sub>Isochrones from Praça do Derby, Recife, by mode, on the network of the metropolitan region with its buses, metro and VLT (<a href="https://strategicprojects.github.io/peabiru-routing/#gallery">gallery of examples</a>; <a href="https://strategicprojects.github.io/peabiru-routing/demo/">try it in the browser</a>).</sub></p>
 
 ![Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the street network and the transit layer in memory and computes every result; the R package, the Python package, the JavaScript package (WebAssembly) and the command-line tool are thin front-ends over it.](site/assets/diagrams/architecture.svg)
 

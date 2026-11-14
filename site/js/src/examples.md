@@ -103,7 +103,9 @@ can be dragged and zoomed. Everything runs on the page's thread; for long comput
 has the streets of Recife and Caruaru, in Pernambuco, built from open data
 (see the [R](../r/articles/recife-caruaru.html) and
 [Python](../python/example-recife-caruaru/) examples for how the extracts
-are cut). No open GTFS feed was found for either, so their entries pass only
+are cut). These entries are streets only (Caruaru has no open GTFS feed, and
+the feed of the Recife metropolitan region covers a network far larger than
+this extract), so they pass only
 the `.pbf` file to `buildNetwork()`, and the page hides public transport and
 the departure time for them. The extracts are Recife's municipality and
 Caruaru's urban area, without buildings and without OpenStreetMap's metadata

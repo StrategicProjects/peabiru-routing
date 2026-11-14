@@ -126,9 +126,15 @@
 
 <section aria-labelledby="gallery">
   <h2 id="gallery">Gallery</h2>
-  <p>Every figure here is computed by peabiru, on the sample networks of Porto Alegre and São
-  Paulo and, further down, on networks of Recife and Caruaru built from open data; each one links to complete examples, in the languages listed under it, whose output
-  on the page is the output they print.</p>
+  <p>Every figure here is computed by peabiru; each one links to complete examples, in the
+  languages listed under it, whose output on the page is the output they print. First, a whole
+  metropolitan region with its public transport: the 14 municipalities of the Recife metropolitan
+  region (3.7 million people) as one network, from OpenStreetMap and the GTFS feed of Grande Recife
+  Consórcio de Transporte Metropolitano (395 bus routes, the metro and the VLT), at the morning
+  peak of Tuesday 10 November 2026, departures 07:00–07:59. Travel times are those of the
+  timetable, scheduled and not observed; the feed has no rule for the free transfers at the
+  terminals, so nothing here uses fares (the <a href="#gallery-samples">fare figures</a> are on a
+  sample network).</p>
   <div class="gallery">
     <figure class="shot wide">
       <a href="demo/"><img src="assets/figures/demo-poa.webp" width="1000" height="651" loading="lazy" alt="The isochrone demo page: a map of Porto Alegre with three nested isochrones by walking and public transport, stretching along the bus corridors from the clicked point."></a>
@@ -137,47 +143,72 @@
       <span class="ex"><a href="demo/">Open the demo</a> · <a href="js/examples.html">how it works</a></span></figcaption>
     </figure>
     <figure class="shot">
-      <a href="r/articles/isochrones.html"><img src="assets/figures/isochrones-by-mode.svg" width="576" height="662" loading="lazy" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes: a small area walking, a few kilometres cycling, most of the map driving, and long arms along the bus corridors with public transport."></a>
-      <figcaption><strong>Isochrones by mode.</strong> Walking, cycling, driving and public
-      transport from one park, 10 to 30 minutes.
-      <span class="ex"><a href="r/articles/isochrones.html">R</a> · <a href="python/example-isochrones/">Python</a> · <a href="js/examples.html">JavaScript</a> · <a href="rust/isochrones.html">Rust</a></span></figcaption>
+      <a href="r/articles/recife-metropolitan.html#isochrones-by-mode"><img src="assets/figures/isochrones-rmr.svg" width="576" height="734" loading="lazy" alt="Four maps of central Recife and its neighbours, one per mode, with the areas reached from Praça do Derby within 15, 30 and 45 minutes: a small area walking, more cycling, the whole map driving with free-flowing traffic, and arms along the bus corridors and the metro lines with public transport."></a>
+      <figcaption><strong>Isochrones by mode.</strong> From Praça do Derby, in 45 minutes: 108 km² with buses, metro and VLT at the morning peak, 44 by
+      bicycle, 15 on foot.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#isochrones-by-mode">R</a> · <a href="python/example-recife-metropolitan/#isochrones-from-the-centre">Python</a></span></figcaption>
     </figure>
     <figure class="shot">
-      <a href="r/articles/accessibility-map.html"><img src="assets/figures/accessibility-jobs.svg" width="576" height="389" loading="lazy" alt="Two maps of Porto Alegre covered by hexagons coloured by the jobs reachable within 30 minutes, walking and by public transport: with public transport the centre and its corridors reach more than 100 thousand jobs."></a>
-      <figcaption><strong>Jobs within 30 minutes.</strong> Cumulative accessibility on a grid of
-      1,227 cells, walking and by public transport.
-      <span class="ex"><a href="r/articles/accessibility-map.html">R</a> · <a href="python/example-accessibility/">Python</a></span></figcaption>
+      <a href="r/articles/recife-metropolitan.html#schools-health-units-and-people-within-reach"><img src="assets/figures/access-rmr.svg" width="576" height="598" loading="lazy" alt="Two maps of the conurbation of Recife with the cells of a grid coloured by the number of public schools reached within 30 minutes, walking and with public transport: with public transport the cells along the corridors that lead to the centre of Recife reach 80 or more."></a>
+      <figcaption><strong>Schools within half an hour.</strong> Cumulative accessibility from 13,096 cells: the average resident reaches 13 public schools on
+      foot and 24 with public transport; in 45 minutes, 26 and 79.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#schools-health-units-and-people-within-reach">R</a> · <a href="python/example-recife-metropolitan/#schools-within-reach">Python</a></span></figcaption>
     </figure>
     <figure class="shot">
-      <a href="r/articles/accessibility-map.html#travel-times-from-one-point"><img src="assets/figures/travel-time-map.svg" width="576" height="389" loading="lazy" alt="Two maps of Porto Alegre covered by hexagons coloured by the travel time from Farroupilha Park: walking reaches a compact patch within an hour; with public transport most of the grid is within an hour."></a>
-      <figcaption><strong>Travel time from one point.</strong> A matrix from one origin to every
-      cell, mapped.
-      <span class="ex"><a href="r/articles/accessibility-map.html#travel-times-from-one-point">R</a> · <a href="python/example-accessibility/#travel-times-from-one-point">Python</a></span></figcaption>
+      <a href="r/articles/recife-metropolitan.html#from-one-point-to-every-cell"><img src="assets/figures/travel-time-rmr.svg" width="576" height="598" loading="lazy" alt="Two maps of the conurbation of Recife with the cells of a grid coloured by the travel time from Praça do Derby at the morning peak: walking, a patch of five kilometres around the square; with public transport, most of the built-up area within 90 minutes."></a>
+      <figcaption><strong>Travel time from one point.</strong> A matrix from Praça do Derby to every inhabited cell, mapped: 53% of the region's residents
+      are within an hour by public transport, 8% on foot.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#from-one-point-to-every-cell">R</a></span></figcaption>
     </figure>
     <figure class="shot">
-      <a href="r/articles/isochrones.html#people-within-reach"><img src="assets/figures/reach-by-mode.svg" width="518" height="281" loading="lazy" alt="Step curves of the share of Porto Alegre's population reached from one park within 0 to 60 minutes, by mode: driving reaches nearly everyone in 20 minutes, public transport 98 percent in an hour, cycling 69 and walking 32."></a>
-      <figcaption><strong>People within reach, by mode.</strong> The share of the population
-      reached in each number of minutes.
-      <span class="ex"><a href="r/articles/isochrones.html#people-within-reach">R</a></span></figcaption>
+      <a href="r/articles/recife-metropolitan.html#from-one-point-to-every-cell"><img src="assets/figures/reach-rmr.svg" width="547" height="310" loading="lazy" alt="Step curves of the share of the population of the Recife metropolitan region reached from Praça do Derby within 0 to 120 minutes, by mode: driving in free flow reaches 99 percent, public transport 91, cycling 63 and walking 26 in two hours."></a>
+      <figcaption><strong>People within reach, by mode.</strong> The share of the region's 3.7 million residents reached in each number of minutes: within 90,
+      85% by public transport, 44% by bicycle, 17% on foot.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#from-one-point-to-every-cell">R</a></span></figcaption>
     </figure>
     <figure class="shot">
-      <a href="r/articles/trips.html"><img src="assets/figures/percentiles.svg" width="518" height="374" loading="lazy" alt="Range bars of the travel time from one point in São Paulo to 26 others: the nearest are walked with no spread; those reached by bus or metro spread by several minutes."></a>
-      <figcaption><strong>Percentiles on a frequency network.</strong> How much a trip varies
-      with the departure, from random schedules with a seed.
-      <span class="ex"><a href="r/articles/trips.html">R</a> · <a href="python/example-trips/">Python</a></span></figcaption>
+      <a href="r/articles/recife-metropolitan.html#what-the-metro-and-the-vlt-add"><img src="assets/figures/rail-rmr.svg" width="576" height="547" loading="lazy" alt="A map of the west and south of the conurbation of Recife with the metro and VLT lines and the cells coloured by how many more residents they reach within an hour with the rail lines than with buses alone, and bars of the same gain by municipality: 22% in Camaragibe, 15% in Jaboatão dos Guararapes, 6% in Recife, none in the north."></a>
+      <figcaption><strong>What the metro and the VLT add.</strong> The same call with <code>mode = c("WALK", "BUS")</code>: with the rail lines the average resident
+      reaches 5.9% more people within an hour, 22% more in Camaragibe, and no more in the north.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#what-the-metro-and-the-vlt-add">R</a></span></figcaption>
     </figure>
     <figure class="shot">
-      <a href="r/articles/trips.html#trip-by-trip"><img src="assets/figures/trip-breakdown.svg" width="518" height="475" loading="lazy" alt="Thirty stacked bars, one per departure minute, split into walking, waiting, riding, transferring and walking again, with the routes taken; totals between about 30 and 40 minutes."></a>
-      <figcaption><strong>Trip by trip.</strong> Every departure minute of a half hour, split
-      into walking, waiting and riding, with the routes taken.
-      <span class="ex"><a href="r/articles/trips.html#trip-by-trip">R</a> · <a href="python/example-trips/#trip-by-trip">Python</a> · <a href="rust/expanded.html">Rust</a></span></figcaption>
+      <a href="r/articles/recife-metropolitan.html#schools-health-units-and-people-within-reach"><img src="assets/figures/municipalities-rmr.svg" width="547" height="374" loading="lazy" alt="A dot plot with one row per municipality of the Recife metropolitan region: the share of the residents of the region that the average resident of the municipality reaches within 60 minutes on foot and with public transport; Recife first with 25 percent, Olinda with 20, the outer municipalities under 5."></a>
+      <figcaption><strong>By municipality.</strong> Within an hour by public transport the average resident of Recife reaches 25% of the region's
+      residents, of Olinda 20%, of Ipojuca 1%.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#schools-health-units-and-people-within-reach">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#how-much-a-trip-varies"><img src="assets/figures/percentiles-rmr.svg" width="547" height="432" loading="lazy" alt="Range bars of the travel time by public transport from each of the 26 integrated terminals of Grande Recife to Praça do Derby over an hour of departures: 5th to 95th percentile, 25th to 75th, and the median, from 13 minutes to 97."></a>
+      <figcaption><strong>How much a trip varies.</strong> Percentiles over the departure window, from the 26 integrated terminals to Praça do Derby: the
+      5th and the 95th are 4 to 26 minutes apart.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#how-much-a-trip-varies">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#how-much-a-trip-varies"><img src="assets/figures/trip-breakdown-rmr.svg" width="547" height="490" loading="lazy" alt="Thirty stacked bars, one per departure minute from 07:00 to 07:29, from the terminal of Camaragibe to Praça de Boa Viagem, split into walking, waiting and riding, with the metro and bus lines taken; totals between 62 and 84 minutes."></a>
+      <figcaption><strong>Trip by trip.</strong> From Camaragibe to Boa Viagem, leaving at 07:00 takes 62 minutes and at 07:01 83: every
+      departure until 07:21 arrives on the same bus.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#how-much-a-trip-varies">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#the-options-of-one-trip"><img src="assets/figures/trip-options-rmr.svg" width="547" height="454" loading="lazy" alt="A map of Olinda and Recife with three trips by bus from Praça do Carmo, in Olinda, to Praça de Boa Viagem, and beside it the time, the transfers and the walking of each."></a>
+      <figcaption><strong>The choices of one trip.</strong> From Olinda to Boa Viagem at 07:20: 72 minutes with a transfer, 76 with less walking, or 84 on
+      a single bus: the trips no other beats on time, transfers and walking.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#the-options-of-one-trip">R</a></span></figcaption>
     </figure>
   </div>
+  <p class="muted">Recife metropolitan region: drawn by <code>site/figures/rmr.R</code> from the
+  results of the R package; the Python example prints the same numbers. Streets © OpenStreetMap
+  contributors (ODbL), Geofabrik extract of 2026-11-01. Timetables: Grande Recife Consórcio de
+  Transporte Metropolitano, GTFS feed v2026.10.26, as published by the consortium. Boundaries and
+  population © IBGE (Censo 2022); schools: INEP (Catálogo de Escolas 2023, via geobr). The demo
+  runs on the Porto Alegre sample network credited below.</p>
   <h3 id="gallery-pe">Recife and Caruaru, from open data</h3>
   <p>Two cities of Pernambuco, built from scratch: streets cut from OpenStreetMap with osmium,
   residents placed on a hexagonal grid with the Censo 2022, public schools from INEP and primary
   health care units from CNES. The worked example repeats every step, for any Brazilian
-  municipality. Streets only: no open GTFS feed was found for either city.</p>
+  municipality. Streets only: Caruaru has no open GTFS feed, and Recife's public transport is in
+  the figures above.</p>
   <div class="gallery">
     <figure class="shot">
       <a href="r/articles/recife-caruaru.html"><img src="assets/figures/nearest-recife.svg" width="576" height="475" loading="lazy" alt="Two maps of Recife covered by hexagons coloured by the walking time from each cell to the nearest public school and to the nearest primary health care unit: almost every inhabited cell is within 15 minutes of a school; health units are farther apart."></a>
@@ -209,8 +240,7 @@
   million people, five more municipalities of Pernambuco, and two cities of hills, Salvador and
   Olinda. The Copernicus elevation model is checked against the ground first: at 30 m it reads the
   roofs, which costs a flat district of towers a minute of walking that is not there, so the
-  results use its 90 m version and are on the low side. Streets only: no open GTFS feed was found
-  for Recife or Salvador.</p>
+  results use its 90 m version and are on the low side. Streets only, on foot and by bicycle.</p>
   <div class="gallery">
     <figure class="shot">
       <a href="r/articles/terrain.html#cities-of-hills-salvador-and-olinda"><img src="assets/figures/terrain-iso-salvador.svg" width="576" height="619" loading="lazy" alt="Four maps of central Salvador with the areas reached from the Praça Municipal within 10, 20 and 30 minutes on foot and by bicycle, flat on the left and with the slopes on the right, where the 30-minute area is 16% smaller on foot and 19% by bicycle."></a>
@@ -241,6 +271,35 @@
   GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under
   COPERNICUS by the European Union and ESA; Salvador's population: IBGE, Censo 2022, tracts of
   Bahia; the other sources are those of Recife and Caruaru.</p>
+  <h3 id="gallery-samples">Fares and frequencies, on the sample networks</h3>
+  <p>Two things the feed of Grande Recife does not have. Fares: on the sample network of Porto
+  Alegre (a part of the city, timetables of May 2019), with a fare structure by mode and a
+  discount on transfers, what a fare budget leaves of the access, the fastest trip within each
+  budget, and the trips no other beats on time, fare and transfers. Headways: on the sample
+  network of São Paulo, lines given by frequency, routed with random schedules.</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/capitals.html#what-a-budget-leaves"><img src="assets/figures/fare-budget-poa.svg" width="576" height="349" loading="lazy" alt="Grouped bars, one group per income quintile, of the mean share of jobs reached within 60 minutes by public transport in the Porto Alegre sample at any fare, with at most two bus fares, and with at most one."></a>
+      <figcaption><strong>What a fare budget leaves.</strong> In the Porto Alegre sample one bus fare keeps 84% of the jobs within an hour, 74% in the poorest fifth and 89% in the richest; two fares keep 98%.
+      <span class="ex"><a href="r/articles/capitals.html#what-a-budget-leaves">R</a> · <a href="python/example-capitals/#what-a-budget-leaves">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#the-frontier-of-a-trip"><img src="assets/figures/pareto-poa.svg" width="576" height="288" loading="lazy" alt="Three step charts of the median travel time of the fastest trip within a fare budget, for three pairs of places in Porto Alegre."></a>
+      <figcaption><strong>Time against fare.</strong> Across town, the R$ 7.20 of two buses with the transfer discount turns a trip of 89 minutes into one of 48; along a corridor a second ride saves one minute.
+      <span class="ex"><a href="r/articles/capitals.html#the-frontier-of-a-trip">R</a> · <a href="python/example-capitals/#the-frontier-of-a-trip">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#the-trips-themselves"><img src="assets/figures/trip-options-poa.svg" width="576" height="315" loading="lazy" alt="A map of Porto Alegre with three trips from Jardim Carvalho to Praia de Belas, and beside it their time, fare and transfers."></a>
+      <figcaption><strong>The choices of one trip.</strong> 53 minutes for R$ 12.00, 57 for R$ 7.20, or 86 for R$ 4.80 with 65 of them on foot: the trips no other beats on time, fare and transfers.
+      <span class="ex"><a href="r/articles/capitals.html#the-trips-themselves">R</a> · <a href="python/example-capitals/#the-trips-themselves">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/trips.html"><img src="assets/figures/percentiles.svg" width="518" height="374" loading="lazy" alt="Range bars of the travel time from one point in São Paulo to 26 others: the nearest are walked with no spread; those reached by bus or metro spread by several minutes."></a>
+      <figcaption><strong>Percentiles on a frequency network.</strong> On the São Paulo sample network, whose
+      lines are given by headway: how much a trip varies, from random schedules with a seed.
+      <span class="ex"><a href="r/articles/trips.html">R</a> · <a href="python/example-trips/">Python</a></span></figcaption>
+    </figure>
+  </div>
   <h3 id="gallery-scenarios">Scenarios, and a city abroad</h3>
   <p>What-if questions are arguments of a routing call, on the network as built: a cycle path
   is a lower level of traffic stress on its streets, congestion a factor on car speeds in an
@@ -287,7 +346,8 @@
       <span class="ex"><a href="r/articles/helsinki.html#isochrones-from-the-central-station">R</a> · <a href="python/example-helsinki/#isochrones-from-the-central-station">Python</a></span></figcaption>
     </figure>
   </div>
-  <p class="muted">The figures are drawn by <code>site/figures/figures.R</code> and
+  <p class="muted">The figures of the sample networks and of Recife and Caruaru are drawn by
+  <code>site/figures/figures.R</code>, <code>site/figures/capitals.R</code> and
   <code>site/figures/pernambuco.R</code> from the results of the R package; the examples in the
   other languages print the same numbers. Map data © OpenStreetMap contributors (ODbL); GTFS:
   EPTC and Trensurb (Porto Alegre), SPTrans (São Paulo); the sample networks of Porto Alegre and
@@ -299,8 +359,8 @@
   on the grid of Ipea's Access to Opportunities Project (residents and income of the Censo 2010,
   jobs of 2019): the jobs within an hour of every inhabited cell at the morning peak, by income.
   Rio de Janeiro's feed has buses and BRT only, Belo Horizonte's buses only; Fortaleza's
-  feed ends in July 2026 and no official one was found for Curitiba. Then, on the Porto Alegre
-  sample with a fare by mode, what a fare budget leaves of that access.</p>
+  feed ends in July 2026 and no official one was found for Curitiba. The same example goes on to
+  the <a href="#gallery-samples">fare figures</a> above.</p>
   <div class="gallery">
     <figure class="shot">
       <a href="r/articles/capitals.html#by-income"><img src="assets/figures/access-income-capitals.svg" width="576" height="315" loading="lazy" alt="Three panels of box plots, one per city, of the share of the city's formal jobs reached within 60 minutes by public transport from the cells of each income decile: in all three the boxes rise from the poorest decile to the richest."></a>
@@ -326,21 +386,6 @@
       <a href="r/articles/capitals.html#by-income"><img src="assets/figures/access-compare-capitals.svg" width="576" height="288" loading="lazy" alt="Three panels, for jobs within 60 minutes and public schools and health facilities within 30 minutes, each with one line per city of the mean share of the city's opportunities reached by public transport, by income decile."></a>
       <figcaption><strong>Jobs, schools, health.</strong> Access to jobs rises with income in the three cities; public schools do not follow: in São Paulo the richest tenth has 0.59 times the schools within half an hour of the poorest four tenths.
       <span class="ex"><a href="r/articles/capitals.html#by-income">R</a> · <a href="python/example-capitals/#by-income">Python</a></span></figcaption>
-    </figure>
-    <figure class="shot">
-      <a href="r/articles/capitals.html#what-a-budget-leaves"><img src="assets/figures/fare-budget-poa.svg" width="576" height="349" loading="lazy" alt="Grouped bars, one group per income quintile, of the mean share of jobs reached within 60 minutes by public transport in the Porto Alegre sample at any fare, with at most two bus fares, and with at most one."></a>
-      <figcaption><strong>What a fare budget leaves.</strong> In the Porto Alegre sample one bus fare keeps 84% of the jobs within an hour, 74% in the poorest fifth and 89% in the richest; two fares keep 98%.
-      <span class="ex"><a href="r/articles/capitals.html#what-a-budget-leaves">R</a> · <a href="python/example-capitals/#what-a-budget-leaves">Python</a></span></figcaption>
-    </figure>
-    <figure class="shot">
-      <a href="r/articles/capitals.html#the-frontier-of-a-trip"><img src="assets/figures/pareto-poa.svg" width="576" height="288" loading="lazy" alt="Three step charts of the median travel time of the fastest trip within a fare budget, for three pairs of places in Porto Alegre."></a>
-      <figcaption><strong>Time against fare.</strong> Across town, the R$ 7.20 of two buses with the transfer discount turns a trip of 89 minutes into one of 48; along a corridor a second ride saves one minute.
-      <span class="ex"><a href="r/articles/capitals.html#the-frontier-of-a-trip">R</a> · <a href="python/example-capitals/#the-frontier-of-a-trip">Python</a></span></figcaption>
-    </figure>
-    <figure class="shot">
-      <a href="r/articles/capitals.html#the-trips-themselves"><img src="assets/figures/trip-options-poa.svg" width="576" height="315" loading="lazy" alt="A map of Porto Alegre with three trips from Jardim Carvalho to Praia de Belas, and beside it their time, fare and transfers."></a>
-      <figcaption><strong>The choices of one trip.</strong> 53 minutes for R$ 12.00, 57 for R$ 7.20, or 86 for R$ 4.80 with 65 of them on foot: the trips no other beats on time, fare and transfers.
-      <span class="ex"><a href="r/articles/capitals.html#the-trips-themselves">R</a> · <a href="python/example-capitals/#the-trips-themselves">Python</a></span></figcaption>
     </figure>
   </div>
   <p class="muted">Drawn by <code>site/figures/capitals.R</code>. Map data © OpenStreetMap

@@ -175,6 +175,33 @@ The examples:
 - Rust: `site/rust/src/isochrones.md`, with
   `crates/peabiru-core/examples/isochrone.rs`.
 
+### The Recife metropolitan region with its public transport
+
+`bash site/figures/make.sh --rmr` runs `site/figures/rmr.R` (about two
+minutes with the article): the first block of the gallery, the 14
+municipalities of the Região Metropolitana do Recife as one network with
+the buses, metro and VLT of the GTFS feed of Grande Recife Consórcio de
+Transporte Metropolitano. `site/figures/rmr-data.R` reuses the streets, the
+grid and the units of `pernambuco-data.R` (`prepare_city("rmr")`, in
+`PEABIRU_PE_CACHE`) and adds the feed in `PEABIRU_RMR_CACHE` (default
+`tools::R_user_dir("peabiru", "cache")/rmr`): the file
+`raw/granderecife-v2026.10.26.zip` if it is there (the version the figures
+were computed with; its SHA-256 is in the script), or else the current file
+of `https://www.granderecife.pe.gov.br/gtfs/gtfs.zip`, with a warning that
+another version gives other numbers. The feed states no licence: it is
+never committed. `rmr.R` keeps the results of the routing in
+`<cache>/results/` with a log of times, draws `*-rmr.svg` (isochrones,
+access, travel time, reach, rail, municipalities, percentiles, trip
+breakdown, trip options, scheduled speeds) and prints every number of the
+captions; no figure uses fares (the feed has no rule for the integration at
+the terminals). The R article `recife-metropolitan.Rmd` is knitted from its
+`.Rmd.orig`, which sources the two data scripts (from GitHub by default;
+`PEABIRU_FIGURES_DIR` points it at the local directory) and computes
+everything again. The Python page `example-recife-metropolitan.md` repeats
+the network, the grid, the schools and the isochrones from the same
+sources; it needs osmium and `PEABIRU_EXAMPLE_DATA` (a directory whose
+`raw/` has, or will receive, the downloads and the feed).
+
 ### Terrain, and more of Pernambuco
 
 `bash site/figures/make.sh --terrain` runs `site/figures/terrain.R` (about

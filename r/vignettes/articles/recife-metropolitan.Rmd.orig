@@ -1,0 +1,555 @@
+---
+title: "Example: the Recife metropolitan region by public transport"
+description: >
+  The 14 municipalities of the Recife metropolitan region as one network,
+  with the buses, the metro and the VLT of the GTFS feed of Grande Recife:
+  isochrones by mode, access to schools and health units on a grid of the
+  Censo 2022, what the rail lines add, how much a trip varies with the minute
+  one leaves, and the options of one trip.
+---
+
+```{r, include = FALSE}
+# This article is precomputed: its source is recife-metropolitan.Rmd.orig,
+# knitted into recife-metropolitan.Rmd by `bash site/figures/make.sh --rmr`
+# (the data takes hundreds of megabytes of downloads, osmium, and a GTFS feed
+# that is not in the repository: too much for every site build). Only the
+# chunks written out below by cat() run when pkgdown renders it.
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+# run in a directory where pe-data and rmr-data are the caches of
+# site/figures/pernambuco-data.R and site/figures/rmr-data.R
+work <- file.path(tempdir(), "recife-metropolitan")
+dir.create(work, showWarnings = FALSE)
+links <- c(PEABIRU_PE_CACHE = "pe-data", PEABIRU_RMR_CACHE = "rmr-data")
+for (v in names(links)) {
+  from <- Sys.getenv(v)
+  if (nzchar(from) && !file.exists(file.path(work, links[[v]]))) file.symlink(from, file.path(work, links[[v]]))
+}
+knitr::opts_knit$set(root.dir = work)
+# printed paths as a reader sees them, relative to the working directory
+local({
+  hook <- knitr::knit_hooks$get("output")
+  real <- vapply(links, function(d) normalizePath(file.path(work, d), mustWork = FALSE), "")
+  knitr::knit_hooks$set(output = function(x, options) {
+    for (d in names(real)) x <- gsub(real[[d]], links[[d]], x, fixed = TRUE)
+    hook(x, options)
+  })
+})
+options(width = 100)
+live <- function(code, opts = "echo = FALSE") {
+  cat("```{r, ", opts, "}\n", code, "\n```\n", sep = "")
+}
+pct <- function(x, digits = 0) paste0(formatC(100 * x, format = "f", digits = digits), "%")
+num <- function(x) format(round(x), big.mark = ",")
+```
+
+```{r, echo = FALSE, results = "asis"}
+live('source("setup.R")', "include = FALSE")
+```
+
+The Região Metropolitana do Recife is 14 municipalities and 3.7 million
+people on the coast of Pernambuco, Brazil. Its buses are run by ten
+operators under one authority, the Grande Recife Consórcio de Transporte
+Metropolitano, and meet the metro and the VLT (light rail) of CBTU at
+integrated terminals. The consortium publishes the timetables of all of
+them as one GTFS feed. This example builds the region as one network, from
+that feed and from OpenStreetMap, and asks what a planner would ask of it:
+how far one gets from the centre by each mode, how many schools and health
+units are within reach of each resident on foot and by public transport,
+what the rail lines add, and how much a trip depends on the minute one
+leaves.
+
+Everything is computed by peabiru; the output shown is what the code
+prints, computed on 2026-11-13. The
+[Python example](../../python/example-recife-metropolitan/) repeats the
+network, the schools and the isochrones, and prints the same numbers.
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("isochrones-rmr.svg")', 'echo = FALSE, fig.alt = "Four maps of central Recife and its neighbours, one per mode, each shading the areas reached from Praça do Derby within 15, 30 and 45 minutes: a small area walking, more cycling, the whole map driving with free-flowing traffic, and arms along the bus corridors and the metro lines with public transport."')
+```
+
+## The data
+
+| Data | Source | Licence |
+|---|---|---|
+| Public transport | [Grande Recife Consórcio de Transporte Metropolitano](https://www.granderecife.pe.gov.br), GTFS feed at `https://www.granderecife.pe.gov.br/gtfs/gtfs.zip`, `feed_version` **v2026.10.26** (files of 2026-10-26; `feed_info.txt`: 2020-05-01 to 2027-10-26; 38 MB): 395 bus routes of ten operators and, of CBTU's Metrorec, 3 metro and 2 VLT routes | published by the consortium at that address; no licence is stated in the feed |
+| Streets | [OpenStreetMap](https://www.openstreetmap.org/copyright), extract of the Nordeste region by [Geofabrik](https://download.geofabrik.de/south-america/brazil/nordeste.html), dated 2026-11-01 (445 MB, MD5 `93318fcddd85a53e8386eaa93588847c`) | ODbL 1.0 |
+| Municipal boundaries | [IBGE, malhas municipais](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3) (API, version 3) | public data, IBGE |
+| Population | [IBGE, Censo Demográfico 2022, census tracts with their population](https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/Agregados_por_Setores_Censitarios/malha_com_atributos/setores/gpkg/UF/PE/), variable `v0001` (44 MB for Pernambuco) | public data, IBGE |
+| Schools | INEP, Catálogo de Escolas 2023, with the coordinates of each school, as published by Ipea's [geobr](https://ipeagit.github.io/geobr/) (`schools_2023`, 101 MB for Brazil) | public data, INEP; geobr is MIT |
+| Health units | [CNES](https://cnes.datasus.gov.br/), Ministério da Saúde, through [OpenDataSUS](https://opendatasus.saude.gov.br/) (`cnes_estabelecimentos_csv.zip`, 57 MB for Brazil, updated daily; downloaded on 2026-11-12) | open data, Ministério da Saúde |
+
+The feed is not in this repository and is not redistributed here: download
+it from the consortium's address. That address always serves the current
+file, so a later download is another version of the network and gives other
+numbers; the checksum below identifies the file used here. The region has
+no open grid of jobs: Ipea's Access to Opportunities data covers the
+municipality of Recife only, so the opportunities here are the public
+schools and the primary health care units of the registers, and the
+residents themselves.
+
+The streets, the grid and the units are those of the
+[terrain example](terrain.html), prepared by the functions of
+[`site/figures/pernambuco-data.R`](https://github.com/StrategicProjects/peabiru-routing/blob/main/site/figures/pernambuco-data.R)
+as the [Recife and Caruaru example](recife-caruaru.html) explains step by
+step: the streets of the 14 municipalities cut with 3 km around them (needs
+[osmium](https://osmcode.org/osmium-tool/)), the census population on
+hexagonal cells 500 m apart, the public schools in operation and the
+primary health care units (CNES types 1 and 2).
+[`site/figures/rmr-data.R`](https://github.com/StrategicProjects/peabiru-routing/blob/main/site/figures/rmr-data.R)
+adds the feed: `prepare_rmr()` uses the file
+`rmr-data/raw/granderecife-v2026.10.26.zip` if it is there, or else
+downloads the consortium's current file, and puts it next to the street
+extract in the directory `build_network()` reads.
+
+```{r prepare, message = FALSE}
+library(peabiru)
+library(sf)
+options(timeout = 3600)
+
+scripts <- Sys.getenv("PEABIRU_FIGURES_DIR", paste0(
+  "https://raw.githubusercontent.com/StrategicProjects/peabiru-routing/main/site/figures"))
+Sys.setenv(PEABIRU_PE_CACHE = "pe-data", PEABIRU_RMR_CACHE = "rmr-data")
+source(file.path(scripts, "pernambuco-data.R"))   # prepare_city(), fetch()
+source(file.path(scripts, "rmr-data.R"))          # prepare_rmr(), the feed
+rmr <- prepare_rmr()
+
+c(MB = round(file.size(rmr$feed) / 1e6, 1), sha256 = substr(unname(tools::sha256sum(rmr$feed)), 1, 16))
+feed <- rmr_feed_summary(rmr$feed)
+str(feed[c("publisher", "version", "agencies", "routes", "stops", "stations", "trips",
+           "frequencies", "transfer_rules")], give.attr = FALSE)
+feed$by_mode
+feed$fare_prices
+```
+
+Timetables only: no line is given by headway (`frequencies.txt`), so
+nothing below is drawn at random. The 30 stations are the 26 integrated
+terminals and four rail stations.
+
+**No fares in this example.** The feed has a price for each route (R$ 4.50
+on 385 of the 400) and no rule for transfers: the integration at the
+terminals, where passengers change lines without paying again, is not in
+it. A fare structure made from the feed would charge every boarding, and
+results with a fare limit would understate what a fare buys; so travel
+time, transfers and walking are measured here, and money is not.
+
+## The network
+
+```{r network}
+threads <- 4   # of the 10 of the laptop; the default is all of them
+(seconds <- system.time(network <- build_network(rmr$network, n_threads = threads))[["elapsed"]])
+network
+nrow(get_gtfs_errors(network))
+check_transit_availability(network, dates = as.Date("2026-11-10"))
+```
+
+One street extract of 21 MB and one feed, built in `r round(seconds)`
+seconds on a laptop busy with other work; the feed has no error. `pct_active` is low because the feed keeps a service for each
+route and kind of day (weekday, Saturday, Sunday and holiday): on a Tuesday
+the weekday ones run.
+
+The analysis is of **Tuesday 10 November 2026, leaving at each minute from
+07:00 to 07:59**; a travel time is the median of those 60 departures unless
+said otherwise. Walking is at 3.6 km/h and cycling at 12 km/h on streets of
+low traffic stress, the defaults; driving is at the speed limits, with no
+congestion.
+
+```{r data}
+departure <- as.POSIXct("2026-11-10 07:00:00", tz = "America/Recife")
+transit <- c("WALK", "TRANSIT")
+
+cells <- read.csv(file.path(rmr$streets, "cells.csv"), colClasses = c(id = "character"))
+cells <- cells[cells$population > 0, ]
+schools <- read.csv(file.path(rmr$streets, "schools.csv"), colClasses = c(id = "character"))
+health <- read.csv(file.path(rmr$streets, "health.csv"), colClasses = c(id = "character"))
+people <- sum(cells$population)
+c(cells = nrow(cells), people = round(people), schools = nrow(schools), health_units = nrow(health))
+```
+
+## What the timetable assumes
+
+A timetable is a plan. One written for empty streets would put the bus
+through the morning peak at the speed of the small hours, and every result
+below would overstate what public transport reaches at 07:00. So, before
+routing: the scheduled speed of every trip of the day, the length of its
+path (`shape_dist_traveled`) over the time between its first and its last
+stop, by hour of departure.
+
+```{r speeds}
+speeds <- rmr_trip_speeds(rmr$feed, as.Date("2026-11-10"))
+speeds$kmh <- speeds$shape_km / (speeds$minutes / 60)
+table(speeds$mode)
+hours <- c(4, 7, 12, 17, 22)
+kmh <- sapply(split(speeds, speeds$mode), function(m) tapply(m$kmh, m$hour, median)[as.character(hours)])
+round(kmh, 1)
+
+# the same path through the day: its running time over its own shortest
+bus <- speeds[speeds$mode == "Bus", ]
+by_hour <- aggregate(minutes ~ shape_id + hour, data = bus, FUN = median)
+by_hour$ratio <- by_hour$minutes / ave(by_hour$minutes, by_hour$shape_id, FUN = min)
+round(tapply(by_hour$ratio, by_hour$hour, median)[as.character(hours)], 2)
+```
+
+```{r, include = FALSE}
+k <- function(h, mode = "Bus") sprintf("%.1f", kmh[as.character(h), mode])
+ratio <- tapply(by_hour$ratio, by_hour$hour, median)
+```
+
+This timetable does slow down: the median bus trip that starts at 07:00 is
+scheduled at `r k(7)` km/h and the one at 17:00 at `r k(17)`, against
+`r k(4)` at 04:00 and `r k(22)` at 22:00, and the same path takes
+`r sprintf("%.1f", ratio[["7"]])` times its shortest running time of the
+day at 07:00 and `r sprintf("%.1f", ratio[["17"]])` times at 17:00. The
+metro and the VLT keep one speed all day (their medians move with the mix
+of lines). So the feed carries peak running times, and the access
+measured below is not that of an empty city. It is still a schedule: these
+are planned times, not observed ones, and nothing here says how often the
+plan holds.
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("speeds-rmr.svg")', 'echo = FALSE, fig.alt = "Lines of the median scheduled speed of the trips of the feed by hour of departure on a weekday: buses fall from about 25 km/h at 04:00 to 15 at 07:00, stay near 17 through the day, fall to 15 at 17:00 and recover in the evening; the metro and the VLT keep the same speed all day."')
+```
+
+## Isochrones by mode
+
+From Praça do Derby, between the centre of Recife and its west and north:
+74 of the feed's 400 routes stop within 400 m of the square on a weekday.
+`isochrone()` traces the areas on a
+grid of points, and the points just off the coast are reached from the
+seafront, so the polygons are cut at the coast (the municipal boundaries)
+before their area is measured. (`isochrone()` warns when making a traced
+polygon valid on the sphere would change its area, and repairs it on the
+plane instead; it did for three of these polygons, and the warnings are
+left out of the output.)
+
+```{r isochrones, warning = FALSE}
+derby <- data.frame(id = "Praça do Derby", lon = -34.8990, lat = -8.0570)
+modes <- list(walk = "WALK", bicycle = "BICYCLE", car = "CAR", transit = transit)
+utm <- 31985   # SIRGAS 2000 / UTM zone 25S, in metres
+
+boundaries <- st_read(file.path(rmr$streets, "boundary.geojson"), quiet = TRUE)
+land <- st_union(st_make_valid(st_transform(boundaries, utm)))
+km2 <- sapply(modes, function(mode) {
+  iso <- isochrone(network, derby, mode = mode, cutoffs = c(15, 30, 45), zoom = 11,
+                   departure_datetime = departure, time_window = 60, n_threads = threads)
+  on_land <- st_intersection(st_make_valid(st_geometry(st_transform(iso, utm))), land)
+  setNames(as.numeric(st_area(on_land)) / 1e6, paste(iso$isochrone, "min"))
+})
+round(t(km2), 1)
+```
+
+```{r, include = FALSE}
+a <- function(mode, minutes = 45) sprintf("%.0f", km2[paste(minutes, "min"), mode])
+```
+
+In 45 minutes public transport reaches `r a("transit")` km² of land,
+cycling `r a("bicycle")` and walking `r a("walk")`; a car in free-flowing
+traffic reaches `r num(km2["45 min", "car"])` km², which no car does at
+07:00. The figure at the top of the page draws these polygons.
+
+## From one point to every cell
+
+The same question on the grid: the travel time from Praça do Derby to each
+of the `r num(nrow(cells))` inhabited cells, and the residents within
+reach. `bus` is public transport without the metro and the VLT, for later.
+
+```{r from-derby}
+from_derby <- sapply(c(modes, list(bus = c("WALK", "BUS"))), function(mode) {
+  m <- travel_time_matrix(network, derby, cells, mode = mode, departure_datetime = departure,
+                          time_window = 60, max_trip_duration = 120, n_threads = threads)
+  m$travel_time_p50[match(cells$id, m$to_id)]
+})
+within <- function(minutes, limit) {
+  sum(cells$population[!is.na(minutes) & minutes <= limit]) / people
+}
+shares <- sapply(c(`30 min` = 30, `60 min` = 60, `90 min` = 90, `120 min` = 120),
+                 function(limit) apply(from_derby, 2, within, limit = limit))
+round(100 * shares, 1)
+```
+
+```{r, include = FALSE}
+sh <- function(mode, minutes) pct(shares[mode, paste(minutes, "min")])
+```
+
+Within an hour of the square are `r sh("transit", 60)` of the region's
+residents by public transport, `r sh("bicycle", 60)` by bicycle and
+`r sh("walk", 60)` on foot; within 90 minutes, `r sh("transit", 90)` by
+public transport. These trips leave the centre in the morning, against the
+main flow.
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("travel-time-rmr.svg")', 'echo = FALSE, fig.alt = "Two maps of the conurbation of Recife with the cells of a grid coloured by the median travel time from Praça do Derby at the morning peak: walking, a patch of five kilometres around the square; with public transport, most of the built-up area within 90 minutes."')
+live('fig("reach-rmr.svg")', 'echo = FALSE, fig.alt = "Step curves of the share of the population of the Recife metropolitan region reached from Praça do Derby within 0 to 120 minutes, by mode: driving in free flow first, then walking plus public transport, cycling and walking."')
+```
+
+## Schools, health units and people within reach
+
+Cumulative access from every inhabited cell: the public schools, the
+primary health care units and the residents of the region reached within
+30, 45 and 60 minutes, on foot, by public transport, and by bus alone. One
+call per mode, with the three kinds of opportunity as columns of one table
+of destinations.
+
+```{r access}
+destinations <- rbind(
+  data.frame(id = paste0("s", schools$id), lon = schools$lon, lat = schools$lat,
+             schools = 1, health = 0, population = 0),
+  data.frame(id = paste0("h", health$id), lon = health$lon, lat = health$lat,
+             schools = 0, health = 1, population = 0),
+  data.frame(id = paste0("c", cells$id), lon = cells$lon, lat = cells$lat,
+             schools = 0, health = 0, population = cells$population))
+
+access_of <- function(mode) {
+  a <- accessibility(network, cells, destinations,
+                     opportunities_colnames = c("schools", "health", "population"),
+                     mode = mode, departure_datetime = departure, time_window = 60,
+                     percentiles = 50, cutoffs = c(30, 45, 60), max_trip_duration = 60,
+                     n_threads = threads, progress = FALSE)
+  # one row per cell, one column per opportunity and limit: schools_30, ...
+  a$what <- paste(a$opportunity, a$cutoff, sep = "_")
+  wide <- reshape(as.data.frame(a[, c("id", "what", "accessibility")]), idvar = "id",
+                  timevar = "what", direction = "wide")
+  names(wide) <- sub("accessibility.", "", names(wide), fixed = TRUE)
+  wide[match(cells$id, wide$id), ]
+}
+seconds <- system.time(
+  access <- lapply(list(walk = "WALK", transit = transit, bus = c("WALK", "BUS")), access_of)
+)[["elapsed"]]
+c(origins = nrow(cells), destinations = nrow(destinations), seconds = round(seconds))
+```
+
+```{r access-table}
+average <- function(column) {
+  sapply(access[c("walk", "transit")], function(a) weighted.mean(a[[column]], cells$population))
+}
+round(t(sapply(c("schools_30", "schools_45", "health_30", "health_45", "population_60"), average)), 1)
+none <- function(column) {
+  sapply(access[c("walk", "transit")], function(a) weighted.mean(a[[column]] == 0, cells$population))
+}
+round(100 * t(sapply(c("schools_30", "health_30"), none)), 1)
+```
+
+```{r, include = FALSE}
+av <- function(column, mode) sprintf("%.0f", average(column)[[mode]])
+```
+
+The average resident has `r av("schools_30", "walk")` public schools within
+half an hour's walk and `r av("schools_30", "transit")` within half an hour
+by public transport; with 45 minutes, `r av("schools_45", "walk")` and
+`r av("schools_45", "transit")`. For primary health care units the numbers
+are `r av("health_30", "walk")` and `r av("health_30", "transit")` in 30
+minutes, `r av("health_45", "walk")` and `r av("health_45", "transit")` in
+45. The gain grows with the time allowed: public transport doubles the
+count in half an hour and triples it in three quarters. The last table is
+the share of residents with none within 30 minutes:
+`r sprintf("%.1f%%", 100 * none("schools_30")[["walk"]])` have no public school
+within half an hour's walk and
+`r sprintf("%.1f%%", 100 * none("schools_30")[["transit"]])` none by public
+transport either; for a health unit,
+`r sprintf("%.1f%%", 100 * none("health_30")[["walk"]])` and
+`r sprintf("%.1f%%", 100 * none("health_30")[["transit"]])`.
+
+On the laptop this was written on (Apple M2 Pro, 4 of its 10 threads, busy
+with other work at the time) the three calls, each from `r num(nrow(cells))`
+origins to `r num(nrow(destinations))` destinations, took `r round(seconds)`
+seconds together.
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("access-rmr.svg")', 'echo = FALSE, fig.alt = "Two maps of the conurbation of Recife with the cells of a grid coloured by the number of public schools reached within 30 minutes at the morning peak, walking and with public transport: with public transport the cells along the corridors that lead to the centre of Recife reach 80 or more."')
+```
+
+By municipality of residence, the share of the region's residents within an
+hour (the population of each cell is split by municipality in
+`cells_muni.csv`):
+
+```{r municipalities}
+names_of <- c("2611606" = "Recife", "2609600" = "Olinda", "2607901" = "Jaboatão dos Guararapes",
+              "2610707" = "Paulista", "2603454" = "Camaragibe", "2613701" = "São Lourenço da Mata",
+              "2602902" = "Cabo de Santo Agostinho", "2607208" = "Ipojuca", "2609402" = "Moreno",
+              "2606804" = "Igarassu", "2600054" = "Abreu e Lima", "2607752" = "Itapissuma",
+              "2607604" = "Ilha de Itamaracá", "2601052" = "Araçoiaba")
+by_muni <- read.csv(file.path(rmr$streets, "cells_muni.csv"),
+                    colClasses = c(id = "character", code = "character"))
+k <- match(by_muni$id, cells$id)
+by_muni <- by_muni[!is.na(k), ]
+k <- k[!is.na(k)]
+for (m in names(access)) by_muni[[m]] <- access[[m]]$population_60[k]
+municipalities <- do.call(rbind, lapply(split(by_muni, by_muni$code), function(r) {
+  data.frame(municipality = names_of[[r$code[1]]], residents = round(sum(r$population)),
+             walk = weighted.mean(r$walk, r$population), bus = weighted.mean(r$bus, r$population),
+             transit = weighted.mean(r$transit, r$population))
+}))
+municipalities <- municipalities[order(-municipalities$transit), ]
+municipalities$share <- round(100 * municipalities$transit / people, 1)
+municipalities$rail_gain <- round(100 * (municipalities$transit / municipalities$bus - 1), 1)
+print(transform(municipalities, walk = round(walk), bus = round(bus), transit = round(transit)),
+      row.names = FALSE)
+```
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("municipalities-rmr.svg")', 'echo = FALSE, fig.alt = "A dot plot with one row per municipality of the Recife metropolitan region: the share of the residents of the region that the average resident of the municipality reaches within 60 minutes on foot and with public transport; Recife first with a quarter of the region, Olinda next with a fifth, and the outer municipalities with under 5 percent."')
+```
+
+## What the metro and the VLT add
+
+`mode` chooses the kinds of public transport: `c("WALK", "BUS")` is the same
+network without the rail lines. The bus timetables are the same in both
+calls, so this measures what the rail lines add to the service as it runs,
+not what the bus network would be without them. `rail_gain`, above, is that
+difference for the average resident of each municipality; for the region:
+
+```{r rail}
+with_rail <- access$transit$population_60
+bus_only <- access$bus$population_60
+c(with_rail = weighted.mean(with_rail, cells$population),
+  bus_only = weighted.mean(bus_only, cells$population))
+gain <- ifelse(bus_only > 0, with_rail / bus_only - 1, 0)
+round(100 * c(`10% more or over` = weighted.mean(gain >= 0.10, cells$population),
+              `25% more or over` = weighted.mean(gain >= 0.25, cells$population)), 1)
+```
+
+```{r, include = FALSE}
+wr <- weighted.mean(with_rail, cells$population)
+bo <- weighted.mean(bus_only, cells$population)
+mg <- function(name) sprintf("%.0f%%", municipalities$rail_gain[municipalities$municipality == name])
+```
+
+The average resident reaches `r num(wr)` people within an hour with the
+rail lines and `r num(bo)` without, `r pct(wr / bo - 1, 1)` more. The gain
+is where the lines are: `r mg("Camaragibe")` in Camaragibe and
+`r mg("Jaboatão dos Guararapes")` in Jaboatão dos Guararapes, at the ends of
+the two branches of the Centro line, and nothing in the north of the region
+(Olinda, Paulista, Abreu e Lima, Igarassu), which the rail does not reach.
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("rail-rmr.svg")', 'echo = FALSE, fig.alt = "On the left, a map of the west and south of the conurbation of Recife with the metro and VLT lines and the cells of a grid coloured by how many more residents they reach within an hour by public transport with the rail lines than with buses alone: the gain follows the lines to Camaragibe, Jaboatão and Cajueiro Seco. On the right, bars of the gain by municipality: 22% in Camaragibe, 15% in Jaboatão dos Guararapes, 6% in Recife, none in the north."')
+```
+
+## How much a trip varies
+
+A travel time by public transport depends on the minute one leaves. With
+`percentiles`, the matrix gives the spread over the departure window: here,
+from each of the 26 integrated terminals to Praça do Derby, the 5th, 25th,
+50th, 75th and 95th percentiles of the 60 travel times.
+
+```{r percentiles}
+stops <- feed_table(rmr$feed, "stops")
+terminals <- stops[stops$location_type == "1" & grepl("^Ti ", stops$stop_name), ]
+terminals <- data.frame(id = sub(" - [0-9]+$", "", terminals$stop_name),
+                        lon = as.numeric(terminals$stop_lon), lat = as.numeric(terminals$stop_lat))
+p <- travel_time_matrix(network, terminals, derby, mode = transit, departure_datetime = departure,
+                        time_window = 60, percentiles = c(5, 25, 50, 75, 95),
+                        max_trip_duration = 180, n_threads = threads)
+p <- as.data.frame(p[order(p$travel_time_p50, p$travel_time_p95), ])
+names(p) <- sub("travel_time_", "", names(p))
+print(p[, c("from_id", "p05", "p25", "p50", "p75", "p95")], row.names = FALSE)
+```
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("percentiles-rmr.svg")', 'echo = FALSE, fig.alt = "For each of the 26 integrated terminals of Grande Recife, sorted by median travel time to Praça do Derby at the morning peak, a range bar from the 5th to the 95th percentile of the travel times over an hour of departures, a thicker bar from the 25th to the 75th, and a dot at the median."')
+```
+
+`expanded_travel_time_matrix()` shows where the spread comes from: one row
+per departure minute, with the lines taken and, with `breakdown = TRUE`, the
+parts of the trip. From the terminal of Camaragibe, the end of a metro
+line, to Praça de Boa Viagem, by the beach in the south of Recife:
+
+```{r breakdown}
+camaragibe <- terminals[terminals$id == "Ti Camaragibe", ]
+boa_viagem <- data.frame(id = "Praça de Boa Viagem", lon = -34.9014, lat = -8.1317)
+e <- expanded_travel_time_matrix(network, camaragibe, boa_viagem, mode = transit,
+                                 departure_datetime = departure, time_window = 30,
+                                 breakdown = TRUE, n_threads = threads)
+e <- as.data.frame(e)
+e[c(1:3, 21:24), c("departure_time", "access_time", "wait_time", "ride_time", "transfer_time",
+                   "egress_time", "routes", "total_time")]
+range(e$total_time)
+```
+
+Leaving at 07:00 the trip takes `r sprintf("%.0f", e$total_time[1])`
+minutes, and one minute later `r sprintf("%.0f", e$total_time[2])`: the two
+metro rides are the same, and the last leg is a bus that the 07:00
+departure catches and the 07:01 does not. Every departure from 07:01 to
+07:21 arrives on the same bus; the ride hardly changes, the wait does.
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("trip-breakdown-rmr.svg")', 'echo = FALSE, fig.alt = "Thirty stacked bars, one per departure minute from 07:00 to 07:29, from the terminal of Camaragibe to Praça de Boa Viagem, split into walking, waiting and riding, with the metro and bus lines taken; totals between 62 and 84 minutes, the wait making the difference."')
+```
+
+## The options of one trip
+
+`trip_options()` lists the trips that no other beats on every criterion at
+once. From Praça do Carmo, at the foot of the historic centre of Olinda, to
+Praça de Boa Viagem, leaving at 07:20, with time, transfers and walking as
+criteria (no `"FARE"`: see above):
+
+```{r options}
+carmo <- data.frame(id = "Praça do Carmo, Olinda", lon = -34.8485, lat = -8.0170)
+res <- trip_options(network, carmo, boa_viagem,
+                    departure_datetime = as.POSIXct("2026-11-10 07:20:00", tz = "America/Recife"),
+                    time_window = 1, criteria = c("TIME", "TRANSFERS", "WALK"),
+                    n_threads = threads, progress = FALSE)
+op <- as.data.frame(res$options)
+op[, c("option", "total_time", "transfers", "walk_time", "arrival_time", "description")]
+```
+
+The fastest takes `r round(op$total_time[1])` minutes with one transfer;
+a second pair of buses takes `r round(op$total_time[2])` minutes with
+`r round(op$walk_time[2])` minutes on foot instead of
+`r round(op$walk_time[1])`; a single bus, with no transfer, takes
+`r round(op$total_time[3])`. `res$itineraries` has the legs of each option,
+as an `sf` of lines.
+
+```{r, echo = FALSE, results = "asis"}
+live('fig("trip-options-rmr.svg")', 'echo = FALSE, fig.alt = "A map of Olinda and Recife with three trips by bus from Praça do Carmo, in Olinda, to Praça de Boa Viagem, and beside it the time, the transfers and the walking of each: the fastest, the one with least walking, and a single bus without a transfer."')
+```
+
+## What is measured, and what is not
+
+- **Scheduled times, not observed ones.** The timetable of the feed, as
+  published: its buses run slower at the peaks (see above), but delays,
+  bunching, crowding and trips that do not run are not in it.
+- **One day, one hour.** Departures from 07:00 to 07:59 on Tuesday 10
+  November 2026. Trips from Praça do Derby leave the centre against the
+  morning flow; the access tables are from every home.
+- **No fares.** The feed has no rule for the integration at the terminals,
+  so nothing here is limited by money or counts it.
+- **Rail included, as scheduled.** The metro and the VLT are in the feed
+  with their timetables; "buses only" removes them from the routing and
+  leaves the bus timetables as they are.
+- **Flat ground.** The network was built without an elevation raster. The
+  [terrain example](terrain.html) measures what the hills of the region
+  add on foot: two minutes or more to the nearest health unit for 8% of the
+  residents.
+- **Driving is free flow**, at the speed limits, with no congestion and no
+  parking: an upper bound, drawn for comparison only. Cycling uses streets
+  of low traffic stress (`max_lts = 2`).
+- **Cells, not addresses.** Every trip starts and ends at the centre of a
+  hexagonal cell, 500 m from its neighbours, linked to the nearest street;
+  schools and health units are at the coordinates of their registers, and
+  the ones without coordinates are left out.
+- **Public schools and primary health care units only**, of 2023 and of
+  November 2026; residents of the Censo 2022; no jobs (no open grid of jobs
+  covers the region).
+- **The feed, as it is.** No licence is stated in it; it is used here as the
+  consortium publishes it and is not redistributed.
+
+## Variations
+
+- **Another hour or day.** Change `departure`; `check_transit_availability()`
+  says what runs on a date.
+- **Only some modes.** `mode = c("WALK", "SUBWAY", "TRAM")` routes on the
+  rail lines alone; `mode_egress = "BICYCLE"` ends the trip by bicycle.
+- **Slopes.** `build_network(elevation = "TOBLER")` with a raster in the
+  directory, as in the [terrain example](terrain.html).
+- **Large matrices on disk.** `output_dir` writes one CSV file per origin.
+
+## Sources
+
+Timetables: Grande Recife Consórcio de Transporte Metropolitano, GTFS feed
+v2026.10.26, as published at `https://www.granderecife.pe.gov.br/gtfs/gtfs.zip`.
+Map data © OpenStreetMap contributors, under the ODbL. Boundaries and
+population © IBGE (Censo 2022). Schools: INEP, Catálogo de Escolas 2023,
+through geobr. Health units: CNES, Ministério da Saúde. The figures are
+drawn by
+[`site/figures/rmr.R`](https://github.com/StrategicProjects/peabiru-routing/blob/main/site/figures/rmr.R)
+from the same results.

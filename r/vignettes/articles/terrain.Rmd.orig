@@ -63,7 +63,10 @@ computed on 2026-11-12.
 **Streets only.** No open GTFS feed was found for Recife or for Salvador:
 neither Pernambuco nor Bahia has a feed in the Mobility Database catalogue
 (read on 2026-11-12), and a search for "gtfs" on the open-data portal of the
-city of Recife returns nothing. So there is no public transport here.
+city of Recife returns nothing. So there is no public transport here. (Grande
+Recife publishes a feed on its own site, found after this page was written:
+the [Recife metropolitan region example](recife-metropolitan.html) routes
+on it.)
 
 ## The data
 
@@ -605,8 +608,9 @@ live('fig("terrain-lts.svg")', 'echo = FALSE, fig.alt = "Line charts, one per ci
   left out, CNES coordinates are those the establishments declared, and
   CNES changes daily (this is the file of 2026-11-12). The Censo is of 2022,
   the schools of 2023, the streets of 2026-11-01.
-- **No public transport and no congestion**: no open GTFS feed for Recife
-  or Salvador was found, and nothing here drives.
+- **No public transport and no congestion**: this page routes on foot and
+  by bicycle only (for the region's public transport, see the
+  [Recife metropolitan region example](recife-metropolitan.html)).
 
 Map data © OpenStreetMap contributors, under the ODbL; elevation: Copernicus
 DEM GLO-90 and GLO-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH
