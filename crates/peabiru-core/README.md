@@ -9,12 +9,17 @@
 
 The Rust engine of [peabiru](https://github.com/StrategicProjects/peabiru-routing):
 multimodal routing on street networks from OpenStreetMap and public
-transport from GTFS, in memory, without a Java runtime. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
-interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
-Java code the fare calculator and parts of the trip planner are translated.
+transport from GTFS, in memory, without a Java runtime. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine.
 It builds a network
 from one `.pbf` extract, any number of GTFS feeds and, optionally, an
 elevation raster, and computes
+
+> **Authorship.** peabiru is an independent project. Its routing model is that of
+> Conveyal's [R5](https://github.com/conveyal/r5), and its fare calculator and parts of its trip
+> planner are translated from [r5r](https://github.com/ipea/r5r) (Ipea); both are
+> MIT-licensed, and their notices are kept in `LICENSE-THIRD-PARTY`. peabiru is not
+> affiliated with or endorsed by Conveyal, Ipea or the r5r team. The port was written
+> with the assistance of AI coding tools.
 
 - travel-time matrices by walking, cycling and driving, and by public
   transport (any subset of its modes, reached and left on foot, by bicycle
@@ -114,5 +119,3 @@ Apache Commons Math 3.0 (Apache-2.0), and `fdlibm.rs` of fdlibm 5.3. The
 notices and licence texts of these and of the other works the crate derives
 from are in `LICENSE-THIRD-PARTY`.
 
-peabiru is an independent project, not affiliated with or endorsed by
-Conveyal, Ipea or the r5r team.

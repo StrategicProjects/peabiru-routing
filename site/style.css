@@ -147,3 +147,11 @@ ul.why li { margin: 6px 0; }
 .gallery figcaption { font-size: 15px; color: var(--pb-ink); margin-top: 10px; }
 .gallery figcaption .ex { display: block; margin-top: 4px; font-size: 14px; color: var(--pb-ink-soft); }
 @media (max-width: 720px) { .gallery { columns: 1; } }
+
+/* the note on authorship under the introduction */
+.authorship {
+  max-width: 78ch; margin: 18px 0 20px; padding: 12px 16px; font-size: 15px; color: var(--pb-ink-soft);
+  background: var(--pb-card); border: 1px solid var(--pb-card-border); border-left: 3px solid var(--pb-stop);
+  border-radius: 10px;
+}
+.authorship strong { color: var(--pb-ink); }

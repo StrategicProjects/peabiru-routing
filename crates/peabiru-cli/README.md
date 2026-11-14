@@ -3,9 +3,7 @@
 `peabiru`, the command-line tool of
 [peabiru](https://github.com/StrategicProjects/peabiru-routing): multimodal
 routing on OpenStreetMap and GTFS from the shell, without R, Python or Java.
-The engine is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
-interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
-Java code the fare calculator and parts of the trip planner are translated.
+The engine is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine.
 It builds a network from an OpenStreetMap `.pbf` extract, GTFS feeds and,
 optionally, an elevation raster, and writes travel-time matrices,
 accessibility, isochrones, detailed itineraries, fares and network exports
@@ -13,6 +11,13 @@ as CSV or GeoJSON. The engine is the crate
 [`peabiru-core`](https://crates.io/crates/peabiru-core), the same as behind
 the R, Python and JavaScript packages, so the numbers are theirs: the options take those packages' argument names in
 kebab-case, with the same defaults and checks.
+
+> **Authorship.** peabiru is an independent project. Its routing model is that of
+> Conveyal's [R5](https://github.com/conveyal/r5), and its fare calculator and parts of its trip
+> planner are translated from [r5r](https://github.com/ipea/r5r) (Ipea); both are
+> MIT-licensed, and their notices are kept in `LICENSE-THIRD-PARTY`. peabiru is not
+> affiliated with or endorsed by Conveyal, Ipea or the r5r team. The port was written
+> with the assistance of AI coding tools.
 
 ## Install
 
@@ -153,5 +158,3 @@ MIT AND Apache-2.0 AND BSD-3-Clause: see `LICENSE-MIT`,
 `LICENSE-THIRD-PARTY` (the works the engine derives from) and
 `LICENSE-RUST-CRATES` (the crates compiled into the binary).
 
-peabiru is an independent project, not affiliated with or endorsed by
-Conveyal, Ipea or the r5r team.

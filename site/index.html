@@ -32,12 +32,17 @@
   <p class="lead">peabiru computes travel-time matrices, accessibility, isochrones, detailed
   itineraries and fares by walking, cycling, driving and public transport, on networks built
   from an OpenStreetMap extract, GTFS feeds and, optionally, an elevation raster. It is a Rust
-  port of Conveyal's <a href="https://github.com/conveyal/r5">R5</a> routing engine, with an interface
-  modelled on <a href="https://github.com/ipea/r5r">r5r</a> (Ipea), from whose Java code the fare
-  calculator and parts of the trip planner are translated. The network is built once, in memory, and shared by every query and thread; there
+  port of Conveyal's <a href="https://github.com/conveyal/r5">R5</a> routing engine. The network is built once, in memory, and shared by every query and thread; there
   is no Java runtime to start and nothing is written to disk. The same engine is behind
   the R package, the Python package, the JavaScript package (compiled to WebAssembly, for
   browsers and Node), the Rust crate and the command line.</p>
+  <p class="authorship"><strong>Authorship.</strong> peabiru is an independent project. Its routing
+  model is that of Conveyal's <a href="https://github.com/conveyal/r5">R5</a>, and its fare calculator
+  and parts of its trip planner are translated from <a href="https://github.com/ipea/r5r">r5r</a>
+  (Ipea); both are MIT-licensed, and their notices are kept in
+  <a href="https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-THIRD-PARTY"><code>LICENSE-THIRD-PARTY</code></a>.
+  peabiru is not affiliated with or endorsed by Conveyal, Ipea or the r5r team. The port was written
+  with the assistance of AI coding tools.</p>
   <div class="cta">
     <a class="btn primary" href="r/articles/peabiru.html">Get started in R</a>
     <a class="btn" href="python/">Python docs</a>
@@ -508,8 +513,6 @@ Measured 2026-11-12; <a href="benchmarks.html">methodology, all tasks and how th
   <a href="https://commons.apache.org/proper/commons-math/">Apache Commons Math</a> 3
   (Apache-2.0) and fdlibm are translated, so that the numbers are the same on every platform. The name comes from the Peabiru, the pre-Columbian network of
   trails that crossed South America from the Atlantic coast to the Andes.</p>
-  <p>peabiru is an independent project, not affiliated with or endorsed by Conveyal, Ipea or
-  the r5r team.</p>
 </section>
 
 </div>

@@ -18,9 +18,14 @@ transport feeds (`.zip`) and, optionally, an elevation raster (`.tif`), by
 walking, cycling, driving and public transport. Its routing engine is the
 Rust core of peabiru compiled to WebAssembly: it runs in browsers, in
 bundlers and in Node (18 or later), with no server and no Java, and gives
-the numbers of the R and Python packages. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
-interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
-Java code the fare calculator and parts of the trip planner are translated.
+the numbers of the R and Python packages. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine.
+
+> **Authorship.** peabiru is an independent project. Its routing model is that of
+> Conveyal's [R5](https://github.com/conveyal/r5), and its fare calculator and parts of its trip
+> planner are translated from [r5r](https://github.com/ipea/r5r) (Ipea); both are
+> MIT-licensed, and their notices are kept in `LICENSE-THIRD-PARTY`. peabiru is not
+> affiliated with or endorsed by Conveyal, Ipea or the r5r team. The port was written
+> with the assistance of AI coding tools.
 
 ```js
 {{#include ../examples/first-matrix.mjs:matrix}}
@@ -81,5 +86,3 @@ Ipea), on whose functions the interface is modelled; the exponential of the deca
 functions is translated from Apache Commons Math 3 (Apache-2.0). The sample network contains map data © OpenStreetMap
 contributors, under the [Open Database License](https://www.openstreetmap.org/copyright).
 
-peabiru is an independent project, not affiliated with or endorsed by
-Conveyal, Ipea or the r5r team.

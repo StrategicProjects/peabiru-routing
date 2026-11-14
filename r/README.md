@@ -14,13 +14,18 @@
 Travel-time matrices, accessibility, isochrones and detailed itineraries by
 walking, cycling, driving and public transport, with fares, slope costs and
 scenarios, on networks built from an OpenStreetMap extract, GTFS public
-transport feeds and an optional elevation raster. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
-interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
-Java code the fare calculator and parts of the trip planner are translated.
+transport feeds and an optional elevation raster. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine.
 The routing engine is written in Rust and runs inside
 the R session: no Java is needed, and the network is built once, in memory,
 and reused by every call. The same engine is behind the Python and
 JavaScript packages and the command-line tool of the same name.
+
+> **Authorship.** peabiru is an independent project. Its routing model is that of
+> Conveyal's [R5](https://github.com/conveyal/r5), and its fare calculator and parts of its trip
+> planner are translated from [r5r](https://github.com/ipea/r5r) (Ipea); both are
+> MIT-licensed, and their notices are kept in `LICENSE-THIRD-PARTY`. peabiru is not
+> affiliated with or endorsed by Conveyal, Ipea or the r5r team. The port was written
+> with the assistance of AI coding tools.
 
 Website: <https://strategicprojects.github.io/peabiru-routing/> (this
 package's documentation is at
@@ -41,7 +46,6 @@ package's documentation is at
 | `pareto_frontier()` | the trade-off between travel time and fare |
 | `find_snap()`, `street_network_bbox()`, `street_network_to_sf()`, `transit_network_to_sf()` | where points snap, and the street and transit networks as `sf` |
 | `check_transit_availability()`, `get_gtfs_errors()` | the dates with service, and the errors in the GTFS feeds |
-
 
 The routing functions also take scenarios of car speeds (`new_carspeeds`,
 `carspeed_scale`) and of traffic stress for cyclists (`new_lts`). What
@@ -94,7 +98,6 @@ frames and `options(peabiru.output = "data.table")` `data.table`s; the
 rows, columns and values are the same whatever the class. There is also a
 [comparison with r5r](https://strategicprojects.github.io/peabiru-routing/r/articles/coming-from-r5r.html).
 
-
 ## Documentation
 
 The package website is built from this directory with pkgdown, together with
@@ -116,9 +119,6 @@ logic is ported. The functions are modelled on those of
 of the trip planner are translated from its Java code, many functions share
 their names, arguments and result layouts with r5r's, and the sample
 network is cut from the São Paulo sample data of the r5r project.
-
-peabiru is an independent project, not affiliated with or endorsed by
-Conveyal, Ipea or the r5r team.
 
 The notices of the works peabiru derives from are in
 `inst/LICENSE-THIRD-PARTY`. The package's compiled code also contains Rust

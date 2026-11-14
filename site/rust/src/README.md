@@ -14,11 +14,16 @@ network in memory from an OpenStreetMap extract (`.pbf`), GTFS public
 transport feeds (`.zip`) and, optionally, an elevation raster (`.tif`), and
 computes travel-time matrices, accessibility, per-trip (expanded and
 arrival) matrices, isochrones, detailed itineraries, fares and Pareto
-frontiers on it, by walking, cycling, driving and public transport. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine, with an
-interface modelled on [r5r](https://github.com/ipea/r5r) (Ipea), from whose
-Java code the fare calculator and parts of the trip planner are translated.
+frontiers on it, by walking, cycling, driving and public transport. It is a Rust port of Conveyal's [R5](https://github.com/conveyal/r5) routing engine.
 It needs no Java runtime, keeps nothing on disk, and spreads the origins of
 each query over threads.
+
+> **Authorship.** peabiru is an independent project. Its routing model is that of
+> Conveyal's [R5](https://github.com/conveyal/r5), and its fare calculator and parts of its trip
+> planner are translated from [r5r](https://github.com/ipea/r5r) (Ipea); both are
+> MIT-licensed, and their notices are kept in `LICENSE-THIRD-PARTY`. peabiru is not
+> affiliated with or endorsed by Conveyal, Ipea or the r5r team. The port was written
+> with the assistance of AI coding tools.
 
 The crate is the engine behind four front-ends:
 
@@ -85,5 +90,3 @@ functions and other numerics are translated from Apache Commons Math 3 (Apache-2
 and the trigonometry of the raster projections from fdlibm. The
 notices are in `LICENSE-THIRD-PARTY`.
 
-peabiru is an independent project, not affiliated with or endorsed by
-Conveyal, Ipea or the r5r team.
