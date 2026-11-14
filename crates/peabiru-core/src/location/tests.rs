@@ -747,6 +747,8 @@ fn floating_catchment_by_hand() {
         10.0 / d0 * w(5.0) + 30.0 / d1 * w(20.0),
         10.0 / d0 * w(12.0) + 30.0 / d1 * w(8.0),
     ];
+    // several parallel columns are read by the same index
+    #[allow(clippy::needless_range_loop)]
     for k in 0..2 {
         assert!((f.index[k] - expected[k]).abs() < 1e-12, "{:?}", f.index);
     }

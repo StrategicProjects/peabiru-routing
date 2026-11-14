@@ -244,6 +244,8 @@ pub fn locate(a: LocateArgs) -> Res<()> {
                 "travel_time",
                 "covered",
             ])?;
+            // several parallel columns are read by the same index
+            #[allow(clippy::needless_range_loop)]
             for i in 0..demand.len() {
                 let t = s.assigned_minutes[i];
                 let covered = match cutoff {
@@ -328,6 +330,8 @@ pub fn catchment(a: CatchmentArgs) -> Res<()> {
     let rows = match a.table {
         CatchmentTable::Demand => {
             out.row(&["id", "lon", "lat", "demand", "accessibility"])?;
+            // several parallel columns are read by the same index
+            #[allow(clippy::needless_range_loop)]
             for i in 0..demand.len() {
                 out.row(&[
                     demand.ids[i].clone(),
@@ -341,6 +345,8 @@ pub fn catchment(a: CatchmentArgs) -> Res<()> {
         }
         CatchmentTable::Supply => {
             out.row(&["id", "lon", "lat", "supply", "catchment_demand", "ratio"])?;
+            // several parallel columns are read by the same index
+            #[allow(clippy::needless_range_loop)]
             for j in 0..supply.len() {
                 out.row(&[
                     supply.ids[j].clone(),
