@@ -1,0 +1,121 @@
+Package: peabiru
+Title: Multimodal Routing on 'OpenStreetMap' and 'GTFS', a Port of 'R5'
+Version: 0.1.5
+Authors@R: c(
+    person("André", "Leite", email = "leite@castlab.org", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-4718-9766")),
+    person("Marcos", "Wasiliew", email = "marcos.wasiliew@gmail.com", role = "aut",
+           comment = c(ORCID = "0009-0004-4694-3159")),
+    person("Hugo", "Vasconcelos", email = "hugo.vasconcelos@ufpe.br", role = "aut",
+           comment = c(ORCID = "0000-0001-6249-0920")),
+    person("Carlos", "Amorim", email = "carlos.agaf@ufpe.br", role = "aut",
+           comment = c(ORCID = "0000-0001-6315-8305")),
+    person("Diogo", "Bezerra", email = "diogo.bezerra@ufpe.br", role = "aut",
+           comment = c(ORCID = "0000-0002-1216-8674")),
+    person("Júlia", "Nascimento Barreto",
+           email = "juliabarreto@gd.seplag.pe.gov.br", role = "aut",
+           comment = c(ORCID = "0009-0004-2851-7770")),
+    person("Conveyal LLC", role = "cph",
+           comment = "'R5' routing engine, from which the routing logic is ported"),
+    person("The Apache Software Foundation", role = "cph",
+           comment = "'Apache Commons Math', parts of which are translated in the 'Rust' core"),
+    person("Ipea - Institute for Applied Economic Research", role = "cph",
+           comment = "'r5r' package: 'Java' code translated in the 'Rust' core (fare calculator, parts of the trip planner), the function names, arguments and result layouts, and the sample data"),
+    person("r5r contributors", role = "cph",
+           comment = "Copyright holders named in the license of the 'r5r' package"),
+    person("Makoto", "Matsumoto", role = "cph",
+           comment = "Mersenne Twister generator, translated in the 'Rust' core"),
+    person("Takuji", "Nishimura", role = "cph",
+           comment = "Mersenne Twister generator, translated in the 'Rust' core"),
+    person("CERN - European Organization for Nuclear Research", role = "cph",
+           comment = "Table of prime numbers from the 'Colt' library, in the 'Rust' core"),
+    person("isoband authors", role = "cph",
+           comment = "'isoband' package, whose contouring algorithm is translated in the 'Rust' core"),
+    person("CIESIN - Center for International Earth Science Information Network, Columbia University",
+           role = "cph",
+           comment = "Population grid (GPWv3) by which the 'Rust' core checks GTFS stop locations"),
+    person("OpenStreetMap contributors", role = "cph",
+           comment = "Map data of the sample network, inst/extdata/spo/spo_osm.pbf"),
+    person("Authors of the dependency Rust crates", role = "cph",
+           comment = "Rust crates vendored in src/rust/vendor.tar.xz; see inst/AUTHORS")
+  )
+Description: Builds multimodal transport networks from 'OpenStreetMap'
+    extracts, 'GTFS' feeds and, optionally, an elevation raster, and routes
+    on them by walking, cycling, driving and public transport. The routing
+    engine is a 'Rust' port of Conveyal's 'R5' routing engine, Conway, Byrd
+    and van der Linden (2017) <doi:10.3141/2653-06>, and the functions are
+    modelled on those of the 'r5r' package, Pereira, Saraiva, Herszenhut,
+    Braga and Conway (2021) <doi:10.32866/001c.21262>, from whose 'Java'
+    code the fare calculator and parts of the trip planner are translated.
+    Computes travel-time matrices, accessibility to opportunities,
+    isochrones, detailed itineraries and trip options that trade off travel
+    time, fare, transfers and walking. Supports fare structures, slope-aware
+    walking and cycling, and scenarios of car speeds and cycling stress
+    applied per call without rebuilding the network. The engine runs inside
+    the R session with no 'Java' runtime, keeps the network in memory, uses
+    all cores, and is shared with the 'Python' and 'JavaScript' packages of
+    the same name. The methods include the round-based public transport
+    routing of Delling, Pajor and Werneck (2015)
+    <doi:10.1287/trsc.2014.0534>, the travel-time percentiles of Conway,
+    Byrd and van Eggermond (2018)
+    <doi:10.5198/jtlu.2018.1074>, the fare-constrained routing of Conway
+    and Stewart (2019) <doi:10.1080/13658816.2019.1605075> and the
+    contraction hierarchies of Geisberger, Sanders, Schultes and Vetter
+    (2012) <doi:10.1287/trsc.1110.0401>.
+License: MIT + file LICENSE
+Copyright: The peabiru authors. The package includes code derived from
+        other works; their copyright notices and licences are in the
+        file inst/LICENSE-THIRD-PARTY. The compiled code is built with
+        'Rust' crates by other authors, listed with their licences in
+        inst/AUTHORS; the licence texts of those linked into the
+        package's library are in inst/LICENSE-RUST-CRATES.
+URL: https://strategicprojects.github.io/peabiru-routing/r/,
+        https://github.com/StrategicProjects/peabiru-routing
+BugReports: https://github.com/StrategicProjects/peabiru-routing/issues
+Encoding: UTF-8
+Language: en-GB
+Roxygen: list(markdown = TRUE)
+SystemRequirements: Cargo (Rust's package manager), rustc >= 1.81
+Config/rextendr/version: 0.5.0
+Depends: R (>= 4.2)
+Imports: tibble (>= 3.0.0)
+Suggests: data.table, knitr, rmarkdown, sf, testthat (>= 3.0.0)
+VignetteBuilder: knitr
+Config/Needs/website: dplyr, ggplot2
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
+NeedsCompilation: yes
+Packaged: 2026-11-14 16:46:58 UTC; leite
+Author: André Leite [aut, cre] (ORCID: <https://orcid.org/0000-0002-4718-9766>),
+  Marcos Wasiliew [aut] (ORCID: <https://orcid.org/0009-0004-4694-3159>),
+  Hugo Vasconcelos [aut] (ORCID: <https://orcid.org/0000-0001-6249-0920>),
+  Carlos Amorim [aut] (ORCID: <https://orcid.org/0000-0001-6315-8305>),
+  Diogo Bezerra [aut] (ORCID: <https://orcid.org/0000-0002-1216-8674>),
+  Júlia Nascimento Barreto [aut] (ORCID:
+    <https://orcid.org/0009-0004-2851-7770>),
+  Conveyal LLC [cph] ('R5' routing engine, from which the routing logic
+    is ported),
+  The Apache Software Foundation [cph] ('Apache Commons Math', parts of
+    which are translated in the 'Rust' core),
+  Ipea - Institute for Applied Economic Research [cph] ('r5r' package:
+    'Java' code translated in the 'Rust' core (fare calculator, parts
+    of the trip planner), the function names, arguments and result
+    layouts, and the sample data),
+  r5r contributors [cph] (Copyright holders named in the license of the
+    'r5r' package),
+  Makoto Matsumoto [cph] (Mersenne Twister generator, translated in the
+    'Rust' core),
+  Takuji Nishimura [cph] (Mersenne Twister generator, translated in the
+    'Rust' core),
+  CERN - European Organization for Nuclear Research [cph] (Table of prime
+    numbers from the 'Colt' library, in the 'Rust' core),
+  isoband authors [cph] ('isoband' package, whose contouring algorithm is
+    translated in the 'Rust' core),
+  CIESIN - Center for International Earth Science Information Network,
+    Columbia University [cph] (Population grid (GPWv3) by which the
+    'Rust' core checks GTFS stop locations),
+  OpenStreetMap contributors [cph] (Map data of the sample network,
+    inst/extdata/spo/spo_osm.pbf),
+  Authors of the dependency Rust crates [cph] (Rust crates vendored in
+    src/rust/vendor.tar.xz; see inst/AUTHORS)
+Maintainer: André Leite <leite@castlab.org>

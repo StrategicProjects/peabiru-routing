@@ -1,0 +1,34 @@
+[package]
+name = 'peabiru'
+publish = false
+version = '0.1.5'
+edition = '2021'
+rust-version = '1.81'
+
+# Its own workspace: the crate is built by R CMD INSTALL, alone, wherever
+# the package sources happen to be (also inside another cargo workspace).
+[workspace]
+
+[lib]
+crate-type = [ 'rlib', 'staticlib' ]
+name = 'peabiru'
+
+[[bin]]
+name = 'document'
+path = 'document.rs'
+
+[dependencies]
+extendr-api = '0.9'
+# In the repository the core comes by path, so development and the CI run
+# against the core of the same commit. The CRAN tarball is made by
+# tools/build_r_release.sh (at the repository's root), which replaces this
+# line with the published version pinned exactly (peabiru-core = '=x.y.z')
+# and vendors the crates into vendor.tar.xz for an offline build. Keep the
+# line in this form: the script and tools/config.R look for it.
+peabiru-core = '=0.1.5'
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 2
+strip = true
