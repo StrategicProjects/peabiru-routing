@@ -205,6 +205,7 @@ mod inspect;
 mod isochrone;
 mod itinerary;
 mod jcompat;
+mod location;
 mod network;
 mod options;
 mod osm;
@@ -233,6 +234,10 @@ pub use isochrone::{
 };
 pub use itinerary::{
     write_itineraries_csv, Itinerary, ItineraryLeg, ItineraryNotes, ItineraryParams,
+};
+pub use location::{
+    floating_catchment, locate_facilities, CostTable, FloatingCatchment, FloatingCatchmentParams,
+    LocationModel, LocationParams, LocationSolution,
 };
 pub use network::{
     arrival_travel_time_matrix, build_from_bytes, build_from_bytes_with_elevation, build_from_dir,
