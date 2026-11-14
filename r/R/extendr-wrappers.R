@@ -194,4 +194,15 @@ rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, 
 #' @noRd
 rs_trip_options <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output, walk_resolution) .Call(wrap__rs_trip_options, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output, walk_resolution)
 
+#' The solution of a location model as a list: `sites`, `unservable` and
+#' `assigned_site` 0-based (`NA` for a demand point that reaches no
+#' facility); `unreachable_time` not positive for the default.
+#' @noRd
+rs_locate_facilities <- function(n_demand, n_sites, pair_demand, pair_site, pair_minutes, demand, n_existing, model, n_facilities, cutoff, swap, min_gain, unreachable_time, n_threads) .Call(wrap__rs_locate_facilities, n_demand, n_sites, pair_demand, pair_site, pair_minutes, demand, n_existing, model, n_facilities, cutoff, swap, min_gain, unreachable_time, n_threads)
+
+#' The two-step floating catchment area as a list (see
+#' `rs_locate_facilities` for the table).
+#' @noRd
+rs_floating_catchment <- function(n_demand, n_sites, pair_demand, pair_site, pair_minutes, demand, supply, cutoff, decay_function, decay_value) .Call(wrap__rs_floating_catchment, n_demand, n_sites, pair_demand, pair_site, pair_minutes, demand, supply, cutoff, decay_function, decay_value)
+
 # nolint end

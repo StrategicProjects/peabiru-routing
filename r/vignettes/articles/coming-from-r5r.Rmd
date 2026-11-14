@@ -52,8 +52,9 @@ on the Python and JavaScript sites.
   have the classes r5r gives them (see the class of the results under
   [Differences](#differences)).
 
-Besides these, peabiru has a function of its own,
-[trip_options()](trip-options.html), which has no counterpart in r5r.
+Besides these, peabiru has functions of its own, which have no counterpart
+in r5r: [trip_options()](trip-options.html), and
+[locate_facilities() and floating_catchment()](facility-location.html).
 
 A comparison of the two on the same inputs looks like this (not run when
 this page is built; r5r needs a JDK 21 and the R5 jar):

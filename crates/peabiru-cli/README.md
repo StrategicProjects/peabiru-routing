@@ -125,6 +125,8 @@ The other commands:
 | `itineraries` | trips leg by leg, with their lines; alternatives with `--shortest-path false` | `detailed_itineraries()` |
 | `pareto` | travel time against fare at each of `--fare-cutoffs` | `pareto_frontier()` |
 | `options` | the trips not dominated on time, fare, transfers and walking (`--legs`, `--departures`) | `trip_options()` |
+| `locate` | where to open new facilities: maximal covering, set covering, p-median or p-center (`--model`, `--n-facilities`, `--cutoff`, `--existing`) | `locate_facilities()` |
+| `catchment` | supply against demand around each place: the two-step floating catchment area | `floating_catchment()` |
 | `snap` | where points meet the streets | `find_snap()` |
 | `network` | `--layer edges`, `vertices`, `stops`, `routes` or `bbox` | `street_network_to_sf()`, `transit_network_to_sf()`, `street_network_bbox()` |
 | `fares setup`, `fares read`, `fares write` | fare structures (`.zip` files of five CSV tables) | `setup_fare_structure()`, `read_fare_structure()`, `write_fare_structure()` |

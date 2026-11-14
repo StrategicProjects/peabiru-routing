@@ -7,6 +7,7 @@
 - [Detailed itineraries](itineraries.md)
 - [Fares](fares.md)
 - [Trip options](trip-options.md)
+- [Facility location](facility-location.md)
 - [Elevation](elevation.md)
 - [Scenarios](scenarios.md)
 - [Inspecting a network and GTFS errors](network.md)

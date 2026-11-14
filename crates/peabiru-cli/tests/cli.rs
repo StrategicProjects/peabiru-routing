@@ -60,6 +60,8 @@ fn help_and_version() {
         "arrival",
         "accessibility",
         "isochrone",
+        "locate",
+        "catchment",
         "itineraries",
         "pareto",
         "options",
@@ -346,4 +348,174 @@ fn old_spellings_still_run() {
         .unwrap()
         .starts_with("id,opportunity"));
     ok(&run(&["dev", "ttm", SPO, &p, "WALK", &o]));
+}
+
+/// The sample points with (or without) a school, in a file of their own.
+fn school_points(with: bool) -> String {
+    let text = std::fs::read_to_string(points()).unwrap();
+    let mut lines = text.lines();
+    let header = lines.next().unwrap();
+    let col = header.split(',').position(|c| c == "schools").unwrap();
+    let mut out = vec![header.to_string()];
+    for l in lines {
+        if (l.split(',').nth(col).unwrap().trim() != "0") == with {
+            out.push(l.to_string());
+        }
+    }
+    let f = tmp(if with { "schools.csv" } else { "others.csv" });
+    std::fs::write(&f, out.join("\n") + "\n").unwrap();
+    f.to_str().unwrap().to_string()
+}
+
+#[test]
+fn locate_and_catchment() {
+    let p = points();
+    let (schools, others) = (school_points(true), school_points(false));
+    // the values the R, Python and JavaScript packages give
+    let base = [
+        "locate",
+        SPO,
+        "--demand",
+        &p,
+        "--demand-column",
+        "population",
+        "--candidates",
+        &others,
+        "--existing",
+        &schools,
+        "--n-facilities",
+        "2",
+        "--cutoff",
+        "12",
+    ];
+    let out = run(&base);
+    let sites = ok(&out);
+    let lines: Vec<&str> = sites.lines().collect();
+    assert_eq!(lines[0], "id,lon,lat,order,marginal,cumulative");
+    assert_eq!(lines.len(), 3);
+    assert!(lines[1].starts_with("89a8100c03bffff,") && lines[1].ends_with(",1,5658,43534"));
+    assert!(lines[2].starts_with("89a8100c383ffff,") && lines[2].ends_with(",2,2683,46217"));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("objective 46217 (existing only 37876, greedy 46040, 1 swap)"),
+        "{err}"
+    );
+    let mut args = base.to_vec();
+    args.extend(["--no-swap", "-q"]);
+    assert!(ok(&run(&args)).lines().last().unwrap().ends_with(",46040"));
+    let mut args = base.to_vec();
+    args.extend(["--table", "candidates", "-q"]);
+    let c = ok(&run(&args));
+    assert!(c.starts_with("id,lon,lat,potential,chosen\n"));
+    assert_eq!(c.lines().count(), 1 + 21);
+    assert_eq!(c.lines().filter(|l| l.ends_with(",true")).count(), 2);
+    let mut args = base.to_vec();
+    args.extend(["--table", "demand", "-q"]);
+    let d = ok(&run(&args));
+    assert!(d.starts_with("id,lon,lat,demand,facility_id,travel_time,covered\n"));
+    assert_eq!(d.lines().count(), 1 + 27);
+
+    let median = ok(&run(&[
+        "locate",
+        SPO,
+        "--demand",
+        &p,
+        "--demand-column",
+        "population",
+        "--candidates",
+        &p,
+        "--model",
+        "p_median",
+        "--n-facilities",
+        "2",
+        "--max-trip-duration",
+        "60",
+        "-q",
+    ]));
+    let lines: Vec<&str> = median.lines().collect();
+    assert!(lines[1].starts_with("89a8100c027ffff,") && lines[2].starts_with("89a8100c03bffff,"));
+    assert!(lines[2].ends_with(",446711"), "{median}");
+
+    let f = ok(&run(&[
+        "catchment",
+        SPO,
+        "--demand",
+        &p,
+        "--demand-column",
+        "population",
+        "--supply",
+        &schools,
+        "--supply-column",
+        "schools",
+        "--cutoff",
+        "20",
+        "-q",
+    ]));
+    let lines: Vec<&str> = f.lines().collect();
+    assert_eq!(lines[0], "id,lon,lat,demand,accessibility");
+    assert_eq!(lines.len(), 1 + 27);
+    assert!(
+        lines[1].ends_with(",0.00004538646575591159"),
+        "{}",
+        lines[1]
+    );
+    let s = ok(&run(&[
+        "catchment",
+        SPO,
+        "--demand",
+        &p,
+        "--demand-column",
+        "population",
+        "--supply",
+        &schools,
+        "--cutoff",
+        "20",
+        "--table",
+        "supply",
+        "-q",
+    ]));
+    assert!(s.starts_with("id,lon,lat,supply,catchment_demand,ratio\n"));
+    assert!(s.lines().nth(1).unwrap().contains(",1,22033,"), "{s}");
+
+    // bad arguments: status 2, no panic
+    let bad = |extra: &[&str], needle: &str| {
+        let mut args = vec!["locate", SPO, "--demand", &p, "--candidates", &others];
+        args.extend(extra);
+        fails(&run(&args), 2, needle);
+    };
+    bad(&[], "--cutoff is required");
+    bad(&["--model", "median", "--cutoff", "5"], "--model must be");
+    bad(
+        &["--model", "p_center", "--cutoff", "5"],
+        "--cutoff must not be given",
+    );
+    bad(
+        &["--cutoff", "5", "--n-facilities", "0"],
+        "n_facilities must be at least 1",
+    );
+    bad(
+        &["--cutoff", "5", "--n-facilities", "22"],
+        "only 21 candidate sites",
+    );
+    fails(
+        &run(&[
+            "locate",
+            SPO,
+            "--demand",
+            &p,
+            "--candidates",
+            &p,
+            "--existing",
+            &schools,
+            "--cutoff",
+            "5",
+        ]),
+        1,
+        "share the id",
+    );
+    fails(
+        &run(&["catchment", SPO, "--demand", &p, "--supply", &schools]),
+        2,
+        "--cutoff is required",
+    );
 }

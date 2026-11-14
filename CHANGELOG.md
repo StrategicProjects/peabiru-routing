@@ -3,6 +3,34 @@
 Changes of the Rust crate `peabiru-core`, the command-line tool, and the
 Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
+## Development version
+
+### Facility location (all packages)
+
+- `locate_facilities()` (Python, R; `locateFacilities()` in JavaScript; the
+  core's `locate_facilities`; `peabiru locate` on the command line): where
+  to open new facilities among candidate sites, by maximal covering (Church
+  and ReVelle, 1974), location set covering (Toregas et al., 1971), p-median
+  or p-center (Hakimi, 1964), on the travel times from the demand points to
+  the sites by any mode. Existing facilities count first. Solved by
+  heuristics, with no solver and no new dependency: a greedy construction
+  (for maximal covering, at least 1 - 1/e of the best coverage; Nemhauser,
+  Wolsey and Fisher, 1978) followed by vertex substitution (Teitz and Bart,
+  1968), deterministic and independent of the number of threads. The result
+  has the new sites with what each adds, the potential of every candidate,
+  the facility and travel time of every demand point, and the objective
+  before, after the greedy step and in the end.
+- `floating_catchment()` (`floatingCatchment()`, the core's
+  `floating_catchment`, `peabiru catchment`): the two-step floating
+  catchment area (Luo and Wang, 2003), supply per unit of demand at each
+  demand point, and its enhanced form (Luo and Qi, 2009) with any of the
+  decay functions of `accessibility()`.
+- Both take a table of travel times in place of a network (the packages;
+  the core's `CostTable` is built from pairs, from a full matrix or from the
+  minutes of a matrix of the crate).
+- These functions are peabiru's own. A guide page in each site, "Facility
+  location", works an example on the Sao Paulo sample.
+
 ## 0.1.2
 
 The crates, the Python package and the JavaScript package, all with the same

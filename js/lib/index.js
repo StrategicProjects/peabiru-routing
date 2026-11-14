@@ -19,6 +19,8 @@ import wasmInit, {
   fare_read as rawFareRead,
   fare_setup as rawFareSetup,
   fare_write as rawFareWrite,
+  floating_catchment as rawFloatingCatchment,
+  locate_facilities as rawLocateFacilities,
   pareto as rawPareto,
   find_snap as rawFindSnap,
   gtfs_errors as rawGtfsErrors,
@@ -1085,7 +1087,8 @@ function engineError(e) {
   if (!(e instanceof Error) || e.name === "AbortError") return e;
   const options = new Set([...Object.keys(DEFAULTS), "fareStructure", "maxFare", "fareCutoffs", "suboptimalMinutes",
     "shortestPath", "allToAll", "dropGeometry", "osmLinkIds", "opportunitiesColnames", "decayFunction", "decayValue",
-    "cutoffs", "breakdown", "arrivalDatetime", "zoom", "polygonOutput", "radius", "baseFare"].map(snakeCase));
+    "cutoffs", "breakdown", "arrivalDatetime", "zoom", "polygonOutput", "radius", "baseFare", "nFacilities", "minGain",
+    "unreachableTime"].map(snakeCase));
   let message = e.message.replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/g, (w) => {
     return options.has(w) ? w.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()) : w;
   });
@@ -2127,6 +2130,269 @@ export async function accessibility(network, origins, destinations, options) {
   }
   if (fun === "fixed_exponential") delete out.cutoff;
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Facility location
+
+const LOCATION_MODELS = ["max_cover", "set_cover", "p_median", "p_center"];
+// the options of travelTimeMatrix() a location function passes on
+const LOCATION_ROUTING = [
+  ...COMMON.filter((k) => k !== "outputDir" && k !== "maxTripDuration"),
+  "departureDatetime", "timeWindow", "fareStructure", "maxFare",
+];
+
+/** The points of a location function: routed points, or only their ids. */
+function locationPoints(points, name, warn, routed) {
+  if (routed) return { ...pointsInput(points, name, warn), coords: true };
+  if (points === null || typeof points !== "object") {
+    fail(name, "Must be an object of columns {id} or an array of {id} objects", TypeError);
+  }
+  const idCol = column(points, "id");
+  if (idCol === undefined || idCol === null) fail(name, "Names must include the element 'id'");
+  const ids = Array.from(idCol, (v) => (v === null || v === undefined ? null : String(v)));
+  if (new Set(ids).size !== ids.length) throw new RangeError(`\`${name}\` must not contain duplicated ids.`);
+  return { ids, points, length: ids.length, coords: false };
+}
+
+/** The weight column of a set of points, or 1 each without one. */
+function locationWeights(p, colname, name, arg) {
+  const w = new Float64Array(p.length).fill(1);
+  if (colname === null || colname === undefined) return w;
+  if (typeof colname !== "string") fail(arg, "Must be of type 'string'", TypeError);
+  const col = column(p.points, colname);
+  const absent = col === undefined || col === null || typeof col !== "object" || col.length !== p.length ||
+    (Array.isArray(p.points) && p.length > 0 && col.every((v) => v === undefined));
+  if (absent) throw new RangeError(`'${name}' has no column '${colname}' (the ${arg} option).`);
+  for (let i = 0; i < p.length; i++) {
+    const v = col[i];
+    if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+      throw new RangeError(`Assertion on '${name}.${colname}' failed: Must be finite and not negative, with no missing values.`);
+    }
+    w[i] = v;
+  }
+  return w;
+}
+
+/**
+ * The reachable pairs (row, column, minutes) of the table the location
+ * models work on: from `travelTimes` when given, else routed from the
+ * demand points to the sites.
+ */
+async function locationPairs(network, rows, cols, opt, maxTripDuration, routed, fn) {
+  const key = `travel_time_p${pad(opt.percentile)}`;
+  let table = opt.travelTimes;
+  if (routed) {
+    // the points were checked, and warned about, already
+    const routing = { percentiles: opt.percentile, maxTripDuration, signal: opt.signal, onWarning: () => {} };
+    for (const k of LOCATION_ROUTING) routing[k] = opt[k];
+    table = await travelTimeMatrix(
+      network, { id: rows.ids, lon: rows.lon, lat: rows.lat }, { id: cols.ids, lon: cols.lon, lat: cols.lat }, routing,
+    );
+  } else if (table === null || typeof table !== "object") {
+    fail("travelTimes", "Must be an object of columns or an array of row objects", TypeError);
+  }
+  const has = (col) => col !== undefined && col !== null && !(Array.isArray(table) && table.length > 0 && col.every((v) => v === undefined));
+  const from = column(table, "from_id");
+  const to = column(table, "to_id");
+  let minutes = column(table, key);
+  if (!has(minutes)) minutes = column(table, "travel_time");
+  if (!has(from) || !has(to) || !has(minutes)) {
+    throw new RangeError(`'travelTimes' must have the columns 'from_id', 'to_id' and '${key}' (or 'travel_time').`);
+  }
+  const text = (v) => (v === null || v === undefined ? null : String(v));
+  const rowOf = new Map(rows.ids.map((id, i) => [id, i]));
+  const colOf = new Map(cols.ids.map((id, i) => [id, i]));
+  const n = from.length;
+  const pi = new Int32Array(n);
+  const pj = new Int32Array(n);
+  const pt = new Float64Array(n);
+  let k = 0;
+  let joined = 0;
+  for (let r = 0; r < n; r++) {
+    const i = rowOf.get(text(from[r]));
+    const j = colOf.get(text(to[r]));
+    if (i === undefined || j === undefined) continue;
+    joined++;
+    const t = minutes[r];
+    if (typeof t !== "number" || !Number.isFinite(t) || t === NA_INT32) continue;
+    pi[k] = i;
+    pj[k] = j;
+    pt[k] = t;
+    k++;
+  }
+  if (n > 0 && joined === 0) {
+    throw new RangeError(`${fn}(): no row of 'travelTimes' joins a demand point ('from_id') to a site ('to_id').`);
+  }
+  return [pi.slice(0, k), pj.slice(0, k), pt.slice(0, k)];
+}
+
+/** Whether a location function routes (true) or takes `travelTimes`. */
+function locationSource(network, options, fn) {
+  const o = optionsObject(options);
+  if (o.travelTimes !== undefined && o.travelTimes !== null) {
+    const given = LOCATION_ROUTING.filter((k) => o[k] !== undefined);
+    if (given.length) throw new TypeError(`${fn}() got routing options with 'travelTimes': ${given.join(", ")}.`);
+    needInit();
+    return false;
+  }
+  if (network === null || network === undefined) throw new RangeError(`${fn}() needs a network or a table of 'travelTimes'.`);
+  assertNetwork(network);
+  return true;
+}
+
+/** The id (and coordinates) columns of a table of points, or of some rows. */
+function locationColumns(p, rows) {
+  const out = { id: rows ? Array.from(rows, (i) => p.ids[i]) : p.ids.slice() };
+  if (p.coords) {
+    out.lon = rows ? Float64Array.from(rows, (i) => p.lon[i]) : Float64Array.from(p.lon);
+    out.lat = rows ? Float64Array.from(rows, (i) => p.lat[i]) : Float64Array.from(p.lat);
+  }
+  return out;
+}
+
+/** Where to open new facilities. */
+export async function locateFacilities(network, demand, candidates, options) {
+  const fn = "locateFacilities";
+  const routed = locationSource(network, options, fn);
+  const opt = withDefaults(
+    options,
+    {
+      existing: null, model: "max_cover", nFacilities: 1, cutoff: null, demandColname: null, percentile: 50,
+      maxTripDuration: null, travelTimes: null, swap: true, minGain: 0, unreachableTime: null,
+    },
+    LOCATION_ROUTING,
+  );
+  const warn = warner(opt);
+  assertString(opt.model, "model");
+  if (!LOCATION_MODELS.includes(opt.model)) {
+    fail("model", `Must be element of set {${LOCATION_MODELS.map((m) => `'${m}'`).join(",")}}, but is '${opt.model}'`);
+  }
+  const model = opt.model;
+  const covering = model === "max_cover" || model === "set_cover";
+  assertCount(opt.nFacilities, "nFacilities", model !== "set_cover");
+  if (covering) {
+    if (opt.cutoff === null) {
+      throw new RangeError(`Assertion on cutoff failed: must not be null when model is ${model} (the minutes within which a demand point is covered).`);
+    }
+    assertNumber(opt.cutoff, "cutoff", { lower: 0, finite: true });
+  } else if (opt.cutoff !== null) {
+    throw new RangeError(`Assertion on cutoff failed: must be null when model is ${model} (the model has no service standard).`);
+  }
+  assertFlag(opt.swap, "swap");
+  assertNumber(opt.minGain, "minGain", { lower: 0, finite: true });
+  assertNumber(opt.unreachableTime, "unreachableTime", { lower: 0, finite: true, nullOk: true });
+  if (opt.unreachableTime !== null && opt.unreachableTime <= 0) fail("unreachableTime", "Must be greater than 0");
+  assertIntegerish(opt.percentile, "percentile", { lower: 1, upper: 99, minLen: 1, maxLen: 1 });
+  if (opt.maxTripDuration !== null) assertCount(opt.maxTripDuration, "maxTripDuration", true);
+
+  const d = locationPoints(demand, "demand", warn, routed);
+  const c = locationPoints(candidates, "candidates", warn, routed);
+  const e = opt.existing === null ? null : locationPoints(opt.existing, "existing", warn, routed);
+  const w = locationWeights(d, opt.demandColname, "demand", "demandColname");
+  const nExisting = e === null ? 0 : e.length;
+  if (e !== null) {
+    const own = new Set(c.ids);
+    const shared = e.ids.filter((id) => own.has(id));
+    if (shared.length) {
+      throw new RangeError(`\`candidates\` and \`existing\` must not share ids. Shared id${shared.length === 1 ? "" : "s"}: ${shared.slice(0, 10).map((i) => `"${i}"`).join(", ")}.`);
+    }
+  }
+  if (c.length === 0) throw new RangeError("`candidates` must have at least one site.");
+  // the sites of the table: the existing facilities, then the candidates
+  const sites = { ids: e === null ? c.ids : [...e.ids, ...c.ids], length: nExisting + c.length };
+  if (routed) {
+    sites.lon = Float64Array.from([...(e === null ? [] : e.lon), ...c.lon]);
+    sites.lat = Float64Array.from([...(e === null ? [] : e.lat), ...c.lat]);
+  }
+  const limit = opt.maxTripDuration !== null ? opt.maxTripDuration : covering ? Math.max(1, Math.ceil(opt.cutoff)) : 120;
+  const [pi, pj, pt] = await locationPairs(network, d, sites, opt, limit, routed, fn);
+  let res;
+  try {
+    res = rawLocateFacilities(
+      d.length, sites.length, pi, pj, pt, w, nExisting, model, Math.round(opt.nFacilities),
+      covering ? opt.cutoff : 0, opt.swap, opt.minGain, opt.unreachableTime === null ? -1 : opt.unreachableTime,
+    );
+  } catch (err) {
+    throw engineError(err);
+  }
+  const [chosenSites, marginal, cumulative, potential, assigned, minutes, , numbers] = res;
+  const chosen = Array.from(chosenSites, (j) => j - nExisting);
+  const isChosen = new Array(c.length).fill(false);
+  for (const j of chosen) isChosen[j] = true;
+  return {
+    sites: {
+      ...locationColumns(c, chosen),
+      order: Int32Array.from(chosen, (_, k) => k + 1),
+      marginal,
+      cumulative,
+    },
+    candidates: { ...locationColumns(c), potential: potential.slice(nExisting), chosen: isChosen },
+    demand: {
+      ...locationColumns(d),
+      demand: w,
+      facility_id: Array.from(assigned, (j) => (j === NA_INT32 ? null : sites.ids[j])),
+      travel_time: minutes,
+      covered: Array.from(minutes, (t) => (covering ? t <= opt.cutoff : !Number.isNaN(t))),
+    },
+    summary: {
+      model,
+      n_sites: chosen.length,
+      objective_before: numbers[0],
+      objective_greedy: numbers[1],
+      objective: numbers[2],
+      covered_before: covering ? numbers[3] : null,
+      covered: covering ? numbers[4] : null,
+      total_demand: numbers[5],
+      unservable_demand: numbers[6],
+      n_swaps: numbers[7],
+    },
+  };
+}
+
+/** Supply against demand around each place: the two-step floating catchment area. */
+export async function floatingCatchment(network, demand, supply, options) {
+  const fn = "floatingCatchment";
+  const routed = locationSource(network, options, fn);
+  const opt = withDefaults(
+    options,
+    {
+      cutoff: null, decayFunction: "step", decayValue: null, demandColname: null, supplyColname: null,
+      percentile: 50, maxTripDuration: null, travelTimes: null,
+    },
+    LOCATION_ROUTING,
+  );
+  const warn = warner(opt);
+  const fun = opt.decayFunction;
+  const value = assignDecay(fun, opt.decayValue);
+  let cutoff = 0;
+  if (fun === "fixed_exponential") {
+    if (opt.cutoff !== null) throw new RangeError("Assertion on cutoff failed: must be null when decayFunction is fixed_exponential.");
+  } else {
+    if (opt.cutoff === null) throw new RangeError(`Assertion on cutoff failed: must not be null when decayFunction is ${fun}.`);
+    assertNumber(opt.cutoff, "cutoff", { lower: 0, finite: true });
+    if (opt.cutoff <= 0) fail("cutoff", "Must be greater than 0");
+    cutoff = opt.cutoff;
+  }
+  assertIntegerish(opt.percentile, "percentile", { lower: 1, upper: 99, minLen: 1, maxLen: 1 });
+  if (opt.maxTripDuration !== null) assertCount(opt.maxTripDuration, "maxTripDuration", true);
+  const d = locationPoints(demand, "demand", warn, routed);
+  const s = locationPoints(supply, "supply", warn, routed);
+  const w = locationWeights(d, opt.demandColname, "demand", "demandColname");
+  const cap = locationWeights(s, opt.supplyColname, "supply", "supplyColname");
+  const limit = opt.maxTripDuration !== null ? opt.maxTripDuration : fun === "step" ? Math.max(1, Math.ceil(cutoff)) : 120;
+  const [pi, pj, pt] = await locationPairs(network, d, s, opt, limit, routed, fn);
+  let res;
+  try {
+    res = rawFloatingCatchment(d.length, s.length, pi, pj, pt, w, cap, cutoff, fun, value);
+  } catch (err) {
+    throw engineError(err);
+  }
+  const [index, ratio, catchmentDemand] = res;
+  return {
+    demand: { ...locationColumns(d), demand: w, accessibility: index },
+    supply: { ...locationColumns(s), supply: cap, catchment_demand: catchmentDemand, ratio },
+  };
 }
 
 function checkExpandedMode(modeList) {

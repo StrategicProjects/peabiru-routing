@@ -39,7 +39,8 @@ move a script over. It compares the JavaScript package with r5r 2.5.0
   columns.
 
 `tripOptions()` (see [Trip options](trip-options.md)) is peabiru's own
-planner and has no counterpart in r5r.
+planner and has no counterpart in r5r; neither have `locateFacilities()`
+and `floatingCatchment()` (see [Facility location](facility-location.md)).
 
 ## Moving a script over
 

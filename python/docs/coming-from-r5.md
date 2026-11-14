@@ -45,8 +45,9 @@ move a script over.
   r5r 2.5.0 gives the same access as peabiru, origin by origin, with the
   fare structure and without it.
 
-Besides the functions it shares with r5r, peabiru has one that r5r has not,
-[`trip_options()`](trip-options.md).
+Besides the functions it shares with r5r, peabiru has functions of its own,
+which r5r has not: [`trip_options()`](trip-options.md), and
+[`locate_facilities()` and `floating_catchment()`](facility-location.md).
 
 ## Moving a script from r5r
 

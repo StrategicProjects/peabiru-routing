@@ -827,6 +827,175 @@ export declare function tripOptions(
 ): Promise<TripOptions>;
 
 /**
+ * A table of travel times given to `locateFacilities()` or
+ * `floatingCatchment()` instead of a network: columns (or row objects)
+ * `from_id` (demand point), `to_id` (site) and the minutes in
+ * `travel_time_pXX` for the `percentile` or in `travel_time`, as
+ * `travelTimeMatrix()` returns it. A pair that is absent or has a missing
+ * time (`null`, `NaN`, `NA_INT32`) is unreachable; rows of other points
+ * are ignored.
+ */
+export type TravelTimes =
+  | { from_id: ArrayLike<string | number | null>; to_id: ArrayLike<string | number | null>; [column: string]: ArrayLike<unknown> }
+  | Array<{ from_id: string | number | null; to_id: string | number | null; [column: string]: unknown }>;
+
+/** The routing options the location functions pass on to `travelTimeMatrix()`. */
+export type LocationRoutingOptions = Omit<TravelTimeMatrixOptions, "percentiles" | "outputDir" | "maxTripDuration">;
+
+/** Options of `locateFacilities()`. */
+export interface LocateFacilitiesOptions extends LocationRoutingOptions {
+  /** The facilities already open (default: none). Their ids may not repeat those of the candidates. */
+  existing?: Points | null;
+  /** `"max_cover"` (default), `"set_cover"`, `"p_median"` or `"p_center"`. */
+  model?: "max_cover" | "set_cover" | "p_median" | "p_center";
+  /** How many new facilities to open (default 1). Fewer come back when no further site improves the objective. Ignored by `"set_cover"`. */
+  nFacilities?: number;
+  /**
+   * The service standard of the covering models, in minutes: a point is
+   * covered by a site at most this far (the cutoff included).
+   * Required by `"max_cover"` and `"set_cover"`; null for the others.
+   */
+  cutoff?: number | null;
+  /** The column of the demand points with their weights (residents, pupils...), finite and not negative; null (default) for 1 each. */
+  demandColname?: string | null;
+  /** The travel-time percentile used, 1 to 99 (default 50). */
+  percentile?: number;
+  /** The longest trip considered, in minutes. Default: `cutoff` (rounded up) for the covering models, 120 for the others. */
+  maxTripDuration?: number | null;
+  /** A table of travel times to use instead of routing; with it the network may be null, no routing option is taken and the points need only their `id`. */
+  travelTimes?: TravelTimes | null;
+  /** Improve the greedy solution by vertex substitution (default true); for `"set_cover"`, drop the sites the others make redundant. */
+  swap?: boolean;
+  /** `"max_cover"` stops opening sites when the best one left would cover less than this much demand (default 0). */
+  minGain?: number;
+  /** For `"p_median"` and `"p_center"`, the minutes charged to a demand point that reaches no open facility (default: twice the longest travel time of the table). */
+  unreachableTime?: number | null;
+}
+
+/** The result of `locateFacilities()`: three tables as objects of columns, and a summary. */
+export interface FacilityLocation {
+  /**
+   * The new sites, ordered by what each adds: `marginal` is the demand
+   * newly covered (or by how much the objective falls) and `cumulative`
+   * the demand covered so far, existing facilities included (or the
+   * objective so far). `lon` and `lat` when the candidates have them.
+   */
+  sites: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; order: Int32Array; marginal: Float64Array; cumulative: Float64Array };
+  /**
+   * One row per candidate: `potential` is what it would add as the only
+   * new facility (for the covering models, the demand not covered today
+   * that it would cover alone).
+   */
+  candidates: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; potential: Float64Array; chosen: boolean[] };
+  /**
+   * One row per demand point: its weight, the nearest open facility
+   * (existing or new) and the minutes to it (`null` and `NaN` when it
+   * reaches none), and whether it is covered (within the cutoff of a
+   * facility; for `"p_median"` and `"p_center"`, whether it reaches one).
+   */
+  demand: {
+    id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; demand: Float64Array;
+    facility_id: (string | null)[]; travel_time: Float64Array; covered: boolean[];
+  };
+  /**
+   * The objective is the demand covered (`"max_cover"`), the number of new
+   * sites (`"set_cover"`), the demand-weighted minutes (`"p_median"`) or
+   * the largest minutes (`"p_center"`): with the existing facilities only,
+   * after the greedy construction and in the end. `covered_before` and
+   * `covered` are null for `"p_median"` and `"p_center"`;
+   * `unservable_demand` is the demand no site can serve.
+   */
+  summary: {
+    model: string; n_sites: number; objective_before: number; objective_greedy: number; objective: number;
+    covered_before: number | null; covered: number | null; total_demand: number; unservable_demand: number; n_swaps: number;
+  };
+}
+
+/**
+ * Where to open new facilities: among the candidate sites, the ones that
+ * serve the demand points best, by maximal covering, location set
+ * covering, p-median or p-center. The travel times from every demand
+ * point to every site come from `travelTimeMatrix()` with the routing
+ * options given, or from `travelTimes`. The existing facilities count
+ * first: only the demand they leave uncovered, or the travel time they
+ * leave, drives the choice.
+ *
+ * The models are solved by a greedy construction followed by vertex
+ * substitution: good and reproducible solutions, not proven optimal. The
+ * solver runs on the calling thread. See the guide "Facility location".
+ *
+ * ```js
+ * // one new facility among the points, to cover the most jobs within 10 minutes on foot
+ * const found = await peabiru.locateFacilities(network, points, points, {
+ *   model: "max_cover", nFacilities: 1, cutoff: 10, demandColname: "jobs", mode: "WALK",
+ * });
+ * console.log(found.sites.id, found.summary.covered / found.summary.total_demand);
+ * ```
+ */
+export declare function locateFacilities(
+  network: Network | null,
+  demand: Points,
+  candidates: Points,
+  options?: LocateFacilitiesOptions,
+): Promise<FacilityLocation>;
+
+/** Options of `floatingCatchment()`. */
+export interface FloatingCatchmentOptions extends LocationRoutingOptions {
+  /**
+   * The catchment in minutes: with `"step"`, a pair counts in full up to
+   * it (the cutoff included); for the other functions, as in
+   * `accessibility()`. null only with `"fixed_exponential"`.
+   */
+  cutoff?: number | null;
+  /** `"step"` (default: the two-step floating catchment area), or `"exponential"`, `"fixed_exponential"`, `"linear"`, `"logistic"` for the enhanced form, in which nearer pairs weigh more. */
+  decayFunction?: "step" | "exponential" | "fixed_exponential" | "linear" | "logistic";
+  /** The parameter of `"fixed_exponential"`, `"linear"` and `"logistic"`, as in `accessibility()`. */
+  decayValue?: number | null;
+  /** The column of the demand points with their weights; null (default) for 1 each. */
+  demandColname?: string | null;
+  /** The column of the facilities with their capacities; null (default) for 1 each. */
+  supplyColname?: string | null;
+  /** The travel-time percentile used, 1 to 99 (default 50). */
+  percentile?: number;
+  /** The longest trip considered, in minutes. Default: `cutoff` (rounded up) for `"step"`, 120 for the other functions. */
+  maxTripDuration?: number | null;
+  /** A table of travel times to use instead of routing (see `LocateFacilitiesOptions`). */
+  travelTimes?: TravelTimes | null;
+}
+
+/** The result of `floatingCatchment()`: two tables as objects of columns. */
+export interface FloatingCatchment {
+  /** One row per demand point: its weight and `accessibility`, supply per unit of demand. */
+  demand: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; demand: Float64Array; accessibility: Float64Array };
+  /** One row per facility: its supply, the weighted demand in its catchment and their ratio (0 when the catchment holds no demand). */
+  supply: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; supply: Float64Array; catchment_demand: Float64Array; ratio: Float64Array };
+}
+
+/**
+ * Supply against demand around each place, by the two-step floating
+ * catchment area: the supply of each facility is divided by the demand
+ * within its catchment, and each demand point adds up the ratios of the
+ * facilities within its catchment. With a decay function other than
+ * `"step"`, nearer pairs weigh more in both steps. The sum of demand times
+ * `accessibility` equals the supply of the facilities that have any demand
+ * in their catchment. See the guide "Facility location".
+ *
+ * ```js
+ * const clinic = { id: ["clinic"], lon: [-46.6321], lat: [-23.5577], places: [300] };
+ * const fca = await peabiru.floatingCatchment(network, points, clinic, {
+ *   cutoff: 20, demandColname: "jobs", supplyColname: "places", mode: "WALK",
+ * });
+ * console.log(fca.demand.id, fca.demand.accessibility);
+ * ```
+ */
+export declare function floatingCatchment(
+  network: Network | null,
+  demand: Points,
+  supply: Points,
+  options?: FloatingCatchmentOptions,
+): Promise<FloatingCatchment>;
+
+/**
  * A fare structure: the global settings, three tables as objects of
  * columns, and the debug settings. Made by `setupFareStructure()` or read
  * by `readFareStructure()`, and changed by editing its columns.

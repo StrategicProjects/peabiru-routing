@@ -7,6 +7,7 @@ mod app;
 mod common;
 mod inspect;
 mod legacy;
+mod locate;
 mod matrix;
 mod trips;
 
@@ -41,6 +42,8 @@ fn main() {
         Command::Arrival(a) => ("arrival", matrix::arrival(a)),
         Command::Accessibility(a) => ("accessibility", access::accessibility(a)),
         Command::Isochrone(a) => ("isochrone", access::isochrone(a)),
+        Command::Locate(a) => ("locate", locate::locate(a)),
+        Command::Catchment(a) => ("catchment", locate::catchment(a)),
         Command::Itineraries(a) => ("itineraries", trips::itineraries(a)),
         Command::Pareto(a) => ("pareto", trips::pareto(a)),
         Command::Options(a) => ("options", trips::options(a)),

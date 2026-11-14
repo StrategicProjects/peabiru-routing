@@ -19,6 +19,9 @@
 //!   Pareto frontier of time and fare (see [Fares](#fares));
 //! - slope costs for walking and cycling from a GeoTIFF raster ([`Elevation`]);
 //! - scenarios of car speeds and levels of traffic stress ([`Scenario`]);
+//! - facility location on a table of travel times: maximal covering, set
+//!   covering, p-median and p-center ([`locate_facilities`]), and the
+//!   two-step floating catchment area ([`floating_catchment`]);
 //! - what a network holds, and the GTFS errors of each feed (see
 //!   [Inspecting a network](#inspecting-a-network)).
 //!
@@ -80,7 +83,8 @@
 //! # Parameters
 //!
 //! Every parameter struct ([`BuildOptions`], [`RouteParams`],
-//! [`TransitParams`], [`AccessibilityParams`], [`ItineraryParams`]) starts
+//! [`TransitParams`], [`AccessibilityParams`], [`ItineraryParams`],
+//! [`LocationParams`], [`FloatingCatchmentParams`]) starts
 //! from `Default` ([`BuildOptions::elevation`] is off by default) and is
 //! filled in by setting its public fields:
 //!
@@ -167,6 +171,16 @@
 //! traffic stress of the streets for one call (see [`Scenario`]); the
 //! network itself is left as it is.
 //!
+//! # Facility location
+//!
+//! [`locate_facilities`] chooses where to open facilities, by one of four
+//! models ([`LocationModel`]), and [`floating_catchment`] compares supply
+//! with demand around each place. Both work on a [`CostTable`], the minutes
+//! from each demand point to each site, whatever computed it:
+//! [`CostTable::from_minutes`] takes the minutes of a matrix of this crate.
+//! The models are solved by heuristics (greedy construction, then vertex
+//! substitution), deterministically and with no dependency.
+//!
 //! # Cancellation
 //!
 //! Every routing parameter struct holds a [`CancelToken`]: cancel a clone
@@ -205,6 +219,7 @@ mod inspect;
 mod isochrone;
 mod itinerary;
 mod jcompat;
+mod location;
 mod network;
 mod options;
 mod osm;
@@ -233,6 +248,10 @@ pub use isochrone::{
 };
 pub use itinerary::{
     write_itineraries_csv, Itinerary, ItineraryLeg, ItineraryNotes, ItineraryParams,
+};
+pub use location::{
+    floating_catchment, locate_facilities, CostTable, FloatingCatchment, FloatingCatchmentParams,
+    LocationModel, LocationParams, LocationSolution,
 };
 pub use network::{
     arrival_travel_time_matrix, build_from_bytes, build_from_bytes_with_elevation, build_from_dir,

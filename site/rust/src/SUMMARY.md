@@ -12,6 +12,7 @@
 - [Detailed itineraries](itineraries.md)
 - [Fares and Pareto frontiers](fares.md)
 - [Trip options](trip-options.md)
+- [Facility location](facility-location.md)
 - [Elevation](elevation.md)
 - [Scenarios](scenarios.md)
 - [Inspecting a network](inspect.md)

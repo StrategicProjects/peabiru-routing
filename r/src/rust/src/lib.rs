@@ -29,6 +29,7 @@ use std::time::Duration;
 mod fares;
 mod inspect;
 mod itinerary;
+mod location;
 mod options;
 mod scenario;
 
@@ -1208,4 +1209,5 @@ extendr_module! {
     use fares;
     use itinerary;
     use options;
+    use location;
 }

@@ -63,6 +63,15 @@ pub enum Command {
     /// (isochrone())
     #[command(after_help = ISOCHRONE_EXAMPLES)]
     Isochrone(IsochroneArgs),
+    /// Where to open new facilities: maximal covering, set covering,
+    /// p-median or p-center on the travel times from the demand points to
+    /// the candidate sites (locate_facilities())
+    #[command(after_help = LOCATE_EXAMPLES)]
+    Locate(LocateArgs),
+    /// Supply against demand around each place: the two-step floating
+    /// catchment area (floating_catchment())
+    #[command(after_help = CATCHMENT_EXAMPLES)]
+    Catchment(CatchmentArgs),
     /// Trips leg by leg between pairs of points, with their lines
     /// (detailed_itineraries())
     #[command(after_help = ITINERARIES_EXAMPLES)]
@@ -126,6 +135,18 @@ Examples:
   peabiru isochrone data/poa --origins one.csv --departure 2019-05-13T14:00 \\
       --cutoffs 15,30,45 -o isochrones.geojson
   peabiru isochrone data/poa --origins one.csv --mode WALK --lines --cutoffs 10,20";
+const LOCATE_EXAMPLES: &str = "\
+Examples:
+  peabiru locate data/spo --demand points.csv --demand-column population \\
+      --candidates sites.csv --existing schools.csv --model max_cover \\
+      --n-facilities 2 --cutoff 15 -o new-sites.csv
+  peabiru locate data/spo --demand points.csv --candidates sites.csv \\
+      --model p_median --n-facilities 3 --mode WALK,TRANSIT \\
+      --departure 2019-05-13T14:00 --table demand";
+const CATCHMENT_EXAMPLES: &str = "\
+Example:
+  peabiru catchment data/spo --demand points.csv --demand-column population \\
+      --supply schools.csv --supply-column schools --cutoff 20 -o schools-per-resident.csv";
 const ITINERARIES_EXAMPLES: &str = "\
 Example:
   peabiru itineraries data/poa --origins o.csv --destinations d.csv --mode WALK,TRANSIT \\
@@ -572,6 +593,151 @@ pub struct AccessibilityArgs {
     pub out: OutputArgs,
     #[command(flatten)]
     pub dir: OutputDirArgs,
+}
+
+/// The table `peabiru locate` writes.
+#[derive(ValueEnum, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum LocateTable {
+    /// The new sites, by what each adds
+    Sites,
+    /// Every candidate, with what it would add alone
+    Candidates,
+    /// Every demand point, with its nearest facility
+    Demand,
+}
+
+#[derive(Args)]
+pub struct LocateArgs {
+    #[command(flatten)]
+    pub net: NetworkArgs,
+    /// Demand points: CSV with id, lon, lat
+    #[arg(long, value_name = "FILE.csv", help_heading = "Points")]
+    pub demand: PathBuf,
+    /// Candidate sites: CSV with id, lon, lat
+    #[arg(long, value_name = "FILE.csv", help_heading = "Points")]
+    pub candidates: PathBuf,
+    /// Facilities already open, which count first: CSV with id, lon, lat
+    #[arg(long, value_name = "FILE.csv", help_heading = "Points")]
+    pub existing: Option<PathBuf>,
+    /// Column of the demand points with their weights [default: 1 each]
+    #[arg(long, value_name = "COLUMN", help_heading = "Points")]
+    pub demand_column: Option<String>,
+    /// max_cover, set_cover, p_median or p_center
+    #[arg(
+        long,
+        value_name = "MODEL",
+        default_value = "max_cover",
+        help_heading = "Location"
+    )]
+    pub model: String,
+    /// New facilities to open (not with set_cover)
+    #[arg(long, value_name = "N", default_value = "1", help_heading = "Location")]
+    pub n_facilities: String,
+    /// Minutes within which a demand point is covered (max_cover, set_cover)
+    #[arg(long, value_name = "MIN", help_heading = "Location")]
+    pub cutoff: Option<String>,
+    /// Keep the greedy solution, without improving it by substitution
+    #[arg(long, help_heading = "Location")]
+    pub no_swap: bool,
+    /// max_cover stops when the best site left would cover less than this
+    #[arg(long, value_name = "X", default_value = "0", help_heading = "Location")]
+    pub min_gain: String,
+    /// Minutes charged to a demand point that reaches no facility
+    /// (p_median, p_center) [default: twice the longest travel time]
+    #[arg(long, value_name = "MIN", help_heading = "Location")]
+    pub unreachable_time: Option<String>,
+    #[command(flatten)]
+    pub mode: ModeArgs,
+    #[command(flatten)]
+    pub transit: TransitArgs,
+    /// The travel-time percentile over the time window, 1 to 99
+    #[arg(long, value_name = "P", default_value = "50", help_heading = "Routing")]
+    pub percentile: String,
+    #[command(flatten)]
+    pub street: StreetArgs,
+    #[command(flatten)]
+    pub draws: DrawArgs,
+    #[command(flatten)]
+    pub fares: FareArgs,
+    #[command(flatten)]
+    pub scenario: ScenarioArgs,
+    /// How street matrices are computed (the result is the same)
+    #[arg(long, value_enum, default_value = "auto", help_heading = "Routing")]
+    pub street_engine: Engine,
+    /// The table to write
+    #[arg(long, value_enum, default_value = "sites", help_heading = "Output")]
+    pub table: LocateTable,
+    #[command(flatten)]
+    pub out: OutputArgs,
+}
+
+/// The table `peabiru catchment` writes.
+#[derive(ValueEnum, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CatchmentTable {
+    /// Every demand point, with its supply per unit of demand
+    Demand,
+    /// Every facility, with the demand in its catchment and their ratio
+    Supply,
+}
+
+#[derive(Args)]
+pub struct CatchmentArgs {
+    #[command(flatten)]
+    pub net: NetworkArgs,
+    /// Demand points: CSV with id, lon, lat
+    #[arg(long, value_name = "FILE.csv", help_heading = "Points")]
+    pub demand: PathBuf,
+    /// Facilities: CSV with id, lon, lat
+    #[arg(long, value_name = "FILE.csv", help_heading = "Points")]
+    pub supply: PathBuf,
+    /// Column of the demand points with their weights [default: 1 each]
+    #[arg(long, value_name = "COLUMN", help_heading = "Points")]
+    pub demand_column: Option<String>,
+    /// Column of the facilities with their capacities [default: 1 each]
+    #[arg(long, value_name = "COLUMN", help_heading = "Points")]
+    pub supply_column: Option<String>,
+    /// The catchment in minutes (not with fixed_exponential)
+    #[arg(long, value_name = "MIN", help_heading = "Catchment")]
+    pub cutoff: Option<String>,
+    /// step, exponential, fixed_exponential, linear or logistic
+    #[arg(
+        long,
+        value_name = "FUNCTION",
+        default_value = "step",
+        help_heading = "Catchment"
+    )]
+    pub decay_function: String,
+    /// The decay function's parameter (fixed_exponential, linear, logistic)
+    #[arg(
+        long,
+        value_name = "X",
+        allow_hyphen_values = true,
+        help_heading = "Catchment"
+    )]
+    pub decay_value: Option<String>,
+    #[command(flatten)]
+    pub mode: ModeArgs,
+    #[command(flatten)]
+    pub transit: TransitArgs,
+    /// The travel-time percentile over the time window, 1 to 99
+    #[arg(long, value_name = "P", default_value = "50", help_heading = "Routing")]
+    pub percentile: String,
+    #[command(flatten)]
+    pub street: StreetArgs,
+    #[command(flatten)]
+    pub draws: DrawArgs,
+    #[command(flatten)]
+    pub fares: FareArgs,
+    #[command(flatten)]
+    pub scenario: ScenarioArgs,
+    /// How street matrices are computed (the result is the same)
+    #[arg(long, value_enum, default_value = "auto", help_heading = "Routing")]
+    pub street_engine: Engine,
+    /// The table to write
+    #[arg(long, value_enum, default_value = "demand", help_heading = "Output")]
+    pub table: CatchmentTable,
+    #[command(flatten)]
+    pub out: OutputArgs,
 }
 
 #[derive(Args)]

@@ -36,6 +36,7 @@ use wasm_bindgen::prelude::*;
 mod fares;
 mod inspect;
 mod itinerary;
+mod location;
 mod options;
 mod scenario;
 
