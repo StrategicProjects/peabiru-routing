@@ -35,6 +35,10 @@ SECTIONS = [
         "setupFareStructure", "SetupFareStructureOptions", "FareStructure", "readFareStructure",
         "writeFareStructure", "paretoFrontier", "ParetoFrontierOptions", "ParetoFrontierTable",
     ]),
+    ("Facility location", [
+        "locateFacilities", "LocateFacilitiesOptions", "FacilityLocation", "floatingCatchment",
+        "FloatingCatchmentOptions", "FloatingCatchment", "TravelTimes", "LocationRoutingOptions",
+    ]),
     ("Isochrones", [
         "isochrone", "IsochroneOptions", "IsochronePolygonProperties", "IsochroneLineProperties",
         "FeatureCollection", "Feature", "MultiPolygon", "LineString",

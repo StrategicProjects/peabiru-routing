@@ -77,9 +77,7 @@ pub(crate) fn locate_facilities<'py>(
     p.unreachable_time = unreachable_time;
     p.n_threads = n_threads;
     p.cancel = cancel.clone();
-    let s = interruptible(py, &cancel, || {
-        locate_facilities_core(&costs, &demand, &p)
-    })?;
+    let s = interruptible(py, &cancel, || locate_facilities_core(&costs, &demand, &p))?;
     let as_i32 = |v: &[usize]| -> Vec<i32> { v.iter().map(|&x| x as i32).collect() };
     let out = PyDict::new(py);
     out.set_item("sites", i32_bytes(py, &as_i32(&s.sites))?)?;
