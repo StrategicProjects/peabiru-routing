@@ -1,0 +1,514 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Compared with r5r - peabiru for JavaScript</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Guide to the peabiru npm package: multimodal routing on OpenStreetMap and GTFS networks in WebAssembly, in browsers and in Node.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-3696a9e8.svg">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/peabiru-ab93dd35.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-cb3149ce.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-c1f15a8d.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">peabiru for JavaScript</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/StrategicProjects/peabiru-routing" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/StrategicProjects/peabiru-routing/edit/main/site/js/src/differences.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="compared-with-r5r"><a class="header" href="#compared-with-r5r">Compared with r5r</a></h1>
+<p><a href="https://github.com/ipea/r5r">r5r</a> is the R package of Ipea that runs
+Conveyal’s R5 routing engine on a Java virtual machine. This page is for
+those who know it: what peabiru shares with r5r, what differs, and how to
+move a script over. It compares the JavaScript package with r5r 2.5.0
+(R5 7.6).</p>
+<h2 id="what-is-shared"><a class="header" href="#what-is-shared">What is shared</a></h2>
+<ul>
+<li><strong>The routing model is R5’s.</strong> peabiru’s engine is a port of R5 to Rust:
+the same street network built from OpenStreetMap, the same linking of
+stops and points, the same public transport search with percentiles and
+Monte Carlo draws, the same fare rules, slope costs and scenarios.</li>
+<li><strong>The fine print of the model is R5’s too.</strong> Details that other pages
+state as plain facts about peabiru come from it: the multi-criteria
+router (McRAPTOR) used with fares and for alternative itineraries; the
+fare rules (R5’s rule-based in-routing fare calculator), with fares read
+as 32-bit floats; the levels of traffic stress; elevations in 16-bit
+decimetres and car speeds in 16-bit centimetres per second; the limit of
+5,000 destinations for the expanded and arrival matrices; how the lines
+of itineraries are drawn; the exponential of the decay functions (Apache
+Commons Math’s <code>FastMath.exp</code>, which R5 calls); the transforms of
+projected elevation rasters (those of GeoTools, with the sines and
+cosines of Java’s <code>StrictMath</code>); and the checks of the GTFS feeds (those
+of gtfs-lib, R5’s GTFS library).</li>
+<li><strong>The results are the same.</strong> The repository compares peabiru with r5r
+on its test networks (Porto Alegre and São Paulo, and the whole city of
+Porto Alegre) on every push: travel-time matrices, accessibility,
+expanded and arrival matrices, isochrones, detailed itineraries, fares
+and Pareto frontiers come out identical, row for row and value for
+value, with the exceptions listed below. The JavaScript package is
+compared cell by cell with peabiru’s native tool
+(<code>bench/compare/js_parity.mjs</code>). With frequency-based feeds the results
+are random without a <code>seed</code>, in both; with the same <code>seed</code> they are
+equal.</li>
+<li><strong>The functions have the same shape</strong>: one function per kind of result,
+with the same arguments (here options in camelCase), defaults and result
+columns.</li>
+</ul>
+<p><code>tripOptions()</code> (see <a href="trip-options.html">Trip options</a>) is peabiru’s own
+planner and has no counterpart in r5r; neither have <code>locateFacilities()</code>
+and <code>floatingCatchment()</code> (see <a href="facility-location.html">Facility location</a>).</p>
+<h2 id="moving-a-script-over"><a class="header" href="#moving-a-script-over">Moving a script over</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>r5r</th><th>peabiru in JavaScript</th></tr>
+</thead>
+<tbody>
+<tr><td><code>options(java.parameters = "-Xmx4G")</code>, <code>library(r5r)</code></td><td><code>import * as peabiru from "peabiru"</code>: no Java, no memory setting</td></tr>
+<tr><td><code>r5r_network &lt;- build_network(data_path)</code></td><td><code>const network = await peabiru.buildNetwork({ pbf, gtfs: [{ name, data }], tif })</code>: the bytes of the files</td></tr>
+<tr><td><code>travel_time_matrix(r5r_network, origins, destinations, mode = ..., ...)</code></td><td><code>await peabiru.travelTimeMatrix(network, origins, destinations, { mode, ... })</code></td></tr>
+<tr><td>arguments in snake_case</td><td>options in camelCase (<code>departureDatetime</code>, <code>maxTripDuration</code>)</td></tr>
+<tr><td><code>data.frame</code> or <code>sf</code> points</td><td>columns <code>{ id, lon, lat }</code> or an array of <code>{ id, lon, lat }</code> objects, in WGS 84</td></tr>
+<tr><td><code>POSIXct</code></td><td>a string <code>"YYYY-MM-DD HH:MM:SS"</code> or a <code>Date</code></td></tr>
+<tr><td>a <code>data.table</code> result</td><td>an object of columns (arrays of strings and typed arrays)</td></tr>
+<tr><td>an <code>sf</code> result</td><td>a GeoJSON <code>FeatureCollection</code></td></tr>
+<tr><td><code>NA</code></td><td><a href="api.html#NA_INT32"><code>NA_INT32</code></a> in integer columns, <code>NaN</code> in double columns, <code>null</code> in strings</td></tr>
+<tr><td>warnings</td><td><code>onWarning</code> (default <code>console.warn</code>); those of the build also in <code>network.buildWarnings()</code></td></tr>
+<tr><td><code>n_threads</code></td><td><code>nThreads</code> in <code>buildNetwork()</code>: workers, each with a copy of the network</td></tr>
+<tr><td><code>stop_r5()</code>, <code>rJava::.jgc()</code></td><td><code>network.free()</code></td></tr>
+<tr><td><code>setup_r5()</code>, <code>download_r5()</code>, <code>r5r_cache()</code>, <code>r5r_sitrep()</code></td><td>nothing to set up</td></tr>
+<tr><td><code>read_fare_structure(path)</code>, <code>write_fare_structure(fs, path)</code></td><td><code>readFareStructure(bytes)</code>, <code>writeFareStructure(fs)</code>: bytes, in the same file format</td></tr>
+<tr><td><code>get_gtfs_errors(r5r_network)</code></td><td><code>await getGtfsErrors([{ name, data }])</code></td></tr>
+<tr><td><code>output_dir</code></td><td>not available (no file system)</td></tr>
+</tbody>
+</table>
+</div>
+<p>Every call that reads or routes on a network is asynchronous: <code>await</code> it.
+See <a href="r-python.html">Coming from R or Python</a> for what JavaScript makes
+different from peabiru’s other packages, which applies here too.</p>
+<h2 id="differences"><a class="header" href="#differences">Differences</a></h2>
+<p>The differences from r5r 2.5.0 are deliberate, and the same in peabiru’s
+three packages; they are listed here as they apply to JavaScript.</p>
+<h3 id="general"><a class="header" href="#general">General</a></h3>
+<!-- diff:no-java -->
+<ul>
+<li><strong>No Java</strong>: no JVM, no memory setting, no R5 jar. r5r’s five functions
+that manage Java and its files (<code>setup_r5()</code>, <code>stop_r5()</code>,
+<code>download_r5()</code>, <code>r5r_cache()</code>, <code>r5r_sitrep()</code>) have nothing to manage
+here and do not exist. <code>version</code> and <code>coreVersion()</code> give the versions
+of the package and of its Rust core.</li>
+</ul>
+<!-- diff:result-type -->
+<ul>
+<li><strong>Results</strong> are objects of columns (arrays of strings, typed arrays) and
+GeoJSON <code>FeatureCollection</code>s where r5r returns <code>data.table</code>s and <code>sf</code>
+tables; the tables of a fare structure are objects of columns too.
+Column names, order and values are the same (see the table above for
+missing values).</li>
+</ul>
+<!-- diff:sf-any-crs -->
+<ul>
+<li><strong>Geometries in another coordinate reference system</strong> (R only). The R
+package of peabiru reprojects an <code>sf</code> input in any CRS to WGS 84, with a
+message, where r5r stops with an error. In JavaScript points are
+longitudes and latitudes, and scenario polygons and lines GeoJSON, in
+WGS 84 as GeoJSON requires: there is no CRS to reproject from.</li>
+</ul>
+<!-- diff:network-in-memory -->
+<ul>
+<li><strong>The network lives in memory only</strong>, built from the bytes of the files
+(<code>buildNetwork({ pbf, gtfs, tif })</code>) rather than from a directory:
+nothing is written anywhere (no <code>network.dat</code>, no <code>gtfs_errors.csv</code>), a
+network cannot be saved or sent to another Worker, and it is built again
+in each session. r5r’s <code>overwrite</code> and <code>temp_dir</code> have nothing to do and
+are not options. <code>network.free()</code> releases its memory.</li>
+</ul>
+<!-- diff:n-threads-build -->
+<ul>
+<li><code>buildNetwork()</code> takes <code>nThreads</code>, which r5r’s <code>build_network()</code> does
+not have: here, the number of workers to route on, each with its own
+copy of the network (see <a href="threads.html">Threads and workers</a>).</li>
+</ul>
+<!-- diff:verbose-progress -->
+<ul>
+<li><code>verbose</code> and <code>progress</code> are checked, but nothing is printed: no
+progress counter, no report of the build.</li>
+</ul>
+<!-- diff:error-classes -->
+<ul>
+<li><strong>Errors</strong>: most argument errors read as r5r’s (both word them as
+checkmate does) in JavaScript’s terms, with the option names in
+camelCase; see <a href="r-python.html#errors">Coming from R or Python</a> for the
+terms, the error classes and the few cases worded differently. Messages
+never name r5r or its network argument: <code>detailedItineraries()</code> on a
+network with frequencies fails with <code>Assertion on 'network' failed</code>.</li>
+</ul>
+<!-- diff:deprecated-args -->
+<ul>
+<li><strong>Deprecated arguments</strong>: r5r’s deprecated arguments do not exist here:
+there is no <code>r5rCore</code> (its old name for the network argument) and
+<code>isochrone()</code> has no <code>sampleSize</code>. Giving one is an error, as any
+unknown option is.</li>
+</ul>
+<h3 id="where-peabiru-is-deterministic-and-r5r-is-not"><a class="header" href="#where-peabiru-is-deterministic-and-r5r-is-not">Where peabiru is deterministic and r5r is not</a></h3>
+<!-- diff:gtfs-errors-order -->
+<ul>
+<li><a href="network.html#gtfs-errors"><code>getGtfsErrors()</code></a> reads the feeds again (r5r
+reads the <code>gtfs_errors.csv</code> its <code>build_network()</code> wrote) and lists the
+errors feed by feed, in the order gtfs-lib finds them; r5r’s order is
+that of a Java <code>HashSet</code> and changes from run to run. The rows and
+columns are the same.</li>
+</ul>
+<!-- diff:elevation-strictmath -->
+<ul>
+<li>In an <a href="elevation.html">elevation raster</a> not in EPSG:4326, r5r reads one
+pixel or the other for a street point within nanometres (5e-8 m, 2e-13
+degrees) of a pixel boundary or of the raster’s edge, depending on the
+last bits of the JVM’s sines and cosines; peabiru reads the pixel Java’s
+<code>StrictMath</code> gives, on every machine, and warns once with the number of
+such points.</li>
+</ul>
+<!-- diff:street-expanded -->
+<ul>
+<li>r5r computes expanded and arrival matrices with a street mode alone, but
+reports the same trip for every minute, from a departure time taken from
+the computer’s clock rather than from <code>departure_datetime</code>.
+<code>expandedTravelTimeMatrix()</code> and <code>arrivalTravelTimeMatrix()</code> throw
+<code>UnsupportedError</code> there: use <code>travelTimeMatrix()</code> for street modes.</li>
+</ul>
+<h3 id="warnings-peabiru-adds"><a class="header" href="#warnings-peabiru-adds">Warnings peabiru adds</a></h3>
+<!-- diff:elevation-wrapped -->
+<ul>
+<li>Elevation voids and values beyond +/-3276.7 m are stored wrapped around,
+as R5 stores them (16-bit integers of decimetres: SRTM’s -32768 becomes
+0 m, -9999 becomes 3108.2 m; a NaN no-data value is stored as 0 m), so
+the slope costs are the same as r5r’s; peabiru warns, counting them and
+the samples equal to the raster’s no-data value, where r5r is silent.
+The pixel read with <code>StrictMath</code> (above) also warns.</li>
+</ul>
+<h3 id="errors-where-r5r-fails-later-or-routes-on-corrupted-values"><a class="header" href="#errors-where-r5r-fails-later-or-routes-on-corrupted-values">Errors where r5r fails later or routes on corrupted values</a></h3>
+<!-- diff:errors-instead-of-failures -->
+<ul>
+<li>peabiru throws an error of its own that says what is wrong where r5r
+lets a value through and then fails, in Java or in R: empty
+<code>percentiles</code>; an <code>arrivalDatetime</code> that is not a date and time; a
+fractional <code>zoom</code> in <code>isochrone()</code>; a <code>carspeedScale</code> of <code>NaN</code>; a
+missing destination id; <code>isochrone()</code> with no origins; a scenario value
+that is not a number; <code>writeFareStructure()</code> with something that is not
+a fare structure; a fare structure with a column that is not one of its
+table’s, whose fare type is not in <code>fares_per_type</code>, or that leaves out
+a route of the network.</li>
+</ul>
+<!-- diff:scenario-wrap -->
+<ul>
+<li><a href="scenarios.html">Scenarios</a> whose car speeds R5’s 16-bit centimetres per
+second would wrap around or bring to 0 or less (a negative factor or
+speed in <code>newCarspeeds</code>, a polygon <code>scale</code> of <code>Infinity</code> or 0, a
+<code>carspeedScale</code> far above 1), and a <code>carspeedScale</code> beyond the range of
+a 32-bit float, are errors; r5r routes on the wrapped speeds, hands R5
+<code>Infinity</code>, or fails dividing by zero. Polygons that are not valid, and
+ties between polygons that peabiru cannot settle exactly as R5 does, are
+errors too. r5r warns that a scenario drops the slope costs of elevation
+on every network; peabiru only on a network that has elevation.</li>
+</ul>
+<h3 id="what-peabiru-refuses"><a class="header" href="#what-peabiru-refuses">What peabiru refuses</a></h3>
+<p>These are errors that say so, where r5r computes something:</p>
+<!-- diff:refuse-fare-calculators -->
+<ul>
+<li>R5’s own fare calculators (a <code>fareStructure</code> with a <code>type</code>):
+<code>UnsupportedError</code>.</li>
+</ul>
+<!-- diff:refuse-elevation-formats -->
+<ul>
+<li>An elevation raster other than a one-band GeoTIFF, north up,
+uncompressed or compressed with LZW, Deflate or PackBits, in EPSG:4326
+or one of the systems listed in <a href="elevation.html#rasters">Elevation</a>, given
+by its EPSG code in the file; and a street point that <code>StrictMath</code> puts
+on a projected raster’s outer edge (r5r fails there too). There is one
+raster, <code>tif</code>, by construction.</li>
+</ul>
+<!-- diff:refuse-multiple-pbf -->
+<ul>
+<li>r5r takes one of several <code>.pbf</code> files in its data directory; here there
+is one <code>pbf</code> by construction.</li>
+</ul>
+<!-- diff:car-egress-history -->
+<ul>
+<li><code>detailedItineraries()</code> with <code>modeEgress: "CAR"</code>: where a car search
+crosses a turn restriction with two or more via ways, r5r’s itineraries
+can depend on the searches that ran before (R5 reverses those via edges
+in place); peabiru returns what r5r gives on a freshly built network for
+that pair alone with one thread, with a warning (<code>onWarning</code>) naming the
+pairs some other order would change. In r5r a car matrix, accessibility
+or Pareto frontier computed after such a call could differ too (none did
+on Porto Alegre); peabiru’s are those of a fresh network. See
+<a href="itineraries.html#car-egress-and-turn-restrictions">Detailed itineraries</a>.</li>
+</ul>
+<h3 id="output-details"><a class="header" href="#output-details">Output details</a></h3>
+<!-- diff:write-fare-zip -->
+<ul>
+<li><code>writeFareStructure()</code> writes the same CSV files as r5r’s
+<code>write_fare_structure()</code>, deflated in the same order, but the bytes of
+the archive differ from r5r’s (which also holds file dates); each
+package reads the other’s files. As in r5r 2.5.0, <code>debugPath</code> and
+<code>debugInfo</code> are kept in the structure and no debug file is written.</li>
+</ul>
+<!-- diff:isochrone-make-valid -->
+<ul>
+<li><code>isochrone()</code> returns the polygons r5r hands to <code>sf::st_make_valid()</code>,
+without that last rebuild with s2: they cover the same areas but their
+vertices are not snapped to 1e-7 degrees, the rings of one polygon may
+touch at a vertex, and they are always <code>MultiPolygon</code>s.</li>
+</ul>
+<!-- diff:platform-order -->
+<ul>
+<li>r5r loads the GTFS feeds of its directory in the order the operating
+system lists it (see <a href="r-python.html#feed-order">Feed order</a>); here the
+order is that of the <code>gtfs</code> array. r5r’s isochrone rings start where
+isoband, built with the platform’s C++ library, puts them (libc++ on
+macOS, libstdc++ on Linux and Windows); the JavaScript package gives the
+macOS order on every platform, and its polygon coordinates can differ in
+the last digits (about 1e-14 degrees), because WebAssembly has its own
+<code>sinh</code> and <code>atan</code>. The line isochrones are identical.</li>
+</ul>
+<h3 id="what-only-javascript-does-differently"><a class="header" href="#what-only-javascript-does-differently">What only JavaScript does differently</a></h3>
+<ul>
+<li><code>outputDir</code> (writing results to CSV files) has no file system to write
+to: any value but <code>null</code> throws <code>UnsupportedError</code>.</li>
+<li><code>getGtfsErrors()</code> takes the feeds’ bytes, as <code>buildNetwork()</code> does,
+since a network does not keep them; <code>readFareStructure()</code> takes the
+bytes of a <code>.zip</code> file and <code>writeFareStructure()</code> returns them.</li>
+<li><code>nThreads</code> is a number of workers, each with its own copy of the
+network; an <code>AbortSignal</code> in <code>signal</code> stops a call.</li>
+<li>Dates and times can be <code>Date</code>s, read in the runtime’s local time zone;
+strings <code>"YYYY-MM-DD HH:MM:SS"</code> are read as they are written.</li>
+<li>An option that is not one of the function’s options is an error.</li>
+</ul>
+<h2 id="citing-r5r"><a class="header" href="#citing-r5r">Citing r5r</a></h2>
+<p>Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V., &amp; Conway,
+M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport
+Networks with R5 in R. <em>Findings</em>, 21262.
+<a href="https://doi.org/10.32866/001c.21262">https://doi.org/10.32866/001c.21262</a></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="r-python.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="examples.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="r-python.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="examples.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="theme/peabiru-nav-fb031d93.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

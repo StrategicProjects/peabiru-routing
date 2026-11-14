@@ -1,0 +1,29 @@
+pandoc: '3.11'
+pkgdown: 2.2.0
+pkgdown_sha: ~
+articles:
+  articles/accessibility-map: accessibility-map.html
+  articles/accessibility: accessibility.html
+  articles/benchmarks: benchmarks.html
+  articles/capitals: capitals.html
+  articles/coming-from-r5r: coming-from-r5r.html
+  articles/elevation: elevation.html
+  articles/expanded-and-arrival: expanded-and-arrival.html
+  articles/facility-location: facility-location.html
+  articles/fares: fares.html
+  articles/helsinki: helsinki.html
+  articles/how-it-works: how-it-works.html
+  articles/isochrones: isochrones.html
+  articles/itineraries: itineraries.html
+  articles/network-inspection: network-inspection.html
+  peabiru: peabiru.html
+  articles/recife-caruaru: recife-caruaru.html
+  articles/recife-metropolitan: recife-metropolitan.html
+  articles/scenarios-porto-alegre: scenarios-porto-alegre.html
+  articles/scenarios: scenarios.html
+  articles/sf-tidyverse: sf-tidyverse.html
+  articles/terrain: terrain.html
+  articles/travel-time-matrices: travel-time-matrices.html
+  articles/trip-options: trip-options.html
+  articles/trips: trips.html
+last_built: 2026-11-14T16:49Z

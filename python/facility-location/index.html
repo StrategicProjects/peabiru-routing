@@ -1,0 +1,1816 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multimodal routing on OpenStreetMap and GTFS networks with a Rust engine, without Java: travel-time matrices and accessibility as pandas data frames">
+      
+      
+        <meta name="author" content="André Leite, Marcos Wasiliew, Hugo Vasconcelos, Carlos Amorim, Diogo Bezerra, Júlia Nascimento Barreto">
+      
+      
+      
+        <link rel="prev" href="../trip-options/">
+      
+      
+        <link rel="next" href="../elevation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Facility location - peabiru for Python</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/brand.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#facility-location" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="peabiru for Python" class="md-header__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            peabiru for Python
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Facility location
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="peabiru for Python" class="md-nav__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    peabiru for Python
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../travel-time-matrices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Travel-time matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accessibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../expanded-arrival/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Expanded and arrival matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../itineraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detailed itineraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fares/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trip-options/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trip options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facility location
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facility location
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-four-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The four models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-worked-example-two-new-schools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A worked example: two new schools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-models-are-solved" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the models are solved
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-other-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The other models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supply-against-demand-the-floating-catchment-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supply against demand: the floating catchment area
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-a-table-of-travel-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From a table of travel times
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-models-do-not-see" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the models do not see
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../elevation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Elevation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenarios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network-inspection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inspecting a network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gtfs-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GTFS errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../coming-from-r5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compared with r5r and r5py
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-isochrones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isochrones by mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access to jobs and schools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-trips/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How much a trip varies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-recife-metropolitan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Recife metropolitan region by public transport
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-recife-caruaru/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schools and health care in Recife and Caruaru
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-terrain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terrain, in Salvador and Olinda
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-capitals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by income in Belo Horizonte, and fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Before and after in Porto Alegre
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-helsinki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by public transport in Helsinki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Other languages
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Other languages
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../r/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    R
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rust/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../js/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    peabiru home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-four-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The four models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-worked-example-two-new-schools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A worked example: two new schools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-models-are-solved" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the models are solved
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-other-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The other models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supply-against-demand-the-floating-catchment-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supply against demand: the floating catchment area
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-a-table-of-travel-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From a table of travel times
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-models-do-not-see" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the models do not see
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="facility-location">Facility location<a class="headerlink" href="#facility-location" title="Permanent link">&para;</a></h1>
+<p>Travel times say how well a place is served today.
+<a class="autorefs autorefs-internal" title="locate_facilities" href="../reference/#peabiru.locate_facilities"><code>locate_facilities()</code></a> turns the question
+around: given the people to serve and the places where a facility could
+open, <em>where should the next ones go?</em>
+<a class="autorefs autorefs-internal" title="floating_catchment" href="../reference/#peabiru.floating_catchment"><code>floating_catchment()</code></a> measures the other side
+of access, supply against the demand that competes for it. Both work on the
+travel times of the network, by any mode, and both are peabiru's own
+functions.</p>
+<h2 id="the-four-models">The four models<a class="headerlink" href="#the-four-models" title="Permanent link">&para;</a></h2>
+<p><code>locate_facilities()</code> takes the demand points (with a weight each:
+residents, pupils, patients), the candidate sites and, optionally, the
+facilities that already exist, and solves one of four classic models:</p>
+<table>
+<thead>
+<tr>
+<th><code>model</code></th>
+<th>question</th>
+<th>objective</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"max_cover"</code></td>
+<td>with <code>n_facilities</code> new facilities, how many people can be within <code>cutoff</code> minutes of one?</td>
+<td>demand covered (to maximise)</td>
+</tr>
+<tr>
+<td><code>"set_cover"</code></td>
+<td>how few facilities put everyone within <code>cutoff</code> minutes?</td>
+<td>number of new sites</td>
+</tr>
+<tr>
+<td><code>"p_median"</code></td>
+<td>where do <code>n_facilities</code> facilities make the average trip shortest?</td>
+<td>demand-weighted minutes to the nearest facility</td>
+</tr>
+<tr>
+<td><code>"p_center"</code></td>
+<td>where do they make the worst trip shortest?</td>
+<td>minutes of the demand point farthest from its nearest facility</td>
+</tr>
+</tbody>
+</table>
+<p>A demand point is <em>covered</em> by a site at most <code>cutoff</code> minutes away (the
+cutoff included). The <code>existing</code> facilities count first: only the demand
+they leave uncovered, or the travel time they leave, drives the choice of
+the new sites, and they are never closed or moved.</p>
+<h2 id="a-worked-example-two-new-schools">A worked example: two new schools<a class="headerlink" href="#a-worked-example-two-new-schools" title="Permanent link">&para;</a></h2>
+<p>The sample network has 27 points with their population; six of them have a
+school. Where would two more schools put the most residents within a
+12-minute walk of one?</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">peabiru</span>
+
+<span class="n">network</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">peabiru</span><span class="o">.</span><span class="n">sample_data_path</span><span class="p">(),</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">points</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">sample_points</span><span class="p">()</span>
+<span class="n">schools</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">points</span><span class="p">[</span><span class="s2">"schools"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+<span class="n">others</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">points</span><span class="p">[</span><span class="s2">"schools"</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span>
+
+<span class="n">found</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">locate_facilities</span><span class="p">(</span>
+    <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">others</span><span class="p">,</span> <span class="n">existing</span><span class="o">=</span><span class="n">schools</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"max_cover"</span><span class="p">,</span> <span class="n">n_facilities</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+    <span class="n">demand_colname</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">found</span><span class="o">.</span><span class="n">sites</span><span class="p">[[</span><span class="s2">"id"</span><span class="p">,</span> <span class="s2">"order"</span><span class="p">,</span> <span class="s2">"marginal"</span><span class="p">,</span> <span class="s2">"cumulative"</span><span class="p">]]</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>             id  order  marginal  cumulative
+89a8100c03bffff      1    5658.0     43534.0
+89a8100c383ffff      2    2683.0     46217.0
+</code></pre></div>
+<p>The result has four parts. <code>sites</code> lists the new sites by what each adds:
+<code>marginal</code> is the demand it newly covers and <code>cumulative</code> the demand covered
+so far, existing schools included. <code>summary</code> has the totals:</p>
+<div class="highlight"><pre><span></span><code><span class="n">s</span> <span class="o">=</span> <span class="n">found</span><span class="o">.</span><span class="n">summary</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"covered today:  </span><span class="si">{</span><span class="n">s</span><span class="p">[</span><span class="s1">'covered_before'</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">s</span><span class="p">[</span><span class="s1">'total_demand'</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> residents "</span>
+      <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">s</span><span class="p">[</span><span class="s1">'covered_before'</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">s</span><span class="p">[</span><span class="s1">'total_demand'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%)"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"greedy:         </span><span class="si">{</span><span class="n">s</span><span class="p">[</span><span class="s1">'objective_greedy'</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"after </span><span class="si">{</span><span class="n">s</span><span class="p">[</span><span class="s1">'n_swaps'</span><span class="p">]</span><span class="si">}</span><span class="s2"> swap:   </span><span class="si">{</span><span class="n">s</span><span class="p">[</span><span class="s1">'covered'</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> "</span>
+      <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">s</span><span class="p">[</span><span class="s1">'covered'</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">s</span><span class="p">[</span><span class="s1">'total_demand'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%)"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>covered today:  37876 of 46273 residents (81.9%)
+greedy:         46040
+after 1 swap:   46217 (99.9%)
+</code></pre></div>
+<p><code>candidates</code> has one row per candidate with its <code>potential</code>: the residents
+not covered today that a school there would cover <em>alone</em>. It is the map to
+draw before choosing anything, since it shows every good place and not only
+the winners:</p>
+<div class="highlight"><pre><span></span><code><span class="n">best</span> <span class="o">=</span> <span class="n">found</span><span class="o">.</span><span class="n">candidates</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">"potential"</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">best</span><span class="p">[[</span><span class="s2">"id"</span><span class="p">,</span> <span class="s2">"potential"</span><span class="p">,</span> <span class="s2">"chosen"</span><span class="p">]]</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>             id  potential  chosen
+89a8100c033ffff     5764.0   False
+89a8100c03bffff     5658.0    True
+89a8100c007ffff     4829.0   False
+89a8100c00fffff     3936.0   False
+</code></pre></div>
+<p>The candidate with the largest potential is not in the solution: the two
+sites chosen overlap less with each other than it does with either. That is
+the difference between ranking sites one by one and choosing a set.</p>
+<p><code>demand</code> has one row per demand point: its weight, the nearest open
+facility (existing or new), the minutes to it and whether it is covered.</p>
+<div class="highlight"><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="n">found</span><span class="o">.</span><span class="n">demand</span><span class="p">[[</span><span class="s2">"id"</span><span class="p">,</span> <span class="s2">"demand"</span><span class="p">,</span> <span class="s2">"facility_id"</span><span class="p">,</span> <span class="s2">"travel_time"</span><span class="p">,</span> <span class="s2">"covered"</span><span class="p">]]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>             id  demand     facility_id  travel_time  covered
+89a8100c00fffff  3648.0 89a8100c03bffff          8.0     True
+89a8100c007ffff  3936.0 89a8100c03bffff          9.0     True
+89a8100c077ffff  6514.0 89a8100c077ffff          0.0     True
+89a8100c03bffff  3670.0 89a8100c03bffff          0.0     True
+</code></pre></div>
+<h2 id="how-the-models-are-solved">How the models are solved<a class="headerlink" href="#how-the-models-are-solved" title="Permanent link">&para;</a></h2>
+<p>By heuristics, with no integer programming solver:</p>
+<ol>
+<li><strong>Greedy construction.</strong> Sites are opened one at a time, each the one
+   that improves the objective most given the ones already open. For
+   maximal covering this covers at least 63% (1 - 1/e) of the most that any
+   choice of <code>n_facilities</code> sites could cover of the demand not covered
+   today (Nemhauser, Wolsey and Fisher, 1978); in practice it is usually
+   much closer.</li>
+<li><strong>Vertex substitution</strong> (<code>swap=True</code>, the default; Teitz and Bart,
+   1968). An open new site is swapped for a closed candidate while that
+   improves the objective, taking the best swap of all at each step. The
+   result is never worse than the greedy one, and <code>summary</code> reports both
+   (<code>objective_greedy</code>, <code>objective</code>, <code>n_swaps</code>).</li>
+</ol>
+<p>In the example the greedy pair covers 46,040 residents and one swap takes
+it to 46,217, which is the optimum: an exhaustive search over the 210 pairs
+of candidates finds nothing better. That is not guaranteed in general; the
+solutions are good and reproducible, not proven optimal.</p>
+<p>Details by model:</p>
+<ul>
+<li><code>"set_cover"</code> opens the site that covers the most demand points not yet
+  covered until every point some site can cover is covered, then drops the
+  sites the others make redundant.</li>
+<li><code>"p_center"</code> compares the largest travel time and, on ties, the
+  demand-weighted sum, in the greedy step and in the swaps.</li>
+<li>In <code>"set_cover"</code> and <code>"p_center"</code> a point with weight 0 is not demand,
+  and the others count the same whatever their weight.</li>
+<li>In <code>"p_median"</code> and <code>"p_center"</code>, a demand point that reaches no open
+  facility within <code>max_trip_duration</code> is charged <code>unreachable_time</code> minutes
+  (by default twice the longest travel time of the table), so that serving
+  a point always beats shortening the trip of another. A point that no site
+  at all can serve is left out of the objective and reported in
+  <code>summary["unservable_demand"]</code>.</li>
+<li>Ties go to the candidate listed first, and the result does not depend on
+  <code>n_threads</code>.</li>
+</ul>
+<h2 id="the-other-models">The other models<a class="headerlink" href="#the-other-models" title="Permanent link">&para;</a></h2>
+<p>How few schools would put every resident within a 10-minute walk, starting
+from none?</p>
+<div class="highlight"><pre><span></span><code><span class="n">cover</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">locate_facilities</span><span class="p">(</span>
+    <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">"set_cover"</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">demand_colname</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cover</span><span class="o">.</span><span class="n">sites</span><span class="p">),</span> <span class="s2">"sites;"</span><span class="p">,</span> <span class="n">cover</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s2">"unservable_demand"</span><span class="p">],</span> <span class="s2">"residents out of reach"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>7 sites; 0.0 residents out of reach
+</code></pre></div>
+<p>Two sites that make the average walk shortest, and two that make the
+longest walk shortest:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">model</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"p_median"</span><span class="p">,</span> <span class="s2">"p_center"</span><span class="p">):</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">locate_facilities</span><span class="p">(</span>
+        <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">n_facilities</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="n">demand_colname</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="n">max_trip_duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">demand</span><span class="p">[</span><span class="s2">"demand"</span><span class="p">]</span> <span class="o">*</span> <span class="n">r</span><span class="o">.</span><span class="n">demand</span><span class="p">[</span><span class="s2">"travel_time"</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">r</span><span class="o">.</span><span class="n">demand</span><span class="p">[</span><span class="s2">"demand"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="s1">'id'</span><span class="p">])</span><span class="si">}</span><span class="s2">; "</span>
+          <span class="sa">f</span><span class="s2">"mean </span><span class="si">{</span><span class="n">mean</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> min, longest </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">demand</span><span class="p">[</span><span class="s1">'travel_time'</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> min"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>p_median: 89a8100c027ffff, 89a8100c03bffff; mean 9.7 min, longest 32 min
+p_center: 89a8100c02fffff, 89a8100c067ffff; mean 13.3 min, longest 19 min
+</code></pre></div>
+<p>The p-median pair gives the shorter average and the p-center pair the
+shorter worst case: the two models answer different questions.</p>
+<p>Any mode works, since the travel times come from
+<a class="autorefs autorefs-internal" title="travel_time_matrix" href="../reference/#peabiru.travel_time_matrix"><code>travel_time_matrix()</code></a>: pass <code>mode</code>,
+<code>departure_datetime</code> and any other routing argument.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dt</span>
+
+<span class="n">transit</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">locate_facilities</span><span class="p">(</span>
+    <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">"p_median"</span><span class="p">,</span> <span class="n">n_facilities</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">demand_colname</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="p">[</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="s2">"TRANSIT"</span><span class="p">],</span>
+    <span class="n">departure_datetime</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2019</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">max_trip_duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">transit</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>['89a8100c03bffff', '89a8100c1dbffff', '89a8100c15bffff']
+</code></pre></div>
+<h2 id="supply-against-demand-the-floating-catchment-area">Supply against demand: the floating catchment area<a class="headerlink" href="#supply-against-demand-the-floating-catchment-area" title="Permanent link">&para;</a></h2>
+<p>Being near a school is not the same as having a place in it.
+<code>floating_catchment()</code> computes the two-step floating catchment area (Luo
+and Wang, 2003):</p>
+<ol>
+<li>each facility's supply is divided by the demand within its catchment;</li>
+<li>each demand point adds up the ratios of the facilities within its
+   catchment.</li>
+</ol>
+<p>The result is supply per unit of demand at each demand point: here, schools
+per resident within a 20-minute walk.</p>
+<div class="highlight"><pre><span></span><code><span class="n">fca</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">floating_catchment</span><span class="p">(</span>
+    <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">schools</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">demand_colname</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span> <span class="n">supply_colname</span><span class="o">=</span><span class="s2">"schools"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">fca</span><span class="o">.</span><span class="n">supply</span><span class="p">[[</span><span class="s2">"id"</span><span class="p">,</span> <span class="s2">"supply"</span><span class="p">,</span> <span class="s2">"catchment_demand"</span><span class="p">]]</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">per_10k</span> <span class="o">=</span> <span class="mi">10_000</span> <span class="o">*</span> <span class="n">fca</span><span class="o">.</span><span class="n">demand</span><span class="p">[</span><span class="s2">"accessibility"</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"schools per 10,000 residents: from </span><span class="si">{</span><span class="n">per_10k</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">per_10k</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"shared out: </span><span class="si">{</span><span class="p">(</span><span class="n">fca</span><span class="o">.</span><span class="n">demand</span><span class="p">[</span><span class="s1">'demand'</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">fca</span><span class="o">.</span><span class="n">demand</span><span class="p">[</span><span class="s1">'accessibility'</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> schools"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>             id  supply  catchment_demand
+89a8100c077ffff     1.0           22033.0
+89a8100c1dbffff     2.0           17501.0
+89a8100c39bffff     1.0           10593.0
+89a8100c1cbffff     1.0           21263.0
+89a8100c153ffff     1.0           22664.0
+89a8100c14fffff     1.0           11967.0
+schools per 10,000 residents: from 0.45 to 3.34
+shared out: 7.0 schools
+</code></pre></div>
+<p>The index shares out the supply: the sum over the demand points of demand
+times <code>accessibility</code> is the supply of the facilities that have any demand
+in their catchment.</p>
+<p>With <code>decay_function="step"</code> a pair counts in full up to <code>cutoff</code> minutes
+and not at all beyond. Any other decay function gives the <em>enhanced</em> form
+(Luo and Qi, 2009), in which nearer pairs weigh more, in both steps. The
+functions and their <code>decay_value</code> are those of
+<a href="../accessibility/"><code>accessibility()</code></a>; the weight falls continuously with
+travel time, where Luo and Qi used a few travel-time zones.</p>
+<div class="highlight"><pre><span></span><code><span class="n">smooth</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">floating_catchment</span><span class="p">(</span>
+    <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">schools</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">decay_function</span><span class="o">=</span><span class="s2">"logistic"</span><span class="p">,</span> <span class="n">decay_value</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">demand_colname</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span> <span class="n">supply_colname</span><span class="o">=</span><span class="s2">"schools"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">per_10k</span> <span class="o">=</span> <span class="mi">10_000</span> <span class="o">*</span> <span class="n">smooth</span><span class="o">.</span><span class="n">demand</span><span class="p">[</span><span class="s2">"accessibility"</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"schools per 10,000 residents: from </span><span class="si">{</span><span class="n">per_10k</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">per_10k</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>schools per 10,000 residents: from 0.69 to 2.74
+</code></pre></div>
+<h2 id="from-a-table-of-travel-times">From a table of travel times<a class="headerlink" href="#from-a-table-of-travel-times" title="Permanent link">&para;</a></h2>
+<p>Both functions take a table of travel times instead of a network: <code>from_id</code>
+(demand point), <code>to_id</code> (site) and the minutes in <code>travel_time_pXX</code> or
+<code>travel_time</code>, as <code>travel_time_matrix()</code> returns it. A pair that is absent
+is unreachable. The points then need only their <code>id</code>, so the same matrix
+can serve several models, or travel times from another source can be used.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="n">sites</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">schools</span><span class="p">,</span> <span class="n">others</span><span class="p">])</span>
+<span class="n">times</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">travel_time_matrix</span><span class="p">(</span>
+    <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">sites</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="n">max_trip_duration</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">again</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">locate_facilities</span><span class="p">(</span>
+    <span class="kc">None</span><span class="p">,</span> <span class="n">points</span><span class="p">[[</span><span class="s2">"id"</span><span class="p">,</span> <span class="s2">"population"</span><span class="p">]],</span> <span class="n">others</span><span class="p">[[</span><span class="s2">"id"</span><span class="p">]],</span> <span class="n">existing</span><span class="o">=</span><span class="n">schools</span><span class="p">[[</span><span class="s2">"id"</span><span class="p">]],</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"max_cover"</span><span class="p">,</span> <span class="n">n_facilities</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">demand_colname</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span>
+    <span class="n">travel_times</span><span class="o">=</span><span class="n">times</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">again</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])</span> <span class="o">==</span> <span class="nb">list</span><span class="p">(</span><span class="n">found</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>True
+</code></pre></div>
+<h2 id="what-the-models-do-not-see">What the models do not see<a class="headerlink" href="#what-the-models-do-not-see" title="Permanent link">&para;</a></h2>
+<p>The models choose sites by travel time and demand alone. They do not know
+the capacity or the cost of a facility, whether land is available at a
+candidate site, the demand that comes from outside the study area, or how
+well the people already covered are served. Maximal covering treats 11
+minutes and 1 minute alike, and p-median may leave a few people very far to
+shorten the average: comparing two models on the same data is often more
+informative than either alone.</p>
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Church, R. and ReVelle, C. (1974). The maximal covering location problem.
+  <em>Papers of the Regional Science Association</em>, 32, 101-118.
+  <a href="https://doi.org/10.1007/BF01942293">doi:10.1007/BF01942293</a></li>
+<li>Hakimi, S. L. (1964). Optimum locations of switching centers and the
+  absolute centers and medians of a graph. <em>Operations Research</em>, 12(3),
+  450-459. <a href="https://doi.org/10.1287/opre.12.3.450">doi:10.1287/opre.12.3.450</a></li>
+<li>Luo, W. and Qi, Y. (2009). An enhanced two-step floating catchment area
+  (E2SFCA) method for measuring spatial accessibility to primary care
+  physicians. <em>Health &amp; Place</em>, 15(4), 1100-1107.
+  <a href="https://doi.org/10.1016/j.healthplace.2009.06.002">doi:10.1016/j.healthplace.2009.06.002</a></li>
+<li>Luo, W. and Wang, F. (2003). Measures of spatial accessibility to health
+  care in a GIS environment: synthesis and a case study in the Chicago
+  region. <em>Environment and Planning B: Planning and Design</em>, 30(6), 865-884.
+  <a href="https://doi.org/10.1068/b29120">doi:10.1068/b29120</a></li>
+<li>Nemhauser, G. L., Wolsey, L. A. and Fisher, M. L. (1978). An analysis of
+  approximations for maximizing submodular set functions - I. <em>Mathematical
+  Programming</em>, 14, 265-294.
+  <a href="https://doi.org/10.1007/BF01588971">doi:10.1007/BF01588971</a></li>
+<li>Teitz, M. B. and Bart, P. (1968). Heuristic methods for estimating the
+  generalized vertex median of a weighted graph. <em>Operations Research</em>,
+  16(5), 955-961. <a href="https://doi.org/10.1287/opre.16.5.955">doi:10.1287/opre.16.5.955</a></li>
+<li>Toregas, C., Swain, R., ReVelle, C. and Bergman, L. (1971). The location
+  of emergency service facilities. <em>Operations Research</em>, 19(6), 1363-1373.
+  <a href="https://doi.org/10.1287/opre.19.6.1363">doi:10.1287/opre.19.6.1363</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; peabiru authors. Sample map data &copy; OpenStreetMap contributors (ODbL).
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "navigation.sections", "navigation.top", "search.highlight"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

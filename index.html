@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>peabiru: multimodal routing in Rust</title>
+<meta name="description" content="peabiru is a multimodal routing engine written in Rust: travel-time matrices, accessibility, isochrones, detailed itineraries and fares by walking, cycling, driving and public transport on OpenStreetMap and GTFS networks, without Java. Packages for R, Python, JavaScript (WebAssembly) and Rust, and a command-line tool.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/brand.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="assets/logo-mark.svg" alt="">peabiru</a>
+    <nav aria-label="Documentation">
+      <a href="r/">R</a>
+      <a href="python/">Python</a>
+      <a href="rust/">Rust</a>
+      <a href="js/">JavaScript</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="https://github.com/StrategicProjects/peabiru-routing">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+<section class="hero">
+  <h1>Multimodal routing in Rust, for R, Python, JavaScript and the shell.</h1>
+  <p class="lead">peabiru computes travel-time matrices, accessibility, isochrones, detailed
+  itineraries and fares by walking, cycling, driving and public transport, on networks built
+  from an OpenStreetMap extract, GTFS feeds and, optionally, an elevation raster. It is a Rust
+  port of Conveyal's <a href="https://github.com/conveyal/r5">R5</a> routing engine. The network is built once, in memory, and shared by every query and thread; there
+  is no Java runtime to start and nothing is written to disk. The same engine is behind
+  the R package, the Python package, the JavaScript package (compiled to WebAssembly, for
+  browsers and Node), the Rust crate and the command line.</p>
+  <p class="authorship"><strong>Authorship.</strong> peabiru is an independent project. Its routing
+  model is that of Conveyal's <a href="https://github.com/conveyal/r5">R5</a>, and its fare calculator
+  and parts of its trip planner are translated from <a href="https://github.com/ipea/r5r">r5r</a>
+  (Ipea); both are MIT-licensed, and their notices are kept in
+  <a href="https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-THIRD-PARTY"><code>LICENSE-THIRD-PARTY</code></a>.
+  peabiru is not affiliated with or endorsed by Conveyal, Ipea or the r5r team. The port was written
+  with the assistance of AI coding tools.</p>
+  <div class="cta">
+    <a class="btn primary" href="r/articles/peabiru.html">Get started in R</a>
+    <a class="btn" href="python/">Python docs</a>
+    <a class="btn" href="rust/">Rust guide</a>
+    <a class="btn" href="js/">JavaScript guide</a>
+    <a class="btn" href="r/articles/how-it-works.html">How it works</a>
+    <a class="btn" href="demo/">Try it in the browser</a>
+  </div>
+  <p class="badges">
+    <a href="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml"><img src="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml/badge.svg" alt="CI status" height="20"></a>
+    <a href="https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" height="20"></a>
+    <a href="https://lifecycle.r-lib.org/articles/stages.html#experimental"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental" height="20"></a>
+    <img src="https://img.shields.io/badge/rustc-1.81%2B-blue.svg" alt="rustc 1.81+" height="20">
+    <img src="https://img.shields.io/badge/python-3.9%2B-blue.svg" alt="Python 3.9+" height="20">
+    <img src="https://img.shields.io/badge/R-%3E%3D%204.2-blue.svg" alt="R 4.2 or later" height="20">
+    <img src="https://img.shields.io/badge/node-18%2B-blue.svg" alt="Node 18+" height="20">
+    <a href="https://crates.io/crates/peabiru-core"><img src="https://img.shields.io/crates/v/peabiru-core.svg" alt="crates.io" height="20"></a>
+    <a href="https://docs.rs/peabiru-core"><img src="https://docs.rs/peabiru-core/badge.svg" alt="docs.rs" height="20"></a>
+    <a href="https://doi.org/10.5281/zenodo.24125477"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.24125477.svg" alt="DOI" height="20"></a>
+    <a href="https://pypi.org/project/peabiru/"><img src="https://img.shields.io/pypi/v/peabiru.svg" alt="PyPI" height="20"></a>
+    <a href="https://www.npmjs.com/package/peabiru"><img src="https://img.shields.io/npm/v/peabiru.svg" alt="npm" height="20"></a>
+    <!-- After the first release on CRAN, uncomment:
+    <a href="https://CRAN.R-project.org/package=peabiru"><img src="https://www.r-pkg.org/badges/version/peabiru" alt="CRAN" height="20"></a>
+    -->
+  </p>
+</section>
+
+<section aria-labelledby="what">
+  <h2 id="what">What it computes</h2>
+  <div class="grid3">
+    <div class="card">
+      <h3>Travel-time matrices</h3>
+      <p>Walking, cycling (with traffic stress), driving (with turn costs and restrictions), and
+      walking plus public transport over a departure window, with percentiles.</p>
+    </div>
+    <div class="card">
+      <h3>Accessibility</h3>
+      <p>Opportunities reachable from each origin, cumulative or weighted by a decay function:
+      step, exponential, fixed exponential, linear or logistic.</p>
+    </div>
+    <div class="card">
+      <h3>Isochrones</h3>
+      <p>The area reached within each cutoff, as polygons traced from a travel-time surface, or
+      as the street segments reached, by any mode.</p>
+    </div>
+    <div class="card">
+      <h3>Trip by trip</h3>
+      <p>Expanded matrices with every departure minute and draw, broken down into access,
+      waiting, riding, transfers and egress; arrival-time matrices.</p>
+    </div>
+    <div class="card">
+      <h3>Itineraries</h3>
+      <p>Detailed itineraries leg by leg, with their lines and geometry: the fastest trip of
+      each pair, or the alternatives within some minutes of it.</p>
+    </div>
+    <div class="card">
+      <h3>Trip options</h3>
+      <p>peabiru's own trip planner, <code>trip_options()</code>: every trip worth considering
+      on time, fare, transfers and walking, with its legs.</p>
+    </div>
+    <div class="card">
+      <h3>Fares</h3>
+      <p>Fare structures with discounted transfers and a cap: travel times and access within a
+      budget, and the Pareto frontier of time and fare.</p>
+    </div>
+    <div class="card">
+      <h3>Scenarios</h3>
+      <p>Car speeds and cyclists' traffic stress changed per call, by street or by polygon,
+      without rebuilding the network: a what-if is one call.</p>
+    </div>
+    <div class="card">
+      <h3>Terrain</h3>
+      <p>Walking and cycling times that follow the slope of the streets, read from an elevation
+      raster in any common projection, by Tobler's or Minetti's cost.</p>
+    </div>
+  </div>
+  <p>Public transport can be any subset of its modes, reached and left on foot, by bicycle or
+  by car. The network can be inspected: where points snap to the streets, its streets, stops
+  and routes, the dates with service, and the errors of each GTFS feed.</p>
+</section>
+
+<section aria-labelledby="location">
+  <h2 id="location">Where to build <span class="tag ok">new in 0.1.5</span></h2>
+  <div class="two">
+    <div>
+      <p>Travel times say who is far from a school or a health unit. The next question is where a
+      new one should go. <code>locate_facilities()</code> answers it on the same network, by any
+      mode, with the classical models of facility location:</p>
+      <ul class="check">
+        <li><strong>Maximal covering</strong>: with a given number of new units, the sites that
+        bring the most people within a travel time (Church and ReVelle, 1974)</li>
+        <li><strong>Set covering</strong>: the fewest units for everyone to be within it (Toregas
+        et al., 1971)</li>
+        <li><strong>p-median</strong> and <strong>p-center</strong>: the sites that shorten the
+        average trip, or the longest one (Hakimi, 1964)</li>
+        <li><strong>Floating catchment areas</strong>, with <code>floating_catchment()</code>:
+        where supply is short for the demand around it (Luo and Wang, 2003)</li>
+      </ul>
+      <p>The units that already exist count first, so only the people they leave out pull the new
+      sites. The result is made to be mapped: what each candidate place would add, the sites in
+      the order they were chosen, and who each one serves. Solved by heuristics with known
+      guarantees, with no solver to install; in R, Python, JavaScript, Rust and the command line.</p>
+      <p>These models are peabiru's own: they are not part of R5 or r5r. They are in every package since version 0.1.5.
+      Guides: <a href="r/articles/facility-location.html">R</a> ·
+      <a href="python/facility-location/">Python</a> ·
+      <a href="js/facility-location.html">JavaScript</a> ·
+      <a href="rust/facility-location.html">Rust</a>.</p>
+    </div>
+    <figure class="shot">
+      <a href="r/articles/facility-location.html"><img src="assets/figures/location-rmr.svg" width="518" height="677" loading="lazy" alt="A map of the conurbation of Recife with the cells of a grid coloured by the residents, now more than 15 minutes on foot from a primary health care unit, that a new unit there would bring within 15 minutes, and ten numbered sites chosen by maximal covering, four of them close together in the south of Recife."></a>
+      <figcaption><strong>Ten new health units.</strong> In the Recife metropolitan region 74% of
+      the residents are within 15 minutes on foot of a primary health care unit; ten units at the
+      numbered sites would bring 173,902 more people within reach.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section aria-labelledby="gallery">
+  <h2 id="gallery">Gallery</h2>
+  <p>Every figure here is computed by peabiru; each one links to complete examples, in the
+  languages listed under it, whose output on the page is the output they print. First, a whole
+  metropolitan region with its public transport: the 14 municipalities of the Recife metropolitan
+  region (3.7 million people) as one network, from OpenStreetMap and the GTFS feed of Grande Recife
+  Consórcio de Transporte Metropolitano (395 bus routes, the metro and the VLT), at the morning
+  peak of Tuesday 10 November 2026, departures 07:00–07:59. Travel times are those of the
+  timetable, scheduled and not observed; the feed has no rule for the free transfers at the
+  terminals, so nothing here uses fares (the <a href="#gallery-samples">fare figures</a> are on a
+  sample network).</p>
+  <div class="gallery">
+    <figure class="shot wide">
+      <a href="demo/"><img src="assets/figures/demo-recife.webp" width="1000" height="651" loading="lazy" alt="The isochrone demo page: a map of Recife with three nested isochrones, 10, 20 and 30 minutes by bicycle, around the clicked point, and a dashed line where the network of the demo ends."></a>
+      <figcaption><strong>Isochrones in the browser.</strong> Click a point, pick a mode: the
+      JavaScript package builds the network and routes in the page, with no server.
+      <span class="ex"><a href="demo/">Open the demo</a> · <a href="js/examples.html">how it works</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#isochrones-by-mode"><img src="assets/figures/isochrones-rmr.svg" width="576" height="734" loading="lazy" alt="Four maps of central Recife and its neighbours, one per mode, with the areas reached from Praça do Derby within 15, 30 and 45 minutes: a small area walking, more cycling, the whole map driving with free-flowing traffic, and arms along the bus corridors and the metro lines with public transport."></a>
+      <figcaption><strong>Isochrones by mode.</strong> From Praça do Derby, in 45 minutes: 108 km² with buses, metro and VLT at the morning peak, 44 by
+      bicycle, 15 on foot.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#isochrones-by-mode">R</a> · <a href="python/example-recife-metropolitan/#isochrones-from-the-centre">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#schools-health-units-and-people-within-reach"><img src="assets/figures/access-rmr.svg" width="576" height="598" loading="lazy" alt="Two maps of the conurbation of Recife with the cells of a grid coloured by the number of public schools reached within 30 minutes, walking and with public transport: with public transport the cells along the corridors that lead to the centre of Recife reach 80 or more."></a>
+      <figcaption><strong>Schools within half an hour.</strong> Cumulative accessibility from 13,096 cells: the average resident reaches 13 public schools on
+      foot and 24 with public transport; in 45 minutes, 26 and 79.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#schools-health-units-and-people-within-reach">R</a> · <a href="python/example-recife-metropolitan/#schools-within-reach">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#from-one-point-to-every-cell"><img src="assets/figures/travel-time-rmr.svg" width="576" height="598" loading="lazy" alt="Two maps of the conurbation of Recife with the cells of a grid coloured by the travel time from Praça do Derby at the morning peak: walking, a patch of five kilometres around the square; with public transport, most of the built-up area within 90 minutes."></a>
+      <figcaption><strong>Travel time from one point.</strong> A matrix from Praça do Derby to every inhabited cell, mapped: 53% of the region's residents
+      are within an hour by public transport, 8% on foot.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#from-one-point-to-every-cell">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#from-one-point-to-every-cell"><img src="assets/figures/reach-rmr.svg" width="547" height="310" loading="lazy" alt="Step curves of the share of the population of the Recife metropolitan region reached from Praça do Derby within 0 to 120 minutes, by mode: driving in free flow reaches 99 percent, public transport 91, cycling 63 and walking 26 in two hours."></a>
+      <figcaption><strong>People within reach, by mode.</strong> The share of the region's 3.7 million residents reached in each number of minutes: within 90,
+      85% by public transport, 44% by bicycle, 17% on foot.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#from-one-point-to-every-cell">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#what-the-metro-and-the-vlt-add"><img src="assets/figures/rail-rmr.svg" width="576" height="547" loading="lazy" alt="A map of the west and south of the conurbation of Recife with the metro and VLT lines and the cells coloured by how many more residents they reach within an hour with the rail lines than with buses alone, and bars of the same gain by municipality: 22% in Camaragibe, 15% in Jaboatão dos Guararapes, 6% in Recife, none in the north."></a>
+      <figcaption><strong>What the metro and the VLT add.</strong> The same call with <code>mode = c("WALK", "BUS")</code>: with the rail lines the average resident
+      reaches 5.9% more people within an hour, 22% more in Camaragibe, and no more in the north.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#what-the-metro-and-the-vlt-add">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#schools-health-units-and-people-within-reach"><img src="assets/figures/municipalities-rmr.svg" width="547" height="374" loading="lazy" alt="A dot plot with one row per municipality of the Recife metropolitan region: the share of the residents of the region that the average resident of the municipality reaches within 60 minutes on foot and with public transport; Recife first with 25 percent, Olinda with 20, the outer municipalities under 5."></a>
+      <figcaption><strong>By municipality.</strong> Within an hour by public transport the average resident of Recife reaches 25% of the region's
+      residents, of Olinda 20%, of Ipojuca 1%.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#schools-health-units-and-people-within-reach">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#how-much-a-trip-varies"><img src="assets/figures/percentiles-rmr.svg" width="547" height="432" loading="lazy" alt="Range bars of the travel time by public transport from each of the 26 integrated terminals of Grande Recife to Praça do Derby over an hour of departures: 5th to 95th percentile, 25th to 75th, and the median, from 13 minutes to 97."></a>
+      <figcaption><strong>How much a trip varies.</strong> Percentiles over the departure window, from the 26 integrated terminals to Praça do Derby: the
+      5th and the 95th are 4 to 26 minutes apart.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#how-much-a-trip-varies">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#how-much-a-trip-varies"><img src="assets/figures/trip-breakdown-rmr.svg" width="547" height="490" loading="lazy" alt="Thirty stacked bars, one per departure minute from 07:00 to 07:29, from the terminal of Camaragibe to Praça de Boa Viagem, split into walking, waiting and riding, with the metro and bus lines taken; totals between 62 and 84 minutes."></a>
+      <figcaption><strong>Trip by trip.</strong> From Camaragibe to Boa Viagem, leaving at 07:00 takes 62 minutes and at 07:01 83: every
+      departure until 07:21 arrives on the same bus.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#how-much-a-trip-varies">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-metropolitan.html#the-options-of-one-trip"><img src="assets/figures/trip-options-rmr.svg" width="547" height="454" loading="lazy" alt="A map of Olinda and Recife with three trips by bus from Praça do Carmo, in Olinda, to Praça de Boa Viagem, and beside it the time, the transfers and the walking of each."></a>
+      <figcaption><strong>The choices of one trip.</strong> From Olinda to Boa Viagem at 07:20: 72 minutes with a transfer, 76 with less walking, or 84 on
+      a single bus: the trips no other beats on time, transfers and walking.
+      <span class="ex"><a href="r/articles/recife-metropolitan.html#the-options-of-one-trip">R</a></span></figcaption>
+    </figure>
+  </div>
+  <p class="muted">Recife metropolitan region: drawn by <code>site/figures/rmr.R</code> from the
+  results of the R package; the Python example prints the same numbers. Streets © OpenStreetMap
+  contributors (ODbL), Geofabrik extract of 2026-11-01. Timetables: Grande Recife Consórcio de
+  Transporte Metropolitano, GTFS feed v2026.10.26, as published by the consortium. Boundaries and
+  population © IBGE (Censo 2022); schools: INEP (Catálogo de Escolas 2023, via geobr). The demo
+  runs on the Porto Alegre sample network credited below.</p>
+  <h3 id="gallery-pe">Recife and Caruaru, from open data</h3>
+  <p>Two cities of Pernambuco, built from scratch: streets cut from OpenStreetMap with osmium,
+  residents placed on a hexagonal grid with the Censo 2022, public schools from INEP and primary
+  health care units from CNES. The worked example repeats every step, for any Brazilian
+  municipality. Streets only: Caruaru has no open GTFS feed, and Recife's public transport is in
+  the figures above.</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/recife-caruaru.html"><img src="assets/figures/nearest-recife.svg" width="576" height="475" loading="lazy" alt="Two maps of Recife covered by hexagons coloured by the walking time from each cell to the nearest public school and to the nearest primary health care unit: almost every inhabited cell is within 15 minutes of a school; health units are farther apart."></a>
+      <figcaption><strong>Walking to school and to the doctor.</strong> Time to the nearest public
+      school and primary health care unit, from 1,107 cells of Recife.
+      <span class="ex"><a href="r/articles/recife-caruaru.html">R</a> · <a href="python/example-recife-caruaru/">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-caruaru.html#travel-time-to-the-nearest-school-and-health-unit"><img src="assets/figures/access-recife-caruaru.svg" width="576" height="374" loading="lazy" alt="Bars of the share of the population within 15 and 30 minutes of the nearest public school and primary health care unit, walking, cycling and driving: Recife ahead of Caruaru on foot and by bicycle, both near everyone by car."></a>
+      <figcaption><strong>Recife and Caruaru, compared.</strong> The share of residents within 15 and
+      30 minutes of a school and a health unit, by mode.
+      <span class="ex"><a href="r/articles/recife-caruaru.html#travel-time-to-the-nearest-school-and-health-unit">R</a> · <a href="python/example-recife-caruaru/#travel-time-to-the-nearest-school-and-health-unit">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-caruaru.html#isochrones-from-the-centre"><img src="assets/figures/isochrones-recife.svg" width="576" height="382" loading="lazy" alt="Three maps around Marco Zero, Recife, with the areas reached within 10, 20 and 30 minutes walking, cycling and driving."></a>
+      <figcaption><strong>Isochrones from Marco Zero.</strong> Walking, cycling and driving from the
+      old centre of Recife.
+      <span class="ex"><a href="r/articles/recife-caruaru.html#isochrones-from-the-centre">R</a> · <a href="python/example-recife-caruaru/#isochrones-from-the-centre">Python</a> · <a href="demo/">demo</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/recife-caruaru.html#travel-time-to-the-nearest-school-and-health-unit"><img src="assets/figures/nearest-caruaru.svg" width="576" height="367" loading="lazy" alt="Two maps of the urban area of Caruaru covered by hexagons coloured by the walking time to the nearest public school and primary health care unit: the centre within 10 minutes of both; rural cells near rural schools but far from health units."></a>
+      <figcaption><strong>Caruaru, in the Agreste.</strong> A compact city in a rural municipality:
+      rural schools are near, health units are in town.
+      <span class="ex"><a href="r/articles/recife-caruaru.html">R</a> · <a href="python/example-recife-caruaru/">Python</a> · <a href="demo/">demo</a></span></figcaption>
+    </figure>
+  </div>
+  <h3 id="gallery-terrain">Terrain: what slopes change</h3>
+  <p>The same streets, routed flat and with an elevation raster, on foot and by bicycle. In
+  Pernambuco: the Recife metropolitan region as one network of 3.7 million people, and six
+  municipalities from the coast to the Sert&atilde;o (Recife, Olinda, Jaboat&atilde;o dos
+  Guararapes, Caruaru, Garanhuns, Petrolina). Outside it, the steepest case: Salvador, in Bahia,
+  whose centre is split by an escarpment. The Copernicus elevation model is checked against the ground first: at 30 m it reads the
+  roofs, which costs a flat district of towers a minute of walking that is not there, so the
+  results use its 90 m version and are on the low side. Streets only, on foot and by bicycle.</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/terrain.html#cities-of-hills-salvador-and-olinda"><img src="assets/figures/terrain-iso-salvador.svg" width="576" height="619" loading="lazy" alt="Four maps of central Salvador with the areas reached from the Praça Municipal within 10, 20 and 30 minutes on foot and by bicycle, flat on the left and with the slopes on the right, where the 30-minute area is 16% smaller on foot and 19% by bicycle."></a>
+      <figcaption><strong>Salvador's escarpment.</strong> With the slopes, the area reached in 30
+      minutes from the Praça Municipal shrinks by 16% on foot and 19% by bicycle.
+      <span class="ex"><a href="r/articles/terrain.html#cities-of-hills-salvador-and-olinda">R</a> · <a href="python/example-terrain/#isochrones-from-the-centre">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/terrain.html#six-municipalities-flat-and-with-slopes"><img src="assets/figures/terrain-pe-shares.svg" width="576" height="403" loading="lazy" alt="Dot plots of the share of residents within 15 minutes of the nearest public school and health unit, walking and cycling, flat and with slopes, for six municipalities of Pernambuco: on foot each loses up to 4 percentage points."></a>
+      <figcaption><strong>Where hills cost the most.</strong> Within 15 minutes' walk of a health
+      unit, Jaboatão loses 3 points with the slopes, Recife 2, Petrolina 1.
+      <span class="ex"><a href="r/articles/terrain.html#six-municipalities-flat-and-with-slopes">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/terrain.html#the-metropolitan-region-as-one-network"><img src="assets/figures/terrain-rmr-penalty.svg" width="576" height="619" loading="lazy" alt="A map of Recife and its neighbours covered by hexagons coloured by the minutes slopes add to the walk to the nearest health unit: nothing on the coastal plain, 2 to 6 minutes on the hills of the north and the west."></a>
+      <figcaption><strong>Minutes the slopes add.</strong> On foot to the nearest health unit, across
+      the metropolitan region: 8% of its residents lose 2 minutes or more, on the hills.
+      <span class="ex"><a href="r/articles/terrain.html#the-metropolitan-region-as-one-network">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/terrain.html#the-metropolitan-region-as-one-network"><img src="assets/figures/terrain-rmr-border.svg" width="576" height="374" loading="lazy" alt="Bars, one per municipality of the Recife metropolitan region, of the share of residents whose nearest school or health unit on foot is in another municipality: 12% and 9% in Paulista, close to zero in the outer municipalities."></a>
+      <figcaption><strong>Across the border.</strong> For 148 thousand residents of the region (4%)
+      the nearest health unit on foot is in another municipality.
+      <span class="ex"><a href="r/articles/terrain.html#the-metropolitan-region-as-one-network">R</a></span></figcaption>
+    </figure>
+  </div>
+  <p class="muted">Terrain: drawn by <code>site/figures/terrain.R</code>. Elevation: Copernicus DEM
+  GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under
+  COPERNICUS by the European Union and ESA; Salvador's population: IBGE, Censo 2022, tracts of
+  Bahia; the other sources are those of Recife and Caruaru.</p>
+  <h3 id="gallery-samples">Fares and frequencies, on the sample networks</h3>
+  <p>Two things the feed of Grande Recife does not have. Fares: on the sample network of Porto
+  Alegre (a part of the city, timetables of May 2019), with a fare structure by mode and a
+  discount on transfers, what a fare budget leaves of the access, the fastest trip within each
+  budget, and the trips no other beats on time, fare and transfers. Headways: on the sample
+  network of São Paulo, lines given by frequency, routed with random schedules.</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/capitals.html#what-a-budget-leaves"><img src="assets/figures/fare-budget-poa.svg" width="576" height="349" loading="lazy" alt="Grouped bars, one group per income quintile, of the mean share of jobs reached within 60 minutes by public transport in the Porto Alegre sample at any fare, with at most two bus fares, and with at most one."></a>
+      <figcaption><strong>What a fare budget leaves.</strong> In the Porto Alegre sample one bus fare keeps 84% of the jobs within an hour, 74% in the poorest fifth and 89% in the richest; two fares keep 98%.
+      <span class="ex"><a href="r/articles/capitals.html#what-a-budget-leaves">R</a> · <a href="python/example-capitals/#what-a-budget-leaves">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#the-frontier-of-a-trip"><img src="assets/figures/pareto-poa.svg" width="576" height="288" loading="lazy" alt="Three step charts of the median travel time of the fastest trip within a fare budget, for three pairs of places in Porto Alegre."></a>
+      <figcaption><strong>Time against fare.</strong> Across town, the R$ 7.20 of two buses with the transfer discount turns a trip of 89 minutes into one of 48; along a corridor a second ride saves one minute.
+      <span class="ex"><a href="r/articles/capitals.html#the-frontier-of-a-trip">R</a> · <a href="python/example-capitals/#the-frontier-of-a-trip">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#the-trips-themselves"><img src="assets/figures/trip-options-poa.svg" width="576" height="315" loading="lazy" alt="A map of Porto Alegre with three trips from Jardim Carvalho to Praia de Belas, and beside it their time, fare and transfers."></a>
+      <figcaption><strong>The choices of one trip.</strong> 53 minutes for R$ 12.00, 57 for R$ 7.20, or 86 for R$ 4.80 with 65 of them on foot: the trips no other beats on time, fare and transfers.
+      <span class="ex"><a href="r/articles/capitals.html#the-trips-themselves">R</a> · <a href="python/example-capitals/#the-trips-themselves">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/trips.html"><img src="assets/figures/percentiles.svg" width="518" height="374" loading="lazy" alt="Range bars of the travel time from one point in São Paulo to 26 others: the nearest are walked with no spread; those reached by bus or metro spread by several minutes."></a>
+      <figcaption><strong>Percentiles on a frequency network.</strong> On the São Paulo sample network, whose
+      lines are given by headway: how much a trip varies, from random schedules with a seed.
+      <span class="ex"><a href="r/articles/trips.html">R</a> · <a href="python/example-trips/">Python</a></span></figcaption>
+    </figure>
+  </div>
+  <h3 id="gallery-scenarios">Scenarios, and a city abroad</h3>
+  <p>What-if questions are arguments of a routing call, on the network as built: a cycle path
+  is a lower level of traffic stress on its streets, congestion a factor on car speeds in an
+  area, a closed avenue a speed of zero, a fare rule an edited table. And nothing is particular
+  to Brazil: the Helsinki capital region, from OpenStreetMap, HSL's timetables and HSY's 250 m
+  grids of residents and jobs. Map data © OpenStreetMap contributors (ODbL); Porto Alegre: the
+  sample network credited above; Helsinki: timetables © HSL 2026 (CC BY 4.0), residents and jobs ©
+  HSY (CC BY 4.0).</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/scenarios-porto-alegre.html#a-new-cycle-path"><img src="assets/figures/scenario-cycle-path.svg" width="576" height="475" loading="lazy" alt="A map of the east of Porto Alegre with the hexagons that gain access to jobs within 20 minutes by bicycle on low-stress streets if Avenida Protásio Alves had a protected cycle path, and one ride from the east end of the avenue to the centre, today and with the path."></a>
+      <figcaption><strong>A new cycle path.</strong> With a protected path on Avenida Protásio
+      Alves, 31% of residents reach more jobs in 20 minutes on a low-stress ride.
+      <span class="ex"><a href="r/articles/scenarios-porto-alegre.html#a-new-cycle-path">R</a> · <a href="python/example-scenarios/#a-new-cycle-path">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/scenarios-porto-alegre.html#congestion-and-a-closed-avenue"><img src="assets/figures/scenario-car.svg" width="576" height="403" loading="lazy" alt="Two maps of Porto Alegre covered by hexagons coloured by how much longer it takes to drive from each cell to all the others: with half speed in the centre, the centre loses most; with Avenida Ipiranga closed, the cells along the avenue lose most."></a>
+      <figcaption><strong>Congestion and a closed avenue.</strong> Half speed within 2 km of the
+      centre adds 0.3 minutes to the average drive; closing Avenida Ipiranga adds 0.7.
+      <span class="ex"><a href="r/articles/scenarios-porto-alegre.html#congestion-and-a-closed-avenue">R</a> · <a href="python/example-scenarios/#congestion-and-a-closed-avenue">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/scenarios-porto-alegre.html#one-more-health-facility"><img src="assets/figures/scenario-health.svg" width="576" height="446" loading="lazy" alt="Two maps of Porto Alegre: on the left, hexagons coloured by the walking time to the nearest health facility; on the right, the minutes saved around the cell where one more facility brings the most residents within 15 minutes."></a>
+      <figcaption><strong>One more health facility.</strong> The best cell for it brings 17,525
+      more people within 15 minutes' walk of one: from 79.0% to 81.2% of the population.
+      <span class="ex"><a href="r/articles/scenarios-porto-alegre.html#one-more-health-facility">R</a> · <a href="python/example-scenarios/#one-more-health-facility">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/scenarios-porto-alegre.html#a-change-in-the-fare-rules"><img src="assets/figures/scenario-fares.svg" width="576" height="281" loading="lazy" alt="Bars of the average number of jobs reachable within 45 minutes by public transport under the sample fare structure, free transfers and no transfer discount, for budgets of R$ 4.80 and R$ 7.20, against the access with any budget."></a>
+      <figcaption><strong>A change in the fare rules.</strong> With one fare to spend, free transfers within the
+      hour raise the jobs the average resident reaches in 45 minutes from 160 to 196 thousand.
+      <span class="ex"><a href="r/articles/scenarios-porto-alegre.html#a-change-in-the-fare-rules">R</a> · <a href="python/example-scenarios/#a-change-in-the-fare-rules">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/helsinki.html"><img src="assets/figures/helsinki-jobs.svg" width="576" height="461" loading="lazy" alt="A map of the Helsinki capital region covered by 250 m cells coloured by the number of jobs reachable within 45 minutes by public transport at the morning peak: the centre of Helsinki and the cells along the metro and railway lines reach the most."></a>
+      <figcaption><strong>Helsinki: jobs within 45 minutes.</strong> By public transport at the
+      morning peak, the average resident reaches 31% of the region's jobs in companies and non-profits.
+      <span class="ex"><a href="r/articles/helsinki.html">R</a> · <a href="python/example-helsinki/">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/helsinki.html#isochrones-from-the-central-station"><img src="assets/figures/helsinki-isochrones.svg" width="576" height="533" loading="lazy" alt="Four maps of the Helsinki capital region with the areas reached from Helsinki Central Station within 15, 30 and 45 minutes walking, cycling, driving and by public transport."></a>
+      <figcaption><strong>Helsinki: isochrones by mode.</strong> From the Central Station, public
+      transport reaches about 240 km² in 45 minutes at the morning peak, cycling 85.
+      <span class="ex"><a href="r/articles/helsinki.html#isochrones-from-the-central-station">R</a> · <a href="python/example-helsinki/#isochrones-from-the-central-station">Python</a></span></figcaption>
+    </figure>
+  </div>
+  <p class="muted">The figures of the sample networks and of Recife and Caruaru are drawn by
+  <code>site/figures/figures.R</code>, <code>site/figures/capitals.R</code> and
+  <code>site/figures/pernambuco.R</code> from the results of the R package; the examples in the
+  other languages print the same numbers. Map data © OpenStreetMap contributors (ODbL); GTFS:
+  EPTC and Trensurb (Porto Alegre), SPTrans (São Paulo); the sample networks of Porto Alegre and
+  São Paulo, here and below, come from the r5r project.
+  Recife and Caruaru: boundaries and population © IBGE (Censo 2022); schools: INEP (Catálogo de
+  Escolas 2023, via geobr); health units: CNES, Ministério da Saúde.</p>
+  <h3 id="gallery-capitals">Brazilian capitals with open GTFS</h3>
+  <p>São Paulo, Rio de Janeiro and Belo Horizonte from the official GTFS feeds of November 2026,
+  on the grid of Ipea's Access to Opportunities Project (residents and income of the Censo 2010,
+  jobs of 2019): the jobs within an hour of every inhabited cell at the morning peak, by income.
+  Rio de Janeiro's feed has buses and BRT only, Belo Horizonte's buses only; Fortaleza's
+  feed ends in July 2026 and no official one was found for Curitiba. The same example goes on to
+  the <a href="#gallery-samples">fare figures</a> above.</p>
+  <div class="gallery">
+    <figure class="shot">
+      <a href="r/articles/capitals.html#by-income"><img src="assets/figures/access-income-capitals.svg" width="576" height="315" loading="lazy" alt="Three panels of box plots, one per city, of the share of the city's formal jobs reached within 60 minutes by public transport from the cells of each income decile: in all three the boxes rise from the poorest decile to the richest."></a>
+      <figcaption><strong>Who reaches the jobs.</strong> In São Paulo the richest tenth reaches 7.9 times as many jobs within an hour as the poorest four tenths; in Rio de Janeiro, by bus and BRT, 2.3 times; in Belo Horizonte 2.0.
+      <span class="ex"><a href="r/articles/capitals.html#by-income">R</a> · <a href="python/example-capitals/#by-income">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#access-at-the-morning-peak"><img src="assets/figures/jobs-60min-spo.svg" width="576" height="708" loading="lazy" alt="A map of the municipality of São Paulo with cells coloured by the share of the city's formal jobs reached within 60 minutes by public transport at the morning peak: highest in the centre, lowest in the far south, east and north."></a>
+      <figcaption><strong>São Paulo.</strong> Half the residents reach 8.1% of the city's 3.46 million formal jobs or less within an hour, from 9,704 cells to 8,482.
+      <span class="ex"><a href="r/articles/capitals.html#access-at-the-morning-peak">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#access-at-the-morning-peak"><img src="assets/figures/jobs-60min-rio.svg" width="576" height="432" loading="lazy" alt="A map of the municipality of Rio de Janeiro with cells coloured by the share of the city's formal jobs reached within 60 minutes by bus and BRT at the morning peak: highest in the centre and the north zone next to it, lowest in the west zone."></a>
+      <figcaption><strong>Rio de Janeiro, by bus and BRT.</strong> Half the residents reach 20.9% of the city's jobs or less within an hour; the feed has no metro, train, light rail or ferry.
+      <span class="ex"><a href="r/articles/capitals.html#access-at-the-morning-peak">R</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#access-at-the-morning-peak"><img src="assets/figures/jobs-60min-bho.svg" width="576" height="730" loading="lazy" alt="A map of the municipality of Belo Horizonte with cells coloured by the share of the city's formal jobs reached within 60 minutes by bus at the morning peak: highest in and around the centre, lowest at the northern and south-western edges."></a>
+      <figcaption><strong>Belo Horizonte, by bus.</strong> A compact city: half the residents reach 71.2% of its jobs or less within an hour.
+      <span class="ex"><a href="r/articles/capitals.html#access-at-the-morning-peak">R</a> · <a href="python/example-capitals/#access-at-the-morning-peak">Python</a></span></figcaption>
+    </figure>
+    <figure class="shot">
+      <a href="r/articles/capitals.html#by-income"><img src="assets/figures/access-compare-capitals.svg" width="576" height="288" loading="lazy" alt="Three panels, for jobs within 60 minutes and public schools and health facilities within 30 minutes, each with one line per city of the mean share of the city's opportunities reached by public transport, by income decile."></a>
+      <figcaption><strong>Jobs, schools, health.</strong> Access to jobs rises with income in the three cities; public schools do not follow: in São Paulo the richest tenth has 0.59 times the schools within half an hour of the poorest four tenths.
+      <span class="ex"><a href="r/articles/capitals.html#by-income">R</a> · <a href="python/example-capitals/#by-income">Python</a></span></figcaption>
+    </figure>
+  </div>
+  <p class="muted">Drawn by <code>site/figures/capitals.R</code>. Map data © OpenStreetMap
+  contributors (ODbL). GTFS: SPTrans (São Paulo; public data, as redistributed by the
+  Mobility Database), Secretaria Municipal de Transportes do Rio de Janeiro (CC BY 4.0),
+  Superintendência de Mobilidade de Belo Horizonte (CC BY); EPTC and Trensurb (the Porto Alegre
+  sample credited above). Cells, population, income, jobs, schools and health facilities: Ipea, Access to
+  Opportunities Project (aopdata; Pereira et al., 2022).</p>
+</section>
+
+<section aria-labelledby="arch">
+  <h2 id="arch">One engine, four packages</h2>
+  <figure>
+    <img src="assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, a Rust crate that builds the network in memory and computes everything; the R package, the Python package, the JavaScript package (WebAssembly) and the command-line tool are thin front-ends over it." width="980" height="470">
+    <figcaption>The network is built once in memory and reused by every query. Nothing runs on a JVM and nothing is cached on disk.</figcaption>
+  </figure>
+</section>
+
+<section aria-labelledby="use">
+  <h2 id="use">Use it</h2>
+  <div class="snippets">
+    <div class="snippet">
+      <h3>R <span class="tag ok">works today</span></h3>
+<pre><code><span class="c"># needs Rust &gt;= 1.81 (https://rustup.rs)</span>
+<span class="c"># pak::pak("StrategicProjects/peabiru-routing@r-package")</span>
+library(peabiru)
+
+data_path &lt;- system.file("extdata/spo", package = "peabiru")
+network &lt;- build_network(data_path)
+points &lt;- read.csv(file.path(data_path, "spo_points.csv"))
+
+ttm &lt;- travel_time_matrix(
+  network, origins = points, destinations = points,
+  mode = c("WALK", "TRANSIT"),
+  departure_datetime = as.POSIXct("2019-05-13 14:00", tz = "America/Sao_Paulo"),
+  time_window = 10, percentiles = c(25, 50, 75), seed = 42
+)</code></pre>
+      <p class="muted">Points as a <code>data.frame</code> or <code>sf</code>; results come back as a <code>data.frame</code>.
+      <a href="r/articles/peabiru.html">Get started</a> · <a href="r/reference/index.html">Reference</a></p>
+    </div>
+    <div class="snippet">
+      <h3>Python <span class="tag ok">works today</span></h3>
+<pre><code><span class="c"># pip install peabiru</span>
+import datetime as dt
+import peabiru
+
+network = peabiru.build_network(peabiru.sample_data_path())
+points = peabiru.sample_points()          <span class="c"># id, lon, lat, opportunities</span>
+
+ttm = peabiru.travel_time_matrix(
+    network, points, points,
+    mode=["WALK", "TRANSIT"],
+    departure_datetime=dt.datetime(2019, 5, 13, 14, 0),
+    percentiles=[25, 50, 75],
+    seed=42,
+)</code></pre>
+      <p class="muted">Points as a pandas <code>DataFrame</code> or a geopandas <code>GeoDataFrame</code>; results come back as a pandas <code>DataFrame</code>.
+      <a href="python/">Get started</a> · <a href="python/reference/">Reference</a></p>
+    </div>
+    <div class="snippet">
+      <h3>JavaScript <span class="tag ok">works today</span></h3>
+<!-- example: site/js/examples/landing.mjs:landing (checked by site/js/run_examples.mjs) -->
+<pre><code><span class="c">// npm install peabiru</span>
+import { readFile } from "node:fs/promises";
+import * as peabiru from "peabiru";
+
+<span class="c">// the sample network of the Python package (python/peabiru/data/spo)</span>
+const network = await peabiru.buildNetwork({
+  pbf: await readFile("spo_osm.pbf"),
+  gtfs: [{ name: "spo_gtfs.zip", data: await readFile("spo_gtfs.zip") }],
+});
+const points = {
+  id: ["a", "b", "c"],
+  lon: [-46.6290, -46.6321, -46.6355],
+  lat: [-23.5563, -23.5577, -23.5601],
+};
+
+const ttm = await peabiru.travelTimeMatrix(network, points, points, {
+  mode: ["WALK", "TRANSIT"],
+  departureDatetime: "2019-05-13 14:00:00",
+  percentiles: [25, 50, 75],
+  seed: 42,
+});</code></pre>
+      <p class="muted">In browsers, bundlers and Node 18+; points as columns or an array of objects; results come back as columns of typed arrays.
+      <a href="js/getting-started.html">Get started</a> · <a href="js/api.html">Reference</a></p>
+    </div>
+    <div class="snippet">
+      <h3>Rust and the command line <span class="tag ok">works today</span></h3>
+<pre><code><span class="c"># cargo add peabiru-core</span>
+use peabiru_core::{build_from_dir, transit_travel_time_matrix, BuildOptions, TransitParams};
+
+<span class="c">// the sample in the repository; any directory with one .pbf and GTFS .zip files</span>
+let network = build_from_dir("r/inst/extdata/spo", &amp;BuildOptions::default())?;
+let mut params = TransitParams::default();
+params.date = 20190513;
+params.departure_time = 14 * 3600;
+params.seed = Some(42);
+let ttm = transit_travel_time_matrix(&amp;network, &amp;points, &amp;points, &amp;params)?;</code></pre>
+<pre><code><span class="c"># the same from the shell, CSV in and out (crate peabiru-cli, binary peabiru)</span>
+peabiru matrix r/inst/extdata/spo --origins r/inst/extdata/spo/spo_points.csv \
+    --mode WALK,TRANSIT --departure 2019-05-13T14:00 --percentiles 25,50,75 \
+    --seed 42 -o ttm.csv</code></pre>
+      <p class="muted"><a href="rust/">The Rust guide</a> · <a href="rust/api/peabiru_core/">API reference</a> ·
+      <a href="rust/cli.html">The command line</a>: matrices, accessibility, isochrones, itineraries,
+      fares and network exports without R or Python, from the crate <code>peabiru-cli</code>
+      (to be published with version 0.1.0; for now built from the repository)</p>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="speed">
+  <h2 id="speed">Speed and memory</h2>
+<!-- BEGIN bench:headline (generated by bench/site/charts.py from site/data/benchmarks.json; do not edit) -->
+<div class="stats"><div class="stat"><span class="stat-v">4.61 s</span><span class="stat-l">peabiru (R), walk + public transport matrix · 316 MiB</span></div><div class="stat stat-other"><span class="stat-v">21.9–111.8 s</span><span class="stat-l">2 other packages on the same task · 1.3–1.6 GiB<br><span class="stat-who">r5r, r5py</span></span></div></div><div class="stats"><div class="stat"><span class="stat-v">0.20 s</span><span class="stat-l">peabiru (R), walking matrix · 233 MiB</span></div><div class="stat stat-other"><span class="stat-v">0.95–120.9 s</span><span class="stat-l">7 other packages on the same task · 472 MiB–1.7 GiB<br><span class="stat-who">cppRouting, igraph, dodgr, r5r, pandana, r5py, networkx</span></span></div></div>
+<p class="stat-note">Porto Alegre, 1,227 × 1,227 points, 4 threads; median of
+3 timed runs after a warm-up; memory is the peak of the whole process. Only r5r and r5py compute the same matrices as peabiru; the street packages use network models of their own, so their times answer a similar but not identical question (the differences are measured on the benchmarks page).
+Measured 2026-11-12; <a href="benchmarks.html">methodology, all tasks and how the results differ</a>.</p>
+<!-- END bench:headline -->
+</section>
+
+<section aria-labelledby="status">
+  <h2 id="status">Status</h2>
+  <p>Early development: on crates.io, PyPI and npm (CRAN to follow); the interfaces may
+  still change. Options that are not implemented are errors, never silently ignored.</p>
+  <div class="two">
+    <div>
+      <h3>Implemented</h3>
+      <ul class="check">
+        <li>Network from one <code>.pbf</code>, any number of GTFS feeds (schedules and frequencies) and an optional elevation raster; feeds with errors of priority <code>HIGH</code> are refused</li>
+        <li><code>travel_time_matrix()</code>: walk, bicycle, car; transit (any subset of its modes) reached and left on foot, by bicycle or by car</li>
+        <li><code>accessibility()</code> with all five decay functions</li>
+        <li><code>expanded_travel_time_matrix()</code> and <code>arrival_travel_time_matrix()</code></li>
+        <li><code>isochrone()</code>: polygons from a travel-time surface, or the street segments reached</li>
+        <li><code>detailed_itineraries()</code>: the fastest trip or the alternatives, leg by leg</li>
+        <li><code>trip_options()</code>: the trips not dominated on time, fare, transfers and walking, over the departure window</li>
+        <li>Fares: <code>setup_fare_structure()</code>, <code>read_fare_structure()</code>, <code>write_fare_structure()</code>, <code>max_fare</code> and <code>pareto_frontier()</code></li>
+        <li>Slope costs from elevation (Tobler, Minetti); car speed and traffic stress scenarios</li>
+        <li><code>find_snap()</code>, <code>street_network_bbox()</code>, <code>street_network_to_sf()</code>, <code>transit_network_to_sf()</code>, <code>check_transit_availability()</code>, <code>get_gtfs_errors()</code></li>
+        <li>Monte Carlo draws for frequency-based feeds, reproducible with a <code>seed</code>; CSV output with <code>output_dir</code> (R and Python)</li>
+        <li><code>locate_facilities()</code> (maximal covering, set covering, p-median, p-center) and <code>floating_catchment()</code></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Not supported</h3>
+      <ul class="todo">
+        <li>Fare structures that name a fare calculator instead of fare rules (fares follow the rules of the structure: a fare per route type, discounted transfers, a cap)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="compat">
+  <h2 id="compat">Checked results</h2>
+  <p>The R, Python and JavaScript packages have the same routing and network functions (in
+  camelCase in JavaScript, which has no <code>output_dir</code>), over one engine. The
+  repository keeps reference results for every function on the sample networks, and each push
+  is checked against them value by value on Linux, macOS and Windows. Each package has one page
+  comparing it with r5r: <a href="r/articles/coming-from-r5r.html">R</a>,
+  <a href="python/coming-from-r5/">Python</a>, <a href="js/differences.html">JavaScript</a>,
+  <a href="rust/parity.html">Rust</a>.</p>
+</section>
+
+<section aria-labelledby="credits">
+  <h2 id="credits">Credits</h2>
+  <p>The routing logic is a port of <a href="https://github.com/conveyal/r5">Conveyal's R5</a>
+  (MIT licence). The fare calculator and parts of the trip planner are translated from the Java
+  code of <a href="https://github.com/ipea/r5r">r5r</a> (MIT licence, © r5r contributors; developed
+  at Ipea), and many functions share their names, arguments and result layouts with r5r's.
+  Polygon isochrones port the algorithm of
+  <a href="https://github.com/r-lib/isoband">isoband</a> (MIT), and parts of
+  <a href="https://commons.apache.org/proper/commons-math/">Apache Commons Math</a> 3
+  (Apache-2.0) and fdlibm are translated, so that the numbers are the same on every platform. The name comes from the Peabiru, the pre-Columbian network of
+  trails that crossed South America from the Atlantic coast to the Andes.</p>
+</section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>peabiru · MIT licence · <a href="https://github.com/StrategicProjects/peabiru-routing">source</a></p>
+    <p>Authors: André Leite, Marcos Wasiliew, Hugo Vasconcelos, Carlos Amorim, Diogo Bezerra, Júlia Nascimento Barreto.</p>
+  </div>
+</footer>
+</body>
+</html>

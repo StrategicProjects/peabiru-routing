@@ -1,0 +1,2361 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>peabiru for Rust</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Guide to the peabiru-core crate and the peabiru command-line tool: a multimodal routing engine for OpenStreetMap and GTFS networks, written in Rust.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-3696a9e8.svg">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/peabiru-ab93dd35.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-41490c6b.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-31e3dfe1.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">peabiru for Rust</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/StrategicProjects/peabiru-routing" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="peabiru-for-rust"><a class="header" href="#peabiru-for-rust">peabiru for Rust</a></h1>
+<img src="../assets/logo.svg" alt="peabiru" width="252" height="64">
+<p><a href="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml"><img src="https://github.com/StrategicProjects/peabiru-routing/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/StrategicProjects/peabiru-routing/blob/main/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+<a href="https://lifecycle.r-lib.org/articles/stages.html#experimental"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a>
+<a href="#getting-started"><img src="https://img.shields.io/badge/rustc-1.81%2B-blue.svg" alt="rustc 1.81+"></a>
+<a href="https://crates.io/crates/peabiru-core"><img src="https://img.shields.io/crates/v/peabiru-core.svg" alt="crates.io"></a>
+<a href="https://docs.rs/peabiru-core"><img src="https://docs.rs/peabiru-core/badge.svg" alt="docs.rs"></a></p>
+<p><code>peabiru-core</code> is a multimodal routing engine written in Rust: it builds a
+network in memory from an OpenStreetMap extract (<code>.pbf</code>), GTFS public
+transport feeds (<code>.zip</code>) and, optionally, an elevation raster (<code>.tif</code>), and
+computes travel-time matrices, accessibility, per-trip (expanded and
+arrival) matrices, isochrones, detailed itineraries, fares and Pareto
+frontiers on it, by walking, cycling, driving and public transport. It is a Rust port of Conveyal’s <a href="https://github.com/conveyal/r5">R5</a> routing engine.
+It needs no Java runtime, keeps nothing on disk, and spreads the origins of
+each query over threads.</p>
+<blockquote>
+<p><strong>Authorship.</strong> peabiru is an independent project. Its routing model is that of
+Conveyal’s <a href="https://github.com/conveyal/r5">R5</a>, and its fare calculator and parts of its trip
+planner are translated from <a href="https://github.com/ipea/r5r">r5r</a> (Ipea); both are
+MIT-licensed, and their notices are kept in <code>LICENSE-THIRD-PARTY</code>. peabiru is not
+affiliated with or endorsed by Conveyal, Ipea or the r5r team. The port was written
+with the assistance of AI coding tools.</p>
+</blockquote>
+<p>The crate is the engine behind four front-ends:</p>
+<ul>
+<li>the R package <code>peabiru</code> (<a href="../r/index.html">its documentation</a>);</li>
+<li>the Python package <code>peabiru</code> (<a href="../python/index.html">its documentation</a>),
+which returns pandas data frames;</li>
+<li>the JavaScript package <code>peabiru</code> (<a href="../js/index.html">its documentation</a>),
+the crate compiled to WebAssembly, for browsers and Node;</li>
+<li>the <code>peabiru</code> command-line tool (crate <code>peabiru-cli</code>), described in
+<a href="#the-command-line">The command line</a>.</li>
+</ul>
+<p>This guide is for using the crate directly from Rust, and for the command
+line. The examples are the files in <code>crates/peabiru-core/examples/</code> of the
+repository, included here verbatim and compiled by <code>cargo build --examples</code>;
+they run on the small São Paulo network bundled with the R package.</p>
+<pre><code class="language-sh">cargo run --release -p peabiru-core --example transit_matrix
+</code></pre>
+<h2 id="status"><a class="header" href="#status">Status</a></h2>
+<p>Published on <a href="https://crates.io/crates/peabiru-core">crates.io</a>; this guide
+follows the repository. Implemented:</p>
+<ul>
+<li>street matrices (walk, bicycle, car), with car turn costs and turn
+restrictions, and contraction hierarchies that speed up large matrices
+without changing them;</li>
+<li>public transport matrices: any subset of the transit modes, reached and
+left on foot, by bicycle or by car, with percentiles and Monte Carlo draws
+for frequency-based feeds;</li>
+<li>accessibility with five decay functions;</li>
+<li>expanded and arrival matrices;</li>
+<li>isochrones (polygons and street lines);</li>
+<li>detailed itineraries: the fastest trip, or the alternatives;</li>
+<li>fares, travel times within a budget and Pareto frontiers of time and fare;</li>
+<li>slope costs from an elevation raster (Tobler, Minetti);</li>
+<li>scenarios: car speeds and levels of traffic stress changed per call;</li>
+<li>network inspection (snapping, the street and transit networks, service
+dates) and the GTFS errors of each feed, with the refusal of feeds with
+errors of priority <code>HIGH</code>;</li>
+<li>CSV output, one file per origin.</li>
+</ul>
+<p>Not supported: a fare structure that names a fare calculator (a <code>type</code>)
+instead of fare rules; it is an error, like every request the crate does
+not support. For how the results are checked, see the
+<a href="#compared-with-r5r">comparison with r5r</a>.</p>
+<p>The API is a small set of functions and types at the root of the crate;
+the engine’s internals are private, and the parameter structs are
+non-exhaustive, so that new fields and functions can be added without
+breaking your code. It may still change before 1.0. The
+<a href="#api-reference">API reference</a> (rustdoc) documents the current one.</p>
+<h2 id="credits"><a class="header" href="#credits">Credits</a></h2>
+<p>The routing model follows Conveyal’s <a href="https://github.com/conveyal/r5">R5</a>
+(MIT, © Conveyal), from which the routing logic is ported. The fare calculator and parts of
+the trip planner are translated from the Java code of
+<a href="https://github.com/ipea/r5r">r5r</a> (MIT, © r5r contributors; developed at
+Ipea). Polygon isochrones port the
+algorithm of the R package isoband (MIT); the exponential of the decay
+functions and other numerics are translated from Apache Commons Math 3 (Apache-2.0),
+and the trigonometry of the raster projections from fdlibm. The
+notices are in <code>LICENSE-THIRD-PARTY</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h1>
+<h2 id="add-the-crate"><a class="header" href="#add-the-crate">Add the crate</a></h2>
+<p>The crate is on <a href="https://crates.io/crates/peabiru-core">crates.io</a>:</p>
+<pre><code class="language-toml">[dependencies]
+peabiru-core = "0.1"
+</code></pre>
+<p>The minimum supported Rust version is 1.81.</p>
+<h2 id="input-data"><a class="header" href="#input-data">Input data</a></h2>
+<p>A network is built from one OpenStreetMap extract in PBF format and, for
+public transport, any number of GTFS feeds. The convention is a directory
+holding exactly these files:</p>
+<pre><code class="language-text">data/spo/
+├── spo_osm.pbf      # streets
+├── spo_gtfs.zip     # public transport (optional, several allowed)
+└── elevation.tif    # elevation (optional, read with BuildOptions::elevation)
+</code></pre>
+<p>Files are recognised by their extension in lower case only: a
+<code>map.PBF</code> or a <code>feed.ZIP</code> in the directory is ignored.</p>
+<p>The examples use <code>r/inst/extdata/spo</code> in the repository, a small network
+around Avenida Paulista, in São Paulo (cut from the sample data of the r5r project), with 27
+points in <code>spo_points.csv</code>; pass another directory as
+the first argument to use your own data.</p>
+<h2 id="build-a-network"><a class="header" href="#build-a-network">Build a network</a></h2>
+<p><code>peabiru_core::build_from_dir</code> reads the directory, builds the street
+network and the transit layer, links the stops to the streets and finds
+the walking transfers between them, and returns a <code>Network</code>:</p>
+<pre><code class="language-rust ignore">use peabiru_core::{build_from_dir, BuildOptions};
+
+let network = build_from_dir("r/inst/extdata/spo", &amp;BuildOptions::default())?;
+for w in network.build_warnings() {
+    eprintln!("warning: {w}"); // feeds built from anyway, elevation voids, ...
+}
+let streets = network.street();
+println!("{} vertices, {} edges", streets.n_vertices(), streets.n_edges());
+if let Some(transit) = network.transit() {
+    println!("{} stops in {} feeds", transit.n_stops(), transit.feed_ids().len());
+}</code></pre>
+<p><code>BuildOptions::default()</code> uses all cores to decode the PBF file; set
+<code>n_threads</code> on it to use fewer. The build
+fails when a GTFS feed has errors of priority <code>HIGH</code> (set
+<code>ignore_gtfs_errors</code> to build what can be read; see
+<a href="#feeds-with-errors-of-priority-high">Inspecting a network</a>), and
+<code>elevation</code> applies slope costs from a <code>.tif</code> raster in the directory (see
+<a href="#elevation">Elevation</a>). For street-only routing,
+<code>peabiru_core::build_network(path_to_pbf, &amp;opts)</code> reads just the <code>.pbf</code>.
+<code>build_from_bytes</code> builds the same network from the files’ bytes, for
+programs without a file system (the JavaScript package uses it).</p>
+<p>The network is read-only data in memory: share it between threads by
+reference; every query function takes <code>&amp;Network</code>, so the streets and the
+public transport layer linked to them always go together. Its contents are
+private; <code>network.street()</code> (<code>n_vertices()</code>, <code>bbox()</code>, …) and
+<code>network.transit()</code> (<code>n_stops()</code>, <code>feed_reports()</code>, …; <code>None</code> without
+GTFS feeds) describe it. Functions that route by public transport return
+<code>RouteError::Invalid</code> on a network without it.</p>
+<h2 id="points"><a class="header" href="#points">Points</a></h2>
+<p>Points are <code>(lat, lon)</code> pairs in WGS 84 degrees, in the order you want the
+results. Origins and destinations are separate slices; nothing requires them
+to be the same.</p>
+<h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
+<p>Parameter structs (<code>RouteParams</code> for streets, <code>TransitParams</code> for public
+transport, <code>AccessibilityParams</code>, <code>ItineraryParams</code>, <code>BuildOptions</code>) implement <code>Default</code> with
+the defaults of the R, Python and JavaScript packages; start from it and set only what
+differs:</p>
+<pre><code class="language-rust ignore">use peabiru_core::{street_travel_time_matrix, Mode, RouteParams};
+
+let mut params = RouteParams::default();
+params.max_trip_duration = 60;
+let m = street_travel_time_matrix(&amp;network, &amp;points, &amp;points, Mode::Bicycle, &amp;params)?;
+println!("{:?} min from the first point to the second", m.get(0, 1));</code></pre>
+<p>The structs are non-exhaustive (later versions may add fields), so they
+cannot be written as struct literals outside the crate, not even with
+<code>..Default::default()</code>. Invalid values are rejected with
+<code>RouteError::Invalid</code> before any routing.</p>
+<p>Next: <a href="#how-it-works">how the engine works</a>, or straight to the examples,
+starting with <a href="#street-travel-time-matrices">street matrices</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="how-it-works"><a class="header" href="#how-it-works">How it works</a></h1>
+<p>These diagrams describe what the engine computes and in which order: how
+the network is built, how streets and public transport are searched, and how
+the results are summarised. Every step has fixed rules for rounding and
+tie-breaking, so the same inputs give the same outputs whatever the number of
+threads. The data structures behind the steps are an implementation detail
+and change as the engine is optimised.</p>
+<h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<img src="../assets/diagrams/architecture.svg" alt="Architecture: one OpenStreetMap .pbf and zero or more GTFS .zip feeds go into peabiru-core, which builds the network in memory and computes every result; the R package, the Python package, the JavaScript package (WebAssembly) and the command line are front-ends over it." width="980" height="470">
+<h2 id="building-the-network"><a class="header" href="#building-the-network">Building the network</a></h2>
+<img src="../assets/diagrams/network-build.svg" alt="Network build in eight steps: read the extract; ways to edges with permissions, speeds and traffic stress; clean up (intersection stress, islands); index, park-and-ride and turn restrictions; read the GTFS feeds; trips to patterns; link stops to streets; walking tables for transfers (1 km) and egress (2 km)." width="980" height="470">
+<p>In the API: steps 1 to 4 are <code>build_network</code>; <code>build_from_dir</code> runs them and
+steps 5 to 8, and returns the <code>Network</code> every query takes.</p>
+<h2 id="street-routing"><a class="header" href="#street-routing">Street routing</a></h2>
+<img src="../assets/diagrams/street-routing.svg" alt="Street routing: link each point to the nearest street open to the mode, within 300 m or else 1600 m; search directed edges from the origin, earliest arrival first, up to the time limit; reach each destination through either end of its edge. Edge costs: walking speed; bike speed up to max_lts, else walking the bike; car speeds, turn costs and turn restrictions." width="980" height="512">
+<h2 id="public-transport"><a class="header" href="#public-transport">Public transport</a></h2>
+<img src="../assets/diagrams/transit-matrix.svg" alt="Transit travel-time matrix: walk from the origin; RAPTOR over each departure minute, latest first, each minute reusing the later one&#39;s state, with Monte Carlo draws for frequency-based trips; walk from stops to each destination; percentiles of the iteration times." width="980" height="560">
+<p>RAPTOR works in rounds: round <em>k</em> finds the earliest arrival at every stop
+using <em>k</em> vehicles, so <code>max_rides</code> is the number of rounds. Running the
+minutes of the window from the last to the first lets each minute start from
+the results of the later one (range RAPTOR). For frequency-based trips, each
+minute is repeated <code>draws_per_minute</code> times with random offsets; the random
+generator is a Mersenne Twister seeded from <code>seed</code> and the origin’s
+coordinates, so a given <code>seed</code> gives the same numbers on every run and with
+any number of threads.</p>
+<h2 id="accessibility"><a class="header" href="#accessibility">Accessibility</a></h2>
+<img src="../assets/diagrams/accessibility.svg" alt="Accessibility is the sum over destinations of opportunities times a decay weight of the travel-time percentile in seconds; the five decay functions are drawn for a 30 minute cutoff." width="980" height="420">
+<h2 id="expanded-and-arrival-matrices"><a class="header" href="#expanded-and-arrival-matrices">Expanded and arrival matrices</a></h2>
+<img src="../assets/diagrams/expanded-arrival.svg" alt="Expanded matrix: one row per departure minute and draw with the trip breakdown. Arrival matrix: departures scanned from the latest minute back, keeping the first trip that arrives in time." width="980" height="520">
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="street-travel-time-matrices"><a class="header" href="#street-travel-time-matrices">Street travel-time matrices</a></h1>
+<p><code>street_travel_time_matrix</code> computes walking, cycling or driving times
+between every origin and every destination (in R, Python and JavaScript,
+<code>travel_time_matrix(mode = "WALK" | "BICYCLE" | "CAR")</code>):</p>
+<pre><code class="language-rust ignore">pub fn street_travel_time_matrix(
+    network: &amp;Network,
+    origins: &amp;[(f64, f64)],
+    destinations: &amp;[(f64, f64)],
+    mode: Mode,
+    params: &amp;RouteParams,
+) -&gt; Result&lt;StreetMatrix, RouteError&gt;</code></pre>
+<p>The result holds whole minutes, rounded down, for every origin and
+destination; <code>None</code> where there is no time: a point that cannot be linked to
+a street open to the mode, an unreachable destination, or a trip longer than
+<code>max_trip_duration</code>. <code>get(origin, destination)</code> reads one value,
+<code>row(origin)</code> and <code>rows()</code> give the rows, and <code>into_vec()</code> hands over the
+whole buffer, row by row, without copying.</p>
+<p><code>RouteParams::default()</code> holds the defaults: <code>walk_speed = 3.6</code>,
+<code>bike_speed = 12.0</code>, <code>max_lts = 2</code>, <code>max_trip_duration = 120</code>,
+<code>n_threads = 0</code> (all cores), no <a href="#scenarios-car-speeds-and-traffic-stress">scenario</a>, and
+<code>engine = StreetEngine::Auto</code>. The engine only decides how the times are
+found, never what they are: <code>Search</code> runs a search from every origin,
+<code>Hierarchy</code> builds a contraction hierarchy of the network (kept in the
+network for later calls) and answers from it, and <code>Auto</code> builds one when
+enough origins make it pay off. Car routing on a network with turn
+restrictions always searches. Change the fields you need on a default value
+(<code>let mut p = RouteParams::default(); p.max_lts = 3;</code>). Origins are spread
+over the threads; the result does not depend on how many there are.</p>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<pre><code class="language-rust ignore">//! Street-only travel-time matrix: walking, cycling and driving.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example street_matrix [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::{build_network, street_travel_time_matrix, BuildOptions, Mode, RouteParams};
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let points = common::read_points(&amp;dir, &amp;[]);
+
+    // The street network needs only the .pbf file.
+    let pbf = std::fs::read_dir(&amp;dir)?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .find(|p| p.extension().is_some_and(|x| x == "pbf"))
+        .ok_or("no .pbf file in the data directory")?;
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let net = build_network(&amp;pbf, &amp;opts)?;
+    println!(
+        "{} vertices, {} directed edges",
+        net.street().n_vertices(),
+        net.street().n_edges()
+    );
+
+    // The defaults: 3.6 km/h walking, 12 km/h cycling, max_lts 2, 120 min.
+    let mut params = RouteParams::default();
+    params.n_threads = 2;
+    let n = points.coords.len();
+    for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
+        // Origins x destinations, whole minutes; None = no time.
+        let m = street_travel_time_matrix(&amp;net, &amp;points.coords, &amp;points.coords, mode, &amp;params)?;
+        let reached = m.as_slice().iter().filter(|t| t.is_some()).count();
+        println!(
+            "{mode:?}: {reached} of {} pairs reached; {} -&gt; {}: {:?} min",
+            n * n,
+            points.ids[0],
+            points.ids[n - 1],
+            m.get(0, n - 1)
+        );
+    }
+    Ok(())
+}</code></pre>
+<h2 id="stopping-a-call"><a class="header" href="#stopping-a-call">Stopping a call</a></h2>
+<p>The two routing parameter structs, <code>RouteParams</code> and <code>TransitParams</code>, carry
+a <code>CancelToken</code> in their <code>cancel</code> field. Keep a clone, and call <code>cancel()</code> on
+it from another thread to stop the call:</p>
+<pre><code class="language-rust ignore">let params = RouteParams::default();
+let stop = params.cancel.clone();
+// from another thread: stop.cancel();
+match street_travel_time_matrix(&amp;network, &amp;origins, &amp;destinations, Mode::Car, &amp;params) {
+    Ok(matrix) =&gt; { /* ... */ }
+    Err(RouteError::Cancelled) =&gt; { /* stopped; there is no partial result */ }
+    Err(e) =&gt; { /* a parameter or an input was rejected: e.to_string() says why */ }
+}</code></pre>
+<p><code>RouteError</code> is non-exhaustive, so a <code>match</code> on it needs a catch-all arm.</p>
+<p>The workers look at the token between origins and, in the transit functions,
+at every departure minute. A cancelled token stays cancelled, so use fresh
+parameters for the next call. Building the network cannot be stopped.</p>
+<h2 id="accessibility-on-streets"><a class="header" href="#accessibility-on-streets">Accessibility on streets</a></h2>
+<p><code>street_accessibility</code> runs the same search, but keeps each origin’s times
+in seconds, before rounding, only as long as it takes to sum the
+opportunities, so no matrix is held in memory (see
+<a href="#accessibility-1">Accessibility</a>).</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="public-transport-matrices"><a class="header" href="#public-transport-matrices">Public transport matrices</a></h1>
+<p><code>transit_travel_time_matrix</code> is the engine of
+<code>travel_time_matrix(mode = c("WALK", "TRANSIT"))</code> in R, Python and
+JavaScript: walk (or cycle, or drive) to a stop, ride up to <code>max_rides</code>
+vehicles with walking transfers, walk (or cycle, or drive) to the
+destination, or make the whole trip by the street mode, for every minute of
+the departure window; then percentiles.</p>
+<pre><code class="language-rust ignore">pub fn transit_travel_time_matrix(
+    network: &amp;Network,
+    origins: &amp;[(f64, f64)],
+    destinations: &amp;[(f64, f64)],
+    p: &amp;TransitParams,
+) -&gt; Result&lt;TransitMatrix, RouteError&gt;</code></pre>
+<p>The result holds, for every origin and destination, one time per percentile,
+in whole minutes (rounded down), with the percentiles in ascending order
+(<code>percentiles()</code> lists them). A pair has times when its lowest percentile is
+within <code>max_trip_duration</code>; higher percentiles beyond it are <code>None</code>.
+<code>get(origin, destination)</code> gives a pair’s times, one per percentile, and
+<code>into_vec()</code> the whole buffer without copying (origin, then destination,
+then percentile).</p>
+<p><code>TransitParams::default()</code> holds the defaults of the R, Python and JavaScript packages;
+change the fields you need on it (<code>let mut p = TransitParams::default(); p.date = 20190513;</code>):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>date</code></td><td>—</td><td>service date as <code>yyyymmdd</code> (required: the default, 0, is rejected)</td></tr>
+<tr><td><code>departure_time</code></td><td>0</td><td>seconds after midnight</td></tr>
+<tr><td><code>time_window</code></td><td>10</td><td>departure minutes, starting at <code>departure_time</code></td></tr>
+<tr><td><code>percentiles</code></td><td><code>[50]</code></td><td>1 to 5 values in 1..=99</td></tr>
+<tr><td><code>max_walk_time</code></td><td>120</td><td>minutes, for each walk</td></tr>
+<tr><td><code>max_trip_duration</code></td><td>120</td><td>minutes</td></tr>
+<tr><td><code>walk_speed</code></td><td>3.6</td><td></td></tr>
+<tr><td><code>max_rides</code></td><td>3</td><td>vehicles per trip</td></tr>
+<tr><td><code>draws_per_minute</code></td><td>5</td><td>Monte Carlo draws, frequency-based trips only</td></tr>
+<tr><td><code>seed</code></td><td><code>None</code></td><td><code>Some(n)</code> makes the draws reproducible</td></tr>
+<tr><td><code>mode</code></td><td><code>Mode::Walk</code></td><td>street mode to public transport, and of the trip without it</td></tr>
+<tr><td><code>egress_mode</code></td><td><code>Mode::Walk</code></td><td>street mode from public transport to the destination</td></tr>
+<tr><td><code>transit_modes</code></td><td>all</td><td>the public transport modes to ride (<code>TransitMode::Bus</code>, <code>Rail</code>, <code>Subway</code>, …)</td></tr>
+<tr><td><code>bike_speed</code></td><td>12</td><td>for bicycle access and egress</td></tr>
+<tr><td><code>max_lts</code></td><td>2</td><td>highest level of traffic stress for bicycle access</td></tr>
+<tr><td><code>max_bike_time</code>, <code>max_car_time</code></td><td>120</td><td>minutes, for bicycle and car access and egress</td></tr>
+<tr><td><code>fare_structure</code>, <code>max_fare</code></td><td><code>None</code>, infinity</td><td>see <a href="#fares-and-pareto-frontiers">Fares</a></td></tr>
+<tr><td><code>scenario</code></td><td>no change</td><td>see <a href="#scenarios-car-speeds-and-traffic-stress">Scenarios</a></td></tr>
+<tr><td><code>n_threads</code></td><td>0</td><td>0 = all cores</td></tr>
+<tr><td><code>cancel</code></td><td>a new token</td><td>see <a href="#stopping-a-call">Stopping a call</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>An unlimited walk (<code>max_walk_time = Inf</code> in R) corresponds to
+<code>max_walk_time = max_trip_duration</code> here, and likewise for <code>max_bike_time</code>
+and <code>max_car_time</code>.</p>
+<p>By bicycle or car, the access search goes on on foot from wherever the
+vehicle got, within the same time limit, so that stops in
+pedestrian-only areas are reached too. A bicycle or car egress links every
+stop again by that mode.</p>
+<h2 id="example-1"><a class="header" href="#example-1">Example</a></h2>
+<pre><code class="language-rust ignore">//! Walk + public transport travel-time matrix over a departure window.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example transit_matrix [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::{build_from_dir, transit_travel_time_matrix, BuildOptions, TransitParams};
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let points = common::read_points(&amp;dir, &amp;[]);
+
+    // One .pbf plus every GTFS .zip of the directory.
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    // The stops are linked to the streets, and the transfers between them
+    // found, once, when the network is built.
+    let net = build_from_dir(&amp;dir, &amp;opts)?;
+    let layer = net.transit().ok_or("the directory has no GTFS feed")?;
+    println!("{} stops, {} patterns", layer.n_stops(), layer.n_patterns());
+
+    // Monday 2019-05-13, departures from 14:00 (seconds after midnight)
+    // over 10 minutes; a seed fixes the draws of the frequency-based feed;
+    // the defaults for everything else.
+    let mut params = TransitParams::default();
+    params.date = 20190513;
+    params.departure_time = 14 * 3600;
+    params.time_window = 10;
+    params.percentiles = vec![25, 50, 75];
+    params.seed = Some(42);
+    params.n_threads = 2;
+    // Whole minutes at each percentile; None = no time.
+    let m = transit_travel_time_matrix(&amp;net, &amp;points.coords, &amp;points.coords, &amp;params)?;
+    for j in 0..5 {
+        println!(
+            "{} -&gt; {}: {:?} min at percentiles {:?}",
+            points.ids[0],
+            points.ids[j],
+            m.get(0, j),
+            m.percentiles()
+        );
+    }
+    Ok(())
+}</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="accessibility-1"><a class="header" href="#accessibility-1">Accessibility</a></h1>
+<p><code>transit_accessibility</code> (walk + public transport) and
+<code>street_accessibility</code> (one street mode) compute what <code>accessibility()</code>
+returns in R, Python and JavaScript: for each origin, the sum over destinations of the opportunities at the
+destination times a decay weight of the travel time.</p>
+<img src="../assets/diagrams/accessibility.svg" alt="Accessibility is the sum over destinations of opportunities times a decay weight of the travel time; five decay functions drawn for a 30 minute cutoff." width="980" height="420">
+<ul>
+<li><code>Destinations::new(points, opportunities)</code> pairs the destination points
+with one column of counts per kind of opportunity (<code>opportunities[k][j]</code>).
+Counts that are zero, negative or NaN add nothing.</li>
+<li><code>AccessibilityParams</code> holds the cutoffs (minutes, up to 12) and the
+<code>DecayFunction</code>: <code>Step</code>, <code>Exponential</code>, <code>FixedExponential { decay_constant }</code>,
+<code>Linear { width_minutes }</code> or <code>Logistic { standard_deviation_minutes }</code>.
+Its default: one cutoff of 30 minutes, <code>Step</code>.</li>
+<li>The result, <code>Accessibility</code>, has one value per origin, opportunity column,
+percentile and cutoff; <code>get(origin, opportunity, percentile, cutoff)</code> reads
+one, and <code>values()</code> gives them all in that order (the cutoff varying
+fastest).</li>
+</ul>
+<p>The travel time given to the decay function is the percentile in seconds,
+not rounded to minutes, and the exponential is table-based (translated from
+<code>FastMath.exp</code> of Apache Commons Math 3) rather than the platform’s <code>exp</code>, so the values do not
+depend on the C library.</p>
+<p>The packages adjust the trip limits before routing: with
+<code>Step</code>, <code>max_trip_duration</code> becomes the largest cutoff, and an unlimited
+<code>max_walk_time</code> becomes <code>max_trip_duration</code>. <code>accessibility_trip_limits</code>
+applies the same rules, so the crate gives the packages’ numbers for their
+arguments.</p>
+<h2 id="example-2"><a class="header" href="#example-2">Example</a></h2>
+<pre><code class="language-rust ignore">//! Access to jobs by walking and public transport, with a logistic decay.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example accessibility [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::{
+    accessibility_trip_limits, build_from_dir, transit_accessibility, AccessibilityParams,
+    BuildOptions, DecayFunction, Destinations, TransitParams,
+};
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    // The points file has one column per kind of opportunity.
+    let points = common::read_points(&amp;dir, &amp;["jobs"]);
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let net = build_from_dir(&amp;dir, &amp;opts)?;
+
+    let decay = DecayFunction::Logistic {
+        standard_deviation_minutes: 5.0,
+    };
+    let cutoffs = vec![15, 30];
+    // The limits that follow from max_trip_duration = 120, max_walk_time = Inf.
+    let (max_trip, max_walk) = accessibility_trip_limits(&amp;decay, Some(&amp;cutoffs), 120, None, false)?;
+    let mut params = TransitParams::default();
+    params.date = 20190513;
+    params.departure_time = 14 * 3600;
+    params.max_trip_duration = max_trip;
+    params.max_walk_time = max_walk;
+    params.seed = Some(42);
+    params.n_threads = 2;
+    let destinations = Destinations::new(&amp;points.coords, &amp;points.columns);
+    let mut a = AccessibilityParams::default();
+    a.cutoffs = cutoffs;
+    a.decay = decay;
+    let acc = transit_accessibility(&amp;net, &amp;points.coords, &amp;destinations, &amp;params, &amp;a)?;
+    // One value per origin, opportunity column, percentile and cutoff.
+    for (i, id) in points.ids.iter().enumerate().take(5) {
+        println!(
+            "{id}: {:.1} (cutoff 15 min), {:.1} (cutoff 30 min) weighted jobs",
+            acc.get(i, 0, 0, 0),
+            acc.get(i, 0, 0, 1)
+        );
+    }
+    Ok(())
+}</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="expanded-and-arrival-matrices-1"><a class="header" href="#expanded-and-arrival-matrices-1">Expanded and arrival matrices</a></h1>
+<p><code>expanded_travel_time_matrix</code> and
+<code>arrival_travel_time_matrix</code> keep the trips themselves instead of
+percentiles, like the functions of the same names in R, Python and JavaScript.</p>
+<img src="../assets/diagrams/expanded-arrival.svg" alt="Expanded matrix: one row per departure minute and draw, with the breakdown. Arrival matrix: the latest departure that arrives in time." width="980" height="520">
+<p>Both return an <code>ExpandedMatrix</code>: per origin (<code>origin(i)</code>, or <code>origins()</code>
+for all of them), a slice of <code>ExpandedRow</code>:</p>
+<ul>
+<li><code>to</code>: destination index;</li>
+<li><code>departure</code>: seconds after midnight (beyond 24 h when an arrival search
+crosses midnight);</li>
+<li><code>draw</code>: the rank of the trip among the draws of its minute, sorted by total
+time (1 with timetable-based feeds);</li>
+<li><code>trip</code>: <code>None</code> when there is no trip within <code>max_trip_duration</code>, else a
+<code>Breakdown</code> with access, waiting, riding, transfer and egress minutes (one
+decimal), the route ids joined by <code>|</code> (<code>[WALK]</code> for a walk), the number of
+rides and the total.</li>
+</ul>
+<p>An arrival search covers the <code>max_trip_duration</code> minutes before the arrival
+time; <code>arrival_departure(date, arrival_time, max_trip_duration)</code>
+gives the date and departure to put in <code>TransitParams</code> (the window can start
+on the previous day), and <code>time_window</code> must equal <code>max_trip_duration</code>. At
+most 5,000 destinations are accepted.</p>
+<h2 id="example-3"><a class="header" href="#example-3">Example</a></h2>
+<pre><code class="language-rust ignore">//! Every trip of the departure window
+//! (`expanded_travel_time_matrix()`), and the latest trip that arrives in
+//! time (`arrival_travel_time_matrix()`).
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example expanded [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::{
+    arrival_departure, arrival_travel_time_matrix, build_from_dir, expanded_travel_time_matrix,
+    BuildOptions, TransitParams,
+};
+
+fn hhmm(s: i32) -&gt; String {
+    format!("{:02}:{:02}", s / 3600, (s / 60) % 60)
+}
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let points = common::read_points(&amp;dir, &amp;[]);
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let net = build_from_dir(&amp;dir, &amp;opts)?;
+    let origin = &amp;points.coords[..1];
+
+    // Expanded: one row per departure minute (and per draw with frequencies).
+    let mut params = TransitParams::default();
+    params.date = 20190513;
+    params.departure_time = 14 * 3600;
+    params.time_window = 2;
+    params.seed = Some(42);
+    params.n_threads = 2;
+    let rows = expanded_travel_time_matrix(&amp;net, origin, &amp;points.coords, &amp;params)?;
+    // One destination, a ride on metro line 1 away.
+    let to = points.ids.iter().position(|id| id == "89a8100c02fffff");
+    for r in rows.origin(0).iter().filter(|r| Some(r.to as usize) == to) {
+        match &amp;r.trip {
+            Some(t) =&gt; println!(
+                "depart {} draw {}: {} min via {} ({} rides)",
+                hhmm(r.departure),
+                r.draw,
+                t.total_time,
+                t.routes,
+                t.n_rides
+            ),
+            None =&gt; println!("depart {} draw {}: no trip", hhmm(r.departure), r.draw),
+        }
+    }
+
+    // Arrival by 15:00 within 60 minutes: the search window is the 60
+    // minutes before the arrival time.
+    let max_trip = 60;
+    let (date, departure) = arrival_departure(20190513, 15 * 3600, max_trip)?;
+    let mut params = TransitParams::default();
+    params.date = date;
+    params.departure_time = departure;
+    params.time_window = max_trip;
+    params.max_trip_duration = max_trip;
+    params.max_walk_time = max_trip;
+    params.seed = Some(42);
+    params.n_threads = 2;
+    let rows = arrival_travel_time_matrix(&amp;net, origin, &amp;points.coords, &amp;params)?;
+    for r in rows.origin(0).iter().take(5) {
+        if let Some(t) = &amp;r.trip {
+            println!(
+                "to {}: leave {} for {} min",
+                points.ids[r.to as usize],
+                hhmm(r.departure),
+                t.total_time
+            );
+        }
+    }
+    Ok(())
+}</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="isochrones"><a class="header" href="#isochrones">Isochrones</a></h1>
+<img src="../assets/figures/isochrones-by-mode.svg" alt="Four maps of Porto Alegre, one per mode, with the areas reached from Farroupilha Park within 10, 20 and 30 minutes: a small area walking, a few kilometres around the park cycling, most of the map driving, and long arms along the bus corridors with public transport." width="576" height="662">
+<p>An isochrone is made in two steps. First a
+<strong>travel-time surface</strong>: the time from each origin to every cell of a Web
+Mercator grid laid over the network (zoom 9 to 12; at zoom 12 a cell is
+about 38 m wide at the equator), by street or by public transport, at each
+percentile. Then <strong>polygons</strong>: for each cutoff, the area of the cells within
+it, traced with the same algorithm as the R package isoband.</p>
+<pre><code class="language-rust ignore">pub fn street_travel_time_surface(
+    network: &amp;Network,
+    origins: &amp;[(f64, f64)],
+    mode: Mode,
+    params: &amp;RouteParams,
+    percentiles: &amp;[i32],
+    zoom: i32,
+) -&gt; Result&lt;TravelTimeSurface, RouteError&gt;
+
+pub fn transit_travel_time_surface(
+    network: &amp;Network,
+    origins: &amp;[(f64, f64)],
+    p: &amp;TransitParams,
+    zoom: i32,
+) -&gt; Result&lt;TravelTimeSurface, RouteError&gt;
+
+pub fn isochrone_polygons(
+    surface: &amp;TravelTimeSurface,
+    cutoffs: &amp;[f64],
+) -&gt; Result&lt;Vec&lt;IsochronePolygon&gt;, RouteError&gt;</code></pre>
+<p>Each <code>IsochronePolygon</code> holds the index of its origin, its percentile, its
+cutoff (<code>isochrone</code>, minutes) and its <code>polygons</code>: each one a shell followed
+by its holes, every ring closed, with <code>[lon, lat]</code> coordinates. They come by
+origin, percentile ascending and cutoff descending; a cutoff that reaches
+nothing has no polygons. The R and Python packages make an <code>sf</code> or
+<code>GeoDataFrame</code> of them; the JavaScript package, GeoJSON. The order of the
+rings and the vertex each ring starts at are those isoband gives on the
+platform the crate is compiled for (isoband walks a C++ hash table: libc++
+order on Apple targets and WebAssembly, libstdc++ order elsewhere); see
+the <a href="#where-results-depend-on-the-machine">comparison with r5r</a>.</p>
+<p>Polygon isochrones are routed up to the largest cutoff plus 10 minutes,
+whatever <code>max_trip_duration</code> says, so that the outer band is interpolated
+from both sides; <code>isochrone_trip_limit(cutoffs)</code> gives the
+largest cutoff (minutes, truncated) and the packages add the 10.</p>
+<p>For the street segments reached instead of areas, <code>street_edges</code> lists the
+segments of the network and <code>isochrone_lines</code>, given the travel time from
+each origin to each segment, keeps the segments within the cutoffs and
+gives each one the band of the smallest cutoff at or above its time (the R,
+Python and JavaScript packages do it with <code>polygon_output = FALSE</code>).</p>
+<h2 id="example-4"><a class="header" href="#example-4">Example</a></h2>
+<p>Isochrones of 5, 10 and 15 minutes from one point of the São Paulo sample,
+by each mode, with their areas:</p>
+<pre><code class="language-rust ignore">//! Isochrones by mode from one point: a travel-time
+//! surface on a Web Mercator grid, then polygons for each cutoff.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example isochrone [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::{
+    build_from_dir, isochrone_polygons, isochrone_trip_limit, street_travel_time_surface,
+    transit_travel_time_surface, BuildOptions, Mode, Polygon, RouteParams, TransitParams,
+};
+
+/// Area of polygons (shells minus holes) in km², on a local flat
+/// approximation; the coordinates are `[lon, lat]`.
+fn area_km2(polygons: &amp;[Polygon]) -&gt; f64 {
+    let ring = |r: &amp;Vec&lt;[f64; 2]&gt;| {
+        let kx = r[0][1].to_radians().cos() * 111.32;
+        let a: f64 = r
+            .windows(2)
+            .map(|w| (w[0][0] * kx) * (w[1][1] * 110.57) - (w[1][0] * kx) * (w[0][1] * 110.57))
+            .sum();
+        (a / 2.0).abs()
+    };
+    polygons
+        .iter()
+        .map(|p| ring(&amp;p[0]) - p[1..].iter().map(ring).sum::&lt;f64&gt;())
+        .sum()
+}
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let points = common::read_points(&amp;dir, &amp;[]);
+    let origin = &amp;points.coords[..1];
+
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let net = build_from_dir(&amp;dir, &amp;opts)?;
+
+    let cutoffs = [5.0, 10.0, 15.0];
+    // the Web Mercator zoom of the grid, 9 to 12
+    let zoom = 12;
+    // Polygons route up to the largest cutoff plus 10 minutes, so that the
+    // outer band is interpolated from both sides.
+    let limit = isochrone_trip_limit(&amp;cutoffs)? + 10;
+
+    // Streets: one surface per mode, percentiles [50] (all the same here).
+    let mut params = RouteParams::default();
+    params.max_trip_duration = limit;
+    params.n_threads = 2;
+    for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
+        let surface = street_travel_time_surface(&amp;net, origin, mode, &amp;params, &amp;[50], zoom)?;
+        report(
+            &amp;format!("{mode:?}"),
+            &amp;isochrone_polygons(&amp;surface, &amp;cutoffs)?,
+        );
+    }
+
+    // Walk + public transport: Monday 2019-05-13, departures from 14:00 over
+    // 30 minutes, the median; a seed fixes the frequency-based draws.
+    let mut p = TransitParams::default();
+    p.date = 20190513;
+    p.departure_time = 14 * 3600;
+    p.time_window = 30;
+    p.max_trip_duration = limit;
+    p.seed = Some(42);
+    p.n_threads = 2;
+    let surface = transit_travel_time_surface(&amp;net, origin, &amp;p, zoom)?;
+    report("Transit", &amp;isochrone_polygons(&amp;surface, &amp;cutoffs)?);
+    Ok(())
+}
+
+/// One line per mode: the area within each cutoff, smallest first.
+fn report(mode: &amp;str, isochrones: &amp;[peabiru_core::IsochronePolygon]) {
+    let areas: Vec&lt;String&gt; = isochrones
+        .iter()
+        .rev() // largest cutoff first
+        .map(|i| format!("{} min {:.2}", i.isochrone, area_km2(&amp;i.polygons)))
+        .collect();
+    println!("{mode:&lt;8} {} km²", areas.join(" · "));
+}</code></pre>
+<pre><code class="language-text">Walk     5 min 0.09 · 10 min 0.60 · 15 min 1.28 km²
+Bicycle  5 min 0.36 · 10 min 1.40 · 15 min 3.25 km²
+Car      5 min 0.79 · 10 min 5.20 · 15 min 8.52 km²
+Transit  5 min 0.09 · 10 min 0.60 · 15 min 1.28 km²
+</code></pre>
+<p>From this point, a quarter of an hour is too short for the buses and the
+metro to beat walking; the map above, of Porto Alegre with cutoffs up to 30
+minutes, shows where they part. The same numbers come from the
+<a href="../js/examples.html">JavaScript example</a>, and the R and Python packages
+give the same polygons.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="detailed-itineraries"><a class="header" href="#detailed-itineraries">Detailed itineraries</a></h1>
+<p><code>detailed_itineraries</code> routes each origin to the destination of the same
+index and describes the trips leg by leg, with their lines, as
+<code>detailed_itineraries()</code> does in R, Python and JavaScript:</p>
+<pre><code class="language-rust ignore">pub fn detailed_itineraries(
+    network: &amp;Network,
+    origins: &amp;[(f64, f64)],
+    destinations: &amp;[(f64, f64)],
+    p: &amp;ItineraryParams,
+) -&gt; Result&lt;Vec&lt;Vec&lt;Itinerary&gt;&gt;, RouteError&gt;</code></pre>
+<p>Origins and destinations pair up (<code>origins[i]</code> with <code>destinations[i]</code>);
+for every origin to every destination, pair the points beforehand (the
+packages do it with <code>all_to_all = TRUE</code>). The result has one entry per pair,
+empty when no trip is found.</p>
+<ul>
+<li>Without public transport (<code>ItineraryParams::transit_modes</code> empty, the
+default), the itinerary is the street path by <code>mode</code> (walk, bicycle or
+car); the network needs no public transport.</li>
+<li>With public transport, the network must have it (GTFS feeds), <code>date</code>
+and <code>departure_time</code> are required, and with <code>shortest_path = true</code> (the
+default) the result is the faster of the direct street trip and the
+fastest public transport trip over the departure window. With
+<code>shortest_path = false</code> the trips come from the multi-criteria router
+(McRAPTOR), one per sequence of routes, up to <code>suboptimal_minutes</code> slower
+than the best one; with a <code>fare_structure</code> they also carry their fares
+(see <a href="#fares-and-pareto-frontiers">Fares</a>).</li>
+<li><code>egress_mode</code>, the trip limits (<code>max_walk_time</code>, <code>max_bike_time</code>,
+<code>max_car_time</code>, <code>max_trip_duration</code>), speeds, <code>max_rides</code>, <code>max_lts</code> and
+a <a href="#scenarios-car-speeds-and-traffic-stress">scenario</a> are set as for the matrices.</li>
+<li>Networks with frequency-based trips (<code>frequencies.txt</code>) are refused with
+public transport; convert the feed to timetables
+first (in R, <code>gtfstools::frequencies_to_stop_times()</code>).</li>
+</ul>
+<p>An <code>Itinerary</code> has its <code>option</code> number, departure (<code>departure_time</code> as
+<code>HH:MM:SS</code>), <code>total_duration</code> (minutes, one decimal), <code>total_distance</code>
+(metres), <code>total_fare</code> with a fare structure, and its <code>legs</code>. Each
+<code>ItineraryLeg</code> has its <code>mode</code> (<code>WALK</code>, <code>BICYCLE</code>, <code>CAR</code>, or the transit
+mode of a ride, such as <code>BUS</code>), <code>segment_duration</code>, <code>wait</code>, <code>distance</code>, GTFS
+<code>route</code>, <code>cumulative_fare</code>, and its line in <code>geometry</code> (<code>[lon, lat]</code>
+points; <code>wkt()</code> gives the WKT text). With <code>osm_link_ids = true</code>, street legs
+also list their OpenStreetMap way ids and edge indices, and rides their
+boarding and alighting stops.</p>
+<p><code>write_itineraries_csv</code> writes them as the packages do with <code>output_dir</code>:
+one CSV file per pair with itineraries.</p>
+<h2 id="example-5"><a class="header" href="#example-5">Example</a></h2>
+<pre><code class="language-rust ignore">//! Detailed itineraries: the trip
+//! between each origin and the destination of the same index, leg by leg.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example itineraries [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::{
+    build_from_dir, detailed_itineraries, BuildOptions, ItineraryParams, Mode, TransitMode,
+};
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let points = common::read_points(&amp;dir, &amp;[]);
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let net = build_from_dir(&amp;dir, &amp;opts)?;
+
+    // Two pairs: the first point to the 10th, the 2nd to the 13th.
+    let origins = [points.coords[0], points.coords[1]];
+    let destinations = [points.coords[9], points.coords[12]];
+
+    // Street-only itineraries: no transit modes, one street mode.
+    for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
+        let mut p = ItineraryParams::default();
+        p.mode = mode;
+        p.n_threads = 2;
+        let per_pair = detailed_itineraries(&amp;net, &amp;origins, &amp;destinations, &amp;p)?;
+        for (k, its) in per_pair.iter().enumerate() {
+            for it in its {
+                let leg = &amp;it.legs[0];
+                println!(
+                    "pair {k} {:&lt;7} {:&gt;4.1} min {:&gt;5} m, {} points in the line",
+                    leg.mode,
+                    it.total_duration,
+                    it.total_distance,
+                    leg.geometry.len()
+                );
+            }
+        }
+    }
+
+    // With public transport and a date. Networks with frequency-based
+    // trips are refused here: on the São Paulo
+    // sample (a frequency-based feed) this prints the error; on a
+    // timetable-based network it prints the legs.
+    let mut p = ItineraryParams::default();
+    p.transit_modes = TransitMode::ALL.to_vec();
+    p.date = 20190513;
+    p.departure_time = 14 * 3600;
+    p.n_threads = 2;
+    match detailed_itineraries(&amp;net, &amp;origins, &amp;destinations, &amp;p) {
+        Ok(per_pair) =&gt; {
+            for (k, its) in per_pair.iter().enumerate() {
+                for it in its {
+                    println!(
+                        "pair {k} option {} at {}: {:.1} min",
+                        it.option, it.departure_time, it.total_duration
+                    );
+                    for leg in &amp;it.legs {
+                        println!(
+                            "  {:&lt;6} {:&gt;5.1} min (wait {:.1}) {:&gt;5} m {}",
+                            leg.mode, leg.segment_duration, leg.wait, leg.distance, leg.route
+                        );
+                    }
+                }
+            }
+        }
+        Err(e) =&gt; println!("with public transport: {e}"),
+    }
+
+    // The alternatives (McRAPTOR): one itinerary per sequence of routes,
+    // up to 10 minutes slower than the best.
+    p.shortest_path = false;
+    p.suboptimal_minutes = 10;
+    if let Ok(per_pair) = detailed_itineraries(&amp;net, &amp;origins, &amp;destinations, &amp;p) {
+        for (k, its) in per_pair.iter().enumerate() {
+            println!("pair {k}: {} alternatives", its.len());
+            for it in its.iter().take(3) {
+                let routes: Vec&lt;&amp;str&gt; = it
+                    .legs
+                    .iter()
+                    .filter(|l| !l.route.is_empty())
+                    .map(|l| l.route.as_str())
+                    .collect();
+                println!(
+                    "  option {} at {}: {:.1} min, routes {routes:?}",
+                    it.option, it.departure_time, it.total_duration
+                );
+            }
+        }
+    }
+    Ok(())
+}</code></pre>
+<p>On the São Paulo sample:</p>
+<pre><code class="language-text">pair 0 WALK    27.2 min  1914 m, 79 points in the line
+pair 1 WALK    20.8 min  1310 m, 45 points in the line
+pair 0 BICYCLE 18.4 min  1812 m, 75 points in the line
+pair 1 BICYCLE 13.3 min  1646 m, 64 points in the line
+pair 0 CAR      7.1 min  2461 m, 83 points in the line
+pair 1 CAR      4.5 min  1588 m, 52 points in the line
+with public transport: None of the GTFS feeds used to create the transit network can contain a 'frequencies' table. Try using gtfstools::frequencies_to_stop_times() to create a suitable feed.
+</code></pre>
+<p>Its feed is frequency-based, so both public transport calls are refused
+(the example prints the first refusal and skips the alternatives). On the
+Porto Alegre sample, whose feeds are timetables (a directory with
+<code>poa_osm.pbf</code>, <code>poa_eptc.zip</code>, <code>poa_trensurb.zip</code> and
+<code>poa_points_of_interest.csv</code>, sample data from the r5r project), the public
+transport part prints:</p>
+<pre><code class="language-text">pair 0 option 1 at 14:06:00: 16.6 min
+  WALK     3.1 min (wait 0.0)   214 m
+  RAIL     6.6 min (wait 1.9)  4796 m LINHA1
+  WALK     5.0 min (wait 0.0)   298 m
+pair 1 option 1 at 14:04:00: 36.6 min
+  WALK     3.6 min (wait 0.0)   206 m
+  BUS      4.1 min (wait 1.4)  1656 m 255
+  WALK     0.4 min (wait 0.0)    21 m
+  BUS     14.8 min (wait 1.6)  5684 m 188
+  WALK    10.8 min (wait 0.0)   645 m
+pair 0: 5 alternatives
+  option 1 at 14:00:00: 80.4 min, routes []
+  option 2 at 14:05:50: 16.7 min, routes ["LINHA1"]
+  option 3 at 14:09:26: 28.0 min, routes ["731"]
+pair 1: 183 alternatives
+  option 1 at 14:00:00: 92.4 min, routes []
+  option 2 at 14:05:51: 49.0 min, routes ["165"]
+  option 3 at 14:05:51: 49.7 min, routes ["188"]
+</code></pre>
+<p>The alternatives start with the direct walk (no routes); their departure
+times are the ones McRAPTOR samples in the window.</p>
+<h2 id="trip-options"><a class="header" href="#trip-options">Trip options</a></h2>
+<p>To see every trip worth considering between two points, faster or cheaper, with fewer transfers or less walking, and not only the fastest one, see <code>trip_options</code>, peabiru’s own multi-criteria planner: <a href="#trip-options-2">Trip options</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="fares-and-pareto-frontiers"><a class="header" href="#fares-and-pareto-frontiers">Fares and Pareto frontiers</a></h1>
+<p>A <code>FareStructure</code> is a rule-based fare structure, with its values as
+doubles (<code>Inf</code> included): the global settings
+(<code>max_discounted_transfers</code>, <code>transfer_time_allowance</code> in minutes,
+<code>fare_cap</code>), one <code>FarePerType</code> per fare type, one <code>FarePerTransfer</code> per pair
+of types with a discounted transfer, and one <code>FarePerRoute</code> per GTFS route
+(matched by <code>agency_id</code> and <code>route_id</code>).</p>
+<pre><code class="language-rust ignore">pub fn setup_fare_structure(network: &amp;Network, base_fare: f64, by: &amp;str)
+    -&gt; Result&lt;FareStructure, RouteError&gt;;
+pub fn read_fare_structure(bytes: &amp;[u8], encoding: &amp;str) -&gt; Result&lt;FareStructure, RouteError&gt;;
+pub fn write_fare_structure(s: &amp;FareStructure) -&gt; Result&lt;Vec&lt;u8&gt;, RouteError&gt;;</code></pre>
+<p><code>setup_fare_structure</code> makes one where every ride and every discounted
+transfer costs <code>base_fare</code>, with one fare type per mode (<code>by = "MODE"</code>), per
+agency (<code>"AGENCY_ID"</code>, <code>"AGENCY_NAME"</code>) or a single <code>GENERIC</code> type; change
+its fields to follow a city’s rules. <code>read_fare_structure</code> and
+<code>write_fare_structure</code> read and write the bytes of a fare structure <code>.zip</code> file: five
+CSV files in <code>data.table::fwrite()</code>’s format, the file format of the R,
+Python and JavaScript packages.</p>
+<h2 id="routing-with-fares"><a class="header" href="#routing-with-fares">Routing with fares</a></h2>
+<p>Set <code>TransitParams::fare_structure</code> (and <code>max_fare</code>) to route with fares:
+the matrix functions then keep, for each pair, the fastest trip that costs
+no more than <code>max_fare</code>. Accessibility takes the same fields.</p>
+<pre><code class="language-rust ignore">let mut p = peabiru_core::TransitParams::default();
+p.date = 20190513;
+p.departure_time = 14 * 3600;
+p.fare_structure = Some(std::sync::Arc::new(peabiru_core::read_fare_structure(&amp;bytes, "UTF-8")?));
+p.max_fare = 4.8;
+let m = peabiru_core::transit_travel_time_matrix(&amp;network, &amp;o, &amp;d, &amp;p)?;</code></pre>
+<p>With a fare structure, public transport is routed by
+the multi-criteria router (McRAPTOR), which keeps at each stop the trips
+that are faster or cheaper than the others (compared by fare paid and
+transfer allowance left) and prices them with the rule-based fare
+calculator, over <code>time_window x draws_per_minute</code> departure times sampled in the window (seeded from the
+origin), instead of RAPTOR at every minute. The numbers
+of a structure are read as written
+with four decimals, fares into 32-bit floats and counts into
+32-bit integers, and the calculator works in integer cents.</p>
+<p><code>pareto_frontier</code> routes the matrix once per fare
+cutoff, and per destination and percentile a row at each cutoff where the
+travel time changes. <code>detailed_itineraries</code> takes the same structure in
+<code>ItineraryParams::fare_structure</code> (and routes with McRAPTOR then, as it
+does with <code>shortest_path = false</code>); its itineraries get <code>total_fare</code> and
+each leg <code>cumulative_fare</code> (see <a href="#detailed-itineraries">Detailed itineraries</a>).</p>
+<p>Fares follow the rules of the structure. A structure that names a fare
+calculator instead (a JSON structure with a <code>type</code>) is not supported: it is
+an error.</p>
+<h2 id="example-6"><a class="header" href="#example-6">Example</a></h2>
+<pre><code class="language-rust ignore">//! Fares (`setup_fare_structure()`, `max_fare` and
+//! `pareto_frontier()`): travel times within a budget, and the trade-off
+//! between time and money.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example fares [network_dir [fare_structure.zip]]
+//! ```
+
+mod common;
+
+use peabiru_core::{
+    build_from_dir, pareto_frontier, read_fare_structure, setup_fare_structure,
+    transit_travel_time_matrix, write_fare_structure, BuildOptions, TransitParams,
+};
+use std::sync::Arc;
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let points = common::read_points(&amp;dir, &amp;[]);
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let net = build_from_dir(&amp;dir, &amp;opts)?;
+
+    // A fare structure file written by write_fare_structure() (second
+    // argument), or one fare type per mode where every ride and every
+    // discounted transfer costs 5.
+    let fares = match std::env::args_os().nth(2) {
+        Some(zip) =&gt; read_fare_structure(&amp;std::fs::read(zip)?, "UTF-8")?,
+        None =&gt; setup_fare_structure(&amp;net, 5.0, "MODE")?,
+    };
+    for t in &amp;fares.fares_per_type {
+        println!(
+            "type {:&lt;7} fare {:.2}",
+            t.fare_type.as_deref().unwrap_or("NA"),
+            t.fare
+        );
+    }
+    println!(
+        "{} transfer rules, {} routes, at most {} discounted transfers within {} min",
+        fares.fares_per_transfer.len(),
+        fares.fares_per_route.len(),
+        fares.max_discounted_transfers,
+        fares.transfer_time_allowance
+    );
+    // The structure as the bytes of a .zip file, and back.
+    let zip = write_fare_structure(&amp;fares)?;
+    assert_eq!(read_fare_structure(&amp;zip, "UTF-8")?, fares);
+
+    let mut p = TransitParams::default();
+    p.date = 20190513;
+    p.departure_time = 14 * 3600;
+    p.seed = Some(42);
+    p.n_threads = 2;
+    p.fare_structure = Some(Arc::new(fares));
+    let origin = &amp;points.coords[..1];
+    let destinations = &amp;points.coords[..];
+
+    // The fastest trip that costs no more than max_fare.
+    for max_fare in [0.0, 5.0, f64::INFINITY] {
+        p.max_fare = max_fare;
+        let m = transit_travel_time_matrix(&amp;net, origin, destinations, &amp;p)?;
+        let times: Vec&lt;u32&gt; = (0..destinations.len())
+            .filter_map(|j| m.get(0, j)[0])
+            .collect();
+        println!(
+            "max_fare {max_fare:&gt;4}: {} destinations, median {} min",
+            times.len(),
+            median(times)
+        );
+    }
+
+    // pareto_frontier(): per destination, the travel time at each fare
+    // cutoff where it changes.
+    p.max_fare = f64::INFINITY;
+    let frontier = pareto_frontier(&amp;net, origin, destinations, &amp;p, &amp;[0.0, 5.0, 10.0])?;
+    let mut last = usize::MAX;
+    for r in &amp;frontier.rows {
+        let changed = frontier
+            .rows
+            .iter()
+            .filter(|s| s.destination == r.destination)
+            .count()
+            &gt; 1;
+        if changed &amp;&amp; r.destination != last {
+            print!("\nto {}:", points.ids[r.destination]);
+            last = r.destination;
+        }
+        if changed {
+            print!(" {} min for {:.2}", r.travel_time, r.monetary_cost);
+        }
+    }
+    println!();
+    Ok(())
+}
+
+fn median(mut v: Vec&lt;u32&gt;) -&gt; u32 {
+    v.sort_unstable();
+    v.get(v.len() / 2).copied().unwrap_or(0)
+}</code></pre>
+<p>On the São Paulo sample, a few kilometres across, walking is as fast as any
+paid trip from the first point, and no budget changes the times:</p>
+<pre><code class="language-text">type SUBWAY  fare 5.00
+type BUS     fare 5.00
+type RAIL    fare 5.00
+9 transfer rules, 19 routes, at most 1 discounted transfers within 120 min
+max_fare    0: 27 destinations, median 25 min
+max_fare    5: 27 destinations, median 25 min
+max_fare  inf: 27 destinations, median 25 min
+</code></pre>
+<p>On the Porto Alegre sample (the directory of the
+<a href="#example-5">itineraries example</a>), with the fare structure
+that comes with it as the second argument (<code>fares/fares_poa.zip</code>),
+one fare buys most of the time saved, and a second one more for some
+destinations:</p>
+<pre><code class="language-text">type BUS     fare 4.80
+type RAIL    fare 4.50
+3 transfer rules, 117 routes, at most 1 discounted transfers within 60 min
+max_fare    0: 14 destinations, median 26 min
+max_fare    5: 15 destinations, median 16 min
+max_fare  inf: 15 destinations, median 16 min
+
+to bus_central_station: 21 min for 0.00 13 min for 5.00
+to gasometer_museum: 26 min for 0.00 12 min for 5.00
+to farroupilha_park: 31 min for 0.00 17 min for 5.00
+to moinhos_de_vento_hospital: 37 min for 0.00 26 min for 5.00 24 min for 10.00
+to farrapos_station: 82 min for 0.00 21 min for 5.00
+to iguatemi_shopping_center: 59 min for 5.00 49 min for 10.00
+to praia_de_belas_shopping_center: 44 min for 0.00 21 min for 5.00
+to beira_rio_stadium: 77 min for 0.00 32 min for 5.00
+to ufrgs: 21 min for 0.00 16 min for 5.00
+to pucrs: 114 min for 0.00 44 min for 5.00 35 min for 10.00
+</code></pre>
+<h2 id="trip-options-1"><a class="header" href="#trip-options-1">Trip options</a></h2>
+<p>To see every trip worth considering between two points, faster or cheaper, with fewer transfers or less walking, and not only the fastest one, see <code>trip_options</code>, peabiru’s own multi-criteria planner: <a href="#trip-options-2">Trip options</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="trip-options-2"><a class="header" href="#trip-options-2">Trip options</a></h1>
+<p><code>trip_options</code> is peabiru’s own trip planner:
+for each origin-destination pair, every trip worth considering, the ones
+that no other trip beats on all the chosen criteria at once (<code>Criterion::Time</code>,
+<code>Fare</code>, <code>Transfers</code>, <code>Walk</code>), at each departure minute of the window, merged
+into options.</p>
+<pre><code class="language-rust ignore">pub fn trip_options(
+    network: &amp;Network,
+    origins: &amp;[(f64, f64)],
+    destinations: &amp;[(f64, f64)],
+    p: &amp;TripOptionsParams,
+) -&gt; Result&lt;Vec&lt;Vec&lt;TripOption&gt;&gt;, RouteError&gt;;</code></pre>
+<pre><code class="language-rust ignore">let mut p = peabiru_core::TripOptionsParams::default();
+p.transit_modes = peabiru_core::TransitMode::ALL.to_vec();
+p.date = 20190513;
+p.departure_time = 14 * 3600;
+p.fare_structure = Some(std::sync::Arc::new(fares)); // all four criteria by default
+let options = peabiru_core::trip_options(&amp;network, &amp;o, &amp;d, &amp;p)?;
+for t in &amp;options[0] {
+    println!("{} {:.1} min {:?} {} transfers: {}", t.option, t.total_time, t.fare,
+             t.transfers, t.description);
+}</code></pre>
+<p>A <code>TripOption</code> holds its values at its best minute (<code>total_time_s</code>, <code>fare</code>,
+<code>transfers</code>, <code>walk_time_s</code>), every minute it is on the frontier with the
+total time there (<code>departures</code>, <code>totals_s</code>), a description (<code>WALK &gt; BUS T4 &gt; WALK</code>) and, with <code>itineraries</code>, its legs as an <code>Itinerary</code> of
+<code>detailed_itineraries</code>. <code>write_trip_options_csv</code> writes one CSV file per pair.
+The command line has it as <code>peabiru options</code>.</p>
+<h2 id="how-it-works-1"><a class="header" href="#how-it-works-1">How it works</a></h2>
+<p>The search (<code>options/search.rs</code>) is McRAPTOR (Delling, Pajor and Werneck,
+“Round-Based Public Transit Routing”) from each departure minute, with Pareto
+bags of labels: arrival time, rides, seconds on foot and fare state. It runs
+on the same network semantics as the other functions, so that its times
+agree with theirs: the access and egress stop searches of the itinerary
+planner, the same transfer tables, a minimum boarding wait of 60 s, the
+same trip limit as RAPTOR. A
+ride takes the vehicle that reaches the alighting stop first.</p>
+<ul>
+<li><strong>Fares</strong> are not additive (discounts within an allowance, unlimited
+transfers, a cap), so two partial trips are compared on fare only when one
+is at least as cheap for every continuation (<code>fares/incremental.rs</code>): their
+fare states are equivalent (same type, discounts, full fare and route of
+the last ride, same time and discount deadline), or a later deadline is
+provably no worse, or one has paid less by more than the other could still
+save. The simpler comparison the fare router of <code>pareto_frontier</code> makes
+(paid fare and transfer allowance) is not sound for every structure; on
+the Porto Alegre sample’s structure the two give the same frontiers.</li>
+<li><strong>Frequency-based trips</strong> are boarded at their expected times (half a
+headway of waiting; the scheduled departures with <code>exact_times = 1</code>), so
+a trip is still a path and the search is exact on those values. There are
+no random draws.</li>
+<li><strong>Coarse comparison of what is returned:</strong> of each minute’s exact
+frontier, the trips beaten once total time is rounded to a tenth of a
+minute and walking to <code>TripOptionsParams::walk_resolution</code> (default 60
+s) are left out (ties go to the better trip in exact terms). Rounding is
+monotone, so filtering the exact frontier gives the coarse Pareto set of
+all trips; the values reported stay exact.</li>
+<li><strong>Lower bounds</strong> per stop of the time, rides and walking still to come
+(a backward Dijkstra from the egress stops) prune labels that cannot reach
+the destination within the limits or that a trip already found dominates.</li>
+</ul>
+<p>The tests check the search against an exhaustive enumeration of every trip
+of random small networks (random routes, trips that overtake, frequencies,
+pickup and drop-off rules, transfers, fare structures with penalties, caps
+and short allowances), departure minute by departure minute.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="facility-location"><a class="header" href="#facility-location">Facility location</a></h1>
+<p><code>locate_facilities</code> chooses where to open facilities, and
+<code>floating_catchment</code> compares supply with demand around each place. They
+are what <code>locate_facilities()</code> and <code>floating_catchment()</code> (in JavaScript,
+<code>locateFacilities()</code> and <code>floatingCatchment()</code>) compute in the packages,
+and they are peabiru’s own functions.</p>
+<p>Both work on a <code>CostTable</code>: the minutes from each demand point (row) to
+each site (column), a pair that is absent being unreachable. They never
+look at how the table was computed, so the travel times can come from a
+street matrix, a public transport matrix, or anything else:</p>
+<ul>
+<li><code>CostTable::from_minutes(n_demand, n_sites, minutes)</code> takes the whole
+minutes of a matrix of this crate, <code>None</code> for an unreachable pair: the
+slice <code>StreetMatrix::as_slice()</code> gives when the demand points are the
+origins and the sites the destinations, or a <code>TransitMatrix</code> computed for
+one percentile;</li>
+<li><code>CostTable::from_pairs(n_demand, n_sites, demand, site, minutes)</code> takes
+the reachable pairs one by one, and <code>CostTable::from_dense</code> a full matrix
+of <code>f64</code> (NaN or infinite: unreachable).</li>
+</ul>
+<h2 id="the-four-models"><a class="header" href="#the-four-models">The four models</a></h2>
+<p><code>locate_facilities(&amp;costs, &amp;demand, &amp;params)</code> takes the weight of each
+demand point (residents, pupils, patients) and a <code>LocationParams</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th><code>LocationModel</code></th><th>question</th><th>objective</th></tr>
+</thead>
+<tbody>
+<tr><td><code>MaxCover</code></td><td>with <code>n_facilities</code> new facilities, how much demand can be within <code>cutoff</code> minutes of one?</td><td>demand covered (to maximise)</td></tr>
+<tr><td><code>SetCover</code></td><td>how few facilities put every demand point within <code>cutoff</code> minutes?</td><td>number of new sites</td></tr>
+<tr><td><code>PMedian</code></td><td>where do <code>n_facilities</code> facilities make the average trip shortest?</td><td>demand-weighted minutes to the nearest facility</td></tr>
+<tr><td><code>PCenter</code></td><td>where do they make the worst trip shortest?</td><td>minutes of the demand point farthest from its nearest facility</td></tr>
+</tbody>
+</table>
+</div>
+<p>A demand point is <em>covered</em> by a site at most <code>cutoff</code> minutes away (the
+cutoff included). The sites listed in <code>existing</code> (column indices) are
+already open and count first: only the demand they leave uncovered, or the
+travel time they leave, drives the choice, and they are never closed or
+moved. Every other site of the table is a candidate.</p>
+<p>The <code>LocationSolution</code> holds what a caller needs to draw a map:</p>
+<ul>
+<li><code>sites</code>, the new sites ordered by what each adds, with <code>marginal</code> (demand
+newly covered, or by how much the objective falls) and <code>cumulative</code>
+(demand covered so far, existing facilities included, or the objective so
+far);</li>
+<li><code>potential</code>, per site, what it would add as the only new facility: for
+the covering models, the demand not covered by the existing facilities
+that it would cover alone;</li>
+<li><code>assigned_site</code> and <code>assigned_minutes</code>, per demand point, the nearest
+open facility;</li>
+<li><code>objective_before</code> (existing facilities only), <code>objective_greedy</code> and
+<code>objective</code>; <code>covered_before</code> and <code>covered</code> for the covering models;</li>
+<li><code>unservable</code> and <code>unservable_demand</code>: the demand points with weight that
+no site of the table can serve (within the cutoff, or at all for
+<code>PMedian</code> and <code>PCenter</code>), which are left out of the objectives.</li>
+</ul>
+<h2 id="how-the-models-are-solved"><a class="header" href="#how-the-models-are-solved">How the models are solved</a></h2>
+<p>By heuristics, with no integer programming solver and no dependency:</p>
+<ol>
+<li><strong>Greedy construction.</strong> Sites are opened one at a time, each the one
+that improves the objective most given the ones already open. For
+maximal covering the candidates are kept in a queue with their last
+known gain, which can only fall as sites open, and only the top of the
+queue is recomputed. The greedy solution covers at least 63% (1 - 1/e)
+of the most that any choice of <code>n_facilities</code> sites could cover of the
+demand the existing facilities leave uncovered (Nemhauser, Wolsey and
+Fisher, 1978).</li>
+<li><strong>Vertex substitution</strong> (<code>swap</code>, on by default; Teitz and Bart, 1968).
+An open new site is swapped for a closed candidate while that improves
+the objective, taking the best swap of all at each step, and each swap
+accepted is confirmed by recomputing the objective. The result is never
+worse than the greedy one.</li>
+</ol>
+<p>Details by model:</p>
+<ul>
+<li><code>SetCover</code> opens the site that covers the most demand points not yet
+covered until every point some site can cover is covered, then drops the
+sites the others make redundant, the last chosen first.</li>
+<li><code>PCenter</code> compares the largest travel time and, on ties, the
+demand-weighted sum, in the greedy step and in the swaps.</li>
+<li>In <code>SetCover</code> and <code>PCenter</code> a point with weight 0 is not demand, and the
+others count the same whatever their weight.</li>
+<li>In <code>PMedian</code> and <code>PCenter</code>, a demand point that reaches no open facility
+is charged <code>unreachable_time</code> minutes (by default twice the longest time
+of the table), so that serving a point always beats shortening the trip
+of another.</li>
+<li><code>MaxCover</code> stops when the best site left would cover nothing (or less
+than <code>min_gain</code>), and the travel-time models when no site improves the
+objective: fewer than <code>n_facilities</code> sites may come back.</li>
+</ul>
+<p>The solutions are good and reproducible, not proven optimal. Ties go to the
+lowest site index; the candidates are evaluated in parallel only where each
+one’s value is computed on its own, and every sum is taken in a fixed
+order, so the result does not depend on <code>n_threads</code>. The call’s
+<code>CancelToken</code> is checked between candidates. A greedy round and a pass of
+swaps of the travel-time models cost one pass over the demand points per
+candidate.</p>
+<p>The crate’s tests compare the heuristics with an exhaustive search on 300
+random instances of up to 12 sites and 3 new facilities: the greedy bound
+holds, the improvement is never worse than greedy, and one new facility is
+always optimal.</p>
+<h2 id="floating-catchment-area"><a class="header" href="#floating-catchment-area">Floating catchment area</a></h2>
+<p><code>floating_catchment(&amp;costs, &amp;demand, &amp;supply, &amp;params)</code> computes the
+two-step floating catchment area (Luo and Wang, 2003): each facility’s
+supply is divided by the demand within its catchment, and each demand point
+adds up the ratios of the facilities within its catchment. The
+<code>FloatingCatchment</code> holds the <code>index</code> per demand point (supply per unit of
+demand), and per facility its <code>ratio</code> and <code>catchment_demand</code>; the sum of
+demand times index equals the total supply less <code>unreached_supply</code>, the
+supply of the facilities whose catchment holds no demand.</p>
+<p>With <code>DecayFunction::Step</code> (the default) a pair counts in full up to
+<code>cutoff</code> minutes and not at all beyond. Any other <code>DecayFunction</code> gives the
+enhanced form (Luo and Qi, 2009), in which nearer pairs weigh more, in both
+steps: the weights are those of <a href="#accessibility-1">accessibility</a>, computed
+from the minutes of the table, and every pair of the table counts with its
+weight, so the table should reach as far as the weights matter. The weight
+falls continuously with travel time, where Luo and Qi used a few
+travel-time zones.</p>
+<h2 id="example-7"><a class="header" href="#example-7">Example</a></h2>
+<p>Two new schools on the sample network, so that the most residents are
+within a 12-minute walk of a school, and schools per resident within a
+20-minute walk:</p>
+<pre><code class="language-rust ignore">//! Where to open two new schools so that the most residents are within a
+//! 12-minute walk of one, and schools per resident by the two-step
+//! floating catchment area.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example facility_location [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::{
+    build_from_dir, floating_catchment, locate_facilities, street_travel_time_matrix, BuildOptions,
+    CostTable, FloatingCatchmentParams, LocationModel, LocationParams, Mode, RouteParams,
+};
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let points = common::read_points(&amp;dir, &amp;["population", "schools"]);
+    let (population, n_schools) = (&amp;points.columns[0], &amp;points.columns[1]);
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let net = build_from_dir(&amp;dir, &amp;opts)?;
+
+    // The sites of the table: the points with a school (the existing
+    // facilities) first, then the others (the candidates).
+    let n = points.ids.len();
+    let existing: Vec&lt;usize&gt; = (0..n).filter(|&amp;i| n_schools[i] &gt; 0.0).collect();
+    let others: Vec&lt;usize&gt; = (0..n).filter(|&amp;i| n_schools[i] == 0.0).collect();
+    let sites: Vec&lt;usize&gt; = existing.iter().chain(&amp;others).copied().collect();
+    let site_coords: Vec&lt;(f64, f64)&gt; = sites.iter().map(|&amp;i| points.coords[i]).collect();
+
+    // Minutes on foot from every point to every site, up to 12.
+    let cutoff = 12;
+    let mut route = RouteParams::default();
+    route.max_trip_duration = cutoff;
+    route.n_threads = 2;
+    let matrix = street_travel_time_matrix(&amp;net, &amp;points.coords, &amp;site_coords, Mode::Walk, &amp;route)?;
+    let costs = CostTable::from_minutes(n, sites.len(), matrix.as_slice())?;
+
+    let mut params = LocationParams::default();
+    params.model = LocationModel::MaxCover;
+    params.n_facilities = 2;
+    params.cutoff = f64::from(cutoff);
+    params.existing = (0..existing.len()).collect();
+    params.n_threads = 2;
+    let found = locate_facilities(&amp;costs, population, &amp;params)?;
+    println!(
+        "covered today: {} of {} residents; greedy: {}; after {} swap(s): {}",
+        found.covered_before,
+        found.total_demand,
+        found.objective_greedy,
+        found.n_swaps,
+        found.covered
+    );
+    for (k, &amp;j) in found.sites.iter().enumerate() {
+        println!(
+            "site {}: {} (+{} residents, {} so far)",
+            k + 1,
+            points.ids[sites[j]],
+            found.marginal[k],
+            found.cumulative[k]
+        );
+    }
+    // What a school at each candidate would cover alone: the best one.
+    let best = (existing.len()..sites.len())
+        .max_by(|&amp;a, &amp;b| found.potential[a].total_cmp(&amp;found.potential[b]))
+        .expect("a candidate");
+    println!(
+        "largest potential: {} ({} residents)",
+        points.ids[sites[best]], found.potential[best]
+    );
+
+    // Schools per resident within a 20-minute walk.
+    let school_coords: Vec&lt;(f64, f64)&gt; = existing.iter().map(|&amp;i| points.coords[i]).collect();
+    let supply: Vec&lt;f64&gt; = existing.iter().map(|&amp;i| n_schools[i]).collect();
+    route.max_trip_duration = 20;
+    let matrix =
+        street_travel_time_matrix(&amp;net, &amp;points.coords, &amp;school_coords, Mode::Walk, &amp;route)?;
+    let costs = CostTable::from_minutes(n, existing.len(), matrix.as_slice())?;
+    let mut fca = FloatingCatchmentParams::default();
+    fca.cutoff = 20.0;
+    let index = floating_catchment(&amp;costs, population, &amp;supply, &amp;fca)?;
+    let shared: f64 = population
+        .iter()
+        .zip(&amp;index.index)
+        .map(|(p, a)| p * a)
+        .sum();
+    println!(
+        "{}: {:.2} schools per 10,000 residents; shared out in all: {shared:.1} schools",
+        points.ids[0],
+        10_000.0 * index.index[0]
+    );
+    Ok(())
+}</code></pre>
+<pre><code class="language-text">covered today: 37876 of 46273 residents; greedy: 46040; after 1 swap(s): 46217
+site 1: 89a8100c03bffff (+5658 residents, 43534 so far)
+site 2: 89a8100c383ffff (+2683 residents, 46217 so far)
+largest potential: 89a8100c033ffff (5764 residents)
+89a8100c00fffff: 0.45 schools per 10,000 residents; shared out in all: 7.0 schools
+</code></pre>
+<p>On the command line, the same is <code>peabiru locate</code> and <code>peabiru catchment</code>
+(see <a href="#the-command-line">The command line</a>).</p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<ul>
+<li>Church, R. and ReVelle, C. (1974). The maximal covering location problem.
+<em>Papers of the Regional Science Association</em>, 32, 101-118.
+<a href="https://doi.org/10.1007/BF01942293">doi:10.1007/BF01942293</a></li>
+<li>Hakimi, S. L. (1964). Optimum locations of switching centers and the
+absolute centers and medians of a graph. <em>Operations Research</em>, 12(3),
+450-459. <a href="https://doi.org/10.1287/opre.12.3.450">doi:10.1287/opre.12.3.450</a></li>
+<li>Luo, W. and Qi, Y. (2009). An enhanced two-step floating catchment area
+(E2SFCA) method for measuring spatial accessibility to primary care
+physicians. <em>Health &amp; Place</em>, 15(4), 1100-1107.
+<a href="https://doi.org/10.1016/j.healthplace.2009.06.002">doi:10.1016/j.healthplace.2009.06.002</a></li>
+<li>Luo, W. and Wang, F. (2003). Measures of spatial accessibility to health
+care in a GIS environment: synthesis and a case study in the Chicago
+region. <em>Environment and Planning B: Planning and Design</em>, 30(6), 865-884.
+<a href="https://doi.org/10.1068/b29120">doi:10.1068/b29120</a></li>
+<li>Nemhauser, G. L., Wolsey, L. A. and Fisher, M. L. (1978). An analysis of
+approximations for maximizing submodular set functions - I. <em>Mathematical
+Programming</em>, 14, 265-294.
+<a href="https://doi.org/10.1007/BF01588971">doi:10.1007/BF01588971</a></li>
+<li>Teitz, M. B. and Bart, P. (1968). Heuristic methods for estimating the
+generalized vertex median of a weighted graph. <em>Operations Research</em>,
+16(5), 955-961. <a href="https://doi.org/10.1287/opre.16.5.955">doi:10.1287/opre.16.5.955</a></li>
+<li>Toregas, C., Swain, R., ReVelle, C. and Bergman, L. (1971). The location
+of emergency service facilities. <em>Operations Research</em>, 19(6), 1363-1373.
+<a href="https://doi.org/10.1287/opre.19.6.1363">doi:10.1287/opre.19.6.1363</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="elevation"><a class="header" href="#elevation">Elevation</a></h1>
+<p>With an elevation raster, walking and cycling times depend on the slope of
+each street.
+Driving times do not change.</p>
+<p><code>BuildOptions::elevation</code> picks the slope cost function:</p>
+<ul>
+<li><code>Elevation::None</code> (the default here; the packages’ default is <code>"TOBLER"</code>
+when the data directory has a raster);</li>
+<li><code>Elevation::Tobler</code>: Tobler’s hiking function;</li>
+<li><code>Elevation::Minetti</code>: Minetti’s energy cost of walking.</li>
+</ul>
+<p><code>build_from_dir</code> reads the <code>.tif</code> (or <code>.tiff</code>) raster of the directory
+when a model is set; <code>build_from_bytes_with_elevation</code> takes the raster’s
+bytes. <code>network.street().elevation()</code> tells which model a network was built
+with.</p>
+<h2 id="what-is-computed"><a class="header" href="#what-is-computed">What is computed</a></h2>
+<p>When the network is built, every vertex is sampled at its coordinates and
+every street segment of at least 10 m every 10 m along its line, at the
+nearest pixel (no interpolation);
+points outside the raster get 0 m. Each sample is kept in whole decimetres
+in a 16-bit integer. Each directed edge gets a factor: the
+slope cost averaged over its segments, weighted by their length, minus 1.
+Walking or cycling along a whole edge takes <code>t + round(t * factor)</code> seconds
+(at least 1); the partial edges at the origin and the destination keep their
+plain times.</p>
+<h2 id="rasters"><a class="header" href="#rasters">Rasters</a></h2>
+<p>The raster is a GeoTIFF of one band of 8, 16 or 32-bit integers or 32 or
+64-bit floats, uncompressed or compressed with LZW, Deflate or PackBits,
+north up, georeferenced by a tie point and a pixel scale (what GDAL
+writes). Its coordinate system can be WGS 84 longitude and latitude
+(EPSG:4326) or one of those whose GeoTools transform peabiru
+reproduces: SIRGAS 2000 (4674), SAD69 (4618), Córrego Alegre 1970-72
+(4225), their UTM zones used in Brazil, SIRGAS 2000 / Brazil Polyconic
+(5880), WGS 84 / UTM (326xx, 327xx) and WGS 84 / Pseudo-Mercator (3857).
+Any other raster is an error that says what to change (reproject it with
+GDAL, for example).</p>
+<h2 id="warnings"><a class="header" href="#warnings">Warnings</a></h2>
+<p><code>StreetNetwork::elevation_warnings()</code> (and <code>Network::build_warnings()</code>, with the
+warnings about GTFS feeds) lists what looks wrong in the raster.
+The core never prints them; the R, Python and JavaScript packages turn them
+into warnings.</p>
+<ul>
+<li><strong>Voids and values out of range.</strong> A sample beyond +/-3276.7 m does not fit
+in 16-bit decimetres and is stored wrapped around: an SRTM void of
+-32768 becomes 0 m, a no-data value of -9999 becomes 3108.2 m. peabiru
+says how many
+samples were affected; samples equal to the raster’s declared no-data
+value are counted too. Fill the voids or crop the raster.</li>
+<li><strong>Samples on a pixel boundary.</strong> In a raster that is not in EPSG:4326,
+the point is projected before the pixel is found. For a sample within
+nanometres of the boundary between two pixels of different values (or of
+the raster’s edge), the last bits of the projection’s sines and cosines
+decide which pixel is read, and those can differ from one mathematical
+library to another. peabiru computes them itself, bit for bit the same way,
+and counts such samples in the
+warnings, so its results do not depend on the machine. A sample that
+falls on the raster’s outer edge (inside its envelope,
+past the last pixel) is an error.</li>
+</ul>
+<h2 id="example-8"><a class="header" href="#example-8">Example</a></h2>
+<pre><code class="language-rust ignore">//! Slope costs from an elevation raster, with Tobler's or Minetti's
+//! model: walking and cycling
+//! times change with the slope of each street, driving times do not.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example elevation [network_dir [raster.tif]]
+//! ```
+//!
+//! Without a raster it uses `spo_hills.tif` from the crate's test data:
+//! synthetic hills between 743 and 834 m over the São Paulo sample, not
+//! measured data.
+
+mod common;
+
+use peabiru_core::{
+    build_from_bytes_with_elevation, gtfs_files_in_dir, street_travel_time_matrix, BuildOptions,
+    Elevation, Mode, RouteParams,
+};
+use std::path::PathBuf;
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let points = common::read_points(&amp;dir, &amp;[]);
+    let raster = std::env::args_os()
+        .nth(2)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/spo_hills.tif")
+        });
+
+    // build_from_dir() reads a .tif in the directory when
+    // BuildOptions::elevation is set; here the bytes are given instead, to
+    // build the same network with each model.
+    let pbf = std::fs::read_dir(&amp;dir)?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .find(|p| p.extension().is_some_and(|x| x == "pbf"))
+        .expect("a .pbf file in the directory");
+    let pbf = std::fs::read(pbf)?;
+    let feeds: Vec&lt;(String, Vec&lt;u8&gt;)&gt; = gtfs_files_in_dir(&amp;dir)?
+        .into_iter()
+        .map(|p| Ok((p.display().to_string(), std::fs::read(&amp;p)?)))
+        .collect::&lt;std::io::Result&lt;_&gt;&gt;()?;
+    let feeds: Vec&lt;(&amp;str, &amp;[u8])&gt; = feeds
+        .iter()
+        .map(|(n, b)| (n.as_str(), b.as_slice()))
+        .collect();
+    let tif = std::fs::read(&amp;raster)?;
+
+    let mut params = RouteParams::default();
+    params.n_threads = 2;
+    let (o, d) = (&amp;points.coords[..1], &amp;points.coords[..]);
+    for model in [Elevation::None, Elevation::Tobler, Elevation::Minetti] {
+        let mut opts = BuildOptions::default();
+        opts.n_threads = 2;
+        opts.elevation = model;
+        let net = build_from_bytes_with_elevation(&amp;pbf, &amp;feeds, &amp;tif, &amp;opts)?;
+        // Suspect samples (voids, no-data values, samples on a pixel
+        // boundary of a projected raster) come as warnings.
+        for w in net.build_warnings() {
+            eprintln!("warning: {w}");
+        }
+        let mut line = format!("{:&lt;8}", model.name());
+        for mode in [Mode::Walk, Mode::Bicycle, Mode::Car] {
+            let m = street_travel_time_matrix(&amp;net, o, d, mode, &amp;params)?;
+            let total: u32 = m.row(0).iter().flatten().sum();
+            line += &amp;format!("  {mode:?} {total:&gt;4} min");
+        }
+        println!("{line}   (sum of the times from the first point)");
+    }
+    Ok(())
+}</code></pre>
+<p>With <code>spo_hills.tif</code>, synthetic hills between 743 and 834 m made for the
+tests (not measured data):</p>
+<pre><code class="language-text">NONE      Walk  648 min  Bicycle  354 min  Car  179 min   (sum of the times from the first point)
+TOBLER    Walk  669 min  Bicycle  365 min  Car  179 min   (sum of the times from the first point)
+MINETTI   Walk  651 min  Bicycle  359 min  Car  179 min   (sum of the times from the first point)
+</code></pre>
+<p>The same hills in SIRGAS 2000 / UTM zone 23S
+(<code>crates/peabiru-core/tests/data/spo_hills_31983.tif</code>, as the second
+argument) give nearly the same times:</p>
+<pre><code class="language-text">NONE      Walk  648 min  Bicycle  354 min  Car  179 min   (sum of the times from the first point)
+TOBLER    Walk  668 min  Bicycle  364 min  Car  179 min   (sum of the times from the first point)
+MINETTI   Walk  652 min  Bicycle  359 min  Car  179 min   (sum of the times from the first point)
+</code></pre>
+<p>And a raster with SRTM voids (<code>python/tests/data/spo_voids.tif</code>) gives the
+warning:</p>
+<pre><code class="language-text">NONE      Walk  648 min  Bicycle  354 min  Car  179 min   (sum of the times from the first point)
+warning: of the 21899 elevation samples on the network, 6298 with a value beyond +/-3276.7 m, which is stored wrapped around as 16-bit decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m becomes -3053.6 m); the slope costs follow from these values, and are probably not what you want there: fill the voids or crop the raster
+TOBLER    Walk  664 min  Bicycle  361 min  Car  179 min   (sum of the times from the first point)
+warning: of the 21899 elevation samples on the network, 6298 with a value beyond +/-3276.7 m, which is stored wrapped around as 16-bit decimetres (an SRTM void of -32768 becomes 0 m, -9999 becomes 3108.2 m, 3500 m becomes -3053.6 m); the slope costs follow from these values, and are probably not what you want there: fill the voids or crop the raster
+MINETTI   Walk  656 min  Bicycle  364 min  Car  179 min   (sum of the times from the first point)
+</code></pre>
+<p>With <code>Elevation::None</code> the raster is not read, so there is no warning.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="scenarios-car-speeds-and-traffic-stress"><a class="header" href="#scenarios-car-speeds-and-traffic-stress">Scenarios: car speeds and traffic stress</a></h1>
+<p>A <code>Scenario</code> changes the car speeds and the levels of traffic stress of the
+streets for one call (the packages’ <code>new_carspeeds</code>, <code>carspeed_scale</code> and
+<code>new_lts</code>). The network itself is left as it is, so one network serves
+every scenario. It goes in the <code>scenario</code> field of <code>RouteParams</code>,
+<code>TransitParams</code> and <code>ItineraryParams</code>; the default changes nothing.</p>
+<pre><code class="language-rust ignore">let mut s = Scenario::default();
+s.car_speeds = CarSpeeds::ScaleByWay(vec![(27184648, 0.5)]); // one OSM way at half speed
+s.car_speed_scale = 0.8;                                    // every other street
+s.lts = LtsChange::ByWay(vec![(27184648, 1)]);
+let mut p = RouteParams::default();
+p.scenario = s;</code></pre>
+<ul>
+<li><code>car_speeds</code> (<code>new_carspeeds</code> in the packages):
+<ul>
+<li><code>CarSpeeds::ScaleByWay(vec![(osm_way_id, factor)])</code> scales the car
+speed of the way’s edges; 0 forbids cars on them;</li>
+<li><code>CarSpeeds::KmhByWay(vec![(osm_way_id, kmh)])</code> sets the speed in km/h;
+0 forbids cars;</li>
+<li><code>CarSpeeds::ByPolygon(vec![SpeedPolygon::new(polygons, factor, priority)])</code>
+scales the edges a polygon meets; where polygons overlap, the highest
+priority wins (ties: the longest overlap).</li>
+</ul>
+</li>
+<li><code>car_speed_scale</code> (<code>carspeed_scale</code>, default 1) scales every edge
+that <code>car_speeds</code> does not change.</li>
+<li><code>lts</code> (<code>new_lts</code>): <code>LtsChange::ByWay(vec![(osm_way_id, level)])</code>, or
+<code>LtsChange::ByLine(vec![LtsLine::new(points, level)])</code>, where each street
+segment takes the level of the closest line.</li>
+</ul>
+<p>OSM way ids are those of <code>street_edges</code> (see
+<a href="#inspecting-a-network">Inspecting a network</a>). Polygons and lines are <code>[lon, lat]</code>
+degrees; a polygon is a shell then its holes, every ring closed. Invalid
+values (a negative or non-finite factor, open rings, self-crossing
+polygons) are rejected with <code>RouteError::Invalid</code>.</p>
+<p>The scenario applies to the street searches from the origins
+(direct trips and the access to public transport); the egress from the
+stops and the walking transfers use the network as built. Detailed itineraries route every street leg on the scenario.</p>
+<h2 id="example-9"><a class="header" href="#example-9">Example</a></h2>
+<pre><code class="language-rust ignore">//! Scenarios: the car speeds and the levels of traffic stress of the streets changed
+//! for one call, without rebuilding the network.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example scenarios [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::{
+    build_from_dir, street_edges, street_travel_time_matrix, BuildOptions, CarSpeeds, LtsChange,
+    Mode, Network, RouteParams, Scenario, SpeedPolygon,
+};
+
+/// Sum of the travel times from the first point to every point, minutes.
+fn total(
+    net: &amp;Network,
+    pts: &amp;[(f64, f64)],
+    mode: Mode,
+    scenario: Scenario,
+) -&gt; Result&lt;u32, peabiru_core::RouteError&gt; {
+    let mut p = RouteParams::default();
+    p.n_threads = 2;
+    p.scenario = scenario;
+    let m = street_travel_time_matrix(net, &amp;pts[..1], pts, mode, &amp;p)?;
+    Ok(m.row(0).iter().flatten().sum())
+}
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let pts = common::read_points(&amp;dir, &amp;[]).coords;
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    let net = build_from_dir(&amp;dir, &amp;opts)?;
+    let edges = street_edges(&amp;net);
+
+    println!(
+        "car, as built:          {:&gt;4} min",
+        total(&amp;net, &amp;pts, Mode::Car, Scenario::default())?
+    );
+
+    // carspeed_scale: every car speed at 70%.
+    let mut s = Scenario::default();
+    s.car_speed_scale = 0.7;
+    println!(
+        "car, all speeds x 0.7:  {:&gt;4} min",
+        total(&amp;net, &amp;pts, Mode::Car, s)?
+    );
+
+    // new_carspeeds by OSM way: the primary streets at 20 km/h.
+    let mut primary: Vec&lt;i64&gt; = (0..edges.len())
+        .filter(|&amp;i| edges.street_class(i) == "PRIMARY")
+        .map(|i| edges.osm_id(i))
+        .collect();
+    primary.sort_unstable();
+    primary.dedup();
+    let mut s = Scenario::default();
+    s.car_speeds = CarSpeeds::KmhByWay(primary.iter().map(|&amp;w| (w, 20.0)).collect());
+    println!(
+        "car, primary 20 km/h:   {:&gt;4} min ({} ways)",
+        total(&amp;net, &amp;pts, Mode::Car, s)?,
+        primary.len()
+    );
+
+    // new_carspeeds by polygon: half speed in a box around the first point
+    // (a polygon is a shell then its holes, [lon, lat], closed rings).
+    let (lat, lon) = pts[0];
+    let (dx, dy) = (0.005, 0.005);
+    let ring = vec![
+        [lon - dx, lat - dy],
+        [lon + dx, lat - dy],
+        [lon + dx, lat + dy],
+        [lon - dx, lat + dy],
+        [lon - dx, lat - dy],
+    ];
+    let mut s = Scenario::default();
+    s.car_speeds = CarSpeeds::ByPolygon(vec![SpeedPolygon::new(vec![vec![ring]], 0.5, 1.0)]);
+    println!(
+        "car, x 0.5 near origin: {:&gt;4} min",
+        total(&amp;net, &amp;pts, Mode::Car, s)?
+    );
+
+    // new_lts by OSM way: every street of stress 3 or 4 calmed to 2, so a
+    // cyclist with max_lts = 2 (the default) rides on it instead of walking
+    // the bike.
+    let mut stressful: Vec&lt;i64&gt; = (0..edges.len())
+        .filter(|&amp;i| edges.bicycle_lts(i) &gt; 2)
+        .map(|i| edges.osm_id(i))
+        .collect();
+    stressful.sort_unstable();
+    stressful.dedup();
+    println!(
+        "bicycle, as built:      {:&gt;4} min",
+        total(&amp;net, &amp;pts, Mode::Bicycle, Scenario::default())?
+    );
+    let mut s = Scenario::default();
+    s.lts = LtsChange::ByWay(stressful.iter().map(|&amp;w| (w, 2)).collect());
+    println!(
+        "bicycle, LTS 3-4 to 2:  {:&gt;4} min ({} ways)",
+        total(&amp;net, &amp;pts, Mode::Bicycle, s)?,
+        stressful.len()
+    );
+    Ok(())
+}</code></pre>
+<pre><code class="language-text">car, as built:           179 min
+car, all speeds x 0.7:   207 min
+car, primary 20 km/h:    182 min (88 ways)
+car, x 0.5 near origin:  210 min
+bicycle, as built:       354 min
+bicycle, LTS 3-4 to 2:   268 min (914 ways)
+</code></pre>
+<p>With the stressful streets calmed to level 2, a cyclist with the default
+<code>max_lts = 2</code> rides on them instead of walking the bicycle.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="inspecting-a-network"><a class="header" href="#inspecting-a-network">Inspecting a network</a></h1>
+<p>These functions report what the network holds (the packages’
+<code>find_snap()</code>, <code>street_network_bbox()</code>, <code>street_network_to_sf()</code>,
+<code>transit_network_to_sf()</code> and <code>check_transit_availability()</code>):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Function</th><th>What it gives</th></tr>
+</thead>
+<tbody>
+<tr><td><code>find_snap(network, points, radius_m, mode)</code></td><td>where each point meets the streets open to <code>mode</code>: the snapped point and its distance, or <code>None</code></td></tr>
+<tr><td><code>network.street().bbox()</code></td><td>the box of the street network, <code>[xmin, ymin, xmax, ymax]</code></td></tr>
+<tr><td><code>street_vertices(network)</code></td><td>the street vertices, with their position and park-and-ride flag</td></tr>
+<tr><td><code>street_edges(network)</code></td><td>the directed street edges: OSM way id, street class, length, permissions, car speed, level of traffic stress, line</td></tr>
+<tr><td><code>transit_stops(network)</code></td><td>the stops, with their position on the streets and whether they are linked to them</td></tr>
+<tr><td><code>transit_routes(network)</code></td><td>one row per trip pattern: agency, route ids and names, mode, line</td></tr>
+<tr><td><code>transit_service_dates(network)</code></td><td>the dates on which some service runs</td></tr>
+<tr><td><code>network.transit()?.n_services_active_on(date)</code></td><td>how many services run on a date</td></tr>
+</tbody>
+</table>
+</div>
+<p>The rows come in a fixed order, the same on every machine (for the street
+vertices, that of a hash set of their indices, not ascending).</p>
+<h2 id="gtfs-errors"><a class="header" href="#gtfs-errors">GTFS errors</a></h2>
+<p><code>gtfs_errors(name, zip_bytes)</code> lists the errors conveyal’s gtfs-lib records
+while loading a feed: per error its
+table (<code>file()</code>), <code>line()</code>, <code>error_type()</code>, <code>field()</code>, <code>id()</code> and
+<code>priority()</code> (<code>High</code>, <code>Medium</code>, <code>Low</code> or <code>Unknown</code>). Every check of
+gtfs-lib’s table loaders and post-load validation is made; the rows are
+listed by table, in gtfs-lib’s loading order, then by line.
+<code>gtfs_files_in_dir</code> gives the feeds of a directory in the order they are
+loaded.</p>
+<h2 id="feeds-with-errors-of-priority-high"><a class="header" href="#feeds-with-errors-of-priority-high">Feeds with errors of priority HIGH</a></h2>
+<p><code>build_from_dir</code> and <code>build_from_bytes</code>
+fail when a feed has an error of priority <code>HIGH</code>, or is one gtfs-lib cannot
+load at all. <code>NetworkError::high_priority_gtfs_errors()</code> then gives each
+such feed with its number of <code>HIGH</code> errors. With
+<code>BuildOptions::ignore_gtfs_errors = true</code> the feeds are not checked: the
+network is built from what can be read, leaving out trips that refer to
+stops or routes that do not exist, and <code>Network::build_warnings()</code> says
+which feeds had such errors.</p>
+<h2 id="example-10"><a class="header" href="#example-10">Example</a></h2>
+<pre><code class="language-rust ignore">//! Looking into a network: where points snap to the streets, the bounding
+//! box, the street and transit networks, the service dates and the GTFS
+//! errors of each feed.
+//!
+//! ```sh
+//! cargo run --release -p peabiru-core --example inspect [network_dir]
+//! ```
+
+mod common;
+
+use peabiru_core::{
+    build_from_dir, find_snap, gtfs_errors, gtfs_files_in_dir, street_edges, street_vertices,
+    transit_routes, transit_service_dates, transit_stops, BuildOptions, Mode,
+};
+use std::collections::BTreeMap;
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let dir = common::data_dir();
+    let points = common::read_points(&amp;dir, &amp;[]);
+    let mut opts = BuildOptions::default();
+    opts.n_threads = 2;
+    // The build fails when a feed has GTFS errors
+    // of priority HIGH; ignore_gtfs_errors builds what can be read anyway.
+    let net = match build_from_dir(&amp;dir, &amp;opts) {
+        Ok(built) =&gt; built,
+        Err(e) if e.high_priority_gtfs_errors().is_some() =&gt; {
+            println!("refused: {e}");
+            opts.ignore_gtfs_errors = true;
+            let built = build_from_dir(&amp;dir, &amp;opts)?;
+            for w in built.build_warnings() {
+                println!("built anyway: {w}");
+            }
+            built
+        }
+        Err(e) =&gt; return Err(e.into()),
+    };
+
+    // Where the first three points meet the streets open to walking
+    // (within a radius of 1600 m).
+    for (id, snap) in
+        points
+            .ids
+            .iter()
+            .zip(find_snap(&amp;net, &amp;points.coords[..3], 1600.0, Mode::Walk)?)
+    {
+        match snap {
+            Some(s) =&gt; println!(
+                "point {id} snaps to ({:.6}, {:.6}), {:.1} m away",
+                s.lat, s.lon, s.distance_m
+            ),
+            None =&gt; println!("point {id} is not near a street"),
+        }
+    }
+
+    // The box of the street network, [xmin, ymin, xmax, ymax].
+    let b = net.street().bbox();
+    println!(
+        "bbox: lon {:.4} to {:.4}, lat {:.4} to {:.4}",
+        b[0], b[2], b[1], b[3]
+    );
+
+    // The street network: its vertices and edges.
+    let vertices = street_vertices(&amp;net);
+    let edges = street_edges(&amp;net);
+    let km: f64 = (0..edges.len()).map(|i| edges.length_m(i)).sum::&lt;f64&gt;() / 1000.0;
+    let car = (0..edges.len()).filter(|&amp;i| edges.car(i)).count();
+    println!(
+        "streets: {} vertices, {} directed edges ({car} open to cars), {km:.1} km",
+        vertices.index.len(),
+        edges.len()
+    );
+
+    // Public transport: stops, one route row per trip pattern, service dates.
+    let stops = transit_stops(&amp;net);
+    let linked = stops.linked_to_street.iter().filter(|&amp;&amp;l| l).count();
+    let routes = transit_routes(&amp;net)?;
+    let mut by_mode: BTreeMap&lt;&amp;str, usize&gt; = BTreeMap::new();
+    for m in &amp;routes.mode {
+        *by_mode.entry(*m).or_default() += 1;
+    }
+    println!(
+        "transit: {} stops ({linked} linked to the streets), {} patterns {by_mode:?}",
+        stops.stop_index.len(),
+        routes.len()
+    );
+    let dates = transit_service_dates(&amp;net)?;
+    let layer = net.transit().ok_or("the directory has no GTFS feed")?;
+    println!(
+        "service from {} to {} ({} dates); on 2019-05-13, {} of {} services run",
+        dates[0],
+        dates[dates.len() - 1],
+        dates.len(),
+        layer.n_services_active_on(20190513)?,
+        layer.n_services()
+    );
+
+    // The errors gtfs-lib records loading each feed, by priority and type.
+    // Errors of priority HIGH make build_from_dir() fail
+    // (BuildOptions::ignore_gtfs_errors to build anyway).
+    for path in gtfs_files_in_dir(&amp;dir)? {
+        let bytes = std::fs::read(&amp;path)?;
+        let name = path.file_name().unwrap_or_default().to_string_lossy();
+        let mut counts: BTreeMap&lt;(&amp;str, &amp;str), usize&gt; = BTreeMap::new();
+        for e in gtfs_errors(&amp;name, &amp;bytes)? {
+            *counts
+                .entry((e.priority().as_str(), e.error_type()))
+                .or_default() += 1;
+        }
+        println!("{name}: {counts:?}");
+    }
+    Ok(())
+}</code></pre>
+<p>On the São Paulo sample:</p>
+<pre><code class="language-text">point 89a8100c00fffff snaps to (-23.556435, -46.628960), 13.7 m away
+point 89a8100c007ffff snaps to (-23.557701, -46.631974), 9.5 m away
+point 89a8100c077ffff snaps to (-23.553252, -46.628872), 0.8 m away
+bbox: lon -46.6477 to -46.6113, lat -23.5653 to -23.5371
+streets: 1937 vertices, 5222 directed edges (1680 open to cars), 299.7 km
+transit: 654 stops (148 linked to the streets), 36 patterns {"BUS": 10, "RAIL": 14, "SUBWAY": 12}
+service from 20080101 to 20200501 (4505 dates); on 2019-05-13, 3 of 6 services run
+spo_gtfs.zip: {("MEDIUM", "DuplicateKeyError"): 7}
+</code></pre>
+<p>With the same feed without its <code>agency.txt</code>, the build is refused, and the
+example builds it again with <code>ignore_gtfs_errors</code> (the directory’s path is
+shortened to <code>&lt;dir&gt;</code> here):</p>
+<pre><code class="language-text">refused: high priority GTFS errors found in &lt;dir&gt;/spo_gtfs.zip (20 errors); network build failed
+built anyway: GTFS feed 'spo_gtfs.zip': it has no agency.txt. A network is built from this feed only because GTFS errors are ignored.
+...
+spo_gtfs.zip: {("HIGH", "NoAgencyInFeedError"): 19, ("HIGH", "ReferentialIntegrityError"): 1, ("MEDIUM", "DuplicateKeyError"): 6, ("MEDIUM", "MissingTableError"): 1}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-command-line"><a class="header" href="#the-command-line">The command line</a></h1>
+<p>The <code>peabiru</code> binary (crate
+<a href="https://crates.io/crates/peabiru-cli"><code>peabiru-cli</code></a> on crates.io) runs the engine from the shell: every function of the
+R, Python and JavaScript packages is a command, with their argument names
+in kebab-case, their defaults and their checks, so that a transport analyst
+can work without R or Python and get the same numbers.</p>
+<pre><code class="language-sh">cargo install peabiru-cli            # Rust 1.81 or later
+cargo build --release -p peabiru-cli # from the repository: target/release/peabiru
+peabiru --help                       # the commands
+peabiru matrix --help                # a command's options, with examples
+</code></pre>
+<h2 id="inputs-and-outputs"><a class="header" href="#inputs-and-outputs">Inputs and outputs</a></h2>
+<ul>
+<li><strong>Network</strong>: a directory with one OpenStreetMap <code>.pbf</code> file, any number of
+GTFS <code>.zip</code> feeds and an optional <code>.tif</code> elevation raster, or a <code>.pbf</code> file with <code>--gtfs feed.zip</code>
+(repeatable) and <code>--tif raster.tif</code>. With a raster, walking and cycling
+have slope costs (<code>--elevation TOBLER</code>, the default, <code>MINETTI</code> or
+<code>NONE</code>). Feeds with GTFS errors of priority <code>HIGH</code> are refused
+(<code>--ignore-gtfs-errors</code> builds anyway, with a warning per
+feed). <code>--threads N</code> (0, the default, uses every core).</li>
+<li><strong>Points</strong>: CSV with a header and the columns <code>id</code>, <code>lon</code>, <code>lat</code> (WGS 84),
+RFC 4180 quoting; <code>--origins</code> and <code>--destinations</code> (by default the
+origins). Points with a missing coordinate are not routed (a warning);
+duplicated ids are an error.</li>
+<li><strong>Results</strong>: CSV on standard output or in <code>-o FILE</code>, with the columns of
+the R package’s tables; missing values are empty fields. Geometries as
+GeoJSON (<code>--format geojson</code>) or as WKT in a CSV column. <code>--output-dir</code>
+writes one CSV file per origin (or pair), as the packages’
+<code>output_dir</code>. Progress and warnings on standard error (<code>-q</code> silences
+the progress).</li>
+<li><strong>Exit status</strong>: 0 done, 1 a file or network that cannot be read or
+written, 2 a bad argument, 130 interrupted (Ctrl-C cancels the
+computation through the core’s <code>CancelToken</code>).</li>
+</ul>
+<h2 id="commands"><a class="header" href="#commands">Commands</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Command</th><th>R function</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>info</code> (alias <code>build</code>)</td><td><code>build_network()</code>, <code>check_transit_availability()</code>, <code>get_gtfs_errors()</code></td><td>a summary; <code>--service-dates</code>, <code>--dates d1,d2</code>, <code>--start-date</code>/<code>--end-date</code>; <code>--gtfs-errors</code> (without building)</td></tr>
+<tr><td><code>matrix</code></td><td><code>travel_time_matrix()</code></td><td><code>--mode WALK</code>, <code>BICYCLE</code>, <code>CAR</code>, or with <code>TRANSIT</code> (or <code>BUS,RAIL,...</code>); <code>--percentiles</code>, fares, scenarios, <code>--street-engine auto|search|hierarchy</code></td></tr>
+<tr><td><code>expanded</code></td><td><code>expanded_travel_time_matrix()</code></td><td><code>--breakdown</code></td></tr>
+<tr><td><code>arrival</code></td><td><code>arrival_travel_time_matrix()</code></td><td><code>--arrival DATETIME</code></td></tr>
+<tr><td><code>accessibility</code></td><td><code>accessibility()</code></td><td><code>--opportunities</code>, <code>--decay-function</code>, <code>--decay-value</code>, <code>--cutoffs</code></td></tr>
+<tr><td><code>isochrone</code></td><td><code>isochrone()</code></td><td>polygons (<code>--zoom</code>, <code>--percentiles</code>) or <code>--lines</code>; GeoJSON or CSV</td></tr>
+<tr><td><code>itineraries</code></td><td><code>detailed_itineraries()</code></td><td><code>--all-to-all</code>, <code>--shortest-path false</code> (alternatives), <code>--suboptimal-minutes</code>, fares, <code>--osm-link-ids</code>, <code>--drop-geometry</code></td></tr>
+<tr><td><code>pareto</code></td><td><code>pareto_frontier()</code></td><td><code>--fare-structure</code>, <code>--fare-cutoffs</code></td></tr>
+<tr><td><code>options</code></td><td><code>trip_options()</code></td><td><code>--criteria</code>, <code>--max-options</code>, <code>--walk-resolution</code>; the options to <code>-o</code>, <code>--legs FILE</code>, <code>--departures FILE</code></td></tr>
+<tr><td><code>locate</code></td><td><code>locate_facilities()</code></td><td><code>--demand</code>, <code>--candidates</code>, <code>--existing</code>, <code>--demand-column</code>, <code>--model max_cover|set_cover|p_median|p_center</code>, <code>--n-facilities</code>, <code>--cutoff</code>, <code>--no-swap</code>; <code>--table sites|candidates|demand</code>; the summary on standard error</td></tr>
+<tr><td><code>catchment</code></td><td><code>floating_catchment()</code></td><td><code>--demand</code>, <code>--supply</code>, <code>--demand-column</code>, <code>--supply-column</code>, <code>--cutoff</code>, <code>--decay-function</code>, <code>--decay-value</code>; <code>--table demand|supply</code></td></tr>
+<tr><td><code>snap</code></td><td><code>find_snap()</code></td><td><code>--points</code>, <code>--radius</code>, <code>--mode</code></td></tr>
+<tr><td><code>network</code></td><td><code>street_network_to_sf()</code>, <code>transit_network_to_sf()</code>, <code>street_network_bbox()</code></td><td><code>--layer edges|vertices|stops|routes|bbox</code></td></tr>
+<tr><td><code>fares setup|read|write</code></td><td><code>setup_fare_structure()</code>, <code>read_fare_structure()</code>, <code>write_fare_structure()</code></td><td><code>.zip</code> files of five CSV tables; <code>read --output-dir</code> writes its CSV files, <code>write</code> makes the <code>.zip</code> from them</td></tr>
+<tr><td><code>completions SHELL</code></td><td></td><td>bash, zsh, fish, elvish, powershell</td></tr>
+</tbody>
+</table>
+</div>
+<p>Dates and times are <code>YYYY-MM-DDTHH:MM[:SS]</code>, the network’s local time.
+Limits take <code>Inf</code> where the packages do (<code>--max-walk-time Inf</code>, the
+default, is the trip limit).</p>
+<h2 id="examples"><a class="header" href="#examples">Examples</a></h2>
+<pre><code class="language-sh"># walking and public transport, three percentiles over a 10-minute window
+peabiru matrix data/poa --origins points.csv --mode WALK,TRANSIT \
+    --departure 2019-05-13T14:00 --percentiles 25,50,75 -o ttm.csv
+
+# accessibility to jobs and schools, logistic decay, by bicycle
+peabiru accessibility data/poa --origins points.csv --opportunities jobs,schools \
+    --mode BICYCLE --decay-function logistic --decay-value 5 --cutoffs 30 -o access.csv
+
+# isochrones by public transport as GeoJSON
+peabiru isochrone data/poa --origins one.csv --departure 2019-05-13T14:00 \
+    --cutoffs 15,30,45 -o isochrones.geojson
+
+# a fare structure, then the Pareto frontier of time and fare
+peabiru fares setup data/poa --base-fare 4.8 -o fares.zip
+peabiru pareto data/poa --origins o.csv --destinations d.csv \
+    --departure 2019-05-13T14:00 --fare-structure fares.zip --fare-cutoffs 0,4.8,9.6
+
+# a congestion scenario
+peabiru matrix data/poa --origins points.csv --mode CAR \
+    --new-carspeeds poa_osm_congestion.csv --carspeed-scale 0.8
+</code></pre>
+<h2 id="compared-with-the-r-package"><a class="header" href="#compared-with-the-r-package">Compared with the R package</a></h2>
+<p><code>bench/compare/cli_parity.R</code> runs every command on the Porto Alegre
+sample (timetables, fares, an elevation raster, scenarios) and on the São
+Paulo sample (frequency-based routes) and compares each table with the R
+function’s, value for value (doubles bit for bit), lines and polygons by
+their coordinates, and <code>--output-dir</code> files byte for byte. The deliberate
+differences: without <code>--departure</code>, street-only commands take the current
+time in UTC (the R package the local time; only the itineraries’ <code>departure_time</code>
+shows it), and polygons and lines are written as built, without the
+<code>sf::st_make_valid()</code> of the R package (as Python and JavaScript return
+them; a route through a single linked stop is a point). With
+<code>--output-dir</code>, an id that cannot name a file in the directory (a path
+separator, NUL; on Windows also <code>&lt; &gt; : " | ? *</code>) is an error, as in the
+packages.</p>
+<h2 id="for-the-repositorys-scripts"><a class="header" href="#for-the-repositorys-scripts">For the repository’s scripts</a></h2>
+<p>The benchmark and comparison scripts of the repository run older spellings
+of the tool (<code>ttm</code>, <code>transit</code>, the positional forms of <code>accessibility</code>,
+<code>expanded</code>, <code>isochrone</code>, <code>itineraries</code> and <code>options</code>, and diagnostic
+commands such as <code>dump-edges</code>), also reachable as <code>peabiru dev &lt;command&gt;</code>.
+They are not part of the tool’s interface and may change at any time.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="compared-with-r5r"><a class="header" href="#compared-with-r5r">Compared with r5r</a></h1>
+<img src="../assets/diagrams/parity.svg" alt="The same inputs go through r5r 2.5.0 (R5 7.6 on Java) and peabiru; outputs are compared for exact equality: matrices pair by pair, accessibility bit for bit, expanded and arrival matrices column by column and in row order, data frames with identical() in R." width="980" height="470">
+<p><a href="https://github.com/ipea/r5r">r5r</a> is the R interface to Conveyal’s
+<a href="https://github.com/conveyal/r5">R5</a>, the Java routing engine whose routing
+model peabiru implements in Rust. This page says what the two share, what
+differs for a user of the crate, and how the results are compared. It is the
+only page of this guide that discusses r5r.</p>
+<h2 id="what-is-shared"><a class="header" href="#what-is-shared">What is shared</a></h2>
+<p>The routing model is R5’s (version 7.6, the one r5r 2.5.0 runs): how the
+street network is built from OpenStreetMap, how stops are linked to it, the
+searches on the streets, RAPTOR over a departure window with Monte Carlo
+draws for frequency-based routes, the multi-criteria router used with fares,
+the decay functions of accessibility. On the test networks the results are
+checked to be <strong>identical</strong> to r5r’s, not close to them: matrices pair by
+pair, accessibility bit for bit, expanded and arrival matrices column by
+column and in row order, itineraries and isochrones by their coordinates.</p>
+<p>Other pages of this guide state as plain facts about peabiru details that
+are R5’s: the multi-criteria router is a port of its
+<code>McRaptorSuboptimalPathProfileRouter</code>, with its tie-breaking and iteration
+orders, its <code>FareDominatingList</code> and its <code>RuleBasedInRoutingFareCalculator</code>
+(fares read into Java <code>float</code>s, counts into <code>int</code>s); elevations are kept in
+16-bit decimetres and car speeds in 16-bit centimetres per second as R5
+keeps them; rasters are read at the nearest pixel as GeoTools reads a
+coverage for R5; the expanded and arrival matrices take at most 5,000
+destinations, R5’s limit for paths; a scenario leaves the egress and the
+transfers as built because R5 copies them from the network; the street
+vertices are listed in the order of a Java <code>HashSet</code>.</p>
+<p>Equality down to the last bit depends on details that look incidental:
+reading ways and feeds in R5’s order, keeping the first of two equal states as
+R5’s priority queue does, mixing <code>float</code> and <code>double</code> as the Java code does,
+reproducing R5’s random number stream, and using Apache Commons Math’s
+<code>FastMath.exp</code> instead of the platform’s <code>exp</code>.</p>
+<h2 id="what-differs"><a class="header" href="#what-differs">What differs</a></h2>
+<ul>
+<li>No Java: the network is built in memory in about a second for a city, and
+is plain data shared between threads; nothing is written next to the data.</li>
+<li>The crate’s functions take resolved values (points as <code>(lat, lon)</code>, dates
+as <code>yyyymmdd</code>, times in seconds, parameter structs filled from
+<code>Default</code>), where r5r’s functions take data frames and date-times.
+<code>accessibility_trip_limits</code>, <code>isochrone_trip_limit</code> and
+<code>arrival_departure</code> derive the limits the R, Python and JavaScript
+packages derive from their arguments.</li>
+<li><code>Elevation::None</code> is the default of <code>BuildOptions</code>; r5r applies Tobler’s
+function whenever its data directory has a raster.</li>
+<li><a href="#trip-options-2"><code>trip_options</code></a> has no counterpart in r5r; neither have
+<a href="#facility-location"><code>locate_facilities</code> and <code>floating_catchment</code></a>.</li>
+<li>R5’s own fare calculators (a JSON structure with a <code>type</code>) are not ported;
+fares follow the rule-based fare structure.</li>
+<li><code>gtfs_errors</code> lists the errors in a fixed order (table, then line); r5r’s
+<code>gtfs_errors.csv</code> has them in an order that changes from run to run, and
+peabiru does not write that file.</li>
+<li>Detailed itineraries by car across a turn restriction with two or more
+via ways depend, in R5, on the searches that ran before in the session;
+peabiru always returns those of a freshly built network and warns.</li>
+</ul>
+<h3 id="where-results-depend-on-the-machine"><a class="header" href="#where-results-depend-on-the-machine">Where results depend on the machine</a></h3>
+<p>Results can differ between machines when a network has more than one GTFS
+feed. R5 loads the feeds in the order in which the operating system lists the
+directory, and <code>build_from_dir</code> does the same; that order depends on the file
+system. On the Porto Alegre sample (two feeds), r5r on macOS and r5r on Linux
+give the same travel-time matrices and accessibility, but 227 of the 605,460
+rows of the expanded matrix differ: another stop or route, and a total time
+up to 0.2 minutes apart. peabiru matches r5r row for row on each platform, so
+reference outputs are only valid for the machine that produced them.
+<code>build_from_bytes</code> takes the feeds in the order you give them.</p>
+<p>Polygon isochrones depend on the platform too. The R package isoband, which
+r5r calls to trace them, collects the rings by walking a C++
+<code>std::unordered_map</code>, so the order of the rings and the vertex each one
+starts at are those of the C++ library isoband was built with: LLVM’s libc++
+on macOS, GCC’s libstdc++ on Linux and on Windows (Rtools). peabiru
+reproduces both tables (bucket counts, rehashing and all, checked against
+sequences recorded from the real containers) and uses the one of the target
+it is compiled for, so its polygons equal r5r’s on the same platform. Across
+platforms r5r’s own polygons also differ in the last bits of some latitudes,
+which come from the system’s <code>sinh</code> and <code>atan</code>. The WebAssembly build always
+uses the libc++ order.</p>
+<p>Elevation is the one place where peabiru is deliberately more stable. With a
+raster that is not in WGS 84 longitude and latitude, a sample within
+nanometres of the boundary between two pixels falls on one side or the other
+in r5r depending on the machine (Java’s <code>Math</code> functions may differ in the
+last bit between machines). peabiru always takes the pixel Java’s
+<code>StrictMath</code> gives and counts such samples in the network’s elevation
+warnings, so its slope costs are the same on every machine and equal r5r’s
+wherever r5r’s own result does not depend on the machine (see
+<a href="#warnings">Elevation</a>).</p>
+<h2 id="how-the-comparison-is-made"><a class="header" href="#how-the-comparison-is-made">How the comparison is made</a></h2>
+<p>The comparisons live in <code>bench/</code> of the repository, outside the packages,
+and run on every push to the main branch (the workflow
+<code>.github/workflows/r5r-parity.yml</code>, on Linux, Windows and macOS):</p>
+<ul>
+<li><code>bench/peabiru/run.sh</code>, <code>run_accessibility.sh</code> and <code>run_expanded.sh</code> run
+the command-line tool on the Porto Alegre and São Paulo samples and
+compare its CSV output with r5r’s (<code>bench/compare/parity.py</code>,
+<code>accessibility.py</code>, <code>expanded.py</code>), failing on any difference;</li>
+<li><code>bench/compare/r_parity.R</code> calls the same functions in the R packages
+peabiru and r5r and compares the results with <code>identical()</code>;
+<code>bench/compare/cli_parity.R</code> does the same for the command-line tool;</li>
+<li><code>bench/compare/edges.py</code> compares the street networks edge by edge
+(<code>peabiru dump-edges</code> against <code>bench/r5r/edges_r5r.R</code>), which is where to
+start when a new difference appears.</li>
+</ul>
+<p>The reference outputs come from r5r 2.5.0 on a JDK 21 (R5 7.6 does not run on
+newer Java), with <code>seed</code> set wherever the feed is frequency-based. The
+references in <code>bench/results/r5r</code> are whatever r5r wrote on the machine that
+ran <code>bench/r5r/</code>; generate them on the platform where the comparison runs.</p>
+<h2 id="reference"><a class="header" href="#reference">Reference</a></h2>
+<p>Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V., &amp; Conway,
+M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport Networks
+with R5 in R. <em>Findings</em>, 21262. <a href="https://doi.org/10.32866/001c.21262">https://doi.org/10.32866/001c.21262</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="api-reference"><a class="header" href="#api-reference">API reference</a></h1>
+<p>The rustdoc reference of <code>peabiru-core</code> is published with this guide:
+<strong><a href="api/peabiru_core/index.html">open the API reference</a></strong>.</p>
+<p>Everything public is at the root of the crate (<code>use peabiru_core::{...}</code>).
+Main entry points:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Item</th><th>What it does</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="api/peabiru_core/struct.Network.html"><code>Network</code></a></td><td>the network every function takes: streets and, with GTFS, public transport</td></tr>
+<tr><td><a href="api/peabiru_core/fn.build_from_dir.html"><code>build_from_dir</code></a>, <a href="api/peabiru_core/fn.build_from_bytes.html"><code>build_from_bytes</code></a></td><td>a network from a directory, or from the files’ bytes</td></tr>
+<tr><td><a href="api/peabiru_core/fn.build_network.html"><code>build_network</code></a></td><td>a street-only network from a <code>.pbf</code></td></tr>
+<tr><td><a href="api/peabiru_core/fn.street_travel_time_matrix.html"><code>street_travel_time_matrix</code></a></td><td>street matrix (<a href="api/peabiru_core/struct.StreetMatrix.html"><code>StreetMatrix</code></a>)</td></tr>
+<tr><td><a href="api/peabiru_core/fn.transit_travel_time_matrix.html"><code>transit_travel_time_matrix</code></a></td><td>walk + transit matrix (<a href="api/peabiru_core/struct.TransitMatrix.html"><code>TransitMatrix</code></a>)</td></tr>
+<tr><td><a href="api/peabiru_core/fn.transit_accessibility.html"><code>transit_accessibility</code></a>, <a href="api/peabiru_core/fn.street_accessibility.html"><code>street_accessibility</code></a></td><td>accessibility (<a href="api/peabiru_core/struct.Accessibility.html"><code>Accessibility</code></a>)</td></tr>
+<tr><td><a href="api/peabiru_core/fn.expanded_travel_time_matrix.html"><code>expanded_travel_time_matrix</code></a>, <a href="api/peabiru_core/fn.arrival_travel_time_matrix.html"><code>arrival_travel_time_matrix</code></a></td><td>expanded and arrival matrices (<a href="api/peabiru_core/struct.ExpandedMatrix.html"><code>ExpandedMatrix</code></a>)</td></tr>
+<tr><td><a href="api/peabiru_core/fn.street_travel_time_surface.html"><code>street_travel_time_surface</code></a>, <a href="api/peabiru_core/fn.transit_travel_time_surface.html"><code>transit_travel_time_surface</code></a>, <a href="api/peabiru_core/fn.isochrone_polygons.html"><code>isochrone_polygons</code></a>, <a href="api/peabiru_core/fn.isochrone_lines.html"><code>isochrone_lines</code></a></td><td>isochrones</td></tr>
+<tr><td><a href="api/peabiru_core/fn.detailed_itineraries.html"><code>detailed_itineraries</code></a></td><td>trips leg by leg (<a href="api/peabiru_core/struct.Itinerary.html"><code>Itinerary</code></a>)</td></tr>
+<tr><td><a href="api/peabiru_core/fn.setup_fare_structure.html"><code>setup_fare_structure</code></a>, <a href="api/peabiru_core/fn.read_fare_structure.html"><code>read_fare_structure</code></a>, <a href="api/peabiru_core/fn.write_fare_structure.html"><code>write_fare_structure</code></a></td><td>fare structures (<a href="api/peabiru_core/struct.FareStructure.html"><code>FareStructure</code></a>)</td></tr>
+<tr><td><a href="api/peabiru_core/fn.pareto_frontier.html"><code>pareto_frontier</code></a></td><td>travel time against fare (<a href="api/peabiru_core/struct.ParetoFrontier.html"><code>ParetoFrontier</code></a>)</td></tr>
+<tr><td><a href="api/peabiru_core/enum.Elevation.html"><code>Elevation</code></a>, <a href="api/peabiru_core/fn.build_from_bytes_with_elevation.html"><code>build_from_bytes_with_elevation</code></a></td><td>slope costs from a raster</td></tr>
+<tr><td><a href="api/peabiru_core/struct.Scenario.html"><code>Scenario</code></a></td><td>car speeds and traffic stress changed per call</td></tr>
+<tr><td><a href="api/peabiru_core/fn.find_snap.html"><code>find_snap</code></a>, <a href="api/peabiru_core/fn.street_vertices.html"><code>street_vertices</code></a>, <a href="api/peabiru_core/fn.street_edges.html"><code>street_edges</code></a>, <a href="api/peabiru_core/fn.transit_stops.html"><code>transit_stops</code></a>, <a href="api/peabiru_core/fn.transit_routes.html"><code>transit_routes</code></a>, <a href="api/peabiru_core/fn.transit_service_dates.html"><code>transit_service_dates</code></a></td><td>network inspection</td></tr>
+<tr><td><a href="api/peabiru_core/fn.gtfs_errors.html"><code>gtfs_errors</code></a></td><td>the GTFS errors of a feed</td></tr>
+<tr><td><a href="api/peabiru_core/struct.CsvOutput.html"><code>CsvOutput</code></a>, <a href="api/peabiru_core/fn.write_itineraries_csv.html"><code>write_itineraries_csv</code></a></td><td>CSV files, one per origin (or per pair for itineraries)</td></tr>
+</tbody>
+</table>
+</div>
+<p>The parameter structs (<a href="api/peabiru_core/struct.BuildOptions.html"><code>BuildOptions</code></a>,
+<a href="api/peabiru_core/struct.RouteParams.html"><code>RouteParams</code></a>,
+<a href="api/peabiru_core/struct.TransitParams.html"><code>TransitParams</code></a>,
+<a href="api/peabiru_core/struct.AccessibilityParams.html"><code>AccessibilityParams</code></a>,
+<a href="api/peabiru_core/struct.ItineraryParams.html"><code>ItineraryParams</code></a>)
+are filled in by changing the fields of their <code>default()</code>. Routing errors are
+a <a href="api/peabiru_core/enum.RouteError.html"><code>RouteError</code></a>, network-building
+errors a <a href="api/peabiru_core/struct.NetworkError.html"><code>NetworkError</code></a>.</p>
+<p>Locally, <code>cargo doc --no-deps -p peabiru-core --open</code> builds the same pages.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="theme/peabiru-nav-fb031d93.js"></script>
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

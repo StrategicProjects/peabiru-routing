@@ -1,0 +1,104 @@
+# How it works
+
+peabiru’s routing engine is written in Rust and runs inside the R
+session. This page follows a request from the input files to the
+numbers, with the same diagrams as the [Rust
+guide](../../rust/how-it-works.md). It describes what is computed and in
+which order, not the data structures, which change as the engine is
+optimised.
+
+## One engine, four packages
+
+![Architecture: an OpenStreetMap .pbf and GTFS .zip feeds go into
+peabiru-core, a Rust crate that builds the street network and transit
+layer in memory and computes every result; the R package, the Python
+package, the JavaScript package (WebAssembly) and the command line are
+front-ends over it.](figures/architecture.svg)
+
+The Rust crate `peabiru-core` does all the work. This R package checks
+the arguments, converts points and results between R and Rust, and
+returns a tibble (or a `data.frame` or `data.table`, see
+[`?peabiru`](../reference/peabiru-package.md)); the Python package
+(which returns pandas data frames), the JavaScript package (the engine
+compiled to WebAssembly, for browsers and Node) and the `peabiru`
+command-line tool (CSV in, CSV out) do the same for their users. There
+is no separate process to start and nothing is written to disk.
+
+## Building the network
+
+![Network build: the .pbf becomes a street network (edges with
+permissions, speeds and traffic stress, islands closed, index,
+park-and-ride, turn restrictions); GTFS feeds become patterns of trips;
+stops are linked to the streets; then walking transfers and egress
+distances are precomputed.](figures/network-build.svg)
+
+[`build_network()`](../reference/build_network.md) reads the `.pbf` and
+the GTFS feeds of a directory and keeps the result in memory. The street
+network has one edge per direction of every street segment, with the
+modes allowed on it, a car speed and, for cyclists, a level of traffic
+stress; public transport is grouped into *patterns* (trips that stop at
+the same stops in the same order). Each stop is joined to the nearest
+walkable street, and two walking tables are computed once: transfers
+between nearby stops (up to 1 km) and walking distances from every stop
+(up to 2 km), used to reach destinations.
+
+Each step has fixed rules down to details that only matter on ties: the
+order in which ways, feeds and stops are read, which of two equal paths
+is kept, and how lengths and speeds are rounded. The same inputs
+therefore give the same network, and the same results, whatever the
+number of threads.
+
+## Street routing
+
+![Street routing: link each point to the nearest street open to the
+mode; search directed edges from the origin up to the time limit; reach
+each destination through either end of its edge. Edge costs by mode for
+walking, cycling and driving.](figures/street-routing.svg)
+
+## Public transport
+
+![Transit travel-time matrix: walk from the origin to stops and
+destinations; RAPTOR over every departure minute, latest first, with
+Monte Carlo draws for frequency-based trips; walk from stops to each
+destination; percentiles over the
+iterations.](figures/transit-matrix.svg)
+
+The search over public transport is RAPTOR (*Round-bAsed Public Transit
+Optimized Router*): round *k* finds the earliest arrival at every stop
+with *k* vehicles, so `max_rides` is simply the number of rounds.
+Running it for each minute of the window from the last minute back to
+the first lets each minute start from the results of the later one
+(“range RAPTOR”), which is much cheaper than independent searches.
+
+Frequency-based trips have no fixed departure times. For them every
+minute is repeated `draws_per_minute` times with random offsets, drawn
+from a Mersenne Twister seeded from `seed` and the origin’s coordinates,
+so the same `seed` gives the same numbers on every run and with any
+number of threads.
+
+## Accessibility
+
+![Accessibility: the sum over destinations of opportunities times a
+decay weight of the travel time, with the five decay functions drawn for
+a 30 minute cutoff.](figures/accessibility.svg)
+
+## Expanded and arrival matrices
+
+![Expanded matrix: one row per departure minute and draw, with the trip
+breakdown. Arrival matrix: the latest departure that arrives in
+time.](figures/expanded-arrival.svg)
+
+For these, the search also keeps, for every stop and iteration, the path
+that led there (which vehicles, boarded where and when), so each trip
+can be broken down into access, waiting, riding, transfers and egress.
+
+How the results are checked is described in the [comparison with
+r5r](coming-from-r5r.html#parity).
+
+## Credits
+
+The algorithms and their fine print are ported from Conveyal’s
+[R5](https://github.com/conveyal/r5) 7.6 (MIT licence, © Conveyal),
+including RAPTOR as implemented in R5’s `FastRaptorWorker`; the decay
+functions’ exponential reproduces Apache Commons Math 3’s `FastMath.exp`
+(Apache-2.0).

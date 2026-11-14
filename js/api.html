@@ -1,0 +1,1339 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>API reference - peabiru for JavaScript</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Guide to the peabiru npm package: multimodal routing on OpenStreetMap and GTFS networks in WebAssembly, in browsers and in Node.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-3696a9e8.svg">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/peabiru-ab93dd35.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-cb3149ce.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-c1f15a8d.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">peabiru for JavaScript</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/StrategicProjects/peabiru-routing" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/StrategicProjects/peabiru-routing/edit/main/site/js/src/api.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="api-reference"><a class="header" href="#api-reference">API reference</a></h1>
+<!-- Generated by site/js/gen_api.py from js/lib/index.d.ts; do not edit by hand. -->
+<p>Everything the package exports, from its type declarations
+(<code>lib/index.d.ts</code>, generated into this page when the site is built). The
+functions that read or route on a network return a Promise; options are the
+fields of an options object.</p>
+<p>The examples assume this setup, on the São Paulo sample of the Python
+package (<code>node site/js/run_examples.mjs</code> runs each of them after it):</p>
+<pre><code class="language-js">import { readFile } from "node:fs/promises";
+import * as peabiru from "peabiru";
+
+const pbf = await readFile("spo_osm.pbf");
+const gtfs = [{ name: "spo_gtfs.zip", data: await readFile("spo_gtfs.zip") }];
+const network = await peabiru.buildNetwork({ pbf, gtfs });
+// three points of the sample, with the number of jobs at each
+const points = {
+  id: ["a", "b", "c"],
+  lon: [-46.6290, -46.6321, -46.6355],
+  lat: [-23.5563, -23.5577, -23.5601],
+  jobs: [153, 551, 120],
+};
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Section</th><th>Declarations</th></tr>
+</thead>
+<tbody>
+<tr><td>Networks</td><td><a href="#buildNetwork"><code>buildNetwork</code></a>, <a href="#BuildNetworkInput"><code>BuildNetworkInput</code></a>, <a href="#GtfsFeed"><code>GtfsFeed</code></a>, <a href="#Bytes"><code>Bytes</code></a>, <a href="#WarningHandler"><code>WarningHandler</code></a>, <a href="#Network"><code>Network</code></a>, <a href="#NetworkInfo"><code>NetworkInfo</code></a></td></tr>
+<tr><td>Travel-time matrices</td><td><a href="#travelTimeMatrix"><code>travelTimeMatrix</code></a>, <a href="#TravelTimeMatrixOptions"><code>TravelTimeMatrixOptions</code></a>, <a href="#TravelTimeMatrix"><code>TravelTimeMatrix</code></a></td></tr>
+<tr><td>Accessibility</td><td><a href="#accessibility"><code>accessibility</code></a>, <a href="#AccessibilityOptions"><code>AccessibilityOptions</code></a>, <a href="#AccessibilityTable"><code>AccessibilityTable</code></a></td></tr>
+<tr><td>Expanded and arrival matrices</td><td><a href="#expandedTravelTimeMatrix"><code>expandedTravelTimeMatrix</code></a>, <a href="#arrivalTravelTimeMatrix"><code>arrivalTravelTimeMatrix</code></a>, <a href="#ExpandedTravelTimeMatrixOptions"><code>ExpandedTravelTimeMatrixOptions</code></a>, <a href="#ArrivalTravelTimeMatrixOptions"><code>ArrivalTravelTimeMatrixOptions</code></a>, <a href="#ExpandedMatrix"><code>ExpandedMatrix</code></a></td></tr>
+<tr><td>Detailed itineraries</td><td><a href="#detailedItineraries"><code>detailedItineraries</code></a>, <a href="#DetailedItinerariesOptions"><code>DetailedItinerariesOptions</code></a>, <a href="#ItineraryRow"><code>ItineraryRow</code></a>, <a href="#ItineraryFeature"><code>ItineraryFeature</code></a></td></tr>
+<tr><td>Fares</td><td><a href="#setupFareStructure"><code>setupFareStructure</code></a>, <a href="#SetupFareStructureOptions"><code>SetupFareStructureOptions</code></a>, <a href="#FareStructure"><code>FareStructure</code></a>, <a href="#readFareStructure"><code>readFareStructure</code></a>, <a href="#writeFareStructure"><code>writeFareStructure</code></a>, <a href="#paretoFrontier"><code>paretoFrontier</code></a>, <a href="#ParetoFrontierOptions"><code>ParetoFrontierOptions</code></a>, <a href="#ParetoFrontierTable"><code>ParetoFrontierTable</code></a></td></tr>
+<tr><td>Facility location</td><td><a href="#locateFacilities"><code>locateFacilities</code></a>, <a href="#LocateFacilitiesOptions"><code>LocateFacilitiesOptions</code></a>, <a href="#FacilityLocation"><code>FacilityLocation</code></a>, <a href="#floatingCatchment"><code>floatingCatchment</code></a>, <a href="#FloatingCatchmentOptions"><code>FloatingCatchmentOptions</code></a>, <a href="#FloatingCatchment"><code>FloatingCatchment</code></a>, <a href="#TravelTimes"><code>TravelTimes</code></a>, <a href="#LocationRoutingOptions"><code>LocationRoutingOptions</code></a></td></tr>
+<tr><td>Isochrones</td><td><a href="#isochrone"><code>isochrone</code></a>, <a href="#IsochroneOptions"><code>IsochroneOptions</code></a>, <a href="#IsochronePolygonProperties"><code>IsochronePolygonProperties</code></a>, <a href="#IsochroneLineProperties"><code>IsochroneLineProperties</code></a>, <a href="#FeatureCollection"><code>FeatureCollection</code></a>, <a href="#Feature"><code>Feature</code></a>, <a href="#MultiPolygon"><code>MultiPolygon</code></a>, <a href="#LineString"><code>LineString</code></a></td></tr>
+<tr><td>Inspecting a network</td><td><a href="#findSnap"><code>findSnap</code></a>, <a href="#FindSnapOptions"><code>FindSnapOptions</code></a>, <a href="#SnapTable"><code>SnapTable</code></a>, <a href="#streetNetworkBbox"><code>streetNetworkBbox</code></a>, <a href="#Polygon"><code>Polygon</code></a>, <a href="#Point"><code>Point</code></a>, <a href="#streetNetworkToSf"><code>streetNetworkToSf</code></a>, <a href="#StreetVertexProperties"><code>StreetVertexProperties</code></a>, <a href="#StreetEdgeProperties"><code>StreetEdgeProperties</code></a>, <a href="#InspectOptions"><code>InspectOptions</code></a>, <a href="#transitNetworkToSf"><code>transitNetworkToSf</code></a>, <a href="#TransitStopProperties"><code>TransitStopProperties</code></a>, <a href="#TransitRouteProperties"><code>TransitRouteProperties</code></a>, <a href="#checkTransitAvailability"><code>checkTransitAvailability</code></a>, <a href="#TransitAvailabilityOptions"><code>TransitAvailabilityOptions</code></a>, <a href="#TransitAvailabilityTable"><code>TransitAvailabilityTable</code></a>, <a href="#getGtfsErrors"><code>getGtfsErrors</code></a>, <a href="#GtfsErrorsTable"><code>GtfsErrorsTable</code></a></td></tr>
+<tr><td>Points, dates, scenarios and shared options</td><td><a href="#Points"><code>Points</code></a>, <a href="#Numbers"><code>Numbers</code></a>, <a href="#DateTime"><code>DateTime</code></a>, <a href="#RoutingOptions"><code>RoutingOptions</code></a>, <a href="#ScenarioTable"><code>ScenarioTable</code></a>, <a href="#GeoJsonFeatureCollection"><code>GeoJsonFeatureCollection</code></a></td></tr>
+<tr><td>Missing values and errors</td><td><a href="#NA_INT32"><code>NA_INT32</code></a>, <a href="#UnsupportedError"><code>UnsupportedError</code></a></td></tr>
+<tr><td>Loading the module and versions</td><td><a href="#init"><code>init</code></a>, <a href="#initSync"><code>initSync</code></a>, <a href="#InitInput"><code>InitInput</code></a>, <a href="#coreVersion"><code>coreVersion</code></a>, <a href="#version"><code>version</code></a></td></tr>
+<tr><td>Other declarations</td><td><a href="#TripCriterion"><code>TripCriterion</code></a>, <a href="#TripOptionsOptions"><code>TripOptionsOptions</code></a>, <a href="#TripOptionRow"><code>TripOptionRow</code></a>, <a href="#TripDepartureRow"><code>TripDepartureRow</code></a>, <a href="#TripLegRow"><code>TripLegRow</code></a>, <a href="#TripLegFeature"><code>TripLegFeature</code></a>, <a href="#TripOptions"><code>TripOptions</code></a>, <a href="#tripOptions"><code>tripOptions</code></a></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="networks"><a class="header" href="#networks">Networks</a></h2>
+<h3 id="buildNetwork"><a class="header" href="#buildNetwork">buildNetwork</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function buildNetwork(input: BuildNetworkInput): Promise&lt;Network&gt;;
+</code></pre>
+<p>Build a transport network from an OpenStreetMap extract, zero or more GTFS feeds and an optional elevation raster, given as the bytes of the files. Loads the WebAssembly module first if needed. Rejects when a file cannot be read, and when a GTFS feed has errors of priority <code>HIGH</code>.</p>
+<pre><code class="language-js">const net = await peabiru.buildNetwork({ pbf, gtfs, nThreads: 2 });
+console.log(net.info(), net.workers);
+net.free();
+</code></pre>
+<p>The feeds load in array order, and nothing is written to disk.</p>
+<h3 id="BuildNetworkInput"><a class="header" href="#BuildNetworkInput">BuildNetworkInput</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface BuildNetworkInput
+</code></pre>
+<p>The input of <code>buildNetwork()</code>.</p>
+<ul>
+<li><code>pbf: Bytes</code>: The OpenStreetMap extract: the bytes of a <code>.pbf</code> file.</li>
+<li><code>gtfs?: GtfsFeed[]</code>: The GTFS feeds, loaded in this order (default: none, a street network only). A feed with errors of priority <code>HIGH</code> (see <code>getGtfsErrors()</code>) is refused: the build rejects with an <code>Error</code> naming it.</li>
+<li><code>tif?: Bytes</code>: An elevation raster, the bytes of a GeoTIFF file (default: none): walking and cycling times then get the slope costs of <code>elevation</code>. One band, north up, uncompressed or compressed with LZW, Deflate or PackBits, in WGS 84 longitude and latitude (EPSG:4326), SIRGAS 2000 (4674), SAD69 (4618), Corrego Alegre (4225), their UTM zones used in Brazil, SIRGAS 2000 / Brazil Polyconic (5880), WGS 84 / UTM (326xx, 327xx) or Pseudo-Mercator (3857); other rasters are an error. Voids and values beyond +/-3276.7 m are stored wrapped around, as 16-bit decimetres, with a warning; in a projected raster, a street point within nanometres of a pixel boundary reads the same pixel on every machine, with a warning. With a raster, <code>travelTimeMatrix()</code> never routes walking trips from the destinations.</li>
+<li><code>elevation?: string</code>: The slope cost function when <code>tif</code> is given: <code>"TOBLER"</code> (default, Tobler’s hiking function), <code>"MINETTI"</code> (Minetti’s energy cost of walking) or <code>"NONE"</code>, in any case. Without <code>tif</code> it is <code>"NONE"</code>.</li>
+<li><code>onWarning?: WarningHandler</code>: Receives the warnings of the build (about the raster); by default <code>console.warn</code>.</li>
+<li><code>nThreads?: number | null</code>: Workers to route on. <code>1</code> (default): no workers, everything runs on the calling thread. A whole number above 1: a pool of that many workers (Web Workers in browsers, <code>worker_threads</code> in Node), each holding its own copy of the network, all built at once. <code>0</code>, <code>null</code> or <code>Infinity</code>: one worker per core (<code>navigator.hardwareConcurrency</code>, or Node’s <code>os.availableParallelism()</code>). Each worker costs about the memory of a network built on the calling thread.</li>
+<li><code>useWorkers?: boolean</code>: Route in workers even with one thread, so that a call never blocks the calling thread and can be aborted (default: <code>true</code> when <code>nThreads</code> is given and is not 1, else <code>false</code>; must not be <code>false</code> with more than one thread).</li>
+</ul>
+<h3 id="GtfsFeed"><a class="header" href="#GtfsFeed">GtfsFeed</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface GtfsFeed
+</code></pre>
+<p>One GTFS feed: the <code>.zip</code> file’s name and its bytes.</p>
+<ul>
+<li><code>name: string</code>: The file name, such as <code>"poa_eptc.zip"</code>. It names the feed in messages and, when the feed has no <code>feed_info.feed_id</code>, gives its feed id (the name without <code>.zip</code>), which prefixes its stop ids. Names must be distinct.</li>
+<li><code>data: Bytes</code>: The bytes of the <code>.zip</code> file.</li>
+</ul>
+<h3 id="Bytes"><a class="header" href="#Bytes">Bytes</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type Bytes = Uint8Array | ArrayBuffer | ArrayBufferView;
+</code></pre>
+<p>Bytes of a file.</p>
+<h3 id="WarningHandler"><a class="header" href="#WarningHandler">WarningHandler</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type WarningHandler = (message: string) =&gt; void;
+</code></pre>
+<p>Receives each warning, as a string; by default <code>console.warn</code>.</p>
+<h3 id="Network"><a class="header" href="#Network">Network</a></h3>
+<p><em>class</em></p>
+<pre><code class="language-typescript">export declare class Network
+</code></pre>
+<p>A transport network: the street network and, when GTFS feeds were given, the public transport layer, held in the memory of the WebAssembly module (or, for a network with workers, in each worker) until <code>free()</code>. Built by <code>buildNetwork()</code>; it cannot be sent to another Worker (build it there).</p>
+<pre><code class="language-js">console.log(network.info().stops, "stops,", network.workers, "workers");
+console.log(await network.transitAvailability("2019-05-13"));
+network.free();
+</code></pre>
+<ul>
+<li><code>free(): void</code>: Release the network’s memory and stop its workers; calls still running on them reject. The network cannot be used afterwards. In Node, idle workers do not keep a program alive, so a program may also end without calling it.</li>
+<li><code>readonly workers: number</code>: Number of workers of the network; 0 when it routes on the calling thread.</li>
+<li><code>info(): NetworkInfo</code>: The sizes of the network (see <a href="#NetworkInfo"><code>NetworkInfo</code></a>).</li>
+<li><code>transitAvailability(date: Date | string): Promise&lt;{ services: number; active: number }&gt;</code>: The number of services in the network and of those running on <code>date</code> (a Date, read in local time, or a string <code>"YYYY-MM-DD"</code>): the check the routing functions make on their departure date.</li>
+<li><code>buildWarnings(): string[]</code>: The warnings of the build, which <code>buildNetwork()</code> also hands to <code>onWarning</code>: those about the elevation raster (samples stored wrapped around, beyond +/-3276.7 m, such as SRTM’s -32768 voids, or equal to the raster’s no-data value; street points near a pixel boundary of a projected raster).</li>
+</ul>
+<h3 id="NetworkInfo"><a class="header" href="#NetworkInfo">NetworkInfo</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface NetworkInfo
+</code></pre>
+<p>Sizes of a network, from <code>network.info()</code>.</p>
+<ul>
+<li><code>vertices: number</code>: Street vertices, including those of the connectors of transit stops.</li>
+<li><code>edges: number</code>: Directed street edges, including the connectors of transit stops.</li>
+<li><code>elevation: string</code>: The slope cost function in use: <code>"TOBLER"</code>, <code>"MINETTI"</code> or <code>"NONE"</code>.</li>
+<li><code>feeds: string[]</code>: The GTFS feed ids, in loading order.</li>
+<li><code>stops: number</code>: Transit stops.</li>
+<li><code>patterns: number</code>: Trip patterns.</li>
+<li><code>services: number</code>: GTFS services (calendars).</li>
+<li><code>frequencies: boolean</code>: Whether any trip is frequency-based.</li>
+</ul>
+<h2 id="travel-time-matrices"><a class="header" href="#travel-time-matrices">Travel-time matrices</a></h2>
+<h3 id="travelTimeMatrix"><a class="header" href="#travelTimeMatrix">travelTimeMatrix</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function travelTimeMatrix(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: TravelTimeMatrixOptions,
+): Promise&lt;TravelTimeMatrix&gt;;
+</code></pre>
+<p>Travel times between every origin and every destination: on the streets by one mode, or by public transport with the percentiles of the travel times over the departure window (and, for frequency-based trips, over the Monte Carlo draws). Every option is in <a href="#TravelTimeMatrixOptions"><code>TravelTimeMatrixOptions</code></a> and <a href="#RoutingOptions"><code>RoutingOptions</code></a>. Pairs not reached within <code>maxTripDuration</code> are left out.</p>
+<pre><code class="language-js">const ttm = await peabiru.travelTimeMatrix(network, points, points, {
+  mode: ["WALK", "TRANSIT"],
+  departureDatetime: "2019-05-13 14:00:00",
+  percentiles: [25, 50, 75],
+  seed: 42,
+});
+console.log(ttm.from_id[1], ttm.to_id[1], ttm.travel_time_p50[1]);
+</code></pre>
+<h3 id="TravelTimeMatrixOptions"><a class="header" href="#TravelTimeMatrixOptions">TravelTimeMatrixOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TravelTimeMatrixOptions extends RoutingOptions
+</code></pre>
+<p>Options of <code>travelTimeMatrix()</code>.</p>
+<p>Also takes every option of <a href="#RoutingOptions"><code>RoutingOptions</code></a>.</p>
+<ul>
+<li><code>departureDatetime?: DateTime | null</code>: Required with public transport; the current time otherwise (default null).</li>
+<li><code>timeWindow?: number</code>: Minutes of departure times, from <code>departureDatetime</code> on (default 10).</li>
+<li><code>percentiles?: number | number[]</code>: 1 to 5 distinct whole numbers from 1 to 99 (default 50): the percentiles of the travel times over the window.</li>
+<li><code>fareStructure?: FareStructure | null</code>: A fare structure (see <code>setupFareStructure()</code>), or null (default): no fares. With one, public transport is routed with the multi-criteria router (McRAPTOR) over <code>timeWindow * drawsPerMinute</code> sampled departure times.</li>
+<li><code>maxFare?: number</code>: The highest fare of a trip (default Infinity); a finite value needs a <code>fareStructure</code>.</li>
+</ul>
+<h3 id="TravelTimeMatrix"><a class="header" href="#TravelTimeMatrix">TravelTimeMatrix</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TravelTimeMatrix
+</code></pre>
+<p>Columns of a travel-time matrix: one row per origin and destination reached, origin-major in input order. <code>travel_time_pXX</code> (one per percentile, ascending, two digits: <code>travel_time_p05</code>) holds whole minutes, <a href="#NA_INT32"><code>NA_INT32</code></a> where a percentile is not reached.</p>
+<ul>
+<li><code>from_id: (string | null)[]</code></li>
+<li><code>to_id: (string | null)[]</code></li>
+<li><code>[travelTime: `travel_time_p${string}`]: Int32Array</code></li>
+</ul>
+<h2 id="accessibility"><a class="header" href="#accessibility">Accessibility</a></h2>
+<h3 id="accessibility"><a class="header" href="#accessibility">accessibility</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function accessibility(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: AccessibilityOptions,
+): Promise&lt;AccessibilityTable&gt;;
+</code></pre>
+<p>Access to opportunities from each origin: the opportunities of the destinations (the columns <code>opportunitiesColnames</code>), weighted by a decay function of the travel time to them and summed. Every option is in <a href="#AccessibilityOptions"><code>AccessibilityOptions</code></a>, <a href="#TravelTimeMatrixOptions"><code>TravelTimeMatrixOptions</code></a> and <a href="#RoutingOptions"><code>RoutingOptions</code></a>.</p>
+<pre><code class="language-js">const access = await peabiru.accessibility(network, points, points, {
+  opportunitiesColnames: "jobs",
+  mode: "WALK",
+  cutoffs: [10, 20],
+});
+console.log(access.id, access.cutoff, access.accessibility);
+</code></pre>
+<h3 id="AccessibilityOptions"><a class="header" href="#AccessibilityOptions">AccessibilityOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface AccessibilityOptions extends TravelTimeMatrixOptions
+</code></pre>
+<p>Options of <code>accessibility()</code>.</p>
+<p>Also takes every option of <a href="#TravelTimeMatrixOptions"><code>TravelTimeMatrixOptions</code></a>.</p>
+<ul>
+<li><code>opportunitiesColnames?: string | string[]</code>: Opportunity columns of the destinations (default <code>"opportunities"</code>). Missing values count as 0, with a warning.</li>
+<li><code>decayFunction?: "step" | "exponential" | "fixed_exponential" | "linear" | "logistic"</code>: <code>"step"</code> (default), <code>"exponential"</code>, <code>"fixed_exponential"</code>, <code>"linear"</code> or <code>"logistic"</code>.</li>
+<li><code>cutoffs?: number | number[] | null</code>: 1 to 12 distinct whole minutes from 1 to 120: the cutoffs of <code>"step"</code>, and for the other functions the travel time at which the weight is one half; null (default) only with <code>"fixed_exponential"</code>, which takes none.</li>
+<li><code>decayValue?: number | null</code>: The decay constant (<code>"fixed_exponential"</code>, between 0 and 1), the width in whole minutes (<code>"linear"</code>, 1 to 59) or the standard deviation in minutes (<code>"logistic"</code>, at least 1); null (default) otherwise.</li>
+</ul>
+<h3 id="AccessibilityTable"><a class="header" href="#AccessibilityTable">AccessibilityTable</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface AccessibilityTable
+</code></pre>
+<p>Columns of an accessibility table: one row per origin, opportunity, percentile and cutoff, in that order. No <code>cutoff</code> with <code>"fixed_exponential"</code>.</p>
+<ul>
+<li><code>id: (string | null)[]</code></li>
+<li><code>opportunity: string[]</code></li>
+<li><code>percentile: Int32Array</code></li>
+<li><code>cutoff?: Int32Array</code></li>
+<li><code>accessibility: Float64Array</code></li>
+</ul>
+<h2 id="expanded-and-arrival-matrices"><a class="header" href="#expanded-and-arrival-matrices">Expanded and arrival matrices</a></h2>
+<h3 id="expandedTravelTimeMatrix"><a class="header" href="#expandedTravelTimeMatrix">expandedTravelTimeMatrix</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function expandedTravelTimeMatrix(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: ExpandedTravelTimeMatrixOptions,
+): Promise&lt;ExpandedMatrix&gt;;
+</code></pre>
+<p>Travel times by public transport minute by minute: one row per origin, destination, departure minute of the window and Monte Carlo draw, instead of percentiles, with the routes taken and, with <code>breakdown</code>, the parts of each trip. Every option is in <a href="#ExpandedTravelTimeMatrixOptions"><code>ExpandedTravelTimeMatrixOptions</code></a> and <a href="#RoutingOptions"><code>RoutingOptions</code></a>. A street mode alone throws <a href="#UnsupportedError"><code>UnsupportedError</code></a> (use <code>travelTimeMatrix()</code>).</p>
+<pre><code class="language-js">const etm = await peabiru.expandedTravelTimeMatrix(network, points, points, {
+  mode: ["WALK", "TRANSIT"],
+  departureDatetime: "2019-05-13 14:00:00",
+  timeWindow: 2,
+  seed: 42,
+  breakdown: true,
+});
+console.log(etm.departure_time[0], etm.routes[0], etm.total_time[0]);
+</code></pre>
+<p>Throws with a street mode alone.</p>
+<h3 id="arrivalTravelTimeMatrix"><a class="header" href="#arrivalTravelTimeMatrix">arrivalTravelTimeMatrix</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function arrivalTravelTimeMatrix(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options: ArrivalTravelTimeMatrixOptions,
+): Promise&lt;ExpandedMatrix&gt;;
+</code></pre>
+<p>The latest trip by public transport that arrives by <code>arrivalDatetime</code>, for each origin and destination: the departures of the <code>maxTripDuration</code> minutes before it are searched, and each pair keeps the one that leaves last and arrives in time. The columns are those of <code>expandedTravelTimeMatrix()</code>. Every option is in <a href="#ArrivalTravelTimeMatrixOptions"><code>ArrivalTravelTimeMatrixOptions</code></a> and <a href="#RoutingOptions"><code>RoutingOptions</code></a>. A street mode alone throws <a href="#UnsupportedError"><code>UnsupportedError</code></a>.</p>
+<pre><code class="language-js">const atm = await peabiru.arrivalTravelTimeMatrix(network, points, points, {
+  mode: ["WALK", "TRANSIT"],
+  arrivalDatetime: "2019-05-13 15:00:00",
+  seed: 42,
+});
+console.log(atm.from_id[0], atm.to_id[0], atm.departure_time[0], atm.total_time[0]);
+</code></pre>
+<p>Throws with a street mode alone.</p>
+<h3 id="ExpandedTravelTimeMatrixOptions"><a class="header" href="#ExpandedTravelTimeMatrixOptions">ExpandedTravelTimeMatrixOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface ExpandedTravelTimeMatrixOptions extends RoutingOptions
+</code></pre>
+<p>Options of <code>expandedTravelTimeMatrix()</code>.</p>
+<p>Also takes every option of <a href="#RoutingOptions"><code>RoutingOptions</code></a>.</p>
+<ul>
+<li><code>departureDatetime?: DateTime | null</code>: Required: the first departure time.</li>
+<li><code>timeWindow?: number</code>: Minutes of departure times, from <code>departureDatetime</code> on (default 10).</li>
+<li><code>breakdown?: boolean</code>: Break each trip down into its parts (default false).</li>
+</ul>
+<h3 id="ArrivalTravelTimeMatrixOptions"><a class="header" href="#ArrivalTravelTimeMatrixOptions">ArrivalTravelTimeMatrixOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface ArrivalTravelTimeMatrixOptions extends RoutingOptions
+</code></pre>
+<p>Options of <code>arrivalTravelTimeMatrix()</code>.</p>
+<p>Also takes every option of <a href="#RoutingOptions"><code>RoutingOptions</code></a>.</p>
+<ul>
+<li><code>arrivalDatetime: DateTime</code>: Required: the time by which trips must arrive.</li>
+<li><code>breakdown?: boolean</code>: Break each trip down into its parts (default false).</li>
+</ul>
+<h3 id="ExpandedMatrix"><a class="header" href="#ExpandedMatrix">ExpandedMatrix</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface ExpandedMatrix
+</code></pre>
+<p>Columns of an expanded or arrival matrix: times are minutes with one decimal, <code>NaN</code> for trips longer than <code>maxTripDuration</code> (whose <code>routes</code> are null and <code>n_rides</code> <a href="#NA_INT32"><code>NA_INT32</code></a>). <code>departure_time</code> is <code>"HH:MM:SS"</code> (hours not wrapped at 24); <code>draw_number</code> counts the draws of a departure minute from 1; <code>routes</code> holds the route ids of the rides joined by <code>"|"</code>, or <code>"[WALK]"</code> for a trip on foot. The breakdown columns are present only with <code>breakdown: true</code>.</p>
+<ul>
+<li><code>from_id: (string | null)[]</code></li>
+<li><code>to_id: (string | null)[]</code></li>
+<li><code>departure_time: string[]</code></li>
+<li><code>draw_number: Int32Array</code></li>
+<li><code>access_time?: Float64Array</code></li>
+<li><code>wait_time?: Float64Array</code></li>
+<li><code>ride_time?: Float64Array</code></li>
+<li><code>transfer_time?: Float64Array</code></li>
+<li><code>egress_time?: Float64Array</code></li>
+<li><code>routes: (string | null)[]</code></li>
+<li><code>n_rides?: Int32Array</code></li>
+<li><code>total_time: Float64Array</code></li>
+</ul>
+<h2 id="detailed-itineraries"><a class="header" href="#detailed-itineraries">Detailed itineraries</a></h2>
+<h3 id="detailedItineraries"><a class="header" href="#detailedItineraries">detailedItineraries</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function detailedItineraries(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: DetailedItinerariesOptions,
+): Promise&lt;{ type: "FeatureCollection"; features: ItineraryFeature[] } | ItineraryRow[]&gt;;
+</code></pre>
+<p>The legs of the trips between pairs of origins and destinations: each walk, ride by bicycle or car and public transport ride, with its duration, wait, distance, route and line. Each pair gets its fastest itinerary over the departure window (the trip by the street mode alone, or by public transport, whichever is faster) or, with <code>shortestPath: false</code>, the alternatives found by the multi-criteria router (McRAPTOR). One row per leg, as a GeoJSON <a href="#FeatureCollection"><code>FeatureCollection</code></a> or, with <code>dropGeometry</code>, an array of rows; pairs without an itinerary have none. Every option is in <a href="#DetailedItinerariesOptions"><code>DetailedItinerariesOptions</code></a> and <a href="#RoutingOptions"><code>RoutingOptions</code></a>. Public transport needs feeds with timetables: a network with frequency-based trips is an error. With <code>modeEgress: "CAR"</code>, a pair whose egress crosses a turn restriction with two or more via ways, which can be read in either order, always gets the itinerary of a freshly built network routing that pair alone, with a warning.</p>
+<pre><code class="language-js">const back = { id: [...points.id].reverse(), lon: [...points.lon].reverse(), lat: [...points.lat].reverse() };
+const legs = await peabiru.detailedItineraries(network, points, back, {
+  mode: "BICYCLE",
+  departureDatetime: "2019-05-13 14:00:00",
+  dropGeometry: true,
+});
+console.log(legs.map((r) =&gt; `${r.from_id} &gt; ${r.to_id}: ${r.total_duration} min, ${r.total_distance} m`));
+</code></pre>
+<h3 id="DetailedItinerariesOptions"><a class="header" href="#DetailedItinerariesOptions">DetailedItinerariesOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface DetailedItinerariesOptions extends Omit&lt;RoutingOptions, "drawsPerMinute" | "seed"&gt;
+</code></pre>
+<p>Options of <code>detailedItineraries()</code>.</p>
+<ul>
+<li><code>departureDatetime?: DateTime | null</code>: Required with public transport; the current time otherwise.</li>
+<li><code>timeWindow?: number</code>: Minutes of departure times, from <code>departureDatetime</code> on (default 10).</li>
+<li><code>suboptimalMinutes?: number</code>: With <code>shortestPath: false</code>, how many minutes after the best arrival at a stop the multi-criteria search still keeps a state there, which widens the set of alternatives (default 0). Must be 0 with <code>shortestPath: true</code> or a <code>fareStructure</code>.</li>
+<li><code>shortestPath?: boolean</code>: Only the fastest itinerary of each pair (default true); <code>false</code> gives the alternatives, one per sequence of routes.</li>
+<li><code>allToAll?: boolean</code>: Route from every origin to every destination (default false: pair them row by row, a single origin or destination repeated to match the other).</li>
+<li><code>fareStructure?: FareStructure | null</code>: A fare structure (default null): trips routed with fares, and fare columns in the result.</li>
+<li><code>maxFare?: number</code>: The highest fare of a trip (default Infinity); a finite value needs a <code>fareStructure</code>.</li>
+<li><code>dropGeometry?: boolean</code>: Plain rows instead of GeoJSON features (default false).</li>
+<li><code>osmLinkIds?: boolean</code>: Add the properties <code>osm_id_list</code>, <code>edge_id_list</code>, <code>board_stop_id</code> and <code>alight_stop_id</code> to each row (default false; needs <code>dropGeometry: false</code>): see <a href="#ItineraryRow"><code>ItineraryRow</code></a>.</li>
+</ul>
+<h3 id="ItineraryRow"><a class="header" href="#ItineraryRow">ItineraryRow</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface ItineraryRow
+</code></pre>
+<p>One leg of an itinerary: durations and waits are minutes with one decimal, distances metres; <code>route</code> is the GTFS <code>route_id</code> of a ride, empty for a street leg.</p>
+<ul>
+<li><code>from_id: string | null</code></li>
+<li><code>from_lat: number</code></li>
+<li><code>from_lon: number</code></li>
+<li><code>to_id: string | null</code></li>
+<li><code>to_lat: number</code></li>
+<li><code>to_lon: number</code></li>
+<li><code>option: number</code>: The itinerary of the pair, from 1.</li>
+<li><code>departure_time: string</code>: <code>"HH:MM:SS"</code>, when the itinerary leaves the origin.</li>
+<li><code>total_duration: number</code></li>
+<li><code>total_distance: number</code></li>
+<li><code>total_fare?: number</code>: With a fare structure only.</li>
+<li><code>segment: number</code>: The leg, from 1.</li>
+<li><code>mode: string</code>: <code>"WALK"</code>, <code>"BICYCLE"</code>, <code>"CAR"</code>, or the mode of a ride, such as <code>"BUS"</code>.</li>
+<li><code>cumulative_fare?: number</code>: With a fare structure only: the fare paid up to the end of the leg.</li>
+<li><code>segment_duration: number</code></li>
+<li><code>wait: number</code></li>
+<li><code>distance: number</code></li>
+<li><code>route: string</code></li>
+<li><code>osm_id_list?: string</code>: With <code>osmLinkIds</code>: the OpenStreetMap way ids of a street leg’s edges, as <code>"[id1, id2, ...]"</code> (<code>"[]"</code> for a ride; consecutive edges on a roundabout give only their first ids, connectors none).</li>
+<li><code>edge_id_list?: string</code>: With <code>osmLinkIds</code>: the indices of those edges in the street network (<code>edge_index</code> of <code>streetNetworkToSf()</code>), as <code>"[i1, i2, ...]"</code>.</li>
+<li><code>board_stop_id?: string</code>: With <code>osmLinkIds</code>: a ride’s boarding stop, <code>"&lt;feed&gt;:&lt;stop_id&gt;"</code>; empty for street legs.</li>
+<li><code>alight_stop_id?: string</code>: With <code>osmLinkIds</code>: a ride’s alighting stop, <code>"&lt;feed&gt;:&lt;stop_id&gt;"</code>; empty for street legs.</li>
+</ul>
+<h3 id="ItineraryFeature"><a class="header" href="#ItineraryFeature">ItineraryFeature</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface ItineraryFeature
+</code></pre>
+<p>A leg with its line (longitude, latitude), as a GeoJSON feature.</p>
+<ul>
+<li><code>type: "Feature"</code></li>
+<li><code>properties: ItineraryRow</code></li>
+<li><code>geometry: { type: "LineString"; coordinates: [number, number][] }</code></li>
+</ul>
+<h2 id="fares"><a class="header" href="#fares">Fares</a></h2>
+<h3 id="setupFareStructure"><a class="header" href="#setupFareStructure">setupFareStructure</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function setupFareStructure(
+  network: Network,
+  baseFare: number,
+  options?: SetupFareStructureOptions,
+): Promise&lt;FareStructure&gt;;
+</code></pre>
+<p>A fare structure for the routes of a network in which every route, fare type and transfer between two types costs <code>baseFare</code> (at least 0, read as a 32-bit float), with one fare type per mode, per agency or for all routes (<code>by</code>). Edit its columns to set other fares.</p>
+<pre><code class="language-js">const fares = await peabiru.setupFareStructure(network, 4.4);
+console.log(fares.fares_per_type.type, fares.fares_per_route.route_id.length, "routes");
+</code></pre>
+<h3 id="SetupFareStructureOptions"><a class="header" href="#SetupFareStructureOptions">SetupFareStructureOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface SetupFareStructureOptions
+</code></pre>
+<p>Options of <code>setupFareStructure()</code>.</p>
+<ul>
+<li><code>by?: string</code>: One fare type per mode (<code>"MODE"</code>, the default), per agency (<code>"AGENCY_ID"</code>, <code>"AGENCY_NAME"</code>) or one for all routes (<code>"GENERIC"</code>).</li>
+<li><code>debugPath?: string | null</code>: A <code>.csv</code> path, kept in <code>debug_settings</code> (default null).</li>
+<li><code>debugInfo?: string | null</code>: <code>"MODE"</code>, <code>"ROUTE"</code> (the default with a <code>debugPath</code>) or <code>"MODE_ROUTE"</code>, kept in <code>debug_settings</code>; needs a <code>debugPath</code>.</li>
+</ul>
+<h3 id="FareStructure"><a class="header" href="#FareStructure">FareStructure</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface FareStructure
+</code></pre>
+<p>A fare structure: the global settings, three tables as objects of columns, and the debug settings. Made by <code>setupFareStructure()</code> or read by <code>readFareStructure()</code>, and changed by editing its columns.</p>
+<ul>
+<li><code>max_discounted_transfers: number | null</code>: Most transfers with a discount (default 1; null for none).</li>
+<li><code>transfer_time_allowance: number | null</code>: Minutes between the boardings of a discounted transfer (default 120).</li>
+<li><code>fare_cap: number</code>: Highest fare of a trip (Infinity: no cap).</li>
+<li><code>fares_per_type: { type: (string | null)[]; unlimited_transfers: boolean[]; allow_same_route_transfer: boolean[]; use_route_fare: boolean[]; fare: number[]; }</code>: One row per fare type: its name, whether its transfers are unlimited, whether a transfer to the same route is allowed, whether the route’s own fare is used, and its fare.</li>
+<li><code>fares_per_transfer: { first_leg: (string | null)[]; second_leg: (string | null)[]; fare: number[] }</code>: The fare of two rides together, for the pairs of fare types with a discount.</li>
+<li><code>fares_per_route: { agency_id: (string | null)[]; agency_name: (string | null)[]; route_id: (string | null)[]; route_short_name: (string | null)[]; route_long_name: (string | null)[]; mode: (string | null)[]; route_fare: number[]; fare_type: (string | null)[]; }</code>: The fare type of each GTFS route, matched by <code>agency_id</code> and <code>route_id</code>; a route of the network missing from it is an error.</li>
+<li><code>debug_settings: { output_file: string; trip_info: string }</code>: Kept as given; no debug file is written.</li>
+</ul>
+<h3 id="readFareStructure"><a class="header" href="#readFareStructure">readFareStructure</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function readFareStructure(
+  bytes: Uint8Array | ArrayBuffer | ArrayBufferView,
+  encoding?: "UTF-8" | "unknown" | "Latin-1",
+): FareStructure;
+</code></pre>
+<p>A fare structure read from the bytes of a <code>.zip</code> file of fare structure CSV files (written by <code>writeFareStructure()</code>, for example), whose text is in <code>encoding</code>: <code>"UTF-8"</code> (default), <code>"Latin-1"</code> or <code>"unknown"</code>. Synchronous; needs the module loaded (<code>init()</code> or <code>buildNetwork()</code> first).</p>
+<pre><code class="language-js">const bytes = peabiru.writeFareStructure(await peabiru.setupFareStructure(network, 4.4));
+const fares = peabiru.readFareStructure(bytes);
+console.log(fares.fare_cap, fares.fares_per_type.fare);
+</code></pre>
+<h3 id="writeFareStructure"><a class="header" href="#writeFareStructure">writeFareStructure</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function writeFareStructure(fareStructure: FareStructure): Uint8Array;
+</code></pre>
+<p>The bytes of a fare structure <code>.zip</code> file: one CSV file for the global settings and one per table, deflated. Synchronous; needs the module loaded. Throws when the structure is not one.</p>
+<pre><code class="language-js">const bytes = peabiru.writeFareStructure(await peabiru.setupFareStructure(network, 4.4));
+console.log(bytes.length, "bytes"); // in Node: await writeFile("fares.zip", bytes)
+</code></pre>
+<h3 id="paretoFrontier"><a class="header" href="#paretoFrontier">paretoFrontier</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function paretoFrontier(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: ParetoFrontierOptions,
+): Promise&lt;ParetoFrontierTable&gt;;
+</code></pre>
+<p>The trade-off between travel time and fare: for each origin, destination and percentile, the travel time within each fare cutoff, one row per cutoff at which it changes. Routed with the multi-criteria router (McRAPTOR) over one departure time per minute of the window. Every option is in <a href="#ParetoFrontierOptions"><code>ParetoFrontierOptions</code></a> and <a href="#RoutingOptions"><code>RoutingOptions</code></a>.</p>
+<pre><code class="language-js">const frontier = await peabiru.paretoFrontier(network, points, points, {
+  departureDatetime: "2019-05-13 14:00:00",
+  fareStructure: await peabiru.setupFareStructure(network, 4.4),
+  fareCutoffs: [0, 4.4, 8.8],
+  seed: 42,
+});
+console.log(frontier.from_id.length, "rows", frontier.monetary_cost[0]);
+</code></pre>
+<h3 id="ParetoFrontierOptions"><a class="header" href="#ParetoFrontierOptions">ParetoFrontierOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface ParetoFrontierOptions extends Omit&lt;RoutingOptions, "drawsPerMinute" | "newCarspeeds" | "carspeedScale" | "newLts"&gt;
+</code></pre>
+<p>Options of <code>paretoFrontier()</code>.</p>
+<ul>
+<li><code>mode?: string | string[]</code>: As in the other functions, but <code>["WALK", "TRANSIT"]</code> by default.</li>
+<li><code>departureDatetime?: DateTime | null</code>: Required with public transport.</li>
+<li><code>timeWindow?: number</code>: Minutes of departure times, from <code>departureDatetime</code> on (default 10), sampled once a minute.</li>
+<li><code>percentiles?: number | number[]</code>: 1 to 5 distinct whole numbers from 1 to 99 (default 50).</li>
+<li><code>fareStructure?: FareStructure</code>: Required: the fare structure.</li>
+<li><code>fareCutoffs?: number | number[]</code>: Required: the fare cutoffs, at least 0, distinct.</li>
+</ul>
+<h3 id="ParetoFrontierTable"><a class="header" href="#ParetoFrontierTable">ParetoFrontierTable</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface ParetoFrontierTable
+</code></pre>
+<p>Columns of a Pareto frontier: one row per origin, destination, percentile and fare cutoff at which the travel time changes. <code>monetary_cost</code> is the cutoff as the router reads it, a 32-bit float (4.4 is 4.400000095367432).</p>
+<ul>
+<li><code>from_id: (string | null)[]</code></li>
+<li><code>to_id: (string | null)[]</code></li>
+<li><code>percentile: Int32Array</code></li>
+<li><code>travel_time: Int32Array</code></li>
+<li><code>monetary_cost: Float64Array</code></li>
+</ul>
+<h2 id="facility-location"><a class="header" href="#facility-location">Facility location</a></h2>
+<h3 id="locateFacilities"><a class="header" href="#locateFacilities">locateFacilities</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function locateFacilities(
+  network: Network | null,
+  demand: Points,
+  candidates: Points,
+  options?: LocateFacilitiesOptions,
+): Promise&lt;FacilityLocation&gt;;
+</code></pre>
+<p>Where to open new facilities: among the candidate sites, the ones that serve the demand points best, by maximal covering, location set covering, p-median or p-center. The travel times from every demand point to every site come from <code>travelTimeMatrix()</code> with the routing options given, or from <code>travelTimes</code>. The existing facilities count first: only the demand they leave uncovered, or the travel time they leave, drives the choice.</p>
+<p>The models are solved by a greedy construction followed by vertex substitution: good and reproducible solutions, not proven optimal. The solver runs on the calling thread. See the guide “Facility location”.</p>
+<pre><code class="language-js">// one new facility among the points, to cover the most jobs within 10 minutes on foot
+const found = await peabiru.locateFacilities(network, points, points, {
+  model: "max_cover", nFacilities: 1, cutoff: 10, demandColname: "jobs", mode: "WALK",
+});
+console.log(found.sites.id, found.summary.covered / found.summary.total_demand);
+</code></pre>
+<h3 id="LocateFacilitiesOptions"><a class="header" href="#LocateFacilitiesOptions">LocateFacilitiesOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface LocateFacilitiesOptions extends LocationRoutingOptions
+</code></pre>
+<p>Options of <code>locateFacilities()</code>.</p>
+<p>Also takes every option of <a href="#LocationRoutingOptions"><code>LocationRoutingOptions</code></a>.</p>
+<ul>
+<li><code>existing?: Points | null</code>: The facilities already open (default: none). Their ids may not repeat those of the candidates.</li>
+<li><code>model?: "max_cover" | "set_cover" | "p_median" | "p_center"</code>: <code>"max_cover"</code> (default), <code>"set_cover"</code>, <code>"p_median"</code> or <code>"p_center"</code>.</li>
+<li><code>nFacilities?: number</code>: How many new facilities to open (default 1). Fewer come back when no further site improves the objective. Ignored by <code>"set_cover"</code>.</li>
+<li><code>cutoff?: number | null</code>: The service standard of the covering models, in minutes: a point is covered by a site at most this far (the cutoff included). Required by <code>"max_cover"</code> and <code>"set_cover"</code>; null for the others.</li>
+<li><code>demandColname?: string | null</code>: The column of the demand points with their weights (residents, pupils…), finite and not negative; null (default) for 1 each.</li>
+<li><code>percentile?: number</code>: The travel-time percentile used, 1 to 99 (default 50).</li>
+<li><code>maxTripDuration?: number | null</code>: The longest trip considered, in minutes. Default: <code>cutoff</code> (rounded up) for the covering models, 120 for the others.</li>
+<li><code>travelTimes?: TravelTimes | null</code>: A table of travel times to use instead of routing; with it the network may be null, no routing option is taken and the points need only their <code>id</code>.</li>
+<li><code>swap?: boolean</code>: Improve the greedy solution by vertex substitution (default true); for <code>"set_cover"</code>, drop the sites the others make redundant.</li>
+<li><code>minGain?: number</code>: <code>"max_cover"</code> stops opening sites when the best one left would cover less than this much demand (default 0).</li>
+<li><code>unreachableTime?: number | null</code>: For <code>"p_median"</code> and <code>"p_center"</code>, the minutes charged to a demand point that reaches no open facility (default: twice the longest travel time of the table).</li>
+</ul>
+<h3 id="FacilityLocation"><a class="header" href="#FacilityLocation">FacilityLocation</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface FacilityLocation
+</code></pre>
+<p>The result of <code>locateFacilities()</code>: three tables as objects of columns, and a summary.</p>
+<ul>
+<li><code>sites: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; order: Int32Array; marginal: Float64Array; cumulative: Float64Array }</code>: The new sites, ordered by what each adds: <code>marginal</code> is the demand newly covered (or by how much the objective falls) and <code>cumulative</code> the demand covered so far, existing facilities included (or the objective so far). <code>lon</code> and <code>lat</code> when the candidates have them.</li>
+<li><code>candidates: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; potential: Float64Array; chosen: boolean[] }</code>: One row per candidate: <code>potential</code> is what it would add as the only new facility (for the covering models, the demand not covered today that it would cover alone).</li>
+<li><code>demand: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; demand: Float64Array; facility_id: (string | null)[]; travel_time: Float64Array; covered: boolean[]; }</code>: One row per demand point: its weight, the nearest open facility (existing or new) and the minutes to it (<code>null</code> and <code>NaN</code> when it reaches none), and whether it is covered (within the cutoff of a facility; for <code>"p_median"</code> and <code>"p_center"</code>, whether it reaches one).</li>
+<li><code>summary: { model: string; n_sites: number; objective_before: number; objective_greedy: number; objective: number; covered_before: number | null; covered: number | null; total_demand: number; unservable_demand: number; n_swaps: number; }</code>: The objective is the demand covered (<code>"max_cover"</code>), the number of new sites (<code>"set_cover"</code>), the demand-weighted minutes (<code>"p_median"</code>) or the largest minutes (<code>"p_center"</code>): with the existing facilities only, after the greedy construction and in the end. <code>covered_before</code> and <code>covered</code> are null for <code>"p_median"</code> and <code>"p_center"</code>; <code>unservable_demand</code> is the demand no site can serve.</li>
+</ul>
+<h3 id="floatingCatchment"><a class="header" href="#floatingCatchment">floatingCatchment</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function floatingCatchment(
+  network: Network | null,
+  demand: Points,
+  supply: Points,
+  options?: FloatingCatchmentOptions,
+): Promise&lt;FloatingCatchment&gt;;
+</code></pre>
+<p>Supply against demand around each place, by the two-step floating catchment area: the supply of each facility is divided by the demand within its catchment, and each demand point adds up the ratios of the facilities within its catchment. With a decay function other than <code>"step"</code>, nearer pairs weigh more in both steps. The sum of demand times <a href="#accessibility"><code>accessibility</code></a> equals the supply of the facilities that have any demand in their catchment. See the guide “Facility location”.</p>
+<pre><code class="language-js">const clinic = { id: ["clinic"], lon: [-46.6321], lat: [-23.5577], places: [300] };
+const fca = await peabiru.floatingCatchment(network, points, clinic, {
+  cutoff: 20, demandColname: "jobs", supplyColname: "places", mode: "WALK",
+});
+console.log(fca.demand.id, fca.demand.accessibility);
+</code></pre>
+<h3 id="FloatingCatchmentOptions"><a class="header" href="#FloatingCatchmentOptions">FloatingCatchmentOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface FloatingCatchmentOptions extends LocationRoutingOptions
+</code></pre>
+<p>Options of <code>floatingCatchment()</code>.</p>
+<p>Also takes every option of <a href="#LocationRoutingOptions"><code>LocationRoutingOptions</code></a>.</p>
+<ul>
+<li><code>cutoff?: number | null</code>: The catchment in minutes: with <code>"step"</code>, a pair counts in full up to it (the cutoff included); for the other functions, as in <code>accessibility()</code>. null only with <code>"fixed_exponential"</code>.</li>
+<li><code>decayFunction?: "step" | "exponential" | "fixed_exponential" | "linear" | "logistic"</code>: <code>"step"</code> (default: the two-step floating catchment area), or <code>"exponential"</code>, <code>"fixed_exponential"</code>, <code>"linear"</code>, <code>"logistic"</code> for the enhanced form, in which nearer pairs weigh more.</li>
+<li><code>decayValue?: number | null</code>: The parameter of <code>"fixed_exponential"</code>, <code>"linear"</code> and <code>"logistic"</code>, as in <code>accessibility()</code>.</li>
+<li><code>demandColname?: string | null</code>: The column of the demand points with their weights; null (default) for 1 each.</li>
+<li><code>supplyColname?: string | null</code>: The column of the facilities with their capacities; null (default) for 1 each.</li>
+<li><code>percentile?: number</code>: The travel-time percentile used, 1 to 99 (default 50).</li>
+<li><code>maxTripDuration?: number | null</code>: The longest trip considered, in minutes. Default: <code>cutoff</code> (rounded up) for <code>"step"</code>, 120 for the other functions.</li>
+<li><code>travelTimes?: TravelTimes | null</code>: A table of travel times to use instead of routing (see <a href="#LocateFacilitiesOptions"><code>LocateFacilitiesOptions</code></a>).</li>
+</ul>
+<h3 id="FloatingCatchment"><a class="header" href="#FloatingCatchment">FloatingCatchment</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface FloatingCatchment
+</code></pre>
+<p>The result of <code>floatingCatchment()</code>: two tables as objects of columns.</p>
+<ul>
+<li><code>demand: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; demand: Float64Array; accessibility: Float64Array }</code>: One row per demand point: its weight and <a href="#accessibility"><code>accessibility</code></a>, supply per unit of demand.</li>
+<li><code>supply: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; supply: Float64Array; catchment_demand: Float64Array; ratio: Float64Array }</code>: One row per facility: its supply, the weighted demand in its catchment and their ratio (0 when the catchment holds no demand).</li>
+</ul>
+<h3 id="TravelTimes"><a class="header" href="#TravelTimes">TravelTimes</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type TravelTimes =
+  | { from_id: ArrayLike&lt;string | number | null&gt;; to_id: ArrayLike&lt;string | number | null&gt;; [column: string]: ArrayLike&lt;unknown&gt; }
+  | Array&lt;{ from_id: string | number | null; to_id: string | number | null; [column: string]: unknown }&gt;;
+</code></pre>
+<p>A table of travel times given to <code>locateFacilities()</code> or <code>floatingCatchment()</code> instead of a network: columns (or row objects) <code>from_id</code> (demand point), <code>to_id</code> (site) and the minutes in <code>travel_time_pXX</code> for the <code>percentile</code> or in <code>travel_time</code>, as <code>travelTimeMatrix()</code> returns it. A pair that is absent or has a missing time (<code>null</code>, <code>NaN</code>, <a href="#NA_INT32"><code>NA_INT32</code></a>) is unreachable; rows of other points are ignored.</p>
+<h3 id="LocationRoutingOptions"><a class="header" href="#LocationRoutingOptions">LocationRoutingOptions</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type LocationRoutingOptions = Omit&lt;TravelTimeMatrixOptions, "percentiles" | "outputDir" | "maxTripDuration"&gt;;
+</code></pre>
+<p>The routing options the location functions pass on to <code>travelTimeMatrix()</code>.</p>
+<h2 id="isochrones"><a class="header" href="#isochrones">Isochrones</a></h2>
+<h3 id="isochrone"><a class="header" href="#isochrone">isochrone</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function isochrone(
+  network: Network,
+  origins: Points,
+  options: IsochroneOptions &amp; { polygonOutput: false },
+): Promise&lt;FeatureCollection&lt;LineString, IsochroneLineProperties&gt;&gt;;
+export declare function isochrone(
+  network: Network,
+  origins: Points,
+  options?: IsochroneOptions,
+): Promise&lt;FeatureCollection&lt;MultiPolygon, IsochronePolygonProperties&gt;&gt;;
+</code></pre>
+<p>The areas, or the street segments, reached from each origin within each cutoff. With <code>polygonOutput: true</code> (the default), one <a href="#MultiPolygon"><code>MultiPolygon</code></a> feature per origin, percentile (ascending) and cutoff (descending), empty when nothing is reached, made by interpolating the travel times on a Web Mercator grid (<code>zoom</code>) and tracing their contours with isoband’s algorithm; with <code>polygonOutput: false</code>, one <a href="#LineString"><code>LineString</code></a> per street segment reached, by origin, then band and travel time descending. Every option is in <a href="#IsochroneOptions"><code>IsochroneOptions</code></a>.</p>
+<pre><code class="language-js">const iso = await peabiru.isochrone(network, points, {
+  mode: "WALK",
+  cutoffs: [5, 10],
+});
+console.log(iso.features.map((f) =&gt; `${f.properties.id} ${f.properties.isochrone} min`));
+</code></pre>
+<p>The polygons are always MultiPolygons, as the contouring (a port of isoband) gives them: not repaired and not snapped to 1e-7 degrees, with the same rings on every platform.</p>
+<h3 id="IsochroneOptions"><a class="header" href="#IsochroneOptions">IsochroneOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface IsochroneOptions extends Omit&lt;RoutingOptions, "newCarspeeds" | "carspeedScale" | "newLts" | "outputDir" | "maxTripDuration"&gt;
+</code></pre>
+<p>Options of <code>isochrone()</code>: those of the routing functions (no fares, scenarios or <code>outputDir</code>), plus its own.</p>
+<ul>
+<li><code>mode?: string | string[]</code>: As in the other functions, but <code>"transit"</code> by default (case does not matter).</li>
+<li><code>modeEgress?: string</code>: <code>"walk"</code> by default (case does not matter).</li>
+<li><code>cutoffs?: number | number[]</code>: Minutes that delimit the isochrones (default <code>[0, 15, 30]</code>): finite and at least 0, sorted and made distinct, 0 added; one must be above 0. The largest is the trip limit.</li>
+<li><code>zoom?: number</code>: Web Mercator zoom level, 9 to 12, of the grid the polygons are made from (default 10).</li>
+<li><code>polygonOutput?: boolean</code>: <code>true</code> (default) for polygons, <code>false</code> for the street segments reached.</li>
+<li><code>departureDatetime?: DateTime | null</code>: Required with public transport; the current time otherwise (default null).</li>
+<li><code>timeWindow?: number</code>: Minutes of departure times, from <code>departureDatetime</code> on (default 10).</li>
+<li><code>percentiles?: number | number[] | null</code>: 1 to 5 distinct values from 1 to 99: one set of polygons per percentile; null (default) means 50. Must be null for lines.</li>
+<li><code>maxTripDuration?: number</code>: Accepted and not used: the trip limit comes from the cutoffs.</li>
+</ul>
+<h3 id="IsochronePolygonProperties"><a class="header" href="#IsochronePolygonProperties">IsochronePolygonProperties</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface IsochronePolygonProperties
+</code></pre>
+<p>Properties of a polygon isochrone.</p>
+<ul>
+<li><code>id: string | null</code></li>
+<li><code>isochrone: number</code>: The cutoff, minutes.</li>
+<li><code>percentile: string</code>: Such as <code>"p50"</code>.</li>
+</ul>
+<h3 id="IsochroneLineProperties"><a class="header" href="#IsochroneLineProperties">IsochroneLineProperties</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface IsochroneLineProperties
+</code></pre>
+<p>Properties of a line isochrone: the street segment, with the properties of <a href="#StreetEdgeProperties"><code>StreetEdgeProperties</code></a>.</p>
+<ul>
+<li><code>id: string | null</code></li>
+<li><code>edge_index: string</code>: The directed edge index, as a string.</li>
+<li><code>osm_id: number</code></li>
+<li><code>isochrone: number</code>: The smallest cutoff at or above the travel time, minutes.</li>
+<li><code>travel_time_p50: number</code>: The travel time to the segment, minutes.</li>
+<li><code>from_vertex: number</code></li>
+<li><code>to_vertex: number</code></li>
+<li><code>street_class: "MOTORWAY" | "PRIMARY" | "SECONDARY" | "TERTIARY" | "OTHER"</code></li>
+<li><code>length: number</code>: Metres.</li>
+<li><code>walk: boolean</code></li>
+<li><code>car: boolean</code></li>
+<li><code>car_speed: number</code>: km/h.</li>
+<li><code>bicycle: boolean</code></li>
+<li><code>bicycle_lts: number</code></li>
+</ul>
+<h3 id="FeatureCollection"><a class="header" href="#FeatureCollection">FeatureCollection</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface FeatureCollection&lt;G, P&gt;
+</code></pre>
+<p>A GeoJSON FeatureCollection.</p>
+<ul>
+<li><code>type: "FeatureCollection"</code></li>
+<li><code>features: Feature&lt;G, P&gt;[]</code></li>
+</ul>
+<h3 id="Feature"><a class="header" href="#Feature">Feature</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface Feature&lt;G, P&gt;
+</code></pre>
+<p>A GeoJSON feature (coordinates <code>[lon, lat]</code>, WGS 84).</p>
+<ul>
+<li><code>type: "Feature"</code></li>
+<li><code>properties: P</code></li>
+<li><code>geometry: G</code></li>
+</ul>
+<h3 id="MultiPolygon"><a class="header" href="#MultiPolygon">MultiPolygon</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface MultiPolygon
+</code></pre>
+<p>A GeoJSON MultiPolygon: polygons of rings (shell first, then holes), every ring closed.</p>
+<ul>
+<li><code>type: "MultiPolygon"</code></li>
+<li><code>coordinates: [number, number][][][]</code></li>
+</ul>
+<h3 id="LineString"><a class="header" href="#LineString">LineString</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface LineString
+</code></pre>
+<p>A GeoJSON LineString.</p>
+<ul>
+<li><code>type: "LineString"</code></li>
+<li><code>coordinates: [number, number][]</code></li>
+</ul>
+<h2 id="inspecting-a-network"><a class="header" href="#inspecting-a-network">Inspecting a network</a></h2>
+<h3 id="findSnap"><a class="header" href="#findSnap">findSnap</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function findSnap(network: Network, points: Points, options?: FindSnapOptions): Promise&lt;SnapTable&gt;;
+</code></pre>
+<p>Where points snap to the street network: for each point, the nearest point of a street the mode may use, first within 300 metres and then within <code>radius</code>. A point that does not snap is not routed.</p>
+<pre><code class="language-js">const snap = await peabiru.findSnap(network, points, { mode: "CAR" });
+console.log(snap.point_id, snap.distance, snap.found);
+</code></pre>
+<h3 id="FindSnapOptions"><a class="header" href="#FindSnapOptions">FindSnapOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface FindSnapOptions
+</code></pre>
+<p>Options of <code>findSnap()</code>.</p>
+<ul>
+<li><code>radius?: number</code>: The largest distance in metres within which to snap (default 1600).</li>
+<li><code>mode?: "WALK" | "BICYCLE" | "CAR"</code>: The mode whose streets the points snap to (default <code>"WALK"</code>).</li>
+<li><code>onWarning?: WarningHandler</code>: Receives the warnings about the points; by default <code>console.warn</code>.</li>
+<li><code>signal?: AbortSignal</code>: Aborts the call.</li>
+</ul>
+<h3 id="SnapTable"><a class="header" href="#SnapTable">SnapTable</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface SnapTable
+</code></pre>
+<p>Where points snap to the streets: one row per point.</p>
+<ul>
+<li><code>point_id: (string | null)[]</code></li>
+<li><code>lat: Float64Array</code></li>
+<li><code>lon: Float64Array</code></li>
+<li><code>snap_lat: Float64Array</code>: Where the point snaps; NaN where it does not.</li>
+<li><code>snap_lon: Float64Array</code></li>
+<li><code>distance: Float64Array</code>: Metres from the point to where it snaps (haversine on a sphere of radius 6,367,450 m); NaN where it does not snap.</li>
+<li><code>found: boolean[]</code></li>
+</ul>
+<h3 id="streetNetworkBbox"><a class="header" href="#streetNetworkBbox">streetNetworkBbox</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function streetNetworkBbox(network: Network, output: "vector"): Promise&lt;{ xmin: number; ymin: number; xmax: number; ymax: number }&gt;;
+export declare function streetNetworkBbox(network: Network, output: "bbox"): Promise&lt;[number, number, number, number]&gt;;
+export declare function streetNetworkBbox(network: Network, output?: "polygon"): Promise&lt;Polygon&gt;;
+</code></pre>
+<p>The bounding box of the street network: the envelope of the street layer, which covers every OpenStreetMap node of the ways streets were made from. <code>output</code> is <code>"polygon"</code> (the default, a Polygon whose ring starts at the south-west corner and goes counter-clockwise), <code>"bbox"</code> (the GeoJSON bbox <code>[xmin, ymin, xmax, ymax]</code>) or <code>"vector"</code> (an object).</p>
+<pre><code class="language-js">console.log(await peabiru.streetNetworkBbox(network, "vector"));
+</code></pre>
+<h3 id="Polygon"><a class="header" href="#Polygon">Polygon</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface Polygon
+</code></pre>
+<p>A GeoJSON Polygon: rings of <code>[lon, lat]</code>, shell first, every ring closed.</p>
+<ul>
+<li><code>type: "Polygon"</code></li>
+<li><code>coordinates: [number, number][][]</code></li>
+</ul>
+<h3 id="Point"><a class="header" href="#Point">Point</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface Point
+</code></pre>
+<p>A GeoJSON Point.</p>
+<ul>
+<li><code>type: "Point"</code></li>
+<li><code>coordinates: [number, number]</code></li>
+</ul>
+<h3 id="streetNetworkToSf"><a class="header" href="#streetNetworkToSf">streetNetworkToSf</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function streetNetworkToSf(network: Network, options?: InspectOptions): Promise&lt;{
+  vertices: FeatureCollection&lt;Point, StreetVertexProperties&gt;;
+  edges: FeatureCollection&lt;LineString, StreetEdgeProperties&gt;;
+}&gt;;
+</code></pre>
+<p>The street network as GeoJSON: <code>vertices</code>, the Points at the ends of street edges, and <code>edges</code>, every directed street edge as a LineString (the connectors of transit stops and park-and-rides left out), in the network’s order.</p>
+<pre><code class="language-js">const { vertices, edges } = await peabiru.streetNetworkToSf(network);
+console.log(vertices.features.length, edges.features.length, edges.features[0].properties);
+</code></pre>
+<h3 id="StreetVertexProperties"><a class="header" href="#StreetVertexProperties">StreetVertexProperties</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface StreetVertexProperties
+</code></pre>
+<p>Properties of a street vertex.</p>
+<ul>
+<li><code>index: number</code>: The vertex index in the network.</li>
+<li><code>park_and_ride: boolean</code></li>
+<li><code>bike_sharing: boolean</code>: Always false: bike sharing is not loaded.</li>
+</ul>
+<h3 id="StreetEdgeProperties"><a class="header" href="#StreetEdgeProperties">StreetEdgeProperties</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface StreetEdgeProperties
+</code></pre>
+<p>Properties of a directed street edge.</p>
+<ul>
+<li><code>edge_index: number</code>: The directed edge index in the network.</li>
+<li><code>osm_id: number</code>: The OpenStreetMap way the edge comes from.</li>
+<li><code>from_vertex: number</code></li>
+<li><code>to_vertex: number</code></li>
+<li><code>street_class: "MOTORWAY" | "PRIMARY" | "SECONDARY" | "TERTIARY" | "OTHER"</code></li>
+<li><code>length: number</code>: Metres.</li>
+<li><code>walk: boolean</code>: Whether walking may use the edge.</li>
+<li><code>car: boolean</code>: Whether driving may use the edge.</li>
+<li><code>car_speed: number</code>: km/h.</li>
+<li><code>bicycle: boolean</code>: Whether cycling may use the edge.</li>
+<li><code>bicycle_lts: number</code>: The level of traffic stress for cyclists, 1 to 4.</li>
+</ul>
+<h3 id="InspectOptions"><a class="header" href="#InspectOptions">InspectOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface InspectOptions
+</code></pre>
+<p>Options of the functions that only read the network.</p>
+<ul>
+<li><code>signal?: AbortSignal</code>: Aborts the call.</li>
+</ul>
+<h3 id="transitNetworkToSf"><a class="header" href="#transitNetworkToSf">transitNetworkToSf</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function transitNetworkToSf(network: Network, options?: InspectOptions): Promise&lt;{
+  stops: FeatureCollection&lt;Point | null, TransitStopProperties&gt;;
+  routes: FeatureCollection&lt;LineString | Point, TransitRouteProperties&gt;;
+}&gt;;
+</code></pre>
+<p>The public transport network as GeoJSON: <code>stops</code>, one Point per stop (a stop not linked to the streets has a null geometry), and <code>routes</code>, one feature per trip pattern, whose line is the GTFS shape of the trip that made the pattern or, without one, the positions of its linked stops. Patterns without a line are left out, and a line whose points are all the same is a Point.</p>
+<pre><code class="language-js">const { stops, routes } = await peabiru.transitNetworkToSf(network);
+console.log(stops.features.length, "stops,", routes.features.length, "routes", routes.features[0].properties);
+</code></pre>
+<h3 id="TransitStopProperties"><a class="header" href="#TransitStopProperties">TransitStopProperties</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TransitStopProperties
+</code></pre>
+<p>Properties of a transit stop.</p>
+<ul>
+<li><code>stop_index: number</code></li>
+<li><code>stop_id: string</code>: Prefixed by the feed id (<code>feed:stop</code>).</li>
+<li><code>stop_name: string | null</code>: null when blank.</li>
+<li><code>linked_to_street: boolean</code></li>
+</ul>
+<h3 id="TransitRouteProperties"><a class="header" href="#TransitRouteProperties">TransitRouteProperties</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TransitRouteProperties
+</code></pre>
+<p>Properties of a transit route (one per trip pattern); null where blank.</p>
+<ul>
+<li><code>agency_id: string | null</code></li>
+<li><code>agency_name: string | null</code></li>
+<li><code>route_id: string</code></li>
+<li><code>long_name: string | null</code></li>
+<li><code>short_name: string | null</code></li>
+<li><code>mode: string</code>: The mode of the GTFS <code>route_type</code>, such as <code>"BUS"</code>.</li>
+</ul>
+<h3 id="checkTransitAvailability"><a class="header" href="#checkTransitAvailability">checkTransitAvailability</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function checkTransitAvailability(network: Network, options?: TransitAvailabilityOptions): Promise&lt;TransitAvailabilityTable&gt;;
+</code></pre>
+<p>The services active on dates: the given <code>dates</code>, every date from <code>startDate</code> to <code>endDate</code>, or, with no date option, the dates on which some trip runs, found from the network (ascending). <code>total_services</code> counts every service, used by trips or not.</p>
+<pre><code class="language-js">const week = await peabiru.checkTransitAvailability(network, { startDate: "2019-05-12", endDate: "2019-05-18" });
+console.log(week.date, week.active_services);
+</code></pre>
+<h3 id="TransitAvailabilityOptions"><a class="header" href="#TransitAvailabilityOptions">TransitAvailabilityOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TransitAvailabilityOptions
+</code></pre>
+<p>Options of <code>checkTransitAvailability()</code>: none (discovery), <code>dates</code>, or <code>startDate</code> and <code>endDate</code>.</p>
+<ul>
+<li><code>dates?: string | Date | Array&lt;string | Date&gt;</code>: Dates to check: <code>"YYYY-MM-DD"</code> strings or Dates (their local date).</li>
+<li><code>startDate?: string | Date</code>: The first date of a range to check.</li>
+<li><code>endDate?: string | Date</code>: The last date of a range to check.</li>
+<li><code>signal?: AbortSignal</code>: Aborts the call.</li>
+</ul>
+<h3 id="TransitAvailabilityTable"><a class="header" href="#TransitAvailabilityTable">TransitAvailabilityTable</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TransitAvailabilityTable
+</code></pre>
+<p>Services active on each date.</p>
+<ul>
+<li><code>date: string[]</code>: <code>"YYYY-MM-DD"</code>.</li>
+<li><code>total_services: Int32Array</code></li>
+<li><code>active_services: Int32Array</code></li>
+<li><code>pct_active: Float64Array</code>: <code>active_services / total_services</code>, 0 without services.</li>
+</ul>
+<h3 id="getGtfsErrors"><a class="header" href="#getGtfsErrors">getGtfsErrors</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function getGtfsErrors(feeds: GtfsFeed[] | { gtfs: GtfsFeed[] }): Promise&lt;GtfsErrorsTable&gt;;
+</code></pre>
+<p>The errors the validator gtfs-lib (Conveyal) reports when it loads GTFS feeds, one row per error, feed by feed in the order gtfs-lib finds them. A Network does not keep its feeds: pass them as <code>buildNetwork()</code> takes them (an array of <code>{name, data}</code>, or an object with a <code>gtfs</code> array). Loads the module first if needed. Rejects with an Error naming the cause for a feed on which gtfs-lib fails instead, and for a <code>locations.geojson</code> (GTFS-Flex zones) that is not in UTF-8. GTFS-Flex zones and location groups are read as gtfs-lib reads them, for its errors; on-demand trips are not routed.</p>
+<pre><code class="language-js">const errors = await peabiru.getGtfsErrors(gtfs);
+console.log(errors.type.length, "errors:", [...new Set(errors.type)]);
+</code></pre>
+<p>The rows come in a fixed order.</p>
+<h3 id="GtfsErrorsTable"><a class="header" href="#GtfsErrorsTable">GtfsErrorsTable</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface GtfsErrorsTable
+</code></pre>
+<p>The errors gtfs-lib reports in GTFS feeds: one row per error.</p>
+<ul>
+<li><code>file: (string | null)[]</code>: The table, without <code>.txt</code>.</li>
+<li><code>line: Int32Array</code>: The record, the header being line 1; 0 for a whole table.</li>
+<li><code>type: string[]</code>: gtfs-lib’s error class, such as <code>"DuplicateKeyError"</code>.</li>
+<li><code>field: (string | null)[]</code></li>
+<li><code>id: (string | null)[]</code>: The key concerned, for duplicate keys and suspect stop locations.</li>
+<li><code>priority: string[]</code>: <code>"HIGH"</code> (<code>buildNetwork()</code> refuses the feed), <code>"MEDIUM"</code>, <code>"LOW"</code> or <code>"UNKNOWN"</code>.</li>
+</ul>
+<h2 id="points-dates-scenarios-and-shared-options"><a class="header" href="#points-dates-scenarios-and-shared-options">Points, dates, scenarios and shared options</a></h2>
+<h3 id="Points"><a class="header" href="#Points">Points</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type Points =
+  | { id: ArrayLike&lt;string | number | null&gt;; lon: Numbers; lat: Numbers; [column: string]: unknown }
+  | Array&lt;{ id: string | number | null; lon: number | null; lat: number | null; [column: string]: unknown }&gt;;
+</code></pre>
+<p>Points: columns <code>id</code>, <code>lon</code> and <code>lat</code> (WGS 84), or an array of <code>{id, lon, lat}</code> objects. Ids that are not strings are converted with <code>String()</code> (with a warning); points with missing coordinates (<code>null</code>, <code>NaN</code>) are not routed (with a warning); duplicated ids are an error. For <code>accessibility()</code>, the destinations also hold the opportunity columns (or properties).</p>
+<h3 id="Numbers"><a class="header" href="#Numbers">Numbers</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type Numbers = ArrayLike&lt;number | null | undefined&gt;;
+</code></pre>
+<p>Numbers as a plain array or any typed array.</p>
+<h3 id="DateTime"><a class="header" href="#DateTime">DateTime</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type DateTime = Date | string;
+</code></pre>
+<p>A date and clock time: a <code>Date</code> (its local date and clock time in the JavaScript runtime’s time zone), or a string <code>"YYYY-MM-DD HH:MM:SS"</code> (also with <code>T</code>, or without seconds), taken as it reads, which is the safer choice: the clock time of the GTFS feeds.</p>
+<h3 id="RoutingOptions"><a class="header" href="#RoutingOptions">RoutingOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface RoutingOptions
+</code></pre>
+<p>Options shared by the routing functions, with their defaults.</p>
+<ul>
+<li><code>mode?: string | string[]</code>: <code>"WALK"</code> (default), <code>"BICYCLE"</code> or <code>"CAR"</code> alone, or public transport: <code>"TRANSIT"</code> (every transit mode) or any of <code>"TRAM"</code>, <code>"SUBWAY"</code>, <code>"RAIL"</code>, <code>"BUS"</code>, <code>"FERRY"</code>, <code>"CABLE_CAR"</code>, <code>"GONDOLA"</code>, <code>"FUNICULAR"</code>, with at most one street mode to reach it (walking by default; by bicycle or car, the trip goes on on foot from where the vehicle is left). Case does not matter.</li>
+<li><code>modeEgress?: string</code>: <code>"WALK"</code> (default), <code>"BICYCLE"</code> or <code>"CAR"</code>: from public transport to the destinations.</li>
+<li><code>maxWalkTime?: number</code>: Minutes of walking, to or from public transport, or alone; <code>Infinity</code> (default) means the trip limit.</li>
+<li><code>maxBikeTime?: number</code>: Minutes by bicycle, to or from public transport, or alone; <code>Infinity</code> (default) means the trip limit.</li>
+<li><code>maxCarTime?: number</code>: Minutes by car, to or from public transport, or alone; <code>Infinity</code> (default) means the trip limit.</li>
+<li><code>maxTripDuration?: number</code>: The longest trip, in whole minutes (default 120).</li>
+<li><code>walkSpeed?: number</code>: Walking speed, km/h (default 3.6).</li>
+<li><code>bikeSpeed?: number</code>: Cycling speed, km/h (default 12).</li>
+<li><code>maxRides?: number</code>: Most public transport vehicles boarded in a trip (default 3).</li>
+<li><code>maxLts?: number</code>: Highest level of traffic stress a cyclist rides on, 1 to 4 (default 2).</li>
+<li><code>newCarspeeds?: ScenarioTable | GeoJsonFeatureCollection | null</code>: A scenario of car speeds (default null): a table (an object of columns or an array of rows) with <code>osm_id</code>, <code>max_speed</code> and <code>speed_type</code> (<code>"scale"</code>, a factor for the car speed of the way’s edges, or <code>"km/h"</code>, a speed; 0 closes the way to cars), or a GeoJSON FeatureCollection of Polygons or MultiPolygons with properties <code>poly_id</code> (string), <code>scale</code> and <code>priority</code> (integer): each edge takes the factor of the polygon it meets with the highest priority (on a tie, the one it overlaps most). Speeds are kept as 16-bit cm/s: one that would come to 0 or less, or pass that range, is an error.</li>
+<li><code>carspeedScale?: number</code>: The factor for the car speeds of the edges <code>newCarspeeds</code> leaves out, at least 0 (default 1).</li>
+<li><code>newLts?: ScenarioTable | GeoJsonFeatureCollection | null</code>: A scenario of levels of traffic stress (default null): a table with <code>osm_id</code> and <code>lts</code> (integer, 1 to 4), or a GeoJSON FeatureCollection of LineStrings with properties <code>line_id</code>, <code>lts</code> (1 to 4) and <code>priority</code> (not used): each edge takes the level of the closest line among those whose bounding box meets its own. A scenario changes the street search from the origins but not the egress from the stops; on a network with elevation, a call with a scenario routes without slope costs, with a warning.</li>
+<li><code>drawsPerMinute?: number</code>: Monte Carlo draws per departure minute for frequency-based GTFS (default 5).</li>
+<li><code>seed?: number | null</code>: Seed of the Monte Carlo draws, an integer. With frequency-based GTFS the results are reproducible only with a seed; without one (null, the default) a random seed is drawn for each call.</li>
+<li><code>nThreads?: number | null</code>: Workers of the network this call uses: a whole number &gt;= 1, or null or Infinity (default) for all of them. More than the network has means all it has; a network without workers routes on the calling thread whatever this is. The origins are shared out in contiguous blocks, one per worker; the results do not depend on how.</li>
+<li><code>signal?: AbortSignal | null</code>: Stops the call, which then rejects with the signal’s reason (an <code>AbortError</code> <code>DOMException</code> for <code>controller.abort()</code>). On a network with workers, the call’s workers are stopped at once and replaced, in the background, by new ones built from the same input; the network stays usable (later calls wait for the new workers). On the calling thread a running call cannot be interrupted: the signal is checked only before it starts.</li>
+<li><code>verbose?: boolean</code>: Must be a boolean (default false); nothing is printed.</li>
+<li><code>progress?: boolean</code>: Must be a boolean (default true); no progress is shown.</li>
+<li><code>outputDir?: string | null</code>: Writing the results to files: must be null (default); anything else throws <a href="#UnsupportedError"><code>UnsupportedError</code></a>.</li>
+<li><code>onWarning?: WarningHandler</code>: Receives the warnings of the call; by default <code>console.warn</code>.</li>
+</ul>
+<h3 id="ScenarioTable"><a class="header" href="#ScenarioTable">ScenarioTable</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type ScenarioTable = Record&lt;string, ArrayLike&lt;unknown&gt;&gt; | Array&lt;Record&lt;string, unknown&gt;&gt;;
+</code></pre>
+<p>A table of a scenario: an object of columns, or an array of row objects.</p>
+<h3 id="GeoJsonFeatureCollection"><a class="header" href="#GeoJsonFeatureCollection">GeoJsonFeatureCollection</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface GeoJsonFeatureCollection
+</code></pre>
+<p>A GeoJSON FeatureCollection (WGS 84).</p>
+<ul>
+<li><code>type: "FeatureCollection"</code></li>
+<li><code>features: Array&lt;{ type: "Feature"; properties: Record&lt;string, unknown&gt;; geometry: { type: string; coordinates: unknown } }&gt;</code></li>
+</ul>
+<h2 id="missing-values-and-errors"><a class="header" href="#missing-values-and-errors">Missing values and errors</a></h2>
+<h3 id="NA_INT32"><a class="header" href="#NA_INT32">NA_INT32</a></h3>
+<p><em>constant</em></p>
+<pre><code class="language-typescript">export declare const NA_INT32: -2147483648;
+</code></pre>
+<p>The missing value (NA) of the <code>Int32Array</code> columns of the results: -2147483648, the smallest 32-bit integer. The <code>Float64Array</code> columns use <code>NaN</code>, and the string columns <code>null</code>.</p>
+<pre><code class="language-js">const ttm = await peabiru.travelTimeMatrix(network, points, points, {
+  mode: ["WALK", "TRANSIT"], departureDatetime: "2019-05-13 14:00:00", seed: 42, percentiles: [5, 95],
+});
+const reached = ttm.travel_time_p05.filter((t) =&gt; t !== peabiru.NA_INT32).length;
+console.log(reached, "of", ttm.from_id.length);
+</code></pre>
+<h3 id="UnsupportedError"><a class="header" href="#UnsupportedError">UnsupportedError</a></h3>
+<p><em>class</em></p>
+<pre><code class="language-typescript">export declare class UnsupportedError extends Error
+</code></pre>
+<p>The error thrown when a call asks for something peabiru does not do: an <code>outputDir</code>, an expanded or arrival matrix by a street mode alone, or a fare structure that names a fare calculator (a <code>type</code>) instead of fare rules. peabiru never ignores an option it cannot honour.</p>
+<pre><code class="language-js">try {
+  await peabiru.travelTimeMatrix(network, points, points, { outputDir: "results" });
+} catch (e) {
+  console.log(e instanceof peabiru.UnsupportedError, e.name);
+}
+</code></pre>
+<ul>
+<li><code>constructor(message: string)</code></li>
+<li><code>readonly name: "UnsupportedError"</code></li>
+</ul>
+<h2 id="loading-the-module-and-versions"><a class="header" href="#loading-the-module-and-versions">Loading the module and versions</a></h2>
+<h3 id="init"><a class="header" href="#init">init</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function init(input?: InitInput): Promise&lt;void&gt;;
+</code></pre>
+<p>Load and compile the WebAssembly module, once: later calls resolve at once. Without <code>input</code> the module is <code>pkg/peabiru_bg.wasm</code> next to the package (read from the file in Node, fetched elsewhere, at a URL that bundlers such as Vite and webpack 5 recognise). <code>input</code> loads it from somewhere else: a URL (string or <code>URL</code>), a <code>Request</code> or <code>Response</code>, the bytes, a compiled <code>WebAssembly.Module</code>, or a Promise of one of these. <code>buildNetwork()</code> and <code>getGtfsErrors()</code> call it themselves, so it is only needed to load the module from elsewhere, or before <code>coreVersion()</code>, <code>readFareStructure()</code> or <code>writeFareStructure()</code>.</p>
+<pre><code class="language-js">await peabiru.init(); // or: await peabiru.init(new URL("/static/peabiru_bg.wasm", location.href))
+console.log(peabiru.coreVersion());
+</code></pre>
+<h3 id="initSync"><a class="header" href="#initSync">initSync</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function initSync(module: ArrayBuffer | ArrayBufferView | WebAssembly.Module): void;
+</code></pre>
+<p>Load the WebAssembly module synchronously from its bytes or a compiled <code>WebAssembly.Module</code> (nothing happens when it is already loaded). Some browsers do not compile large modules synchronously on the main thread: prefer <code>init()</code> there.</p>
+<pre><code class="language-js">peabiru.initSync(await readFile("node_modules/peabiru/pkg/peabiru_bg.wasm"));
+console.log(peabiru.coreVersion());
+</code></pre>
+<h3 id="InitInput"><a class="header" href="#InitInput">InitInput</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type InitInput =
+  | string
+  | URL
+  | Request
+  | Response
+  | ArrayBuffer
+  | ArrayBufferView
+  | WebAssembly.Module
+  | Promise&lt;Response | ArrayBuffer | ArrayBufferView | WebAssembly.Module&gt;;
+</code></pre>
+<p>Where the WebAssembly module can be loaded from.</p>
+<h3 id="coreVersion"><a class="header" href="#coreVersion">coreVersion</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function coreVersion(): string;
+</code></pre>
+<p>The version of the Rust routing core compiled into the module. Throws before the module is loaded (see <code>init()</code>).</p>
+<pre><code class="language-js">console.log(`package ${peabiru.version}, core ${peabiru.coreVersion()}`);
+</code></pre>
+<h3 id="version"><a class="header" href="#version">version</a></h3>
+<p><em>constant</em></p>
+<pre><code class="language-typescript">export declare const version: string;
+</code></pre>
+<p>The version of this package, such as <code>"0.1.0"</code>.</p>
+<pre><code class="language-js">console.log(peabiru.version);
+</code></pre>
+<h2 id="other-declarations"><a class="header" href="#other-declarations">Other declarations</a></h2>
+<h3 id="TripCriterion"><a class="header" href="#TripCriterion">TripCriterion</a></h3>
+<p><em>type</em></p>
+<pre><code class="language-typescript">export type TripCriterion = "TIME" | "FARE" | "TRANSFERS" | "WALK";
+</code></pre>
+<p>A criterion of <code>tripOptions()</code>.</p>
+<h3 id="TripOptionsOptions"><a class="header" href="#TripOptionsOptions">TripOptionsOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TripOptionsOptions extends RoutingOptions
+</code></pre>
+<p>Also takes every option of <a href="#RoutingOptions"><code>RoutingOptions</code></a>.</p>
+<ul>
+<li><code>departureDatetime?: DateTime | null</code>: Required with public transport.</li>
+<li><code>timeWindow?: number</code>: Minutes of departure, one at a time from <code>departureDatetime</code> (default 10).</li>
+<li><code>criteria?: TripCriterion[] | TripCriterion | null</code>: Some of <code>"TIME"</code> (door-to-door minutes from the departure minute), <code>"FARE"</code> (needs a <code>fareStructure</code>), <code>"TRANSFERS"</code> (rides minus one; 0 without public transport) and <code>"WALK"</code> (minutes on foot: walked access and egress legs and walks between stops). Default null: all four with a <code>fareStructure</code>, all but <code>"FARE"</code> without one.</li>
+<li><code>maxOptions?: number</code>: At most this many options per pair, the first in <code>option</code> order (default Infinity).</li>
+<li><code>walkResolution?: number</code>: Seconds to which minutes on foot are compared (default 60: the whole minute, rounded), so that of two trips a few seconds of walking apart and otherwise no better only one is returned; 1 compares the exact seconds.</li>
+<li><code>allToAll?: boolean</code>: Route from every origin to every destination (default false: pair them row by row).</li>
+<li><code>itineraries?: boolean</code>: Build the legs of each option (default true).</li>
+<li><code>byDeparture?: boolean</code>: Add the options of every departure minute (default false).</li>
+<li><code>fareStructure?: FareStructure | null</code>: A fare structure (default null): needed for the <code>"FARE"</code> criterion, gives every option its fare.</li>
+<li><code>maxFare?: number</code>: The highest fare of a trip (default Infinity).</li>
+<li><code>dropGeometry?: boolean</code>: Plain rows for the legs instead of GeoJSON features (default false).</li>
+<li><code>osmLinkIds?: boolean</code>: Add the <code>osm_link_ids</code> properties to each leg (default false), as in <code>detailedItineraries()</code>.</li>
+</ul>
+<h3 id="TripOptionRow"><a class="header" href="#TripOptionRow">TripOptionRow</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TripOptionRow
+</code></pre>
+<p>One option of a pair: trips with the same street modes, the same routes between the same stops and the same fare, transfers and minutes on foot, not dominated at <code>n_departures</code> departure minutes. Times are those of its best minute (the least total time); minutes have one decimal.</p>
+<ul>
+<li><code>from_id: string | null</code></li>
+<li><code>to_id: string | null</code></li>
+<li><code>option: number</code>: From 1, ordered by total time, then fare, transfers and minutes on foot.</li>
+<li><code>total_time: number</code></li>
+<li><code>fare?: number</code>: With a fare structure only.</li>
+<li><code>transfers: number</code></li>
+<li><code>walk_time: number</code></li>
+<li><code>departure_time: string</code></li>
+<li><code>arrival_time: string</code></li>
+<li><code>n_departures: number</code></li>
+<li><code>first_departure: string</code></li>
+<li><code>last_departure: string</code></li>
+<li><code>description: string</code>: The modes and route short names, as <code>"WALK &gt; BUS 343 &gt; WALK"</code>.</li>
+</ul>
+<h3 id="TripDepartureRow"><a class="header" href="#TripDepartureRow">TripDepartureRow</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TripDepartureRow
+</code></pre>
+<p>One option on the frontier of one departure minute (<code>byDeparture</code>).</p>
+<ul>
+<li><code>from_id: string | null</code></li>
+<li><code>to_id: string | null</code></li>
+<li><code>option: number</code></li>
+<li><code>departure_time: string</code></li>
+<li><code>arrival_time: string</code></li>
+<li><code>total_time: number</code></li>
+</ul>
+<h3 id="TripLegRow"><a class="header" href="#TripLegRow">TripLegRow</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TripLegRow
+</code></pre>
+<p>One leg of an option, keyed by <code>from_id</code>, <code>to_id</code> and <code>option</code>, in the format of <code>detailedItineraries()</code>.</p>
+<ul>
+<li><code>from_id: string | null</code></li>
+<li><code>to_id: string | null</code></li>
+<li><code>option: number</code></li>
+<li><code>segment: number</code></li>
+<li><code>mode: string</code></li>
+<li><code>cumulative_fare?: number</code>: With a fare structure only: the fare paid up to the end of the leg.</li>
+<li><code>segment_duration: number</code></li>
+<li><code>wait: number</code></li>
+<li><code>distance: number</code></li>
+<li><code>route: string</code></li>
+<li><code>osm_id_list?: string</code></li>
+<li><code>edge_id_list?: string</code></li>
+<li><code>board_stop_id?: string</code></li>
+<li><code>alight_stop_id?: string</code></li>
+</ul>
+<h3 id="TripLegFeature"><a class="header" href="#TripLegFeature">TripLegFeature</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TripLegFeature
+</code></pre>
+<p>A leg of an option with its line (longitude, latitude), as a GeoJSON feature.</p>
+<ul>
+<li><code>type: "Feature"</code></li>
+<li><code>properties: TripLegRow</code></li>
+<li><code>geometry: { type: "LineString"; coordinates: [number, number][] }</code></li>
+</ul>
+<h3 id="TripOptions"><a class="header" href="#TripOptions">TripOptions</a></h3>
+<p><em>interface</em></p>
+<pre><code class="language-typescript">export interface TripOptions
+</code></pre>
+<p>The result of <code>tripOptions()</code>.</p>
+<ul>
+<li><code>options: TripOptionRow[]</code></li>
+<li><code>itineraries: { type: "FeatureCollection"; features: TripLegFeature[] } | TripLegRow[] | null</code>: The legs (null with <code>itineraries: false</code>).</li>
+<li><code>departures: TripDepartureRow[] | null</code>: Every minute’s options (null without <code>byDeparture</code>).</li>
+</ul>
+<h3 id="tripOptions"><a class="header" href="#tripOptions">tripOptions</a></h3>
+<p><em>function</em></p>
+<pre><code class="language-typescript">export declare function tripOptions(
+  network: Network,
+  origins: Points,
+  destinations: Points,
+  options?: TripOptionsOptions,
+): Promise&lt;TripOptions&gt;;
+</code></pre>
+<p>A multi-criteria trip planner: for each origin-destination pair, the trips that no other trip beats on all the chosen criteria at once, at each departure minute of the window, merged into options. Frequency-based routes are boarded at their expected times (half a headway): no random draws. See the guide “Trip options”.</p>
+<pre><code class="language-js">const res = await peabiru.tripOptions(network, { id: ["a"], lon: [-46.6290], lat: [-23.5563] },
+  { id: ["c"], lon: [-46.6355], lat: [-23.5601] }, {
+    departureDatetime: "2019-05-13 14:00:00", timeWindow: 3, itineraries: false,
+  });
+console.log(res.options.map((o) =&gt; `${o.total_time} min, ${o.walk_time} on foot: ${o.description}`));
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="examples.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="examples.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="theme/peabiru-nav-fb031d93.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

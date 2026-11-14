@@ -1,0 +1,449 @@
+# Example: access to schools and health care in Recife and Caruaru
+
+The other examples on this site use small sample networks. This one
+starts from nothing, as a study of a real city would: it downloads the
+streets of two cities of Pernambuco, Brazil, from OpenStreetMap, places
+their residents on a grid with the census, takes the public schools and
+the primary health care units from the official registers, and measures
+how long it takes to reach the nearest of each, walking, cycling and
+driving.
+
+- **Recife**, the state capital (1.49 million people in the Censo 2022),
+  on the coast, flat, crossed by rivers. Its street network is cut with
+  10 km around the municipality, which takes in the core of the
+  metropolitan area (Olinda, Jaboatão dos Guararapes, Camaragibe and
+  parts of Paulista and São Lourenço da Mata), so trips near the border
+  can end in a neighbouring municipality.
+- **Caruaru**, 130 km inland in the Agreste (378 thousand people), a
+  compact city in a large, mostly rural municipality, with 5 km around
+  it.
+
+Everything below is one script, and every step works for any Brazilian
+municipality: change the IBGE code and the buffer. The output shown is
+what it prints; it was computed on 2026-11-11.
+
+**Streets only.** No public, openly licensed GTFS feed was found for the
+buses of the Grande Recife Consórcio de Transporte or the metro (CBTU):
+it is not on the open-data portals of the city, the state or CBTU, nor
+in the Mobility Database. Caruaru has none either. So this example
+routes on the streets, and leaves public transport out rather than
+approximate it. With a GTFS feed, the same code takes
+`mode = c("WALK", "TRANSIT")` and a departure time: the [Recife
+metropolitan region example](recife-metropolitan.md) does that, with the
+feed the consortium publishes on its own site (found after this page was
+written; it states no licence).
+
+## The data
+
+| Data | Source | Licence |
+|----|----|----|
+| Streets | [OpenStreetMap](https://www.openstreetmap.org/copyright), extract of the Nordeste region by [Geofabrik](https://download.geofabrik.de/south-america/brazil/nordeste.html), dated 2026-11-01 (445 MB) | ODbL 1.0 |
+| Municipal boundaries | [IBGE, malhas municipais](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3) (API, version 3) | public data, IBGE |
+| Population | [IBGE, Censo Demográfico 2022, census tracts with their population](https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/Agregados_por_Setores_Censitarios/malha_com_atributos/setores/gpkg/UF/PE/), variable `v0001` (44 MB for Pernambuco) | public data, IBGE |
+| Schools | INEP, Catálogo de Escolas 2023, with the coordinates of each school, as published by Ipea’s [geobr](https://ipeagit.github.io/geobr/) (`schools_2023`, 101 MB for Brazil) | public data, INEP; geobr is MIT |
+| Health units | [CNES](https://cnes.datasus.gov.br/), Ministério da Saúde, through [OpenDataSUS](https://opendatasus.saude.gov.br/) (`cnes_estabelecimentos_csv.zip`, 57 MB for Brazil, updated daily; downloaded on 2026-11-11) | open data, Ministério da Saúde |
+
+The files are downloaded once into a directory of their own (set
+`PEABIRU_EXAMPLE_DATA` to keep it somewhere else). Cutting the extract
+needs [osmium](https://osmcode.org/osmium-tool/)
+(`brew install osmium-tool`, `apt install osmium-tool`, or conda-forge).
+
+\
+[`library`](https://rdrr.io/r/base/library.html)`(`[`peabiru`](https://strategicprojects.github.io/peabiru-routing/r/)`)`\
+[`library`](https://rdrr.io/r/base/library.html)`(`[`sf`](https://r-spatial.github.io/sf/)`)`\
+\
+`data_dir`` ``<-`` `[`Sys.getenv`](https://rdrr.io/r/base/Sys.getenv.html)`(``"PEABIRU_EXAMPLE_DATA"``, ``"pe-data"``)`\
+`raw`` ``<-`` `[`file.path`](https://rdrr.io/r/base/file.path.html)`(``data_dir``, ``"raw"``)`\
+[`dir.create`](https://rdrr.io/r/base/files2.html)`(``raw``, recursive ``=`` ``TRUE``, showWarnings ``=`` ``FALSE``)`\
+[`options`](https://rdrr.io/r/base/options.html)`(``timeout ``=`` ``3600``)``   ``# the extract is 445 MB`\
+\
+`fetch`` ``<-`` ``function``(``url``, ``name`` ``=`` `[`basename`](https://rdrr.io/r/base/basename.html)`(``url``)``)`` ``{`\
+`  ``dest`` ``<-`` `[`file.path`](https://rdrr.io/r/base/file.path.html)`(``raw``, ``name``)`\
+`  ``if`` ``(``!`[`file.exists`](https://rdrr.io/r/base/files.html)`(``dest``)``)`` `[`download.file`](https://rdrr.io/r/utils/download.file.html)`(``url``, ``dest``, mode ``=`` ``"wb"``, quiet ``=`` ``TRUE``)`\
+`  ``dest`\
+`}`\
+`nordeste`` ``<-`` ``fetch``(``"https://download.geofabrik.de/south-america/brazil/nordeste-261101.osm.pbf"``)`\
+`tracts_file`` ``<-`` ``fetch``(`[`paste0`](https://rdrr.io/r/base/paste.html)`(``"https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/"``,`\
+`                            ``"Agregados_por_Setores_Censitarios/malha_com_atributos/"``,`\
+`                            ``"setores/gpkg/UF/PE/PE_setores_CD2022.gpkg"``)``)`\
+`schools_file`` ``<-`` ``fetch``(``"https://www.ipea.gov.br/geobr/data_gpkg/schools/2023/schools_2023.gpkg"``)`\
+`cnes_file`` ``<-`` ``fetch``(`[`paste0`](https://rdrr.io/r/base/paste.html)`(``"https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/CNES/"``,`\
+`                          ``"cnes_estabelecimentos_csv.zip"``)``)`\
+\
+`cities`` ``<-`` `[`data.frame`](https://rdrr.io/r/base/data.frame.html)`(``key ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``"recife"``, ``"caruaru"``)``,`\
+`                     code ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``"2611606"``, ``"2604106"``)``,   ``# IBGE codes`\
+`                     buffer ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``10000``, ``5000``)``)``          ``# metres`\
+`utm`` ``<-`` ``31985``   ``# SIRGAS 2000 / UTM zone 25S, in metres, for both cities`
+
+## Streets: the municipality and a buffer
+
+The boundary of each municipality comes from IBGE’s API. Buffered in
+metres, it is the polygon `osmium extract` cuts the regional extract
+with; the cut goes in a directory of its own, which
+[`build_network()`](../reference/build_network.md) reads.
+
+\
+`boundary_of`` ``<-`` ``function``(``code``)`` ``{`\
+`  ``url`` ``<-`` `[`paste0`](https://rdrr.io/r/base/paste.html)`(``"https://servicodados.ibge.gov.br/api/v3/malhas/municipios/"``, ``code``,`\
+`                ``"?formato=application/vnd.geo+json&qualidade=maxima"``)`\
+`  ``b`` ``<-`` `[`st_read`](https://r-spatial.github.io/sf/reference/st_read.html)`(``fetch``(``url``, `[`paste0`](https://rdrr.io/r/base/paste.html)`(``code``, ``".geojson"``)``)``, quiet ``=`` ``TRUE``)`\
+`  `[`st_transform`](https://r-spatial.github.io/sf/reference/st_transform.html)`(`[`st_make_valid`](https://r-spatial.github.io/sf/reference/valid.html)`(``b``)``, ``utm``)`\
+`}`\
+\
+`cut_streets`` ``<-`` ``function``(``key``, ``boundary``, ``buffer``)`` ``{`\
+`  ``dir`` ``<-`` `[`file.path`](https://rdrr.io/r/base/file.path.html)`(``data_dir``, ``key``, ``"network"``)`\
+`  `[`dir.create`](https://rdrr.io/r/base/files2.html)`(``dir``, recursive ``=`` ``TRUE``, showWarnings ``=`` ``FALSE``)`\
+`  ``polygon`` ``<-`` `[`file.path`](https://rdrr.io/r/base/file.path.html)`(``data_dir``, ``key``, ``"cut.geojson"``)`\
+`  `[`st_write`](https://r-spatial.github.io/sf/reference/st_write.html)`(`[`st_transform`](https://r-spatial.github.io/sf/reference/st_transform.html)`(`[`st_buffer`](https://r-spatial.github.io/sf/reference/geos_unary.html)`(``boundary``, ``buffer``)``, ``4326``)``, ``polygon``,`\
+`           delete_dsn ``=`` ``TRUE``, quiet ``=`` ``TRUE``)`\
+`  ``pbf`` ``<-`` `[`file.path`](https://rdrr.io/r/base/file.path.html)`(``dir``, `[`paste0`](https://rdrr.io/r/base/paste.html)`(``key``, ``".osm.pbf"``)``)`\
+`  ``status`` ``<-`` `[`system2`](https://rdrr.io/r/base/system2.html)`(``"osmium"``, `[`c`](https://rdrr.io/r/base/c.html)`(``"extract"``, ``"--overwrite"``, ``"-p"``, ``polygon``, ``nordeste``, ``"-o"``, ``pbf``)``)`\
+`  `[`stopifnot`](https://rdrr.io/r/base/stopifnot.html)`(``status`` ``==`` ``0``)`\
+`  ``dir`\
+`}`\
+\
+`boundaries`` ``<-`` `[`lapply`](https://rdrr.io/r/base/lapply.html)`(`[`setNames`](https://rdrr.io/r/stats/setNames.html)`(``cities``$``code``, ``cities``$``key``)``, ``boundary_of``)`\
+`networks`` ``<-`` `[`list`](https://rdrr.io/r/base/list.html)`(``)`\
+`for`` ``(``i`` ``in`` `[`seq_len`](https://rdrr.io/r/base/seq.html)`(`[`nrow`](https://rdrr.io/r/base/nrow.html)`(``cities``)``)``)`` ``{`\
+`  ``k`` ``<-`` ``cities``$``key``[``i``]`\
+`  ``dir`` ``<-`` ``cut_streets``(``k``, ``boundaries``[[``k``]``]``, ``cities``$``buffer``[``i``]``)`\
+`  ``networks``[[``k``]``]`` ``<-`` `[`build_network`](../reference/build_network.md)`(``dir``)`\
+`  `[`cat`](https://rdrr.io/r/base/cat.html)`(`[`sprintf`](https://rdrr.io/r/base/sprintf.html)`(``"%-8s %5.1f MB\n"``, ``k``, `[`file.size`](https://rdrr.io/r/base/file.info.html)`(`[`file.path`](https://rdrr.io/r/base/file.path.html)`(``dir``, `[`paste0`](https://rdrr.io/r/base/paste.html)`(``k``, ``".osm.pbf"``)``)``)`` ``/`` ``1e6``)``)`\
+`}`\
+`#> recife    16.0 MB`\
+`#> caruaru    1.9 MB`\
+`networks``$``recife`\
+`#> <peabiru_network>`\
+`#>   data path: pe-data/recife/network`\
+`#>   streets:   104,331 vertices, 275,968 edges`\
+`#>   transit:   none (no GTFS feed)`\
+`#>   elevation: NONE`\
+`networks``$``caruaru`\
+`#> <peabiru_network>`\
+`#>   data path: pe-data/caruaru/network`\
+`#>   streets:   28,445 vertices, 78,318 edges`\
+`#>   transit:   none (no GTFS feed)`\
+`#>   elevation: NONE`
+
+## Where people live: a hexagonal grid with the census
+
+The census counts people by tract, and tracts vary from a city block to
+hundreds of square kilometres. A regular grid makes the cities
+comparable: hexagons 500 m apart, numbered row by row from the
+south-west, over the whole municipality. Each cell gets the population
+of the tracts it covers, in proportion to the area it covers of each.
+
+\
+`hex_grid`` ``<-`` ``function``(``area``, ``spacing`` ``=`` ``500``)`` ``{`\
+`  ``b`` ``<-`` `[`st_bbox`](https://r-spatial.github.io/sf/reference/st_bbox.html)`(``area``)`\
+`  ``h`` ``<-`` ``spacing`` ``*`` `[`sqrt`](https://rdrr.io/r/base/MathFun.html)`(``3``)`` ``/`` ``2`\
+`  ``centres`` ``<-`` `[`expand.grid`](https://rdrr.io/r/base/expand.grid.html)`(``i ``=`` ``-``1``:``(`[`ceiling`](https://rdrr.io/r/base/Round.html)`(``(``b``[[``"xmax"``]``]`` ``-`` ``b``[[``"xmin"``]``]``)`` ``/`` ``spacing``)`` ``+`` ``1``)``,`\
+`                         j ``=`` ``-``1``:``(`[`ceiling`](https://rdrr.io/r/base/Round.html)`(``(``b``[[``"ymax"``]``]`` ``-`` ``b``[[``"ymin"``]``]``)`` ``/`` ``h``)`` ``+`` ``1``)``)`\
+`  ``centres``$``x`` ``<-`` ``b``[[``"xmin"``]``]`` ``+`` ``centres``$``i`` ``*`` ``spacing`` ``+`` ``(``centres``$``j`` `[`%%`](https://rdrr.io/r/base/Arithmetic.html)` ``2``)`` ``*`` ``spacing`` ``/`` ``2`\
+`  ``centres``$``y`` ``<-`` ``b``[[``"ymin"``]``]`` ``+`` ``centres``$``j`` ``*`` ``h`\
+`  ``k`` ``<-`` ``(``30`` ``+`` ``60`` ``*`` ``0``:``6``)`` ``*`` ``pi`` ``/`` ``180``   ``# pointy side up`\
+`  ``r`` ``<-`` ``spacing`` ``/`` `[`sqrt`](https://rdrr.io/r/base/MathFun.html)`(``3``)`\
+`  ``cells`` ``<-`` `[`st_sfc`](https://r-spatial.github.io/sf/reference/sfc.html)`(`[`lapply`](https://rdrr.io/r/base/lapply.html)`(`[`seq_len`](https://rdrr.io/r/base/seq.html)`(`[`nrow`](https://rdrr.io/r/base/nrow.html)`(``centres``)``)``, ``function``(``n``)`\
+`    `[`st_polygon`](https://r-spatial.github.io/sf/reference/st.html)`(`[`list`](https://rdrr.io/r/base/list.html)`(`[`cbind`](https://rdrr.io/r/base/cbind.html)`(``centres``$``x``[``n``]`` ``+`` ``r`` ``*`` `[`cos`](https://rdrr.io/r/base/Trig.html)`(``k``)``, ``centres``$``y``[``n``]`` ``+`` ``r`` ``*`` `[`sin`](https://rdrr.io/r/base/Trig.html)`(``k``)``)``)``)``)``,`\
+`    crs ``=`` `[`st_crs`](https://r-spatial.github.io/sf/reference/st_crs.html)`(``area``)``)`\
+`  ``cells`` ``<-`` ``cells``[`[`lengths`](https://rdrr.io/r/base/lengths.html)`(`[`st_intersects`](https://r-spatial.github.io/sf/reference/geos_binary_pred.html)`(``cells``, ``area``)``)`` ``>`` ``0``]`\
+`  `[`st_sf`](https://r-spatial.github.io/sf/reference/sf.html)`(``id ``=`` `[`seq_along`](https://rdrr.io/r/base/seq.html)`(``cells``)``, geometry ``=`` ``cells``)`\
+`}`\
+\
+`population_grid`` ``<-`` ``function``(``code``, ``boundary``)`` ``{`\
+`  ``tracts`` ``<-`` `[`st_read`](https://r-spatial.github.io/sf/reference/st_read.html)`(``tracts_file``, quiet ``=`` ``TRUE``, query ``=`` `[`paste0`](https://rdrr.io/r/base/paste.html)`(`\
+`    ``"SELECT v0001, geom FROM PE_setores_CD2022 WHERE CD_MUN = '"``, ``code``, ``"'"``)``)`\
+`  ``tracts`` ``<-`` `[`st_transform`](https://r-spatial.github.io/sf/reference/st_transform.html)`(`[`st_make_valid`](https://r-spatial.github.io/sf/reference/valid.html)`(``tracts``)``, ``utm``)`\
+`  ``tracts``$``tract_area`` ``<-`` `[`as.numeric`](https://rdrr.io/r/base/numeric.html)`(`[`st_area`](https://r-spatial.github.io/sf/reference/geos_measures.html)`(``tracts``)``)`\
+`  ``cells`` ``<-`` ``hex_grid``(``boundary``)`\
+`  ``parts`` ``<-`` `[`suppressWarnings`](https://rdrr.io/r/base/warning.html)`(`[`st_intersection`](https://r-spatial.github.io/sf/reference/geos_binary_ops.html)`(``cells``, ``tracts``)``)`\
+`  ``parts``$``people`` ``<-`` ``parts``$``v0001`` ``*`` `[`as.numeric`](https://rdrr.io/r/base/numeric.html)`(`[`st_area`](https://r-spatial.github.io/sf/reference/geos_measures.html)`(``parts``)``)`` ``/`` ``parts``$``tract_area`\
+`  ``people`` ``<-`` `[`tapply`](https://rdrr.io/r/base/tapply.html)`(``parts``$``people``, ``parts``$``id``, ``sum``)`\
+`  ``cells``$``population`` ``<-`` ``0`\
+`  ``cells``$``population``[`[`match`](https://rdrr.io/r/base/match.html)`(`[`as.integer`](https://rdrr.io/r/base/integer.html)`(`[`names`](https://rdrr.io/r/base/names.html)`(``people``)``)``, ``cells``$``id``)``]`` ``<-`` ``people`\
+`  ``centres`` ``<-`` `[`st_coordinates`](https://r-spatial.github.io/sf/reference/st_coordinates.html)`(`[`st_transform`](https://r-spatial.github.io/sf/reference/st_transform.html)`(`[`st_centroid`](https://r-spatial.github.io/sf/reference/geos_unary.html)`(`[`st_geometry`](https://r-spatial.github.io/sf/reference/st_geometry.html)`(``cells``)``)``, ``4326``)``)`\
+`  ``cells``$``lon`` ``<-`` `[`round`](https://rdrr.io/r/base/Round.html)`(``centres``[``, ``1``]``, ``6``)`\
+`  ``cells``$``lat`` ``<-`` `[`round`](https://rdrr.io/r/base/Round.html)`(``centres``[``, ``2``]``, ``6``)`\
+`  ``cells``$``id`` ``<-`` `[`as.character`](https://rdrr.io/r/base/character.html)`(``cells``$``id``)`\
+`  ``cells``[``cells``$``population`` ``>`` ``0``, ``]`\
+`}`\
+\
+`grids`` ``<-`` `[`list`](https://rdrr.io/r/base/list.html)`(``)`\
+`for`` ``(``i`` ``in`` `[`seq_len`](https://rdrr.io/r/base/seq.html)`(`[`nrow`](https://rdrr.io/r/base/nrow.html)`(``cities``)``)``)`` ``{`\
+`  ``k`` ``<-`` ``cities``$``key``[``i``]`\
+`  ``grids``[[``k``]``]`` ``<-`` ``population_grid``(``cities``$``code``[``i``]``, ``boundaries``[[``k``]``]``)`\
+`  `[`cat`](https://rdrr.io/r/base/cat.html)`(`[`sprintf`](https://rdrr.io/r/base/sprintf.html)`(``"%-8s %5d cells, %s people\n"``, ``k``, `[`nrow`](https://rdrr.io/r/base/nrow.html)`(``grids``[[``k``]``]``)``,`\
+`              `[`format`](https://rdrr.io/r/base/format.html)`(`[`round`](https://rdrr.io/r/base/Round.html)`(`[`sum`](https://rdrr.io/r/base/sum.html)`(``grids``[[``k``]``]``$``population``)``)``, big.mark ``=`` ``","``)``)``)`\
+`}`\
+`#> recife    1107 cells, 1,488,797 people`\
+`#> caruaru   4489 cells, 378,048 people`
+
+The Censo 2022 counts 1,488,924 people in Recife and 378,048 in Caruaru;
+the grid keeps all but 127 in Recife, in tracts that reach slightly
+outside IBGE’s municipal boundary. Caruaru’s grid has four times as many
+cells as Recife’s for a quarter of the people: most of the municipality
+is rural, and its large rural tracts spread a few people over each cell.
+
+## Schools and health units
+
+Schools: those of INEP’s catalogue that are public (municipal, state or
+federal) and open with no restriction, and have coordinates. Health
+units: the CNES establishments of types 1 (*posto de saúde*) and 2
+(*centro de saúde / unidade básica*), the primary health care units of
+the SUS, that are active and have coordinates. Both are taken over the
+whole area cut from OpenStreetMap, so the nearest unit can be across the
+municipal border, as it often is for people living near it.
+
+\
+`cut_area`` ``<-`` ``function``(``k``)`` `[`st_transform`](https://r-spatial.github.io/sf/reference/st_transform.html)`(`[`st_read`](https://r-spatial.github.io/sf/reference/st_read.html)`(`[`file.path`](https://rdrr.io/r/base/file.path.html)`(``data_dir``, ``k``, ``"cut.geojson"``)``,`\
+`                                             quiet ``=`` ``TRUE``)``, ``4674``)`\
+\
+`schools_in`` ``<-`` ``function``(``area``)`` ``{`\
+`  ``s`` ``<-`` `[`st_read`](https://r-spatial.github.io/sf/reference/st_read.html)`(``schools_file``, quiet ``=`` ``TRUE``, wkt_filter ``=`` `[`st_as_text`](https://r-spatial.github.io/sf/reference/st_as_text.html)`(`[`st_as_sfc`](https://r-spatial.github.io/sf/reference/st_as_sfc.html)`(`[`st_bbox`](https://r-spatial.github.io/sf/reference/st_bbox.html)`(``area``)``)``)``,`\
+`               query ``=`` `[`paste`](https://rdrr.io/r/base/paste.html)`(``"SELECT code_school, name_school, name_muni, geom"``,`\
+`                             ``"FROM schools_2023 WHERE admin_category = 'Pública'"``,`\
+`                             ``"AND service_restriction = 'ESCOLA EM FUNCIONAMENTO"``,`\
+`                             ``"E SEM RESTRIÇÃO DE ATENDIMENTO'"``)``)`\
+`  ``s`` ``<-`` ``s``[``!`[`st_is_empty`](https://r-spatial.github.io/sf/reference/geos_query.html)`(``s``)``, ``]`\
+`  ``s`` ``<-`` ``s``[`[`lengths`](https://rdrr.io/r/base/lengths.html)`(`[`st_intersects`](https://r-spatial.github.io/sf/reference/geos_binary_pred.html)`(``s``, ``area``)``)`` ``>`` ``0``, ``]`\
+`  ``xy`` ``<-`` `[`st_coordinates`](https://r-spatial.github.io/sf/reference/st_coordinates.html)`(``s``)`\
+`  `[`data.frame`](https://rdrr.io/r/base/data.frame.html)`(``id ``=`` `[`as.character`](https://rdrr.io/r/base/character.html)`(``s``$``code_school``)``, name ``=`` ``s``$``name_school``,`\
+`             municipality ``=`` ``s``$``name_muni``, lon ``=`` ``xy``[``, ``1``]``, lat ``=`` ``xy``[``, ``2``]``)`\
+`}`\
+\
+`cnes`` ``<-`` `[`read.csv2`](https://rdrr.io/r/utils/read.table.html)`(`[`unz`](https://rdrr.io/r/base/connections.html)`(``cnes_file``, ``"cnes_estabelecimentos.csv"``)``, fileEncoding ``=`` ``"latin1"``,`\
+`                  colClasses ``=`` ``"character"``, na.strings ``=`` `[`character`](https://rdrr.io/r/base/character.html)`(``)``)`\
+`cnes`` ``<-`` ``cnes``[``cnes``$``CO_UF`` ``==`` ``"26"`` ``&`` ``cnes``$``TP_UNIDADE`` `[`%in%`](https://rdrr.io/r/base/match.html)` `[`c`](https://rdrr.io/r/base/c.html)`(``"1"``, ``"2"``)`` ``&`\
+`               ``cnes``$``CO_MOTIVO_DESAB`` ``==`` ``""`` ``&`` ``cnes``$``NU_LATITUDE`` ``!=`` ``""``, ``]`\
+`health_in`` ``<-`` ``function``(``area``)`` ``{`\
+`  ``h`` ``<-`` `[`data.frame`](https://rdrr.io/r/base/data.frame.html)`(``id ``=`` ``cnes``$``CO_CNES``, name ``=`` ``cnes``$``NO_FANTASIA``,`\
+`                  municipality_code ``=`` ``cnes``$``CO_IBGE``,`\
+`                  lon ``=`` `[`as.numeric`](https://rdrr.io/r/base/numeric.html)`(``cnes``$``NU_LONGITUDE``)``, lat ``=`` `[`as.numeric`](https://rdrr.io/r/base/numeric.html)`(``cnes``$``NU_LATITUDE``)``)`\
+`  ``inside`` ``<-`` `[`lengths`](https://rdrr.io/r/base/lengths.html)`(`[`st_intersects`](https://r-spatial.github.io/sf/reference/geos_binary_pred.html)`(`[`st_as_sf`](https://r-spatial.github.io/sf/reference/st_as_sf.html)`(``h``, coords ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``"lon"``, ``"lat"``)``, crs ``=`` ``4674``)``, ``area``)``)`` ``>`` ``0`\
+`  ``h``[``inside``, ``]`\
+`}`\
+\
+`schools`` ``<-`` `[`lapply`](https://rdrr.io/r/base/lapply.html)`(`[`setNames`](https://rdrr.io/r/stats/setNames.html)`(``cities``$``key``, ``cities``$``key``)``, ``function``(``k``)`` ``schools_in``(``cut_area``(``k``)``)``)`\
+`health`` ``<-`` `[`lapply`](https://rdrr.io/r/base/lapply.html)`(`[`setNames`](https://rdrr.io/r/stats/setNames.html)`(``cities``$``key``, ``cities``$``key``)``, ``function``(``k``)`` ``health_in``(``cut_area``(``k``)``)``)`\
+[`sapply`](https://rdrr.io/r/base/lapply.html)`(``cities``$``key``, ``function``(``k``)`` `[`c`](https://rdrr.io/r/base/c.html)`(``schools ``=`` `[`nrow`](https://rdrr.io/r/base/nrow.html)`(``schools``[[``k``]``]``)``, health_units ``=`` `[`nrow`](https://rdrr.io/r/base/nrow.html)`(``health``[[``k``]``]``)``)``)`\
+`#>              recife caruaru`\
+`#> schools         937     216`\
+`#> health_units    511     102`
+
+A few things to know about these registers, seen while preparing them:
+
+- Of the public schools in operation, 22 of 486 in Recife and 15 of 168
+  in Caruaru have no coordinates in the catalogue and cannot be placed;
+  they are left out.
+- Of the 167 active primary care units registered in Recife, six have
+  coordinates outside the municipality: four a few hundred metres across
+  the border, but one 24 km away, on the Ilha de Itamaracá, and one 20
+  km away, in Moreno. In Caruaru, two of 75 do, one of them 5 km out.
+  Taking units by where they are rather than where they are registered
+  keeps the far ones out of these figures (they fall outside the cut
+  area), but those units are missing from their own neighbourhoods.
+- Schools and health units sit close to the streets of the extract: the
+  median distance to the nearest street is 7 to 16 m, and a single
+  school in each city is more than 300 m from one (418 m in Recife, 574
+  m in Caruaru), well within the 1.6 km at which peabiru links a point
+  to the street network.
+
+## Travel time to the nearest school and health unit
+
+One travel-time matrix per city, mode and kind of unit, from every cell
+to every unit; the smallest time of each cell is its time to the nearest
+one. Driving is free flow (no congestion), and these networks have no
+elevation. The [terrain
+example](terrain.html#recife-and-caruaru-as-published) recomputes the
+shares below with slope costs: on foot, within 15 minutes of a health
+unit, Recife goes from 75.8% to 73.7% and Caruaru from 68.0% to 65.8%,
+and within 30 minutes or by bicycle very little changes.
+
+\
+`nearest`` ``<-`` ``function``(``k``, ``mode``, ``limit``)`` ``{`\
+`  ``out`` ``<-`` `[`st_drop_geometry`](https://r-spatial.github.io/sf/reference/st_geometry.html)`(``grids``[[``k``]``]``)`\
+`  ``for`` ``(``what`` ``in`` `[`c`](https://rdrr.io/r/base/c.html)`(``"schools"``, ``"health"``)``)`` ``{`\
+`    ``units`` ``<-`` ``if`` ``(``what`` ``==`` ``"schools"``)`` ``schools``[[``k``]``]`` ``else`` ``health``[[``k``]``]`\
+`    ``m`` ``<-`` `[`travel_time_matrix`](../reference/travel_time_matrix.md)`(``networks``[[``k``]``]``, ``out``, ``units``, mode ``=`` ``mode``,`\
+`                            max_trip_duration ``=`` ``limit``)`\
+`    ``t`` ``<-`` `[`tapply`](https://rdrr.io/r/base/tapply.html)`(``m``$``travel_time_p50``, ``m``$``from_id``, ``min``)`\
+`    ``out``[[``what``]``]`` ``<-`` `[`unname`](https://rdrr.io/r/base/unname.html)`(``t``[`[`as.character`](https://rdrr.io/r/base/character.html)`(``out``$``id``)``]``)``   ``# NA: none within the limit`\
+`  ``}`\
+`  ``out`\
+`}`\
+\
+`share_within`` ``<-`` ``function``(``t``, ``minutes``)`` ``{`\
+`  `[`sapply`](https://rdrr.io/r/base/lapply.html)`(`[`c`](https://rdrr.io/r/base/c.html)`(``"schools"``, ``"health"``)``, ``function``(``what``)`\
+`    `[`round`](https://rdrr.io/r/base/Round.html)`(``100`` ``*`` `[`sum`](https://rdrr.io/r/base/sum.html)`(``t``$``population``[``!`[`is.na`](https://rdrr.io/r/base/NA.html)`(``t``[[``what``]``]``)`` ``&`` ``t``[[``what``]``]`` ``<=`` ``minutes``]``)`` ``/`\
+`            `[`sum`](https://rdrr.io/r/base/sum.html)`(``t``$``population``)``, ``1``)``)`\
+`}`\
+\
+`shares`` ``<-`` `[`do.call`](https://rdrr.io/r/base/do.call.html)`(``rbind``, `[`lapply`](https://rdrr.io/r/base/lapply.html)`(``cities``$``key``, ``function``(``k``)`` ``{`\
+`  `[`do.call`](https://rdrr.io/r/base/do.call.html)`(``rbind``, `[`lapply`](https://rdrr.io/r/base/lapply.html)`(`[`c`](https://rdrr.io/r/base/c.html)`(``"WALK"``, ``"BICYCLE"``, ``"CAR"``)``, ``function``(``mode``)`` ``{`\
+`    ``t`` ``<-`` ``nearest``(``k``, ``mode``, limit ``=`` ``60``)`\
+`    `[`data.frame`](https://rdrr.io/r/base/data.frame.html)`(``city ``=`` ``k``, mode ``=`` ``mode``,`\
+`               `[`t`](https://rdrr.io/r/base/t.html)`(``share_within``(``t``, ``15``)``)``, `[`t`](https://rdrr.io/r/base/t.html)`(``share_within``(``t``, ``30``)``)``)`\
+`  ``}``)``)`\
+`}``)``)`\
+[`names`](https://rdrr.io/r/base/names.html)`(``shares``)``[``3``:``6``]`` ``<-`` `[`c`](https://rdrr.io/r/base/c.html)`(``"school_15"``, ``"health_15"``, ``"school_30"``, ``"health_30"``)`\
+`shares`\
+`#>      city    mode school_15 health_15 school_30 health_30`\
+`#> 1  recife    WALK      95.6      75.8      99.6      97.5`\
+`#> 2  recife BICYCLE      99.5      96.0      99.8      99.8`\
+`#> 3  recife     CAR      99.2      99.2      99.2      99.2`\
+`#> 4 caruaru    WALK      72.5      68.0      92.7      85.7`\
+`#> 5 caruaru BICYCLE      92.7      84.9      97.9      91.1`\
+`#> 6 caruaru     CAR      99.8      98.2     100.0      99.9`
+
+The table is the share of the population (in %) within 15 and 30 minutes
+of the nearest public school and primary health care unit. In Recife,
+96% of the people live within 15 minutes’ walk of a public school and
+76% of a health unit; in Caruaru, 73% and 68%. On a bicycle the gap
+narrows; by car, with free-flowing traffic, nearly everyone is within 15
+minutes of both.
+
+Recife’s driving shares stop at 99.2% for a reason worth knowing: from
+17 cells of Boa Viagem (about 12 thousand residents on this grid) there
+is no car route to the rest of the network on this extract, although the
+streets connect on foot and by bicycle. Removing every turn restriction
+from the extract does not reconnect them; the cause is in how the
+OpenStreetMap data of that area is read for cars, and is not identified
+yet. Checks like this one (cells or units that a mode never reaches) are
+worth running on any new extract.
+
+On a map, walking (drawn by `site/figures/pernambuco.R` in the
+repository, from these results):
+
+![Two maps of Recife covered by hexagons coloured by the walking time
+from each cell to the nearest public school and to the nearest primary
+health care unit: almost every inhabited cell is within 15 minutes of a
+school; health units are farther apart, and cells in the south and the
+west are 15 to 30 minutes from the nearest
+one.](figures/nearest-recife.svg)![Two maps of the urban area of Caruaru
+covered by hexagons coloured by the walking time to the nearest public
+school and to the nearest primary health care unit: the centre and most
+neighbourhoods are within 10 minutes of both; the rural cells around the
+city are mostly within reach of a rural school, but not of a health
+unit.](figures/nearest-caruaru.svg)![Bars of the share of the population
+of Recife and Caruaru within 15 and 30 minutes of the nearest public
+school and primary health care unit, walking, cycling and
+driving.](figures/access-recife-caruaru.svg)
+
+A map like these, with plain ggplot2:
+
+\
+[`library`](https://rdrr.io/r/base/library.html)`(`[`ggplot2`](https://ggplot2.tidyverse.org)`)`\
+`walk`` ``<-`` ``nearest``(``"recife"``, ``"WALK"``, limit ``=`` ``60``)`\
+`cells`` ``<-`` `[`merge`](https://rdrr.io/r/base/merge.html)`(``grids``$``recife``[``, ``"id"``]``, ``walk``, by ``=`` ``"id"``)`\
+`p`` ``<-`` `[`ggplot`](https://ggplot2.tidyverse.org/reference/ggplot.html)`(``cells``)`` ``+`\
+`  `[`geom_sf`](https://ggplot2.tidyverse.org/reference/ggsf.html)`(`[`aes`](https://ggplot2.tidyverse.org/reference/aes.html)`(``fill ``=`` `[`cut`](https://rdrr.io/r/base/cut.html)`(``health``, `[`c`](https://rdrr.io/r/base/c.html)`(``0``, ``5``, ``10``, ``15``, ``20``, ``30``, ``60``)``)``)``, colour ``=`` ``NA``)`` ``+`\
+`  `[`scale_fill_brewer`](https://ggplot2.tidyverse.org/reference/scale_brewer.html)`(``palette ``=`` ``"OrRd"``, direction ``=`` ``-``1``, na.value ``=`` ``"grey85"``,`\
+`                    name ``=`` ``"Minutes"``)`` ``+`\
+`  `[`labs`](https://ggplot2.tidyverse.org/reference/labs.html)`(``title ``=`` ``"Walking time to the nearest primary health care unit, Recife"``)`` ``+`\
+`  `[`theme_void`](https://ggplot2.tidyverse.org/reference/ggtheme.html)`(``)`\
+[`ggsave`](https://ggplot2.tidyverse.org/reference/ggsave.html)`(`[`file.path`](https://rdrr.io/r/base/file.path.html)`(`[`tempdir`](https://rdrr.io/r/base/tempfile.html)`(``)``, ``"recife-health.png"``)``, ``p``, width ``=`` ``6``, height ``=`` ``7``, dpi ``=`` ``110``)`
+
+## How many units within reach
+
+The nearest unit is one measure; how many units are within reach is
+another, which [`accessibility()`](../reference/accessibility.md)
+computes directly: here, the public schools within 15 minutes’ walk of
+each cell, and the average over the population.
+
+\
+[`sapply`](https://rdrr.io/r/base/lapply.html)`(`[`setNames`](https://rdrr.io/r/stats/setNames.html)`(``cities``$``key``, ``cities``$``key``)``, ``function``(``k``)`` ``{`\
+`  ``a`` ``<-`` `[`accessibility`](../reference/accessibility.md)`(``networks``[[``k``]``]``, `[`st_drop_geometry`](https://r-spatial.github.io/sf/reference/st_geometry.html)`(``grids``[[``k``]``]``)``,`\
+`                     `[`transform`](https://rdrr.io/r/base/transform.html)`(``schools``[[``k``]``]``, n ``=`` ``1``)``, opportunities_colnames ``=`` ``"n"``,`\
+`                     mode ``=`` ``"WALK"``, cutoffs ``=`` ``15``)`\
+`  ``people`` ``<-`` ``grids``[[``k``]``]``$``population``[`[`match`](https://rdrr.io/r/base/match.html)`(``a``$``id``, ``grids``[[``k``]``]``$``id``)``]`\
+`  `[`round`](https://rdrr.io/r/base/Round.html)`(`[`weighted.mean`](https://rdrr.io/r/stats/weighted.mean.html)`(``a``$``accessibility``, ``people``)``, ``1``)`\
+`}``)`\
+`#>  recife caruaru `\
+`#>     4.6     2.6`
+
+On average, a resident of Recife has between four and five public
+schools within a quarter of an hour on foot; one of Caruaru, between two
+and three.
+
+## Isochrones from the centre
+
+From Marco Zero, in Recife’s old centre, and from the Feira de Caruaru,
+the area reached in 10, 20 and 30 minutes by each mode, in square
+kilometres:
+
+\
+`centres`` ``<-`` `[`list`](https://rdrr.io/r/base/list.html)`(`\
+`  recife ``=`` `[`data.frame`](https://rdrr.io/r/base/data.frame.html)`(``id ``=`` ``"Marco Zero"``, lon ``=`` ``-``34.8709722``, lat ``=`` ``-``8.063374``)``,`\
+`  caruaru ``=`` `[`data.frame`](https://rdrr.io/r/base/data.frame.html)`(``id ``=`` ``"Feira de Caruaru"``, lon ``=`` ``-``35.9713866``, lat ``=`` ``-``8.2897512``)`\
+`)`\
+`iso`` ``<-`` `[`do.call`](https://rdrr.io/r/base/do.call.html)`(``rbind``, `[`lapply`](https://rdrr.io/r/base/lapply.html)`(``cities``$``key``, ``function``(``k``)`` ``{`\
+`  `[`do.call`](https://rdrr.io/r/base/do.call.html)`(``rbind``, `[`lapply`](https://rdrr.io/r/base/lapply.html)`(`[`c`](https://rdrr.io/r/base/c.html)`(``"WALK"``, ``"BICYCLE"``, ``"CAR"``)``, ``function``(``mode``)`` ``{`\
+`    ``i`` ``<-`` `[`isochrone`](../reference/isochrone.md)`(``networks``[[``k``]``]``, ``centres``[[``k``]``]``, mode ``=`` ``mode``,`\
+`                   cutoffs ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``10``, ``20``, ``30``)``, zoom ``=`` ``11``)`\
+`    `[`data.frame`](https://rdrr.io/r/base/data.frame.html)`(``city ``=`` ``k``, mode ``=`` ``mode``, minutes ``=`` ``i``$``isochrone``,`\
+`               km2 ``=`` `[`round`](https://rdrr.io/r/base/Round.html)`(`[`as.numeric`](https://rdrr.io/r/base/numeric.html)`(`[`st_area`](https://r-spatial.github.io/sf/reference/geos_measures.html)`(`[`st_transform`](https://r-spatial.github.io/sf/reference/st_transform.html)`(``i``, ``utm``)``)``)`` ``/`` ``1e6``, ``1``)``)`\
+`  ``}``)``)`\
+`}``)``)`\
+[`xtabs`](https://rdrr.io/r/stats/xtabs.html)`(``km2`` ``~`` ``mode`` ``+`` ``minutes`` ``+`` ``city``, data ``=`` ``iso``)`\
+`#> , , city = caruaru`\
+`#> `\
+`#>          minutes`\
+`#> mode         10    20    30`\
+`#>   BICYCLE   1.3   8.9  23.4`\
+`#>   CAR      22.1 285.9 696.4`\
+`#>   WALK      0.1   1.5   4.7`\
+`#> `\
+`#> , , city = recife`\
+`#> `\
+`#>          minutes`\
+`#> mode         10    20    30`\
+`#>   BICYCLE   0.8   3.0   8.2`\
+`#>   CAR       5.7 112.5 367.6`\
+`#>   WALK      0.4   1.3   3.0`
+
+One number here depends on more than routing: the 20-minute driving
+polygon of Caruaru has dozens of holes (pockets of the grid not reached
+in time) that touch each other.
+[`isochrone()`](../reference/isochrone.md) returns its polygons made
+valid with
+[`sf::st_make_valid()`](https://r-spatial.github.io/sf/reference/valid.html)
+on longitude and latitude (s2), which merges many of those holes into
+the polygon: 285.9 km². Repaired with GEOS in metres instead, as the
+[Python example](../../python/example-recife-caruaru/) does, the same
+polygon measures 248.9 km². The other polygons agree to 0.1 km².
+
+![Three maps around Marco Zero, Recife, one per mode, with the areas
+reached within 10, 20 and 30 minutes: walking reaches the old centre and
+the islands next to it; cycling reaches the centre and the
+neighbourhoods across the rivers; driving reaches most of the
+map.](figures/isochrones-recife.svg)![Three maps of the urban area of
+Caruaru, one per mode, with the areas reached from the Feira de Caruaru
+within 10, 20 and 30 minutes: walking reaches the centre, cycling most
+of the city, driving all of it.](figures/isochrones-caruaru.svg)
+
+## Variations
+
+- **Another municipality.** Change `cities`: the IBGE code (from
+  `https://servicodados.ibge.gov.br/api/v1/localidades/municipios`), the
+  buffer, the state of the census tracts
+  (`UF/PE/PE_setores_CD2022.gpkg`) and of the CNES rows (`CO_UF`), and
+  the Geofabrik region.
+- **Large matrices on disk.** With `output_dir`,
+  [`travel_time_matrix()`](../reference/travel_time_matrix.md) and
+  [`accessibility()`](../reference/accessibility.md) write one CSV file
+  per origin instead of returning a data frame: the 4,489 × 216 driving
+  matrix of Caruaru never has to fit in memory.
+- **Gradual access.** `decay_function = "logistic"` (or `"exponential"`,
+  `"linear"`) in [`accessibility()`](../reference/accessibility.md)
+  weighs each school by its distance in time instead of counting those
+  under a hard limit.
+- **Public transport.** With a GTFS feed in the network directory, the
+  same calls take `mode = c("WALK", "TRANSIT")`, a `departure_datetime`
+  and a `time_window`.
+- **A browser map.** The [isochrone demo](../../demo/) has the streets
+  of Recife and of the urban area of Caruaru and draws isochrones
+  wherever you click.
+
+Map data © OpenStreetMap contributors, under the ODbL; boundaries and
+population © IBGE; schools: INEP (Catálogo de Escolas 2023, via geobr);
+health units: CNES, Ministério da Saúde.

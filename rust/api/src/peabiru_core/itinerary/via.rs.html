@@ -1,0 +1,177 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/peabiru-core/src/itinerary/via.rs`."><title>via.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-203241e4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="peabiru_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.100.0 (0ef1bc386 2026-11-09)" data-channel="1.100.0" data-search-js="search-b167f383.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-1814ead3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">peabiru_core/itinerary/</div>via.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Itineraries whose result could depend on the order R5 has left the via
+<a href=#2 id=2 data-nosnippet>2</a>//! edges of turn restrictions in.
+<a href=#3 id=3 data-nosnippet>3</a>//!
+<a href=#4 id=4 data-nosnippet>4</a>//! R5's `canTurnFrom` reverses a restriction's array of via edges in place
+<a href=#5 id=5 data-nosnippet>5</a>//! (`TurnRestriction.reverse`) every time a reverse car search checks a
+<a href=#6 id=6 data-nosnippet>6</a>//! restriction with two or more of them. The array belongs to the network
+<a href=#7 id=7 data-nosnippet>7</a>//! that every search shares, so the order a check sees, in a reverse search
+<a href=#8 id=8 data-nosnippet>8</a>//! or a forward one, depends on how many checks of that restriction came
+<a href=#9 id=9 data-nosnippet>9</a>//! before it: in the same search, in the other pairs of the call (which R5's
+<a href=#10 id=10 data-nosnippet>10</a>//! callers route in parallel, in an order that is not fixed) and in earlier calls
+<a href=#11 id=11 data-nosnippet>11</a>//! of the session. In `detailed_itineraries()` this happens with
+<a href=#12 id=12 data-nosnippet>12</a>//! `mode_egress = "CAR"`, whose egress search runs backwards; the car
+<a href=#13 id=13 data-nosnippet>13</a>//! searches of such a call (egress, and car access and direct trips) may
+<a href=#14 id=14 data-nosnippet>14</a>//! then see either order.
+<a href=#15 id=15 data-nosnippet>15</a>//!
+<a href=#16 id=16 data-nosnippet>16</a>//! peabiru plans each pair as R5 does on a network on which no reverse car
+<a href=#17 id=17 data-nosnippet>17</a>//! search has run before it (a freshly built network, the pair alone, one
+<a href=#18 id=18 data-nosnippet>18</a>//! thread): every array as built, reversed by each check of the pair's own
+<a href=#19 id=19 data-nosnippet>19</a>//! reverse searches, in the order its searches run. To say when R5 could
+<a href=#20 id=20 data-nosnippet>20</a>//! give something else, a pair whose searches meet an "ambiguous" check
+<a href=#21 id=21 data-nosnippet>21</a>//! (one whose outcome changes with the order: the edge taken is the via
+<a href=#22 id=22 data-nosnippet>22</a>//! edge expected in one order and not in the other) is planned again for
+<a href=#23 id=23 data-nosnippet>23</a>//! every combination of orders its ambiguous checks can see (each one on its
+<a href=#24 id=24 data-nosnippet>24</a>//! own, as threads can interleave anywhere); the pair "depends on the
+<a href=#25 id=25 data-nosnippet>25</a>//! history" when some combination gives other itineraries.
+<a href=#26 id=26 data-nosnippet>26</a>
+<a href=#27 id=27 data-nosnippet>27</a></span><span class="kw">use </span><span class="kw">crate</span>::street::p2p::Router;
+<a href=#28 id=28 data-nosnippet>28</a><span class="kw">use </span><span class="kw">crate</span>::RouteError;
+<a href=#29 id=29 data-nosnippet>29</a><span class="kw">use </span>std::collections::HashMap;
+<a href=#30 id=30 data-nosnippet>30</a>
+<a href=#31 id=31 data-nosnippet>31</a><span class="doccomment">/// Most plans of one pair when looking for other itineraries; a pair that
+<a href=#32 id=32 data-nosnippet>32</a>/// needs more counts as depending on the history.
+<a href=#33 id=33 data-nosnippet>33</a></span><span class="kw">const </span>MAX_RUNS: usize = <span class="number">256</span>;
+<a href=#34 id=34 data-nosnippet>34</a>
+<a href=#35 id=35 data-nosnippet>35</a><span class="doccomment">/// The orders the restriction checks of one plan take, shared by its car
+<a href=#36 id=36 data-nosnippet>36</a>/// searches in the order they run.
+<a href=#37 id=37 data-nosnippet>37</a></span><span class="attr">#[derive(Default)]
+<a href=#38 id=38 data-nosnippet>38</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ViaOrders {
+<a href=#39 id=39 data-nosnippet>39</a>    <span class="doccomment">/// `None` with `fresh` `None`: the network as built (no reverse car
+<a href=#40 id=40 data-nosnippet>40</a>    /// search in the call).
+<a href=#41 id=41 data-nosnippet>41</a>    </span>choices: <span class="prelude-ty">Option</span>&lt;Vec&lt;bool&gt;&gt;,
+<a href=#42 id=42 data-nosnippet>42</a>    <span class="doccomment">/// The orders of a network on which only this pair's searches ran
+<a href=#43 id=43 data-nosnippet>43</a>    /// (see `Router::via_fresh`).
+<a href=#44 id=44 data-nosnippet>44</a>    </span>fresh: <span class="prelude-ty">Option</span>&lt;HashMap&lt;u64, bool&gt;&gt;,
+<a href=#45 id=45 data-nosnippet>45</a>    used: Vec&lt;bool&gt;,
+<a href=#46 id=46 data-nosnippet>46</a>    <span class="doccomment">/// Set by the plan when the pair is to be planned again with McRAPTOR.
+<a href=#47 id=47 data-nosnippet>47</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) mcraptor_fallback: bool,
+<a href=#48 id=48 data-nosnippet>48</a>}
+<a href=#49 id=49 data-nosnippet>49</a>
+<a href=#50 id=50 data-nosnippet>50</a><span class="kw">impl </span>ViaOrders {
+<a href=#51 id=51 data-nosnippet>51</a>    <span class="doccomment">/// Every check sees the via edges in the order of its own search (as
+<a href=#52 id=52 data-nosnippet>52</a>    /// built in a forward search, reversed in a reverse one): the turn
+<a href=#53 id=53 data-nosnippet>53</a>    /// restrictions as OpenStreetMap states them, whatever ran before. For
+<a href=#54 id=54 data-nosnippet>54</a>    /// peabiru's own functions, which do not reproduce R5's in-place
+<a href=#55 id=55 data-nosnippet>55</a>    /// reversal.
+<a href=#56 id=56 data-nosnippet>56</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>as_stated() -&gt; <span class="self">Self </span>{
+<a href=#57 id=57 data-nosnippet>57</a>        ViaOrders {
+<a href=#58 id=58 data-nosnippet>58</a>            choices: <span class="prelude-val">Some</span>(Vec::new()),
+<a href=#59 id=59 data-nosnippet>59</a>            ..ViaOrders::default()
+<a href=#60 id=60 data-nosnippet>60</a>        }
+<a href=#61 id=61 data-nosnippet>61</a>    }
+<a href=#62 id=62 data-nosnippet>62</a>
+<a href=#63 id=63 data-nosnippet>63</a>    <span class="doccomment">/// Give `r` the orders of the checks still to come.
+<a href=#64 id=64 data-nosnippet>64</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>prepare(<span class="kw-2">&amp;</span><span class="self">self</span>, r: <span class="kw-2">&amp;mut </span>Router) {
+<a href=#65 id=65 data-nosnippet>65</a>        r.via_choices = <span class="self">self
+<a href=#66 id=66 data-nosnippet>66</a>            </span>.choices
+<a href=#67 id=67 data-nosnippet>67</a>            .as_ref()
+<a href=#68 id=68 data-nosnippet>68</a>            .map(|c| c.get(<span class="self">self</span>.used.len()..).unwrap_or(<span class="kw-2">&amp;</span>[]).to_vec());
+<a href=#69 id=69 data-nosnippet>69</a>        r.via_fresh = <span class="self">self</span>.fresh.clone();
+<a href=#70 id=70 data-nosnippet>70</a>    }
+<a href=#71 id=71 data-nosnippet>71</a>
+<a href=#72 id=72 data-nosnippet>72</a>    <span class="doccomment">/// Record the orders `r`'s search took.
+<a href=#73 id=73 data-nosnippet>73</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>collect(<span class="kw-2">&amp;mut </span><span class="self">self</span>, r: <span class="kw-2">&amp;mut </span>Router) {
+<a href=#74 id=74 data-nosnippet>74</a>        <span class="self">self</span>.used.append(<span class="kw-2">&amp;mut </span>r.via_used);
+<a href=#75 id=75 data-nosnippet>75</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(f) = r.via_fresh.take() {
+<a href=#76 id=76 data-nosnippet>76</a>            <span class="self">self</span>.fresh = <span class="prelude-val">Some</span>(f);
+<a href=#77 id=77 data-nosnippet>77</a>        }
+<a href=#78 id=78 data-nosnippet>78</a>    }
+<a href=#79 id=79 data-nosnippet>79</a>}
+<a href=#80 id=80 data-nosnippet>80</a>
+<a href=#81 id=81 data-nosnippet>81</a><span class="doccomment">/// Run `plan` once with the network as built when `free` is false.
+<a href=#82 id=82 data-nosnippet>82</a>/// Otherwise run it with the orders of a fresh network (see the module),
+<a href=#83 id=83 data-nosnippet>83</a>/// and then for every other order its ambiguous checks can see. Returns the
+<a href=#84 id=84 data-nosnippet>84</a>/// first result, and whether some order gave another one (or there were too
+<a href=#85 id=85 data-nosnippet>85</a>/// many orders to try).
+<a href=#86 id=86 data-nosnippet>86</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>settle&lt;R: PartialEq&gt;(
+<a href=#87 id=87 data-nosnippet>87</a>    free: bool,
+<a href=#88 id=88 data-nosnippet>88</a>    <span class="kw-2">mut </span>plan: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span>ViaOrders) -&gt; <span class="prelude-ty">Result</span>&lt;R, RouteError&gt;,
+<a href=#89 id=89 data-nosnippet>89</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(R, bool), RouteError&gt; {
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="kw">if </span>!free {
+<a href=#91 id=91 data-nosnippet>91</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>((plan(<span class="kw-2">&amp;mut </span>ViaOrders::default())<span class="question-mark">?</span>, <span class="bool-val">false</span>));
+<a href=#92 id=92 data-nosnippet>92</a>    }
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="kw">let </span><span class="kw-2">mut </span>fresh = ViaOrders {
+<a href=#94 id=94 data-nosnippet>94</a>        fresh: <span class="prelude-val">Some</span>(HashMap::new()),
+<a href=#95 id=95 data-nosnippet>95</a>        ..ViaOrders::default()
+<a href=#96 id=96 data-nosnippet>96</a>    };
+<a href=#97 id=97 data-nosnippet>97</a>    <span class="kw">let </span>first = plan(<span class="kw-2">&amp;mut </span>fresh)<span class="question-mark">?</span>;
+<a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">let </span><span class="kw-2">mut </span>todo = children(<span class="number">0</span>, <span class="kw-2">&amp;</span>fresh.used);
+<a href=#99 id=99 data-nosnippet>99</a>    <span class="kw">let </span><span class="kw-2">mut </span>runs = <span class="number">1</span>;
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>(prefix) = todo.pop() {
+<a href=#101 id=101 data-nosnippet>101</a>        runs += <span class="number">1</span>;
+<a href=#102 id=102 data-nosnippet>102</a>        <span class="kw">if </span>runs &gt; MAX_RUNS {
+<a href=#103 id=103 data-nosnippet>103</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>((first, <span class="bool-val">true</span>));
+<a href=#104 id=104 data-nosnippet>104</a>        }
+<a href=#105 id=105 data-nosnippet>105</a>        <span class="kw">let </span>n = prefix.len();
+<a href=#106 id=106 data-nosnippet>106</a>        <span class="kw">let </span><span class="kw-2">mut </span>v = ViaOrders {
+<a href=#107 id=107 data-nosnippet>107</a>            choices: <span class="prelude-val">Some</span>(prefix),
+<a href=#108 id=108 data-nosnippet>108</a>            ..ViaOrders::default()
+<a href=#109 id=109 data-nosnippet>109</a>        };
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">let </span>r = plan(<span class="kw-2">&amp;mut </span>v)<span class="question-mark">?</span>;
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">if </span>r != first {
+<a href=#112 id=112 data-nosnippet>112</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>((first, <span class="bool-val">true</span>));
+<a href=#113 id=113 data-nosnippet>113</a>        }
+<a href=#114 id=114 data-nosnippet>114</a>        todo.extend(children(n, <span class="kw-2">&amp;</span>v.used));
+<a href=#115 id=115 data-nosnippet>115</a>    }
+<a href=#116 id=116 data-nosnippet>116</a>    <span class="prelude-val">Ok</span>((first, <span class="bool-val">false</span>))
+<a href=#117 id=117 data-nosnippet>117</a>}
+<a href=#118 id=118 data-nosnippet>118</a>
+<a href=#119 id=119 data-nosnippet>119</a><span class="doccomment">/// The prefixes that take the other order at one of the checks after the
+<a href=#120 id=120 data-nosnippet>120</a>/// first `from`.
+<a href=#121 id=121 data-nosnippet>121</a></span><span class="kw">fn </span>children(from: usize, used: <span class="kw-2">&amp;</span>[bool]) -&gt; Vec&lt;Vec&lt;bool&gt;&gt; {
+<a href=#122 id=122 data-nosnippet>122</a>    (from..used.len())
+<a href=#123 id=123 data-nosnippet>123</a>        .map(|i| {
+<a href=#124 id=124 data-nosnippet>124</a>            <span class="kw">let </span><span class="kw-2">mut </span>c = used[..i].to_vec();
+<a href=#125 id=125 data-nosnippet>125</a>            c.push(!used[i]);
+<a href=#126 id=126 data-nosnippet>126</a>            c
+<a href=#127 id=127 data-nosnippet>127</a>        })
+<a href=#128 id=128 data-nosnippet>128</a>        .collect()
+<a href=#129 id=129 data-nosnippet>129</a>}
+<a href=#130 id=130 data-nosnippet>130</a>
+<a href=#131 id=131 data-nosnippet>131</a><span class="attr">#[cfg(test)]
+<a href=#132 id=132 data-nosnippet>132</a></span><span class="kw">mod </span>tests {
+<a href=#133 id=133 data-nosnippet>133</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#134 id=134 data-nosnippet>134</a>
+<a href=#135 id=135 data-nosnippet>135</a>    <span class="doccomment">/// A fake plan: `n` ambiguous checks, which take `true` in a fresh plan
+<a href=#136 id=136 data-nosnippet>136</a>    /// when `fresh_true`; the result counts the reversed orders when
+<a href=#137 id=137 data-nosnippet>137</a>    /// `count`, else is constant.
+<a href=#138 id=138 data-nosnippet>138</a>    </span><span class="kw">fn </span>fake(
+<a href=#139 id=139 data-nosnippet>139</a>        n: usize,
+<a href=#140 id=140 data-nosnippet>140</a>        count: bool,
+<a href=#141 id=141 data-nosnippet>141</a>        fresh_true: bool,
+<a href=#142 id=142 data-nosnippet>142</a>    ) -&gt; <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span>ViaOrders) -&gt; <span class="prelude-ty">Result</span>&lt;usize, RouteError&gt; {
+<a href=#143 id=143 data-nosnippet>143</a>        <span class="kw">move </span>|v| {
+<a href=#144 id=144 data-nosnippet>144</a>            v.used = <span class="kw">match </span>(<span class="kw-2">&amp;</span>v.fresh, <span class="kw-2">&amp;</span>v.choices) {
+<a href=#145 id=145 data-nosnippet>145</a>                (<span class="prelude-val">Some</span>(<span class="kw">_</span>), <span class="kw">_</span>) =&gt; <span class="macro">vec!</span>[fresh_true; n],
+<a href=#146 id=146 data-nosnippet>146</a>                (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(ch)) =&gt; (<span class="number">0</span>..n).map(|i| ch.get(i).copied().unwrap_or(<span class="bool-val">true</span>)).collect(),
+<a href=#147 id=147 data-nosnippet>147</a>                (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="macro">vec!</span>[<span class="bool-val">false</span>; n],
+<a href=#148 id=148 data-nosnippet>148</a>            };
+<a href=#149 id=149 data-nosnippet>149</a>            <span class="prelude-val">Ok</span>(<span class="kw">if </span>count {
+<a href=#150 id=150 data-nosnippet>150</a>                v.used.iter().filter(|&amp;&amp;b| b).count()
+<a href=#151 id=151 data-nosnippet>151</a>            } <span class="kw">else </span>{
+<a href=#152 id=152 data-nosnippet>152</a>                <span class="number">7
+<a href=#153 id=153 data-nosnippet>153</a>            </span>})
+<a href=#154 id=154 data-nosnippet>154</a>        }
+<a href=#155 id=155 data-nosnippet>155</a>    }
+<a href=#156 id=156 data-nosnippet>156</a>
+<a href=#157 id=157 data-nosnippet>157</a>    <span class="attr">#[test]
+<a href=#158 id=158 data-nosnippet>158</a>    </span><span class="kw">fn </span>every_order_is_tried() {
+<a href=#159 id=159 data-nosnippet>159</a>        <span class="kw">let </span><span class="kw-2">mut </span>seen = std::collections::HashSet::new();
+<a href=#160 id=160 data-nosnippet>160</a>        <span class="kw">let </span><span class="kw-2">mut </span>f = fake(<span class="number">5</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>);
+<a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span>r = settle(<span class="bool-val">true</span>, |v| {
+<a href=#162 id=162 data-nosnippet>162</a>            <span class="kw">let </span>r = f(v);
+<a href=#163 id=163 data-nosnippet>163</a>            seen.insert(v.used.clone());
+<a href=#164 id=164 data-nosnippet>164</a>            r
+<a href=#165 id=165 data-nosnippet>165</a>        });
+<a href=#166 id=166 data-nosnippet>166</a>        <span class="macro">assert_eq!</span>(r.ok(), <span class="prelude-val">Some</span>((<span class="number">7</span>, <span class="bool-val">false</span>)));
+<a href=#167 id=167 data-nosnippet>167</a>        <span class="macro">assert_eq!</span>(seen.len(), <span class="number">32</span>);
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="comment">// the fresh plan's result is returned, and the pair depends
+<a href=#169 id=169 data-nosnippet>169</a>        </span><span class="macro">assert_eq!</span>(settle(<span class="bool-val">true</span>, fake(<span class="number">3</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>)).ok(), <span class="prelude-val">Some</span>((<span class="number">0</span>, <span class="bool-val">true</span>)));
+<a href=#170 id=170 data-nosnippet>170</a>        <span class="macro">assert_eq!</span>(settle(<span class="bool-val">true</span>, fake(<span class="number">3</span>, <span class="bool-val">true</span>, <span class="bool-val">true</span>)).ok(), <span class="prelude-val">Some</span>((<span class="number">3</span>, <span class="bool-val">true</span>)));
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="comment">// 512 orders &gt; MAX_RUNS: counted as depending
+<a href=#172 id=172 data-nosnippet>172</a>        </span><span class="macro">assert_eq!</span>(settle(<span class="bool-val">true</span>, fake(<span class="number">9</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>)).ok(), <span class="prelude-val">Some</span>((<span class="number">7</span>, <span class="bool-val">true</span>)));
+<a href=#173 id=173 data-nosnippet>173</a>        <span class="macro">assert_eq!</span>(settle(<span class="bool-val">false</span>, fake(<span class="number">3</span>, <span class="bool-val">true</span>, <span class="bool-val">true</span>)).ok(), <span class="prelude-val">Some</span>((<span class="number">0</span>, <span class="bool-val">false</span>)));
+<a href=#174 id=174 data-nosnippet>174</a>        <span class="macro">assert_eq!</span>(settle(<span class="bool-val">true</span>, fake(<span class="number">0</span>, <span class="bool-val">true</span>, <span class="bool-val">true</span>)).ok(), <span class="prelude-val">Some</span>((<span class="number">0</span>, <span class="bool-val">false</span>)));
+<a href=#175 id=175 data-nosnippet>175</a>    }
+<a href=#176 id=176 data-nosnippet>176</a>}
+</code></pre></div></section></main></body></html>

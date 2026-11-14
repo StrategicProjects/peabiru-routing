@@ -1,0 +1,1740 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multimodal routing on OpenStreetMap and GTFS networks with a Rust engine, without Java: travel-time matrices and accessibility as pandas data frames">
+      
+      
+        <meta name="author" content="André Leite, Marcos Wasiliew, Hugo Vasconcelos, Carlos Amorim, Diogo Bezerra, Júlia Nascimento Barreto">
+      
+      
+      
+        <link rel="prev" href="../example-scenarios/">
+      
+      
+        <link rel="next" href="../reference/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Jobs by public transport in Helsinki - peabiru for Python</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/brand.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#example-jobs-by-public-transport-in-helsinki" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="peabiru for Python" class="md-header__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            peabiru for Python
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Jobs by public transport in Helsinki
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="peabiru for Python" class="md-nav__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    peabiru for Python
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../travel-time-matrices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Travel-time matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accessibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../expanded-arrival/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Expanded and arrival matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../itineraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detailed itineraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fares/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trip-options/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trip options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../facility-location/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facility location
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../elevation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Elevation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenarios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network-inspection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inspecting a network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gtfs-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GTFS errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../coming-from-r5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compared with r5r and r5py
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-isochrones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isochrones by mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access to jobs and schools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-trips/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How much a trip varies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-recife-metropolitan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Recife metropolitan region by public transport
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-recife-caruaru/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schools and health care in Recife and Caruaru
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-terrain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terrain, in Salvador and Olinda
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-capitals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by income in Belo Horizonte, and fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Before and after in Porto Alegre
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by public transport in Helsinki
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by public transport in Helsinki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The network
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#residents-and-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Residents and jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs-within-reach-at-the-morning-peak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs within reach at the morning peak
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#isochrones-from-the-central-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Isochrones from the Central Station
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-options-for-one-trip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The options for one trip
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Other languages
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Other languages
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../r/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    R
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rust/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../js/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    peabiru home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The network
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#residents-and-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Residents and jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs-within-reach-at-the-morning-peak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs within reach at the morning peak
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#isochrones-from-the-central-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Isochrones from the Central Station
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-options-for-one-trip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The options for one trip
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="example-jobs-by-public-transport-in-helsinki">Example: jobs by public transport in Helsinki<a class="headerlink" href="#example-jobs-by-public-transport-in-helsinki" title="Permanent link">&para;</a></h1>
+<!-- docs-test: needs osmium, env PEABIRU_EXAMPLE_DATA -->
+
+<p>peabiru reads any OpenStreetMap extract and any valid GTFS feed; nothing
+in it is particular to Brazil. This example builds the network of the
+Helsinki capital region (Helsinki, Espoo, Vantaa and Kauniainen, 1.25
+million residents on HSY's grid) from open data, and measures access to jobs by public
+transport at the morning peak.</p>
+<p>The code blocks make one script; the output under each is what it prints,
+computed on 2026-11-12, and the numbers are those of the
+<a href="../../r/articles/helsinki.html">R example</a>, which also explains why Helsinki
+was chosen among the candidate cities and why Lisbon was dropped. It
+downloads about 880 MB into <code>PEABIRU_EXAMPLE_DATA</code> and needs
+<a href="https://geopandas.org">geopandas</a> 1.0 or later and
+<a href="https://osmcode.org/osmium-tool/">osmium</a>.</p>
+<figure>
+  <img src="../../assets/figures/helsinki-jobs.svg" width="760" alt="A map of the Helsinki capital region covered by 250 m cells coloured by the number of jobs reachable within 45 minutes by public transport at the morning peak: the centre of Helsinki and the cells along the metro and railway lines reach the most.">
+<br />
+<figcaption>Jobs within 45 minutes by public transport at the morning peak, computed below and drawn by <code>site/figures/scenarios.R</code> in the repository.</figcaption>
+</figure>
+<h2 id="the-data">The data<a class="headerlink" href="#the-data" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Source</th>
+<th>Licence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Streets</td>
+<td><a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, extract of Finland by <a href="https://download.geofabrik.de/europe/finland.html">Geofabrik</a>, dated 2026-11-11 (776 MB, MD5 <code>ff7c5c52ce53880611989d15378b13af</code>), cut with osmium to the box 24.45–25.30° E, 60.03–60.42° N</td>
+<td>ODbL 1.0</td>
+</tr>
+<tr>
+<td>Public transport</td>
+<td><a href="https://www.hsl.fi/en/opendata">HSL</a> (Helsinki Region Transport), GTFS feed <code>https://infopalvelut.storage.hsldev.com/gtfs/hsl.zip</code>, published 2026-11-12 05:42 (feed_version), valid 2026-11-11 to 2027-01-09, downloaded on 2026-11-12 (88 MB, SHA-256 <code>1cd6f532…7223c</code>); the feed is replaced every day</td>
+<td>CC BY 4.0 (HSL's open data terms); © HSL 2026</td>
+</tr>
+<tr>
+<td>Residents</td>
+<td>HSY (Helsinki Region Environmental Services), <a href="https://www.hsy.fi/en/environmental-information/open-data/avoin-data---sivut/population-grid-of-helsinki-metropolitan-area/"><em>Väestötietoruudukko</em></a> 2025, residents on a 250 m grid (HSY's page of the dataset: updated 2026-07-08), from HSY's open WFS <code>kartta.hsy.fi</code></td>
+<td>CC BY 4.0, © HSY</td>
+</tr>
+<tr>
+<td>Jobs</td>
+<td>HSY, <a href="https://www.hsy.fi/en/environmental-information/open-data/avoin-data---sivut/grid-data-on-enterprises-and-establishments-in-the-helsinki-region/"><em>Työpaikkaruudukko</em></a> 2024, jobs (full-time equivalents) on a 250 m grid (updated 2026-08-26), same WFS</td>
+<td>CC BY 4.0, © HSY; original source: Statistics Finland's Business Register</td>
+</tr>
+</tbody>
+</table>
+<p>Cells with fewer than five residents are left out of HSY's population
+grid, and one of its cells is not a place: HSY puts the residents it
+cannot assign to a building (33,575 in 2025, 2.6% of the total) in a cell
+in the sea, at the south-east corner of the grid; it is left out below.
+The job grid counts jobs in companies and non-profit organisations only,
+<strong>not public-sector jobs</strong>, as full-time equivalents, and gives <code>-1</code> for
+cells with three or fewer employees, counted as 0 here: "jobs" below are a
+lower bound. It covers the
+wider Helsinki region (572,915 jobs); the box of this example keeps the
+486,976 of the capital region, and leaves out the 42,516 without a
+location, which HSY puts in cells in the sea south of the box.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">csv</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.request</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">zipfile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gpd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">peabiru</span>
+
+<span class="n">root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"PEABIRU_EXAMPLE_DATA"</span><span class="p">,</span> <span class="s2">"example-data"</span><span class="p">))</span>
+<span class="n">raw</span> <span class="o">=</span> <span class="n">root</span> <span class="o">/</span> <span class="s2">"raw"</span>
+<span class="n">raw</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">data_dir</span> <span class="o">=</span> <span class="n">root</span> <span class="o">/</span> <span class="s2">"helsinki"</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">dest</span> <span class="o">=</span> <span class="n">raw</span> <span class="o">/</span> <span class="p">(</span><span class="n">name</span> <span class="ow">or</span> <span class="n">url</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">dest</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">part</span> <span class="o">=</span> <span class="n">dest</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".part"</span><span class="p">)</span>
+        <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlretrieve</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">part</span><span class="p">)</span>
+        <span class="n">part</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dest</span>
+
+
+<span class="n">finland</span> <span class="o">=</span> <span class="n">fetch</span><span class="p">(</span><span class="s2">"https://download.geofabrik.de/europe/finland-261111.osm.pbf"</span><span class="p">)</span>
+<span class="n">md5</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">finland</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">20</span><span class="p">),</span> <span class="sa">b</span><span class="s2">""</span><span class="p">):</span>
+        <span class="n">md5</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">md5</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"ff7c5c52ce53880611989d15378b13af"</span>
+<span class="n">hsl</span> <span class="o">=</span> <span class="n">fetch</span><span class="p">(</span><span class="s2">"https://infopalvelut.storage.hsldev.com/gtfs/hsl.zip"</span><span class="p">)</span>
+<span class="n">hsy</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"https://kartta.hsy.fi/geoserver/wfs?service=WFS&amp;version=2.0.0"</span>
+       <span class="s2">"&amp;request=GetFeature&amp;outputFormat=application/json&amp;srsName=EPSG:4326"</span>
+       <span class="s2">"&amp;typeNames=asuminen_ja_maankaytto:"</span><span class="p">)</span>
+<span class="n">residents_file</span> <span class="o">=</span> <span class="n">fetch</span><span class="p">(</span><span class="n">hsy</span> <span class="o">+</span> <span class="s2">"Vaestotietoruudukko_2025"</span><span class="p">,</span> <span class="s2">"Vaestotietoruudukko_2025.geojson"</span><span class="p">)</span>
+<span class="n">jobs_file</span> <span class="o">=</span> <span class="n">fetch</span><span class="p">(</span><span class="n">hsy</span> <span class="o">+</span> <span class="s2">"Tyopaikkaruudukko_2024"</span><span class="p">,</span> <span class="s2">"Tyopaikkaruudukko_2024.geojson"</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="the-network">The network<a class="headerlink" href="#the-network" title="Permanent link">&para;</a></h2>
+<p>The streets: the capital region and a margin, cut from the extract of
+Finland. The timetables: HSL's feed holds two months of service (its
+<code>stop_times.txt</code> is 1.1 GB uncompressed), so it is cut to the trips that
+run on Tuesday 17 November 2026 and the rows of the other tables they use,
+copied unchanged; every stop is kept, and the tables peabiru does not read
+are left out (trips of Monday's service that run past midnight are
+not in the cut).</p>
+<div class="highlight"><pre><span></span><code><span class="p">(</span><span class="n">data_dir</span> <span class="o">/</span> <span class="s2">"network"</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s2">"osmium"</span><span class="p">,</span> <span class="s2">"extract"</span><span class="p">,</span> <span class="s2">"--overwrite"</span><span class="p">,</span> <span class="s2">"-s"</span><span class="p">,</span> <span class="s2">"smart"</span><span class="p">,</span>
+                <span class="s2">"-b"</span><span class="p">,</span> <span class="s2">"24.45,60.03,25.30,60.42"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">finland</span><span class="p">),</span>
+                <span class="s2">"-o"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">data_dir</span> <span class="o">/</span> <span class="s2">"network"</span> <span class="o">/</span> <span class="s2">"helsinki.osm.pbf"</span><span class="p">)],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">gtfs_one_day</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">out</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The trips of a GTFS feed that run on `date` (YYYYMMDD), and the rows of</span>
+<span class="sd">    the other tables that belong to them, copied line by line."""</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">table</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">name</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">keep_default_na</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8-sig"</span><span class="p">)</span>
+
+    <span class="n">day</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">date</span><span class="p">,</span> <span class="s2">"%Y%m</span><span class="si">%d</span><span class="s2">"</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%A"</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">cal</span> <span class="o">=</span> <span class="n">table</span><span class="p">(</span><span class="s2">"calendar.txt"</span><span class="p">)</span>
+    <span class="n">active</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">cal</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">cal</span><span class="p">[</span><span class="s2">"start_date"</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">date</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">cal</span><span class="p">[</span><span class="s2">"end_date"</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">date</span><span class="p">)</span> <span class="o">&amp;</span>
+                         <span class="p">(</span><span class="n">cal</span><span class="p">[</span><span class="n">day</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"1"</span><span class="p">),</span> <span class="s2">"service_id"</span><span class="p">])</span>
+    <span class="n">cd</span> <span class="o">=</span> <span class="n">table</span><span class="p">(</span><span class="s2">"calendar_dates.txt"</span><span class="p">)</span>
+    <span class="n">cd</span> <span class="o">=</span> <span class="n">cd</span><span class="p">[</span><span class="n">cd</span><span class="p">[</span><span class="s2">"date"</span><span class="p">]</span> <span class="o">==</span> <span class="n">date</span><span class="p">]</span>
+    <span class="n">active</span> <span class="o">=</span> <span class="p">(</span><span class="n">active</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">cd</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">cd</span><span class="p">[</span><span class="s2">"exception_type"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"2"</span><span class="p">,</span> <span class="s2">"service_id"</span><span class="p">]))</span> <span class="o">|</span> \
+        <span class="nb">set</span><span class="p">(</span><span class="n">cd</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">cd</span><span class="p">[</span><span class="s2">"exception_type"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"1"</span><span class="p">,</span> <span class="s2">"service_id"</span><span class="p">])</span>
+    <span class="n">trips</span> <span class="o">=</span> <span class="n">table</span><span class="p">(</span><span class="s2">"trips.txt"</span><span class="p">)</span>
+    <span class="n">trips</span> <span class="o">=</span> <span class="n">trips</span><span class="p">[</span><span class="n">trips</span><span class="p">[</span><span class="s2">"service_id"</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">active</span><span class="p">)]</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"trips.txt"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"trip_id"</span><span class="p">,</span> <span class="nb">set</span><span class="p">(</span><span class="n">trips</span><span class="p">[</span><span class="s2">"trip_id"</span><span class="p">])),</span>
+            <span class="s2">"stop_times.txt"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"trip_id"</span><span class="p">,</span> <span class="nb">set</span><span class="p">(</span><span class="n">trips</span><span class="p">[</span><span class="s2">"trip_id"</span><span class="p">])),</span>
+            <span class="s2">"routes.txt"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"route_id"</span><span class="p">,</span> <span class="nb">set</span><span class="p">(</span><span class="n">trips</span><span class="p">[</span><span class="s2">"route_id"</span><span class="p">])),</span>
+            <span class="s2">"shapes.txt"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"shape_id"</span><span class="p">,</span> <span class="nb">set</span><span class="p">(</span><span class="n">trips</span><span class="p">[</span><span class="s2">"shape_id"</span><span class="p">])),</span>
+            <span class="s2">"calendar.txt"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"service_id"</span><span class="p">,</span> <span class="n">active</span><span class="p">),</span> <span class="s2">"calendar_dates.txt"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"service_id"</span><span class="p">,</span> <span class="n">active</span><span class="p">)}</span>
+    <span class="n">tables</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"agency.txt"</span><span class="p">,</span> <span class="s2">"stops.txt"</span><span class="p">,</span> <span class="s2">"routes.txt"</span><span class="p">,</span> <span class="s2">"trips.txt"</span><span class="p">,</span>
+                          <span class="s2">"stop_times.txt"</span><span class="p">,</span> <span class="s2">"calendar.txt"</span><span class="p">,</span> <span class="s2">"calendar_dates.txt"</span><span class="p">,</span>
+                          <span class="s2">"frequencies.txt"</span><span class="p">,</span> <span class="s2">"transfers.txt"</span><span class="p">,</span> <span class="s2">"shapes.txt"</span><span class="p">,</span> <span class="s2">"feed_info.txt"</span><span class="p">,</span>
+                          <span class="s2">"fare_attributes.txt"</span><span class="p">,</span> <span class="s2">"fare_rules.txt"</span><span class="p">]</span> <span class="k">if</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">namelist</span><span class="p">()]</span>
+    <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZIP_DEFLATED</span><span class="p">)</span> <span class="k">as</span> <span class="n">o</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">tables</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">z</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">,</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">buf</span><span class="p">:</span>
+                <span class="n">lines</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">TextIOWrapper</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
+                <span class="n">header</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+                <span class="n">buf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"</span><span class="se">\r\n</span><span class="s2">"</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span> <span class="o">+</span> <span class="sa">b</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+                <span class="n">col</span><span class="p">,</span> <span class="n">ids</span> <span class="o">=</span> <span class="n">keep</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">"﻿"</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"</span><span class="se">\r\n</span><span class="s2">"</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">","</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="k">if</span> <span class="n">col</span> <span class="k">else</span> <span class="kc">None</span>
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">i</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">next</span><span class="p">(</span><span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">([</span><span class="n">line</span><span class="p">]))[</span><span class="n">i</span><span class="p">]</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">:</span>
+                        <span class="n">buf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"</span><span class="se">\r\n</span><span class="s2">"</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span> <span class="o">+</span> <span class="sa">b</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+                <span class="n">buf</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">o</span><span class="o">.</span><span class="n">writestr</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"services"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">active</span><span class="p">),</span> <span class="s2">"trips"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">trips</span><span class="p">)}</span>
+
+
+<span class="nb">print</span><span class="p">(</span><span class="n">gtfs_one_day</span><span class="p">(</span><span class="n">hsl</span><span class="p">,</span> <span class="s2">"20261117"</span><span class="p">,</span> <span class="n">data_dir</span> <span class="o">/</span> <span class="s2">"network"</span> <span class="o">/</span> <span class="s2">"hsl.zip"</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">peabiru</span><span class="o">.</span><span class="n">get_gtfs_errors</span><span class="p">(</span><span class="n">data_dir</span> <span class="o">/</span> <span class="s2">"network"</span><span class="p">)))</span>
+<span class="n">threads</span> <span class="o">=</span> <span class="mi">4</span>   <span class="c1"># of this laptop's ten cores</span>
+<span class="n">network</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">data_dir</span> <span class="o">/</span> <span class="s2">"network"</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="n">threads</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">info</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>{'services': 509, 'trips': 24083}
+0
+{'vertices': 641401, 'edges': 1662710, 'elevation': 'NONE', 'feeds': ['hsl'], 'stops': 8404, 'patterns': 911, 'services': 509, 'frequencies': False}
+</code></pre></div>
+<h2 id="residents-and-jobs">Residents and jobs<a class="headerlink" href="#residents-and-jobs" title="Permanent link">&para;</a></h2>
+<p>Each 250 m cell is placed at its centre; the residents are the origins,
+the jobs the destinations.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">centres</span><span class="p">(</span><span class="n">gdf</span><span class="p">):</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="mi">3067</span><span class="p">)</span><span class="o">.</span><span class="n">centroid</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="mi">4326</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">c</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span> <span class="n">c</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+
+
+<span class="n">residents</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">residents_file</span><span class="p">)</span>
+<span class="n">lon</span><span class="p">,</span> <span class="n">lat</span> <span class="o">=</span> <span class="n">centres</span><span class="p">(</span><span class="n">residents</span><span class="p">)</span>
+<span class="n">cells</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"id"</span><span class="p">:</span> <span class="n">residents</span><span class="p">[</span><span class="s2">"index"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span> <span class="s2">"lon"</span><span class="p">:</span> <span class="n">lon</span><span class="p">,</span> <span class="s2">"lat"</span><span class="p">:</span> <span class="n">lat</span><span class="p">,</span>
+                      <span class="s2">"population"</span><span class="p">:</span> <span class="n">residents</span><span class="p">[</span><span class="s2">"asukkaita"</span><span class="p">]})</span>
+<span class="c1"># the cell in the sea with the residents without a building</span>
+<span class="n">sea</span> <span class="o">=</span> <span class="n">cells</span><span class="p">[</span><span class="s2">"population"</span><span class="p">]</span><span class="o">.</span><span class="n">idxmax</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">cells</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">sea</span><span class="p">,</span> <span class="s2">"lat"</span><span class="p">]</span> <span class="o">==</span> <span class="n">cells</span><span class="p">[</span><span class="s2">"lat"</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="ow">and</span> <span class="n">cells</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">sea</span><span class="p">,</span> <span class="s2">"lon"</span><span class="p">]</span> <span class="o">==</span> <span class="n">cells</span><span class="p">[</span><span class="s2">"lon"</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cells</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">sea</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+<span class="n">cells</span> <span class="o">=</span> <span class="n">cells</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">sea</span><span class="p">)</span>
+<span class="n">j</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">jobs_file</span><span class="p">)</span>
+<span class="n">lon</span><span class="p">,</span> <span class="n">lat</span> <span class="o">=</span> <span class="n">centres</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+<span class="n">jobs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"id"</span><span class="p">:</span> <span class="n">j</span><span class="p">[</span><span class="s2">"id"</span><span class="p">],</span> <span class="s2">"lon"</span><span class="p">:</span> <span class="n">lon</span><span class="p">,</span> <span class="s2">"lat"</span><span class="p">:</span> <span class="n">lat</span><span class="p">,</span>
+                     <span class="s2">"jobs"</span><span class="p">:</span> <span class="n">j</span><span class="p">[</span><span class="s2">"tphklkm"</span><span class="p">]</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="s2">"suppressed"</span><span class="p">:</span> <span class="n">j</span><span class="p">[</span><span class="s2">"tphklkm"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">jobs</span><span class="p">[</span><span class="s2">"jobs"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="n">jobs</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">jobs</span><span class="p">[</span><span class="s2">"lat"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">60</span><span class="p">,</span> <span class="s2">"jobs"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+<span class="n">jobs</span> <span class="o">=</span> <span class="n">jobs</span><span class="p">[(</span><span class="n">jobs</span><span class="p">[</span><span class="s2">"lon"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">24.45</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">jobs</span><span class="p">[</span><span class="s2">"lon"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">25.30</span><span class="p">)</span> <span class="o">&amp;</span>
+            <span class="p">(</span><span class="n">jobs</span><span class="p">[</span><span class="s2">"lat"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">60.03</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">jobs</span><span class="p">[</span><span class="s2">"lat"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">60.42</span><span class="p">)]</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cells</span><span class="p">),</span> <span class="n">cells</span><span class="p">[</span><span class="s2">"population"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="nb">len</span><span class="p">(</span><span class="n">jobs</span><span class="p">),</span> <span class="n">jobs</span><span class="p">[</span><span class="s2">"jobs"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span>
+      <span class="n">jobs</span><span class="p">[</span><span class="s2">"suppressed"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>{'id': '27699', 'lon': 25.25355, 'lat': 60.05407, 'population': 33575}
+572915 42516
+5825 1253793 8578 486976 4094
+</code></pre></div>
+<h2 id="jobs-within-reach-at-the-morning-peak">Jobs within reach at the morning peak<a class="headerlink" href="#jobs-within-reach-at-the-morning-peak" title="Permanent link">&para;</a></h2>
+<p>Walking and public transport, departures every minute from 07:30 to 08:30
+on Tuesday 17 November 2026, the median travel time of each pair:</p>
+<div class="highlight"><pre><span></span><code><span class="n">peak</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2026</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">30</span><span class="p">)</span>
+<span class="n">access</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">accessibility</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">cells</span><span class="p">,</span> <span class="n">jobs</span><span class="p">,</span> <span class="n">opportunities_colnames</span><span class="o">=</span><span class="s2">"jobs"</span><span class="p">,</span>
+                               <span class="n">mode</span><span class="o">=</span><span class="p">[</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="s2">"TRANSIT"</span><span class="p">],</span> <span class="n">departure_datetime</span><span class="o">=</span><span class="n">peak</span><span class="p">,</span>
+                               <span class="n">time_window</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">cutoffs</span><span class="o">=</span><span class="p">[</span><span class="mi">30</span><span class="p">,</span> <span class="mi">45</span><span class="p">],</span> <span class="n">n_threads</span><span class="o">=</span><span class="n">threads</span><span class="p">)</span>
+<span class="n">access</span><span class="p">[</span><span class="s2">"population"</span><span class="p">]</span> <span class="o">=</span> <span class="n">cells</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">"id"</span><span class="p">)[</span><span class="s2">"population"</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">access</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+<span class="n">total</span> <span class="o">=</span> <span class="n">jobs</span><span class="p">[</span><span class="s2">"jobs"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">cutoff</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">access</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">"cutoff"</span><span class="p">):</span>
+    <span class="n">avg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="s2">"accessibility"</span><span class="p">],</span> <span class="n">weights</span><span class="o">=</span><span class="n">a</span><span class="p">[</span><span class="s2">"population"</span><span class="p">])</span>
+    <span class="n">half</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="s2">"accessibility"</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">total</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">"population"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">a</span><span class="p">[</span><span class="s2">"population"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">cutoff</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">avg</span><span class="p">),</span> <span class="nb">round</span><span class="p">(</span><span class="n">avg</span> <span class="o">/</span> <span class="n">total</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="nb">round</span><span class="p">(</span><span class="n">half</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>30 41169 0.085 0.0
+45 151537 0.311 0.223
+</code></pre></div>
+<h2 id="isochrones-from-the-central-station">Isochrones from the Central Station<a class="headerlink" href="#isochrones-from-the-central-station" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">station</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"id"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"Helsinki Central Station"</span><span class="p">],</span> <span class="s2">"lon"</span><span class="p">:</span> <span class="p">[</span><span class="mf">24.94124</span><span class="p">],</span>
+                        <span class="s2">"lat"</span><span class="p">:</span> <span class="p">[</span><span class="mf">60.17128</span><span class="p">]})</span>
+<span class="k">for</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="s2">"BICYCLE"</span><span class="p">,</span> <span class="s2">"CAR"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="s2">"TRANSIT"</span><span class="p">]]:</span>
+    <span class="n">iso</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">isochrone</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">station</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">cutoffs</span><span class="o">=</span><span class="p">[</span><span class="mi">15</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">45</span><span class="p">],</span> <span class="n">zoom</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                            <span class="n">departure_datetime</span><span class="o">=</span><span class="n">peak</span><span class="p">,</span> <span class="n">time_window</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="n">threads</span><span class="p">)</span>
+    <span class="n">km2</span> <span class="o">=</span> <span class="p">(</span><span class="n">iso</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="mi">3067</span><span class="p">)</span><span class="o">.</span><span class="n">make_valid</span><span class="p">()</span><span class="o">.</span><span class="n">area</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">iso</span><span class="p">[</span><span class="s2">"isochrone"</span><span class="p">],</span> <span class="n">km2</span><span class="p">)))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>WALK {45.0: 14.3, 30.0: 6.7, 15.0: 1.6}
+BICYCLE {45.0: 84.9, 30.0: 38.0, 15.0: 10.2}
+CAR {45.0: 1312.9, 30.0: 478.3, 15.0: 26.0}
+['WALK', 'TRANSIT'] {45.0: 238.5, 30.0: 54.0, 15.0: 3.7}
+</code></pre></div>
+<p>The polygons are repaired here with GEOS, which leaves their areas as
+contoured; the R package repairs them with <code>sf::st_make_valid()</code>,
+which with sf's spherical geometry on enlarges the 30-minute driving
+polygon to 523.8 km², so the R example switches it off for this call and
+prints the same areas. Driving is free flow: no congestion.</p>
+<h2 id="the-options-for-one-trip">The options for one trip<a class="headerlink" href="#the-options-for-one-trip" title="Permanent link">&para;</a></h2>
+<p>From Itäkeskus, in the east, to the Aalto University campus at Otaniemi,
+in Espoo, leaving between 07:30 and 07:40:</p>
+<div class="highlight"><pre><span></span><code><span class="n">pair</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"id"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"Itäkeskus"</span><span class="p">,</span> <span class="s2">"Otaniemi"</span><span class="p">],</span> <span class="s2">"lon"</span><span class="p">:</span> <span class="p">[</span><span class="mf">25.0815</span><span class="p">,</span> <span class="mf">24.8268</span><span class="p">],</span>
+                     <span class="s2">"lat"</span><span class="p">:</span> <span class="p">[</span><span class="mf">60.2102</span><span class="p">,</span> <span class="mf">60.1847</span><span class="p">]})</span>
+<span class="n">opts</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">trip_options</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">pair</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">pair</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">1</span><span class="p">]],</span> <span class="n">departure_datetime</span><span class="o">=</span><span class="n">peak</span><span class="p">,</span>
+                            <span class="n">criteria</span><span class="o">=</span><span class="p">[</span><span class="s2">"TIME"</span><span class="p">,</span> <span class="s2">"TRANSFERS"</span><span class="p">,</span> <span class="s2">"WALK"</span><span class="p">],</span> <span class="n">itineraries</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">options</span><span class="p">[[</span><span class="s2">"option"</span><span class="p">,</span> <span class="s2">"total_time"</span><span class="p">,</span> <span class="s2">"transfers"</span><span class="p">,</span> <span class="s2">"walk_time"</span><span class="p">,</span> <span class="s2">"departure_time"</span><span class="p">,</span>
+                    <span class="s2">"description"</span><span class="p">]]</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code> option  total_time  transfers  walk_time departure_time                                description
+      1        39.3          0       10.7       07:30:00                    WALK &gt; SUBWAY M2 &gt; WALK
+      2        39.3          0       10.7       07:33:00                    WALK &gt; SUBWAY M1 &gt; WALK
+      3        70.3          2       10.3       07:39:00 WALK &gt; BUS 97V &gt; BUS 82 &gt; SUBWAY M2 &gt; WALK
+      4        72.0          1        9.3       07:31:00            WALK &gt; BUS 500 &gt; BUS 510 &gt; WALK
+</code></pre></div>
+<p>Map data © OpenStreetMap contributors, under the ODbL; timetables © HSL
+2026, CC BY 4.0; residents and jobs © HSY, CC BY 4.0 (jobs: from Statistics Finland's
+Business Register).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; peabiru authors. Sample map data &copy; OpenStreetMap contributors (ODbL).
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "navigation.sections", "navigation.top", "search.highlight"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

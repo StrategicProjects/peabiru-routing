@@ -1,0 +1,1817 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multimodal routing on OpenStreetMap and GTFS networks with a Rust engine, without Java: travel-time matrices and accessibility as pandas data frames">
+      
+      
+        <meta name="author" content="André Leite, Marcos Wasiliew, Hugo Vasconcelos, Carlos Amorim, Diogo Bezerra, Júlia Nascimento Barreto">
+      
+      
+      
+        <link rel="prev" href="../example-trips/">
+      
+      
+        <link rel="next" href="../example-recife-caruaru/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>The Recife metropolitan region by public transport - peabiru for Python</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/brand.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#example-the-recife-metropolitan-region-by-public-transport" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="peabiru for Python" class="md-header__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            peabiru for Python
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              The Recife metropolitan region by public transport
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="peabiru for Python" class="md-nav__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    peabiru for Python
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../travel-time-matrices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Travel-time matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accessibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../expanded-arrival/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Expanded and arrival matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../itineraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detailed itineraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fares/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trip-options/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trip options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../facility-location/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facility location
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../elevation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Elevation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenarios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network-inspection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inspecting a network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gtfs-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GTFS errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../coming-from-r5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compared with r5r and r5py
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-isochrones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isochrones by mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access to jobs and schools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-trips/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How much a trip varies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Recife metropolitan region by public transport
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Recife metropolitan region by public transport
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The network
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#residents-and-schools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Residents and schools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schools-within-reach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schools within reach
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#isochrones-from-the-centre" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Isochrones from the centre
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-measured-and-what-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is measured, and what is not
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-recife-caruaru/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schools and health care in Recife and Caruaru
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-terrain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terrain, in Salvador and Olinda
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-capitals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by income in Belo Horizonte, and fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Before and after in Porto Alegre
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-helsinki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by public transport in Helsinki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Other languages
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Other languages
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../r/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    R
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rust/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../js/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    peabiru home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The network
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#residents-and-schools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Residents and schools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schools-within-reach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schools within reach
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#isochrones-from-the-centre" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Isochrones from the centre
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-measured-and-what-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is measured, and what is not
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="example-the-recife-metropolitan-region-by-public-transport">Example: the Recife metropolitan region by public transport<a class="headerlink" href="#example-the-recife-metropolitan-region-by-public-transport" title="Permanent link">&para;</a></h1>
+<!-- docs-test: needs osmium, env PEABIRU_EXAMPLE_DATA -->
+
+<p>The Região Metropolitana do Recife is 14 municipalities and 3.7 million
+people on the coast of Pernambuco, Brazil. Its buses, of ten operators
+under one authority, the Grande Recife Consórcio de Transporte
+Metropolitano, meet the metro and the VLT (light rail) of CBTU at integrated
+terminals, and the consortium publishes the timetables of all of them as one
+GTFS feed. This example builds the region as one network, from that feed and
+from OpenStreetMap, counts the public schools within reach of every resident
+on foot and by public transport, and draws isochrones by mode from the
+centre of Recife.</p>
+<p>It is the Python half of a larger example: the
+<a href="../../r/articles/recife-metropolitan.html">R article</a> also
+measures what the rail lines add, how much a trip varies with the minute one
+leaves, the options of one trip, and the speeds the timetable assumes. The
+numbers printed here are the ones of that article; they were computed on
+2026-11-13. It needs <a href="https://geopandas.org">geopandas</a> 1.0 or later and, to
+cut the street extract, <a href="https://osmcode.org/osmium-tool/">osmium</a>.</p>
+<figure>
+  <img src="../../assets/figures/isochrones-rmr.svg" width="640" alt="Four maps of central Recife and its neighbours, one per mode, each shading the areas reached from Praça do Derby within 15, 30 and 45 minutes: a small area walking, more cycling, the whole map driving with free-flowing traffic, and arms along the bus corridors and the metro lines with public transport.">
+<br />
+<figcaption>From Praça do Derby by each mode, computed below; drawn by <code>site/figures/rmr.R</code> in the repository.</figcaption>
+</figure>
+<h2 id="the-data">The data<a class="headerlink" href="#the-data" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Source</th>
+<th>Licence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Public transport</td>
+<td><a href="https://www.granderecife.pe.gov.br">Grande Recife Consórcio de Transporte Metropolitano</a>, GTFS feed at <code>https://www.granderecife.pe.gov.br/gtfs/gtfs.zip</code>, <code>feed_version</code> <strong>v2026.10.26</strong> (files of 2026-10-26; 38 MB): 395 bus routes of ten operators and, of CBTU's Metrorec, 3 metro and 2 VLT routes; timetables only</td>
+<td>published by the consortium at that address; no licence is stated in the feed</td>
+</tr>
+<tr>
+<td>Streets</td>
+<td><a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, extract of the Nordeste region by <a href="https://download.geofabrik.de/south-america/brazil/nordeste.html">Geofabrik</a>, dated 2026-11-01 (445 MB, MD5 <code>93318fcddd85a53e8386eaa93588847c</code>)</td>
+<td>ODbL 1.0</td>
+</tr>
+<tr>
+<td>Municipal boundaries</td>
+<td><a href="https://servicodados.ibge.gov.br/api/docs/malhas?versao=3">IBGE, malhas municipais</a> (API, version 3)</td>
+<td>public data, IBGE</td>
+</tr>
+<tr>
+<td>Population</td>
+<td><a href="https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/Agregados_por_Setores_Censitarios/malha_com_atributos/setores/gpkg/UF/PE/">IBGE, Censo Demográfico 2022, census tracts with their population</a>, variable <code>v0001</code> (44 MB for Pernambuco)</td>
+<td>public data, IBGE</td>
+</tr>
+<tr>
+<td>Schools</td>
+<td>INEP, Catálogo de Escolas 2023, with the coordinates of each school, as published by Ipea's <a href="https://ipeagit.github.io/geobr/">geobr</a> (<code>schools_2023</code>, 101 MB for Brazil)</td>
+<td>public data, INEP; geobr is MIT</td>
+</tr>
+</tbody>
+</table>
+<p>The feed is not in the repository and is not redistributed: the code below
+uses a file <code>granderecife-*.zip</code> in the <code>raw</code> directory if there is one, or
+else downloads the consortium's current file. That address always serves
+the current version, so a later download is another network and gives other
+numbers; the checksum printed identifies the file used here.</p>
+<div class="admonition note">
+<p class="admonition-title">No fares</p>
+<p>The feed has a price for each route and no rule for transfers: the
+integration at the terminals, where passengers change lines without
+paying again, is not in it. A fare structure made from the feed would
+charge every boarding, so this example measures time and leaves money
+out.</p>
+</div>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">gzip</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.request</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">zipfile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gpd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shapely</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shapely.geometry</span><span class="w"> </span><span class="kn">import</span> <span class="n">Polygon</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">peabiru</span>
+
+<span class="n">data_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"PEABIRU_EXAMPLE_DATA"</span><span class="p">,</span> <span class="s2">"rmr-data"</span><span class="p">))</span>
+<span class="n">raw</span> <span class="o">=</span> <span class="n">data_dir</span> <span class="o">/</span> <span class="s2">"raw"</span>
+<span class="n">raw</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">dest</span> <span class="o">=</span> <span class="n">raw</span> <span class="o">/</span> <span class="p">(</span><span class="n">name</span> <span class="ow">or</span> <span class="n">url</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">dest</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">part</span> <span class="o">=</span> <span class="n">dest</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".part"</span><span class="p">)</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">"User-Agent"</span><span class="p">:</span> <span class="s2">"peabiru-docs-examples"</span><span class="p">})</span>
+        <span class="k">with</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">request</span><span class="p">)</span> <span class="k">as</span> <span class="n">response</span><span class="p">,</span> <span class="nb">open</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">out</span><span class="p">:</span>
+            <span class="c1"># IBGE's API sends its answer gzip-compressed, asked or not</span>
+            <span class="n">gz</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Content-Encoding"</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"gzip"</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copyfileobj</span><span class="p">(</span><span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">fileobj</span><span class="o">=</span><span class="n">response</span><span class="p">)</span> <span class="k">if</span> <span class="n">gz</span> <span class="k">else</span> <span class="n">response</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+        <span class="n">part</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dest</span>
+
+
+<span class="n">nordeste</span> <span class="o">=</span> <span class="n">fetch</span><span class="p">(</span><span class="s2">"https://download.geofabrik.de/south-america/brazil/nordeste-261101.osm.pbf"</span><span class="p">)</span>
+<span class="n">tracts_file</span> <span class="o">=</span> <span class="n">fetch</span><span class="p">(</span><span class="s2">"https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/"</span>
+                    <span class="s2">"Agregados_por_Setores_Censitarios/malha_com_atributos/"</span>
+                    <span class="s2">"setores/gpkg/UF/PE/PE_setores_CD2022.gpkg"</span><span class="p">)</span>
+<span class="n">schools_file</span> <span class="o">=</span> <span class="n">fetch</span><span class="p">(</span><span class="s2">"https://www.ipea.gov.br/geobr/data_gpkg/schools/2023/schools_2023.gpkg"</span><span class="p">)</span>
+
+<span class="n">feeds</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">raw</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">"granderecife-*.zip"</span><span class="p">))</span>
+<span class="k">if</span> <span class="n">feeds</span><span class="p">:</span>
+    <span class="n">feed</span> <span class="o">=</span> <span class="n">feeds</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">download</span> <span class="o">=</span> <span class="n">fetch</span><span class="p">(</span><span class="s2">"https://www.granderecife.pe.gov.br/gtfs/gtfs.zip"</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">download</span><span class="p">)</span> <span class="k">as</span> <span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"feed_info.txt"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">f</span><span class="p">)[</span><span class="s2">"feed_version"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">feed</span> <span class="o">=</span> <span class="n">download</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">raw</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"granderecife-</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">.zip"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">feed</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">feed</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e6</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MB, sha256"</span><span class="p">,</span>
+      <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">feed</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">16</span><span class="p">])</span>
+<span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">feed</span><span class="p">)</span> <span class="k">as</span> <span class="n">z</span><span class="p">:</span>
+    <span class="n">routes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"routes.txt"</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">routes</span><span class="p">[</span><span class="s2">"route_type"</span><span class="p">]</span><span class="o">.</span><span class="n">map</span><span class="p">({</span><span class="mi">0</span><span class="p">:</span> <span class="s2">"VLT"</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s2">"metro"</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span> <span class="s2">"bus"</span><span class="p">})</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span>
+          <span class="s2">"frequencies.txt"</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">namelist</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>granderecife-v2026.10.26.zip 38.3 MB, sha256 1b0657fb8f6bcb70
+{'bus': 395, 'metro': 3, 'VLT': 2} False
+</code></pre></div>
+<h2 id="the-network">The network<a class="headerlink" href="#the-network" title="Permanent link">&para;</a></h2>
+<p>The streets are cut from the regional extract with the 14 municipalities and
+3 km around them. (Neighbouring boundaries do not share their vertices
+exactly: snapped to a grid of 1 cm, they join without slivers.)
+<code>build_network()</code> reads the directory with the cut and the feed.</p>
+<div class="highlight"><pre><span></span><code><span class="n">utm</span> <span class="o">=</span> <span class="mi">31985</span>   <span class="c1"># SIRGAS 2000 / UTM zone 25S, in metres</span>
+<span class="n">threads</span> <span class="o">=</span> <span class="mi">4</span>   <span class="c1"># of this laptop's ten cores</span>
+<span class="c1"># the municipalities of the region (IBGE codes): Recife, Olinda, Jaboatão dos</span>
+<span class="c1"># Guararapes, Paulista, Camaragibe, São Lourenço da Mata, Cabo de Santo</span>
+<span class="c1"># Agostinho, Ipojuca, Moreno, Igarassu, Abreu e Lima, Itapissuma, Ilha de</span>
+<span class="c1"># Itamaracá and Araçoiaba</span>
+<span class="n">codes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"2611606"</span><span class="p">,</span> <span class="s2">"2609600"</span><span class="p">,</span> <span class="s2">"2607901"</span><span class="p">,</span> <span class="s2">"2610707"</span><span class="p">,</span> <span class="s2">"2603454"</span><span class="p">,</span> <span class="s2">"2613701"</span><span class="p">,</span> <span class="s2">"2602902"</span><span class="p">,</span>
+         <span class="s2">"2607208"</span><span class="p">,</span> <span class="s2">"2609402"</span><span class="p">,</span> <span class="s2">"2606804"</span><span class="p">,</span> <span class="s2">"2600054"</span><span class="p">,</span> <span class="s2">"2607752"</span><span class="p">,</span> <span class="s2">"2607604"</span><span class="p">,</span> <span class="s2">"2601052"</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">boundary_of</span><span class="p">(</span><span class="n">code</span><span class="p">):</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"https://servicodados.ibge.gov.br/api/v3/malhas/municipios/"</span> <span class="o">+</span> <span class="n">code</span> <span class="o">+</span>
+           <span class="s2">"?formato=application/vnd.geo+json&amp;qualidade=maxima"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">fetch</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">code</span><span class="si">}</span><span class="s2">.geojson"</span><span class="p">))</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">utm</span><span class="p">)</span><span class="o">.</span><span class="n">make_valid</span><span class="p">()</span><span class="o">.</span><span class="n">union_all</span><span class="p">()</span>
+
+
+<span class="n">municipalities</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">([</span><span class="n">boundary_of</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">codes</span><span class="p">],</span> <span class="n">index</span><span class="o">=</span><span class="n">codes</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="n">utm</span><span class="p">)</span>
+<span class="n">municipalities</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">(</span><span class="n">shapely</span><span class="o">.</span><span class="n">set_precision</span><span class="p">(</span><span class="n">municipalities</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">),</span>
+                               <span class="n">index</span><span class="o">=</span><span class="n">codes</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="n">utm</span><span class="p">)</span><span class="o">.</span><span class="n">make_valid</span><span class="p">()</span>
+<span class="n">region</span> <span class="o">=</span> <span class="n">municipalities</span><span class="o">.</span><span class="n">union_all</span><span class="p">()</span>
+
+<span class="n">folder</span> <span class="o">=</span> <span class="n">data_dir</span> <span class="o">/</span> <span class="s2">"rmr"</span> <span class="o">/</span> <span class="s2">"network"</span>
+<span class="n">folder</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">polygon</span> <span class="o">=</span> <span class="n">data_dir</span> <span class="o">/</span> <span class="s2">"rmr"</span> <span class="o">/</span> <span class="s2">"cut.geojson"</span>
+<span class="c1"># 30 segments per quarter circle, as sf's st_buffer()</span>
+<span class="n">gpd</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">([</span><span class="n">region</span><span class="o">.</span><span class="n">buffer</span><span class="p">(</span><span class="mi">3000</span><span class="p">,</span> <span class="n">quad_segs</span><span class="o">=</span><span class="mi">30</span><span class="p">)],</span> <span class="n">crs</span><span class="o">=</span><span class="n">utm</span><span class="p">)</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="mi">4326</span><span class="p">)</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">polygon</span><span class="p">)</span>
+<span class="n">pbf</span> <span class="o">=</span> <span class="n">folder</span> <span class="o">/</span> <span class="s2">"rmr.osm.pbf"</span>
+<span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s2">"osmium"</span><span class="p">,</span> <span class="s2">"extract"</span><span class="p">,</span> <span class="s2">"--overwrite"</span><span class="p">,</span> <span class="s2">"-p"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">polygon</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">nordeste</span><span class="p">),</span>
+                <span class="s2">"-o"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">pbf</span><span class="p">)],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">(</span><span class="n">feed</span><span class="p">,</span> <span class="n">folder</span> <span class="o">/</span> <span class="n">feed</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="n">network</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="n">threads</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">region</span><span class="o">.</span><span class="n">area</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e6</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2"> km2, </span><span class="si">{</span><span class="n">pbf</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e6</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MB"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">network</span><span class="o">.</span><span class="n">info</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">peabiru</span><span class="o">.</span><span class="n">get_gtfs_errors</span><span class="p">(</span><span class="n">network</span><span class="p">)),</span> <span class="s2">"GTFS errors"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">peabiru</span><span class="o">.</span><span class="n">check_transit_availability</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">dates</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2026</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>2,763 km2, 21.2 MB
+{'vertices': 153798, 'edges': 395862, 'elevation': 'NONE', 'feeds': ['granderecife-v2026.10.26'], 'stops': 7238, 'patterns': 1215, 'services': 1143, 'frequencies': False}
+0 GTFS errors
+      date  total_services  active_services  pct_active
+2026-11-10            1143              395    0.345582
+</code></pre></div>
+<p>The feed has no error. Few of its services run because it keeps one for each
+route and kind of day, and on a Tuesday the weekday ones are due. The
+analysis is of <strong>Tuesday 10 November 2026, leaving at each minute from 07:00
+to 07:59</strong>; a travel time is the median of those 60 departures.</p>
+<h2 id="residents-and-schools">Residents and schools<a class="headerlink" href="#residents-and-schools" title="Permanent link">&para;</a></h2>
+<p>The census population goes on hexagonal cells 500 m apart, by the share of
+each tract's area that falls in each cell, and every cell is routed from its
+centre, as in the <a href="../example-recife-caruaru/">Recife and Caruaru example</a>,
+which explains these steps. The schools are the public ones in operation in
+the area cut.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">hex_grid</span><span class="p">(</span><span class="n">area</span><span class="p">,</span> <span class="n">spacing</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
+    <span class="n">xmin</span><span class="p">,</span> <span class="n">ymin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">ymax</span> <span class="o">=</span> <span class="n">area</span><span class="o">.</span><span class="n">bounds</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">spacing</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">spacing</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">30</span> <span class="o">+</span> <span class="mi">60</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">7</span><span class="p">))</span>   <span class="c1"># pointy side up</span>
+    <span class="n">cells</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">((</span><span class="n">ymax</span> <span class="o">-</span> <span class="n">ymin</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span><span class="p">))</span> <span class="o">+</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">((</span><span class="n">xmax</span> <span class="o">-</span> <span class="n">xmin</span><span class="p">)</span> <span class="o">/</span> <span class="n">spacing</span><span class="p">))</span> <span class="o">+</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">xmin</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">spacing</span> <span class="o">+</span> <span class="p">(</span><span class="n">j</span> <span class="o">%</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">spacing</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">ymin</span> <span class="o">+</span> <span class="n">j</span> <span class="o">*</span> <span class="n">h</span>
+            <span class="n">cells</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Polygon</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">r</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="n">y</span> <span class="o">+</span> <span class="n">r</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">k</span><span class="p">))))</span>
+    <span class="n">cells</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">(</span><span class="n">cells</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="n">utm</span><span class="p">)</span>
+    <span class="n">cells</span> <span class="o">=</span> <span class="n">cells</span><span class="p">[</span><span class="n">cells</span><span class="o">.</span><span class="n">intersects</span><span class="p">(</span><span class="n">area</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">({</span><span class="s2">"id"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">cells</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)},</span> <span class="n">geometry</span><span class="o">=</span><span class="n">cells</span><span class="p">)</span>
+
+
+<span class="n">tracts</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">tracts_file</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">"v0001"</span><span class="p">],</span>
+                       <span class="n">where</span><span class="o">=</span><span class="s2">"CD_MUN IN ("</span> <span class="o">+</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">"'</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">'"</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">codes</span><span class="p">)</span> <span class="o">+</span> <span class="s2">")"</span><span class="p">)</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">utm</span><span class="p">)</span>
+<span class="n">tracts</span><span class="p">[</span><span class="s2">"geometry"</span><span class="p">]</span> <span class="o">=</span> <span class="n">tracts</span><span class="o">.</span><span class="n">make_valid</span><span class="p">()</span>
+<span class="n">tracts</span><span class="p">[</span><span class="s2">"tract_area"</span><span class="p">]</span> <span class="o">=</span> <span class="n">tracts</span><span class="o">.</span><span class="n">area</span>
+<span class="n">cells</span> <span class="o">=</span> <span class="n">hex_grid</span><span class="p">(</span><span class="n">region</span><span class="p">)</span>
+<span class="n">parts</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">overlay</span><span class="p">(</span><span class="n">cells</span><span class="p">,</span> <span class="n">tracts</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">"intersection"</span><span class="p">,</span> <span class="n">keep_geom_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">parts</span><span class="p">[</span><span class="s2">"people"</span><span class="p">]</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="s2">"v0001"</span><span class="p">]</span> <span class="o">*</span> <span class="n">parts</span><span class="o">.</span><span class="n">area</span> <span class="o">/</span> <span class="n">parts</span><span class="p">[</span><span class="s2">"tract_area"</span><span class="p">]</span>
+<span class="n">cells</span><span class="p">[</span><span class="s2">"population"</span><span class="p">]</span> <span class="o">=</span> <span class="n">cells</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">"id"</span><span class="p">)[</span><span class="s2">"people"</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">centres</span> <span class="o">=</span> <span class="n">cells</span><span class="o">.</span><span class="n">centroid</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="mi">4326</span><span class="p">)</span>
+<span class="n">cells</span><span class="p">[</span><span class="s2">"lon"</span><span class="p">],</span> <span class="n">cells</span><span class="p">[</span><span class="s2">"lat"</span><span class="p">]</span> <span class="o">=</span> <span class="n">centres</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span> <span class="n">centres</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+<span class="n">cells</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span> <span class="o">=</span> <span class="n">cells</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+<span class="n">cells</span> <span class="o">=</span> <span class="n">cells</span><span class="p">[</span><span class="n">cells</span><span class="p">[</span><span class="s2">"population"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+
+<span class="n">area</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">polygon</span><span class="p">)</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="mi">4674</span><span class="p">)</span><span class="o">.</span><span class="n">union_all</span><span class="p">()</span>
+<span class="n">s</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span>
+    <span class="n">schools_file</span><span class="p">,</span> <span class="n">bbox</span><span class="o">=</span><span class="n">area</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">"code_school"</span><span class="p">,</span> <span class="s2">"name_school"</span><span class="p">,</span> <span class="s2">"name_muni"</span><span class="p">],</span>
+    <span class="n">where</span><span class="o">=</span><span class="s2">"admin_category = 'Pública' AND service_restriction = "</span>
+          <span class="s2">"'ESCOLA EM FUNCIONAMENTO E SEM RESTRIÇÃO DE ATENDIMENTO'"</span><span class="p">)</span>
+<span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="o">~</span><span class="n">s</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">is_empty</span> <span class="o">&amp;</span> <span class="n">s</span><span class="o">.</span><span class="n">intersects</span><span class="p">(</span><span class="n">area</span><span class="p">)]</span>
+<span class="n">schools</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"id"</span><span class="p">:</span> <span class="n">s</span><span class="p">[</span><span class="s2">"code_school"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span> <span class="s2">"lon"</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+                        <span class="s2">"lat"</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="s2">"schools"</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cells</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> cells, </span><span class="si">{</span><span class="n">cells</span><span class="p">[</span><span class="s1">'population'</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2"> people, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">schools</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> schools"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>13,096 cells, 3,730,664 people, 1,203 schools
+</code></pre></div>
+<h2 id="schools-within-reach">Schools within reach<a class="headerlink" href="#schools-within-reach" title="Permanent link">&para;</a></h2>
+<p>Cumulative access from every inhabited cell: the public schools reached
+within 30 and within 45 minutes, on foot and by public transport, and the
+average over the residents.</p>
+<div class="highlight"><pre><span></span><code><span class="n">departure</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2026</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="n">origins</span> <span class="o">=</span> <span class="n">cells</span><span class="p">[[</span><span class="s2">"id"</span><span class="p">,</span> <span class="s2">"lon"</span><span class="p">,</span> <span class="s2">"lat"</span><span class="p">]]</span>
+<span class="n">people</span> <span class="o">=</span> <span class="n">cells</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">"id"</span><span class="p">)[</span><span class="s2">"population"</span><span class="p">]</span>
+
+<span class="n">rows</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">[(</span><span class="s2">"walk"</span><span class="p">,</span> <span class="s2">"WALK"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"transit"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="s2">"TRANSIT"</span><span class="p">])]:</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">accessibility</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">origins</span><span class="p">,</span> <span class="n">schools</span><span class="p">,</span> <span class="n">opportunities_colnames</span><span class="o">=</span><span class="s2">"schools"</span><span class="p">,</span>
+                              <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">departure_datetime</span><span class="o">=</span><span class="n">departure</span><span class="p">,</span> <span class="n">time_window</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+                              <span class="n">percentiles</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">cutoffs</span><span class="o">=</span><span class="p">[</span><span class="mi">30</span><span class="p">,</span> <span class="mi">45</span><span class="p">],</span> <span class="n">max_trip_duration</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+                              <span class="n">n_threads</span><span class="o">=</span><span class="n">threads</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">a</span><span class="p">[</span><span class="s2">"population"</span><span class="p">]</span> <span class="o">=</span> <span class="n">people</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+    <span class="n">rows</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">cutoff</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> min"</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s2">"accessibility"</span><span class="p">],</span> <span class="n">weights</span><span class="o">=</span><span class="n">g</span><span class="p">[</span><span class="s2">"population"</span><span class="p">]),</span> <span class="mi">1</span><span class="p">)</span>
+                  <span class="k">for</span> <span class="n">cutoff</span><span class="p">,</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">a</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">"cutoff"</span><span class="p">)}</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>        walk  transit
+30 min  12.8     24.4
+45 min  26.5     79.4
+</code></pre></div>
+<p>The average resident has 13 public schools within half an hour's walk and 24
+within half an hour by public transport; with 45 minutes, 26 and 79.</p>
+<figure>
+  <img src="../../assets/figures/access-rmr.svg" width="640" alt="Two maps of the conurbation of Recife with the cells of a grid coloured by the number of public schools reached within 30 minutes at the morning peak, walking and with public transport: with public transport the cells along the corridors that lead to the centre of Recife reach 80 or more.">
+<br />
+<figcaption>The same counts, cell by cell.</figcaption>
+</figure>
+<h2 id="isochrones-from-the-centre">Isochrones from the centre<a class="headerlink" href="#isochrones-from-the-centre" title="Permanent link">&para;</a></h2>
+<p>From Praça do Derby, between the centre of Recife and its west and north:
+74 of the feed's 400 routes stop within 400 m of the square on a weekday.
+<a class="autorefs autorefs-internal" title="isochrone" href="../reference/#peabiru.isochrone"><code>isochrone()</code></a>
+traces the areas on a grid of points, and the points just off the coast are
+reached from the seafront, so the polygons are cut at the coast (the
+municipal boundaries) before their area is measured. Walking is at 3.6 km/h
+and cycling at 12 km/h on streets of low traffic stress, the defaults;
+driving is at the speed limits, with no congestion.</p>
+<div class="highlight"><pre><span></span><code><span class="n">derby</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"id"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"Praça do Derby"</span><span class="p">],</span> <span class="s2">"lon"</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">34.8990</span><span class="p">],</span> <span class="s2">"lat"</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">8.0570</span><span class="p">]})</span>
+<span class="n">rows</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">[(</span><span class="s2">"walk"</span><span class="p">,</span> <span class="s2">"WALK"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"bicycle"</span><span class="p">,</span> <span class="s2">"BICYCLE"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"car"</span><span class="p">,</span> <span class="s2">"CAR"</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s2">"transit"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="s2">"TRANSIT"</span><span class="p">])]:</span>
+    <span class="n">iso</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">isochrone</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">derby</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">cutoffs</span><span class="o">=</span><span class="p">[</span><span class="mi">15</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">45</span><span class="p">],</span> <span class="n">zoom</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span>
+                            <span class="n">departure_datetime</span><span class="o">=</span><span class="n">departure</span><span class="p">,</span> <span class="n">time_window</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="n">threads</span><span class="p">)</span>
+    <span class="c1"># the polygons come as traced, which can touch themselves: made valid first</span>
+    <span class="n">on_land</span> <span class="o">=</span> <span class="n">iso</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">utm</span><span class="p">)</span><span class="o">.</span><span class="n">make_valid</span><span class="p">()</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">region</span><span class="p">)</span>
+    <span class="n">rows</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">minutes</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> min"</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="n">km2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                  <span class="k">for</span> <span class="n">minutes</span><span class="p">,</span> <span class="n">km2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">iso</span><span class="p">[</span><span class="s2">"isochrone"</span><span class="p">],</span> <span class="n">on_land</span><span class="o">.</span><span class="n">area</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)}</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>         45 min  30 min  15 min
+walk       15.2     6.6     1.5
+bicycle    43.5    16.4     2.1
+car      1453.0   618.4   105.9
+transit   108.1    34.8     3.8
+</code></pre></div>
+<p>In 45 minutes public transport reaches 108 km² of land, cycling 44 and
+walking 15; a car in free-flowing traffic reaches 1,453 km², which no car
+does at 07:00.</p>
+<h2 id="what-is-measured-and-what-is-not">What is measured, and what is not<a class="headerlink" href="#what-is-measured-and-what-is-not" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Scheduled times, not observed ones.</strong> The timetable of the feed, as
+  published. Its buses are scheduled slower at the peaks (15 km/h at 07:00
+  against 25 km/h at 04:00: the R article measures it), but delays, bunching,
+  crowding and trips that do not run are not in it.</li>
+<li><strong>One day, one hour</strong>: departures from 07:00 to 07:59 on Tuesday 10
+  November 2026.</li>
+<li><strong>No fares</strong>: the feed has no rule for the integration at the terminals.</li>
+<li><strong>Rail included</strong>: the metro and the VLT are in the feed with their
+  timetables. <code>mode=["WALK", "BUS"]</code> leaves them out.</li>
+<li><strong>Flat ground</strong>: no elevation raster. The
+  <a href="../example-terrain/">terrain example</a> shows how to add one.</li>
+<li><strong>Driving is free flow</strong>, an upper bound drawn for comparison.</li>
+<li><strong>Cells, not addresses</strong>: every trip starts at the centre of a cell 500 m
+  from its neighbours; schools without coordinates in the catalogue are left
+  out.</li>
+</ul>
+<h2 id="sources">Sources<a class="headerlink" href="#sources" title="Permanent link">&para;</a></h2>
+<p>Timetables: Grande Recife Consórcio de Transporte Metropolitano, GTFS feed
+v2026.10.26, as published at <code>https://www.granderecife.pe.gov.br/gtfs/gtfs.zip</code>.
+Map data © OpenStreetMap contributors, under the ODbL. Boundaries and
+population © IBGE (Censo 2022). Schools: INEP, Catálogo de Escolas 2023,
+through geobr.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; peabiru authors. Sample map data &copy; OpenStreetMap contributors (ODbL).
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "navigation.sections", "navigation.top", "search.highlight"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

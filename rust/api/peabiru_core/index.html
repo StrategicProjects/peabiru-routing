@@ -1,0 +1,438 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Multimodal routing engine behind the `peabiru` packages for R, Python and JavaScript."><title>peabiru_core - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-203241e4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="peabiru_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.100.0 (0ef1bc386 2026-11-09)" data-channel="1.100.0" data-search-js="search-b167f383.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-1814ead3.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate peabiru_core</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../peabiru_core/index.html">peabiru_<wbr>core</a><span class="version">0.1.5</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#example" title="Example">Example</a></li><li><a href="#threads" title="Threads">Threads</a></li><li><a href="#parameters" title="Parameters">Parameters</a></li><li><a href="#isochrones" title="Isochrones">Isochrones</a></li><li><a href="#inspecting-a-network" title="Inspecting a network">Inspecting a network</a></li><li><a href="#itineraries" title="Itineraries">Itineraries</a></li><li><a href="#fares" title="Fares">Fares</a></li><li><a href="#elevation" title="Elevation">Elevation</a></li><li><a href="#results" title="Results">Results</a></li><li><a href="#scenarios" title="Scenarios">Scenarios</a></li><li><a href="#facility-location" title="Facility location">Facility location</a></li><li><a href="#cancellation" title="Cancellation">Cancellation</a></li><li><a href="#routing-model-and-credits" title="Routing model and credits">Routing model and credits</a></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#functions" title="Functions">Functions</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>peabiru_<wbr>core</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/peabiru_core/lib.rs.html#1-415">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Multimodal routing engine behind the <code>peabiru</code> packages for R, Python and
+JavaScript.</p>
+<p>The engine builds a routable <a href="struct.Network.html" title="struct peabiru_core::Network"><code>Network</code></a> in memory from an OpenStreetMap
+PBF extract (walk, bike, car), optionally GTFS feeds (public transport)
+and an elevation raster, and computes over it:</p>
+<ul>
+<li>travel-time matrices by street (<a href="fn.street_travel_time_matrix.html" title="fn peabiru_core::street_travel_time_matrix"><code>street_travel_time_matrix</code></a>) and by
+public transport (<a href="fn.transit_travel_time_matrix.html" title="fn peabiru_core::transit_travel_time_matrix"><code>transit_travel_time_matrix</code></a>: any subset of the
+transit modes, reached and left on foot, by bicycle or by car), with
+percentiles and Monte Carlo draws for frequency-based feeds;</li>
+<li>accessibility with five decay functions (<a href="fn.transit_accessibility.html" title="fn peabiru_core::transit_accessibility"><code>transit_accessibility</code></a>,
+<a href="fn.street_accessibility.html" title="fn peabiru_core::street_accessibility"><code>street_accessibility</code></a>);</li>
+<li>expanded and arrival-time matrices (<a href="fn.expanded_travel_time_matrix.html" title="fn peabiru_core::expanded_travel_time_matrix"><code>expanded_travel_time_matrix</code></a>,
+<a href="fn.arrival_travel_time_matrix.html" title="fn peabiru_core::arrival_travel_time_matrix"><code>arrival_travel_time_matrix</code></a>);</li>
+<li>isochrones, as polygons or street segments (see <a href="#isochrones">Isochrones</a>);</li>
+<li>detailed itineraries, leg by leg (<a href="fn.detailed_itineraries.html" title="fn peabiru_core::detailed_itineraries"><code>detailed_itineraries</code></a>);</li>
+<li>fares: travel times within a budget, fares of itineraries and the
+Pareto frontier of time and fare (see <a href="#fares">Fares</a>);</li>
+<li>slope costs for walking and cycling from a GeoTIFF raster (<a href="enum.Elevation.html" title="enum peabiru_core::Elevation"><code>Elevation</code></a>);</li>
+<li>scenarios of car speeds and levels of traffic stress (<a href="struct.Scenario.html" title="struct peabiru_core::Scenario"><code>Scenario</code></a>);</li>
+<li>facility location on a table of travel times: maximal covering, set
+covering, p-median and p-center (<a href="fn.locate_facilities.html" title="fn peabiru_core::locate_facilities"><code>locate_facilities</code></a>), and the
+two-step floating catchment area (<a href="fn.floating_catchment.html" title="fn peabiru_core::floating_catchment"><code>floating_catchment</code></a>);</li>
+<li>what a network holds, and the GTFS errors of each feed (see
+<a href="#inspecting-a-network">Inspecting a network</a>).</li>
+</ul>
+<p>This crate is the shared core: the R package (extendr), the Python
+package (PyO3) and the JavaScript package (wasm-bindgen) are thin
+bindings over the same functions, so they all return the same numbers;
+the <code>peabiru</code> command-line tool runs it on CSV files.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<p>Build a network from a directory holding one OpenStreetMap <code>.pbf</code> and
+the GTFS <code>.zip</code> feeds, then compute a street and a public transport
+matrix between the same points:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>peabiru_core::{
+    build_from_dir, street_travel_time_matrix, transit_travel_time_matrix, BuildOptions,
+    Mode, RouteParams, TransitParams,
+};
+
+<span class="comment">// the São Paulo sample of the repository (r/inst/extdata/spo)
+</span><span class="kw">let </span>network = build_from_dir(<span class="string">"r/inst/extdata/spo"</span>, <span class="kw-2">&amp;</span>BuildOptions::default())<span class="question-mark">?</span>;
+<span class="kw">for </span>w <span class="kw">in </span>network.build_warnings() {
+    <span class="macro">eprintln!</span>(<span class="string">"warning: {w}"</span>);
+}
+<span class="kw">let </span>points = [(-<span class="number">23.5563</span>, -<span class="number">46.6290</span>), (-<span class="number">23.5577</span>, -<span class="number">46.6321</span>)]; <span class="comment">// (lat, lon)
+
+// walking, with the default parameters
+</span><span class="kw">let </span>walk = street_travel_time_matrix(<span class="kw-2">&amp;</span>network, <span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>points, Mode::Walk, <span class="kw-2">&amp;</span>RouteParams::default())<span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"walk: {:?} min"</span>, walk.get(<span class="number">0</span>, <span class="number">1</span>));
+
+<span class="comment">// walking and public transport, Monday 2019-05-13 from 14:00
+</span><span class="kw">let </span><span class="kw-2">mut </span>params = TransitParams::default();
+params.date = <span class="number">20190513</span>;
+params.departure_time = <span class="number">14 </span>* <span class="number">3600</span>;
+params.seed = <span class="prelude-val">Some</span>(<span class="number">42</span>);
+<span class="kw">let </span>transit = transit_travel_time_matrix(<span class="kw-2">&amp;</span>network, <span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>params)<span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"transit: {:?} min at percentiles {:?}"</span>, transit.get(<span class="number">0</span>, <span class="number">1</span>), transit.percentiles());</code></pre></div>
+<p>A <a href="struct.Network.html" title="struct peabiru_core::Network"><code>Network</code></a> is built once and shared by every call (and by threads):
+every function takes it whole, so the streets and the public transport
+layer linked to them always go together.</p>
+<p><a href="fn.build_from_bytes.html" title="fn peabiru_core::build_from_bytes"><code>build_from_bytes</code></a> builds the same network from data held in memory
+(the <code>.pbf</code> and the feeds’ <code>.zip</code> files as bytes), for callers without
+a file system, such as the JavaScript package on WebAssembly.</p>
+<h2 id="threads"><a class="doc-anchor" href="#threads">§</a>Threads</h2>
+<p>Each parameter struct has an <code>n_threads</code> field: the work is shared out
+among that many worker threads (0 = all cores), and the results never
+depend on it. On WebAssembly targets, where <code>std</code> cannot start threads,
+everything runs on the calling thread whatever <code>n_threads</code> says.</p>
+<h2 id="parameters"><a class="doc-anchor" href="#parameters">§</a>Parameters</h2>
+<p>Every parameter struct (<a href="struct.BuildOptions.html" title="struct peabiru_core::BuildOptions"><code>BuildOptions</code></a>, <a href="struct.RouteParams.html" title="struct peabiru_core::RouteParams"><code>RouteParams</code></a>,
+<a href="struct.TransitParams.html" title="struct peabiru_core::TransitParams"><code>TransitParams</code></a>, <a href="struct.AccessibilityParams.html" title="struct peabiru_core::AccessibilityParams"><code>AccessibilityParams</code></a>, <a href="struct.ItineraryParams.html" title="struct peabiru_core::ItineraryParams"><code>ItineraryParams</code></a>,
+<a href="struct.LocationParams.html" title="struct peabiru_core::LocationParams"><code>LocationParams</code></a>, <a href="struct.FloatingCatchmentParams.html" title="struct peabiru_core::FloatingCatchmentParams"><code>FloatingCatchmentParams</code></a>) starts
+from <code>Default</code> (<a href="struct.BuildOptions.html#structfield.elevation" title="field peabiru_core::BuildOptions::elevation"><code>BuildOptions::elevation</code></a> is off by default) and is
+filled in by setting its public fields:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span><span class="kw-2">mut </span>p = peabiru_core::RouteParams::default();
+p.walk_speed = <span class="number">4.5</span>;
+p.max_trip_duration = <span class="number">60</span>;</code></pre></div>
+<p>The structs are <code>#[non_exhaustive]</code>, so later versions can add fields
+without breaking this code; for the same reason they cannot be written
+as struct expressions outside this crate, not even with
+<code>..Default::default()</code>. Invalid values are rejected with
+<a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> before any routing.</p>
+<h2 id="isochrones"><a class="doc-anchor" href="#isochrones">§</a>Isochrones</h2>
+<p>Polygon isochrones take two calls: a travel-time surface to the cells of
+a Web Mercator grid (<a href="fn.street_travel_time_surface.html" title="fn peabiru_core::street_travel_time_surface"><code>street_travel_time_surface</code></a>,
+<a href="fn.transit_travel_time_surface.html" title="fn peabiru_core::transit_travel_time_surface"><code>transit_travel_time_surface</code></a>), then <a href="fn.isochrone_polygons.html" title="fn peabiru_core::isochrone_polygons"><code>isochrone_polygons</code></a> on it.
+Line isochrones route a matrix to the centroids of <a href="fn.street_edges.html" title="fn peabiru_core::street_edges"><code>street_edges</code></a> and
+band it with <a href="fn.isochrone_lines.html" title="fn peabiru_core::isochrone_lines"><code>isochrone_lines</code></a>. The functions say what they return and
+what is left to the caller (repairing and clipping the polygons).</p>
+<h2 id="inspecting-a-network"><a class="doc-anchor" href="#inspecting-a-network">§</a>Inspecting a network</h2>
+<p>What a network holds: where points snap to the streets
+(<a href="fn.find_snap.html" title="fn peabiru_core::find_snap"><code>find_snap</code></a>), the box of the street network
+(<a href="struct.Network.html#method.street" title="method peabiru_core::Network::street"><code>Network::street</code></a>, <a href="struct.StreetNetwork.html#method.bbox" title="method peabiru_core::StreetNetwork::bbox"><code>StreetNetwork::bbox</code></a>), its vertices and edges (<a href="fn.street_vertices.html" title="fn peabiru_core::street_vertices"><code>street_vertices</code></a>,
+<a href="fn.street_edges.html" title="fn peabiru_core::street_edges"><code>street_edges</code></a>), the transit stops and the routes of each trip
+pattern (<a href="fn.transit_stops.html" title="fn peabiru_core::transit_stops"><code>transit_stops</code></a>, <a href="fn.transit_routes.html" title="fn peabiru_core::transit_routes"><code>transit_routes</code></a>), the dates with service
+(<a href="fn.transit_service_dates.html" title="fn peabiru_core::transit_service_dates"><code>transit_service_dates</code></a>, <a href="struct.TransitLayer.html#method.n_services_active_on" title="method peabiru_core::TransitLayer::n_services_active_on"><code>TransitLayer::n_services_active_on</code></a>) and
+the errors gtfs-lib reports loading a feed (<a href="fn.gtfs_errors.html" title="fn peabiru_core::gtfs_errors"><code>gtfs_errors</code></a>).</p>
+<p>A network is not built from a feed with GTFS errors of priority <code>HIGH</code>,
+or from one gtfs-lib cannot load: the build fails, and
+<a href="struct.NetworkError.html#method.high_priority_gtfs_errors" title="method peabiru_core::NetworkError::high_priority_gtfs_errors"><code>NetworkError::high_priority_gtfs_errors</code></a> names the feeds. With
+<a href="struct.BuildOptions.html#structfield.ignore_gtfs_errors" title="field peabiru_core::BuildOptions::ignore_gtfs_errors"><code>BuildOptions::ignore_gtfs_errors</code></a> it is built from what can be read,
+and <a href="struct.Network.html#method.build_warnings" title="method peabiru_core::Network::build_warnings"><code>Network::build_warnings</code></a> says which feeds those are (with the
+warnings about the elevation raster).</p>
+<h2 id="itineraries"><a class="doc-anchor" href="#itineraries">§</a>Itineraries</h2>
+<p><a href="fn.detailed_itineraries.html" title="fn peabiru_core::detailed_itineraries"><code>detailed_itineraries</code></a> routes each origin to the destination of the
+same index and returns the trips leg by leg (<a href="struct.Itinerary.html" title="struct peabiru_core::Itinerary"><code>Itinerary</code></a>,
+<a href="struct.ItineraryLeg.html" title="struct peabiru_core::ItineraryLeg"><code>ItineraryLeg</code></a>), with their lines: by a street mode, or with public
+transport the fastest trip over the departure window or, with
+<a href="struct.ItineraryParams.html#structfield.shortest_path" title="field peabiru_core::ItineraryParams::shortest_path"><code>ItineraryParams::shortest_path</code></a> <code>false</code>, the alternatives of the
+multi-criteria router. Networks with frequency-based trips are refused
+there. <a href="fn.write_itineraries_csv.html" title="fn peabiru_core::write_itineraries_csv"><code>write_itineraries_csv</code></a> writes them to CSV files.</p>
+<h2 id="fares"><a class="doc-anchor" href="#fares">§</a>Fares</h2>
+<p>A <a href="struct.FareStructure.html" title="struct peabiru_core::FareStructure"><code>FareStructure</code></a> (<a href="fn.setup_fare_structure.html" title="fn peabiru_core::setup_fare_structure"><code>setup_fare_structure</code></a>, <a href="fn.read_fare_structure.html" title="fn peabiru_core::read_fare_structure"><code>read_fare_structure</code></a>,
+<a href="fn.write_fare_structure.html" title="fn peabiru_core::write_fare_structure"><code>write_fare_structure</code></a>) in <a href="struct.TransitParams.html#structfield.fare_structure" title="field peabiru_core::TransitParams::fare_structure"><code>TransitParams::fare_structure</code></a> routes
+public transport with the multi-criteria router and fares; with
+<a href="struct.TransitParams.html#structfield.max_fare" title="field peabiru_core::TransitParams::max_fare"><code>TransitParams::max_fare</code></a> the matrices and accessibility keep the
+fastest trip within the budget. <a href="fn.pareto_frontier.html" title="fn peabiru_core::pareto_frontier"><code>pareto_frontier</code></a> gives, per
+destination, the travel time at each fare cutoff where it changes, and
+<a href="struct.ItineraryParams.html#structfield.fare_structure" title="field peabiru_core::ItineraryParams::fare_structure"><code>ItineraryParams::fare_structure</code></a> the fares of itineraries.</p>
+<h2 id="elevation"><a class="doc-anchor" href="#elevation">§</a>Elevation</h2>
+<p>With <a href="struct.BuildOptions.html#structfield.elevation" title="field peabiru_core::BuildOptions::elevation"><code>BuildOptions::elevation</code></a> set to <a href="enum.Elevation.html#variant.Tobler" title="variant peabiru_core::Elevation::Tobler"><code>Elevation::Tobler</code></a> or
+<a href="enum.Elevation.html#variant.Minetti" title="variant peabiru_core::Elevation::Minetti"><code>Elevation::Minetti</code></a>, walking and cycling times depend on the slope of
+each street, from the <code>.tif</code> raster of the directory
+(<a href="fn.build_from_dir.html" title="fn peabiru_core::build_from_dir"><code>build_from_dir</code></a>) or from its bytes
+(<a href="fn.build_from_bytes_with_elevation.html" title="fn peabiru_core::build_from_bytes_with_elevation"><code>build_from_bytes_with_elevation</code></a>, which lists the rasters and
+coordinate systems supported). <a href="struct.StreetNetwork.html#method.elevation_warnings" title="method peabiru_core::StreetNetwork::elevation_warnings"><code>StreetNetwork::elevation_warnings</code></a>
+reports voids, out-of-range values and samples on a pixel boundary.</p>
+<h2 id="results"><a class="doc-anchor" href="#results">§</a>Results</h2>
+<p>A matrix is returned in a type of its own (<a href="struct.StreetMatrix.html" title="struct peabiru_core::StreetMatrix"><code>StreetMatrix</code></a>,
+<a href="struct.TransitMatrix.html" title="struct peabiru_core::TransitMatrix"><code>TransitMatrix</code></a>, <a href="struct.ExpandedMatrix.html" title="struct peabiru_core::ExpandedMatrix"><code>ExpandedMatrix</code></a>, <a href="struct.Accessibility.html" title="struct peabiru_core::Accessibility"><code>Accessibility</code></a>), which gives
+its dimensions, single values, rows, and its whole buffer without
+copying (<code>into_vec</code>, <code>into_values</code>). <a href="struct.CsvOutput.html" title="struct peabiru_core::CsvOutput"><code>CsvOutput</code></a> writes them to one
+CSV file per origin, formatted as <code>data.table::fwrite</code> formats them.</p>
+<h2 id="scenarios"><a class="doc-anchor" href="#scenarios">§</a>Scenarios</h2>
+<p><a href="struct.RouteParams.html#structfield.scenario" title="field peabiru_core::RouteParams::scenario"><code>RouteParams::scenario</code></a>, <a href="struct.TransitParams.html#structfield.scenario" title="field peabiru_core::TransitParams::scenario"><code>TransitParams::scenario</code></a> and
+<a href="struct.ItineraryParams.html#structfield.scenario" title="field peabiru_core::ItineraryParams::scenario"><code>ItineraryParams::scenario</code></a> change the car speeds and the levels of
+traffic stress of the streets for one call (see <a href="struct.Scenario.html" title="struct peabiru_core::Scenario"><code>Scenario</code></a>); the
+network itself is left as it is.</p>
+<h2 id="facility-location"><a class="doc-anchor" href="#facility-location">§</a>Facility location</h2>
+<p><a href="fn.locate_facilities.html" title="fn peabiru_core::locate_facilities"><code>locate_facilities</code></a> chooses where to open facilities, by one of four
+models (<a href="enum.LocationModel.html" title="enum peabiru_core::LocationModel"><code>LocationModel</code></a>), and <a href="fn.floating_catchment.html" title="fn peabiru_core::floating_catchment"><code>floating_catchment</code></a> compares supply
+with demand around each place. Both work on a <a href="struct.CostTable.html" title="struct peabiru_core::CostTable"><code>CostTable</code></a>, the minutes
+from each demand point to each site, whatever computed it:
+<a href="struct.CostTable.html#method.from_minutes" title="associated function peabiru_core::CostTable::from_minutes"><code>CostTable::from_minutes</code></a> takes the minutes of a matrix of this crate.
+The models are solved by heuristics (greedy construction, then vertex
+substitution), deterministically and with no dependency.</p>
+<h2 id="cancellation"><a class="doc-anchor" href="#cancellation">§</a>Cancellation</h2>
+<p>Every routing parameter struct holds a <a href="struct.CancelToken.html" title="struct peabiru_core::CancelToken"><code>CancelToken</code></a>: cancel a clone
+of it from another thread and the computation returns
+<a href="enum.RouteError.html#variant.Cancelled" title="variant peabiru_core::RouteError::Cancelled"><code>RouteError::Cancelled</code></a>.</p>
+<h2 id="routing-model-and-credits"><a class="doc-anchor" href="#routing-model-and-credits">§</a>Routing model and credits</h2>
+<p>The routing model follows that of Conveyal’s
+<a href="https://github.com/conveyal/r5">R5</a> (MIT), from which the routing logic
+is ported; the repository checks the results against reference outputs
+(see the <a href="https://strategicprojects.github.io/peabiru-routing/rust/parity.html">comparison with r5r</a>).
+The few places where results depend on the platform
+(the order in which the operating system lists GTFS feeds, the C++
+library isoband was built with) are documented with the functions
+concerned.</p>
+<p>Polygon isochrones are a translation of the isoband algorithm (MIT);
+parts of Apache Commons Math 3.0 (Apache-2.0) and fdlibm 5.3 are
+translated, so that the numbers are the same on every platform. The
+notices of these and of
+the other works the crate derives from are in <code>LICENSE-THIRD-PARTY</code>.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Accessibility.html" title="struct peabiru_core::Accessibility">Accessibility</a></dt><dd>Accessibility per origin, opportunity column, percentile and cutoff:
+the raw double, unrounded.</dd><dt><a class="struct" href="struct.AccessibilityParams.html" title="struct peabiru_core::AccessibilityParams">Accessibility<wbr>Params</a></dt><dd>How to weight the opportunities; the defaults are <code>cutoffs = 30</code> and
+<code>decay_function = "step"</code>). Fill it in by changing the fields of
+<a href="struct.AccessibilityParams.html#method.default" title="associated function peabiru_core::AccessibilityParams::default"><code>AccessibilityParams::default()</code></a>.</dd><dt><a class="struct" href="struct.Breakdown.html" title="struct peabiru_core::Breakdown">Breakdown</a></dt><dd>One trip, every time in minutes with one decimal.</dd><dt><a class="struct" href="struct.BuildOptions.html" title="struct peabiru_core::BuildOptions">Build<wbr>Options</a></dt><dd>Options for <a href="fn.build_network.html" title="fn peabiru_core::build_network"><code>build_network</code></a> and <a href="fn.build_from_dir.html" title="fn peabiru_core::build_from_dir"><code>build_from_dir</code></a>.
+Fill it in by changing the fields of <a href="struct.BuildOptions.html#method.default" title="associated function peabiru_core::BuildOptions::default"><code>BuildOptions::default()</code></a>.</dd><dt><a class="struct" href="struct.CancelToken.html" title="struct peabiru_core::CancelToken">Cancel<wbr>Token</a></dt><dd>A flag that stops a running computation. Every routing parameter
+struct carries one (<a href="struct.RouteParams.html#structfield.cancel" title="field peabiru_core::RouteParams::cancel"><code>RouteParams::cancel</code></a>,
+<a href="struct.TransitParams.html#structfield.cancel" title="field peabiru_core::TransitParams::cancel"><code>TransitParams::cancel</code></a>); keep
+a clone, hand the parameters to the call, and call
+<a href="struct.CancelToken.html#method.cancel" title="method peabiru_core::CancelToken::cancel"><code>cancel</code></a> from any thread. The workers notice
+between origins (between batches of eight in a street matrix computed
+by contraction hierarchy, and between the rounds of the contraction)
+and, from a transit origin, at every departure minute and Monte Carlo
+draw and between destinations; the call then returns
+<a href="enum.RouteError.html#variant.Cancelled" title="variant peabiru_core::RouteError::Cancelled"><code>RouteError::Cancelled</code></a> instead of a partial result. The check is one
+relaxed atomic load.</dd><dt><a class="struct" href="struct.CostTable.html" title="struct peabiru_core::CostTable">Cost<wbr>Table</a></dt><dd>Minutes from each demand point to each site (a candidate location or an
+existing facility), the input of <a href="fn.locate_facilities.html" title="fn peabiru_core::locate_facilities"><code>locate_facilities</code></a>
+and <a href="fn.floating_catchment.html" title="fn peabiru_core::floating_catchment"><code>floating_catchment</code></a>.</dd><dt><a class="struct" href="struct.CsvOutput.html" title="struct peabiru_core::CsvOutput">CsvOutput</a></dt><dd>Writes routing results to a directory, one CSV file per origin.</dd><dt><a class="struct" href="struct.Destinations.html" title="struct peabiru_core::Destinations">Destinations</a></dt><dd>Destination points with their opportunity counts: <code>opportunities[k][j]</code>
+is the count of opportunity kind <code>k</code> at <code>points[j]</code> (one column per
+<code>opportunities_colnames</code> entry of the packages). Made with
+<a href="struct.Destinations.html#method.new" title="associated function peabiru_core::Destinations::new"><code>Destinations::new</code></a>.</dd><dt><a class="struct" href="struct.DroppedTrips.html" title="struct peabiru_core::DroppedTrips">Dropped<wbr>Trips</a></dt><dd>Trips left out of the timetable while loading, by reason.</dd><dt><a class="struct" href="struct.ExpandedMatrix.html" title="struct peabiru_core::ExpandedMatrix">Expanded<wbr>Matrix</a></dt><dd>The rows of an expanded or arrival matrix, origin by origin, each
+origin’s rows in a fixed order (see <a href="fn.expanded_travel_time_matrix.html" title="fn peabiru_core::expanded_travel_time_matrix"><code>expanded_travel_time_matrix</code></a> and
+<a href="fn.arrival_travel_time_matrix.html" title="fn peabiru_core::arrival_travel_time_matrix"><code>arrival_travel_time_matrix</code></a>).</dd><dt><a class="struct" href="struct.ExpandedRow.html" title="struct peabiru_core::ExpandedRow">Expanded<wbr>Row</a></dt><dd>One row of an expanded or arrival matrix (the origin is the row’s place
+in <a href="struct.ExpandedMatrix.html" title="struct peabiru_core::ExpandedMatrix"><code>ExpandedMatrix</code></a>).</dd><dt><a class="struct" href="struct.FarePerRoute.html" title="struct peabiru_core::FarePerRoute">Fare<wbr>PerRoute</a></dt><dd>The fare type and fare of one GTFS route (a <code>fares_per_route</code> row).
+A route is matched by <code>agency_id</code> and <code>route_id</code>; the other names are
+for the reader.</dd><dt><a class="struct" href="struct.FarePerTransfer.html" title="struct peabiru_core::FarePerTransfer">Fare<wbr>PerTransfer</a></dt><dd>A discounted transfer between two fare types (a
+<code>fares_per_transfer</code> row): both rides together cost <code>fare</code>.</dd><dt><a class="struct" href="struct.FarePerType.html" title="struct peabiru_core::FarePerType">Fare<wbr>PerType</a></dt><dd>One fare type of a <a href="struct.FareStructure.html" title="struct peabiru_core::FareStructure"><code>FareStructure</code></a> (a <code>fares_per_type</code> row).</dd><dt><a class="struct" href="struct.FareStructure.html" title="struct peabiru_core::FareStructure">Fare<wbr>Structure</a></dt><dd>A fare structure: how much each ride costs and which transfers are
+discounted. Counts and minutes are doubles, <code>Inf</code> for no limit. Start
+from <a href="fn.setup_fare_structure.html" title="fn peabiru_core::setup_fare_structure"><code>setup_fare_structure</code></a> or
+<a href="fn.read_fare_structure.html" title="fn peabiru_core::read_fare_structure"><code>read_fare_structure</code></a> and change the fields.</dd><dt><a class="struct" href="struct.FeedReport.html" title="struct peabiru_core::FeedReport">Feed<wbr>Report</a></dt><dd>What loading one GTFS feed found. Some of it is a GTFS error of
+priority <code>HIGH</code> (as gtfs-lib ranks it), for which the build is refused
+unless such errors are ignored: see <a href="struct.FeedReport.html#method.high_priority_cases" title="method peabiru_core::FeedReport::high_priority_cases"><code>FeedReport::high_priority_cases</code></a>.</dd><dt><a class="struct" href="struct.FloatingCatchment.html" title="struct peabiru_core::FloatingCatchment">Floating<wbr>Catchment</a></dt><dd>The result of <a href="fn.floating_catchment.html" title="fn peabiru_core::floating_catchment"><code>floating_catchment</code></a>.</dd><dt><a class="struct" href="struct.FloatingCatchmentParams.html" title="struct peabiru_core::FloatingCatchmentParams">Floating<wbr>Catchment<wbr>Params</a></dt><dd>How <a href="fn.floating_catchment.html" title="fn peabiru_core::floating_catchment"><code>floating_catchment</code></a> weights travel time. Fill it in by changing
+the fields of <a href="struct.FloatingCatchmentParams.html#method.default" title="associated function peabiru_core::FloatingCatchmentParams::default"><code>FloatingCatchmentParams::default()</code></a>.</dd><dt><a class="struct" href="struct.GtfsFeedError.html" title="struct peabiru_core::GtfsFeedError">Gtfs<wbr>Feed<wbr>Error</a></dt><dd>One GTFS error: an error gtfs-lib recorded while
+loading a feed. Made by <a href="fn.gtfs_errors.html" title="fn peabiru_core::gtfs_errors"><code>gtfs_errors</code></a>.</dd><dt><a class="struct" href="struct.IsochroneLine.html" title="struct peabiru_core::IsochroneLine">Isochrone<wbr>Line</a></dt><dd>One edge of a line-based isochrone: from origin <code>origin</code>, the edge in
+row <code>edge</code> of the <a href="struct.StreetEdges.html" title="struct peabiru_core::StreetEdges"><code>StreetEdges</code></a> is reached in <code>travel_time</code> minutes,
+within the band of cutoff <code>isochrone</code> (the smallest cutoff at or above
+the travel time).</dd><dt><a class="struct" href="struct.IsochronePolygon.html" title="struct peabiru_core::IsochronePolygon">Isochrone<wbr>Polygon</a></dt><dd>One polygon isochrone: the area reached from origin <code>origin</code> within
+<code>isochrone</code> minutes at percentile <code>percentile</code>, as a multipolygon in
+<code>[lon, lat]</code> degrees (empty when nothing is reached).</dd><dt><a class="struct" href="struct.Itinerary.html" title="struct peabiru_core::Itinerary">Itinerary</a></dt><dd>One itinerary between an origin-destination pair: one <code>option</code>, with
+its legs.</dd><dt><a class="struct" href="struct.ItineraryLeg.html" title="struct peabiru_core::ItineraryLeg">Itinerary<wbr>Leg</a></dt><dd>One leg (<code>segment</code>) of an <a href="struct.Itinerary.html" title="struct peabiru_core::Itinerary"><code>Itinerary</code></a>.</dd><dt><a class="struct" href="struct.ItineraryNotes.html" title="struct peabiru_core::ItineraryNotes">Itinerary<wbr>Notes</a></dt><dd>What the packages warn about after <a href="fn.detailed_itineraries_noted.html" title="fn peabiru_core::detailed_itineraries_noted"><code>detailed_itineraries_noted</code></a>.</dd><dt><a class="struct" href="struct.ItineraryParams.html" title="struct peabiru_core::ItineraryParams">Itinerary<wbr>Params</a></dt><dd>Parameters of <a href="fn.detailed_itineraries.html" title="fn peabiru_core::detailed_itineraries"><code>detailed_itineraries</code></a>; the
+date and departure time have no default. Fill it in by changing the fields of
+<a href="struct.ItineraryParams.html#method.default" title="associated function peabiru_core::ItineraryParams::default"><code>ItineraryParams::default()</code></a>.</dd><dt><a class="struct" href="struct.LocationParams.html" title="struct peabiru_core::LocationParams">Location<wbr>Params</a></dt><dd>What <a href="fn.locate_facilities.html" title="fn peabiru_core::locate_facilities"><code>locate_facilities</code></a> solves. Fill it in by changing the fields of
+<a href="struct.LocationParams.html#method.default" title="associated function peabiru_core::LocationParams::default"><code>LocationParams::default()</code></a>.</dd><dt><a class="struct" href="struct.LocationSolution.html" title="struct peabiru_core::LocationSolution">Location<wbr>Solution</a></dt><dd>The sites <a href="fn.locate_facilities.html" title="fn peabiru_core::locate_facilities"><code>locate_facilities</code></a> chose and what they achieve.</dd><dt><a class="struct" href="struct.LtsLine.html" title="struct peabiru_core::LtsLine">LtsLine</a></dt><dd>A line of <a href="enum.LtsChange.html#variant.ByLine" title="variant peabiru_core::LtsChange::ByLine"><code>LtsChange::ByLine</code></a>, in <code>[lon, lat]</code>
+degrees, and its level of traffic stress.</dd><dt><a class="struct" href="struct.Network.html" title="struct peabiru_core::Network">Network</a></dt><dd>A routable network: the street network built from an OpenStreetMap
+extract and, when GTFS feeds were given, the public transport layer
+built from them with its stops linked to those streets.</dd><dt><a class="struct" href="struct.NetworkError.html" title="struct peabiru_core::NetworkError">Network<wbr>Error</a></dt><dd>Why a network could not be built: a file or directory that cannot be
+read, a malformed or empty <code>.pbf</code> file, a malformed GTFS feed or one
+with errors of priority <code>HIGH</code>, or a directory without a <code>.pbf</code>
+file. The message names the file at fault.</dd><dt><a class="struct" href="struct.ParetoFrontier.html" title="struct peabiru_core::ParetoFrontier">Pareto<wbr>Frontier</a></dt><dd>The result of <code>pareto_frontier()</code>: rows origin by origin, destination by
+destination, percentile by percentile (ascending), then in the order of
+the fare cutoffs.</dd><dt><a class="struct" href="struct.ParetoRow.html" title="struct peabiru_core::ParetoRow">Pareto<wbr>Row</a></dt><dd>One row of a <a href="struct.ParetoFrontier.html" title="struct peabiru_core::ParetoFrontier"><code>ParetoFrontier</code></a>.</dd><dt><a class="struct" href="struct.RouteParams.html" title="struct peabiru_core::RouteParams">Route<wbr>Params</a></dt><dd>Street routing parameters. Fill it in by changing
+the fields of <a href="struct.RouteParams.html#method.default" title="associated function peabiru_core::RouteParams::default"><code>RouteParams::default()</code></a>:</dd><dt><a class="struct" href="struct.Scenario.html" title="struct peabiru_core::Scenario">Scenario</a></dt><dd>Changes to the street network for one routing call: new car speeds, a
+factor for them and new levels of traffic stress. The default changes
+nothing. Fill it in by changing the fields of <a href="struct.Scenario.html#method.default" title="associated function peabiru_core::Scenario::default"><code>Scenario::default()</code></a>.</dd><dt><a class="struct" href="struct.Snap.html" title="struct peabiru_core::Snap">Snap</a></dt><dd>Where a point meets the street network: the result of <a href="fn.find_snap.html" title="fn peabiru_core::find_snap"><code>find_snap</code></a>.</dd><dt><a class="struct" href="struct.SpeedPolygon.html" title="struct peabiru_core::SpeedPolygon">Speed<wbr>Polygon</a></dt><dd>A polygon of <a href="enum.CarSpeeds.html#variant.ByPolygon" title="variant peabiru_core::CarSpeeds::ByPolygon"><code>CarSpeeds::ByPolygon</code></a>: a
+multipolygon in <code>[lon, lat]</code> degrees, a factor for the car speeds of
+the edges it meets and a priority. The coordinates are used as given.
+The R, Python and JavaScript packages first round them as GDAL writes
+GeoJSON (15 decimals of each coordinate, a tail that looks like
+round-off trimmed); do the same to get their results.</dd><dt><a class="struct" href="struct.StreetEdges.html" title="struct peabiru_core::StreetEdges">Street<wbr>Edges</a></dt><dd>The street edges of a network: every directed edge but the connectors of transit stops and
+park-and-rides, in edge order, with their attributes, geometry and
+centroid. Made by <a href="fn.street_edges.html" title="fn peabiru_core::street_edges"><code>street_edges</code></a>.</dd><dt><a class="struct" href="struct.StreetMatrix.html" title="struct peabiru_core::StreetMatrix">Street<wbr>Matrix</a></dt><dd>A street travel-time matrix: whole minutes from each origin to each
+destination, <code>None</code> where there is no time (an origin or destination
+that cannot be linked to the streets, an unreachable destination, or a
+time beyond <code>max_trip_duration</code>).</dd><dt><a class="struct" href="struct.StreetNetwork.html" title="struct peabiru_core::StreetNetwork">Street<wbr>Network</a></dt><dd>A routable street network for walking, cycling and driving, built by
+<a href="fn.build_network.html" title="fn peabiru_core::build_network"><code>build_network</code></a> or, with its transit stops linked to the streets, by
+<a href="fn.build_from_dir.html" title="fn peabiru_core::build_from_dir"><code>build_from_dir</code></a>.</dd><dt><a class="struct" href="struct.StreetVertices.html" title="struct peabiru_core::StreetVertices">Street<wbr>Vertices</a></dt><dd>The vertices of the street network: those at an end
+of a street edge (connectors of transit stops and park-and-rides left
+out), in a fixed order. Made by <a href="fn.street_vertices.html" title="fn peabiru_core::street_vertices"><code>street_vertices</code></a>.</dd><dt><a class="struct" href="struct.TransitLayer.html" title="struct peabiru_core::TransitLayer">Transit<wbr>Layer</a></dt><dd>The public transport of a network: the stops, trip patterns and
+timetables of its GTFS feeds, with each stop
+linked to the street network it was built with. Made by
+<a href="fn.build_from_dir.html" title="fn peabiru_core::build_from_dir"><code>build_from_dir</code></a>, together with that street
+network; read-only once built.</dd><dt><a class="struct" href="struct.TransitMatrix.html" title="struct peabiru_core::TransitMatrix">Transit<wbr>Matrix</a></dt><dd>A public transport travel-time matrix: for each origin and destination,
+whole minutes at each requested percentile, <code>None</code> where there is none.
+A pair is reported (its lowest percentile is <code>Some</code>) when that
+percentile is within <code>max_trip_duration</code>.</dd><dt><a class="struct" href="struct.TransitParams.html" title="struct peabiru_core::TransitParams">Transit<wbr>Params</a></dt><dd>Public transport routing parameters (modes, access, egress and transfers),
+with a default for everything but the date and departure time, which
+have none. Fill it in by changing the fields of <a href="struct.TransitParams.html#method.default" title="associated function peabiru_core::TransitParams::default"><code>TransitParams::default()</code></a>:</dd><dt><a class="struct" href="struct.TransitRoutes.html" title="struct peabiru_core::TransitRoutes">Transit<wbr>Routes</a></dt><dd>The routes of the public transport network: one row per trip
+pattern (the trips of a route with the same stops), in pattern order.
+Made by <a href="fn.transit_routes.html" title="fn peabiru_core::transit_routes"><code>transit_routes</code></a>.</dd><dt><a class="struct" href="struct.TransitStops.html" title="struct peabiru_core::TransitStops">Transit<wbr>Stops</a></dt><dd>The stops of the public transport network, one per stop in
+stop index order. Made by <a href="fn.transit_stops.html" title="fn peabiru_core::transit_stops"><code>transit_stops</code></a>.</dd><dt><a class="struct" href="struct.TravelTimeSurface.html" title="struct peabiru_core::TravelTimeSurface">Travel<wbr>Time<wbr>Surface</a></dt><dd>Travel times from each origin to every cell of a Web Mercator grid, in
+whole minutes at each percentile:
+<code>i32::MAX</code> where a cell is not
+reached. The minutes are not capped at the trip limit: a street time
+includes the partial edges at both ends and may pass it.</dd><dt><a class="struct" href="struct.TripOption.html" title="struct peabiru_core::TripOption">Trip<wbr>Option</a></dt><dd>One option of a pair: a way of making the trip that is not dominated
+on the chosen criteria at one or more departure minutes of the window.</dd><dt><a class="struct" href="struct.TripOptionsParams.html" title="struct peabiru_core::TripOptionsParams">Trip<wbr>Options<wbr>Params</a></dt><dd>Parameters of <a href="fn.trip_options.html" title="fn peabiru_core::trip_options"><code>trip_options</code></a>. The street and public transport
+settings mean what they mean in <a href="struct.ItineraryParams.html" title="struct peabiru_core::ItineraryParams"><code>ItineraryParams</code></a>,
+with the same defaults. Fill it in by changing the fields of
+<a href="struct.TripOptionsParams.html#method.default" title="associated function peabiru_core::TripOptionsParams::default"><code>TripOptionsParams::default()</code></a>.</dd><dt><a class="struct" href="struct.WebMercatorGrid.html" title="struct peabiru_core::WebMercatorGrid">WebMercator<wbr>Grid</a></dt><dd>A block of Web Mercator pixels at one zoom level: the destinations of a
+travel-time surface. Pixel numbers are
+absolute (world) numbers at the zoom level, <code>x</code> growing eastward and
+<code>y</code> southward; cell <code>i</code> is pixel <code>(west + i % width, north + i / width)</code>.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.CarSpeeds.html" title="enum peabiru_core::CarSpeeds">CarSpeeds</a></dt><dd>New car speeds (<code>new_carspeeds</code>).</dd><dt><a class="enum" href="enum.Criterion.html" title="enum peabiru_core::Criterion">Criterion</a></dt><dd>A criterion <a href="fn.trip_options.html" title="fn peabiru_core::trip_options"><code>trip_options</code></a> compares trips on. More may be added, so a
+<code>match</code> on it needs a wildcard arm.</dd><dt><a class="enum" href="enum.DecayFunction.html" title="enum peabiru_core::DecayFunction">Decay<wbr>Function</a></dt><dd>A decay function and its parameter (the packages’ <code>decay_function</code>
+and <code>decay_value</code>): how much an opportunity reached in <code>t</code> counts
+towards accessibility, given a cutoff. The weights are the same, to the
+last bit, on every platform. Non-exhaustive: other functions may be
+added.</dd><dt><a class="enum" href="enum.Elevation.html" title="enum peabiru_core::Elevation">Elevation</a></dt><dd>The slope cost function of a network.</dd><dt><a class="enum" href="enum.GtfsErrorPriority.html" title="enum peabiru_core::GtfsErrorPriority">Gtfs<wbr>Error<wbr>Priority</a></dt><dd>gtfs-lib’s <code>Priority</code> of an error.</dd><dt><a class="enum" href="enum.LocationModel.html" title="enum peabiru_core::LocationModel">Location<wbr>Model</a></dt><dd>The siting model of <a href="fn.locate_facilities.html" title="fn peabiru_core::locate_facilities"><code>locate_facilities</code></a>.</dd><dt><a class="enum" href="enum.LtsChange.html" title="enum peabiru_core::LtsChange">LtsChange</a></dt><dd>New levels of traffic stress (<code>new_lts</code>).</dd><dt><a class="enum" href="enum.Mode.html" title="enum peabiru_core::Mode">Mode</a></dt><dd>Street mode, for street-only routing. Non-exhaustive: a later version
+may add further street modes (bike or car rental and parking).</dd><dt><a class="enum" href="enum.RouteError.html" title="enum peabiru_core::RouteError">Route<wbr>Error</a></dt><dd>Why a routing computation returned no result.</dd><dt><a class="enum" href="enum.StreetEngine.html" title="enum peabiru_core::StreetEngine">Street<wbr>Engine</a></dt><dd>How <a href="fn.street_travel_time_matrix.html" title="fn peabiru_core::street_travel_time_matrix"><code>street_travel_time_matrix</code></a> computes a street matrix. Every choice gives
+the same matrix; they differ only in speed and memory.</dd><dt><a class="enum" href="enum.TransitMode.html" title="enum peabiru_core::TransitMode">Transit<wbr>Mode</a></dt><dd>A public transport mode, as the packages’ <code>mode</code> names them. <code>AIR</code> is
+not offered (nor part of <code>"TRANSIT"</code>). A route’s mode follows from its
+GTFS <code>route_type</code> (basic and extended types).</dd></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.VERSION.html" title="constant peabiru_core::VERSION">VERSION</a></dt><dd>Version of this crate, as published.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.accessibility_trip_limits.html" title="fn peabiru_core::accessibility_trip_limits">accessibility_<wbr>trip_<wbr>limits</a></dt><dd>The trip limits of <code>accessibility()</code>, derived from what the user asked.
+Given the user’s <code>max_trip_duration</code> and <code>max_walk_time</code> (<code>None</code> = <code>Inf</code>)
+in minutes, returns the <code>(max_trip_duration, max_walk_time)</code> to route
+with:</dd><dt><a class="fn" href="fn.arrival_departure.html" title="fn peabiru_core::arrival_departure">arrival_<wbr>departure</a></dt><dd>The service date and departure of an arrival search: the departure is
+<code>max_trip_duration</code> before the arrival time, and the search covers the
+window <code>[departure, arrival)</code> minute by minute.
+Returns <code>(yyyymmdd, seconds after midnight)</code>; an earlier day when the
+window starts before midnight. Daylight-saving shifts are not modelled.
+An error when <code>date</code> is not a calendar date (see
+<a href="fn.validate_date.html" title="fn peabiru_core::validate_date"><code>validate_date</code></a>), <code>max_trip_duration</code> is under 1 minute or the
+departure falls before year 1.</dd><dt><a class="fn" href="fn.arrival_travel_time_matrix.html" title="fn peabiru_core::arrival_travel_time_matrix">arrival_<wbr>travel_<wbr>time_<wbr>matrix</a></dt><dd>The latest trip that arrives by a given time. <code>p</code> must already hold the
+departure side of the search: the service date and departure from
+<a href="fn.arrival_departure.html" title="fn peabiru_core::arrival_departure"><code>arrival_departure</code></a> and
+<code>time_window = max_trip_duration</code>. For each
+destination the latest departure minute with a record arriving by
+<code>departure + max_trip_duration</code> wins: its first transit record in
+<code>PATH_ORDER</code>, else the walk-only record (<code>filterLatestBeforeArrivalTime</code>,
+offs 31-266). At most one row per destination. Errors as
+<a href="fn.expanded_travel_time_matrix.html" title="fn peabiru_core::expanded_travel_time_matrix"><code>expanded_travel_time_matrix</code></a>, and <a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> when
+<code>p.time_window</code> is not <code>p.max_trip_duration</code>.</dd><dt><a class="fn" href="fn.build_from_bytes.html" title="fn peabiru_core::build_from_bytes">build_<wbr>from_<wbr>bytes</a></dt><dd>Build a network from data held in memory: the bytes of an OpenStreetMap
+<code>.pbf</code> file and of any number of GTFS <code>.zip</code> feeds, each with its file
+name. The network is the one <a href="fn.build_from_dir.html" title="fn peabiru_core::build_from_dir"><code>build_from_dir</code></a> builds from a directory
+holding the same files, and the stops are linked to the streets in the
+same way.</dd><dt><a class="fn" href="fn.build_from_bytes_with_elevation.html" title="fn peabiru_core::build_from_bytes_with_elevation">build_<wbr>from_<wbr>bytes_<wbr>with_<wbr>elevation</a></dt><dd><a href="fn.build_from_bytes.html" title="fn peabiru_core::build_from_bytes"><code>build_from_bytes</code></a> with an elevation raster: the bytes of a GeoTIFF
+file, as <a href="fn.build_from_dir.html" title="fn peabiru_core::build_from_dir"><code>build_from_dir</code></a> reads the <code>.tif</code> file of a directory. The
+slope costs of <a href="struct.BuildOptions.html#structfield.elevation" title="field peabiru_core::BuildOptions::elevation"><code>BuildOptions::elevation</code></a> are applied to walking and
+cycling (with <a href="enum.Elevation.html#variant.None" title="variant peabiru_core::Elevation::None"><code>Elevation::None</code></a> the raster is
+not read). Errors about the raster name it <code>elevation raster</code>.</dd><dt><a class="fn" href="fn.build_from_dir.html" title="fn peabiru_core::build_from_dir">build_<wbr>from_<wbr>dir</a></dt><dd>Build a network from a directory holding one OpenStreetMap <code>.pbf</code> file
+and any number of GTFS <code>.zip</code> feeds,
+and link the stops to the streets; with <a href="struct.BuildOptions.html#structfield.elevation" title="field peabiru_core::BuildOptions::elevation"><code>BuildOptions::elevation</code></a>,
+apply slope costs from the directory’s <code>.tif</code> raster (see
+<a href="fn.build_from_bytes_with_elevation.html" title="fn peabiru_core::build_from_bytes_with_elevation"><code>build_from_bytes_with_elevation</code></a> for the rasters supported).</dd><dt><a class="fn" href="fn.build_network.html" title="fn peabiru_core::build_network">build_<wbr>network</a></dt><dd>Read an OpenStreetMap <code>.pbf</code> file and build the street network for
+walking, cycling and driving, without
+public transport (<a href="struct.Network.html#method.transit" title="method peabiru_core::Network::transit"><code>Network::transit</code></a> is <code>None</code>; see <a href="fn.build_from_dir.html" title="fn peabiru_core::build_from_dir"><code>build_from_dir</code></a>
+for a network with GTFS feeds).</dd><dt><a class="fn" href="fn.detailed_itineraries.html" title="fn peabiru_core::detailed_itineraries">detailed_<wbr>itineraries</a></dt><dd>Detailed itineraries between each origin and the destination of the
+same index (<code>origins[i]</code> to <code>destinations[i]</code>, <code>(lat, lon)</code> degrees; pair the
+points beforehand for every origin to every destination): per pair its
+itineraries (the trip by the street mode alone first, then by number
+of legs and duration), none when no trip is found.</dd><dt><a class="fn" href="fn.detailed_itineraries_noted.html" title="fn peabiru_core::detailed_itineraries_noted">detailed_<wbr>itineraries_<wbr>noted</a></dt><dd><a href="fn.detailed_itineraries.html" title="fn peabiru_core::detailed_itineraries"><code>detailed_itineraries</code></a>, with the notes the packages turn into
+warnings.</dd><dt><a class="fn" href="fn.expanded_travel_time_matrix.html" title="fn peabiru_core::expanded_travel_time_matrix">expanded_<wbr>travel_<wbr>time_<wbr>matrix</a></dt><dd>Every trip of the departure window, minute by minute, with the routes
+ridden: per origin, the rows ordered by destination, departure minute
+and draw. For each departure minute
+the transit records come first in <code>PATH_ORDER</code>, numbered 1.., then the
+remaining draws repeat the walk-only record (or an unreachable, NA one)
+up to the draws per minute (<code>populateTravelTimesBreakdown</code>). A
+destination with no record at all has no rows. Points are <code>(lat, lon)</code>
+degrees; <code>p.percentiles</code> are not used.</dd><dt><a class="fn" href="fn.find_snap.html" title="fn peabiru_core::find_snap">find_<wbr>snap</a></dt><dd>Where each point (<code>(lat, lon)</code> degrees) snaps to the streets <code>mode</code> may
+use: the nearest point of an edge within
+<code>radius_m</code> metres, looked for first within 300 m when <code>radius_m</code> is
+larger. <code>None</code> for a point with no such
+edge. <a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> for a negative or non-finite radius.</dd><dt><a class="fn" href="fn.floating_catchment.html" title="fn peabiru_core::floating_catchment">floating_<wbr>catchment</a></dt><dd>The two-step floating catchment area of Luo and Wang (2003) and, with a
+decay function, its enhanced form (Luo and Qi, 2009).</dd><dt><a class="fn" href="fn.gtfs_errors.html" title="fn peabiru_core::gtfs_errors">gtfs_<wbr>errors</a></dt><dd>The errors the validator gtfs-lib (Conveyal) records while loading the
+GTFS feed whose <code>.zip</code> is <code>zip</code> (one feed; call it once per feed).
+<code>name</code> names the feed in errors.</dd><dt><a class="fn" href="fn.gtfs_files_in_dir.html" title="fn peabiru_core::gtfs_files_in_dir">gtfs_<wbr>files_<wbr>in_<wbr>dir</a></dt><dd>The <code>.zip</code> files of a directory (lower-case extension only)
+in the order the operating system lists them, which is the order
+<a href="fn.build_from_dir.html" title="fn peabiru_core::build_from_dir"><code>build_from_dir</code></a> loads feeds in.</dd><dt><a class="fn" href="fn.isochrone_cutoffs.html" title="fn peabiru_core::isochrone_cutoffs">isochrone_<wbr>cutoffs</a></dt><dd>The cutoffs of isochrones: distinct, ascending and without
+the 0. They must be finite and at least 0, and one must be
+above 0; <a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> otherwise.</dd><dt><a class="fn" href="fn.isochrone_lines.html" title="fn peabiru_core::isochrone_lines">isochrone_<wbr>lines</a></dt><dd>Line-based isochrones from a travel-time matrix to the edges’
+centroids: <code>minutes</code> holds one row per origin and one value
+per row of the <a href="struct.StreetEdges.html" title="struct peabiru_core::StreetEdges"><code>StreetEdges</code></a> (the median travel time, <code>None</code> where
+unreached or beyond the trip limit), and <code>cutoffs</code> are checked by
+<a href="fn.isochrone_cutoffs.html" title="fn peabiru_core::isochrone_cutoffs"><code>isochrone_cutoffs</code></a>.</dd><dt><a class="fn" href="fn.isochrone_polygons.html" title="fn peabiru_core::isochrone_polygons">isochrone_<wbr>polygons</a></dt><dd>Polygon isochrones from a travel-time surface: for each origin, each percentile and
+each cutoff, the cells reached in less than the cutoff, traced by
+isoband’s marching squares over the cell centres (<code>isoband::isobands()</code>
+from 0 to the cutoff), converted to longitude and latitude and grouped
+into polygons with holes (<code>isoband::iso_to_sfg()</code>).</dd><dt><a class="fn" href="fn.isochrone_trip_limit.html" title="fn peabiru_core::isochrone_trip_limit">isochrone_<wbr>trip_<wbr>limit</a></dt><dd>The trip limit of isochrones, derived from the cutoffs (not from a
+<code>max_trip_duration</code>): the largest cutoff, its minutes
+truncated. Line isochrones route with it; polygon isochrones with it
+plus 10. Errors as <a href="fn.isochrone_cutoffs.html" title="fn peabiru_core::isochrone_cutoffs"><code>isochrone_cutoffs</code></a>, and when it does not fit an
+<code>i32</code>.</dd><dt><a class="fn" href="fn.locate_facilities.html" title="fn peabiru_core::locate_facilities">locate_<wbr>facilities</a></dt><dd>Choose where to open facilities.</dd><dt><a class="fn" href="fn.pareto_frontier.html" title="fn peabiru_core::pareto_frontier">pareto_<wbr>frontier</a></dt><dd>The trade-off between travel time and fare. For every cutoff of <code>fare_cutoffs</code>, in the order given, the
+travel times are those of the multi-criteria router (McRAPTOR, see
+<a href="struct.TransitParams.html#structfield.fare_structure" title="field peabiru_core::TransitParams::fare_structure"><code>TransitParams::fare_structure</code></a>) with <code>max_fare</code> set to the cutoff
+(<code>p.max_fare</code> is not used); a destination and percentile gets a row at
+each cutoff where its travel time differs from that of the previous
+cutoff with a row, and is below <code>max_trip_duration</code>.</dd><dt><a class="fn" href="fn.read_fare_structure.html" title="fn peabiru_core::read_fare_structure">read_<wbr>fare_<wbr>structure</a></dt><dd>The fare structure in the bytes of a fare structure <code>.zip</code>
+file: the global settings (the counts made integers as <code>as.integer()</code>
+does: <code>Inf</code> becomes <code>NA</code>, NaN here), the three tables with their known
+columns, and the debug settings. <code>encoding</code> is fread’s: <code>"UTF-8"</code>
+(the default) and <code>"unknown"</code> read the text as UTF-8, <code>"Latin-1"</code> as
+ISO 8859-1.</dd><dt><a class="fn" href="fn.setup_fare_structure.html" title="fn peabiru_core::setup_fare_structure">setup_<wbr>fare_<wbr>structure</a></dt><dd>A starting fare structure for the network: one fare type per mode (<code>by = "MODE"</code>), per agency id (<code>"AGENCY_ID"</code>, or <code>"AGENCY"</code>) or name
+(<code>"AGENCY_NAME"</code>), or a single <code>GENERIC</code> type (anything else); every
+route, type and transfer between two types costs <code>base_fare</code>, read as a
+32-bit float. The routes are in the network’s route order (none
+without public transport), the types and transfers in a fixed order
+(that of a hash set of their names, not alphabetical).</dd><dt><a class="fn" href="fn.street_accessibility.html" title="fn peabiru_core::street_accessibility">street_<wbr>accessibility</a></dt><dd>Accessibility by a street mode alone (<code>WALK</code>, <code>BICYCLE</code> or <code>CAR</code>): one unvarying travel time per
+destination, so every percentile gets the same value
+(<code>TravelTimeReducer.recordUnvaryingTravelTimeAtTarget</code>).
+<code>params.max_trip_duration</code> is the search limit,
+and <code>percentiles</code> are checked as
+<a href="fn.validate_percentiles.html" title="fn peabiru_core::validate_percentiles"><code>validate_percentiles</code></a> does.
+Errors as <a href="fn.transit_accessibility.html" title="fn peabiru_core::transit_accessibility"><code>transit_accessibility</code></a>.</dd><dt><a class="fn" href="fn.street_edges.html" title="fn peabiru_core::street_edges">street_<wbr>edges</a></dt><dd>The street edges of the network, one row per directed edge (see
+<a href="struct.StreetEdges.html" title="struct peabiru_core::StreetEdges"><code>StreetEdges</code></a>).</dd><dt><a class="fn" href="fn.street_travel_time_matrix.html" title="fn peabiru_core::street_travel_time_matrix">street_<wbr>travel_<wbr>time_<wbr>matrix</a></dt><dd>Street travel-time matrix in whole minutes by walking, cycling or
+driving, a single street mode from door to door.
+Points are <code>(lat, lon)</code> degrees. <a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> when the
+parameters are invalid (see <a href="struct.RouteParams.html#method.validate" title="method peabiru_core::RouteParams::validate"><code>RouteParams::validate</code></a>),
+<a href="enum.RouteError.html#variant.Cancelled" title="variant peabiru_core::RouteError::Cancelled"><code>RouteError::Cancelled</code></a> when <code>params.cancel</code> is cancelled before the
+matrix is complete.</dd><dt><a class="fn" href="fn.street_travel_time_surface.html" title="fn peabiru_core::street_travel_time_surface">street_<wbr>travel_<wbr>time_<wbr>surface</a></dt><dd>Travel-time surface by a street mode alone (<code>WALK</code>, <code>BICYCLE</code> or <code>CAR</code>),
+the first step of a polygon isochrone: one
+travel time per cell, the same at every percentile. The grid is
+<a href="struct.WebMercatorGrid.html#method.for_network" title="associated function peabiru_core::WebMercatorGrid::for_network"><code>WebMercatorGrid::for_network</code></a> at
+<code>zoom</code> (9 to 12). <code>params.max_trip_duration</code> is the search limit (for
+isochrones, the largest cutoff plus 10 minutes).
+Points are <code>(lat, lon)</code> degrees; an origin that cannot be linked reaches
+nothing. <a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> for invalid parameters, percentiles
+(see <a href="fn.validate_percentiles.html" title="fn peabiru_core::validate_percentiles"><code>validate_percentiles</code></a>) or zoom,
+<a href="enum.RouteError.html#variant.Cancelled" title="variant peabiru_core::RouteError::Cancelled"><code>RouteError::Cancelled</code></a> when <code>params.cancel</code> is cancelled.</dd><dt><a class="fn" href="fn.street_vertices.html" title="fn peabiru_core::street_vertices">street_<wbr>vertices</a></dt><dd>The street vertices at an end of some edge (see <a href="struct.StreetVertices.html" title="struct peabiru_core::StreetVertices"><code>StreetVertices</code></a>),
+in the iteration order of the hash set they are
+collected in while walking the edges, which is the same
+on every platform: by bucket of the set’s final table (the vertex
+index spread as <code>h ^ (h &gt;&gt;&gt; 16)</code>), and within a bucket in the
+order they were added.</dd><dt><a class="fn" href="fn.transit_accessibility.html" title="fn peabiru_core::transit_accessibility">transit_<wbr>accessibility</a></dt><dd>Accessibility by public transport (the modes, access and egress as in
+<a href="fn.transit_travel_time_matrix.html" title="fn peabiru_core::transit_travel_time_matrix"><code>transit_travel_time_matrix</code></a>). Opportunity counts that are zero,
+negative or NaN contribute nothing (<code>TravelTimeReducer.java:251-253</code>).
+<code>p.percentiles</code> are the travel-time percentiles; <code>p.max_trip_duration</code>
+and <code>p.max_walk_time</code> must already be the limits of the search (for
+the step function <code>max_trip_duration</code> is the largest cutoff, set before
+deriving the walk limit; see <a href="fn.accessibility_trip_limits.html" title="fn peabiru_core::accessibility_trip_limits"><code>accessibility_trip_limits</code></a>).</dd><dt><a class="fn" href="fn.transit_routes.html" title="fn peabiru_core::transit_routes">transit_<wbr>routes</a></dt><dd>The transit routes of a network (see <a href="struct.TransitRoutes.html" title="struct peabiru_core::TransitRoutes"><code>TransitRoutes</code></a>), none for a
+network without public transport. <a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> for a route
+type that is not a GTFS route type (basic or extended).</dd><dt><a class="fn" href="fn.transit_service_dates.html" title="fn peabiru_core::transit_service_dates">transit_<wbr>service_<wbr>dates</a></dt><dd>The dates (<code>yyyymmdd</code>, ascending) on which some service of a trip in
+the timetable runs: every day
+of each such service’s calendar on which it runs, and every date of its
+calendar exceptions on which it runs. Services no trip uses do not
+count; none for a network without public transport.
+<a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> when such a service’s calendar has a start or
+end that is not a date.</dd><dt><a class="fn" href="fn.transit_stops.html" title="fn peabiru_core::transit_stops">transit_<wbr>stops</a></dt><dd>The transit stops of a network (see <a href="struct.TransitStops.html" title="struct peabiru_core::TransitStops"><code>TransitStops</code></a>): the position is
+that of the stop’s vertex in the street network, the stop’s coordinates
+rounded down to 1e-7 degrees. Empty for a network
+without public transport.</dd><dt><a class="fn" href="fn.transit_travel_time_matrix.html" title="fn peabiru_core::transit_travel_time_matrix">transit_<wbr>travel_<wbr>time_<wbr>matrix</a></dt><dd>Public transport travel-time matrix: walking (by default) to, between
+and from public transport, over a departure window (see
+<a href="struct.TransitParams.html#structfield.transit_modes" title="field peabiru_core::TransitParams::transit_modes"><code>TransitParams::transit_modes</code></a>, <a href="struct.TransitParams.html#structfield.mode" title="field peabiru_core::TransitParams::mode"><code>TransitParams::mode</code></a> and
+<a href="struct.TransitParams.html#structfield.egress_mode" title="field peabiru_core::TransitParams::egress_mode"><code>TransitParams::egress_mode</code></a>). Points are <code>(lat, lon)</code> degrees.
+<a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> when the network has no public transport or the
+parameters are invalid (see <a href="struct.TransitParams.html#method.validate" title="method peabiru_core::TransitParams::validate"><code>TransitParams::validate</code></a>),
+<a href="enum.RouteError.html#variant.Cancelled" title="variant peabiru_core::RouteError::Cancelled"><code>RouteError::Cancelled</code></a> when <code>p.cancel</code> is cancelled before every
+origin is done.</dd><dt><a class="fn" href="fn.transit_travel_time_surface.html" title="fn peabiru_core::transit_travel_time_surface">transit_<wbr>travel_<wbr>time_<wbr>surface</a></dt><dd>Travel-time surface by public transport (its modes, access and egress
+as in <a href="struct.TransitParams.html" title="struct peabiru_core::TransitParams"><code>TransitParams</code></a>), at each of
+<code>p.percentiles</code> over the departure window. <code>p.max_trip_duration</code> is the
+search limit (for isochrones, the largest cutoff plus 10 minutes). Otherwise as
+<a href="fn.street_travel_time_surface.html" title="fn peabiru_core::street_travel_time_surface"><code>street_travel_time_surface</code></a>, and <a href="enum.RouteError.html#variant.Invalid" title="variant peabiru_core::RouteError::Invalid"><code>RouteError::Invalid</code></a> when the
+network has no public transport.</dd><dt><a class="fn" href="fn.trip_options.html" title="fn peabiru_core::trip_options">trip_<wbr>options</a></dt><dd>peabiru’s multi-criteria trip planner: for each origin-destination pair
+(<code>origins[i]</code> to <code>destinations[i]</code>, <code>(lat, lon)</code> degrees), the trips not
+dominated on the chosen criteria at each departure minute of the
+window, merged over the window into options.</dd><dt><a class="fn" href="fn.validate_date.html" title="fn peabiru_core::validate_date">validate_<wbr>date</a></dt><dd>Check that <code>yyyymmdd</code> is a real calendar date (Gregorian, years 1 to
+9999): <code>20190513</code> passes, <code>20190230</code>, <code>20191301</code> and <code>0</code> do not. The
+service calendar is looked up by this date, so a date that does not
+exist would silently match no service.</dd><dt><a class="fn" href="fn.validate_percentiles.html" title="fn peabiru_core::validate_percentiles">validate_<wbr>percentiles</a></dt><dd>Check travel-time percentiles: 1 to 5 of them, each in
+1..=99, in any
+order and with repeats (the results sort them). Street
+modes have one travel time, reported for every percentile; they take
+the same check, so that an empty list is an error there too.</dd><dt><a class="fn" href="fn.write_fare_structure.html" title="fn peabiru_core::write_fare_structure">write_<wbr>fare_<wbr>structure</a></dt><dd>The bytes of a fare structure <code>.zip</code> file. The five CSV files in it
+are byte for byte what <code>data.table::fwrite()</code> writes on the same
+platform (its line ends: <code>\r\n</code> on Windows, <code>\n</code> elsewhere, and in
+WebAssembly); the archive deflates them and leaves them undated (see
+the module notes).</dd><dt><a class="fn" href="fn.write_itineraries_csv.html" title="fn peabiru_core::write_itineraries_csv">write_<wbr>itineraries_<wbr>csv</a></dt><dd>Write itineraries to CSV files (<code>output_dir</code>): one file per pair with
+itineraries, <code>&lt;dir&gt;/from_&lt;origin id&gt;_to_&lt;destination id&gt;.csv</code>, with
+the number formats of <a href="struct.CsvOutput.html" title="struct peabiru_core::CsvOutput"><code>CsvOutput</code></a>: with <code>osm_link_ids</code> (the
+itineraries routed with it) <code>osm_id_list</code>, <code>edge_id_list</code>,
+<code>board_stop_id</code> and <code>alight_stop_id</code> after <code>route</code>, and the <code>geometry</code>
+column (the WKT text of <a href="struct.ItineraryLeg.html#method.wkt" title="method peabiru_core::ItineraryLeg::wkt"><code>ItineraryLeg::wkt</code></a>) last unless
+<code>drop_geometry</code>. <code>ids</code>
+and <code>points</code> are those of the pairs given to <a href="fn.detailed_itineraries.html" title="fn peabiru_core::detailed_itineraries"><code>detailed_itineraries</code></a>
+(<code>(from_id, to_id)</code> and <code>((lat, lon), (lat, lon))</code>).</dd><dt><a class="fn" href="fn.write_trip_options_csv.html" title="fn peabiru_core::write_trip_options_csv">write_<wbr>trip_<wbr>options_<wbr>csv</a></dt><dd>Write <a href="fn.trip_options.html" title="fn peabiru_core::trip_options"><code>trip_options</code></a>’ result to <code>dir</code>, one file per pair with options,
+<code>&lt;dir&gt;/from_&lt;origin id&gt;_to_&lt;destination id&gt;.csv</code>: one row per leg of each
+option (with <a href="struct.TripOptionsParams.html#structfield.itineraries" title="field peabiru_core::TripOptionsParams::itineraries"><code>TripOptionsParams::itineraries</code></a>) or per option, with the
+pair’s ids and points, the option’s columns (<code>option</code>, <code>total_time</code>,
+<code>fare</code> with a fare structure, <code>transfers</code>, <code>walk_time</code>,
+<code>departure_time</code>, <code>arrival_time</code>, <code>n_departures</code>, <code>first_departure</code>,
+<code>last_departure</code>, <code>description</code>) and the leg’s (<code>segment</code>, <code>mode</code>,
+<code>cumulative_fare</code> with a fare structure, <code>segment_duration</code>, <code>wait</code>,
+<code>distance</code>, <code>route</code>, the four id columns with <code>osm_link_ids</code>, and the
+<code>geometry</code> as WKT unless <code>drop_geometry</code>). Numbers are written as in
+the files of <a href="struct.CsvOutput.html" title="struct peabiru_core::CsvOutput"><code>CsvOutput</code></a>. <code>ids</code> and
+<code>points</code> are those of the pairs given to <a href="fn.trip_options.html" title="fn peabiru_core::trip_options"><code>trip_options</code></a>.</dd></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.Polygon.html" title="type peabiru_core::Polygon">Polygon</a></dt><dd>A polygon: its shell, then its holes; every ring closed (the last point
+repeats the first).</dd></dl><script type="text/json" id="notable-traits-data">{"&<Vec<T, A> as Index<I>>::Output":"<h3>Notable traits for <code><a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/struct.Vec.html\" title=\"struct alloc::vec::Vec\">Vec</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.100.0/std/primitive.u8.html\">u8</a>, A&gt;</code></h3><pre><code><div class=\"where\">impl&lt;A&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/io/write/trait.Write.html\" title=\"trait core::io::write::Write\">Write</a> for <a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/struct.Vec.html\" title=\"struct alloc::vec::Vec\">Vec</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.100.0/std/primitive.u8.html\">u8</a>, A&gt;<div class=\"where\">where\n    A: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/alloc/trait.Allocator.html\" title=\"trait core::alloc::Allocator\">Allocator</a>,</div></div>","&mut <Vec<T, A> as Index<I>>::Output":"<h3>Notable traits for <code><a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/struct.Vec.html\" title=\"struct alloc::vec::Vec\">Vec</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.100.0/std/primitive.u8.html\">u8</a>, A&gt;</code></h3><pre><code><div class=\"where\">impl&lt;A&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/io/write/trait.Write.html\" title=\"trait core::io::write::Write\">Write</a> for <a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/struct.Vec.html\" title=\"struct alloc::vec::Vec\">Vec</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.100.0/std/primitive.u8.html\">u8</a>, A&gt;<div class=\"where\">where\n    A: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/alloc/trait.Allocator.html\" title=\"trait core::alloc::Allocator\">Allocator</a>,</div></div>","<Vec<T, A> as IntoIterator>::IntoIter":"<h3>Notable traits for <code><a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/struct.Vec.html\" title=\"struct alloc::vec::Vec\">Vec</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.100.0/std/primitive.u8.html\">u8</a>, A&gt;</code></h3><pre><code><div class=\"where\">impl&lt;A&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/io/write/trait.Write.html\" title=\"trait core::io::write::Write\">Write</a> for <a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/struct.Vec.html\" title=\"struct alloc::vec::Vec\">Vec</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.100.0/std/primitive.u8.html\">u8</a>, A&gt;<div class=\"where\">where\n    A: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/alloc/trait.Allocator.html\" title=\"trait core::alloc::Allocator\">Allocator</a>,</div></div>","Drain<'_, T, A>":"<h3>Notable traits for <code><a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/drain/struct.Drain.html\" title=\"struct alloc::vec::drain::Drain\">Drain</a>&lt;'_, T, A&gt;</code></h3><pre><code><div class=\"where\">impl&lt;T, A&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/iter/traits/iterator/trait.Iterator.html\" title=\"trait core::iter::traits::iterator::Iterator\">Iterator</a> for <a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/drain/struct.Drain.html\" title=\"struct alloc::vec::drain::Drain\">Drain</a>&lt;'_, T, A&gt;<div class=\"where\">where\n    A: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/alloc/trait.Allocator.html\" title=\"trait core::alloc::Allocator\">Allocator</a>,</div></div><div class=\"where\">    type <a href=\"https://doc.rust-lang.org/1.100.0/core/iter/traits/iterator/trait.Iterator.html#associatedtype.Item\" class=\"associatedtype\">Item</a> = T;</div>","ExtractIf<'_, T, F, A>":"<h3>Notable traits for <code><a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/extract_if/struct.ExtractIf.html\" title=\"struct alloc::vec::extract_if::ExtractIf\">ExtractIf</a>&lt;'_, T, F, A&gt;</code></h3><pre><code><div class=\"where\">impl&lt;T, F, A&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/iter/traits/iterator/trait.Iterator.html\" title=\"trait core::iter::traits::iterator::Iterator\">Iterator</a> for <a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/extract_if/struct.ExtractIf.html\" title=\"struct alloc::vec::extract_if::ExtractIf\">ExtractIf</a>&lt;'_, T, F, A&gt;<div class=\"where\">where\n    A: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/alloc/trait.Allocator.html\" title=\"trait core::alloc::Allocator\">Allocator</a>,\n    F: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/ops/function/trait.FnMut.html\" title=\"trait core::ops::function::FnMut\">FnMut</a>(<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.100.0/std/primitive.reference.html\">&amp;mut T</a>) -&gt; <a class=\"primitive\" href=\"https://doc.rust-lang.org/1.100.0/std/primitive.bool.html\">bool</a>,</div></div><div class=\"where\">    type <a href=\"https://doc.rust-lang.org/1.100.0/core/iter/traits/iterator/trait.Iterator.html#associatedtype.Item\" class=\"associatedtype\">Item</a> = T;</div>","Splice<'_, <I as IntoIterator>::IntoIter, A>":"<h3>Notable traits for <code><a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/splice/struct.Splice.html\" title=\"struct alloc::vec::splice::Splice\">Splice</a>&lt;'_, I, A&gt;</code></h3><pre><code><div class=\"where\">impl&lt;I, A&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/iter/traits/iterator/trait.Iterator.html\" title=\"trait core::iter::traits::iterator::Iterator\">Iterator</a> for <a class=\"struct\" href=\"https://doc.rust-lang.org/1.100.0/alloc/vec/splice/struct.Splice.html\" title=\"struct alloc::vec::splice::Splice\">Splice</a>&lt;'_, I, A&gt;<div class=\"where\">where\n    I: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/iter/traits/iterator/trait.Iterator.html\" title=\"trait core::iter::traits::iterator::Iterator\">Iterator</a>,\n    A: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/alloc/trait.Allocator.html\" title=\"trait core::alloc::Allocator\">Allocator</a>,</div></div><div class=\"where\">    type <a href=\"https://doc.rust-lang.org/1.100.0/core/iter/traits/iterator/trait.Iterator.html#associatedtype.Item\" class=\"associatedtype\">Item</a> = &lt;I as <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/iter/traits/iterator/trait.Iterator.html\" title=\"trait core::iter::traits::iterator::Iterator\">Iterator</a>&gt;::<a class=\"associatedtype\" href=\"https://doc.rust-lang.org/1.100.0/core/iter/traits/iterator/trait.Iterator.html#associatedtype.Item\" title=\"type core::iter::traits::iterator::Iterator::Item\">Item</a>;</div>"}</script></section></div></main></body></html>

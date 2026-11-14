@@ -1,0 +1,249 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg role="img" aria-labelledby="title desc" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='604.80pt' height='331.20pt' viewBox='0 0 604.8 331.2'>
+<title id="title">Jobs within 60 minutes by public transport, by income decile, São Paulo, Rio de Janeiro and Belo Horizonte</title>
+<desc id="desc">Three panels of box plots, one per city, of the share of the city's formal jobs reached within 60 minutes by public transport from the cells of each income decile. In all three cities access rises with income. The richest tenth reaches on average 7.9 times as many jobs as the poorest four tenths in São Paulo, 2.3 times as many jobs as the poorest four tenths in Rio de Janeiro, 2.0 times as many jobs as the poorest four tenths in Belo Horizonte.</desc>
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+@media (prefers-color-scheme: dark) {
+[style*="fill: #FFFDF9;"] { fill: #1D2427 !important; }
+[style*="fill: #1F2A2E;"] { fill: #ECE6DA !important; }
+[style*="fill: #4A5A5F;"] { fill: #A9B4B6 !important; }
+[style*="fill: #8DB9A0;"] { fill: #3E7C5E !important; }
+[style*="stroke: #ECE4D6;"] { stroke: #2C3538 !important; }
+[style*="stroke: #2F6B4F;"] { stroke: #6FBF95 !important; }
+}
+</style>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.0;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect x='0.5' y='0.5' width='603.8' height='330.2' rx='9' style='fill: #FFFDF9; stroke: #E1D8C8; stroke-width: 1;'/>
+<defs>
+  <clipPath id='cpMC4wMHw2MDQuODB8MC4wMHwzMzEuMjA='>
+    <rect x='0.0' y='0.0' width='604.8' height='331.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMzEuMjA=)'>
+<rect x='0.000000000000064' y='-0.000000000000057' width='604.8' height='331.2' style='stroke-width: 0.9; stroke: none; fill: #FFFDF9;' />
+</g>
+<defs>
+  <clipPath id='cpNDEuNzh8MjIwLjgyfDgzLjAxfDI3MC40Ng=='>
+    <rect x='41.7' y='83.0' width='179.0' height='187.4' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDEuNzh8MjIwLjgyfDgzLjAxfDI3MC40Ng==)'>
+<rect x='41.7' y='83.0' width='179.0' height='187.4' style='stroke-width: 0.9; stroke: none;' />
+<path d='M41.7 270.4l179.1 0M41.7 224.5l179.1 0M41.7 178.5l179.1 0M41.7 132.6l179.1 0M41.7 86.6l179.1 0' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<line x1='52.3' y1='269.8' x2='52.3' y2='259.3' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='69.8' y1='269.0' x2='69.8' y2='251.0' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='87.4' y1='268.3' x2='87.4' y2='245.5' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='104.9' y1='267.7' x2='104.9' y2='245.9' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='122.5' y1='266.6' x2='122.5' y2='232.2' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='140.0' y1='264.9' x2='140.0' y2='230.5' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='157.6' y1='262.1' x2='157.6' y2='217.7' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='175.1' y1='260.6' x2='175.1' y2='192.8' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='192.7' y1='253.2' x2='192.7' y2='172.9' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='210.2' y1='237.4' x2='210.2' y2='170.1' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<polygon points='46.1,265.7 46.1,269.0 58.4,269.0 58.4,265.7 46.1,265.7 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='63.7,261.4 63.7,267.6 76.0,267.6 76.0,261.4 63.7,261.4 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='81.2,257.6 81.2,266.4 93.5,266.4 93.5,257.6 81.2,257.6 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='98.8,256.3 98.8,265.5 111.1,265.5 111.1,256.3 98.8,256.3 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='116.3,249.8 116.3,263.6 128.6,263.6 128.6,249.8 116.3,249.8 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='133.9,244.7 133.9,261.3 146.2,261.3 146.2,244.7 133.9,244.7 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='151.4,232.8 151.4,256.1 163.7,256.1 163.7,232.8 151.4,232.8 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='169.0,218.3 169.0,253.2 181.3,253.2 181.3,218.3 169.0,218.3 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='186.5,195.5 186.5,233.9 198.8,233.9 198.8,195.5 186.5,195.5 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='204.1,178.2 204.1,214.3 216.4,214.3 216.4,178.2 204.1,178.2 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<line x1='46.1' y1='267.7' x2='58.4' y2='267.7' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='63.7' y1='265.8' x2='76.0' y2='265.8' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='81.2' y1='263.3' x2='93.5' y2='263.3' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='98.8' y1='261.5' x2='111.1' y2='261.5' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='116.3' y1='258.4' x2='128.6' y2='258.4' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='133.9' y1='255.6' x2='146.2' y2='255.6' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='151.4' y1='246.4' x2='163.7' y2='246.4' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='169.0' y1='237.2' x2='181.3' y2='237.2' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='186.5' y1='214.1' x2='198.8' y2='214.1' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='204.1' y1='193.7' x2='216.4' y2='193.7' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<text x='45.2' y='95.3' style='font-size: 8.82px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Palma ratio 7.9</text>
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMzEuMjA=)'>
+</g>
+<defs>
+  <clipPath id='cpMjI1LjgwfDQwNC44NHw4My4wMXwyNzAuNDY='>
+    <rect x='225.8' y='83.0' width='179.0' height='187.4' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMjI1LjgwfDQwNC44NHw4My4wMXwyNzAuNDY=)'>
+<rect x='225.8' y='83.0' width='179.0' height='187.4' style='stroke-width: 0.9; stroke: none;' />
+<path d='M225.8 270.4l179 0M225.8 224.5l179 0M225.8 178.5l179 0M225.8 132.6l179 0M225.8 86.6l179 0' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<line x1='236.3' y1='266.0' x2='236.3' y2='187.5' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='253.8' y1='263.9' x2='253.8' y2='179.9' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='271.4' y1='261.9' x2='271.4' y2='185.6' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='288.9' y1='261.5' x2='288.9' y2='195.3' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='306.5' y1='261.3' x2='306.5' y2='188.5' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='324.1' y1='259.5' x2='324.1' y2='185.9' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='341.6' y1='256.5' x2='341.6' y2='175.3' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='359.2' y1='254.4' x2='359.2' y2='169.8' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='376.7' y1='249.8' x2='376.7' y2='163.3' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='394.3' y1='238.0' x2='394.3' y2='170.0' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<polygon points='230.1,223.2 230.1,261.5 242.4,261.5 242.4,223.2 230.1,223.2 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='247.7,222.4 247.7,259.0 260.0,259.0 260.0,222.4 247.7,222.4 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='265.3,222.5 265.3,257.8 277.5,257.8 277.5,222.5 265.3,222.5 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='282.8,227.8 282.8,258.1 295.1,258.1 295.1,227.8 282.8,227.8 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='300.4,222.8 300.4,255.7 312.6,255.7 312.6,222.8 300.4,222.8 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='317.9,219.5 317.9,254.8 330.2,254.8 330.2,219.5 317.9,219.5 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='335.5,196.9 335.5,248.8 347.7,248.8 347.7,196.9 335.5,196.9 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='353.0,182.2 353.0,234.7 365.3,234.7 365.3,182.2 353.0,182.2 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='370.6,170.1 370.6,230.1 382.9,230.1 382.9,170.1 370.6,170.1 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='388.1,173.8 388.1,211.5 400.4,211.5 400.4,173.8 388.1,173.8 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<line x1='230.1' y1='251.1' x2='242.4' y2='251.1' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='247.7' y1='245.6' x2='260.0' y2='245.6' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='265.3' y1='248.0' x2='277.5' y2='248.0' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='282.8' y1='247.2' x2='295.1' y2='247.2' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='300.4' y1='242.2' x2='312.6' y2='242.2' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='317.9' y1='236.5' x2='330.2' y2='236.5' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='335.5' y1='227.6' x2='347.7' y2='227.6' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='353.0' y1='216.8' x2='365.3' y2='216.8' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='370.6' y1='186.3' x2='382.9' y2='186.3' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='388.1' y1='179.9' x2='400.4' y2='179.9' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<text x='229.3' y='95.3' style='font-size: 8.82px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Palma ratio 2.3</text>
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMzEuMjA=)'>
+</g>
+<defs>
+  <clipPath id='cpNDA5LjgyfDU4OC44Nnw4My4wMXwyNzAuNDY='>
+    <rect x='409.8' y='83.0' width='179.0' height='187.4' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDA5LjgyfDU4OC44Nnw4My4wMXwyNzAuNDY=)'>
+<rect x='409.8' y='83.0' width='179.0' height='187.4' style='stroke-width: 0.9; stroke: none;' />
+<path d='M409.8 270.4l179 0M409.8 224.5l179 0M409.8 178.5l179 0M409.8 132.6l179 0M409.8 86.6l179 0' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<line x1='420.3' y1='259.0' x2='420.3' y2='138.0' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='437.9' y1='255.7' x2='437.9' y2='135.2' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='455.4' y1='250.7' x2='455.4' y2='121.7' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='473.0' y1='246.2' x2='473.0' y2='122.6' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='490.5' y1='237.7' x2='490.5' y2='111.3' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='508.1' y1='235.7' x2='508.1' y2='109.7' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='525.6' y1='214.8' x2='525.6' y2='107.3' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='543.2' y1='183.3' x2='543.2' y2='106.2' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='560.7' y1='142.5' x2='560.7' y2='105.1' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<line x1='578.3' y1='135.3' x2='578.3' y2='106.1' style='stroke-width: 0.8; stroke: #2F6B4F; stroke-linecap: butt;' />
+<polygon points='414.2,164.3 414.2,252.6 426.5,252.6 426.5,164.3 414.2,164.3 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='431.7,171.8 431.7,248.2 444.0,248.2 444.0,171.8 431.7,171.8 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='449.3,135.4 449.3,239.8 461.6,239.8 461.6,135.4 449.3,135.4 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='466.8,136.4 466.8,232.4 479.1,232.4 479.1,136.4 466.8,136.4 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='484.4,126.5 484.4,208.7 496.7,208.7 496.7,126.5 484.4,126.5 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='501.9,120.4 501.9,205.6 514.2,205.6 514.2,120.4 501.9,120.4 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='519.5,116.3 519.5,174.4 531.8,174.4 531.8,116.3 519.5,116.3 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='537.0,110.6 537.0,134.7 549.3,134.7 549.3,110.6 537.0,110.6 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='554.6,109.4 554.6,123.3 566.9,123.3 566.9,109.4 554.6,109.4 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<polygon points='572.1,111.4 572.1,124.6 584.4,124.6 584.4,111.4 572.1,111.4 ' style='stroke-width: 0.6; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter; fill: #8DB9A0;' />
+<line x1='414.2' y1='234.8' x2='426.5' y2='234.8' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='431.7' y1='230.7' x2='444.0' y2='230.7' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='449.3' y1='175.9' x2='461.6' y2='175.9' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='466.8' y1='162.7' x2='479.1' y2='162.7' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='484.4' y1='145.3' x2='496.7' y2='145.3' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='501.9' y1='139.0' x2='514.2' y2='139.0' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='519.5' y1='129.5' x2='531.8' y2='129.5' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='537.0' y1='118.0' x2='549.3' y2='118.0' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='554.6' y1='114.9' x2='566.9' y2='114.9' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<line x1='572.1' y1='117.9' x2='584.4' y2='117.9' style='stroke-width: 1.4; stroke: #2F6B4F; stroke-linecap: butt; stroke-linejoin: miter;' />
+<text x='413.3' y='95.3' style='font-size: 8.82px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Palma ratio 2.0</text>
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMzEuMjA=)'>
+</g>
+<defs>
+  <clipPath id='cpNDEuNzh8MjIwLjgyfDY1LjgxfDgzLjAx'>
+    <rect x='41.7' y='65.8' width='179.0' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDEuNzh8MjIwLjgyfDY1LjgxfDgzLjAx)'>
+<text x='45.7' y='77.9' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>São Paulo</text>
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMzEuMjA=)'>
+</g>
+<defs>
+  <clipPath id='cpMjI1LjgwfDQwNC44NHw2NS44MXw4My4wMQ=='>
+    <rect x='225.8' y='65.8' width='179.0' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMjI1LjgwfDQwNC44NHw2NS44MXw4My4wMQ==)'>
+<text x='229.7' y='77.9' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Rio de Janeiro</text>
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMzEuMjA=)'>
+</g>
+<defs>
+  <clipPath id='cpNDA5LjgyfDU4OC44Nnw2NS44MXw4My4wMQ=='>
+    <rect x='409.8' y='65.8' width='179.0' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDA5LjgyfDU4OC44Nnw2NS44MXw4My4wMQ==)'>
+<text x='413.8' y='77.9' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Belo Horizonte</text>
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMzEuMjA=)'>
+<text x='52.3' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1</text>
+<text x='52.3' y='286.6' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>poorest</text>
+<text x='69.8' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>2</text>
+<text x='87.4' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>3</text>
+<text x='104.9' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>4</text>
+<text x='122.5' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>5</text>
+<text x='140.0' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>6</text>
+<text x='157.6' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>7</text>
+<text x='175.1' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>8</text>
+<text x='192.7' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>9</text>
+<text x='210.2' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10</text>
+<text x='210.2' y='286.6' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>richest</text>
+<text x='236.3' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1</text>
+<text x='236.3' y='286.6' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>poorest</text>
+<text x='253.8' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>2</text>
+<text x='271.4' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>3</text>
+<text x='288.9' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>4</text>
+<text x='306.5' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>5</text>
+<text x='324.1' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>6</text>
+<text x='341.6' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>7</text>
+<text x='359.2' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>8</text>
+<text x='376.7' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>9</text>
+<text x='394.3' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10</text>
+<text x='394.3' y='286.6' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>richest</text>
+<text x='420.3' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1</text>
+<text x='420.3' y='286.6' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>poorest</text>
+<text x='437.9' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>2</text>
+<text x='455.4' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>3</text>
+<text x='473.0' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>4</text>
+<text x='490.5' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>5</text>
+<text x='508.1' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>6</text>
+<text x='525.6' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>7</text>
+<text x='543.2' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>8</text>
+<text x='560.7' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>9</text>
+<text x='578.3' y='279.5' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10</text>
+<text x='578.3' y='286.6' text-anchor='middle' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>richest</text>
+<text x='37.3' y='273.3' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0%</text>
+<text x='37.3' y='227.3' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>25%</text>
+<text x='37.3' y='181.4' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>50%</text>
+<text x='37.3' y='135.4' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>75%</text>
+<text x='37.3' y='89.5' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>100%</text>
+<text x='315.3' y='297.6' text-anchor='middle' style='font-size: 10.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Income decile (per capita income of the cell)</text>
+<text x='15.9' y='37.1' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Share of the city's formal jobs reached from each cell, by income decile of its residents (Censo 2010),</text>
+<text x='15.9' y='47.9' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>weighted by population. Boxes: quartiles and median; lines: 10th to 90th percentile. Palma ratio: the mean</text>
+<text x='15.9' y='58.7' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>of the richest tenth over the mean of the poorest four tenths. Morning peak, Tuesday 17 November 2026</text>
+<text x='15.9' y='22.5' style='font-size: 12.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Jobs within an hour by public transport, by income</text>
+<text x='15.9' y='309.3' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Streets © OpenStreetMap contributors (ODbL), Geofabrik extract of 2026-11-01. GTFS: SPTrans (São Paulo), SMTR (Rio de Janeiro, CC BY 4.0),</text>
+<text x='15.9' y='317.8' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>SUMOB (Belo Horizonte, CC BY). Cells, population and income (Censo 2010), jobs (RAIS 2019), schools and health facilities (2019): Ipea, aopdata.</text>
+</g>
+</g>
+</svg>

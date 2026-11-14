@@ -1,0 +1,142 @@
+/* The isochrone demo (site/demo/index.html), on top of ../style.css. */
+
+.demo h1 { font-size: clamp(28px, 4.5vw, 40px); line-height: 1.15; margin: 36px 0 10px; letter-spacing: -0.02em; }
+.demo .lead { color: var(--pb-ink-soft); max-width: 70ch; margin: 0 0 20px; }
+
+/* One height for every control of the bar: selects, the time field, the mode
+   pills and the switch. */
+.controls {
+  --ctl-h: 38px;
+  display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: flex-end;
+  padding: 14px 16px; margin-bottom: 14px;
+  background: var(--pb-card); border: 1px solid var(--pb-card-border); border-radius: 12px;
+  box-shadow: var(--pb-card-shadow);
+  font-size: 15px;
+}
+.controls label { display: flex; flex-direction: column; gap: 5px; color: var(--pb-ink-soft); min-width: 0; max-width: 100%; font-size: 13.5px; }
+.controls select, .controls input[type="time"] {
+  font: inherit; font-size: 15px; color: var(--pb-ink); background-color: var(--pb-bg);
+  border: 1px solid var(--pb-border); border-radius: 99px;
+  height: var(--ctl-h); box-sizing: border-box; padding: 0 14px; max-width: 100%;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.controls select {
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='%23b4532a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; background-size: 12px 8px;
+}
+.controls select:hover, .controls input[type="time"]:hover { border-color: var(--pb-route); }
+.controls select:focus-visible, .controls input[type="time"]:focus-visible {
+  outline: none; border-color: var(--pb-route);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pb-route) 25%, transparent);
+}
+.controls select:disabled, .controls input:disabled { opacity: 0.55; cursor: progress; }
+.controls #city { width: 100%; min-width: 16em; }
+
+/* The list of a select, where the browser lets it be styled (customizable
+   selects); elsewhere the system's own list opens. */
+@supports (appearance: base-select) {
+  .controls select, .controls select::picker(select) { appearance: base-select; }
+  .controls select { display: inline-flex; align-items: center; background-image: none; padding-right: 14px; gap: 10px; }
+  .controls select::picker-icon {
+    content: ""; width: 12px; height: 8px; flex: none; margin-left: auto;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='%23b4532a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px 8px no-repeat;
+    transition: rotate 0.15s;
+  }
+  .controls select:open::picker-icon { rotate: 180deg; }
+  .controls select::picker(select) {
+    margin-top: 6px; padding: 6px; min-width: anchor-size(width);
+    background: var(--pb-card); color: var(--pb-ink);
+    border: 1px solid var(--pb-card-border); border-radius: 14px;
+    box-shadow: 0 2px 4px rgba(31, 42, 46, 0.06), 0 16px 32px -12px rgba(31, 42, 46, 0.3);
+  }
+  .controls select option {
+    padding: 8px 12px; border-radius: 9px; font-size: 15px; gap: 8px; cursor: pointer;
+  }
+  .controls select option:hover, .controls select option:focus-visible { background: var(--pb-surface-2); outline: none; }
+  .controls select option:checked { background: color-mix(in srgb, var(--pb-route) 14%, transparent); color: var(--pb-route-strong); font-weight: 600; }
+  .controls select option::checkmark { display: none; }
+}
+
+.modes { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.modes legend { color: var(--pb-ink-soft); padding: 0; margin-bottom: 5px; font-size: 13.5px; }
+.modes label { flex-direction: row; align-items: center; gap: 0; color: var(--pb-ink); font-size: 15px; }
+.modes input { position: absolute; opacity: 0; pointer-events: none; }
+.modes label span, .modes label { cursor: pointer; }
+.modes label {
+  border: 1px solid var(--pb-border); border-radius: 99px; background: var(--pb-bg);
+  height: var(--ctl-h); box-sizing: border-box; padding: 0 14px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.modes label:hover { border-color: var(--pb-route); }
+.modes label:has(input:checked) { background: var(--pb-route); border-color: var(--pb-route); color: #fff; }
+.modes label:has(input:focus-visible) { outline: 2px solid var(--pb-route); outline-offset: 2px; }
+
+/* the background-map switch */
+.controls label.switch { flex-direction: row; align-items: center; gap: 9px; height: var(--ctl-h); color: var(--pb-ink); font-size: 15px; cursor: pointer; }
+.switch input {
+  -webkit-appearance: none; appearance: none; margin: 0; flex: none; cursor: pointer;
+  width: 38px; height: 22px; border-radius: 99px; background: var(--pb-border); position: relative;
+  transition: background 0.15s;
+}
+.switch input::after {
+  content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: translate 0.15s;
+}
+.switch input:checked { background: var(--pb-route); }
+.switch input:checked::after { translate: 16px 0; }
+.switch input:focus-visible { outline: 2px solid var(--pb-route); outline-offset: 2px; }
+.controls.disabled-time label:has(#time) { opacity: 0.5; }
+
+.map-wrap {
+  position: relative; border: 1px solid var(--pb-card-border); border-radius: 12px; overflow: hidden;
+  background: var(--pb-card); box-shadow: var(--pb-card-shadow);
+}
+#map { display: block; width: 100%; height: min(72vh, 680px); min-height: 340px; font: inherit; }
+.legend, .fit {
+  position: absolute; z-index: 2; font-size: 13px; color: var(--pb-ink);
+  background: var(--pb-card); border: 1px solid var(--pb-card-border); border-radius: 99px;
+  box-shadow: 0 1px 3px rgba(31, 42, 46, 0.18);
+}
+.legend { left: 10px; top: 10px; display: flex; gap: 12px; flex-wrap: wrap; padding: 6px 12px; max-width: calc(100% - 70px); }
+.fit { right: 10px; top: 84px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.fit:hover { border-color: var(--pb-route); color: var(--pb-route-strong); }
+.fit:focus-visible { outline: 2px solid var(--pb-route); outline-offset: 2px; }
+
+/* a click with no street to start from: a cross that fades away */
+.miss-pin { width: 22px; height: 22px; position: relative; animation: miss 2.6s ease-out forwards; pointer-events: none; }
+.miss-pin::before, .miss-pin::after {
+  content: ""; position: absolute; left: 10px; top: 0; width: 2.5px; height: 22px; border-radius: 2px;
+  background: var(--pb-route); box-shadow: 0 0 0 1.5px var(--pb-card);
+}
+.miss-pin::before { rotate: 45deg; }
+.miss-pin::after { rotate: -45deg; }
+@keyframes miss { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .miss-pin { animation: none; } }
+
+/* the origin, and MapLibre's own controls in the colours of the page */
+.origin-pin {
+  width: 14px; height: 14px; border-radius: 50%; background: var(--pb-ink);
+  border: 3px solid var(--pb-card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45); cursor: crosshair;
+}
+.maplibregl-map { font-family: inherit; }
+.maplibregl-ctrl-group { border-radius: 12px; overflow: hidden; background: var(--pb-card); box-shadow: 0 1px 3px rgba(31, 42, 46, 0.18) !important; border: 1px solid var(--pb-card-border); }
+.maplibregl-ctrl-group button { width: 34px; height: 34px; }
+.maplibregl-ctrl-group button + button { border-top-color: var(--pb-card-border); }
+.maplibregl-ctrl-scale { background: color-mix(in srgb, var(--pb-card) 80%, transparent); color: var(--pb-ink-soft); border-color: var(--pb-ink-soft); font-size: 11px; }
+.maplibregl-ctrl-attrib { font-size: 11px; }
+@media (prefers-color-scheme: dark) {
+  .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1) hue-rotate(180deg); }
+  .maplibregl-ctrl-attrib { background: color-mix(in srgb, var(--pb-card) 85%, transparent) !important; color: var(--pb-ink-soft); }
+  .maplibregl-ctrl-attrib a { color: var(--pb-ink-soft); }
+}
+.legend:empty { display: none; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.legend i.dash { width: 18px; height: 0; border-radius: 0; border-top: 2px dashed var(--pb-route); }
+.status { color: var(--pb-ink-soft); font-size: 15px; min-height: 1.6em; margin: 10px 0 0; }
+.status.error { color: var(--pb-route); }
+.notes { padding-top: 24px; max-width: 75ch; }
+.notes h2 { font-size: 22px; }
+.controls [hidden] { display: none !important; }
