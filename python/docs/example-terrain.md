@@ -1,9 +1,9 @@
-# Example: cities of hills, Salvador and Olinda
+# Example: terrain, in Salvador (Bahia) and Olinda (Pernambuco)
 
 <!-- docs-test: needs osmium, gdalwarp, env PEABIRU_EXAMPLE_DATA -->
 
 What do slopes change in walking and cycling times? This example builds two
-cities of hills, **Salvador** (Bahia, 2.4 million people in the Censo 2022,
+cities built on hills, **Salvador** (Bahia, 2.4 million people in the Censo 2022,
 a city split by an escarpment between its upper and lower towns) and
 **Olinda** (Pernambuco, 350 thousand, a historic centre on hills next to a
 flat coastal strip), each twice: on flat ground, and with an elevation

@@ -1,10 +1,10 @@
 ---
-title: "Example: terrain, and more of Pernambuco"
+title: "Example: terrain, in Pernambuco and in Salvador"
 description: >
   What an elevation raster changes in walking and cycling times: the Recife
-  metropolitan region as one network, five more municipalities of
-  Pernambuco, and two cities of hills, Salvador and Olinda, with the
-  Copernicus elevation model checked against the ground first: at 30 m it
+  metropolitan region as one network, six municipalities of Pernambuco
+  from the coast to the Sertão, and Salvador, in Bahia, as the steepest
+  case, with the Copernicus elevation model checked against the ground first: at 30 m it
   reads the roofs, and a flat district shows how much that costs.
 ---
 
@@ -23,9 +23,10 @@ changes, on foot and by bicycle:
   Metropolitana do Recife** (14 municipalities, 3.7 million people) as one
   network, where the question is also how many residents have their nearest
   school or health unit across a municipal border;
-- in two **cities of hills**: Salvador (Bahia), split by an escarpment
-  between its upper and lower towns, and Olinda, whose historic centre sits
-  on hills beside a flat coastal strip.
+- in **Salvador**, in Bahia, the one city from outside Pernambuco, taken
+  as the steepest case: an escarpment splits its upper and lower towns. It
+  is drawn beside Olinda, the hill town of the Recife metropolitan region,
+  whose historic centre sits above a flat coastal strip.
 
 The short version: slopes matter, less than a first run suggests. The open
 elevation model at 30 m reads the tops of buildings, and on a flat street

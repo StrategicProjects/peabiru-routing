@@ -202,12 +202,12 @@ the network, the grid, the schools and the isochrones from the same
 sources; it needs osmium and `PEABIRU_EXAMPLE_DATA` (a directory whose
 `raw/` has, or will receive, the downloads and the feed).
 
-### Terrain, and more of Pernambuco
+### Terrain: what slopes change
 
 `bash site/figures/make.sh --terrain` runs `site/figures/terrain.R` (about
 ten minutes): slope costs from an elevation raster in Pernambuco (the Região Metropolitana do
 Recife as one network, Recife, Olinda, Jaboatão dos Guararapes, Caruaru,
-Garanhuns, Petrolina) and in two cities of hills (Salvador, Olinda). It
+Garanhuns, Petrolina) and in Salvador, in Bahia, the steepest case, drawn beside Olinda. It
 reuses `pernambuco-data.R` (`prepare_city()` for the new cities, which adds
 the census tracts of Bahia and CNES rows by state, about 120 MB more, and
 `prepare_dem()`, which cuts the Copernicus DEM over each city straight
@@ -221,7 +221,7 @@ network (`tr_rmr_size`),
 and knits `r/vignettes/articles/terrain.Rmd` from its `.Rmd.orig`, which
 sources `pernambuco-data.R` (from GitHub by default; `PEABIRU_PE_SCRIPT`
 points it at the local file). The Python page
-`python/docs/example-terrain.md` repeats the cities of hills; it needs
+`python/docs/example-terrain.md` repeats Salvador and Olinda; it needs
 osmium, `gdalwarp` and `PEABIRU_EXAMPLE_DATA`. Nothing is added to the demo:
 the metropolitan region does not fit in 3 MB (8.9 MB stripped as the demo's
 extracts are).
