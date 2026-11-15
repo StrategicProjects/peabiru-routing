@@ -51,6 +51,8 @@ The `LocationSolution` holds what a caller needs to draw a map:
   open facility;
 - `objective_before` (existing facilities only), `objective_greedy` and
   `objective`; `covered_before` and `covered` for the covering models;
+- `upper_bound`, for `MaxCover`: a ceiling on the demand that any choice of
+  `n_facilities` sites can cover (see below);
 - `unservable` and `unservable_demand`: the demand points with weight that
   no site of the table can serve (within the cutoff, or at all for
   `PMedian` and `PCenter`), which are left out of the objectives.
@@ -102,6 +104,48 @@ The crate's tests compare the heuristics with an exhaustive search on 300
 random instances of up to 12 sites and 3 new facilities: the greedy bound
 holds, the improvement is never worse than greedy, and one new facility is
 always optimal.
+
+## How close to the best possible
+
+`LocationSolution::upper_bound` answers the question for maximal covering without solving
+anything else: no choice of `n_facilities` sites can cover more demand than it,
+so the optimum lies between `covered` and `upper_bound`, and
+`covered / upper_bound` is a floor on the share of the optimum that the
+solution reaches. The bound comes from the shape of the problem: the demand
+covered by any set of sites, plus the `n_facilities` largest gains of the sites
+outside it, is at least what the best set covers. It is taken twice, at the
+existing facilities alone and at the solution, and the smaller of the two is
+reported (never more than the demand some site can cover). When the two
+numbers are equal the solution is proven optimal; when they are not, the
+solution may still be optimal, as in the example below, where the bound is
+46,273 residents and the optimum 46,217: the bound is a ceiling, not the
+optimum itself.
+
+## The whole curve in one call
+
+How much would a third school add, or a fourth? With `swap = false` the
+sites of maximal covering are nested: the first `k` entries of `sites` are the
+answer for `k` facilities. Asking for as many facilities as there are
+candidates therefore gives the demand covered for every number of
+facilities (`min_gain` stops the list where a site no longer pays).
+With swaps the sites for one number of facilities need not include those
+for a smaller number, so the curve is then one call per number. The curves
+of several areas, stored like this, are what it takes to share a budget of
+facilities among them.
+
+## Partial set covering
+
+`LocationParams::coverage` (default 1) makes `SetCover` stop at a share of
+the total demand, what the existing facilities cover included. Below 1 the
+sites are chosen by the demand each newly covers, so the weights count, and
+the redundant sites are dropped while the rest still reach the target. When
+the target cannot be reached, all the demand that can be covered is.
+
+## Costs other than minutes
+
+A `CostTable` may hold any cost that is not negative, such as a distance in
+metres where the service standard is a distance: `cutoff`,
+`unreachable_time` and `assigned_minutes` are then in that unit.
 
 ## Floating catchment area
 

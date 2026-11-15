@@ -397,7 +397,9 @@ fn locate_and_catchment() {
     assert!(lines[2].starts_with("89a8100c383ffff,") && lines[2].ends_with(",2,2683,46217"));
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(
-        err.contains("objective 46217 (existing only 37876, greedy 46040, 1 swap)"),
+        err.contains(
+            "objective 46217, at most 46273 possible (existing only 37876, greedy 46040, 1 swap)"
+        ),
         "{err}"
     );
     let mut args = base.to_vec();
@@ -435,6 +437,27 @@ fn locate_and_catchment() {
     let lines: Vec<&str> = median.lines().collect();
     assert!(lines[1].starts_with("89a8100c027ffff,") && lines[2].starts_with("89a8100c03bffff,"));
     assert!(lines[2].ends_with(",446711"), "{median}");
+
+    // the fewest sites for 90% of the residents within 10 minutes
+    let part = ok(&run(&[
+        "locate",
+        SPO,
+        "--demand",
+        &p,
+        "--demand-column",
+        "population",
+        "--candidates",
+        &p,
+        "--model",
+        "set_cover",
+        "--cutoff",
+        "10",
+        "--coverage",
+        "0.9",
+        "-q",
+    ]));
+    assert_eq!(part.lines().count(), 1 + 4, "{part}");
+    assert!(part.lines().last().unwrap().ends_with(",43759"), "{part}");
 
     let f = ok(&run(&[
         "catchment",

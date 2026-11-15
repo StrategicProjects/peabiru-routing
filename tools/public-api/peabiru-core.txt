@@ -865,6 +865,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::ItineraryParams
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::ItineraryParams
 #[non_exhaustive] pub struct peabiru_core::LocationParams
 pub peabiru_core::LocationParams::cancel: peabiru_core::CancelToken
+pub peabiru_core::LocationParams::coverage: f64
 pub peabiru_core::LocationParams::cutoff: f64
 pub peabiru_core::LocationParams::existing: alloc::vec::Vec<usize>
 pub peabiru_core::LocationParams::min_gain: f64
@@ -904,6 +905,7 @@ pub peabiru_core::LocationSolution::sites: alloc::vec::Vec<usize>
 pub peabiru_core::LocationSolution::total_demand: f64
 pub peabiru_core::LocationSolution::unservable: alloc::vec::Vec<usize>
 pub peabiru_core::LocationSolution::unservable_demand: f64
+pub peabiru_core::LocationSolution::upper_bound: f64
 impl core::clone::Clone for peabiru_core::LocationSolution
 pub fn peabiru_core::LocationSolution::clone(&self) -> Self
 impl core::cmp::PartialEq for peabiru_core::LocationSolution

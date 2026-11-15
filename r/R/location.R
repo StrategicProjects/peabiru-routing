@@ -13,7 +13,9 @@
 #' - `"set_cover"`, location set covering (Toregas et al., 1971): the
 #'   fewest new facilities that leave every demand point within `cutoff`
 #'   minutes of one (every point some site can cover; the demand of the
-#'   others is reported in `summary$unservable_demand`).
+#'   others is reported in `summary$unservable_demand`). With `coverage`
+#'   below 1, the fewest that cover that share of the demand (partial set
+#'   covering).
 #' - `"p_median"` (Hakimi, 1964): `n_facilities` new facilities with the
 #'   smallest demand-weighted sum of travel times to the nearest facility.
 #' - `"p_center"` (Hakimi, 1964): `n_facilities` new facilities with the
@@ -36,15 +38,36 @@
 #' travel time and, on ties, the weighted sum. The solution is good and
 #' reproducible, not proven optimal. For maximal covering the greedy
 #' solution covers at least 63% (1 - 1/e) of the most that could be covered
-#' of the demand not yet covered (Nemhauser, Wolsey and Fisher, 1978).
+#' of the demand not yet covered (Nemhauser, Wolsey and Fisher, 1978),
+#' and `summary$upper_bound` says how good a given solution is: no choice
+#' of `n_facilities` sites covers more demand than that, so the solution
+#' reaches at least `covered / upper_bound` of the optimum (often all of
+#' it).
 #' Ties go to the candidate listed first, and the result does not depend
 #' on `n_threads`.
 #'
 #' In `"set_cover"` and `"p_center"` a demand point with weight 0 is not
-#' demand, and the others count the same whatever their weight. In
+#' demand, and the others count the same whatever their weight (in
+#' `"set_cover"` with `coverage` below 1 the weights count: the sites are
+#' chosen by the demand each newly covers). In
 #' `"p_median"` and `"p_center"` a demand point that reaches no open
 #' facility (within `max_trip_duration`) is charged `unreachable_time`
 #' minutes, and one that no site at all reaches is left out and reported.
+#'
+#' @section The whole curve in one call:
+#' With `swap = FALSE` the sites of `"max_cover"` are nested: the first
+#' `k` rows of `sites` are the answer for `n_facilities = k`. Asking for
+#' as many facilities as there are candidates (with `min_gain` to stop
+#' where a site no longer pays) therefore gives, in `marginal` and
+#' `cumulative`, the demand covered for every number of facilities. With
+#' `swap = TRUE` the sites for one number of facilities need not include
+#' those for a smaller number.
+#'
+#' @section Costs other than minutes:
+#' The models do not depend on the unit of the table. `travel_times` may
+#' hold any cost that is not negative, such as a distance in metres;
+#' `cutoff`, `unreachable_time` and the `travel_time` column of the result
+#' are then in that unit.
 #'
 #' @inheritParams travel_time_matrix
 #' @param network The network of [build_network()]; may be `NULL` with
@@ -85,6 +108,13 @@
 #'   redundant).
 #' @param min_gain `"max_cover"` stops opening sites when the best one
 #'   left would cover less than this much demand.
+#' @param coverage For `"set_cover"`, the share of the total demand to
+#'   cover, what the existing facilities cover included: a number above 0
+#'   and at most 1. With 1 (the default) every demand point that some site
+#'   can cover is covered. Below 1 the answer is the fewest sites found
+#'   that cover that share of the demand (partial set covering), chosen by
+#'   the demand each newly covers; when the target is out of reach, all
+#'   the demand that can be covered is.
 #' @param unreachable_time For `"p_median"` and `"p_center"`, the minutes
 #'   charged to a demand point that reaches no open facility. `NULL`:
 #'   twice the longest travel time of the table.
@@ -111,7 +141,9 @@
 #'   (existing facilities only), `objective_greedy`, `objective` (demand
 #'   covered, number of sites, weighted minutes or largest minutes, by
 #'   model), `covered_before` and `covered` (covering models, else `NA`),
-#'   `total_demand`, `unservable_demand` (demand no site can serve) and
+#'   `upper_bound` (`"max_cover"`, else `NA`: no choice of `n_facilities`
+#'   sites covers more demand than this, so `covered / upper_bound` is a
+#'   floor on the share of the optimum reached), `total_demand`, `unservable_demand` (demand no site can serve) and
 #'   `n_swaps`.
 #'
 #'   `r doc_output_class()`
@@ -172,6 +204,7 @@ locate_facilities <- function(network,
                               travel_times = NULL,
                               swap = TRUE,
                               min_gain = 0,
+                              coverage = 1,
                               unreachable_time = NULL,
                               n_threads = Inf,
                               ...) {
@@ -193,6 +226,10 @@ locate_facilities <- function(network,
   }
   assert_flag(swap, "swap")
   assert_number(min_gain, "min_gain", lower = 0, finite = TRUE)
+  assert_number(coverage, "coverage", lower = 0, upper = 1)
+  if (coverage <= 0) {
+    stop("Assertion on 'coverage' failed: Must be greater than 0.", call. = FALSE)
+  }
   assert_number(unreachable_time, "unreachable_time", lower = 0, finite = TRUE,
                 null_ok = TRUE)
   if (!is.null(unreachable_time) && unreachable_time <= 0) {
@@ -237,6 +274,7 @@ locate_facilities <- function(network,
     nrow(demand), nrow(sites), pairs$i, pairs$j, pairs$minutes, weights,
     n_existing, model, as.integer(n_facilities),
     if (covering) as.double(cutoff) else 0, swap, as.double(min_gain),
+    as.double(coverage),
     if (is.null(unreachable_time)) -1 else as.double(unreachable_time), threads
   ))
 
@@ -271,6 +309,7 @@ locate_facilities <- function(network,
       objective = res$objective,
       covered_before = if (covering) res$covered_before else NA_real_,
       covered = if (covering) res$covered else NA_real_,
+      upper_bound = if (model == "max_cover") res$upper_bound else NA_real_,
       total_demand = res$total_demand,
       unservable_demand = res$unservable_demand,
       n_swaps = res$n_swaps

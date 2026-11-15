@@ -42,7 +42,7 @@ test("max_cover returns its tables and the recorded solution", async () => {
   assert.deepEqual([...found.sites.cumulative], [43534, 46217]);
   assert.deepEqual(found.summary, {
     model: "max_cover", n_sites: 2, objective_before: 37876, objective_greedy: 46040, objective: 46217,
-    covered_before: 37876, covered: 46217, total_demand: 46273, unservable_demand: 0, n_swaps: 1,
+    covered_before: 37876, covered: 46217, upper_bound: 46273, total_demand: 46273, unservable_demand: 0, n_swaps: 1,
   });
   assert.deepEqual([...found.candidates.potential.slice(0, 4)], [3936, 4829, 5658, 5764]);
   assert.deepEqual(found.candidates.id.filter((_, i) => found.candidates.chosen[i]).sort(), [...found.sites.id].sort());
@@ -146,4 +146,30 @@ test("bad arguments are refused", async () => {
     peabiru.floatingCatchment(net, points, schools, { cutoff: 10, decayFunction: "fixed_exponential", decayValue: 0.001 }),
     /cutoff failed: must be null/,
   );
+});
+
+test("set covering takes a coverage target, and maximal covering reports a bound", async () => {
+  const net = await sampleNetwork();
+  const points = samplePoints();
+  const cover = { model: "set_cover", cutoff: 10, demandColname: "population" };
+  const part = await peabiru.locateFacilities(net, points, points, { ...cover, coverage: 0.9 });
+  assert.equal(part.sites.id.length, 4);
+  assert.equal(part.summary.covered, 43759);
+  assert.equal(part.summary.upper_bound, null);
+  const full = await peabiru.locateFacilities(net, points, points, { ...cover, coverage: 1 });
+  assert.equal(full.sites.id.length, 7);
+  await assert.rejects(peabiru.locateFacilities(net, points, points, { ...cover, coverage: 0 }), /coverage' failed: Must be greater than 0/);
+  await assert.rejects(peabiru.locateFacilities(net, points, points, { ...cover, coverage: 1.5 }), /coverage' failed/);
+
+  const keep = (table, f) => Object.fromEntries(Object.entries(table).map(([k, v]) => [k, Array.from(v).filter((_, i) => f(i))]));
+  const schools = keep(points, (i) => points.schools[i] > 0);
+  const others = keep(points, (i) => points.schools[i] === 0);
+  const ok = { existing: schools, model: "max_cover", cutoff: 12, demandColname: "population" };
+  const found = await peabiru.locateFacilities(net, points, others, { ...ok, nFacilities: 2 });
+  assert.equal(found.summary.covered, 46217);
+  assert.equal(found.summary.upper_bound, 46273);
+  // without swaps the sites are nested: the curve for every number of sites
+  const curve = await peabiru.locateFacilities(net, points, others, { ...ok, nFacilities: others.id.length, swap: false });
+  assert.deepEqual(Array.from(curve.sites.cumulative), [43640, 46040, 46217, 46273]);
+  assert.equal(curve.summary.upper_bound, curve.summary.covered);
 });

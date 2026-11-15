@@ -60,6 +60,7 @@ pub(crate) fn locate_facilities<'py>(
     cutoff: f64,
     swap: bool,
     min_gain: f64,
+    coverage: f64,
     unreachable_time: Option<f64>,
     n_threads: usize,
 ) -> PyResult<Bound<'py, PyDict>> {
@@ -74,6 +75,7 @@ pub(crate) fn locate_facilities<'py>(
     p.existing = existing;
     p.swap = swap;
     p.min_gain = min_gain;
+    p.coverage = coverage;
     p.unreachable_time = unreachable_time;
     p.n_threads = n_threads;
     p.cancel = cancel.clone();
@@ -97,6 +99,7 @@ pub(crate) fn locate_facilities<'py>(
     out.set_item("objective", s.objective)?;
     out.set_item("covered_before", s.covered_before)?;
     out.set_item("covered", s.covered)?;
+    out.set_item("upper_bound", s.upper_bound)?;
     out.set_item("total_demand", s.total_demand)?;
     out.set_item("unservable_demand", s.unservable_demand)?;
     out.set_item("n_swaps", s.n_swaps)?;

@@ -105,6 +105,43 @@ The travel times are routed by the network's workers, like any matrix; the
 solver itself runs on the calling thread and is not interrupted by
 `signal`.
 
+## How close to the best possible
+
+`summary.upper_bound` answers the question for maximal covering without solving
+anything else: no choice of `nFacilities` sites can cover more demand than it,
+so the optimum lies between `covered` and `upper_bound`, and
+`covered / upper_bound` is a floor on the share of the optimum that the
+solution reaches. The bound comes from the shape of the problem: the demand
+covered by any set of sites, plus the `nFacilities` largest gains of the sites
+outside it, is at least what the best set covers. It is taken twice, at the
+existing facilities alone and at the solution, and the smaller of the two is
+reported (never more than the demand some site can cover). When the two
+numbers are equal the solution is proven optimal; when they are not, the
+solution may still be optimal, as in the example, where the bound is
+46,273 residents and the optimum 46,217: the bound is a ceiling, not the
+optimum itself.
+
+## The whole curve in one call
+
+How much would a third school add, or a fourth? With `swap: false` the
+sites of maximal covering are nested: the first `k` rows of `sites` are the
+answer for `k` facilities. Asking for as many facilities as there are
+candidates therefore gives the demand covered for every number of
+facilities (`minGain` stops the list where a site no longer pays):
+
+```js
+{{#include ../examples/facility-location.mjs:bound}}
+```
+
+```text
+{{#include ../examples/output/facility-location.txt:21:25}}
+```
+
+With swaps the sites for one number of facilities need not include those
+for a smaller number, so the curve is then one call per number. The curves
+of several areas, stored like this, are what it takes to share a budget of
+facilities among them.
+
 ## The other models
 
 ```js
@@ -120,6 +157,22 @@ shorter worst case: the two models answer different questions. Any mode
 works, since the travel times come from `travelTimeMatrix()`: pass `mode`,
 `departureDatetime` and any other routing option (all but `percentiles`,
 which is `percentile` here, and `outputDir`).
+
+Covering every last resident is often what costs most. With `coverage` the
+model stops at a share of the demand, and the sites are then chosen by the
+demand each newly covers (the weights count, which they do not when
+everything must be covered):
+
+```js
+{{#include ../examples/facility-location.mjs:partial}}
+```
+
+```text
+{{#include ../examples/output/facility-location.txt:26}}
+```
+
+Four sites cover 94.6% of the residents; the last 5.4% take three more.
+When the target cannot be reached, all the demand that can be covered is.
 
 ## Supply against demand: the floating catchment area
 
@@ -162,8 +215,13 @@ pair that is absent is unreachable. The points then need only their `id`.
 ```
 
 ```text
-{{#include ../examples/output/facility-location.txt:20}}
+{{#include ../examples/output/facility-location.txt:20:20}}
 ```
+
+The models do not depend on the unit of the table. It may hold any cost
+that is not negative, such as a straight-line or network distance in
+metres where the service standard is a distance: `cutoff`, `unreachableTime` and
+the `travel_time` column of the result are then in that unit.
 
 ## What the models do not see
 

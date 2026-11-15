@@ -3,6 +3,22 @@
 Changes of the Rust crate `peabiru-core`, the command-line tool, and the
 Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
+## Development version
+
+### Facility location (all packages)
+
+- Maximal covering reports an upper bound (`upper_bound` in the summary;
+  `LocationSolution::upper_bound` in the core): no choice of `n_facilities`
+  sites covers more demand, so `covered / upper_bound` is a floor on the
+  share of the optimum that the heuristic solution reaches.
+- Partial set covering: `coverage` (`--coverage` on the command line;
+  `LocationParams::coverage` in the core) makes `set_cover` find the fewest
+  sites that cover a share of the demand, chosen by the demand each newly
+  covers. The default, 1, is the model as before.
+- The guides show how to get the coverage for every number of facilities in
+  one call (`swap` off: the greedy sites are nested) and say that the table
+  may hold any cost, such as a distance, in place of minutes.
+
 ## 0.1.5
 
 ### Facility location (all packages)

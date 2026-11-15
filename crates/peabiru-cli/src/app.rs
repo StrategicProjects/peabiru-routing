@@ -642,6 +642,9 @@ pub struct LocateArgs {
     /// max_cover stops when the best site left would cover less than this
     #[arg(long, value_name = "X", default_value = "0", help_heading = "Location")]
     pub min_gain: String,
+    /// set_cover covers this share of the demand, above 0 and at most 1
+    #[arg(long, value_name = "X", default_value = "1", help_heading = "Location")]
+    pub coverage: String,
     /// Minutes charged to a demand point that reaches no facility
     /// (p_median, p_center) [default: twice the longest travel time]
     #[arg(long, value_name = "MIN", help_heading = "Location")]

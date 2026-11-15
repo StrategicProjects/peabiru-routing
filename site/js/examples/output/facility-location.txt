@@ -18,3 +18,9 @@ p_center: 89a8100c02fffff, 89a8100c067ffff; mean 13.3 min, longest 19 min
 schools per 10,000 residents: from 0.45 to 3.34
 shared out: 7.0 schools
 true
+covered 46217, at most 46273 possible
+1 5764 43640
+2 2400 46040
+3 177 46217
+4 56 46273
+4 sites; 94.6% of the residents

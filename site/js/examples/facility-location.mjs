@@ -96,9 +96,34 @@ const again = await peabiru.locateFacilities(null, { id: points.id, population: 
 console.log(again.sites.id.join(" ") === found.sites.id.join(" "));
 // ANCHOR_END: table
 
+// ANCHOR: bound
+// maximal covering: the optimum is between what is covered and the bound
+console.log(`covered ${s.covered}, at most ${s.upper_bound} possible`);
+// without swaps the sites are nested: the curve for every number of sites
+const curve = await peabiru.locateFacilities(network, points, others, {
+  existing: schools,
+  model: "max_cover",
+  nFacilities: others.id.length,
+  cutoff: 12,
+  swap: false,
+  demandColname: "population",
+});
+curve.sites.order.forEach((k, r) => console.log(k, curve.sites.marginal[r], curve.sites.cumulative[r]));
+// ANCHOR_END: bound
+
+// ANCHOR: partial
+// the fewest sites that put 90% of the residents within 10 minutes
+const part = await peabiru.locateFacilities(network, points, points, {
+  model: "set_cover", cutoff: 10, coverage: 0.9, demandColname: "population",
+});
+console.log(`${part.sites.id.length} sites; ${(100 * part.summary.covered / part.summary.total_demand).toFixed(1)}% of the residents`);
+// ANCHOR_END: partial
+
 network.free();
 
 // checks, not shown in the documentation
 assert.equal(found.summary.covered, 46217);
+assert.equal(found.summary.upper_bound, 46273);
+assert.equal(part.sites.id.length, 4);
 assert.deepEqual(again.summary, found.summary);
 assert.ok(Math.abs(shared - 7) < 1e-9);

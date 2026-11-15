@@ -46,7 +46,10 @@ class FacilityLocation(NamedTuple):
         ``model``, ``n_sites``, ``objective_before`` (existing facilities
         only), ``objective_greedy``, ``objective``, ``covered_before`` and
         ``covered`` (covering models; otherwise ``None``),
-        ``total_demand``, ``unservable_demand`` (demand no site can serve)
+        ``upper_bound`` (``"max_cover"``; otherwise ``None``: no choice of
+        ``n_facilities`` sites covers more demand than this, so
+        ``covered / upper_bound`` is a floor on the share of the optimum
+        reached), ``total_demand``, ``unservable_demand`` (demand no site can serve)
         and ``n_swaps``.
     """
 
@@ -224,6 +227,7 @@ def locate_facilities(
     travel_times: Any = None,
     swap: bool = True,
     min_gain: Any = 0,
+    coverage: Any = 1,
     unreachable_time: Any = None,
     n_threads: Any = None,
     **routing: Any,
@@ -243,7 +247,9 @@ def locate_facilities(
       facilities, cover the most demand within ``cutoff`` minutes.
     - ``"set_cover"``, location set covering: the fewest new facilities
       that leave every demand point within ``cutoff`` minutes of one
-      (every point some site can cover; the others are reported).
+      (every point some site can cover; the others are reported). With
+      ``coverage`` below 1, the fewest that cover that share of the
+      demand (partial set covering).
     - ``"p_median"``: ``n_facilities`` new facilities with the smallest
       demand-weighted sum of travel times to the nearest facility.
     - ``"p_center"``: ``n_facilities`` new facilities with the smallest
@@ -260,9 +266,23 @@ def locate_facilities(
     for a closed candidate while that improves the objective). The
     solution is good and reproducible, not proven optimal; for maximal
     covering the greedy solution covers at least 63% (1 - 1/e) of the
-    most that could be covered of the demand not yet covered. Ties go to
-    the candidate listed first, and the result does not depend on
-    ``n_threads``. See the guide [Facility location](facility-location.md).
+    most that could be covered of the demand not yet covered, and
+    ``summary["upper_bound"]`` says how good a given solution is: no
+    choice of ``n_facilities`` sites covers more demand than that, so the
+    solution reaches at least ``covered / upper_bound`` of the optimum.
+    Ties go to the candidate listed first, and the result does not depend
+    on ``n_threads``. See the guide [Facility location](facility-location.md).
+
+    With ``swap=False`` the sites of ``"max_cover"`` are nested: the first
+    ``k`` rows of ``sites`` are the answer for ``n_facilities=k``, so
+    asking for as many facilities as there are candidates (with
+    ``min_gain`` to stop where a site no longer pays) gives the demand
+    covered for every number of facilities in one call.
+
+    The models do not depend on the unit of the table: ``travel_times``
+    may hold any cost that is not negative, such as a distance in metres;
+    ``cutoff``, ``unreachable_time`` and the ``travel_time`` column of the
+    result are then in that unit.
 
     Parameters
     ----------
@@ -317,6 +337,14 @@ def locate_facilities(
     min_gain : number, default 0
         ``"max_cover"`` stops opening sites when the best one left would
         cover less than this much demand.
+    coverage : number, default 1
+        For ``"set_cover"``, the share of the total demand to cover, what
+        the existing facilities cover included: above 0 and at most 1.
+        With 1 every demand point that some site can cover is covered.
+        Below 1 the answer is the fewest sites found that cover that share
+        of the demand, chosen by the demand each newly covers (the weights
+        count); when the target is out of reach, all the demand that can
+        be covered is.
     unreachable_time : number, optional
         For ``"p_median"`` and ``"p_center"``, the minutes charged to a
         demand point that reaches no open facility. Default: twice the
@@ -383,6 +411,9 @@ def locate_facilities(
         )
     assert_flag(swap, "swap")
     assert_number(min_gain, "min_gain", lower=0, finite=True)
+    assert_number(coverage, "coverage", lower=0, upper=1)
+    if float(scalar(coverage)) <= 0:
+        raise ValueError("Assertion on 'coverage' failed: Must be greater than 0.")
     assert_number(unreachable_time, "unreachable_time", lower=0, finite=True, none_ok=True)
     assert_count(percentile, "percentile", positive=True)
     if max_trip_duration is not None:
@@ -431,6 +462,7 @@ def locate_facilities(
             len(d.ids), len(sites.ids), pi, pj, pt, np.ascontiguousarray(w).tobytes(),
             list(range(n_existing)), model, int(scalar(n_facilities)),
             cutoff if covering else math.nan, bool(swap), float(scalar(min_gain)),
+            float(scalar(coverage)),
             None if unreachable_time is None else float(scalar(unreachable_time)), threads,
         )
 
@@ -477,6 +509,7 @@ def locate_facilities(
         "objective": r["objective"],
         "covered_before": r["covered_before"] if covering else None,
         "covered": r["covered"] if covering else None,
+        "upper_bound": r["upper_bound"] if model == "max_cover" else None,
         "total_demand": r["total_demand"],
         "unservable_demand": r["unservable_demand"],
         "n_swaps": r["n_swaps"],

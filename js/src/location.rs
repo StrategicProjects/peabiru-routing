@@ -42,7 +42,7 @@ fn table(
 /// indices 0-based (`assigned_site` missing for a demand point that
 /// reaches no facility) and `numbers` holding `objective_before`,
 /// `objective_greedy`, `objective`, `covered_before`, `covered`,
-/// `total_demand`, `unservable_demand` and `n_swaps`. The first
+/// `total_demand`, `unservable_demand`, `n_swaps` and `upper_bound`. The first
 /// `n_existing` sites are the existing facilities; `unreachable_time` not
 /// positive for the default.
 #[wasm_bindgen]
@@ -60,6 +60,7 @@ pub fn locate_facilities(
     cutoff: f64,
     swap: bool,
     min_gain: f64,
+    coverage: f64,
     unreachable_time: f64,
 ) -> Result<Array, JsError> {
     let costs = table(n_demand, n_sites, pair_demand, pair_site, pair_minutes)?;
@@ -71,6 +72,7 @@ pub fn locate_facilities(
     p.existing = (0..n_existing).collect();
     p.swap = swap;
     p.min_gain = min_gain;
+    p.coverage = coverage;
     p.unreachable_time = (unreachable_time > 0.0).then_some(unreachable_time);
     p.n_threads = 1;
     let s = locate_facilities_core(&costs, demand, &p).map_err(route_err)?;
@@ -89,6 +91,7 @@ pub fn locate_facilities(
         s.total_demand,
         s.unservable_demand,
         s.n_swaps as f64,
+        s.upper_bound,
     ];
     let out = Array::new();
     out.push(&Int32Array::from(&as_i32(&s.sites)[..]));

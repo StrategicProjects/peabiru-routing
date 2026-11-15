@@ -2259,7 +2259,7 @@ export async function locateFacilities(network, demand, candidates, options) {
     options,
     {
       existing: null, model: "max_cover", nFacilities: 1, cutoff: null, demandColname: null, percentile: 50,
-      maxTripDuration: null, travelTimes: null, swap: true, minGain: 0, unreachableTime: null,
+      maxTripDuration: null, travelTimes: null, swap: true, minGain: 0, coverage: 1, unreachableTime: null,
     },
     LOCATION_ROUTING,
   );
@@ -2281,6 +2281,8 @@ export async function locateFacilities(network, demand, candidates, options) {
   }
   assertFlag(opt.swap, "swap");
   assertNumber(opt.minGain, "minGain", { lower: 0, finite: true });
+  assertNumber(opt.coverage, "coverage", { lower: 0, upper: 1 });
+  if (opt.coverage <= 0) fail("coverage", "Must be greater than 0");
   assertNumber(opt.unreachableTime, "unreachableTime", { lower: 0, finite: true, nullOk: true });
   if (opt.unreachableTime !== null && opt.unreachableTime <= 0) fail("unreachableTime", "Must be greater than 0");
   assertIntegerish(opt.percentile, "percentile", { lower: 1, upper: 99, minLen: 1, maxLen: 1 });
@@ -2311,7 +2313,7 @@ export async function locateFacilities(network, demand, candidates, options) {
   try {
     res = rawLocateFacilities(
       d.length, sites.length, pi, pj, pt, w, nExisting, model, Math.round(opt.nFacilities),
-      covering ? opt.cutoff : 0, opt.swap, opt.minGain, opt.unreachableTime === null ? -1 : opt.unreachableTime,
+      covering ? opt.cutoff : 0, opt.swap, opt.minGain, opt.coverage, opt.unreachableTime === null ? -1 : opt.unreachableTime,
     );
   } catch (err) {
     throw engineError(err);
@@ -2343,6 +2345,7 @@ export async function locateFacilities(network, demand, candidates, options) {
       objective: numbers[2],
       covered_before: covering ? numbers[3] : null,
       covered: covering ? numbers[4] : null,
+      upper_bound: model === "max_cover" ? numbers[8] : null,
       total_demand: numbers[5],
       unservable_demand: numbers[6],
       n_swaps: numbers[7],

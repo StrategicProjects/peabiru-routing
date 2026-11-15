@@ -868,6 +868,8 @@ export interface LocateFacilitiesOptions extends LocationRoutingOptions {
   swap?: boolean;
   /** `"max_cover"` stops opening sites when the best one left would cover less than this much demand (default 0). */
   minGain?: number;
+  /** For `"set_cover"`, the share of the total demand to cover, what the existing facilities cover included: above 0 and at most 1 (default 1: every demand point some site can cover). Below 1 the answer is the fewest sites found that cover that share, chosen by the demand each newly covers; when the target is out of reach, all the demand that can be covered is. */
+  coverage?: number;
   /** For `"p_median"` and `"p_center"`, the minutes charged to a demand point that reaches no open facility (default: twice the longest travel time of the table). */
   unreachableTime?: number | null;
 }
@@ -902,12 +904,15 @@ export interface FacilityLocation {
    * sites (`"set_cover"`), the demand-weighted minutes (`"p_median"`) or
    * the largest minutes (`"p_center"`): with the existing facilities only,
    * after the greedy construction and in the end. `covered_before` and
-   * `covered` are null for `"p_median"` and `"p_center"`;
+   * `covered` are null for `"p_median"` and `"p_center"`; `upper_bound`
+   * (`"max_cover"`, else null) is a ceiling on the demand any choice of
+   * `nFacilities` sites can cover, so `covered / upper_bound` is a floor
+   * on the share of the optimum reached;
    * `unservable_demand` is the demand no site can serve.
    */
   summary: {
     model: string; n_sites: number; objective_before: number; objective_greedy: number; objective: number;
-    covered_before: number | null; covered: number | null; total_demand: number; unservable_demand: number; n_swaps: number;
+    covered_before: number | null; covered: number | null; upper_bound: number | null; total_demand: number; unservable_demand: number; n_swaps: number;
   };
 }
 

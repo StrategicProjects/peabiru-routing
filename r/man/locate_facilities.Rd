@@ -21,6 +21,7 @@ locate_facilities(
   travel_times = NULL,
   swap = TRUE,
   min_gain = 0,
+  coverage = 1,
   unreachable_time = NULL,
   n_threads = Inf,
   ...
@@ -87,6 +88,14 @@ redundant).}
 \item{min_gain}{\code{"max_cover"} stops opening sites when the best one
 left would cover less than this much demand.}
 
+\item{coverage}{For \code{"set_cover"}, the share of the total demand to
+cover, what the existing facilities cover included: a number above 0
+and at most 1. With 1 (the default) every demand point that some site
+can cover is covered. Below 1 the answer is the fewest sites found
+that cover that share of the demand (partial set covering), chosen by
+the demand each newly covers; when the target is out of reach, all
+the demand that can be covered is.}
+
 \item{unreachable_time}{For \code{"p_median"} and \code{"p_center"}, the minutes
 charged to a demand point that reaches no open facility. \code{NULL}:
 twice the longest travel time of the table.}
@@ -117,7 +126,9 @@ or new, and the minutes to it; \code{NA} when it reaches none) and
 (existing facilities only), \code{objective_greedy}, \code{objective} (demand
 covered, number of sites, weighted minutes or largest minutes, by
 model), \code{covered_before} and \code{covered} (covering models, else \code{NA}),
-\code{total_demand}, \code{unservable_demand} (demand no site can serve) and
+\code{upper_bound} (\code{"max_cover"}, else \code{NA}: no choice of \code{n_facilities}
+sites covers more demand than this, so \code{covered / upper_bound} is a
+floor on the share of the optimum reached), \code{total_demand}, \code{unservable_demand} (demand no site can serve) and
 \code{n_swaps}.
 
 Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
@@ -139,7 +150,9 @@ minutes.
 \item \code{"set_cover"}, location set covering (Toregas et al., 1971): the
 fewest new facilities that leave every demand point within \code{cutoff}
 minutes of one (every point some site can cover; the demand of the
-others is reported in \code{summary$unservable_demand}).
+others is reported in \code{summary$unservable_demand}). With \code{coverage}
+below 1, the fewest that cover that share of the demand (partial set
+covering).
 \item \code{"p_median"} (Hakimi, 1964): \code{n_facilities} new facilities with the
 smallest demand-weighted sum of travel times to the nearest facility.
 \item \code{"p_center"} (Hakimi, 1964): \code{n_facilities} new facilities with the
@@ -165,15 +178,40 @@ make redundant; for \code{"p_center"} greedy and swaps compare the largest
 travel time and, on ties, the weighted sum. The solution is good and
 reproducible, not proven optimal. For maximal covering the greedy
 solution covers at least 63\% (1 - 1/e) of the most that could be covered
-of the demand not yet covered (Nemhauser, Wolsey and Fisher, 1978).
+of the demand not yet covered (Nemhauser, Wolsey and Fisher, 1978),
+and \code{summary$upper_bound} says how good a given solution is: no choice
+of \code{n_facilities} sites covers more demand than that, so the solution
+reaches at least \code{covered / upper_bound} of the optimum (often all of
+it).
 Ties go to the candidate listed first, and the result does not depend
 on \code{n_threads}.
 
 In \code{"set_cover"} and \code{"p_center"} a demand point with weight 0 is not
-demand, and the others count the same whatever their weight. In
+demand, and the others count the same whatever their weight (in
+\code{"set_cover"} with \code{coverage} below 1 the weights count: the sites are
+chosen by the demand each newly covers). In
 \code{"p_median"} and \code{"p_center"} a demand point that reaches no open
 facility (within \code{max_trip_duration}) is charged \code{unreachable_time}
 minutes, and one that no site at all reaches is left out and reported.
+}
+
+\section{The whole curve in one call}{
+
+With \code{swap = FALSE} the sites of \code{"max_cover"} are nested: the first
+\code{k} rows of \code{sites} are the answer for \code{n_facilities = k}. Asking for
+as many facilities as there are candidates (with \code{min_gain} to stop
+where a site no longer pays) therefore gives, in \code{marginal} and
+\code{cumulative}, the demand covered for every number of facilities. With
+\code{swap = TRUE} the sites for one number of facilities need not include
+those for a smaller number.
+}
+
+\section{Costs other than minutes}{
+
+The models do not depend on the unit of the table. \code{travel_times} may
+hold any cost that is not negative, such as a distance in metres;
+\code{cutoff}, \code{unreachable_time} and the \code{travel_time} column of the result
+are then in that unit.
 }
 
 \examples{

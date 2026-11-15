@@ -42,7 +42,8 @@ struct Cover<'a> {
     /// Covered by an existing facility.
     fixed: Vec<bool>,
     /// What a demand point is worth to the choice of sites: its weight
-    /// (maximal covering), or 1 for any point with weight (set covering).
+    /// (maximal covering and partial set covering), or 1 for any point
+    /// with weight (set covering).
     worth: Vec<f64>,
     /// How many of the chosen sites cover each demand point.
     count: Vec<u32>,
@@ -102,12 +103,16 @@ pub(super) fn solve(p: &Problem) -> Result<LocationSolution, RouteError> {
     let n = p.costs.n_demand();
     let model = p.params.model;
     let cancel = &p.params.cancel;
+    let total_demand = p.demand.iter().fold(0.0, |a, b| a + b);
+    // set covering with a target: stop at this much demand covered
+    let partial = model == LocationModel::SetCover && p.params.coverage < 1.0;
+    let target = p.params.coverage * total_demand;
     let mut c = Cover {
         p,
         cutoff: p.params.cutoff,
         fixed: vec![false; n],
         worth: match model {
-            LocationModel::SetCover => p
+            LocationModel::SetCover if !partial => p
                 .demand
                 .iter()
                 .map(|&w| f64::from(u8::from(w > 0.0)))
@@ -155,7 +160,8 @@ pub(super) fn solve(p: &Problem) -> Result<LocationSolution, RouteError> {
         _ => p.params.min_gain,
     };
     let mut chosen: Vec<usize> = Vec::new();
-    while chosen.len() < limit {
+    let mut reached = covered_before;
+    while chosen.len() < limit && !(partial && reached >= target) {
         cancel.check()?;
         let Some(top) = queue.pop() else { break };
         if top.round < chosen.len() {
@@ -171,6 +177,9 @@ pub(super) fn solve(p: &Problem) -> Result<LocationSolution, RouteError> {
         }
         c.open(top.site, chosen.len());
         chosen.push(top.site);
+        if partial {
+            reached = c.covered();
+        }
     }
     let objective_of = |c: &Cover, chosen: &[usize]| match model {
         LocationModel::SetCover => chosen.len() as f64,
@@ -186,9 +195,24 @@ pub(super) fn solve(p: &Problem) -> Result<LocationSolution, RouteError> {
             k -= 1;
             cancel.check()?;
             let j = chosen[k];
-            let needed = c
-                .covered_by(j)
-                .any(|i| !c.fixed[i] && c.count[i] == 1 && c.worth[i] > 0.0);
+            let needed = if partial {
+                // with a target, a site may go while the rest still reach
+                // it (or lose nothing, when the target is out of reach)
+                let lost = c
+                    .covered_by(j)
+                    .filter(|&i| !c.fixed[i] && c.count[i] == 1)
+                    .map(|i| p.demand[i])
+                    .fold(0.0, |a, b| a + b);
+                lost > 0.0 && {
+                    c.close(j, k);
+                    let without = c.covered();
+                    c.open(j, k);
+                    without < target
+                }
+            } else {
+                c.covered_by(j)
+                    .any(|i| !c.fixed[i] && c.count[i] == 1 && c.worth[i] > 0.0)
+            };
             if !needed {
                 // positions matter to `who` only while swapping: rebuild
                 chosen.remove(k);
@@ -205,6 +229,35 @@ pub(super) fn solve(p: &Problem) -> Result<LocationSolution, RouteError> {
     }
     let objective = objective_of(&c, &chosen);
     let covered = c.covered();
+
+    // maximal covering: no choice of `n_facilities` sites covers more than
+    // a set of sites plus the largest gains of that many sites outside it
+    let upper_bound = if model == LocationModel::MaxCover {
+        let top = |mut gains: Vec<f64>| {
+            gains.sort_unstable_by(|a, b| b.total_cmp(a));
+            gains
+                .iter()
+                .take(p.params.n_facilities)
+                .fold(0.0, |a, b| a + b)
+        };
+        let at_start = covered_before + top(p.candidates.iter().map(|&j| potential[j]).collect());
+        let mut open = vec![false; p.costs.n_sites()];
+        chosen.iter().for_each(|&j| open[j] = true);
+        let at_solution = covered
+            + top(p
+                .candidates
+                .iter()
+                .filter(|&&j| !open[j])
+                .map(|&j| c.gain(j, p.demand))
+                .collect());
+        let servable = (0..n)
+            .filter(|&i| servable[i])
+            .map(|i| p.demand[i])
+            .fold(0.0, |a, b| a + b);
+        at_start.min(at_solution).min(servable).max(covered)
+    } else {
+        f64::NAN
+    };
 
     // the chosen sites by what each adds
     let mut left = chosen;
@@ -245,7 +298,8 @@ pub(super) fn solve(p: &Problem) -> Result<LocationSolution, RouteError> {
         objective,
         covered_before,
         covered,
-        total_demand: p.demand.iter().fold(0.0, |a, b| a + b),
+        upper_bound,
+        total_demand,
         unservable_demand: unservable.iter().fold(0.0, |a, &i| a + p.demand[i]),
         unservable,
         n_swaps,

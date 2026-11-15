@@ -150,6 +150,60 @@ Details by model:
 - Ties go to the candidate listed first, and the result does not depend on
   `n_threads`.
 
+## How close to the best possible
+
+`summary["upper_bound"]` answers the question for maximal covering without solving
+anything else: no choice of `n_facilities` sites can cover more demand than it,
+so the optimum lies between `covered` and `upper_bound`, and
+`covered / upper_bound` is a floor on the share of the optimum that the
+solution reaches. The bound comes from the shape of the problem: the demand
+covered by any set of sites, plus the `n_facilities` largest gains of the sites
+outside it, is at least what the best set covers. It is taken twice, at the
+existing facilities alone and at the solution, and the smaller of the two is
+reported (never more than the demand some site can cover). When the two
+numbers are equal the solution is proven optimal; when they are not, the
+solution may still be optimal, as in the example, where the bound is
+46,273 residents and the optimum 46,217: the bound is a ceiling, not the
+optimum itself.
+
+```python
+print(s["covered"], s["upper_bound"])
+```
+
+```text
+46217.0 46273.0
+```
+
+## The whole curve in one call
+
+How much would a third school add, or a fourth? With `swap=False` the
+sites of maximal covering are nested: the first `k` rows of `sites` are the
+answer for `k` facilities. Asking for as many facilities as there are
+candidates therefore gives the demand covered for every number of
+facilities (`min_gain` stops the list where a site no longer pays):
+
+```python
+curve = peabiru.locate_facilities(
+    network, points, others, existing=schools,
+    model="max_cover", n_facilities=len(others), cutoff=12, swap=False,
+    demand_colname="population", mode="WALK", n_threads=2,
+)
+print(curve.sites[["order", "marginal", "cumulative"]].to_string(index=False))
+```
+
+```text
+ order  marginal  cumulative
+     1    5764.0     43640.0
+     2    2400.0     46040.0
+     3     177.0     46217.0
+     4      56.0     46273.0
+```
+
+With swaps the sites for one number of facilities need not include those
+for a smaller number, so the curve is then one call per number. The curves
+of several areas, stored like this, are what it takes to share a budget of
+facilities among them.
+
 ## The other models
 
 How few schools would put every resident within a 10-minute walk, starting
@@ -166,6 +220,27 @@ print(len(cover.sites), "sites;", cover.summary["unservable_demand"], "residents
 ```text
 7 sites; 0.0 residents out of reach
 ```
+
+Covering every last resident is often what costs most. With `coverage` the
+model stops at a share of the demand, and the sites are then chosen by the
+demand each newly covers (the weights count, which they do not when
+everything must be covered):
+
+```python
+part = peabiru.locate_facilities(
+    network, points, points, model="set_cover", cutoff=10, coverage=0.9,
+    demand_colname="population", mode="WALK", n_threads=2,
+)
+share = part.summary["covered"] / part.summary["total_demand"]
+print(len(part.sites), "sites;", f"{100 * share:.1f}% of the residents")
+```
+
+```text
+4 sites; 94.6% of the residents
+```
+
+Four sites cover 94.6% of the residents; the last 5.4% take three more.
+When the target cannot be reached, all the demand that can be covered is.
 
 Two sites that make the average walk shortest, and two that make the
 longest walk shortest:
@@ -295,6 +370,11 @@ print(list(again.sites["id"]) == list(found.sites["id"]))
 ```text
 True
 ```
+
+The models do not depend on the unit of the table. It may hold any cost
+that is not negative, such as a straight-line or network distance in
+metres where the service standard is a distance: `cutoff`, `unreachable_time` and
+the `travel_time` column of the result are then in that unit.
 
 ## What the models do not see
 

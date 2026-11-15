@@ -193,3 +193,44 @@ test_that("bad arguments are refused", {
                                   decay_function = "fixed_exponential", decay_value = 0.001),
                "cutoff failed: must be NULL")
 })
+
+test_that("set covering takes a coverage target", {
+  pts <- fixture_points()
+  net <- fixture_network()
+  cover <- function(...) {
+    locate_facilities(net, pts, pts, model = "set_cover", cutoff = 10,
+                      demand_colname = "population", mode = "WALK", n_threads = 2, ...)
+  }
+  part <- cover(coverage = 0.9)
+  expect_identical(nrow(part$sites), 4L)
+  expect_identical(part$summary$covered, 43759)
+  expect_gte(part$summary$covered, 0.9 * part$summary$total_demand)
+  expect_identical(sum(part$demand$demand[part$demand$covered]), 43759)
+  expect_identical(cover(coverage = 1)$sites, cover()$sites)
+  expect_identical(part$summary$upper_bound, NA_real_)
+  expect_error(cover(coverage = 0), "'coverage' failed: Must be greater than 0")
+  expect_error(cover(coverage = 1.5), "'coverage' failed")
+  expect_error(cover(coverage = "a"), "'coverage' failed")
+})
+
+test_that("maximal covering reports a bound on the optimum", {
+  pts <- fixture_points()
+  net <- fixture_network()
+  schools <- pts[pts$schools > 0, ]
+  others <- pts[pts$schools == 0, ]
+  found <- locate_facilities(net, pts, others, existing = schools, n_facilities = 2,
+                             cutoff = 12, demand_colname = "population", mode = "WALK",
+                             n_threads = 2)
+  expect_identical(found$summary$covered, 46217)
+  expect_identical(found$summary$upper_bound, 46273)
+  # without swaps the sites are nested: the curve for every number of sites
+  curve <- locate_facilities(net, pts, others, existing = schools,
+                             n_facilities = nrow(others), cutoff = 12, swap = FALSE,
+                             demand_colname = "population", mode = "WALK", n_threads = 2)
+  expect_identical(curve$sites$cumulative, c(43640, 46040, 46217, 46273))
+  expect_identical(curve$summary$upper_bound, curve$summary$covered)
+  two <- locate_facilities(net, pts, others, existing = schools, n_facilities = 2,
+                           cutoff = 12, swap = FALSE, demand_colname = "population",
+                           mode = "WALK", n_threads = 2)
+  expect_identical(two$sites$id, curve$sites$id[1:2])
+})

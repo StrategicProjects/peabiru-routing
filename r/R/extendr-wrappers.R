@@ -198,7 +198,7 @@ rs_trip_options <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_m
 #' `assigned_site` 0-based (`NA` for a demand point that reaches no
 #' facility); `unreachable_time` not positive for the default.
 #' @noRd
-rs_locate_facilities <- function(n_demand, n_sites, pair_demand, pair_site, pair_minutes, demand, n_existing, model, n_facilities, cutoff, swap, min_gain, unreachable_time, n_threads) .Call(wrap__rs_locate_facilities, n_demand, n_sites, pair_demand, pair_site, pair_minutes, demand, n_existing, model, n_facilities, cutoff, swap, min_gain, unreachable_time, n_threads)
+rs_locate_facilities <- function(n_demand, n_sites, pair_demand, pair_site, pair_minutes, demand, n_existing, model, n_facilities, cutoff, swap, min_gain, coverage, unreachable_time, n_threads) .Call(wrap__rs_locate_facilities, n_demand, n_sites, pair_demand, pair_site, pair_minutes, demand, n_existing, model, n_facilities, cutoff, swap, min_gain, coverage, unreachable_time, n_threads)
 
 #' The two-step floating catchment area as a list (see
 #' `rs_locate_facilities` for the table).

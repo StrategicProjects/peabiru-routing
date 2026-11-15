@@ -303,6 +303,42 @@ fn set_cover_drops_redundant_sites() {
 }
 
 #[test]
+fn partial_set_cover_stops_at_the_target() {
+    // weights make site 0 worth 4.5 of 7: half the demand takes one site,
+    // 90% takes two, all of it the two that make site 0 redundant
+    let table = greedy_trap();
+    let demand = [1.0, 1.0, 1.0, 1.5, 1.5, 1.0];
+    let mut q = params(LocationModel::SetCover, 0, 10.0, &[]);
+    let full = locate_facilities(&table, &demand, &q).unwrap();
+    assert_eq!((full.sites.len(), full.covered), (2, 7.0));
+    q.coverage = 0.5;
+    let half = locate_facilities(&table, &demand, &q).unwrap();
+    assert_eq!(half.sites.len(), 1);
+    assert!(half.covered >= 3.5 && half.covered < 7.0);
+    assert_eq!(half.cumulative, [half.covered]);
+    // a target the existing facilities already reach opens nothing
+    q.existing = half.sites.clone();
+    let none = locate_facilities(&table, &demand, &q).unwrap();
+    assert!(none.sites.is_empty());
+    assert_eq!((none.objective, none.covered), (0.0, half.covered));
+}
+
+#[test]
+fn max_cover_reports_an_upper_bound() {
+    // the greedy trap: greedy covers 4 then 1 more, the optimum is 6
+    let table = greedy_trap();
+    let demand = [1.0; 6];
+    let mut q = params(LocationModel::MaxCover, 2, 10.0, &[]);
+    q.swap = false;
+    let greedy = locate_facilities(&table, &demand, &q).unwrap();
+    assert_eq!(greedy.upper_bound, 6.0);
+    assert!(greedy.covered < greedy.upper_bound);
+    q.swap = true;
+    let s = locate_facilities(&table, &demand, &q).unwrap();
+    assert_eq!((s.covered, s.upper_bound), (6.0, 6.0));
+}
+
+#[test]
 fn median_and_center_by_hand() {
     // demand points on a line at 0, 1, 2, 10, 11 (weights 1, 1, 1, 1, 5),
     // candidate sites at each of them, travel time = distance
@@ -414,6 +450,7 @@ fn random_instances_against_exhaustive_search() {
     // optimal, and the worst ratio to the optimum
     let mut tally = [[0usize; 2]; 3];
     let mut worst_cover = 1f64;
+    let mut gap_closed = 0usize;
     let rounds = 300;
     for round in 0..rounds {
         let n = 4 + rng.below(11) as usize;
@@ -447,6 +484,13 @@ fn random_instances_against_exhaustive_search() {
         assert_eq!(s.objective_greedy, greedy.objective, "{what}");
         assert!(s.objective >= greedy.objective, "{what}");
         assert!(s.objective <= optimum, "{what}");
+        // the optimum lies between the solution and its bound
+        for found in [&greedy, &s] {
+            assert!(found.upper_bound >= optimum, "{what}");
+            assert!(found.upper_bound >= found.covered, "{what}");
+            assert!(found.upper_bound <= inst.demand.iter().sum(), "{what}");
+        }
+        gap_closed += usize::from(s.upper_bound == s.objective);
         assert!(
             greedy.objective - before >= bound * (optimum - before) - 1e-9,
             "{what}: greedy {} of {optimum} from {before}",
@@ -493,6 +537,55 @@ fn random_instances_against_exhaustive_search() {
             })
             .collect();
         assert_eq!(s.unservable, unservable, "{what}");
+        assert!(s.upper_bound.is_nan(), "{what}");
+
+        // partial set covering: the fewest sites that reach the target
+        let total: f64 = inst.demand.iter().sum();
+        let all = inst.covered(&cands, cutoff);
+        let mut q = q.clone();
+        q.coverage = 1.0;
+        let same = locate_facilities(&table, &inst.demand, &q).unwrap();
+        assert_eq!(
+            (same.sites, same.marginal, same.n_swaps),
+            (s.sites.clone(), s.marginal.clone(), s.n_swaps),
+            "{what}"
+        );
+        for share in [0.3, 0.6, 0.9] {
+            q.coverage = share;
+            let target = share * total;
+            for swap in [false, true] {
+                q.swap = swap;
+                let part = locate_facilities(&table, &inst.demand, &q).unwrap();
+                let got = inst.covered(&part.sites, cutoff);
+                assert_eq!(part.covered, got, "{what} {share}");
+                assert_eq!(part.objective, part.sites.len() as f64, "{what}");
+                if all >= target {
+                    assert!(got >= target, "{what} {share}: {got} of {target}");
+                    let fewest = (0..=cands.len())
+                        .find(|&k| {
+                            subsets(&cands, k)
+                                .iter()
+                                .any(|c| inst.covered(c, cutoff) >= target)
+                        })
+                        .unwrap();
+                    assert!(part.sites.len() >= fewest, "{what} {share}");
+                    if fewest <= 1 {
+                        assert_eq!(part.sites.len(), fewest, "{what} {share}");
+                    }
+                    if swap {
+                        // no site can go without missing the target
+                        for k in 0..part.sites.len() {
+                            let mut rest = part.sites.clone();
+                            rest.remove(k);
+                            assert!(inst.covered(&rest, cutoff) < target, "{what} {share}");
+                        }
+                    }
+                } else {
+                    // out of reach: all that can be covered is
+                    assert_eq!(got, all, "{what} {share}");
+                }
+            }
+        }
 
         // p-median and p-center
         let u = inst.unreachable();
@@ -554,7 +647,7 @@ fn random_instances_against_exhaustive_search() {
         }
     }
     println!(
-        "{rounds} instances, optimal greedy / improved: max_cover {:?}, p_median {:?}, p_center {:?}; worst greedy share of the best new coverage {worst_cover:.4}",
+        "{rounds} instances, optimal greedy / improved: max_cover {:?}, p_median {:?}, p_center {:?}; worst greedy share of the best new coverage {worst_cover:.4}; max_cover bound equal to the solution in {gap_closed}",
         tally[0], tally[1], tally[2]
     );
     // the improvement finds the optimum more often than greedy alone
@@ -646,6 +739,11 @@ fn bad_arguments_are_refused() {
             other => panic!("{what}: {other:?}"),
         };
     let ok = params(LocationModel::MaxCover, 1, 10.0, &[]);
+    for coverage in [0.0, -0.5, 1.5, f64::NAN] {
+        let mut q = params(LocationModel::SetCover, 0, 10.0, &[]);
+        q.coverage = coverage;
+        refused(&q, &demand, "coverage must be above 0 and at most 1");
+    }
     refused(&ok, &[1.0; 5], "5 weights");
     refused(&ok, &[1.0, 1.0, -1.0, 1.0, 1.0, 1.0], "not negative");
     refused(&ok, &[1.0, 1.0, f64::NAN, 1.0, 1.0, 1.0], "finite");

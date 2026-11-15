@@ -203,3 +203,41 @@ def test_bad_arguments(network, points):
             network, points, schools, cutoff=10, decay_function="fixed_exponential",
             decay_value=0.001,
         )
+
+
+def test_set_cover_takes_a_coverage_target(network, points):
+    ok = dict(model="set_cover", cutoff=10, demand_colname="population", mode="WALK", n_threads=2)
+    full = peabiru.locate_facilities(network, points, points, **ok)
+    same = peabiru.locate_facilities(network, points, points, coverage=1, **ok)
+    assert list(same.sites["id"]) == list(full.sites["id"])
+    part = peabiru.locate_facilities(network, points, points, coverage=0.9, **ok)
+    assert len(part.sites) == 4 < len(full.sites)
+    assert part.summary["covered"] == 43759
+    assert part.summary["covered"] >= 0.9 * part.summary["total_demand"]
+    assert part.demand["demand"][part.demand["covered"]].sum() == 43759
+    assert part.summary["upper_bound"] is None
+    with pytest.raises(ValueError, match="'coverage' failed: Must be greater than 0"):
+        peabiru.locate_facilities(network, points, points, coverage=0, **ok)
+    with pytest.raises(ValueError, match="'coverage' failed"):
+        peabiru.locate_facilities(network, points, points, coverage=1.5, **ok)
+    with pytest.raises(TypeError, match="'coverage' failed"):
+        peabiru.locate_facilities(network, points, points, coverage="a", **ok)
+
+
+def test_max_cover_reports_a_bound_on_the_optimum(network, points):
+    schools = points[points["schools"] > 0]
+    others = points[points["schools"] == 0]
+    ok = dict(
+        existing=schools, model="max_cover", cutoff=12, demand_colname="population",
+        mode="WALK", n_threads=2,
+    )
+    found = peabiru.locate_facilities(network, points, others, n_facilities=2, **ok)
+    assert (found.summary["covered"], found.summary["upper_bound"]) == (46217, 46273)
+    # without swaps the sites are nested: the curve for every number of sites
+    curve = peabiru.locate_facilities(
+        network, points, others, n_facilities=len(others), swap=False, **ok
+    )
+    assert list(curve.sites["cumulative"]) == [43640, 46040, 46217, 46273]
+    assert curve.summary["upper_bound"] == curve.summary["covered"]
+    two = peabiru.locate_facilities(network, points, others, n_facilities=2, swap=False, **ok)
+    assert list(two.sites["id"]) == list(curve.sites["id"][:2])

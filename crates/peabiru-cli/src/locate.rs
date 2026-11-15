@@ -144,6 +144,7 @@ pub fn locate(a: LocateArgs) -> Res<()> {
     };
     let n_facilities = count("n-facilities", &a.n_facilities, 0)?;
     let min_gain = number("min-gain", &a.min_gain)?;
+    let coverage = number("coverage", &a.coverage)?;
     let unreachable = a
         .unreachable_time
         .as_deref()
@@ -200,6 +201,7 @@ pub fn locate(a: LocateArgs) -> Res<()> {
     p.existing = (0..n_existing).collect();
     p.swap = !a.no_swap;
     p.min_gain = min_gain;
+    p.coverage = coverage;
     p.unreachable_time = unreachable;
     p.n_threads = threads(&a.net);
     p.cancel = cancel_token().clone();
@@ -271,8 +273,13 @@ pub fn locate(a: LocateArgs) -> Res<()> {
     } else {
         String::new()
     };
+    let bound = if s.upper_bound.is_nan() {
+        String::new()
+    } else {
+        format!(", at most {} possible", num(s.upper_bound))
+    };
     ctx.progress(format!(
-        "{}: {} new site{}, objective {} (existing only {}, greedy {}, {} swap{}), total demand {}{unserved}; {rows} rows",
+        "{}: {} new site{}, objective {}{bound} (existing only {}, greedy {}, {} swap{}), total demand {}{unserved}; {rows} rows",
         model.name(),
         s.sites.len(),
         if s.sites.len() == 1 { "" } else { "s" },

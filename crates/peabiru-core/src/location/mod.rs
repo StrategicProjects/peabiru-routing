@@ -16,7 +16,9 @@
 //!   Fisher, 1978), then vertex substitution;
 //! - location set covering (Toregas et al., 1971): greedy by the number
 //!   of demand points newly covered, then the sites the others make
-//!   redundant are dropped;
+//!   redundant are dropped; with a coverage target below 1 (partial set
+//!   covering), greedy by the demand newly covered until the target is
+//!   reached;
 //! - p-median (Hakimi, 1964): greedy, then the vertex substitution of
 //!   Teitz and Bart (1968);
 //! - p-center (Hakimi, 1964): greedy on the largest travel time (ties by
@@ -50,7 +52,8 @@ pub enum LocationModel {
     MaxCover,
     /// Location set covering: the fewest new facilities that leave every
     /// demand point some site can cover within
-    /// [`LocationParams::cutoff`] minutes.
+    /// [`LocationParams::cutoff`] minutes, or, with
+    /// [`LocationParams::coverage`] below 1, that share of the demand.
     SetCover,
     /// p-median: [`LocationParams::n_facilities`] new facilities with the
     /// smallest demand-weighted sum of travel times to the nearest
@@ -123,6 +126,16 @@ pub struct LocationParams {
     /// left would cover less than this much uncovered demand (default 0:
     /// it stops only when a site would cover nothing).
     pub min_gain: f64,
+    /// For [`LocationModel::SetCover`], the share of the total demand
+    /// (the sum of the weights) to cover, the demand the existing
+    /// facilities cover included: a number above 0 and at most 1 (default
+    /// 1). With 1 every demand point with weight that some site can cover
+    /// is covered, whatever its weight. Below 1 the model is the partial
+    /// set covering: the sites are chosen by the demand each newly covers
+    /// and no more are opened once the target is reached; when the target
+    /// is out of reach (too much demand that no site covers), all the
+    /// demand that can be covered is.
+    pub coverage: f64,
     /// For [`LocationModel::PMedian`] and [`LocationModel::PCenter`], the
     /// minutes charged to a demand point that reaches no open facility
     /// (while some site of the table could serve it). `None` (the
@@ -144,6 +157,7 @@ impl Default for LocationParams {
             existing: Vec::new(),
             swap: true,
             min_gain: 0.0,
+            coverage: 1.0,
             unreachable_time: None,
             n_threads: 0,
             cancel: CancelToken::default(),
@@ -199,6 +213,17 @@ pub struct LocationSolution {
     /// The demand covered by the solution (covering models; NaN for the
     /// others).
     pub covered: f64,
+    /// For [`LocationModel::MaxCover`], a ceiling on the demand that any
+    /// choice of at most [`LocationParams::n_facilities`] new sites can
+    /// cover, existing facilities included: the optimum is between
+    /// `covered` and this value, so `covered / upper_bound` is a floor on
+    /// the share of the optimum that the solution reaches. It is the
+    /// smaller of two bounds that hold for any covering problem, the
+    /// demand covered by a set of sites plus the `n_facilities` largest
+    /// gains of the sites outside it, taken at the existing facilities
+    /// alone and at the solution, and never more than the demand some
+    /// site can cover. NaN for the other models.
+    pub upper_bound: f64,
     /// The sum of the demand weights.
     pub total_demand: f64,
     /// The demand points with weight that no site of the table, existing
@@ -227,13 +252,15 @@ pub struct LocationSolution {
 /// substitution: the solution is good and reproducible, not proven
 /// optimal. For maximal covering the greedy coverage of the demand the
 /// existing facilities leave uncovered is at least `1 - 1/e` (63%) of the
-/// best possible. In set covering and p-center the points with weight 0
+/// best possible, and [`LocationSolution::upper_bound`] says how close
+/// to the optimum a given solution is. In set covering and p-center the points with weight 0
 /// are not demand; the others count the same whatever their weight.
 ///
 /// Errors: [`RouteError::Invalid`] for weights that do not match the
 /// table, a negative or non-finite weight, an index in `existing` outside
 /// the table or repeated, no candidate, `n_facilities` of 0 or more than
-/// the candidates, or a covering model without a cutoff;
+/// the candidates, a covering model without a cutoff, or a coverage
+/// target outside (0, 1];
 /// [`RouteError::Cancelled`].
 pub fn locate_facilities(
     costs: &CostTable,
@@ -296,6 +323,14 @@ pub fn locate_facilities(
             return invalid(format!(
                 "min_gain must be finite and not negative, got {}",
                 params.min_gain
+            ));
+        }
+        if params.model == LocationModel::SetCover
+            && !(params.coverage > 0.0 && params.coverage <= 1.0)
+        {
+            return invalid(format!(
+                "coverage must be above 0 and at most 1, got {}",
+                params.coverage
             ));
         }
     } else if let Some(u) = params.unreachable_time {

@@ -1,3 +1,16 @@
+# peabiru (development version)
+
+* `locate_facilities()` reports, for `"max_cover"`, an upper bound on the
+  demand that any choice of `n_facilities` sites could cover
+  (`summary$upper_bound`): `covered / upper_bound` is a floor on the share
+  of the optimum that the solution reaches.
+* `locate_facilities()` gains `coverage`: with `model = "set_cover"`, the
+  fewest sites that cover that share of the demand (partial set covering).
+  The default, 1, is the model as before.
+* The help and the article "Facility location" show how to get the coverage
+  for every number of facilities in one call (`swap = FALSE`) and say that
+  `travel_times` may hold any cost, such as a distance, in place of minutes.
+
 # peabiru 0.1.5
 
 * New function `locate_facilities()`: where to open new facilities among
