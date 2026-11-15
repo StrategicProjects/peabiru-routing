@@ -56,6 +56,7 @@ fn rs_locate_facilities(
     swap: bool,
     min_gain: f64,
     coverage: f64,
+    capacity: &[f64],
     unreachable_time: f64,
     n_threads: i32,
 ) -> Result<Robj> {
@@ -70,6 +71,7 @@ fn rs_locate_facilities(
     p.swap = swap;
     p.min_gain = min_gain;
     p.coverage = coverage;
+    p.capacity = (!capacity.is_empty()).then(|| capacity.to_vec());
     p.unreachable_time = (unreachable_time > 0.0).then_some(unreachable_time);
     p.n_threads = n_threads.max(0) as usize;
     p.cancel = cancel.clone();
@@ -108,6 +110,7 @@ fn rs_locate_facilities(
         covered_before = s.covered_before,
         covered = s.covered,
         upper_bound = s.upper_bound,
+        served = s.served,
         total_demand = s.total_demand,
         unservable_demand = s.unservable_demand,
         n_swaps = s.n_swaps as i32

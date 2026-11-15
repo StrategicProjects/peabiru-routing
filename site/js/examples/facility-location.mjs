@@ -119,11 +119,26 @@ const part = await peabiru.locateFacilities(network, points, points, {
 console.log(`${part.sites.id.length} sites; ${(100 * part.summary.covered / part.summary.total_demand).toFixed(1)}% of the residents`);
 // ANCHOR_END: partial
 
+// ANCHOR: capacity
+// schools of 3,000 places: four more, wherever they serve the most residents
+const full = await peabiru.locateFacilities(network, points, others, {
+  existing: schools,
+  model: "max_cover",
+  nFacilities: 4,
+  cutoff: 12,
+  capacity: 3000,
+  demandColname: "population",
+});
+full.sites.id.forEach((id, k) => console.log(id, full.sites.order[k], full.sites.marginal[k], full.sites.cumulative[k]));
+console.log(`served today: ${full.summary.covered_before}; at most ${full.summary.upper_bound} with four more`);
+// ANCHOR_END: capacity
+
 network.free();
 
 // checks, not shown in the documentation
 assert.equal(found.summary.covered, 46217);
 assert.equal(found.summary.upper_bound, 46273);
 assert.equal(part.sites.id.length, 4);
+assert.equal(full.summary.covered, 28623);
 assert.deepEqual(again.summary, found.summary);
 assert.ok(Math.abs(shared - 7) < 1e-9);

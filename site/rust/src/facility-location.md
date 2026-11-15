@@ -133,6 +133,24 @@ for a smaller number, so the curve is then one call per number. The curves
 of several areas, stored like this, are what it takes to share a budget of
 facilities among them.
 
+## Facilities with a capacity
+
+`LocationParams::capacity` (one value per site of the table, existing
+facilities included) makes `MaxCover` the capacitated maximal covering
+(Current and Storbeck, 1988): a facility serves at most its capacity of the
+demand within the cutoff, a candidate may open more than once (`sites`
+then repeats it), and `n_facilities` counts facilities and may exceed the
+number of candidates. Facilities open one at a time, each where it would
+serve the most demand not yet served, the nearest demand points first; a
+point may be served in part or by more than one facility, and
+`LocationSolution::served` holds the demand of each point that is served.
+The existing facilities serve first, each pair of facility and demand
+point in the order of their travel times. `swap` has no effect, and
+`upper_bound` is a ceiling on what any choice of `n_facilities` facilities
+could serve, given what the existing ones serve. The value of a site only
+falls as facilities open, so the same queue as in the uncapacitated model
+applies.
+
 ## Partial set covering
 
 `LocationParams::coverage` (default 1) makes `SetCover` stop at a share of
@@ -193,6 +211,9 @@ On the command line, the same is `peabiru locate` and `peabiru catchment`
 - Church, R. and ReVelle, C. (1974). The maximal covering location problem.
   *Papers of the Regional Science Association*, 32, 101-118.
   [doi:10.1007/BF01942293](https://doi.org/10.1007/BF01942293)
+- Current, J. R. and Storbeck, J. E. (1988). Capacitated covering models.
+  *Environment and Planning B: Planning and Design*, 15(2), 153-163.
+  [doi:10.1068/b150153](https://doi.org/10.1068/b150153)
 - Hakimi, S. L. (1964). Optimum locations of switching centers and the
   absolute centers and medians of a graph. *Operations Research*, 12(3),
   450-459. [doi:10.1287/opre.12.3.450](https://doi.org/10.1287/opre.12.3.450)

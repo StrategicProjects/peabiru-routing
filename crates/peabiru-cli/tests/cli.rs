@@ -438,6 +438,26 @@ fn locate_and_catchment() {
     assert!(lines[1].starts_with("89a8100c027ffff,") && lines[2].starts_with("89a8100c03bffff,"));
     assert!(lines[2].ends_with(",446711"), "{median}");
 
+    // schools of 3,000 places: four more at the same site
+    let mut args = base.to_vec();
+    let at = args.len() - 3;
+    args[at] = "4";
+    args.extend(["--capacity", "3000", "-q"]);
+    let full = ok(&run(&args));
+    assert_eq!(full.lines().count(), 1 + 4, "{full}");
+    assert!(full
+        .lines()
+        .skip(1)
+        .all(|l| l.starts_with("89a8100c00fffff,")));
+    assert!(
+        full.lines().last().unwrap().ends_with(",4,3000,28623"),
+        "{full}"
+    );
+    args.extend(["--table", "candidates"]);
+    let c = ok(&run(&args));
+    assert!(c.starts_with("id,lon,lat,potential,chosen,units\n"));
+    assert_eq!(c.lines().filter(|l| l.ends_with(",true,4")).count(), 1);
+
     // the fewest sites for 90% of the residents within 10 minutes
     let part = ok(&run(&[
         "locate",

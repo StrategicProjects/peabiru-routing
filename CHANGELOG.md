@@ -7,6 +7,13 @@ Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
 ### Facility location (all packages)
 
+- Capacitated maximal covering (Current and Storbeck, 1988): `capacity` (a
+  number or a column of the sites; `--capacity` on the command line;
+  `LocationParams::capacity` in the core) limits the demand one facility
+  serves. A candidate may then open more than once, `n_facilities` counts
+  facilities, demand is served from the nearest points first and may be
+  served in part (`served`, per demand point), and the existing facilities
+  serve first.
 - Maximal covering reports an upper bound (`upper_bound` in the summary;
   `LocationSolution::upper_bound` in the core): no choice of `n_facilities`
   sites covers more demand, so `covered / upper_bound` is a floor on the

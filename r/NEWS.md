@@ -1,5 +1,10 @@
 # peabiru (development version)
 
+* `locate_facilities()` gains `capacity`: with `model = "max_cover"`, the
+  demand one facility can serve (a number, or a column of `candidates` and
+  `existing`). A candidate may then open more than once, `n_facilities`
+  counts facilities, and the result reports the share of each demand
+  point that is served (capacitated maximal covering).
 * `locate_facilities()` reports, for `"max_cover"`, an upper bound on the
   demand that any choice of `n_facilities` sites could cover
   (`summary$upper_bound`): `covered / upper_bound` is a floor on the share

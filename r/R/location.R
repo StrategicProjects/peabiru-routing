@@ -54,6 +54,25 @@
 #' facility (within `max_trip_duration`) is charged `unreachable_time`
 #' minutes, and one that no site at all reaches is left out and reported.
 #'
+#' @section Facilities with a capacity:
+#' With `capacity`, `"max_cover"` is the capacitated maximal covering
+#' (Current and Storbeck, 1988): a facility serves at most its capacity of
+#' the demand within `cutoff`, so a place with much demand may need
+#' several. A candidate may then open more than once (`sites` has one row
+#' per facility opened, and repeats the site), `n_facilities` counts
+#' facilities, not sites, and may exceed the number of candidates.
+#' Facilities are opened one at a time, each where it would serve the most
+#' demand not yet served, taking it from the nearest demand points first; a
+#' demand point may be served in part, or by more than one facility. The
+#' existing facilities serve first, each pair of facility and demand point
+#' in the order of their travel times. `swap` has no effect.
+#' `summary$covered` is the demand served, `candidates` gains `units` (how
+#' many facilities opened there) and `demand` gains `served` (the share of
+#' the point's demand that is served, from 0 to 1), while `covered` keeps
+#' its meaning: within the cutoff of a facility, whether or not it has room.
+#' `summary$upper_bound` is a ceiling on what any choice of `n_facilities`
+#' facilities could serve, given what the existing ones serve.
+#'
 #' @section The whole curve in one call:
 #' With `swap = FALSE` the sites of `"max_cover"` are nested: the first
 #' `k` rows of `sites` are the answer for `n_facilities = k`. Asking for
@@ -115,6 +134,11 @@
 #'   that cover that share of the demand (partial set covering), chosen by
 #'   the demand each newly covers; when the target is out of reach, all
 #'   the demand that can be covered is.
+#' @param capacity For `"max_cover"`, how much demand one facility can
+#'   serve: a positive number, or the name of a numeric column of
+#'   `candidates` (and of `existing`, when given) with the capacity at each
+#'   site. `NULL` (the default): a facility serves all the demand within
+#'   the cutoff. See the section on capacities.
 #' @param unreachable_time For `"p_median"` and `"p_center"`, the minutes
 #'   charged to a demand point that reaches no open facility. `NULL`:
 #'   twice the longest travel time of the table.
@@ -152,6 +176,10 @@
 #' Church R, ReVelle C (1974). "The maximal covering location problem."
 #' *Papers of the Regional Science Association*, **32**, 101-118.
 #' \doi{10.1007/BF01942293}.
+#'
+#' Current JR, Storbeck JE (1988). "Capacitated covering models."
+#' *Environment and Planning B: Planning and Design*, **15**(2), 153-163.
+#' \doi{10.1068/b150153}.
 #'
 #' Hakimi SL (1964). "Optimum locations of switching centers and the
 #' absolute centers and medians of a graph." *Operations Research*,
@@ -205,6 +233,7 @@ locate_facilities <- function(network,
                               swap = TRUE,
                               min_gain = 0,
                               coverage = 1,
+                              capacity = NULL,
                               unreachable_time = NULL,
                               n_threads = Inf,
                               ...) {
@@ -247,6 +276,7 @@ locate_facilities <- function(network,
   if (!is.null(existing)) existing <- location_points(existing, "existing", routed)
   weights <- location_weights(demand, demand_colname, "demand", "demand_colname")
   n_existing <- if (is.null(existing)) 0L else nrow(existing)
+  room <- location_capacity(capacity, existing, candidates, model)
   shared <- intersect(existing$id, candidates$id)
   if (length(shared) > 0) {
     stop("`candidates` and `existing` must not share ids. Shared id",
@@ -274,7 +304,7 @@ locate_facilities <- function(network,
     nrow(demand), nrow(sites), pairs$i, pairs$j, pairs$minutes, weights,
     n_existing, model, as.integer(n_facilities),
     if (covering) as.double(cutoff) else 0, swap, as.double(min_gain),
-    as.double(coverage),
+    as.double(coverage), room,
     if (is.null(unreachable_time)) -1 else as.double(unreachable_time), threads
   ))
 
@@ -283,6 +313,7 @@ locate_facilities <- function(network,
     df[rows, intersect(c("id", "lon", "lat"), names(df)), drop = FALSE]
   }
   minutes <- res$assigned_minutes
+  capacitated <- length(room) > 0
   out <- list(
     sites = new_df(c(
       as.list(coords(candidates, chosen)),
@@ -292,14 +323,16 @@ locate_facilities <- function(network,
     candidates = new_df(c(
       as.list(coords(candidates)),
       list(potential = res$potential[n_existing + seq_len(nrow(candidates))],
-           chosen = seq_len(nrow(candidates)) %in% chosen)
+           chosen = seq_len(nrow(candidates)) %in% chosen),
+      if (capacitated) list(units = tabulate(chosen, nrow(candidates)))
     )),
     demand = new_df(c(
       as.list(coords(demand)),
       list(demand = weights,
            facility_id = sites$id[res$assigned_site + 1L],
            travel_time = minutes,
-           covered = if (covering) !is.na(minutes) & minutes <= cutoff else !is.na(minutes))
+           covered = if (covering) !is.na(minutes) & minutes <= cutoff else !is.na(minutes)),
+      if (capacitated) list(served = ifelse(weights > 0, res$served / weights, 0))
     )),
     summary = list(
       model = model,
@@ -517,6 +550,35 @@ location_weights <- function(df, colname, name, arg) {
          "negative, with no missing values.", call. = FALSE)
   }
   x
+}
+
+# The capacity of every site of the table (the existing facilities, then
+# the candidates) from a number or the name of a column; none when NULL.
+location_capacity <- function(capacity, existing, candidates, model) {
+  if (is.null(capacity)) return(double())
+  if (model != "max_cover") {
+    stop("Assertion on capacity failed: must be NULL when model is ", model,
+         " (only max_cover has capacities).", call. = FALSE)
+  }
+  if (is.character(capacity)) {
+    assert_string(capacity, "capacity")
+    one <- function(df, name) {
+      if (is.null(df)) return(double())
+      x <- location_weights(df, capacity, name, "capacity")
+      if (any(x <= 0)) {
+        stop("Assertion on '", name, "$", capacity, "' failed: Must be greater than 0.",
+             call. = FALSE)
+      }
+      x
+    }
+    return(c(one(existing, "existing"), one(candidates, "candidates")))
+  }
+  assert_number(capacity, "capacity", lower = 0, finite = TRUE)
+  if (capacity <= 0) {
+    stop("Assertion on 'capacity' failed: Must be greater than 0.", call. = FALSE)
+  }
+  rep(as.double(capacity),
+      (if (is.null(existing)) 0L else nrow(existing)) + nrow(candidates))
 }
 
 # The reachable pairs (0-based row, 0-based column, minutes) of the table

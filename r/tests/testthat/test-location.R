@@ -234,3 +234,42 @@ test_that("maximal covering reports a bound on the optimum", {
                            mode = "WALK", n_threads = 2)
   expect_identical(two$sites$id, curve$sites$id[1:2])
 })
+
+test_that("maximal covering takes capacities", {
+  pts <- fixture_points()
+  net <- fixture_network()
+  schools <- pts[pts$schools > 0, ]
+  others <- pts[pts$schools == 0, ]
+  locate <- function(...) {
+    locate_facilities(net, pts, others, existing = schools, cutoff = 12,
+                      demand_colname = "population", mode = "WALK", n_threads = 2, ...)
+  }
+  found <- locate(n_facilities = 4, capacity = 3000)
+  expect_identical(found$sites$id, rep("89a8100c00fffff", 4))
+  expect_identical(found$sites$marginal, rep(3000, 4))
+  expect_identical(found$summary$covered_before, 16623)
+  expect_identical(found$summary$covered, 28623)
+  expect_identical(found$summary$upper_bound, 28623)
+  expect_identical(found$candidates$units[found$candidates$chosen], 4L)
+  expect_identical(sum(found$demand$demand * found$demand$served), 28623)
+  expect_true(all(found$demand$served >= 0 & found$demand$served <= 1))
+  expect_true(all(found$demand$served[!found$demand$covered] == 0))
+  # more facilities than candidates: as many as have someone to serve
+  all_served <- locate(n_facilities = 30, capacity = 3000)
+  expect_identical(nrow(all_served$sites), 12L)
+  expect_identical(all_served$summary$covered, 46273)
+  expect_true(all(all_served$demand$served == 1))
+  # a column of capacities, in the candidates and in the existing facilities
+  schools$places <- 3000
+  others$places <- 3000
+  by_column <- locate_facilities(net, pts, others, existing = schools, cutoff = 12,
+                                 n_facilities = 4, capacity = "places",
+                                 demand_colname = "population", mode = "WALK",
+                                 n_threads = 2)
+  expect_identical(by_column$sites, found$sites)
+  expect_false("units" %in% names(locate(n_facilities = 2)$candidates))
+  expect_error(locate(capacity = 0), "'capacity' failed: Must be greater than 0")
+  expect_error(locate(capacity = "seats"), "'existing' has no column 'seats'")
+  expect_error(locate_facilities(net, pts, others, model = "p_median", capacity = 10),
+               "capacity failed: must be NULL when model is p_median")
+})

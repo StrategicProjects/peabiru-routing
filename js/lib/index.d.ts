@@ -870,6 +870,18 @@ export interface LocateFacilitiesOptions extends LocationRoutingOptions {
   minGain?: number;
   /** For `"set_cover"`, the share of the total demand to cover, what the existing facilities cover included: above 0 and at most 1 (default 1: every demand point some site can cover). Below 1 the answer is the fewest sites found that cover that share, chosen by the demand each newly covers; when the target is out of reach, all the demand that can be covered is. */
   coverage?: number;
+  /**
+   * For `"max_cover"`, how much demand one facility can serve: a positive
+   * number, or the name of a numeric column of the candidates (and of the
+   * existing facilities) with the capacity at each site. null (default): a
+   * facility serves all the demand within the cutoff. With it a candidate
+   * may open more than once (`sites` has one row per facility opened),
+   * `nFacilities` counts facilities and may exceed the number of
+   * candidates, `swap` has no effect, demand is served from the nearest
+   * points first (a point may be served in part), and the existing
+   * facilities serve first.
+   */
+  capacity?: number | string | null;
   /** For `"p_median"` and `"p_center"`, the minutes charged to a demand point that reaches no open facility (default: twice the longest travel time of the table). */
   unreachableTime?: number | null;
 }
@@ -888,16 +900,18 @@ export interface FacilityLocation {
    * new facility (for the covering models, the demand not covered today
    * that it would cover alone).
    */
-  candidates: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; potential: Float64Array; chosen: boolean[] };
+  candidates: { id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; potential: Float64Array; chosen: boolean[]; units?: Int32Array };
   /**
    * One row per demand point: its weight, the nearest open facility
    * (existing or new) and the minutes to it (`null` and `NaN` when it
    * reaches none), and whether it is covered (within the cutoff of a
    * facility; for `"p_median"` and `"p_center"`, whether it reaches one).
+   * With `capacity`, also `served`: the share of its demand that is served
+   * (and `candidates` has `units`, the facilities opened at each).
    */
   demand: {
     id: (string | null)[]; lon?: Float64Array; lat?: Float64Array; demand: Float64Array;
-    facility_id: (string | null)[]; travel_time: Float64Array; covered: boolean[];
+    facility_id: (string | null)[]; travel_time: Float64Array; covered: boolean[]; served?: Float64Array;
   };
   /**
    * The objective is the demand covered (`"max_cover"`), the number of new

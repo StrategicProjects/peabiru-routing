@@ -2156,6 +2156,29 @@ function locationPoints(points, name, warn, routed) {
 }
 
 /** The weight column of a set of points, or 1 each without one. */
+/**
+ * The capacity of every site of the table (the existing facilities, then
+ * the candidates) from a number or the name of a column; empty for null.
+ */
+function locationCapacity(capacity, existing, candidates, model) {
+  if (capacity === null || capacity === undefined) return new Float64Array(0);
+  if (model !== "max_cover") {
+    throw new RangeError(`Assertion on capacity failed: must be null when model is ${model} (only max_cover has capacities).`);
+  }
+  const tables = [["existing", existing], ["candidates", candidates]].filter(([, t]) => t !== null);
+  if (typeof capacity === "string") {
+    const parts = tables.map(([name, t]) => {
+      const x = locationWeights(t, capacity, name, "capacity");
+      if (x.some((v) => v <= 0)) throw new RangeError(`Assertion on '${name}.${capacity}' failed: Must be greater than 0.`);
+      return x;
+    });
+    return Float64Array.from(parts.flatMap((x) => Array.from(x)));
+  }
+  assertNumber(capacity, "capacity", { lower: 0, finite: true });
+  if (capacity <= 0) fail("capacity", "Must be greater than 0");
+  return new Float64Array(tables.reduce((n, [, t]) => n + t.length, 0)).fill(capacity);
+}
+
 function locationWeights(p, colname, name, arg) {
   const w = new Float64Array(p.length).fill(1);
   if (colname === null || colname === undefined) return w;
@@ -2259,7 +2282,7 @@ export async function locateFacilities(network, demand, candidates, options) {
     options,
     {
       existing: null, model: "max_cover", nFacilities: 1, cutoff: null, demandColname: null, percentile: 50,
-      maxTripDuration: null, travelTimes: null, swap: true, minGain: 0, coverage: 1, unreachableTime: null,
+      maxTripDuration: null, travelTimes: null, swap: true, minGain: 0, coverage: 1, capacity: null, unreachableTime: null,
     },
     LOCATION_ROUTING,
   );
@@ -2293,6 +2316,7 @@ export async function locateFacilities(network, demand, candidates, options) {
   const e = opt.existing === null ? null : locationPoints(opt.existing, "existing", warn, routed);
   const w = locationWeights(d, opt.demandColname, "demand", "demandColname");
   const nExisting = e === null ? 0 : e.length;
+  const room = locationCapacity(opt.capacity, e, c, model);
   if (e !== null) {
     const own = new Set(c.ids);
     const shared = e.ids.filter((id) => own.has(id));
@@ -2313,12 +2337,12 @@ export async function locateFacilities(network, demand, candidates, options) {
   try {
     res = rawLocateFacilities(
       d.length, sites.length, pi, pj, pt, w, nExisting, model, Math.round(opt.nFacilities),
-      covering ? opt.cutoff : 0, opt.swap, opt.minGain, opt.coverage, opt.unreachableTime === null ? -1 : opt.unreachableTime,
+      covering ? opt.cutoff : 0, opt.swap, opt.minGain, opt.coverage, room, opt.unreachableTime === null ? -1 : opt.unreachableTime,
     );
   } catch (err) {
     throw engineError(err);
   }
-  const [chosenSites, marginal, cumulative, potential, assigned, minutes, , numbers] = res;
+  const [chosenSites, marginal, cumulative, potential, assigned, minutes, , numbers, served] = res;
   const chosen = Array.from(chosenSites, (j) => j - nExisting);
   const isChosen = new Array(c.length).fill(false);
   for (const j of chosen) isChosen[j] = true;
@@ -2329,13 +2353,19 @@ export async function locateFacilities(network, demand, candidates, options) {
       marginal,
       cumulative,
     },
-    candidates: { ...locationColumns(c), potential: potential.slice(nExisting), chosen: isChosen },
+    candidates: {
+      ...locationColumns(c),
+      potential: potential.slice(nExisting),
+      chosen: isChosen,
+      ...(room.length ? { units: Int32Array.from(isChosen, (_, j) => chosen.filter((k) => k === j).length) } : {}),
+    },
     demand: {
       ...locationColumns(d),
       demand: w,
       facility_id: Array.from(assigned, (j) => (j === NA_INT32 ? null : sites.ids[j])),
       travel_time: minutes,
       covered: Array.from(minutes, (t) => (covering ? t <= opt.cutoff : !Number.isNaN(t))),
+      ...(room.length ? { served: Float64Array.from(served, (x, i) => (w[i] > 0 ? x / w[i] : 0)) } : {}),
     },
     summary: {
       model,

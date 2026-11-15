@@ -41,7 +41,8 @@ class FacilityLocation(NamedTuple):
         ``facility_id`` and ``travel_time`` (the nearest open facility,
         existing or new, and the minutes to it; missing when it reaches
         none) and ``covered`` (within the cutoff of a facility; for
-        ``"p_median"`` and ``"p_center"``, whether it reaches one).
+        ``"p_median"`` and ``"p_center"``, whether it reaches one). With
+        ``capacity``, also ``served``: the share of its demand served.
     summary : dict
         ``model``, ``n_sites``, ``objective_before`` (existing facilities
         only), ``objective_greedy``, ``objective``, ``covered_before`` and
@@ -118,6 +119,38 @@ def _weights(t: _Table, colname: Any, name: str, arg: str) -> np.ndarray:
             "with no missing values."
         )
     return w
+
+
+def _capacity(
+    capacity: Any, existing: Optional[_Table], candidates: _Table, model: str
+) -> np.ndarray:
+    """The capacity of every site of the table (the existing facilities,
+    then the candidates) from a number or a column name; empty for None."""
+    if capacity is None:
+        return np.empty(0, dtype=np.float64)
+    if model != "max_cover":
+        raise ValueError(
+            f"Assertion on 'capacity' failed: Must be None when model is {model} "
+            "(only max_cover has capacities)."
+        )
+    tables = [("existing", existing), ("candidates", candidates)]
+    if isinstance(capacity, str):
+        parts = []
+        for name, t in tables:
+            if t is None:
+                continue
+            x = _weights(t, capacity, name, "capacity")
+            if (x <= 0).any():
+                raise ValueError(
+                    f"Assertion on '{name}${capacity}' failed: Must be greater than 0."
+                )
+            parts.append(x)
+        return np.concatenate(parts)
+    assert_number(capacity, "capacity", lower=0, finite=True)
+    value = float(scalar(capacity))
+    if value <= 0:
+        raise ValueError("Assertion on 'capacity' failed: Must be greater than 0.")
+    return np.full(sum(len(t.ids) for _, t in tables if t is not None), value)
 
 
 def _pairs(
@@ -228,6 +261,7 @@ def locate_facilities(
     swap: bool = True,
     min_gain: Any = 0,
     coverage: Any = 1,
+    capacity: Any = None,
     unreachable_time: Any = None,
     n_threads: Any = None,
     **routing: Any,
@@ -345,6 +379,24 @@ def locate_facilities(
         of the demand, chosen by the demand each newly covers (the weights
         count); when the target is out of reach, all the demand that can
         be covered is.
+    capacity : number or str, optional
+        For ``"max_cover"``, how much demand one facility can serve: a
+        positive number, or the name of a numeric column of ``candidates``
+        (and of ``existing``, when given) with the capacity at each site.
+        Without it a facility serves all the demand within the cutoff.
+        With it the model is the capacitated maximal covering: a candidate
+        may open more than once (``sites`` has one row per facility opened
+        and repeats the site), ``n_facilities`` counts facilities and may
+        exceed the number of candidates, and ``swap`` has no effect.
+        Facilities open one at a time, each where it would serve the most
+        demand not yet served, the nearest demand points first; a point
+        may be served in part, or by more than one facility. The existing
+        facilities serve first, each pair of facility and demand point in
+        the order of their travel times. ``summary["covered"]`` is then
+        the demand served, ``candidates`` gains ``units`` and ``demand``
+        gains ``served`` (the share of the point's demand served, 0 to 1);
+        ``covered`` keeps its meaning (within the cutoff of a facility,
+        whether or not it has room).
     unreachable_time : number, optional
         For ``"p_median"`` and ``"p_center"``, the minutes charged to a
         demand point that reaches no open facility. Default: twice the
@@ -457,12 +509,13 @@ def locate_facilities(
     pi, pj, pt = _pairs(
         network, d, sites, travel_times, percentile, int(max_trip_duration), routing, function
     )
+    room = _capacity(capacity, e, c, model)
     with core_errors(function):
         r = _peabiru.locate_facilities(
             len(d.ids), len(sites.ids), pi, pj, pt, np.ascontiguousarray(w).tobytes(),
             list(range(n_existing)), model, int(scalar(n_facilities)),
             cutoff if covering else math.nan, bool(swap), float(scalar(min_gain)),
-            float(scalar(coverage)),
+            float(scalar(coverage)), np.ascontiguousarray(room).tobytes(),
             None if unreachable_time is None else float(scalar(unreachable_time)), threads,
         )
 
@@ -480,9 +533,10 @@ def locate_facilities(
     )
     is_chosen = np.zeros(len(c.ids), dtype=bool)
     is_chosen[chosen] = True
-    candidate_table = pd.DataFrame(
-        _with_coords(c, {"potential": _f64(r["potential"])[n_existing:], "chosen": is_chosen})
-    )
+    candidate_columns = {"potential": _f64(r["potential"])[n_existing:], "chosen": is_chosen}
+    if len(room):
+        candidate_columns["units"] = np.bincount(chosen, minlength=len(c.ids)).astype(np.int32)
+    candidate_table = pd.DataFrame(_with_coords(c, candidate_columns))
     assigned = _i32(r["assigned_site"])
     minutes = _f64(r["assigned_minutes"])
     none = assigned == _NA
@@ -490,17 +544,17 @@ def locate_facilities(
     facility[~none] = sites.ids[assigned[~none]]
     facility[none] = None
     covered = (minutes <= cutoff) if covering else ~none
-    demand_table = pd.DataFrame(
-        _with_coords(
-            d,
-            {
-                "demand": w,
-                "facility_id": _strings(facility),
-                "travel_time": minutes,
-                "covered": covered,
-            },
+    demand_columns = {
+        "demand": w,
+        "facility_id": _strings(facility),
+        "travel_time": minutes,
+        "covered": covered,
+    }
+    if len(room):
+        demand_columns["served"] = np.divide(
+            _f64(r["served"]), w, out=np.zeros(len(w)), where=w > 0
         )
-    )
+    demand_table = pd.DataFrame(_with_coords(d, demand_columns))
     summary = {
         "model": model,
         "n_sites": int(len(chosen)),

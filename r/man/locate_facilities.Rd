@@ -22,6 +22,7 @@ locate_facilities(
   swap = TRUE,
   min_gain = 0,
   coverage = 1,
+  capacity = NULL,
   unreachable_time = NULL,
   n_threads = Inf,
   ...
@@ -95,6 +96,12 @@ can cover is covered. Below 1 the answer is the fewest sites found
 that cover that share of the demand (partial set covering), chosen by
 the demand each newly covers; when the target is out of reach, all
 the demand that can be covered is.}
+
+\item{capacity}{For \code{"max_cover"}, how much demand one facility can
+serve: a positive number, or the name of a numeric column of
+\code{candidates} (and of \code{existing}, when given) with the capacity at each
+site. \code{NULL} (the default): a facility serves all the demand within
+the cutoff. See the section on capacities.}
 
 \item{unreachable_time}{For \code{"p_median"} and \code{"p_center"}, the minutes
 charged to a demand point that reaches no open facility. \code{NULL}:
@@ -195,6 +202,27 @@ facility (within \code{max_trip_duration}) is charged \code{unreachable_time}
 minutes, and one that no site at all reaches is left out and reported.
 }
 
+\section{Facilities with a capacity}{
+
+With \code{capacity}, \code{"max_cover"} is the capacitated maximal covering
+(Current and Storbeck, 1988): a facility serves at most its capacity of
+the demand within \code{cutoff}, so a place with much demand may need
+several. A candidate may then open more than once (\code{sites} has one row
+per facility opened, and repeats the site), \code{n_facilities} counts
+facilities, not sites, and may exceed the number of candidates.
+Facilities are opened one at a time, each where it would serve the most
+demand not yet served, taking it from the nearest demand points first; a
+demand point may be served in part, or by more than one facility. The
+existing facilities serve first, each pair of facility and demand point
+in the order of their travel times. \code{swap} has no effect.
+\code{summary$covered} is the demand served, \code{candidates} gains \code{units} (how
+many facilities opened there) and \code{demand} gains \code{served} (the share of
+the point's demand that is served, from 0 to 1), while \code{covered} keeps
+its meaning: within the cutoff of a facility, whether or not it has room.
+\code{summary$upper_bound} is a ceiling on what any choice of \code{n_facilities}
+facilities could serve, given what the existing ones serve.
+}
+
 \section{The whole curve in one call}{
 
 With \code{swap = FALSE} the sites of \code{"max_cover"} are nested: the first
@@ -235,6 +263,10 @@ found$summary$covered / found$summary$total_demand
 Church R, ReVelle C (1974). "The maximal covering location problem."
 \emph{Papers of the Regional Science Association}, \strong{32}, 101-118.
 \doi{10.1007/BF01942293}.
+
+Current JR, Storbeck JE (1988). "Capacitated covering models."
+\emph{Environment and Planning B: Planning and Design}, \strong{15}(2), 153-163.
+\doi{10.1068/b150153}.
 
 Hakimi SL (1964). "Optimum locations of switching centers and the
 absolute centers and medians of a graph." \emph{Operations Research},

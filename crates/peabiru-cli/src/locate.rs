@@ -145,6 +145,11 @@ pub fn locate(a: LocateArgs) -> Res<()> {
     let n_facilities = count("n-facilities", &a.n_facilities, 0)?;
     let min_gain = number("min-gain", &a.min_gain)?;
     let coverage = number("coverage", &a.coverage)?;
+    let capacity = a
+        .capacity
+        .as_deref()
+        .map(|v| number("capacity", v))
+        .transpose()?;
     let unreachable = a
         .unreachable_time
         .as_deref()
@@ -202,6 +207,7 @@ pub fn locate(a: LocateArgs) -> Res<()> {
     p.swap = !a.no_swap;
     p.min_gain = min_gain;
     p.coverage = coverage;
+    p.capacity = capacity.map(|k| vec![k; sites.len()]);
     p.unreachable_time = unreachable;
     p.n_threads = threads(&a.net);
     p.cancel = cancel_token().clone();
@@ -224,20 +230,28 @@ pub fn locate(a: LocateArgs) -> Res<()> {
             s.sites.len()
         }
         LocateTable::Candidates => {
-            out.row(&["id", "lon", "lat", "potential", "chosen"])?;
+            let mut header = vec!["id", "lon", "lat", "potential", "chosen"];
+            if capacity.is_some() {
+                header.push("units");
+            }
+            out.row(&header)?;
             for j in n_existing..sites.len() {
-                out.row(&[
+                let mut row = vec![
                     sites.ids[j].clone(),
                     coord(sites.coords[j].1),
                     coord(sites.coords[j].0),
                     num(s.potential[j]),
                     s.sites.contains(&j).to_string(),
-                ])?;
+                ];
+                if capacity.is_some() {
+                    row.push(s.sites.iter().filter(|&&k| k == j).count().to_string());
+                }
+                out.row(&row)?;
             }
             sites.len() - n_existing
         }
         LocateTable::Demand => {
-            out.row(&[
+            let mut header = vec![
                 "id",
                 "lon",
                 "lat",
@@ -245,7 +259,11 @@ pub fn locate(a: LocateArgs) -> Res<()> {
                 "facility_id",
                 "travel_time",
                 "covered",
-            ])?;
+            ];
+            if capacity.is_some() {
+                header.push("served");
+            }
+            out.row(&header)?;
             // several parallel columns are read by the same index
             #[allow(clippy::needless_range_loop)]
             for i in 0..demand.len() {
@@ -254,7 +272,7 @@ pub fn locate(a: LocateArgs) -> Res<()> {
                     Some(c) => t <= c,
                     None => !t.is_nan(),
                 };
-                out.row(&[
+                let mut row = vec![
                     demand.ids[i].clone(),
                     coord(demand.coords[i].1),
                     coord(demand.coords[i].0),
@@ -262,7 +280,11 @@ pub fn locate(a: LocateArgs) -> Res<()> {
                     s.assigned_site[i].map_or_else(String::new, |j| sites.ids[j].clone()),
                     num(t),
                     covered.to_string(),
-                ])?;
+                ];
+                if capacity.is_some() {
+                    row.push(num(if w[i] > 0.0 { s.served[i] / w[i] } else { 0.0 }));
+                }
+                out.row(&row)?;
             }
             demand.len()
         }

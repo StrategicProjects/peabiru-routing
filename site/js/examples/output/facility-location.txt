@@ -24,3 +24,8 @@ covered 46217, at most 46273 possible
 3 177 46217
 4 56 46273
 4 sites; 94.6% of the residents
+89a8100c00fffff 1 3000 19623
+89a8100c00fffff 2 3000 22623
+89a8100c00fffff 3 3000 25623
+89a8100c00fffff 4 3000 28623
+served today: 16623; at most 28623 with four more

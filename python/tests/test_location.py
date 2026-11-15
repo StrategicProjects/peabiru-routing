@@ -241,3 +241,41 @@ def test_max_cover_reports_a_bound_on_the_optimum(network, points):
     assert curve.summary["upper_bound"] == curve.summary["covered"]
     two = peabiru.locate_facilities(network, points, others, n_facilities=2, swap=False, **ok)
     assert list(two.sites["id"]) == list(curve.sites["id"][:2])
+
+
+def test_max_cover_takes_capacities(network, points):
+    schools = points[points["schools"] > 0]
+    others = points[points["schools"] == 0]
+    ok = dict(
+        existing=schools, model="max_cover", cutoff=12, demand_colname="population",
+        mode="WALK", n_threads=2,
+    )
+    found = peabiru.locate_facilities(network, points, others, n_facilities=4, capacity=3000, **ok)
+    assert list(found.sites["id"]) == ["89a8100c00fffff"] * 4
+    assert list(found.sites["marginal"]) == [3000] * 4
+    s = found.summary
+    assert (s["covered_before"], s["covered"], s["upper_bound"]) == (16623, 28623, 28623)
+    assert list(found.candidates["units"][found.candidates["chosen"]]) == [4]
+    served = found.demand["served"]
+    assert (found.demand["demand"] * served).sum() == 28623
+    assert served.between(0, 1).all() and (served[~found.demand["covered"]] == 0).all()
+    # more facilities than candidates: as many as have someone to serve
+    every = peabiru.locate_facilities(network, points, others, n_facilities=30, capacity=3000, **ok)
+    assert len(every.sites) == 12 and every.summary["covered"] == 46273
+    assert (every.demand["served"] == 1).all()
+    # a column of capacities, in the candidates and in the existing facilities
+    by_column = peabiru.locate_facilities(
+        network, points, others.assign(places=3000.0), n_facilities=4, capacity="places",
+        **{**ok, "existing": schools.assign(places=3000.0)},
+    )
+    assert by_column.sites.equals(found.sites)
+    plain = peabiru.locate_facilities(network, points, others, n_facilities=2, **ok)
+    assert "units" not in plain.candidates and "served" not in plain.demand
+    with pytest.raises(ValueError, match="'capacity' failed: Must be greater than 0"):
+        peabiru.locate_facilities(network, points, others, capacity=0, **ok)
+    with pytest.raises(ValueError, match="'existing' has no column 'seats'"):
+        peabiru.locate_facilities(network, points, others, capacity="seats", **ok)
+    with pytest.raises(ValueError, match="Must be None when model is p_median"):
+        peabiru.locate_facilities(
+            network, points, others, model="p_median", capacity=10, mode="WALK"
+        )

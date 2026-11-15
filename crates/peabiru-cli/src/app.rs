@@ -645,6 +645,10 @@ pub struct LocateArgs {
     /// set_cover covers this share of the demand, above 0 and at most 1
     #[arg(long, value_name = "X", default_value = "1", help_heading = "Location")]
     pub coverage: String,
+    /// Demand one facility can serve (max_cover): a site may then open
+    /// more than once, and --n-facilities counts facilities
+    #[arg(long, value_name = "X", help_heading = "Location")]
+    pub capacity: Option<String>,
     /// Minutes charged to a demand point that reaches no facility
     /// (p_median, p_center) [default: twice the longest travel time]
     #[arg(long, value_name = "MIN", help_heading = "Location")]

@@ -24,11 +24,17 @@
 //! - p-center (Hakimi, 1964): greedy on the largest travel time (ties by
 //!   the weighted sum), then vertex substitution on the same pair.
 //!
+//! Maximal covering also has a capacitated form (Current and Storbeck,
+//! 1988), in which a facility serves only so much demand and a site may
+//! open more than once: greedy by the demand each further unit would
+//! serve, the nearest demand first.
+//!
 //! Ties are always broken by the lowest site index, the candidates are
 //! evaluated in parallel only where each one's value is computed on its
 //! own, and every sum is taken in a fixed order: the result does not
 //! depend on the number of threads.
 
+mod capacity;
 mod catchment;
 mod cover;
 mod median;
@@ -136,6 +142,19 @@ pub struct LocationParams {
     /// is out of reach (too much demand that no site covers), all the
     /// demand that can be covered is.
     pub coverage: f64,
+    /// For [`LocationModel::MaxCover`], how much demand one facility at
+    /// each site of the table can serve (one value per site, existing
+    /// facilities included; finite and positive). `None` (the default): a
+    /// facility serves all the demand within the cutoff. With it the
+    /// model is the capacitated maximal covering: a candidate may open
+    /// more than once ([`LocationSolution::sites`] then repeats it),
+    /// `n_facilities` counts the facilities opened, not the sites, and may
+    /// exceed the number of candidates; demand is served from the nearest
+    /// points outwards and a point may be served in part, or by more than
+    /// one facility. The existing facilities serve first, each pair of
+    /// facility and demand point in the order of their travel times.
+    /// [`LocationParams::swap`] has no effect.
+    pub capacity: Option<Vec<f64>>,
     /// For [`LocationModel::PMedian`] and [`LocationModel::PCenter`], the
     /// minutes charged to a demand point that reaches no open facility
     /// (while some site of the table could serve it). `None` (the
@@ -158,6 +177,7 @@ impl Default for LocationParams {
             swap: true,
             min_gain: 0.0,
             coverage: 1.0,
+            capacity: None,
             unreachable_time: None,
             n_threads: 0,
             cancel: CancelToken::default(),
@@ -176,8 +196,9 @@ impl Default for LocationParams {
 pub struct LocationSolution {
     /// The model solved.
     pub model: LocationModel,
-    /// The new sites (column indices of the table), ordered by what each
-    /// adds: the first is the site of the solution that does best alone
+    /// The new sites (column indices of the table; with
+    /// [`LocationParams::capacity`], one entry per facility opened, so a
+    /// site may repeat), ordered by what each adds: the first is the site of the solution that does best alone
     /// (after the existing facilities), the second the one that adds most
     /// to it, and so on. Without [`LocationParams::swap`] this is the
     /// order in which the greedy heuristic chose them.
@@ -224,6 +245,10 @@ pub struct LocationSolution {
     /// alone and at the solution, and never more than the demand some
     /// site can cover. NaN for the other models.
     pub upper_bound: f64,
+    /// With [`LocationParams::capacity`], how much of the demand of each
+    /// demand point is served, by the existing facilities and the new
+    /// ones: between 0 and its weight. Empty otherwise.
+    pub served: Vec<f64>,
     /// The sum of the demand weights.
     pub total_demand: f64,
     /// The demand points with weight that no site of the table, existing
@@ -257,7 +282,8 @@ pub struct LocationSolution {
 /// are not demand; the others count the same whatever their weight.
 ///
 /// Errors: [`RouteError::Invalid`] for weights that do not match the
-/// table, a negative or non-finite weight, an index in `existing` outside
+/// table, a negative or non-finite weight, capacities that do not match
+/// the sites, are not positive or come with another model, an index in `existing` outside
 /// the table or repeated, no candidate, `n_facilities` of 0 or more than
 /// the candidates, a covering model without a cutoff, or a coverage
 /// target outside (0, 1];
@@ -299,11 +325,32 @@ pub fn locate_facilities(
             "there is no candidate site: every site of the table is an existing facility".into(),
         );
     }
+    if let Some(capacity) = &params.capacity {
+        if params.model != LocationModel::MaxCover {
+            return invalid(format!(
+                "capacity is for the max_cover model, not {}",
+                params.model.name()
+            ));
+        }
+        if capacity.len() != costs.n_sites() {
+            return invalid(format!(
+                "capacity has {} values, but the table has {} sites",
+                capacity.len(),
+                costs.n_sites()
+            ));
+        }
+        if let Some(j) = capacity.iter().position(|k| !(k.is_finite() && *k > 0.0)) {
+            return invalid(format!(
+                "capacities must be finite and positive, got {} for site {j}",
+                capacity[j]
+            ));
+        }
+    }
     if params.model != LocationModel::SetCover {
         if params.n_facilities == 0 {
             return invalid("n_facilities must be at least 1".into());
         }
-        if params.n_facilities > candidates.len() {
+        if params.capacity.is_none() && params.n_facilities > candidates.len() {
             return invalid(format!(
                 "n_facilities is {}, but there are only {} candidate sites",
                 params.n_facilities,
@@ -348,7 +395,9 @@ pub fn locate_facilities(
         candidates: &candidates,
         params,
     };
-    let mut solution = if params.model.is_cover() {
+    let mut solution = if let Some(capacity) = &params.capacity {
+        capacity::solve(&problem, capacity)?
+    } else if params.model.is_cover() {
         cover::solve(&problem)?
     } else {
         median::solve(&problem)?

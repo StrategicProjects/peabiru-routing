@@ -173,3 +173,34 @@ test("set covering takes a coverage target, and maximal covering reports a bound
   assert.deepEqual(Array.from(curve.sites.cumulative), [43640, 46040, 46217, 46273]);
   assert.equal(curve.summary.upper_bound, curve.summary.covered);
 });
+
+test("maximal covering takes capacities", async () => {
+  const net = await sampleNetwork();
+  const points = samplePoints();
+  const keep = (table, f) => Object.fromEntries(Object.entries(table).map(([k, v]) => [k, Array.from(v).filter((_, i) => f(i))]));
+  const schools = keep(points, (i) => points.schools[i] > 0);
+  const others = keep(points, (i) => points.schools[i] === 0);
+  const ok = { existing: schools, model: "max_cover", cutoff: 12, demandColname: "population" };
+  const found = await peabiru.locateFacilities(net, points, others, { ...ok, nFacilities: 4, capacity: 3000 });
+  assert.deepEqual(found.sites.id, Array(4).fill("89a8100c00fffff"));
+  assert.deepEqual(Array.from(found.sites.marginal), [3000, 3000, 3000, 3000]);
+  assert.equal(found.summary.covered_before, 16623);
+  assert.equal(found.summary.covered, 28623);
+  assert.equal(found.summary.upper_bound, 28623);
+  assert.deepEqual(Array.from(found.candidates.units).filter((u) => u > 0), [4]);
+  let served = 0;
+  found.demand.served.forEach((x, i) => { served += x * found.demand.demand[i]; });
+  assert.equal(served, 28623);
+  const every = await peabiru.locateFacilities(net, points, others, { ...ok, nFacilities: 30, capacity: 3000 });
+  assert.equal(every.sites.id.length, 12);
+  assert.equal(every.summary.covered, 46273);
+  // a column of capacities, in the candidates and in the existing facilities
+  const places = (t) => ({ ...t, places: t.id.map(() => 3000) });
+  const byColumn = await peabiru.locateFacilities(net, points, places(others), { ...ok, existing: places(schools), nFacilities: 4, capacity: "places" });
+  assert.deepEqual(byColumn.sites.id, found.sites.id);
+  const plain = await peabiru.locateFacilities(net, points, others, { ...ok, nFacilities: 2 });
+  assert.equal(plain.candidates.units, undefined);
+  await assert.rejects(peabiru.locateFacilities(net, points, others, { ...ok, capacity: 0 }), /capacity' failed: Must be greater than 0/);
+  await assert.rejects(peabiru.locateFacilities(net, points, others, { ...ok, capacity: "seats" }), /'existing' has no column 'seats'/);
+  await assert.rejects(peabiru.locateFacilities(net, points, others, { model: "p_median", capacity: 10 }), /must be null when model is p_median/);
+});

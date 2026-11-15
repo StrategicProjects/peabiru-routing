@@ -338,6 +338,227 @@ fn max_cover_reports_an_upper_bound() {
     assert_eq!((s.covered, s.upper_bound), (6.0, 6.0));
 }
 
+/// The most demand that facilities can serve: `units[j]` facilities of
+/// capacity `capacity[j]` at site `j`, `left[i]` demand at point `i`, a
+/// pair usable when `near(i, j)`. Whole numbers; augmenting paths.
+fn most_served(
+    left: &[f64],
+    units: &[usize],
+    capacity: &[f64],
+    near: &dyn Fn(usize, usize) -> bool,
+) -> f64 {
+    let (n, m) = (left.len(), units.len());
+    let mut room: Vec<i64> = (0..m)
+        .map(|j| units[j] as i64 * capacity[j] as i64)
+        .collect();
+    let mut want: Vec<i64> = left.iter().map(|&w| w as i64).collect();
+    let mut flow = vec![vec![0i64; m]; n];
+    let mut total = 0;
+    loop {
+        // breadth-first from the points with demand left to a site with room
+        let mut from_site: Vec<Option<usize>> = vec![None; n];
+        let mut from_point: Vec<Option<usize>> = vec![None; m];
+        let mut queue: Vec<usize> = (0..n).filter(|&i| want[i] > 0).collect();
+        let mut root = vec![false; n];
+        queue.iter().for_each(|&i| root[i] = true);
+        let mut end = None;
+        let mut at = 0;
+        'search: while at < queue.len() {
+            let i = queue[at];
+            at += 1;
+            for j in 0..m {
+                if !near(i, j) || from_point[j].is_some() {
+                    continue;
+                }
+                from_point[j] = Some(i);
+                if room[j] > 0 {
+                    end = Some(j);
+                    break 'search;
+                }
+                for k in 0..n {
+                    if flow[k][j] > 0 && !root[k] && from_site[k].is_none() {
+                        from_site[k] = Some(j);
+                        queue.push(k);
+                    }
+                }
+            }
+        }
+        let Some(end) = end else { break };
+        // the path back, its bottleneck, and the push
+        let mut path = vec![(from_point[end].unwrap(), end)];
+        while let Some(j) = from_site[path.last().unwrap().0] {
+            path.push((from_point[j].unwrap(), j));
+        }
+        let start = path.last().unwrap().0;
+        let mut push = want[start].min(room[end]);
+        for w in path.windows(2) {
+            push = push.min(flow[w[0].0][w[1].1]);
+        }
+        for (k, &(i, j)) in path.iter().enumerate() {
+            flow[i][j] += push;
+            if k + 1 < path.len() {
+                flow[i][path[k + 1].1] -= push;
+            }
+        }
+        want[start] -= push;
+        room[end] -= push;
+        total += push;
+    }
+    total as f64
+}
+
+/// Every way of opening `p` facilities among `m` sites.
+fn multisets(m: usize, p: usize) -> Vec<Vec<usize>> {
+    if m == 1 {
+        return vec![vec![p]];
+    }
+    let mut out = Vec::new();
+    for first in 0..=p {
+        for mut rest in multisets(m - 1, p - first) {
+            rest.insert(0, first);
+            out.push(rest);
+        }
+    }
+    out
+}
+
+#[test]
+fn capacity_by_hand() {
+    // a village of 600 at one site, capacity 30: twenty facilities there
+    let table = CostTable::from_dense(2, 2, &[5.0, f64::NAN, f64::NAN, 5.0]).unwrap();
+    let demand = [600.0, 40.0];
+    let mut q = params(LocationModel::MaxCover, 21, 10.0, &[]);
+    q.capacity = Some(vec![30.0, 30.0]);
+    let s = locate_facilities(&table, &demand, &q).unwrap();
+    assert_eq!(s.sites.iter().filter(|&&j| j == 0).count(), 20);
+    assert_eq!(s.sites[20], 1);
+    assert_eq!(s.marginal, [30.0; 21]);
+    assert_eq!((s.covered, s.upper_bound), (630.0, 630.0));
+    assert_eq!(s.served, [600.0, 30.0]);
+    // one more serves the 10 left, and after that nothing is left to serve
+    q.n_facilities = 30;
+    let s = locate_facilities(&table, &demand, &q).unwrap();
+    assert_eq!((s.sites.len(), s.covered), (22, 640.0));
+    assert_eq!(s.marginal[21], 10.0);
+    assert_eq!(s.potential, [30.0, 30.0]);
+    q.min_gain = 20.0;
+    assert_eq!(
+        locate_facilities(&table, &demand, &q).unwrap().sites.len(),
+        21
+    );
+
+    // an existing facility serves its nearest demand first, up to its capacity
+    let table = CostTable::from_dense(2, 2, &[3.0, 5.0, 8.0, 5.0]).unwrap();
+    let mut q = params(LocationModel::MaxCover, 1, 10.0, &[0]);
+    q.capacity = Some(vec![50.0, 100.0]);
+    let s = locate_facilities(&table, &[40.0, 40.0], &q).unwrap();
+    assert_eq!((s.covered_before, s.covered), (50.0, 80.0));
+    assert_eq!((s.sites.clone(), s.marginal.clone()), (vec![1], vec![30.0]));
+    assert_eq!(s.served, [40.0, 40.0]);
+}
+
+#[test]
+fn capacity_against_exhaustive_search() {
+    let mut rng = Rng(1988);
+    let (mut optimal, mut worst) = (0usize, 1f64);
+    let rounds = 300;
+    for round in 0..rounds {
+        let n = 3 + rng.below(8) as usize;
+        let m = 2 + rng.below(4) as usize; // at most 5 sites
+        let n_existing = (rng.below(2) as usize).min(m - 2);
+        let inst = Instance::random(&mut rng, n, m, n_existing);
+        let table = inst.table();
+        let cands = inst.candidates();
+        let p = 1 + rng.below(4) as usize;
+        let cutoff = 3.0 + rng.below(25) as f64;
+        let capacity: Vec<f64> = (0..m).map(|_| 1.0 + rng.below(12) as f64).collect();
+        let what = format!("round {round}: n {n}, m {m}, p {p}, cutoff {cutoff}");
+        let mut q = params(LocationModel::MaxCover, p, cutoff, &inst.existing);
+        q.capacity = Some(capacity.clone());
+        let s = locate_facilities(&table, &inst.demand, &q).unwrap();
+
+        // what is served is demand, within the cutoff, within the capacities
+        let near = |i: usize, j: usize| inst.t(i, j).is_some_and(|t| t <= cutoff);
+        let total: f64 = s.served.iter().sum();
+        assert_eq!(total, s.covered, "{what}");
+        assert_eq!(
+            s.cumulative.last().copied().unwrap_or(s.covered_before),
+            s.covered
+        );
+        assert!(
+            s.sites.len() <= p && s.sites.iter().all(|j| cands.contains(j)),
+            "{what}"
+        );
+        for i in 0..n {
+            assert!(
+                s.served[i] >= 0.0 && s.served[i] <= inst.demand[i],
+                "{what}"
+            );
+        }
+        let mut units = vec![0usize; m];
+        inst.existing.iter().for_each(|&e| units[e] = 1);
+        // the existing facilities serve the shortest trips first
+        let mut pairs: Vec<(f64, usize, usize)> = Vec::new();
+        for &e in &inst.existing {
+            for i in 0..n {
+                if near(i, e) {
+                    pairs.push((inst.t(i, e).unwrap(), e, i));
+                }
+            }
+        }
+        pairs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let mut left = inst.demand.clone();
+        let mut room = capacity.clone();
+        for (_, e, i) in pairs {
+            let take = room[e].min(left[i]);
+            room[e] -= take;
+            left[i] -= take;
+        }
+        let before = inst.demand.iter().sum::<f64>() - left.iter().sum::<f64>();
+        assert_eq!(s.covered_before, before, "{what}");
+        // the solution is feasible: a flow of that size exists
+        let mut opened = vec![0usize; m];
+        s.sites.iter().for_each(|&j| opened[j] += 1);
+        let feasible = most_served(&left, &opened, &capacity, &near);
+        assert!(feasible >= s.covered - before, "{what}");
+        for (r, &j) in s.sites.iter().enumerate() {
+            assert!(
+                s.marginal[r] > 0.0 && s.marginal[r] <= capacity[j],
+                "{what}"
+            );
+            assert!(r == 0 || s.marginal[r] <= s.marginal[r - 1], "{what}");
+        }
+
+        // the optimum over every way of opening `p` facilities
+        let optimum = multisets(cands.len(), p)
+            .iter()
+            .map(|x| {
+                let mut opened = vec![0usize; m];
+                cands.iter().zip(x).for_each(|(&j, &k)| opened[j] = k);
+                before + most_served(&left, &opened, &capacity, &near)
+            })
+            .fold(0f64, f64::max);
+        assert!(s.covered <= optimum, "{what}: {} of {optimum}", s.covered);
+        assert!(s.upper_bound >= optimum, "{what}: bound {}", s.upper_bound);
+        if p == 1 {
+            assert_eq!(s.covered, optimum, "{what}");
+        }
+        optimal += usize::from(s.covered == optimum);
+        if optimum > before {
+            worst = worst.min((s.covered - before) / (optimum - before));
+        }
+        for &j in &cands {
+            let alone = (0..n).filter(|&i| near(i, j)).map(|i| left[i]).sum::<f64>();
+            assert_eq!(s.potential[j], alone.min(capacity[j]), "{what}");
+        }
+    }
+    println!(
+        "{rounds} capacitated instances: optimal in {optimal}; worst share of the best new service {worst:.4}"
+    );
+    assert!(optimal * 10 >= rounds * 8, "{optimal}");
+    assert!(worst >= 0.5, "{worst}");
+}
+
 #[test]
 fn median_and_center_by_hand() {
     // demand points on a line at 0, 1, 2, 10, 11 (weights 1, 1, 1, 1, 5),
@@ -745,6 +966,18 @@ fn bad_arguments_are_refused() {
         refused(&q, &demand, "coverage must be above 0 and at most 1");
     }
     refused(&ok, &[1.0; 5], "5 weights");
+    let mut q = ok.clone();
+    q.capacity = Some(vec![1.0; 2]);
+    refused(
+        &q,
+        &demand,
+        "capacity has 2 values, but the table has 3 sites",
+    );
+    q.capacity = Some(vec![1.0, 0.0, 1.0]);
+    refused(&q, &demand, "capacities must be finite and positive");
+    q.capacity = Some(vec![1.0; 3]);
+    q.model = LocationModel::PMedian;
+    refused(&q, &demand, "capacity is for the max_cover model");
     refused(&ok, &[1.0, 1.0, -1.0, 1.0, 1.0, 1.0], "not negative");
     refused(&ok, &[1.0, 1.0, f64::NAN, 1.0, 1.0, 1.0], "finite");
     refused(

@@ -38,12 +38,14 @@ fn table(
 }
 
 /// The solution of a location model: `[sites, marginal, cumulative,
-/// potential, assigned_site, assigned_minutes, unservable, numbers]`, the
+/// potential, assigned_site, assigned_minutes, unservable, numbers,
+/// served]`, the
 /// indices 0-based (`assigned_site` missing for a demand point that
 /// reaches no facility) and `numbers` holding `objective_before`,
 /// `objective_greedy`, `objective`, `covered_before`, `covered`,
 /// `total_demand`, `unservable_demand`, `n_swaps` and `upper_bound`. The first
-/// `n_existing` sites are the existing facilities; `unreachable_time` not
+/// `n_existing` sites are the existing facilities; `capacity` is empty or
+/// has one value per site; `unreachable_time` not
 /// positive for the default.
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
@@ -61,6 +63,7 @@ pub fn locate_facilities(
     swap: bool,
     min_gain: f64,
     coverage: f64,
+    capacity: &[f64],
     unreachable_time: f64,
 ) -> Result<Array, JsError> {
     let costs = table(n_demand, n_sites, pair_demand, pair_site, pair_minutes)?;
@@ -73,6 +76,7 @@ pub fn locate_facilities(
     p.swap = swap;
     p.min_gain = min_gain;
     p.coverage = coverage;
+    p.capacity = (!capacity.is_empty()).then(|| capacity.to_vec());
     p.unreachable_time = (unreachable_time > 0.0).then_some(unreachable_time);
     p.n_threads = 1;
     let s = locate_facilities_core(&costs, demand, &p).map_err(route_err)?;
@@ -102,6 +106,7 @@ pub fn locate_facilities(
     out.push(&Float64Array::from(&s.assigned_minutes[..]));
     out.push(&Int32Array::from(&as_i32(&s.unservable)[..]));
     out.push(&Float64Array::from(&numbers[..]));
+    out.push(&Float64Array::from(&s.served[..]));
     Ok(out)
 }
 
