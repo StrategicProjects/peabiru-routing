@@ -133,6 +133,16 @@ full.sites.id.forEach((id, k) => console.log(id, full.sites.order[k], full.sites
 console.log(`served today: ${full.summary.covered_before}; at most ${full.summary.upper_bound} with four more`);
 // ANCHOR_END: capacity
 
+// ANCHOR: distance
+// straight-line distances: the two sites with the most residents within 500 m
+const near = peabiru.distanceMatrix(points, points, { maxDistance: 500 });
+console.log(near.from_id.length, "pairs; the second:", near.to_id[1], near.distance[1].toFixed(1), "m");
+const byDistance = await peabiru.locateFacilities(null, points, points, {
+  model: "max_cover", nFacilities: 2, cutoff: 500, demandColname: "population", travelTimes: near,
+});
+byDistance.sites.id.forEach((id, k) => console.log(id, byDistance.sites.marginal[k], byDistance.sites.cumulative[k]));
+// ANCHOR_END: distance
+
 network.free();
 
 // checks, not shown in the documentation
@@ -140,5 +150,6 @@ assert.equal(found.summary.covered, 46217);
 assert.equal(found.summary.upper_bound, 46273);
 assert.equal(part.sites.id.length, 4);
 assert.equal(full.summary.covered, 28623);
+assert.equal(byDistance.summary.covered, 33337);
 assert.deepEqual(again.summary, found.summary);
 assert.ok(Math.abs(shared - 7) < 1e-9);

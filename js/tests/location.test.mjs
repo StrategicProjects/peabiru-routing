@@ -204,3 +204,21 @@ test("maximal covering takes capacities", async () => {
   await assert.rejects(peabiru.locateFacilities(net, points, others, { ...ok, capacity: "seats" }), /'existing' has no column 'seats'/);
   await assert.rejects(peabiru.locateFacilities(net, points, others, { model: "p_median", capacity: 10 }), /must be null when model is p_median/);
 });
+
+test("distanceMatrix gives the pairs within a distance", async () => {
+  await sampleNetwork();
+  const points = samplePoints();
+  const near = peabiru.distanceMatrix(points, points, { maxDistance: 500 });
+  assert.equal(near.from_id.length, 151);
+  assert.equal(near.from_id.filter((id, k) => id === near.to_id[k]).length, 27);
+  assert.ok(Math.abs(near.distance.reduce((a, b) => a + b, 0) - 43426.8219512176) < 1e-6);
+  assert.ok(Math.max(...near.distance) <= 500);
+  const found = await peabiru.locateFacilities(null, points, points, {
+    model: "max_cover", nFacilities: 2, cutoff: 500, demandColname: "population", travelTimes: near,
+  });
+  assert.deepEqual(found.sites.id, ["89a8100c03bffff", "89a8100c037ffff"]);
+  assert.equal(found.summary.covered, 33337);
+  assert.throws(() => peabiru.distanceMatrix(points, points, { maxDistance: -1 }), /maxDistance' failed/);
+  assert.throws(() => peabiru.distanceMatrix(points, points, {}), /maxDistance' failed/);
+  assert.throws(() => peabiru.distanceMatrix(points, points, { maxDistance: 5, radius: 1 }), /unknown option 'radius'/);
+});

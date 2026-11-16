@@ -1151,6 +1151,7 @@ fn _peabiru(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(options::trip_options_py, m)?)?;
     m.add_function(wrap_pyfunction!(location::locate_facilities, m)?)?;
     m.add_function(wrap_pyfunction!(location::floating_catchment, m)?)?;
+    m.add_function(wrap_pyfunction!(location::distance_pairs, m)?)?;
     inspect::register(m)?;
     fares::register(m)?;
     Ok(())

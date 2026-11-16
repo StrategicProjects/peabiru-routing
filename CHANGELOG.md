@@ -14,6 +14,10 @@ Python and JavaScript packages. The R package has its own `r/NEWS.md`.
   facilities, demand is served from the nearest points first and may be
   served in part (`served`, per demand point), and the existing facilities
   serve first.
+- `distance_matrix()` (Python; `distanceMatrix()` in JavaScript;
+  `distance_pairs` in the core): the pairs of two sets of points at most so
+  many metres apart in a straight line, with no network, as a table the
+  location functions take (they now read a `distance` column too).
 - Maximal covering reports an upper bound (`upper_bound` in the summary;
   `LocationSolution::upper_bound` in the core): no choice of `n_facilities`
   sites covers more demand, so `covered / upper_bound` is a floor on the

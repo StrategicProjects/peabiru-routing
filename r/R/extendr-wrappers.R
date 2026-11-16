@@ -194,6 +194,11 @@ rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, 
 #' @noRd
 rs_trip_options <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output, walk_resolution) .Call(wrap__rs_trip_options, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output, walk_resolution)
 
+#' The pairs of points at most `max_distance` metres apart in a straight
+#' line: `from` and `to` 0-based, and the metres.
+#' @noRd
+rs_distance_pairs <- function(from_lon, from_lat, to_lon, to_lat, max_distance) .Call(wrap__rs_distance_pairs, from_lon, from_lat, to_lon, to_lat, max_distance)
+
 #' The solution of a location model as a list: `sites`, `unservable` and
 #' `assigned_site` 0-based (`NA` for a demand point that reaches no
 #' facility); `unreachable_time` not positive for the default.

@@ -3,8 +3,9 @@
 //! was given).
 
 use peabiru_core::{
-    floating_catchment as floating_catchment_core, locate_facilities as locate_facilities_core,
-    CancelToken, CostTable, FloatingCatchmentParams, LocationModel, LocationParams,
+    distance_pairs as distance_pairs_core, floating_catchment as floating_catchment_core,
+    locate_facilities as locate_facilities_core, CancelToken, CostTable, FloatingCatchmentParams,
+    LocationModel, LocationParams,
 };
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -142,5 +143,33 @@ pub(crate) fn floating_catchment<'py>(
     out.set_item("ratio", f64_bytes(py, &f.ratio)?)?;
     out.set_item("catchment_demand", f64_bytes(py, &f.catchment_demand)?)?;
     out.set_item("unreached_supply", f.unreached_supply)?;
+    Ok(out)
+}
+
+/// The pairs of points at most `max_distance` metres apart in a straight
+/// line, as a dict of columns: `from` and `to` (0-based `i32`) and
+/// `metres`. The coordinates are buffers of `f64`.
+#[pyfunction]
+pub(crate) fn distance_pairs<'py>(
+    py: Python<'py>,
+    from_lon: &[u8],
+    from_lat: &[u8],
+    to_lon: &[u8],
+    to_lat: &[u8],
+    max_distance: f64,
+) -> PyResult<Bound<'py, PyDict>> {
+    let zip = |lon: &[u8], lat: &[u8]| -> PyResult<Vec<(f64, f64)>> {
+        Ok(f64s(lon)?.into_iter().zip(f64s(lat)?).collect())
+    };
+    let (from, to) = (zip(from_lon, from_lat)?, zip(to_lon, to_lat)?);
+    let cancel = CancelToken::new();
+    let d = interruptible(py, &cancel, || {
+        distance_pairs_core(&from, &to, max_distance, &cancel)
+    })?;
+    let as_i32 = |v: &[u32]| -> Vec<i32> { v.iter().map(|&x| x as i32).collect() };
+    let out = PyDict::new(py);
+    out.set_item("from", i32_bytes(py, &as_i32(&d.from))?)?;
+    out.set_item("to", i32_bytes(py, &as_i32(&d.to))?)?;
+    out.set_item("metres", f64_bytes(py, &d.metres)?)?;
     Ok(out)
 }

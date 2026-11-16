@@ -5,6 +5,11 @@
   `existing`). A candidate may then open more than once, `n_facilities`
   counts facilities, and the result reports the share of each demand
   point that is served (capacitated maximal covering).
+* New function `distance_matrix()`: the pairs of two sets of points at most
+  so many metres apart in a straight line, with no network.
+  `locate_facilities()` and `floating_catchment()` take its result in
+  `travel_times` (a `distance` column), for service standards that are
+  distances.
 * `locate_facilities()` reports, for `"max_cover"`, an upper bound on the
   demand that any choice of `n_facilities` sites could cover
   (`summary$upper_bound`): `covered / upper_bound` is a floor on the share

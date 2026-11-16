@@ -37,6 +37,7 @@
 mod capacity;
 mod catchment;
 mod cover;
+mod distance;
 mod median;
 mod table;
 
@@ -44,6 +45,7 @@ mod table;
 mod tests;
 
 pub use catchment::{floating_catchment, FloatingCatchment, FloatingCatchmentParams};
+pub use distance::{distance_pairs, DistancePairs};
 pub use table::CostTable;
 
 use crate::{sys, CancelToken, RouteError};

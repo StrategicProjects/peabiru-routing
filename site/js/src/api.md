@@ -22,7 +22,7 @@ package (`node site/js/run_examples.mjs` runs each of them after it):
 | Expanded and arrival matrices | [`expandedTravelTimeMatrix`](#expandedTravelTimeMatrix), [`arrivalTravelTimeMatrix`](#arrivalTravelTimeMatrix), [`ExpandedTravelTimeMatrixOptions`](#ExpandedTravelTimeMatrixOptions), [`ArrivalTravelTimeMatrixOptions`](#ArrivalTravelTimeMatrixOptions), [`ExpandedMatrix`](#ExpandedMatrix) |
 | Detailed itineraries | [`detailedItineraries`](#detailedItineraries), [`DetailedItinerariesOptions`](#DetailedItinerariesOptions), [`ItineraryRow`](#ItineraryRow), [`ItineraryFeature`](#ItineraryFeature) |
 | Fares | [`setupFareStructure`](#setupFareStructure), [`SetupFareStructureOptions`](#SetupFareStructureOptions), [`FareStructure`](#FareStructure), [`readFareStructure`](#readFareStructure), [`writeFareStructure`](#writeFareStructure), [`paretoFrontier`](#paretoFrontier), [`ParetoFrontierOptions`](#ParetoFrontierOptions), [`ParetoFrontierTable`](#ParetoFrontierTable) |
-| Facility location | [`locateFacilities`](#locateFacilities), [`LocateFacilitiesOptions`](#LocateFacilitiesOptions), [`FacilityLocation`](#FacilityLocation), [`floatingCatchment`](#floatingCatchment), [`FloatingCatchmentOptions`](#FloatingCatchmentOptions), [`FloatingCatchment`](#FloatingCatchment), [`TravelTimes`](#TravelTimes), [`LocationRoutingOptions`](#LocationRoutingOptions) |
+| Facility location | [`locateFacilities`](#locateFacilities), [`LocateFacilitiesOptions`](#LocateFacilitiesOptions), [`FacilityLocation`](#FacilityLocation), [`floatingCatchment`](#floatingCatchment), [`FloatingCatchmentOptions`](#FloatingCatchmentOptions), [`FloatingCatchment`](#FloatingCatchment), [`TravelTimes`](#TravelTimes), [`LocationRoutingOptions`](#LocationRoutingOptions), [`distanceMatrix`](#distanceMatrix), [`DistanceMatrixOptions`](#DistanceMatrixOptions), [`DistanceTable`](#DistanceTable) |
 | Isochrones | [`isochrone`](#isochrone), [`IsochroneOptions`](#IsochroneOptions), [`IsochronePolygonProperties`](#IsochronePolygonProperties), [`IsochroneLineProperties`](#IsochroneLineProperties), [`FeatureCollection`](#FeatureCollection), [`Feature`](#Feature), [`MultiPolygon`](#MultiPolygon), [`LineString`](#LineString) |
 | Inspecting a network | [`findSnap`](#findSnap), [`FindSnapOptions`](#FindSnapOptions), [`SnapTable`](#SnapTable), [`streetNetworkBbox`](#streetNetworkBbox), [`Polygon`](#Polygon), [`Point`](#Point), [`streetNetworkToSf`](#streetNetworkToSf), [`StreetVertexProperties`](#StreetVertexProperties), [`StreetEdgeProperties`](#StreetEdgeProperties), [`InspectOptions`](#InspectOptions), [`transitNetworkToSf`](#transitNetworkToSf), [`TransitStopProperties`](#TransitStopProperties), [`TransitRouteProperties`](#TransitRouteProperties), [`checkTransitAvailability`](#checkTransitAvailability), [`TransitAvailabilityOptions`](#TransitAvailabilityOptions), [`TransitAvailabilityTable`](#TransitAvailabilityTable), [`getGtfsErrors`](#getGtfsErrors), [`GtfsErrorsTable`](#GtfsErrorsTable) |
 | Points, dates, scenarios and shared options | [`Points`](#Points), [`Numbers`](#Numbers), [`DateTime`](#DateTime), [`RoutingOptions`](#RoutingOptions), [`ScenarioTable`](#ScenarioTable), [`GeoJsonFeatureCollection`](#GeoJsonFeatureCollection) |
@@ -755,6 +755,52 @@ export type LocationRoutingOptions = Omit<TravelTimeMatrixOptions, "percentiles"
 ```
 
 The routing options the location functions pass on to `travelTimeMatrix()`.
+
+### distanceMatrix {#distanceMatrix}
+
+*function*
+
+```typescript
+export declare function distanceMatrix(origins: Points, destinations: Points, options: DistanceMatrixOptions): DistanceTable;
+```
+
+Straight-line distances between two sets of points: every pair of an origin and a destination at most `maxDistance` metres apart, ordered as the origins and, within each, as the destinations. It needs no network and is synchronous (after `init()` in a browser). The result goes into `travelTimes` of `locateFacilities()` and `floatingCatchment()`, with the cutoff in metres, where the service standard is a distance or the streets are not mapped well enough to route on.
+
+The distance is the great-circle one on a sphere of radius 6,367,450 m, the same that measures the streets of a network. A pair at distance 0 is a pair.
+
+```js
+const near = peabiru.distanceMatrix(points, points, { maxDistance: 800 });
+const found = await peabiru.locateFacilities(null, points, points, {
+  model: "max_cover", nFacilities: 2, cutoff: 800, demandColname: "jobs", travelTimes: near,
+});
+```
+
+### DistanceMatrixOptions {#DistanceMatrixOptions}
+
+*interface*
+
+```typescript
+export interface DistanceMatrixOptions
+```
+
+Options of `distanceMatrix()`.
+
+- `maxDistance: number`: The longest distance kept, in metres (a pair that far apart is kept). Required.
+- `onWarning?: (message: string) => void`: Receives the warnings about the points (default: `console.warn`).
+
+### DistanceTable {#DistanceTable}
+
+*interface*
+
+```typescript
+export interface DistanceTable
+```
+
+The result of `distanceMatrix()`: one row per pair, as columns.
+
+- `from_id: (string | null)[]`
+- `to_id: (string | null)[]`
+- `distance: Float64Array`: Metres in a straight line.
 
 ## Isochrones
 

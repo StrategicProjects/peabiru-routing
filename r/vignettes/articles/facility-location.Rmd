@@ -370,6 +370,20 @@ that is not negative, such as a straight-line or network distance in
 metres where the service standard is a distance: `cutoff`, `unreachable_time` and
 the `travel_time` column of the result are then in that unit.
 
+`distance_matrix()` makes such a table from the straight-line distances between two sets
+of points: every pair at most so many metres apart, with no network. Here,
+the two sites that put the most residents within 500 m:
+
+```{r distance}
+near <- distance_matrix(points, points, max_distance = 500)
+head(near, 3)
+by_distance <- locate_facilities(
+  NULL, points, points, model = "max_cover", n_facilities = 2, cutoff = 500,
+  demand_colname = "population", travel_times = near
+)
+by_distance$sites[c("id", "order", "marginal", "cumulative")]
+```
+
 ## What the models do not see
 
 The models choose sites by travel time and demand alone. They do not know

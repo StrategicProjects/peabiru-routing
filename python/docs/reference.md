@@ -60,6 +60,8 @@ Where to open facilities, and supply against demand around each place.
 
 ::: peabiru.FloatingCatchment
 
+::: peabiru.distance_matrix
+
 ## Inspecting a network
 
 ::: peabiru.find_snap

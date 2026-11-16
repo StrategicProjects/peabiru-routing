@@ -424,6 +424,30 @@ that is not negative, such as a straight-line or network distance in
 metres where the service standard is a distance: `cutoff`, `unreachable_time` and
 the `travel_time` column of the result are then in that unit.
 
+`distance_matrix()` makes such a table from the straight-line distances between two sets
+of points: every pair at most so many metres apart, with no network. Here,
+the two sites that put the most residents within 500 m:
+
+```python
+near = peabiru.distance_matrix(points, points, max_distance=500)
+print(near.head(3).to_string(index=False))
+by_distance = peabiru.locate_facilities(
+    None, points, points, model="max_cover", n_facilities=2, cutoff=500,
+    demand_colname="population", travel_times=near,
+)
+print(by_distance.sites[["id", "order", "marginal", "cumulative"]].to_string(index=False))
+```
+
+```text
+        from_id           to_id   distance
+89a8100c00fffff 89a8100c00fffff   0.000000
+89a8100c00fffff 89a8100c007ffff 351.804965
+89a8100c00fffff 89a8100c077ffff 340.917934
+             id  order  marginal  cumulative
+89a8100c03bffff      1   19490.0     19490.0
+89a8100c037ffff      2   13847.0     33337.0
+```
+
 ## What the models do not see
 
 The models choose sites by travel time and demand alone. They do not know

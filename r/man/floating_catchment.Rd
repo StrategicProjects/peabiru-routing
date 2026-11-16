@@ -67,7 +67,8 @@ functions.}
 \item{travel_times}{A table of travel times to use instead of routing:
 \code{from_id} (demand point), \code{to_id} (site) and \code{travel_time_pXX} for
 the \code{percentile} (or \code{travel_time}), in minutes, as
-\code{\link[=travel_time_matrix]{travel_time_matrix()}} returns it. A pair that is absent or has a
+\code{\link[=travel_time_matrix]{travel_time_matrix()}} returns it, or \code{distance}, as
+\code{\link[=distance_matrix]{distance_matrix()}} does. A pair that is absent or has a
 missing time is unreachable; rows of other points are ignored. With
 it, \code{network} and the routing arguments are not used and the points
 need only their \code{id}.}

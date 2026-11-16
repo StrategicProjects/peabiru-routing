@@ -184,6 +184,8 @@ def _pairs(
         column = f"travel_time_p{int(scalar(percentile)):02d}"
         if column not in travel_times.columns:
             column = "travel_time"
+        if column not in travel_times.columns and "distance" in travel_times.columns:
+            column = "distance"
         missing = [c for c in ("from_id", "to_id", column) if c not in travel_times.columns]
         if missing:
             raise ValueError(
@@ -317,6 +319,8 @@ def locate_facilities(
     may hold any cost that is not negative, such as a distance in metres;
     ``cutoff``, ``unreachable_time`` and the ``travel_time`` column of the
     result are then in that unit.
+    [`distance_matrix()`][peabiru.distance_matrix] makes such a table from
+    the straight-line distances between two sets of points.
 
     Parameters
     ----------
@@ -361,10 +365,12 @@ def locate_facilities(
         A table of travel times to use instead of routing: ``from_id``
         (demand point), ``to_id`` (site) and ``travel_time_pXX`` for the
         ``percentile`` (or ``travel_time``), in minutes, as
-        [`travel_time_matrix()`][peabiru.travel_time_matrix] returns it.
-        A pair that is absent or has a missing time is unreachable; rows
-        of other points are ignored. With it, ``network`` and the routing
-        arguments are not used and the points need only their ``id``.
+        [`travel_time_matrix()`][peabiru.travel_time_matrix] returns it,
+        or ``distance``, as [`distance_matrix()`][peabiru.distance_matrix]
+        does. A pair that is absent or has a missing time is unreachable;
+        rows of other points are ignored. With it, ``network`` and the
+        routing arguments are not used and the points need only their
+        ``id``.
     swap : bool, default True
         Improve the greedy solution by vertex substitution (for
         ``"set_cover"``, drop the sites the others make redundant).
@@ -730,3 +736,68 @@ def floating_catchment(
         )
     )
     return FloatingCatchment(demand_table, supply_table)
+
+
+def distance_matrix(origins: Any, destinations: Any, max_distance: Any) -> pd.DataFrame:
+    """Straight-line distances between two sets of points.
+
+    Every pair of an origin and a destination at most ``max_distance``
+    metres apart in a straight line, with the distance. It needs no
+    network, and its result is a table that
+    [`locate_facilities()`][peabiru.locate_facilities] and
+    [`floating_catchment()`][peabiru.floating_catchment] take in
+    ``travel_times``, for the cases in which the service standard is a
+    distance (a water point within 1 km) or the streets of the area are
+    not mapped well enough to route on.
+
+    The distance is the great-circle one on a sphere of radius
+    6,367,450 m, the same that measures the streets of a network, and is
+    the same on every platform. A pair at distance 0 is a pair. Only the
+    pairs within ``max_distance`` are computed, so two large sets of
+    points with a short distance take little time and memory.
+
+    Parameters
+    ----------
+    origins, destinations : pandas.DataFrame or geopandas.GeoDataFrame
+        The points: ``id``, ``lon``, ``lat`` (or point geometries in
+        WGS 84).
+    max_distance : number
+        The longest distance kept, in metres (``distance <= max_distance``).
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per pair, ordered as the origins and, within each, as the
+        destinations: ``from_id``, ``to_id`` and ``distance`` (metres).
+
+    Examples
+    --------
+    >>> import peabiru
+    >>> points = peabiru.sample_points()
+    >>> near = peabiru.distance_matrix(points, points, max_distance=800)
+    >>> found = peabiru.locate_facilities(
+    ...     None, points, points, model="max_cover", n_facilities=2, cutoff=800,
+    ...     demand_colname="population", travel_times=near,
+    ... )
+    """
+    assert_number(max_distance, "max_distance", lower=0, finite=True)
+    a = _points(origins, "origins", True)
+    b = _points(destinations, "destinations", True)
+
+    def coords(t: _Table, name: str) -> bytes:
+        return np.ascontiguousarray(
+            t.df[name].to_numpy(dtype=np.float64, na_value=np.nan)
+        ).tobytes()
+
+    with core_errors("distance_matrix"):
+        r = _peabiru.distance_pairs(
+            coords(a, "lon"), coords(a, "lat"), coords(b, "lon"), coords(b, "lat"),
+            float(scalar(max_distance)),
+        )
+    return pd.DataFrame(
+        {
+            "from_id": _strings(a.ids[_i32(r["from"])]),
+            "to_id": _strings(b.ids[_i32(r["to"])]),
+            "distance": _f64(r["metres"]),
+        }
+    )

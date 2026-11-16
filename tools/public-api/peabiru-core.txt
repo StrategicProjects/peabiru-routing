@@ -444,6 +444,27 @@ impl<'a> core::marker::Unpin for peabiru_core::Destinations<'a>
 impl<'a> core::marker::UnsafeUnpin for peabiru_core::Destinations<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for peabiru_core::Destinations<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for peabiru_core::Destinations<'a>
+#[non_exhaustive] pub struct peabiru_core::DistancePairs
+pub peabiru_core::DistancePairs::from: alloc::vec::Vec<u32>
+pub peabiru_core::DistancePairs::metres: alloc::vec::Vec<f64>
+pub peabiru_core::DistancePairs::to: alloc::vec::Vec<u32>
+impl core::clone::Clone for peabiru_core::DistancePairs
+pub fn peabiru_core::DistancePairs::clone(&self) -> Self
+impl core::cmp::PartialEq for peabiru_core::DistancePairs
+pub fn peabiru_core::DistancePairs::eq(&self, &Self) -> bool
+impl core::default::Default for peabiru_core::DistancePairs
+pub fn peabiru_core::DistancePairs::default() -> Self
+impl core::fmt::Debug for peabiru_core::DistancePairs
+pub fn peabiru_core::DistancePairs::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for peabiru_core::DistancePairs
+impl core::marker::Forget for peabiru_core::DistancePairs
+impl core::marker::Freeze for peabiru_core::DistancePairs
+impl core::marker::Send for peabiru_core::DistancePairs
+impl core::marker::Sync for peabiru_core::DistancePairs
+impl core::marker::Unpin for peabiru_core::DistancePairs
+impl core::marker::UnsafeUnpin for peabiru_core::DistancePairs
+impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::DistancePairs
+impl core::panic::unwind_safe::UnwindSafe for peabiru_core::DistancePairs
 #[non_exhaustive] pub struct peabiru_core::DroppedTrips
 pub peabiru_core::DroppedTrips::invalid_frequencies: usize
 pub peabiru_core::DroppedTrips::missing_end_time: usize
@@ -1486,6 +1507,7 @@ pub fn peabiru_core::build_from_dir(impl core::convert::AsRef<std::path::Path>, 
 pub fn peabiru_core::build_network(impl core::convert::AsRef<std::path::Path>, &peabiru_core::BuildOptions) -> core::result::Result<peabiru_core::Network, peabiru_core::NetworkError>
 pub fn peabiru_core::detailed_itineraries(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::ItineraryParams) -> core::result::Result<alloc::vec::Vec<alloc::vec::Vec<peabiru_core::Itinerary>>, peabiru_core::RouteError>
 pub fn peabiru_core::detailed_itineraries_noted(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::ItineraryParams) -> core::result::Result<(alloc::vec::Vec<alloc::vec::Vec<peabiru_core::Itinerary>>, peabiru_core::ItineraryNotes), peabiru_core::RouteError>
+pub fn peabiru_core::distance_pairs(&[(f64, f64)], &[(f64, f64)], f64, &peabiru_core::CancelToken) -> core::result::Result<peabiru_core::DistancePairs, peabiru_core::RouteError>
 pub fn peabiru_core::expanded_travel_time_matrix(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams) -> core::result::Result<peabiru_core::ExpandedMatrix, peabiru_core::RouteError>
 pub fn peabiru_core::find_snap(&peabiru_core::Network, &[(f64, f64)], f64, peabiru_core::Mode) -> core::result::Result<alloc::vec::Vec<core::option::Option<peabiru_core::Snap>>, peabiru_core::RouteError>
 pub fn peabiru_core::floating_catchment(&peabiru_core::CostTable, &[f64], &[f64], &peabiru_core::FloatingCatchmentParams) -> core::result::Result<peabiru_core::FloatingCatchment, peabiru_core::RouteError>

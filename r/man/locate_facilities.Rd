@@ -77,7 +77,8 @@ others.}
 \item{travel_times}{A table of travel times to use instead of routing:
 \code{from_id} (demand point), \code{to_id} (site) and \code{travel_time_pXX} for
 the \code{percentile} (or \code{travel_time}), in minutes, as
-\code{\link[=travel_time_matrix]{travel_time_matrix()}} returns it. A pair that is absent or has a
+\code{\link[=travel_time_matrix]{travel_time_matrix()}} returns it, or \code{distance}, as
+\code{\link[=distance_matrix]{distance_matrix()}} does. A pair that is absent or has a
 missing time is unreachable; rows of other points are ignored. With
 it, \code{network} and the routing arguments are not used and the points
 need only their \code{id}.}
@@ -239,7 +240,8 @@ those for a smaller number.
 The models do not depend on the unit of the table. \code{travel_times} may
 hold any cost that is not negative, such as a distance in metres;
 \code{cutoff}, \code{unreachable_time} and the \code{travel_time} column of the result
-are then in that unit.
+are then in that unit. \code{\link[=distance_matrix]{distance_matrix()}} makes such a table from the
+straight-line distances between two sets of points.
 }
 
 \examples{

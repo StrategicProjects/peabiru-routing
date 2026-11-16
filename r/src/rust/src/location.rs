@@ -6,8 +6,8 @@ use super::{decay, err, interruptible, Outcome};
 use extendr_api::prelude::*;
 use extendr_api::Result;
 use peabiru_core::{
-    floating_catchment, locate_facilities, CancelToken, CostTable, FloatingCatchmentParams,
-    LocationModel, LocationParams,
+    distance_pairs, floating_catchment, locate_facilities, CancelToken, CostTable,
+    FloatingCatchmentParams, LocationModel, LocationParams,
 };
 
 /// The table from its reachable pairs, with 0-based indices.
@@ -154,8 +154,40 @@ fn rs_floating_catchment(
     .into())
 }
 
+/// The pairs of points at most `max_distance` metres apart in a straight
+/// line: `from` and `to` 0-based, and the metres.
+/// @noRd
+#[extendr]
+fn rs_distance_pairs(
+    from_lon: &[f64],
+    from_lat: &[f64],
+    to_lon: &[f64],
+    to_lat: &[f64],
+    max_distance: f64,
+) -> Result<Robj> {
+    let zip = |lon: &[f64], lat: &[f64]| -> Vec<(f64, f64)> {
+        lon.iter().copied().zip(lat.iter().copied()).collect()
+    };
+    let (from, to) = (zip(from_lon, from_lat), zip(to_lon, to_lat));
+    let cancel = CancelToken::new();
+    let d = match interruptible(&cancel, || {
+        distance_pairs(&from, &to, max_distance, &cancel)
+    })? {
+        Outcome::Done(v) => v,
+        Outcome::Stopped(cond) => return super::stopped(cond),
+    };
+    let as_i32 = |v: &[u32]| -> Vec<i32> { v.iter().map(|&x| x as i32).collect() };
+    Ok(list!(
+        from = as_i32(&d.from),
+        to = as_i32(&d.to),
+        metres = d.metres
+    )
+    .into())
+}
+
 extendr_module! {
     mod location;
+    fn rs_distance_pairs;
     fn rs_locate_facilities;
     fn rs_floating_catchment;
 }

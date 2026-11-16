@@ -279,3 +279,29 @@ def test_max_cover_takes_capacities(network, points):
         peabiru.locate_facilities(
             network, points, others, model="p_median", capacity=10, mode="WALK"
         )
+
+
+def test_distance_matrix_gives_the_pairs_within_a_distance(points):
+    near = peabiru.distance_matrix(points, points, max_distance=500)
+    assert list(near.columns) == ["from_id", "to_id", "distance"]
+    assert len(near) == 151 and (near["from_id"] == near["to_id"]).sum() == 27
+    assert (near["distance"][near["from_id"] == near["to_id"]] == 0).all()
+    assert near["distance"].max() <= 500
+    # against the haversine formula, pair by pair
+    lon = points.set_index("id")["lon"]
+    lat = points.set_index("id")["lat"]
+    a, b = np.radians(lat[near["from_id"]].to_numpy()), np.radians(lat[near["to_id"]].to_numpy())
+    dl = np.radians(lon[near["to_id"]].to_numpy() - lon[near["from_id"]].to_numpy())
+    h = np.sin((b - a) / 2) ** 2 + np.cos(a) * np.cos(b) * np.sin(dl / 2) ** 2
+    assert np.allclose(near["distance"], 2 * 6_367_450 * np.arcsin(np.sqrt(h)), atol=1e-6)
+    every = len(points) ** 2
+    assert len(peabiru.distance_matrix(points, points, max_distance=1e7)) == every
+    assert len(peabiru.distance_matrix(points, points.iloc[:0], max_distance=500)) == 0
+    found = peabiru.locate_facilities(
+        None, points, points, model="max_cover", n_facilities=2, cutoff=500,
+        demand_colname="population", travel_times=near,
+    )
+    assert list(found.sites["id"]) == ["89a8100c03bffff", "89a8100c037ffff"]
+    assert found.summary["covered"] == 33337
+    with pytest.raises(ValueError, match="'max_distance' failed"):
+        peabiru.distance_matrix(points, points, max_distance=-1)

@@ -1140,3 +1140,70 @@ fn floating_catchment_shares_out_the_supply_reached() {
         }
     }
 }
+
+#[test]
+fn distance_pairs_against_every_pair() {
+    use crate::fastmath_trig::haversine_m;
+    let cancel = CancelToken::default();
+    let mut rng = Rng(5);
+    let mut unit = move || rng.below(1_000_000) as f64 / 1_000_000.0;
+    // (centre lon, centre lat, spread in degrees, metres)
+    let cases = [
+        (-36.5, -8.3, 0.2, 1000.0),
+        (-36.5, -8.3, 0.2, 0.0),
+        (179.95, 10.0, 0.2, 9000.0),
+        (-179.9, -60.0, 0.5, 20_000.0),
+        (30.0, 89.9, 0.3, 15_000.0),
+        (-70.0, -89.95, 0.1, 30_000.0),
+        (0.0, 0.0, 90.0, 3_000_000.0),
+        (10.0, 45.0, 60.0, 30_000_000.0),
+    ];
+    for (lon0, lat0, spread, metres) in cases {
+        let mut cloud = |n: usize| -> Vec<(f64, f64)> {
+            (0..n)
+                .map(|_| {
+                    let lon: f64 = lon0 + (unit() - 0.5) * 2.0 * spread;
+                    let lat: f64 = lat0 + (unit() - 0.5) * 2.0 * spread;
+                    (
+                        (lon + 180.0).rem_euclid(360.0) - 180.0,
+                        lat.clamp(-90.0, 90.0),
+                    )
+                })
+                .collect()
+        };
+        let (mut from, to) = (cloud(150), cloud(170));
+        from[0] = to[3]; // a pair at distance 0
+        let got = distance_pairs(&from, &to, metres, &cancel).unwrap();
+        let mut want = DistancePairs::default();
+        for (i, a) in from.iter().enumerate() {
+            for (j, b) in to.iter().enumerate() {
+                let d = haversine_m(a.1, a.0, b.1, b.0);
+                if d <= metres {
+                    want.from.push(i as u32);
+                    want.to.push(j as u32);
+                    want.metres.push(d);
+                }
+            }
+        }
+        assert_eq!(got, want, "{lon0} {lat0} {metres}");
+        assert!(got.from.first() == Some(&0) && got.to.contains(&3));
+        assert!(!got.from.is_empty());
+    }
+    // the pairs make a cost table as they are
+    let from = [(-36.0, -8.0), (-36.001, -8.0)];
+    let pairs = distance_pairs(&from, &from, 500.0, &cancel).unwrap();
+    let table = CostTable::from_pairs(2, 2, &pairs.from, &pairs.to, &pairs.metres).unwrap();
+    assert_eq!(table.get(0, 0), Some(0.0));
+    assert!(table.get(0, 1).is_some_and(|d| d > 100.0 && d < 120.0));
+    for bad in [(f64::NAN, 0.0), (0.0, 91.0)] {
+        assert!(matches!(
+            distance_pairs(&[bad], &from, 1.0, &cancel),
+            Err(RouteError::Invalid(_))
+        ));
+    }
+    assert!(distance_pairs(&from, &from, -1.0, &cancel).is_err());
+    assert_eq!(
+        distance_pairs(&[], &from, 1.0, &cancel).unwrap(),
+        DistancePairs::default()
+    );
+}

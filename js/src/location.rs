@@ -4,8 +4,9 @@
 
 use js_sys::{Array, Float64Array, Int32Array};
 use peabiru_core::{
-    floating_catchment as floating_catchment_core, locate_facilities as locate_facilities_core,
-    CostTable, FloatingCatchmentParams, LocationModel, LocationParams,
+    distance_pairs as distance_pairs_core, floating_catchment as floating_catchment_core,
+    locate_facilities as locate_facilities_core, CostTable, FloatingCatchmentParams, LocationModel,
+    LocationParams,
 };
 use wasm_bindgen::prelude::*;
 
@@ -135,5 +136,33 @@ pub fn floating_catchment(
     out.push(&Float64Array::from(&f.index[..]));
     out.push(&Float64Array::from(&f.ratio[..]));
     out.push(&Float64Array::from(&f.catchment_demand[..]));
+    Ok(out)
+}
+
+/// The pairs of points at most `max_distance` metres apart in a straight
+/// line: `[from, to, metres]`, the indices 0-based.
+#[wasm_bindgen]
+pub fn distance_pairs(
+    from_lon: &[f64],
+    from_lat: &[f64],
+    to_lon: &[f64],
+    to_lat: &[f64],
+    max_distance: f64,
+) -> Result<Array, JsError> {
+    let zip = |lon: &[f64], lat: &[f64]| -> Vec<(f64, f64)> {
+        lon.iter().copied().zip(lat.iter().copied()).collect()
+    };
+    let d = distance_pairs_core(
+        &zip(from_lon, from_lat),
+        &zip(to_lon, to_lat),
+        max_distance,
+        &Default::default(),
+    )
+    .map_err(route_err)?;
+    let as_i32 = |v: &[u32]| -> Vec<i32> { v.iter().map(|&x| x as i32).collect() };
+    let out = Array::new();
+    out.push(&Int32Array::from(&as_i32(&d.from)[..]));
+    out.push(&Int32Array::from(&as_i32(&d.to)[..]));
+    out.push(&Float64Array::from(&d.metres[..]));
     Ok(out)
 }

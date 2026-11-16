@@ -107,6 +107,7 @@ reference:
   contents:
   - locate_facilities
   - floating_catchment
+  - distance_matrix
 - title: Inspecting a network
   desc: >
     Where points snap, the street and transit networks as `sf`, the dates with

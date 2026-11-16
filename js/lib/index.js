@@ -19,6 +19,7 @@ import wasmInit, {
   fare_read as rawFareRead,
   fare_setup as rawFareSetup,
   fare_write as rawFareWrite,
+  distance_pairs as rawDistancePairs,
   floating_catchment as rawFloatingCatchment,
   locate_facilities as rawLocateFacilities,
   pareto as rawPareto,
@@ -2155,7 +2156,6 @@ function locationPoints(points, name, warn, routed) {
   return { ids, points, length: ids.length, coords: false };
 }
 
-/** The weight column of a set of points, or 1 each without one. */
 /**
  * The capacity of every site of the table (the existing facilities, then
  * the candidates) from a number or the name of a column; empty for null.
@@ -2179,6 +2179,7 @@ function locationCapacity(capacity, existing, candidates, model) {
   return new Float64Array(tables.reduce((n, [, t]) => n + t.length, 0)).fill(capacity);
 }
 
+/** The weight column of a set of points, or 1 each without one. */
 function locationWeights(p, colname, name, arg) {
   const w = new Float64Array(p.length).fill(1);
   if (colname === null || colname === undefined) return w;
@@ -2220,6 +2221,7 @@ async function locationPairs(network, rows, cols, opt, maxTripDuration, routed, 
   const to = column(table, "to_id");
   let minutes = column(table, key);
   if (!has(minutes)) minutes = column(table, "travel_time");
+  if (!has(minutes)) minutes = column(table, "distance");
   if (!has(from) || !has(to) || !has(minutes)) {
     throw new RangeError(`'travelTimes' must have the columns 'from_id', 'to_id' and '${key}' (or 'travel_time').`);
   }
@@ -3270,5 +3272,32 @@ export async function getGtfsErrors(feeds) {
     field: cols[3],
     id: cols[4],
     priority: cols[5],
+  };
+}
+
+/**
+ * Straight-line distances between two sets of points: every pair at most
+ * `maxDistance` metres apart, as columns `from_id`, `to_id` and `distance`.
+ */
+export function distanceMatrix(origins, destinations, options) {
+  const opt = { maxDistance: undefined, ...(options ?? {}) };
+  const unknown = Object.keys(opt).filter((k) => k !== "maxDistance" && k !== "onWarning");
+  if (unknown.length) throw new RangeError(`distanceMatrix(): unknown option '${unknown[0]}'.`);
+  if (opt.maxDistance === undefined) fail("maxDistance", "Must be given (the longest distance kept, in metres)");
+  assertNumber(opt.maxDistance, "maxDistance", { lower: 0, finite: true });
+  const warn = warner(opt);
+  const a = locationPoints(origins, "origins", warn, true);
+  const b = locationPoints(destinations, "destinations", warn, true);
+  let res;
+  try {
+    res = rawDistancePairs(Float64Array.from(a.lon), Float64Array.from(a.lat), Float64Array.from(b.lon), Float64Array.from(b.lat), opt.maxDistance);
+  } catch (err) {
+    throw engineError(err);
+  }
+  const [from, to, metres] = res;
+  return {
+    from_id: Array.from(from, (i) => a.ids[i]),
+    to_id: Array.from(to, (j) => b.ids[j]),
+    distance: metres,
   };
 }

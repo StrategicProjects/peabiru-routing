@@ -164,6 +164,10 @@ the target cannot be reached, all the demand that can be covered is.
 A `CostTable` may hold any cost that is not negative, such as a distance in
 metres where the service standard is a distance: `cutoff`,
 `unreachable_time` and `assigned_minutes` are then in that unit.
+`distance_pairs` gives the pairs of two sets of points at most so many
+metres apart in a straight line, in the form `CostTable::from_pairs` takes;
+it looks only at the points near each one, so large sets with a short
+distance are quick.
 
 ## Floating catchment area
 

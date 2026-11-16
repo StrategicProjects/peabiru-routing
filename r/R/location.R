@@ -86,7 +86,8 @@
 #' The models do not depend on the unit of the table. `travel_times` may
 #' hold any cost that is not negative, such as a distance in metres;
 #' `cutoff`, `unreachable_time` and the `travel_time` column of the result
-#' are then in that unit.
+#' are then in that unit. [distance_matrix()] makes such a table from the
+#' straight-line distances between two sets of points.
 #'
 #' @inheritParams travel_time_matrix
 #' @param network The network of [build_network()]; may be `NULL` with
@@ -118,7 +119,8 @@
 #' @param travel_times A table of travel times to use instead of routing:
 #'   `from_id` (demand point), `to_id` (site) and `travel_time_pXX` for
 #'   the `percentile` (or `travel_time`), in minutes, as
-#'   [travel_time_matrix()] returns it. A pair that is absent or has a
+#'   [travel_time_matrix()] returns it, or `distance`, as
+#'   [distance_matrix()] does. A pair that is absent or has a
 #'   missing time is unreachable; rows of other points are ignored. With
 #'   it, `network` and the routing arguments are not used and the points
 #'   need only their `id`.
@@ -606,6 +608,9 @@ location_pairs <- function(network, rows, cols, travel_times, percentile,
       stop("`travel_times` must be a 'data.frame'.", call. = FALSE)
     }
     if (!column %in% names(travel_times)) column <- "travel_time"
+    if (!column %in% names(travel_times) && "distance" %in% names(travel_times)) {
+      column <- "distance"
+    }
     missing_cols <- setdiff(c("from_id", "to_id", column), names(travel_times))
     if (length(missing_cols) > 0) {
       stop("`travel_times` must have the columns 'from_id', 'to_id' and '",
@@ -623,4 +628,56 @@ location_pairs <- function(network, rows, cols, travel_times, percentile,
   }
   keep <- !is.na(i) & !is.na(j) & is.finite(minutes)
   list(i = i[keep] - 1L, j = j[keep] - 1L, minutes = minutes[keep])
+}
+
+#' Straight-line distances between two sets of points
+#'
+#' Every pair of an origin and a destination at most `max_distance` metres
+#' apart in a straight line, with the distance. It needs no network, and
+#' its result is a table that [locate_facilities()] and
+#' [floating_catchment()] take in `travel_times`, for the cases in which
+#' the service standard is a distance (a water point within 1 km) or the
+#' streets of the area are not mapped well enough to route on.
+#'
+#' The distance is the great-circle one on a sphere of radius 6,367,450 m,
+#' the same that measures the streets of a network, and is the same on
+#' every platform. A pair at distance 0 is a pair. Only the pairs within
+#' `max_distance` are computed, so two large sets of points with a short
+#' distance take little time and memory.
+#'
+#' @param origins,destinations The points: a `data.frame` with `id`, `lon`
+#'   and `lat`, or a `POINT sf` with an `id` column.
+#' @param max_distance The longest distance kept, in metres (the pairs
+#'   with distance `<= max_distance`).
+#'
+#' @return A table with one row per pair, ordered as the origins and,
+#'   within each, as the destinations: `from_id`, `to_id` and `distance`
+#'   (metres).
+#'
+#'   `r doc_output_class()`
+#'
+#' @family facility location
+#' @examples
+#' points <- utils::read.csv(file.path(sample_data_path(), "spo_points.csv"))
+#' near <- distance_matrix(points, points, max_distance = 800)
+#' head(near)
+#' # the two points with the most residents within 800 m of them
+#' locate_facilities(NULL, points, points, model = "max_cover", n_facilities = 2,
+#'                   cutoff = 800, demand_colname = "population",
+#'                   travel_times = near)$sites
+#' @export
+distance_matrix <- function(origins, destinations, max_distance) {
+  kind <- output_class()
+  assert_number(max_distance, "max_distance", lower = 0, finite = TRUE)
+  from <- location_points(origins, "origins", TRUE)
+  to <- location_points(destinations, "destinations", TRUE)
+  res <- raise_if_stopped(rs_distance_pairs(
+    as.double(from$lon), as.double(from$lat), as.double(to$lon), as.double(to$lat),
+    as.double(max_distance)
+  ))
+  as_output(new_df(list(
+    from_id = from$id[res$from + 1L],
+    to_id = to$id[res$to + 1L],
+    distance = res$metres
+  )), kind)
 }

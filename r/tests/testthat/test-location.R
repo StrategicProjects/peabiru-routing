@@ -273,3 +273,23 @@ test_that("maximal covering takes capacities", {
   expect_error(locate_facilities(net, pts, others, model = "p_median", capacity = 10),
                "capacity failed: must be NULL when model is p_median")
 })
+
+test_that("distance_matrix gives the pairs within a distance", {
+  pts <- fixture_points()
+  near <- distance_matrix(pts, pts, max_distance = 500)
+  expect_named(near, c("from_id", "to_id", "distance"))
+  expect_identical(nrow(near), 151L)
+  expect_identical(sum(near$from_id == near$to_id), 27L)
+  expect_true(all(near$distance[near$from_id == near$to_id] == 0))
+  expect_equal(sum(near$distance), 43426.8219512176, tolerance = 1e-12)
+  expect_lte(max(near$distance), 500)
+  expect_identical(near$from_id[1:3], rep(pts$id[1], 3))
+  expect_identical(nrow(distance_matrix(pts, pts[0, ], 500)), 0L)
+  found <- locate_facilities(NULL, pts, pts, model = "max_cover", n_facilities = 2,
+                             cutoff = 500, demand_colname = "population",
+                             travel_times = near)
+  expect_identical(found$sites$id, c("89a8100c03bffff", "89a8100c037ffff"))
+  expect_identical(found$summary$covered, 33337)
+  expect_error(distance_matrix(pts, pts, -1), "'max_distance' failed")
+  expect_error(distance_matrix(pts, pts), "max_distance")
+})

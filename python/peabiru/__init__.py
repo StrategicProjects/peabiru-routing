@@ -42,6 +42,7 @@ from ._itinerary import detailed_itineraries
 from ._location import (
     FacilityLocation,
     FloatingCatchment,
+    distance_matrix,
     floating_catchment,
     locate_facilities,
 )
@@ -98,6 +99,7 @@ __all__ = [
     "detailed_itineraries",
     "expanded_travel_time_matrix",
     "find_snap",
+    "distance_matrix",
     "floating_catchment",
     "get_gtfs_errors",
     "isochrone",

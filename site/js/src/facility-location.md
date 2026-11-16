@@ -156,7 +156,7 @@ facilities) with the capacity at each site.
 ```
 
 ```text
-{{#include ../examples/output/facility-location.txt:27}}
+{{#include ../examples/output/facility-location.txt:27:31}}
 ```
 
 With 3,000 places each, the six schools serve 16,623 residents of the
@@ -259,6 +259,18 @@ The models do not depend on the unit of the table. It may hold any cost
 that is not negative, such as a straight-line or network distance in
 metres where the service standard is a distance: `cutoff`, `unreachableTime` and
 the `travel_time` column of the result are then in that unit.
+
+`distanceMatrix()` makes such a table from the straight-line distances between two sets
+of points: every pair at most so many metres apart, with no network. Here,
+the two sites that put the most residents within 500 m:
+
+```js
+{{#include ../examples/facility-location.mjs:distance}}
+```
+
+```text
+{{#include ../examples/output/facility-location.txt:32}}
+```
 
 ## What the models do not see
 
