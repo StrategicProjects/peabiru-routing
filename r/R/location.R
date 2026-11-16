@@ -80,7 +80,8 @@
 #' where a site no longer pays) therefore gives, in `marginal` and
 #' `cumulative`, the demand covered for every number of facilities. With
 #' `swap = TRUE` the sites for one number of facilities need not include
-#' those for a smaller number.
+#' those for a smaller number. [allocate_budget()] shares a number of
+#' facilities among several such curves.
 #'
 #' @section Costs other than minutes:
 #' The models do not depend on the unit of the table. `travel_times` may
@@ -658,7 +659,8 @@ location_pairs <- function(network, rows, cols, travel_times, percentile,
 #'
 #' @family facility location
 #' @examples
-#' points <- utils::read.csv(file.path(sample_data_path(), "spo_points.csv"))
+#' data_path <- system.file("extdata/spo", package = "peabiru")
+#' points <- read.csv(file.path(data_path, "spo_points.csv"))
 #' near <- distance_matrix(points, points, max_distance = 800)
 #' head(near)
 #' # the two points with the most residents within 800 m of them
@@ -680,4 +682,139 @@ distance_matrix <- function(origins, destinations, max_distance) {
     to_id = to$id[res$to + 1L],
     distance = res$metres
   )), kind)
+}
+
+#' Share a budget of facilities among groups
+#'
+#' Given, for each group (a municipality, a district), what its first,
+#' second, third... new facility would add, decides how many facilities
+#' each group gets out of a common budget, and in what order.
+#'
+#' The curves come from [locate_facilities()] with `model = "max_cover"`
+#' and `swap = FALSE`, one call per group asking for as many facilities as
+#' there are candidates: the `marginal` column of `sites` is then what
+#' each further facility adds, and it does not increase.
+#'
+#' With `criterion = "utilitarian"` each facility goes to the group where
+#' the next one adds most. Because the gains of a group do not increase,
+#' this covers the most demand possible, for the budget asked and for
+#' every smaller one (marginal analysis; Fox, 1966). With `"maximin"` each
+#' facility goes to the group with the lowest share of its demand covered
+#' that still has a facility to open, which gives the highest possible
+#' lowest share, again for every budget. Ties go to the larger gain, then
+#' to the group listed first. The difference between the `covered` of the
+#' two criteria for the same budget is what the fairer allocation costs
+#' (Bertsimas, Farias and Trichakis, 2011).
+#'
+#' @param curves A `data.frame` with one row per facility of each group:
+#'   `group` and `marginal` (what that facility adds, not negative), the
+#'   rows of a group in the order of its facilities (or ordered by the
+#'   column `order`, when there is one).
+#' @param budget How many facilities to share out. Fewer are given when
+#'   the groups have no more facilities that add anything.
+#' @param groups A `data.frame` with one row per group: `group`, `total`
+#'   (its demand) and, optionally, `covered` (the demand covered before
+#'   any new facility; 0 without the column). `NULL` when the shares are
+#'   not wanted; required by `"maximin"`. A group may have no row in
+#'   `curves`.
+#' @param criterion `"utilitarian"` or `"maximin"`.
+#'
+#' @return A list of two tables:
+#' - `steps`: one row per facility, in the order they are given: `order`,
+#'   `group`, `marginal`, `covered` (the demand covered in all the groups
+#'   after it, what was covered before included) and `lowest_share` (the
+#'   lowest share covered among the groups after it; `NA` without
+#'   `groups`). The first `k` rows are the answer for a budget of `k`.
+#' - `groups`: one row per group: `group`, `units` (how many facilities it
+#'   gets), `gained`, `covered` and `share` (`NA` without `groups`).
+#'
+#'   `r doc_output_class()`
+#'
+#' @references
+#' Bertsimas D, Farias VF, Trichakis N (2011). "The price of fairness."
+#' *Operations Research*, **59**(1), 17-31. \doi{10.1287/opre.1100.0865}.
+#'
+#' Fox B (1966). "Discrete optimization via marginal analysis."
+#' *Management Science*, **13**(3), 210-216. \doi{10.1287/mnsc.13.3.210}.
+#'
+#' @family facility location
+#' @examples
+#' curves <- data.frame(
+#'   group = c("north", "north", "north", "south", "south"),
+#'   marginal = c(500, 200, 50, 400, 300)
+#' )
+#' groups <- data.frame(group = c("north", "south"), covered = c(1000, 0),
+#'                      total = c(2000, 1000))
+#' allocate_budget(curves, budget = 3, groups = groups)$steps
+#' allocate_budget(curves, budget = 3, groups = groups, criterion = "maximin")$steps
+#' @export
+allocate_budget <- function(curves, budget, groups = NULL, criterion = "utilitarian") {
+  kind <- output_class()
+  assert_count(budget, "budget", positive = TRUE)
+  cm_assert_and("criterion", check_string(criterion),
+                check_names(criterion, subset.of = c("utilitarian", "maximin")))
+  if (!inherits(curves, "data.frame")) {
+    stop("`curves` must be a 'data.frame'.", call. = FALSE)
+  }
+  curves <- as.data.frame(curves)
+  cm_assert(check_names(names(curves), must.include = c("group", "marginal")), "curves")
+  cm_assert(check_numeric(curves$marginal), "curves$marginal")
+  if (anyNA(curves$group)) stop("`curves$group` must not have missing values.", call. = FALSE)
+  if ("order" %in% names(curves)) {
+    curves <- curves[order(match(curves$group, unique(curves$group)), curves$order), ]
+  }
+  own <- as.character(curves$group)
+  if (is.null(groups)) {
+    if (criterion == "maximin") {
+      stop("Assertion on groups failed: must not be NULL when criterion is maximin ",
+           "(the demand of each group, for its share covered).", call. = FALSE)
+    }
+    ids <- unique(own)
+    covered <- rep(0, length(ids))
+    total <- rep(NaN, length(ids))
+  } else {
+    if (!inherits(groups, "data.frame")) {
+      stop("`groups` must be a 'data.frame'.", call. = FALSE)
+    }
+    groups <- as.data.frame(groups)
+    cm_assert(check_names(names(groups), must.include = c("group", "total")), "groups")
+    ids <- as.character(groups$group)
+    if (anyDuplicated(ids) > 0) {
+      stop("`groups` must not contain duplicated groups.", call. = FALSE)
+    }
+    absent <- setdiff(own, ids)
+    if (length(absent) > 0) {
+      stop("`curves` has groups that `groups` does not: ",
+           paste0("\"", utils::head(absent, 10), "\"", collapse = ", "), ".", call. = FALSE)
+    }
+    covered <- if ("covered" %in% names(groups)) groups$covered else rep(0, length(ids))
+    total <- groups$total
+    cm_assert(check_numeric(covered, any.missing = FALSE), "groups$covered")
+    cm_assert(check_numeric(total, any.missing = FALSE), "groups$total")
+  }
+  at <- match(own, ids)
+  by_group <- order(at)  # stable: the rows of a group keep their order
+  res <- raise_if_stopped(rs_allocate_budget(
+    as.double(curves$marginal[by_group]), tabulate(at, length(ids)),
+    as.double(covered), as.double(total), as.integer(budget), criterion
+  ))
+  gained <- vapply(seq_along(ids), function(g) sum(res$gain[res$group == g - 1L]), 0)
+  known <- !is.null(groups)
+  out <- list(
+    steps = new_df(list(
+      order = seq_along(res$group),
+      group = ids[res$group + 1L],
+      marginal = res$gain,
+      covered = res$covered,
+      lowest_share = if (known) res$lowest_share else rep(NA_real_, length(res$group))
+    )),
+    groups = new_df(list(
+      group = ids,
+      units = res$units,
+      gained = gained,
+      covered = as.double(covered) + gained,
+      share = if (known) ifelse(total > 0, (covered + gained) / total, 1) else rep(NA_real_, length(ids))
+    ))
+  )
+  as_output_list(out, kind, c("steps", "groups"))
 }

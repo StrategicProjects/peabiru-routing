@@ -305,3 +305,39 @@ def test_distance_matrix_gives_the_pairs_within_a_distance(points):
     assert found.summary["covered"] == 33337
     with pytest.raises(ValueError, match="'max_distance' failed"):
         peabiru.distance_matrix(points, points, max_distance=-1)
+
+
+def test_allocate_budget_shares_facilities_among_groups():
+    curves = pd.DataFrame({
+        "group": ["north", "north", "north", "south", "south"],
+        "marginal": [500, 200, 50, 400, 300],
+    })
+    groups = pd.DataFrame({"group": ["north", "south"], "covered": [1000, 0], "total": [2000, 1000]})
+    most = peabiru.allocate_budget(curves, 3, groups)
+    assert list(most.steps["group"]) == ["north", "south", "south"]
+    assert list(most.steps["covered"]) == [1500, 1900, 2200]
+    assert list(most.groups["units"]) == [1, 2] and list(most.groups["share"]) == [0.75, 0.7]
+    fair = peabiru.allocate_budget(curves, 3, groups, criterion="maximin")
+    assert list(fair.steps["group"]) == ["south", "south", "north"]
+    assert list(fair.steps["lowest_share"]) == [0.4, 0.5, 0.7]
+    # rows in any order with 'order'; more budget than facilities; no groups
+    mixed = curves.assign(order=[1, 2, 3, 1, 2]).iloc[[4, 2, 0, 3, 1]]
+    every = peabiru.allocate_budget(mixed, 9)
+    assert list(every.steps["marginal"]) == [500, 400, 300, 200, 50]
+    assert every.steps["lowest_share"].isna().all()
+    assert list(every.groups["group"]) == ["south", "north"]
+    # a group with no facility to open still counts in the shares
+    alone = peabiru.allocate_budget(
+        curves.iloc[:3], 1, pd.DataFrame({"group": ["north", "other"], "total": [1000, 10]})
+    )
+    assert list(alone.steps["lowest_share"]) == [0]
+    with pytest.raises(ValueError, match="Must not be None when criterion is maximin"):
+        peabiru.allocate_budget(curves, 3, criterion="maximin")
+    with pytest.raises(ValueError, match="'budget' failed"):
+        peabiru.allocate_budget(curves, 0)
+    with pytest.raises(ValueError, match="may not increase"):
+        peabiru.allocate_budget(curves.iloc[[1, 0]], 2)
+    with pytest.raises(ValueError, match="groups that 'groups' does not"):
+        peabiru.allocate_budget(curves, 2, groups.iloc[:1])
+    with pytest.raises(ValueError, match="'criterion' failed"):
+        peabiru.allocate_budget(curves, 2, criterion="fair")

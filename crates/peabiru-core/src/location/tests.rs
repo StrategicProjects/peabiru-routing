@@ -1207,3 +1207,135 @@ fn distance_pairs_against_every_pair() {
         DistancePairs::default()
     );
 }
+
+#[test]
+fn a_budget_is_shared_out_by_marginal_analysis() {
+    // by hand: three groups, what each further facility adds
+    let curves: [&[f64]; 3] = [&[50.0, 20.0, 5.0], &[40.0, 30.0], &[10.0]];
+    let groups: Vec<BudgetGroup> = curves
+        .iter()
+        .zip([(100.0, 200.0), (0.0, 100.0), (45.0, 60.0)])
+        .map(|(&marginal, (covered, total))| BudgetGroup {
+            marginal,
+            covered,
+            total,
+        })
+        .collect();
+    let u = allocate_budget(&groups, 4, BudgetCriterion::Utilitarian).unwrap();
+    assert_eq!(u.group, [0, 1, 1, 0]);
+    assert_eq!(u.gain, [50.0, 40.0, 30.0, 20.0]);
+    assert_eq!(u.covered, [195.0, 235.0, 265.0, 285.0]);
+    assert_eq!(u.units, [2, 2, 0]);
+    // the worst-off first: group 1 (0%), again (40%), then group 0 (50%);
+    // group 1 then has nothing left to open and stays the lowest at 70%
+    let m = allocate_budget(&groups, 4, BudgetCriterion::Maximin).unwrap();
+    assert_eq!(m.group, [1, 1, 0, 0]);
+    assert_eq!(m.lowest_share, [0.4, 0.5, 0.7, 0.7]);
+    assert_eq!(m.covered, [185.0, 215.0, 265.0, 285.0]);
+    // more budget than facilities that add anything
+    let all = allocate_budget(&groups, 99, BudgetCriterion::Utilitarian).unwrap();
+    assert_eq!((all.group.len(), all.units.clone()), (6, vec![3, 2, 1]));
+    assert_eq!(all.covered.last(), Some(&300.0));
+
+    // random curves against every way of sharing the budget
+    let mut rng = Rng(1966);
+    for round in 0..300 {
+        let n = 2 + rng.below(3) as usize;
+        let curves: Vec<Vec<f64>> = (0..n)
+            .map(|_| {
+                let mut c: Vec<f64> = (0..rng.below(5))
+                    .map(|_| 1.0 + rng.below(40) as f64)
+                    .collect();
+                c.sort_by(|a, b| b.total_cmp(a));
+                c
+            })
+            .collect();
+        let groups: Vec<BudgetGroup> = curves
+            .iter()
+            .map(|c| {
+                let covered = rng.below(50) as f64;
+                BudgetGroup {
+                    marginal: c,
+                    covered,
+                    total: covered + c.iter().sum::<f64>() + rng.below(30) as f64 + 1.0,
+                }
+            })
+            .collect();
+        let budget = 1 + rng.below(8) as usize;
+        let u = allocate_budget(&groups, budget, BudgetCriterion::Utilitarian).unwrap();
+        let m = allocate_budget(&groups, budget, BudgetCriterion::Maximin).unwrap();
+        let base: f64 = groups.iter().map(|g| g.covered).sum();
+        for b in 1..=budget {
+            // every allocation of at most `b` facilities
+            let (mut most, mut fairest) = (0f64, 0f64);
+            for x in (0..=b).flat_map(|k| multisets(n, k)) {
+                if x.iter().zip(&curves).any(|(&k, c)| k > c.len()) {
+                    continue;
+                }
+                let got: Vec<f64> = (0..n)
+                    .map(|g| groups[g].covered + curves[g][..x[g]].iter().sum::<f64>())
+                    .collect();
+                most = most.max(got.iter().sum());
+                fairest = fairest.max(
+                    (0..n)
+                        .map(|g| got[g] / groups[g].total)
+                        .fold(f64::INFINITY, f64::min),
+                );
+            }
+            let at = |a: &BudgetAllocation, v: &[f64], none: f64| match b.min(a.group.len()) {
+                0 => none,
+                k => v[k - 1],
+            };
+            let start = (0..n)
+                .map(|g| groups[g].covered / groups[g].total)
+                .fold(f64::INFINITY, f64::min);
+            assert_eq!(at(&u, &u.covered, base), most, "round {round}, budget {b}");
+            assert_eq!(
+                at(&m, &m.lowest_share, start),
+                fairest,
+                "round {round}, budget {b}"
+            );
+            assert!(at(&m, &m.covered, base) <= most, "round {round}");
+        }
+    }
+
+    let bad = |marginal: &[f64], covered: f64, total: f64, c: BudgetCriterion, what: &str| {
+        let g = [BudgetGroup {
+            marginal,
+            covered,
+            total,
+        }];
+        match allocate_budget(&g, 1, c) {
+            Err(RouteError::Invalid(m)) => assert!(m.contains(what), "{m}"),
+            other => panic!("{what}: {other:?}"),
+        }
+    };
+    bad(
+        &[1.0, 2.0],
+        0.0,
+        9.0,
+        BudgetCriterion::Utilitarian,
+        "may not increase",
+    );
+    bad(
+        &[-1.0],
+        0.0,
+        9.0,
+        BudgetCriterion::Utilitarian,
+        "not negative",
+    );
+    bad(
+        &[1.0],
+        0.0,
+        f64::NAN,
+        BudgetCriterion::Maximin,
+        "needs the demand of every group",
+    );
+    let free = [BudgetGroup {
+        marginal: &[3.0],
+        covered: 1.0,
+        total: f64::NAN,
+    }];
+    let a = allocate_budget(&free, 2, BudgetCriterion::Utilitarian).unwrap();
+    assert!(a.covered == [4.0] && a.lowest_share[0].is_nan());
+}

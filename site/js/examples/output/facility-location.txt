@@ -32,3 +32,5 @@ served today: 16623; at most 28623 with four more
 151 pairs; the second: 89a8100c007ffff 351.8 m
 89a8100c03bffff 19490 19490
 89a8100c037ffff 13847 33337
+utilitarian: east, east, west; covered 42159, lowest share 85.4%
+maximin: east, west, west; covered 41632, lowest share 86.1%

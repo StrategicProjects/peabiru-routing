@@ -50,6 +50,7 @@ OWN = {
     "Network", "UnsupportedError", "__version__", "core_version", "sample_data_path",
     "sample_points", "trip_options", "TripOptions",
     "locate_facilities", "FacilityLocation", "floating_catchment", "FloatingCatchment", "distance_matrix",
+    "allocate_budget", "BudgetAllocation",
 }
 
 

@@ -201,8 +201,65 @@ print(curve.sites[["order", "marginal", "cumulative"]].to_string(index=False))
 
 With swaps the sites for one number of facilities need not include those
 for a smaller number, so the curve is then one call per number. The curves
-of several areas, stored like this, are what it takes to share a budget of
-facilities among them.
+of several areas are what it takes to share a budget of facilities among
+them, which is the next section.
+
+## Sharing a budget among areas
+
+A state has so many facilities to build and many municipalities to build
+them in. With the curve of each area, `allocate_budget()` says how many go to each, and
+in what order, by one of two criteria:
+
+- `criterion="utilitarian"`: each facility goes where the next one adds most. Since what
+  a further facility adds in an area never increases, this covers the most
+  demand possible, for the budget asked and for every smaller one
+  (marginal analysis; Fox, 1966).
+- `criterion="maximin"`: each facility goes to the area with the lowest share of its
+  demand covered (that still has a facility worth opening), which gives
+  the highest possible lowest share.
+
+Here the sample points are split in two halves, east and west, each with
+its curve for schools within an 8-minute walk (`swap=False`, `n_facilities` as many as
+the candidates), and three schools are shared out:
+
+```python
+import pandas as pd
+
+side = points["lon"].lt(points["lon"].median()).map({True: "west", False: "east"})
+curves, groups = [], []
+for name, part in points.groupby(side):
+    f = peabiru.locate_facilities(
+        network, part, part[part["schools"] == 0], existing=part[part["schools"] > 0],
+        model="max_cover", n_facilities=int((part["schools"] == 0).sum()), cutoff=8,
+        swap=False, demand_colname="population", mode="WALK", n_threads=2,
+    )
+    curves.append(f.sites.assign(group=name)[["group", "order", "marginal"]])
+    groups.append({"group": name, "covered": f.summary["covered_before"],
+                   "total": f.summary["total_demand"]})
+curves, groups = pd.concat(curves), pd.DataFrame(groups)
+for criterion in ("utilitarian", "maximin"):
+    shared = peabiru.allocate_budget(curves, 3, groups, criterion=criterion)
+    print(shared.steps.to_string(index=False))
+```
+
+```text
+ order group  marginal  covered  lowest_share
+     1  east    7584.0  37489.0      0.762664
+     2  east    2485.0  39974.0      0.762664
+     3  west    2185.0  42159.0      0.853835
+ order group  marginal  covered  lowest_share
+     1  east    7584.0  37489.0      0.762664
+     2  west    2185.0  39674.0      0.853835
+     3  west    1958.0  41632.0      0.861209
+```
+
+The two criteria agree on the first school and part ways on the second: the
+most coverage takes it east again, the fairer rule sends it west, where a
+smaller share of the residents is covered. With three schools the fairer
+allocation covers 527 residents fewer (41,632 against 42,159) and raises the
+lowest share from 85.4% to 86.1%: that difference is the price of fairness
+(Bertsimas, Farias and Trichakis, 2011), and the `steps` of the two
+criteria give it for every budget.
 
 ## Facilities with a capacity
 
@@ -461,12 +518,18 @@ informative than either alone.
 
 ## References
 
+- Bertsimas, D., Farias, V. F. and Trichakis, N. (2011). The price of
+  fairness. *Operations Research*, 59(1), 17-31.
+  [doi:10.1287/opre.1100.0865](https://doi.org/10.1287/opre.1100.0865)
 - Church, R. and ReVelle, C. (1974). The maximal covering location problem.
   *Papers of the Regional Science Association*, 32, 101-118.
   [doi:10.1007/BF01942293](https://doi.org/10.1007/BF01942293)
 - Current, J. R. and Storbeck, J. E. (1988). Capacitated covering models.
   *Environment and Planning B: Planning and Design*, 15(2), 153-163.
   [doi:10.1068/b150153](https://doi.org/10.1068/b150153)
+- Fox, B. (1966). Discrete optimization via marginal analysis. *Management
+  Science*, 13(3), 210-216.
+  [doi:10.1287/mnsc.13.3.210](https://doi.org/10.1287/mnsc.13.3.210)
 - Hakimi, S. L. (1964). Optimum locations of switching centers and the
   absolute centers and medians of a graph. *Operations Research*, 12(3),
   450-459. [doi:10.1287/opre.12.3.450](https://doi.org/10.1287/opre.12.3.450)

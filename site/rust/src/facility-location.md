@@ -131,7 +131,13 @@ facilities (`min_gain` stops the list where a site no longer pays).
 With swaps the sites for one number of facilities need not include those
 for a smaller number, so the curve is then one call per number. The curves
 of several areas, stored like this, are what it takes to share a budget of
-facilities among them.
+facilities among them: `allocate_budget` takes one `BudgetGroup` per area
+(its gains, the demand covered before and its total demand) and gives each
+facility to the area where it adds most (`BudgetCriterion::Utilitarian`,
+the most demand covered for every budget; Fox, 1966) or to the area with
+the lowest share covered (`BudgetCriterion::Maximin`, the highest lowest
+share for every budget). The difference between the two is the price of
+fairness (Bertsimas, Farias and Trichakis, 2011).
 
 ## Facilities with a capacity
 
@@ -212,12 +218,18 @@ On the command line, the same is `peabiru locate` and `peabiru catchment`
 
 ## References
 
+- Bertsimas, D., Farias, V. F. and Trichakis, N. (2011). The price of
+  fairness. *Operations Research*, 59(1), 17-31.
+  [doi:10.1287/opre.1100.0865](https://doi.org/10.1287/opre.1100.0865)
 - Church, R. and ReVelle, C. (1974). The maximal covering location problem.
   *Papers of the Regional Science Association*, 32, 101-118.
   [doi:10.1007/BF01942293](https://doi.org/10.1007/BF01942293)
 - Current, J. R. and Storbeck, J. E. (1988). Capacitated covering models.
   *Environment and Planning B: Planning and Design*, 15(2), 153-163.
   [doi:10.1068/b150153](https://doi.org/10.1068/b150153)
+- Fox, B. (1966). Discrete optimization via marginal analysis. *Management
+  Science*, 13(3), 210-216.
+  [doi:10.1287/mnsc.13.3.210](https://doi.org/10.1287/mnsc.13.3.210)
 - Hakimi, S. L. (1964). Optimum locations of switching centers and the
   absolute centers and medians of a graph. *Operations Research*, 12(3),
   450-459. [doi:10.1287/opre.12.3.450](https://doi.org/10.1287/opre.12.3.450)

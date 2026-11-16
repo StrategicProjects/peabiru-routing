@@ -194,6 +194,11 @@ rs_detailed_itineraries <- function(ptr, olat, olon, dlat, dlon, mode, transit, 
 #' @noRd
 rs_trip_options <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output, walk_resolution) .Call(wrap__rs_trip_options, ptr, olat, olon, dlat, dlon, mode, transit, egress_mode, date, departure_time, time_window, criteria, max_walk_time, max_bike_time, max_car_time, max_trip_duration, walk_speed, bike_speed, max_rides, max_lts, n_threads, scenario, fare_structure, max_fare, max_options, itineraries, drop_geometry, osm_link_ids, output, walk_resolution)
 
+#' A budget of facilities shared among groups: `group` 0-based, `gain`,
+#' `covered` and `lowest_share` per facility, `units` per group.
+#' @noRd
+rs_allocate_budget <- function(marginal, lengths, covered, total, budget, criterion) .Call(wrap__rs_allocate_budget, marginal, lengths, covered, total, budget, criterion)
+
 #' The pairs of points at most `max_distance` metres apart in a straight
 #' line: `from` and `to` 0-based, and the metres.
 #' @noRd

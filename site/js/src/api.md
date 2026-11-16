@@ -22,7 +22,7 @@ package (`node site/js/run_examples.mjs` runs each of them after it):
 | Expanded and arrival matrices | [`expandedTravelTimeMatrix`](#expandedTravelTimeMatrix), [`arrivalTravelTimeMatrix`](#arrivalTravelTimeMatrix), [`ExpandedTravelTimeMatrixOptions`](#ExpandedTravelTimeMatrixOptions), [`ArrivalTravelTimeMatrixOptions`](#ArrivalTravelTimeMatrixOptions), [`ExpandedMatrix`](#ExpandedMatrix) |
 | Detailed itineraries | [`detailedItineraries`](#detailedItineraries), [`DetailedItinerariesOptions`](#DetailedItinerariesOptions), [`ItineraryRow`](#ItineraryRow), [`ItineraryFeature`](#ItineraryFeature) |
 | Fares | [`setupFareStructure`](#setupFareStructure), [`SetupFareStructureOptions`](#SetupFareStructureOptions), [`FareStructure`](#FareStructure), [`readFareStructure`](#readFareStructure), [`writeFareStructure`](#writeFareStructure), [`paretoFrontier`](#paretoFrontier), [`ParetoFrontierOptions`](#ParetoFrontierOptions), [`ParetoFrontierTable`](#ParetoFrontierTable) |
-| Facility location | [`locateFacilities`](#locateFacilities), [`LocateFacilitiesOptions`](#LocateFacilitiesOptions), [`FacilityLocation`](#FacilityLocation), [`floatingCatchment`](#floatingCatchment), [`FloatingCatchmentOptions`](#FloatingCatchmentOptions), [`FloatingCatchment`](#FloatingCatchment), [`TravelTimes`](#TravelTimes), [`LocationRoutingOptions`](#LocationRoutingOptions), [`distanceMatrix`](#distanceMatrix), [`DistanceMatrixOptions`](#DistanceMatrixOptions), [`DistanceTable`](#DistanceTable) |
+| Facility location | [`locateFacilities`](#locateFacilities), [`LocateFacilitiesOptions`](#LocateFacilitiesOptions), [`FacilityLocation`](#FacilityLocation), [`floatingCatchment`](#floatingCatchment), [`FloatingCatchmentOptions`](#FloatingCatchmentOptions), [`FloatingCatchment`](#FloatingCatchment), [`TravelTimes`](#TravelTimes), [`LocationRoutingOptions`](#LocationRoutingOptions), [`distanceMatrix`](#distanceMatrix), [`DistanceMatrixOptions`](#DistanceMatrixOptions), [`DistanceTable`](#DistanceTable), [`allocateBudget`](#allocateBudget), [`AllocateBudgetOptions`](#AllocateBudgetOptions), [`BudgetAllocation`](#BudgetAllocation), [`Table`](#Table) |
 | Isochrones | [`isochrone`](#isochrone), [`IsochroneOptions`](#IsochroneOptions), [`IsochronePolygonProperties`](#IsochronePolygonProperties), [`IsochroneLineProperties`](#IsochroneLineProperties), [`FeatureCollection`](#FeatureCollection), [`Feature`](#Feature), [`MultiPolygon`](#MultiPolygon), [`LineString`](#LineString) |
 | Inspecting a network | [`findSnap`](#findSnap), [`FindSnapOptions`](#FindSnapOptions), [`SnapTable`](#SnapTable), [`streetNetworkBbox`](#streetNetworkBbox), [`Polygon`](#Polygon), [`Point`](#Point), [`streetNetworkToSf`](#streetNetworkToSf), [`StreetVertexProperties`](#StreetVertexProperties), [`StreetEdgeProperties`](#StreetEdgeProperties), [`InspectOptions`](#InspectOptions), [`transitNetworkToSf`](#transitNetworkToSf), [`TransitStopProperties`](#TransitStopProperties), [`TransitRouteProperties`](#TransitRouteProperties), [`checkTransitAvailability`](#checkTransitAvailability), [`TransitAvailabilityOptions`](#TransitAvailabilityOptions), [`TransitAvailabilityTable`](#TransitAvailabilityTable), [`getGtfsErrors`](#getGtfsErrors), [`GtfsErrorsTable`](#GtfsErrorsTable) |
 | Points, dates, scenarios and shared options | [`Points`](#Points), [`Numbers`](#Numbers), [`DateTime`](#DateTime), [`RoutingOptions`](#RoutingOptions), [`ScenarioTable`](#ScenarioTable), [`GeoJsonFeatureCollection`](#GeoJsonFeatureCollection) |
@@ -801,6 +801,66 @@ The result of `distanceMatrix()`: one row per pair, as columns.
 - `from_id: (string | null)[]`
 - `to_id: (string | null)[]`
 - `distance: Float64Array`: Metres in a straight line.
+
+### allocateBudget {#allocateBudget}
+
+*function*
+
+```typescript
+export declare function allocateBudget(curves: Table, options: AllocateBudgetOptions): BudgetAllocation;
+```
+
+Share a budget of facilities among groups (municipalities, districts), given what the first, second, third... new facility adds in each: the rows of `curves` have `group` and `marginal`, those of a group in the order of its facilities (or ordered by a column `order`). The curves come from `locateFacilities()` with `model: "max_cover"` and `swap: false`, one call per group asking for as many facilities as there are candidates.
+
+With `"utilitarian"` each facility goes where the next one adds most, which covers the most demand possible for every budget, since the gains of a group do not increase (marginal analysis). With `"maximin"` each goes to the group with the lowest share of its demand covered that still has a facility to open, which gives the highest possible lowest share. Ties go to the larger gain, then to the group listed first. The difference between the `covered` of the two criteria is what the fairer allocation costs. Synchronous (after `init()` in a browser).
+
+```js
+const curves = {
+  group: ["north", "north", "north", "south", "south"],
+  marginal: [500, 200, 50, 400, 300],
+};
+const groups = { group: ["north", "south"], covered: [1000, 0], total: [2000, 1000] };
+const most = peabiru.allocateBudget(curves, { budget: 3, groups });
+const fair = peabiru.allocateBudget(curves, { budget: 3, groups, criterion: "maximin" });
+console.log(most.steps.group, fair.steps.group);
+```
+
+### AllocateBudgetOptions {#AllocateBudgetOptions}
+
+*interface*
+
+```typescript
+export interface AllocateBudgetOptions
+```
+
+Options of `allocateBudget()`.
+
+- `budget: number`: How many facilities to share out. Fewer are given when the groups have no more facilities that add anything. Required.
+- `groups?: Table | null`: One row per group: `group`, `total` (its demand) and, optionally, `covered` (the demand covered before any new facility; 0 without the column). Required by `"maximin"`; without it the shares are NaN. A group may have no row in the curves.
+- `criterion?: "utilitarian" | "maximin"`: `"utilitarian"` (default): each facility where it adds most. `"maximin"`: each facility to the group with the lowest share of its demand covered.
+
+### BudgetAllocation {#BudgetAllocation}
+
+*interface*
+
+```typescript
+export interface BudgetAllocation
+```
+
+The result of `allocateBudget()`: two tables as objects of columns.
+
+- `steps: { order: Int32Array; group: string[]; marginal: Float64Array; covered: Float64Array; lowest_share: Float64Array }`: One row per facility, in the order they are given: the demand covered in all the groups after it (what was covered before included) and the lowest share covered among the groups (NaN without `groups`). The first `k` rows are the answer for a budget of `k`.
+- `groups: { group: string[]; units: Int32Array; gained: Float64Array; covered: Float64Array; share: Float64Array }`: One row per group: how many facilities it gets, what they add, the demand covered and its share (NaN without `groups`).
+
+### Table {#Table}
+
+*type*
+
+```typescript
+export type Table = { [column: string]: ArrayLike<unknown> } | Array<{ [column: string]: unknown }>;
+```
+
+A table as an object of columns or an array of row objects.
 
 ## Isochrones
 

@@ -34,6 +34,7 @@
 //! own, and every sum is taken in a fixed order: the result does not
 //! depend on the number of threads.
 
+mod budget;
 mod capacity;
 mod catchment;
 mod cover;
@@ -44,6 +45,7 @@ mod table;
 #[cfg(test)]
 mod tests;
 
+pub use budget::{allocate_budget, BudgetAllocation, BudgetCriterion, BudgetGroup};
 pub use catchment::{floating_catchment, FloatingCatchment, FloatingCatchmentParams};
 pub use distance::{distance_pairs, DistancePairs};
 pub use table::CostTable;

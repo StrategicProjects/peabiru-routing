@@ -2,6 +2,7 @@
 
 S3method(print,peabiru_network)
 export(accessibility)
+export(allocate_budget)
 export(arrival_travel_time_matrix)
 export(build_network)
 export(check_transit_availability)

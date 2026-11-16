@@ -4,8 +4,9 @@
 
 use js_sys::{Array, Float64Array, Int32Array};
 use peabiru_core::{
-    distance_pairs as distance_pairs_core, floating_catchment as floating_catchment_core,
-    locate_facilities as locate_facilities_core, CostTable, FloatingCatchmentParams, LocationModel,
+    allocate_budget as allocate_budget_core, distance_pairs as distance_pairs_core,
+    floating_catchment as floating_catchment_core, locate_facilities as locate_facilities_core,
+    BudgetCriterion, BudgetGroup, CostTable, FloatingCatchmentParams, LocationModel,
     LocationParams,
 };
 use wasm_bindgen::prelude::*;
@@ -164,5 +165,47 @@ pub fn distance_pairs(
     out.push(&Int32Array::from(&as_i32(&d.from)[..]));
     out.push(&Int32Array::from(&as_i32(&d.to)[..]));
     out.push(&Float64Array::from(&d.metres[..]));
+    Ok(out)
+}
+
+/// A budget of facilities shared among groups: `[group, gain, covered,
+/// lowest_share, units]`, the groups 0-based. `marginal` holds the gains
+/// of all the groups end to end and `lengths` how many each has.
+#[wasm_bindgen]
+pub fn allocate_budget(
+    marginal: &[f64],
+    lengths: &[i32],
+    covered: &[f64],
+    total: &[f64],
+    budget: usize,
+    criterion: &str,
+) -> Result<Array, JsError> {
+    if lengths.len() != covered.len() || lengths.len() != total.len() {
+        return Err(err("one length, covered and total per group"));
+    }
+    let mut groups = Vec::with_capacity(lengths.len());
+    let mut at = 0usize;
+    for (g, &n) in lengths.iter().enumerate() {
+        let n = n.max(0) as usize;
+        let part = marginal
+            .get(at..at + n)
+            .ok_or_else(|| err("the gains are shorter than their lengths"))?;
+        groups.push(BudgetGroup {
+            marginal: part,
+            covered: covered[g],
+            total: total[g],
+        });
+        at += n;
+    }
+    let criterion = BudgetCriterion::from_name(criterion)
+        .ok_or_else(|| err(format!("unknown criterion '{criterion}'")))?;
+    let a = allocate_budget_core(&groups, budget, criterion).map_err(route_err)?;
+    let as_i32 = |v: &[usize]| -> Vec<i32> { v.iter().map(|&x| x as i32).collect() };
+    let out = Array::new();
+    out.push(&Int32Array::from(&as_i32(&a.group)[..]));
+    out.push(&Float64Array::from(&a.gain[..]));
+    out.push(&Float64Array::from(&a.covered[..]));
+    out.push(&Float64Array::from(&a.lowest_share[..]));
+    out.push(&Int32Array::from(&as_i32(&a.units)[..]));
     Ok(out)
 }

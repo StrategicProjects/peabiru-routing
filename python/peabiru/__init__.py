@@ -40,6 +40,8 @@ from ._fares import (
 from ._isochrone import isochrone
 from ._itinerary import detailed_itineraries
 from ._location import (
+    BudgetAllocation,
+    allocate_budget,
     FacilityLocation,
     FloatingCatchment,
     distance_matrix,
@@ -99,6 +101,8 @@ __all__ = [
     "detailed_itineraries",
     "expanded_travel_time_matrix",
     "find_snap",
+    "allocate_budget",
+    "BudgetAllocation",
     "distance_matrix",
     "floating_catchment",
     "get_gtfs_errors",

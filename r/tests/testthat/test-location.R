@@ -293,3 +293,34 @@ test_that("distance_matrix gives the pairs within a distance", {
   expect_error(distance_matrix(pts, pts, -1), "'max_distance' failed")
   expect_error(distance_matrix(pts, pts), "max_distance")
 })
+
+test_that("allocate_budget shares facilities among groups", {
+  curves <- data.frame(group = c("north", "north", "north", "south", "south"),
+                       marginal = c(500, 200, 50, 400, 300))
+  groups <- data.frame(group = c("north", "south"), covered = c(1000, 0),
+                       total = c(2000, 1000))
+  most <- allocate_budget(curves, 3, groups)
+  expect_named(most, c("steps", "groups"))
+  expect_identical(most$steps$group, c("north", "south", "south"))
+  expect_identical(most$steps$covered, c(1500, 1900, 2200))
+  expect_identical(most$groups$units, c(1L, 2L))
+  expect_identical(most$groups$share, c(0.75, 0.7))
+  fair <- allocate_budget(curves, 3, groups, criterion = "maximin")
+  expect_identical(fair$steps$group, c("south", "south", "north"))
+  expect_identical(fair$steps$lowest_share, c(0.4, 0.5, 0.7))
+  # rows in any order with `order`; more budget than facilities; no groups
+  mixed <- cbind(curves, order = c(1, 2, 3, 1, 2))[c(5, 3, 1, 4, 2), ]
+  every <- allocate_budget(mixed, 9)
+  expect_identical(every$steps$marginal, c(500, 400, 300, 200, 50))
+  expect_true(all(is.na(every$steps$lowest_share)))
+  expect_identical(every$groups$group, c("south", "north"))
+  # a group with no facility to open still counts in the shares
+  alone <- allocate_budget(curves[1:3, ], 1,
+                           data.frame(group = c("north", "other"), total = c(1000, 10)))
+  expect_identical(alone$steps$lowest_share, 0)
+  expect_error(allocate_budget(curves, 3, criterion = "maximin"), "groups failed: must not be NULL")
+  expect_error(allocate_budget(curves, 0), "'budget' failed")
+  expect_error(allocate_budget(curves[c(2, 1), ], 2), "may not increase")
+  expect_error(allocate_budget(curves, 2, groups[1, ]), "groups that `groups` does not")
+  expect_error(allocate_budget(curves, 2, criterion = "fair"), "'criterion' failed")
+})

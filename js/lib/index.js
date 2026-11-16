@@ -19,6 +19,7 @@ import wasmInit, {
   fare_read as rawFareRead,
   fare_setup as rawFareSetup,
   fare_write as rawFareWrite,
+  allocate_budget as rawAllocateBudget,
   distance_pairs as rawDistancePairs,
   floating_catchment as rawFloatingCatchment,
   locate_facilities as rawLocateFacilities,
@@ -3299,5 +3300,99 @@ export function distanceMatrix(origins, destinations, options) {
     from_id: Array.from(from, (i) => a.ids[i]),
     to_id: Array.from(to, (j) => b.ids[j]),
     distance: metres,
+  };
+}
+
+/**
+ * Share a budget of facilities among groups, from what each further
+ * facility adds in each group.
+ */
+export function allocateBudget(curves, options) {
+  const opt = { budget: undefined, groups: null, criterion: "utilitarian", ...(options ?? {}) };
+  const unknown = Object.keys(opt).filter((k) => !["budget", "groups", "criterion"].includes(k));
+  if (unknown.length) throw new RangeError(`allocateBudget(): unknown option '${unknown[0]}'.`);
+  assertCount(opt.budget, "budget", true);
+  assertString(opt.criterion, "criterion");
+  if (!["utilitarian", "maximin"].includes(opt.criterion)) {
+    fail("criterion", `Must be element of set {'utilitarian','maximin'}, but is '${opt.criterion}'`);
+  }
+  const columnOf = (table, name, what) => {
+    if (table === null || typeof table !== "object") fail(what, "Must be an object of columns or an array of row objects", TypeError);
+    const col = column(table, name);
+    if (col === undefined || col === null || (Array.isArray(table) && table.length > 0 && Array.from(col).every((v) => v === undefined))) {
+      return null;
+    }
+    return Array.from(col);
+  };
+  const need = (table, name, what) => {
+    const col = columnOf(table, name, what);
+    if (col === null) fail(what, `Names must include the element '${name}'`);
+    return col;
+  };
+  const numbers = (col, what) => col.map((v) => {
+    if (typeof v !== "number" || Number.isNaN(v)) fail(what, "Must be numbers, with no missing values", TypeError);
+    return v;
+  });
+  const own = need(curves, "group", "curves").map((g) => {
+    if (g === null || g === undefined) throw new RangeError("`curves` must not have missing values in 'group'.");
+    return String(g);
+  });
+  const gains = numbers(need(curves, "marginal", "curves"), "curves.marginal");
+  const rank = columnOf(curves, "order", "curves") ?? own.map((_, k) => k);
+  let ids;
+  let covered;
+  let total;
+  const known = opt.groups !== null && opt.groups !== undefined;
+  if (!known) {
+    if (opt.criterion === "maximin") {
+      throw new RangeError("Assertion on groups failed: must not be null when criterion is maximin (the demand of each group, for its share covered).");
+    }
+    ids = [...new Set(own)];
+    covered = ids.map(() => 0);
+    total = ids.map(() => NaN);
+  } else {
+    ids = need(opt.groups, "group", "groups").map(String);
+    if (new Set(ids).size !== ids.length) throw new RangeError("`groups` must not contain duplicated groups.");
+    const has = new Set(ids);
+    const absent = [...new Set(own)].filter((g) => !has.has(g));
+    if (absent.length) {
+      throw new RangeError(`\`curves\` has groups that \`groups\` does not: ${absent.slice(0, 10).map((g) => `"${g}"`).join(", ")}.`);
+    }
+    total = numbers(need(opt.groups, "total", "groups"), "groups.total");
+    const given = columnOf(opt.groups, "covered", "groups");
+    covered = given === null ? ids.map(() => 0) : numbers(given, "groups.covered");
+  }
+  const index = new Map(ids.map((g, k) => [g, k]));
+  const at = own.map((g) => index.get(g));
+  const rows = own.map((_, k) => k).sort((a, b) => at[a] - at[b] || rank[a] - rank[b] || a - b);
+  const lengths = new Int32Array(ids.length);
+  for (const g of at) lengths[g] += 1;
+  let res;
+  try {
+    res = rawAllocateBudget(
+      Float64Array.from(rows, (k) => gains[k]), lengths, Float64Array.from(covered), Float64Array.from(total),
+      Math.round(opt.budget), opt.criterion,
+    );
+  } catch (err) {
+    throw engineError(err);
+  }
+  const [group, gain, coveredAfter, lowest, units] = res;
+  const gained = ids.map(() => 0);
+  group.forEach((g, k) => { gained[g] += gain[k]; });
+  return {
+    steps: {
+      order: Int32Array.from(group, (_, k) => k + 1),
+      group: Array.from(group, (g) => ids[g]),
+      marginal: gain,
+      covered: coveredAfter,
+      lowest_share: lowest,
+    },
+    groups: {
+      group: ids,
+      units,
+      gained: Float64Array.from(gained),
+      covered: Float64Array.from(ids, (_, g) => covered[g] + gained[g]),
+      share: Float64Array.from(ids, (_, g) => (!known ? NaN : total[g] > 0 ? (covered[g] + gained[g]) / total[g] : 1)),
+    },
   };
 }

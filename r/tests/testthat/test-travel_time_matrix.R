@@ -205,7 +205,7 @@ test_that("the network is the first argument, `network`", {
                                       mode = "WALK", n_threads = 2), walk)
   for (fun in setdiff(getNamespaceExports("peabiru"),
                       c("build_network", "core_version", "read_fare_structure",
-                        "write_fare_structure", "distance_matrix"))) {
+                        "write_fare_structure", "distance_matrix", "allocate_budget"))) {
     expect_identical(names(formals(getExportedValue("peabiru", fun)))[1], "network", label = fun)
   }
   expect_error(travel_time_matrix(list(), pts, pts, mode = "WALK"),

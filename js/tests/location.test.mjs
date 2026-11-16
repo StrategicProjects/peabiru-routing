@@ -222,3 +222,28 @@ test("distanceMatrix gives the pairs within a distance", async () => {
   assert.throws(() => peabiru.distanceMatrix(points, points, {}), /maxDistance' failed/);
   assert.throws(() => peabiru.distanceMatrix(points, points, { maxDistance: 5, radius: 1 }), /unknown option 'radius'/);
 });
+
+test("allocateBudget shares facilities among groups", async () => {
+  await sampleNetwork();
+  const curves = { group: ["north", "north", "north", "south", "south"], marginal: [500, 200, 50, 400, 300] };
+  const groups = { group: ["north", "south"], covered: [1000, 0], total: [2000, 1000] };
+  const most = peabiru.allocateBudget(curves, { budget: 3, groups });
+  assert.deepEqual(most.steps.group, ["north", "south", "south"]);
+  assert.deepEqual(Array.from(most.steps.covered), [1500, 1900, 2200]);
+  assert.deepEqual(Array.from(most.groups.units), [1, 2]);
+  assert.deepEqual(Array.from(most.groups.share), [0.75, 0.7]);
+  const fair = peabiru.allocateBudget(curves, { budget: 3, groups, criterion: "maximin" });
+  assert.deepEqual(fair.steps.group, ["south", "south", "north"]);
+  assert.deepEqual(Array.from(fair.steps.lowest_share), [0.4, 0.5, 0.7]);
+  // rows as objects in any order with `order`; more budget than facilities; no groups
+  const mixed = [4, 2, 0, 3, 1].map((k) => ({ group: curves.group[k], marginal: curves.marginal[k], order: [1, 2, 3, 1, 2][k] }));
+  const every = peabiru.allocateBudget(mixed, { budget: 9 });
+  assert.deepEqual(Array.from(every.steps.marginal), [500, 400, 300, 200, 50]);
+  assert.ok(Array.from(every.steps.lowest_share).every(Number.isNaN));
+  assert.deepEqual(every.groups.group, ["south", "north"]);
+  assert.throws(() => peabiru.allocateBudget(curves, { budget: 3, criterion: "maximin" }), /must not be null when criterion is maximin/);
+  assert.throws(() => peabiru.allocateBudget(curves, { budget: 0 }), /budget' failed/);
+  assert.throws(() => peabiru.allocateBudget({ group: ["a", "a"], marginal: [1, 2] }, { budget: 2 }), /may not increase/);
+  assert.throws(() => peabiru.allocateBudget(curves, { budget: 2, groups: { group: ["north"], total: [1] } }), /groups that `groups` does not/);
+  assert.throws(() => peabiru.allocateBudget(curves, { budget: 2, criterion: "fair" }), /criterion' failed/);
+});

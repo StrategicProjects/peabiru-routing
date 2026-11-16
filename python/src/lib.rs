@@ -1152,6 +1152,7 @@ fn _peabiru(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(location::locate_facilities, m)?)?;
     m.add_function(wrap_pyfunction!(location::floating_catchment, m)?)?;
     m.add_function(wrap_pyfunction!(location::distance_pairs, m)?)?;
+    m.add_function(wrap_pyfunction!(location::allocate_budget, m)?)?;
     inspect::register(m)?;
     fares::register(m)?;
     Ok(())

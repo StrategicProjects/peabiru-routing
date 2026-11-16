@@ -6,8 +6,8 @@ use super::{decay, err, interruptible, Outcome};
 use extendr_api::prelude::*;
 use extendr_api::Result;
 use peabiru_core::{
-    distance_pairs, floating_catchment, locate_facilities, CancelToken, CostTable,
-    FloatingCatchmentParams, LocationModel, LocationParams,
+    allocate_budget, distance_pairs, floating_catchment, locate_facilities, BudgetCriterion,
+    BudgetGroup, CancelToken, CostTable, FloatingCatchmentParams, LocationModel, LocationParams,
 };
 
 /// The table from its reachable pairs, with 0-based indices.
@@ -185,8 +185,64 @@ fn rs_distance_pairs(
     .into())
 }
 
+/// The groups of a budget allocation from the gains of all of them end to
+/// end and how many each has.
+fn budget_groups<'a>(
+    marginal: &'a [f64],
+    lengths: &[i32],
+    covered: &[f64],
+    total: &[f64],
+) -> std::result::Result<Vec<BudgetGroup<'a>>, String> {
+    if lengths.len() != covered.len() || lengths.len() != total.len() {
+        return Err("a budget allocation needs one length, covered and total per group".into());
+    }
+    let mut groups = Vec::with_capacity(lengths.len());
+    let mut at = 0usize;
+    for (g, &n) in lengths.iter().enumerate() {
+        let n = n.max(0) as usize;
+        let Some(part) = marginal.get(at..at + n) else {
+            return Err("the gains of a budget allocation are shorter than their lengths".into());
+        };
+        groups.push(BudgetGroup {
+            marginal: part,
+            covered: covered[g],
+            total: total[g],
+        });
+        at += n;
+    }
+    Ok(groups)
+}
+
+/// A budget of facilities shared among groups: `group` 0-based, `gain`,
+/// `covered` and `lowest_share` per facility, `units` per group.
+/// @noRd
+#[extendr]
+fn rs_allocate_budget(
+    marginal: &[f64],
+    lengths: &[i32],
+    covered: &[f64],
+    total: &[f64],
+    budget: i32,
+    criterion: &str,
+) -> Result<Robj> {
+    let groups = budget_groups(marginal, lengths, covered, total).map_err(err)?;
+    let criterion = BudgetCriterion::from_name(criterion)
+        .ok_or_else(|| err(format!("unknown criterion '{criterion}'")))?;
+    let a = allocate_budget(&groups, budget.max(0) as usize, criterion).map_err(err)?;
+    let as_i32 = |v: &[usize]| -> Vec<i32> { v.iter().map(|&x| x as i32).collect() };
+    Ok(list!(
+        group = as_i32(&a.group),
+        gain = a.gain,
+        covered = a.covered,
+        lowest_share = a.lowest_share,
+        units = as_i32(&a.units)
+    )
+    .into())
+}
+
 extendr_module! {
     mod location;
+    fn rs_allocate_budget;
     fn rs_distance_pairs;
     fn rs_locate_facilities;
     fn rs_floating_catchment;

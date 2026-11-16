@@ -36,12 +36,17 @@ every platform. A pair at distance 0 is a pair. Only the pairs within
 distance take little time and memory.
 }
 \examples{
-points <- utils::read.csv(file.path(sample_data_path(), "spo_points.csv"))
+data_path <- system.file("extdata/spo", package = "peabiru")
+points <- read.csv(file.path(data_path, "spo_points.csv"))
 near <- distance_matrix(points, points, max_distance = 800)
 head(near)
 # the two points with the most residents within 800 m of them
 locate_facilities(NULL, points, points, model = "max_cover", n_facilities = 2,
                   cutoff = 800, demand_colname = "population",
                   travel_times = near)$sites
+}
+\seealso{
+Other facility location:
+\code{\link[=allocate_budget]{allocate_budget()}}
 }
 \concept{facility location}

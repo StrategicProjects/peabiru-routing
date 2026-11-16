@@ -60,6 +60,29 @@ class FacilityLocation(NamedTuple):
     summary: Dict[str, Any]
 
 
+class BudgetAllocation(NamedTuple):
+    """The result of [`allocate_budget()`][peabiru.allocate_budget].
+    Unpacks as a tuple.
+
+    Attributes
+    ----------
+    steps : pandas.DataFrame
+        One row per facility, in the order they are given: ``order``
+        (from 1), ``group``, ``marginal``, ``covered`` (the demand covered
+        in all the groups after it, what was covered before included) and
+        ``lowest_share`` (the lowest share covered among the groups after
+        it; NaN without ``groups``). The first ``k`` rows are the answer
+        for a budget of ``k``.
+    groups : pandas.DataFrame
+        One row per group: ``group``, ``units`` (how many facilities it
+        gets), ``gained``, ``covered`` and ``share`` (NaN without
+        ``groups``).
+    """
+
+    steps: pd.DataFrame
+    groups: pd.DataFrame
+
+
 class FloatingCatchment(NamedTuple):
     """The result of [`floating_catchment()`][peabiru.floating_catchment].
     Unpacks as a tuple.
@@ -313,7 +336,9 @@ def locate_facilities(
     ``k`` rows of ``sites`` are the answer for ``n_facilities=k``, so
     asking for as many facilities as there are candidates (with
     ``min_gain`` to stop where a site no longer pays) gives the demand
-    covered for every number of facilities in one call.
+    covered for every number of facilities in one call;
+    [`allocate_budget()`][peabiru.allocate_budget] shares a number of
+    facilities among several such curves.
 
     The models do not depend on the unit of the table: ``travel_times``
     may hold any cost that is not negative, such as a distance in metres;
@@ -801,3 +826,167 @@ def distance_matrix(origins: Any, destinations: Any, max_distance: Any) -> pd.Da
             "distance": _f64(r["metres"]),
         }
     )
+
+
+def allocate_budget(
+    curves: Any, budget: Any, groups: Any = None, criterion: str = "utilitarian"
+) -> BudgetAllocation:
+    """Share a budget of facilities among groups.
+
+    Given, for each group (a municipality, a district), what its first,
+    second, third... new facility would add, decides how many facilities
+    each group gets out of a common budget, and in what order.
+
+    The curves come from
+    [`locate_facilities()`][peabiru.locate_facilities] with
+    ``model="max_cover"`` and ``swap=False``, one call per group asking
+    for as many facilities as there are candidates: the ``marginal``
+    column of ``sites`` is then what each further facility adds, and it
+    does not increase.
+
+    With ``criterion="utilitarian"`` each facility goes to the group where
+    the next one adds most. Because the gains of a group do not increase,
+    this covers the most demand possible, for the budget asked and for
+    every smaller one (marginal analysis; Fox, 1966). With ``"maximin"``
+    each facility goes to the group with the lowest share of its demand
+    covered that still has a facility to open, which gives the highest
+    possible lowest share, again for every budget. Ties go to the larger
+    gain, then to the group listed first. The difference between the
+    ``covered`` of the two criteria for the same budget is what the fairer
+    allocation costs (Bertsimas, Farias and Trichakis, 2011).
+
+    Parameters
+    ----------
+    curves : pandas.DataFrame
+        One row per facility of each group: ``group`` and ``marginal``
+        (what that facility adds, not negative), the rows of a group in
+        the order of its facilities (or ordered by the column ``order``,
+        when there is one).
+    budget : int
+        How many facilities to share out. Fewer are given when the groups
+        have no more facilities that add anything.
+    groups : pandas.DataFrame, optional
+        One row per group: ``group``, ``total`` (its demand) and,
+        optionally, ``covered`` (the demand covered before any new
+        facility; 0 without the column). Required by ``"maximin"``;
+        without it the shares are NaN. A group may have no row in
+        ``curves``.
+    criterion : str, default "utilitarian"
+        ``"utilitarian"`` or ``"maximin"``.
+
+    Returns
+    -------
+    BudgetAllocation
+        ``steps`` and ``groups``, two tables.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import peabiru
+    >>> curves = pd.DataFrame({
+    ...     "group": ["north", "north", "north", "south", "south"],
+    ...     "marginal": [500, 200, 50, 400, 300],
+    ... })
+    >>> groups = pd.DataFrame(
+    ...     {"group": ["north", "south"], "covered": [1000, 0], "total": [2000, 1000]}
+    ... )
+    >>> list(peabiru.allocate_budget(curves, 3, groups).steps["group"])
+    ['north', 'south', 'south']
+    >>> list(peabiru.allocate_budget(curves, 3, groups, criterion="maximin").steps["group"])
+    ['south', 'south', 'north']
+    """
+    assert_count(budget, "budget", positive=True)
+    assert_string(criterion, "criterion")
+    if criterion not in ("utilitarian", "maximin"):
+        raise ValueError(
+            "Assertion on 'criterion' failed: Must be element of set "
+            f"{{'utilitarian','maximin'}}, but is '{criterion}'."
+        )
+    if not isinstance(curves, pd.DataFrame):
+        raise TypeError("'curves' must be a 'DataFrame'.")
+    missing = [c for c in ("group", "marginal") if c not in curves.columns]
+    if missing:
+        raise ValueError(
+            "Assertion on 'curves' failed: Names must include the elements "
+            "{'group','marginal'}, but is missing elements {"
+            + ",".join(f"'{c}'" for c in missing) + "}."
+        )
+    if curves["group"].isna().any():
+        raise ValueError("'curves' must not have missing values in 'group'.")
+    own = curves["group"].astype(str).to_numpy(dtype=object)
+    gains = pd.to_numeric(curves["marginal"], errors="coerce").to_numpy(dtype=np.float64)
+    rank = (
+        pd.to_numeric(curves["order"]).to_numpy(dtype=np.float64)
+        if "order" in curves.columns
+        else np.arange(len(own), dtype=np.float64)
+    )
+    if groups is None:
+        if criterion == "maximin":
+            raise ValueError(
+                "Assertion on 'groups' failed: Must not be None when criterion is maximin "
+                "(the demand of each group, for its share covered)."
+            )
+        ids = pd.unique(own)
+        covered = np.zeros(len(ids))
+        total = np.full(len(ids), np.nan)
+    else:
+        if not isinstance(groups, pd.DataFrame):
+            raise TypeError("'groups' must be a 'DataFrame'.")
+        missing = [c for c in ("group", "total") if c not in groups.columns]
+        if missing:
+            raise ValueError(
+                "Assertion on 'groups' failed: Names must include the elements "
+                "{'group','total'}, but is missing elements {"
+                + ",".join(f"'{c}'" for c in missing) + "}."
+            )
+        ids = groups["group"].astype(str).to_numpy(dtype=object)
+        if pd.Series(ids).duplicated().any():
+            raise ValueError("`groups` must not contain duplicated groups.")
+        absent = [g for g in pd.unique(own) if g not in set(ids)]
+        if absent:
+            raise ValueError(
+                "'curves' has groups that 'groups' does not: "
+                + ", ".join(f'"{g}"' for g in absent[:10]) + "."
+            )
+        total = pd.to_numeric(groups["total"]).to_numpy(dtype=np.float64)
+        covered = (
+            pd.to_numeric(groups["covered"]).to_numpy(dtype=np.float64)
+            if "covered" in groups.columns
+            else np.zeros(len(ids))
+        )
+        if np.isnan(total).any() or np.isnan(covered).any():
+            raise ValueError("'groups' must not have missing values in 'total' or 'covered'.")
+    index = {g: k for k, g in enumerate(ids)}
+    at = np.array([index[g] for g in own], dtype=np.int64)
+    by_group = np.lexsort((rank, at))
+    lengths = np.bincount(at, minlength=len(ids)).tolist()
+    with core_errors("allocate_budget"):
+        r = _peabiru.allocate_budget(
+            np.ascontiguousarray(gains[by_group]).tobytes(), lengths,
+            covered.tolist(), total.tolist(), int(scalar(budget)), criterion,
+        )
+    given = _i32(r["group"])
+    gain = _f64(r["gain"])
+    gained = np.bincount(given, weights=gain, minlength=len(ids))
+    known = groups is not None
+    steps = pd.DataFrame(
+        {
+            "order": np.arange(1, len(given) + 1, dtype=np.int32),
+            "group": _strings(ids[given]),
+            "marginal": gain,
+            "covered": _f64(r["covered"]),
+            "lowest_share": _f64(r["lowest_share"]),
+        }
+    )
+    with np.errstate(invalid="ignore", divide="ignore"):
+        share = np.where(total > 0, (covered + gained) / total, 1.0) if known else np.full(len(ids), np.nan)
+    table = pd.DataFrame(
+        {
+            "group": _strings(ids),
+            "units": _i32(r["units"]),
+            "gained": gained,
+            "covered": covered + gained,
+            "share": share,
+        }
+    )
+    return BudgetAllocation(steps, table)

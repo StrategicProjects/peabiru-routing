@@ -10,6 +10,9 @@
   `locate_facilities()` and `floating_catchment()` take its result in
   `travel_times` (a `distance` column), for service standards that are
   distances.
+* New function `allocate_budget()`: shares a budget of facilities among
+  groups (municipalities, districts) from the curve of each, to cover the
+  most demand in all or to raise the lowest share covered first.
 * `locate_facilities()` reports, for `"max_cover"`, an upper bound on the
   demand that any choice of `n_facilities` sites could cover
   (`summary$upper_bound`): `covered / upper_bound` is a floor on the share

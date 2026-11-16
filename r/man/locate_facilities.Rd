@@ -232,7 +232,8 @@ as many facilities as there are candidates (with \code{min_gain} to stop
 where a site no longer pays) therefore gives, in \code{marginal} and
 \code{cumulative}, the demand covered for every number of facilities. With
 \code{swap = TRUE} the sites for one number of facilities need not include
-those for a smaller number.
+those for a smaller number. \code{\link[=allocate_budget]{allocate_budget()}} shares a number of
+facilities among several such curves.
 }
 
 \section{Costs other than minutes}{

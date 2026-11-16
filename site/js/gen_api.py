@@ -39,6 +39,7 @@ SECTIONS = [
         "locateFacilities", "LocateFacilitiesOptions", "FacilityLocation", "floatingCatchment",
         "FloatingCatchmentOptions", "FloatingCatchment", "TravelTimes", "LocationRoutingOptions",
         "distanceMatrix", "DistanceMatrixOptions", "DistanceTable",
+        "allocateBudget", "AllocateBudgetOptions", "BudgetAllocation", "Table",
     ]),
     ("Isochrones", [
         "isochrone", "IsochroneOptions", "IsochronePolygonProperties", "IsochroneLineProperties",

@@ -143,6 +143,36 @@ const byDistance = await peabiru.locateFacilities(null, points, points, {
 byDistance.sites.id.forEach((id, k) => console.log(id, byDistance.sites.marginal[k], byDistance.sites.cumulative[k]));
 // ANCHOR_END: distance
 
+// ANCHOR: budget
+// the points in two halves, each with its curve for schools within 8 minutes
+const lons = [...points.lon].sort((a, b) => a - b);
+const median = lons[(lons.length - 1) / 2];
+const curves = { group: [], order: [], marginal: [] };
+const groups = { group: [], covered: [], total: [] };
+for (const side of ["east", "west"]) {
+  const part = rows(points, (i) => (points.lon[i] < median ? "west" : "east") === side);
+  const open = rows(part, (i) => part.schools[i] > 0);
+  const closed = rows(part, (i) => part.schools[i] === 0);
+  const f = await peabiru.locateFacilities(network, part, closed, {
+    existing: open, model: "max_cover", nFacilities: closed.id.length, cutoff: 8, swap: false, demandColname: "population",
+  });
+  f.sites.marginal.forEach((gain, k) => {
+    curves.group.push(side);
+    curves.order.push(k + 1);
+    curves.marginal.push(gain);
+  });
+  groups.group.push(side);
+  groups.covered.push(f.summary.covered_before);
+  groups.total.push(f.summary.total_demand);
+}
+// three schools between the two halves, by each criterion
+for (const criterion of ["utilitarian", "maximin"]) {
+  const shared = peabiru.allocateBudget(curves, { budget: 3, groups, criterion });
+  const last = shared.steps.covered.length - 1;
+  console.log(`${criterion}: ${shared.steps.group.join(", ")}; covered ${shared.steps.covered[last]}, lowest share ${(100 * shared.steps.lowest_share[last]).toFixed(1)}%`);
+}
+// ANCHOR_END: budget
+
 network.free();
 
 // checks, not shown in the documentation

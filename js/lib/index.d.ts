@@ -996,6 +996,63 @@ export interface DistanceTable {
  */
 export declare function distanceMatrix(origins: Points, destinations: Points, options: DistanceMatrixOptions): DistanceTable;
 
+/** A table as an object of columns or an array of row objects. */
+export type Table = { [column: string]: ArrayLike<unknown> } | Array<{ [column: string]: unknown }>;
+
+/** Options of `allocateBudget()`. */
+export interface AllocateBudgetOptions {
+  /** How many facilities to share out. Fewer are given when the groups have no more facilities that add anything. Required. */
+  budget: number;
+  /** One row per group: `group`, `total` (its demand) and, optionally, `covered` (the demand covered before any new facility; 0 without the column). Required by `"maximin"`; without it the shares are NaN. A group may have no row in the curves. */
+  groups?: Table | null;
+  /** `"utilitarian"` (default): each facility where it adds most. `"maximin"`: each facility to the group with the lowest share of its demand covered. */
+  criterion?: "utilitarian" | "maximin";
+}
+
+/** The result of `allocateBudget()`: two tables as objects of columns. */
+export interface BudgetAllocation {
+  /**
+   * One row per facility, in the order they are given: the demand covered
+   * in all the groups after it (what was covered before included) and the
+   * lowest share covered among the groups (NaN without `groups`). The
+   * first `k` rows are the answer for a budget of `k`.
+   */
+  steps: { order: Int32Array; group: string[]; marginal: Float64Array; covered: Float64Array; lowest_share: Float64Array };
+  /** One row per group: how many facilities it gets, what they add, the demand covered and its share (NaN without `groups`). */
+  groups: { group: string[]; units: Int32Array; gained: Float64Array; covered: Float64Array; share: Float64Array };
+}
+
+/**
+ * Share a budget of facilities among groups (municipalities, districts),
+ * given what the first, second, third... new facility adds in each: the
+ * rows of `curves` have `group` and `marginal`, those of a group in the
+ * order of its facilities (or ordered by a column `order`). The curves
+ * come from `locateFacilities()` with `model: "max_cover"` and
+ * `swap: false`, one call per group asking for as many facilities as there
+ * are candidates.
+ *
+ * With `"utilitarian"` each facility goes where the next one adds most,
+ * which covers the most demand possible for every budget, since the gains
+ * of a group do not increase (marginal analysis). With `"maximin"` each
+ * goes to the group with the lowest share of its demand covered that
+ * still has a facility to open, which gives the highest possible lowest
+ * share. Ties go to the larger gain, then to the group listed first. The
+ * difference between the `covered` of the two criteria is what the fairer
+ * allocation costs. Synchronous (after `init()` in a browser).
+ *
+ * ```js
+ * const curves = {
+ *   group: ["north", "north", "north", "south", "south"],
+ *   marginal: [500, 200, 50, 400, 300],
+ * };
+ * const groups = { group: ["north", "south"], covered: [1000, 0], total: [2000, 1000] };
+ * const most = peabiru.allocateBudget(curves, { budget: 3, groups });
+ * const fair = peabiru.allocateBudget(curves, { budget: 3, groups, criterion: "maximin" });
+ * console.log(most.steps.group, fair.steps.group);
+ * ```
+ */
+export declare function allocateBudget(curves: Table, options: AllocateBudgetOptions): BudgetAllocation;
+
 /** Options of `floatingCatchment()`. */
 export interface FloatingCatchmentOptions extends LocationRoutingOptions {
   /**
