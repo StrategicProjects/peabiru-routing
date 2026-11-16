@@ -288,6 +288,16 @@ pub fn locate(a: LocateArgs) -> Res<()> {
             }
             demand.len()
         }
+        LocateTable::Flows => {
+            if capacity.is_none() {
+                return Err(usage("--table flows needs --capacity"));
+            }
+            out.row(&["demand_id", "facility_id", "served"])?;
+            for &(i, j, x) in &s.flows {
+                out.row(&[demand.ids[i].clone(), sites.ids[j].clone(), num(x)])?;
+            }
+            s.flows.len()
+        }
     };
     out.finish()?;
     let unserved = if s.unservable_demand > 0.0 {

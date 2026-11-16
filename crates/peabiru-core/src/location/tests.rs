@@ -435,6 +435,7 @@ fn capacity_by_hand() {
     assert_eq!(s.marginal, [30.0; 21]);
     assert_eq!((s.covered, s.upper_bound), (630.0, 630.0));
     assert_eq!(s.served, [600.0, 30.0]);
+    assert_eq!(s.flows, [(0, 0, 600.0), (1, 1, 30.0)]);
     // one more serves the 10 left, and after that nothing is left to serve
     q.n_facilities = 30;
     let s = locate_facilities(&table, &demand, &q).unwrap();
@@ -455,6 +456,7 @@ fn capacity_by_hand() {
     assert_eq!((s.covered_before, s.covered), (50.0, 80.0));
     assert_eq!((s.sites.clone(), s.marginal.clone()), (vec![1], vec![30.0]));
     assert_eq!(s.served, [40.0, 40.0]);
+    assert_eq!(s.flows, [(0, 0, 40.0), (1, 0, 10.0), (1, 1, 30.0)]);
 }
 
 #[test]
@@ -516,6 +518,24 @@ fn capacity_against_exhaustive_search() {
         }
         let before = inst.demand.iter().sum::<f64>() - left.iter().sum::<f64>();
         assert_eq!(s.covered_before, before, "{what}");
+        // the flows are the service: per point, per site, within the cutoff
+        let mut by_point = vec![0f64; n];
+        let mut by_site = vec![0f64; m];
+        for (k, &(i, j, x)) in s.flows.iter().enumerate() {
+            assert!(x > 0.0 && near(i, j), "{what}");
+            assert!(
+                k == 0 || (s.flows[k - 1].0, s.flows[k - 1].1) < (i, j),
+                "{what}"
+            );
+            by_point[i] += x;
+            by_site[j] += x;
+        }
+        assert_eq!(by_point, s.served, "{what}");
+        for j in 0..m {
+            let open = s.sites.iter().filter(|&&k| k == j).count()
+                + usize::from(inst.existing.contains(&j));
+            assert!(by_site[j] <= open as f64 * capacity[j], "{what}");
+        }
         // the solution is feasible: a flow of that size exists
         let mut opened = vec![0usize; m];
         s.sites.iter().for_each(|&j| opened[j] += 1);

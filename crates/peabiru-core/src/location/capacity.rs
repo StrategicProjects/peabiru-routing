@@ -82,12 +82,15 @@ pub(super) fn solve(p: &Problem, capacity: &[f64]) -> Result<LocationSolution, R
     pairs.sort_unstable_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
     let mut room = capacity.to_vec();
     let mut covered_before = 0.0;
+    // who serves whom: (demand point, site, demand served)
+    let mut flows: Vec<(usize, usize, f64)> = Vec::new();
     for &(_, e, i) in &pairs {
         let take = room[e].min(left[i]);
         if take > 0.0 {
             room[e] -= take;
             left[i] -= take;
             covered_before += take;
+            flows.push((i, e, take));
         }
     }
     drop(pairs);
@@ -187,6 +190,7 @@ pub(super) fn solve(p: &Problem, capacity: &[f64]) -> Result<LocationSolution, R
                 room -= take;
                 left[i] -= take;
                 gain += take;
+                flows.push((i, top.site, take));
             }
             if room <= 0.0 {
                 break;
@@ -205,6 +209,15 @@ pub(super) fn solve(p: &Problem, capacity: &[f64]) -> Result<LocationSolution, R
     }
 
     let served: Vec<f64> = p.demand.iter().zip(&left).map(|(w, l)| w - l).collect();
+    // one entry per pair: the facilities opened at a site are added up
+    flows.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    flows.dedup_by(|next, kept| {
+        let same = next.0 == kept.0 && next.1 == kept.1;
+        if same {
+            kept.2 += next.2;
+        }
+        same
+    });
     Ok(LocationSolution {
         model: p.params.model,
         sites,
@@ -220,6 +233,7 @@ pub(super) fn solve(p: &Problem, capacity: &[f64]) -> Result<LocationSolution, R
         covered: so_far,
         upper_bound: upper_bound.max(so_far).min(total_demand),
         served,
+        flows,
         total_demand,
         unservable_demand: unservable.iter().fold(0.0, |a, &i| a + p.demand[i]),
         unservable,

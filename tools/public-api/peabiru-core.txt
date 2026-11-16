@@ -392,13 +392,13 @@ impl core::marker::UnsafeUnpin for peabiru_core::BudgetAllocation
 impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::BudgetAllocation
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::BudgetAllocation
 pub struct peabiru_core::BudgetGroup<'a>
-pub peabiru_core::BudgetGroup<'a>::covered: f64
-pub peabiru_core::BudgetGroup<'a>::marginal: &'a [f64]
-pub peabiru_core::BudgetGroup<'a>::total: f64
+pub peabiru_core::BudgetGroup::covered: f64
+pub peabiru_core::BudgetGroup::marginal: &'a [f64]
+pub peabiru_core::BudgetGroup::total: f64
 impl<'a> core::clone::Clone for peabiru_core::BudgetGroup<'a>
-pub fn peabiru_core::BudgetGroup<'a>::clone(&self) -> peabiru_core::BudgetGroup<'a>
+pub fn peabiru_core::BudgetGroup<'a>::clone(&self) -> Self
 impl<'a> core::cmp::PartialEq for peabiru_core::BudgetGroup<'a>
-pub fn peabiru_core::BudgetGroup<'a>::eq(&self, &peabiru_core::BudgetGroup<'a>) -> bool
+pub fn peabiru_core::BudgetGroup<'a>::eq(&self, &Self) -> bool
 impl<'a> core::fmt::Debug for peabiru_core::BudgetGroup<'a>
 pub fn peabiru_core::BudgetGroup<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl<'a> core::marker::StructuralPartialEq for peabiru_core::BudgetGroup<'a>
@@ -983,6 +983,7 @@ pub peabiru_core::LocationSolution::assigned_site: alloc::vec::Vec<core::option:
 pub peabiru_core::LocationSolution::covered: f64
 pub peabiru_core::LocationSolution::covered_before: f64
 pub peabiru_core::LocationSolution::cumulative: alloc::vec::Vec<f64>
+pub peabiru_core::LocationSolution::flows: alloc::vec::Vec<(usize, usize, f64)>
 pub peabiru_core::LocationSolution::marginal: alloc::vec::Vec<f64>
 pub peabiru_core::LocationSolution::model: peabiru_core::LocationModel
 pub peabiru_core::LocationSolution::n_swaps: usize
@@ -1566,8 +1567,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for peabiru_core::WebMercatorGrid
 impl core::panic::unwind_safe::UnwindSafe for peabiru_core::WebMercatorGrid
 pub const peabiru_core::VERSION: &str
 pub fn peabiru_core::accessibility_trip_limits(&peabiru_core::DecayFunction, core::option::Option<&[i32]>, i32, core::option::Option<i32>, bool) -> core::result::Result<(i32, i32), peabiru_core::RouteError>
-pub fn peabiru_core::arrival_departure(u32, i32, i32) -> core::result::Result<(u32, i32), peabiru_core::RouteError>
 pub fn peabiru_core::allocate_budget(&[peabiru_core::BudgetGroup<'_>], usize, peabiru_core::BudgetCriterion) -> core::result::Result<peabiru_core::BudgetAllocation, peabiru_core::RouteError>
+pub fn peabiru_core::arrival_departure(u32, i32, i32) -> core::result::Result<(u32, i32), peabiru_core::RouteError>
 pub fn peabiru_core::arrival_travel_time_matrix(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams) -> core::result::Result<peabiru_core::ExpandedMatrix, peabiru_core::RouteError>
 pub fn peabiru_core::build_from_bytes(&[u8], &[(&str, &[u8])], &peabiru_core::BuildOptions) -> core::result::Result<peabiru_core::Network, peabiru_core::NetworkError>
 pub fn peabiru_core::build_from_bytes_with_elevation(&[u8], &[(&str, &[u8])], &[u8], &peabiru_core::BuildOptions) -> core::result::Result<peabiru_core::Network, peabiru_core::NetworkError>

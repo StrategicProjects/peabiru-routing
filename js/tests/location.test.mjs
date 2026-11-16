@@ -191,6 +191,13 @@ test("maximal covering takes capacities", async () => {
   let served = 0;
   found.demand.served.forEach((x, i) => { served += x * found.demand.demand[i]; });
   assert.equal(served, 28623);
+  // who serves whom: the flows add up to the service
+  const flows = found.flows;
+  assert.equal(flows.served.reduce((a, b) => a + b, 0), 28623);
+  let atNew = 0;
+  flows.facility_id.forEach((id, k) => { if (id === "89a8100c00fffff") atNew += flows.served[k]; });
+  assert.equal(atNew, 12000);
+  assert.equal(new Set(flows.demand_id.map((id, k) => `${id} ${flows.facility_id[k]}`)).size, flows.served.length);
   const every = await peabiru.locateFacilities(net, points, others, { ...ok, nFacilities: 30, capacity: 3000 });
   assert.equal(every.sites.id.length, 12);
   assert.equal(every.summary.covered, 46273);
@@ -200,6 +207,7 @@ test("maximal covering takes capacities", async () => {
   assert.deepEqual(byColumn.sites.id, found.sites.id);
   const plain = await peabiru.locateFacilities(net, points, others, { ...ok, nFacilities: 2 });
   assert.equal(plain.candidates.units, undefined);
+  assert.equal(plain.flows, undefined);
   await assert.rejects(peabiru.locateFacilities(net, points, others, { ...ok, capacity: 0 }), /capacity' failed: Must be greater than 0/);
   await assert.rejects(peabiru.locateFacilities(net, points, others, { ...ok, capacity: "seats" }), /'existing' has no column 'seats'/);
   await assert.rejects(peabiru.locateFacilities(net, points, others, { model: "p_median", capacity: 10 }), /must be null when model is p_median/);

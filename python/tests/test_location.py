@@ -259,6 +259,19 @@ def test_max_cover_takes_capacities(network, points):
     served = found.demand["served"]
     assert (found.demand["demand"] * served).sum() == 28623
     assert served.between(0, 1).all() and (served[~found.demand["covered"]] == 0).all()
+    # who serves whom: the flows add up to the service of each point and site
+    flows = found.flows
+    assert list(flows.columns) == ["demand_id", "facility_id", "served"]
+    assert flows["served"].sum() == 28623 and (flows["served"] > 0).all()
+    by_site = flows.groupby("facility_id")["served"].sum()
+    assert by_site["89a8100c00fffff"] == 12000
+    assert (by_site[by_site.index.isin(schools["id"])] <= 3000).all()
+    by_point = flows.groupby("demand_id")["served"].sum()
+    amount = (found.demand["demand"] * served).set_axis(found.demand["id"])
+    assert np.allclose(by_point, amount[by_point.index])
+    assert not flows.duplicated(["demand_id", "facility_id"]).any()
+    sites, candidates, demand, summary = found  # still a tuple of four
+    assert sites is found.sites and summary is found.summary
     # more facilities than candidates: as many as have someone to serve
     every = peabiru.locate_facilities(network, points, others, n_facilities=30, capacity=3000, **ok)
     assert len(every.sites) == 12 and every.summary["covered"] == 46273
@@ -271,6 +284,7 @@ def test_max_cover_takes_capacities(network, points):
     assert by_column.sites.equals(found.sites)
     plain = peabiru.locate_facilities(network, points, others, n_facilities=2, **ok)
     assert "units" not in plain.candidates and "served" not in plain.demand
+    assert plain.flows is None
     with pytest.raises(ValueError, match="'capacity' failed: Must be greater than 0"):
         peabiru.locate_facilities(network, points, others, capacity=0, **ok)
     with pytest.raises(ValueError, match="'existing' has no column 'seats'"):

@@ -604,6 +604,8 @@ pub enum LocateTable {
     Candidates,
     /// Every demand point, with its nearest facility
     Demand,
+    /// Who serves whom (with --capacity): demand point, facility, demand served
+    Flows,
 }
 
 #[derive(Args)]

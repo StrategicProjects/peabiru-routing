@@ -113,6 +113,28 @@ jobs:
         # formals, and the argument-error cases shared by the three packages
         run: python -m pytest bench/compare/py_formals.py bench/compare/py_argument_errors.py
 
+  python-windows:
+    name: Python 3.13, Windows
+    # the release workflow builds and tests the Windows wheel; this job finds
+    # a test that depends on the platform (paths, line ends) before a release
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          working-directory: python
+          args: --release --out dist
+      - name: Install the test dependencies, then the wheel just built
+        run: |
+          python -m pip install "pandas>=1.5" "pytest>=7" "geopandas>=0.12"
+          python -m pip install --no-index --find-links python/dist peabiru
+      - name: Run the tests against the installed wheel
+        run: python -m pytest python/tests
+
   js:
     name: npm package (WebAssembly)
     runs-on: ubuntu-latest

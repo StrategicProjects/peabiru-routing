@@ -253,6 +253,12 @@ pub struct LocationSolution {
     /// demand point is served, by the existing facilities and the new
     /// ones: between 0 and its weight. Empty otherwise.
     pub served: Vec<f64>,
+    /// With [`LocationParams::capacity`], who serves whom: one entry per
+    /// pair of demand point and facility site with demand served between
+    /// them, as `(demand point, site, demand served)`, ordered by demand
+    /// point, then by site. The existing facilities are included, and the
+    /// facilities opened at the same site are added up. Empty otherwise.
+    pub flows: Vec<(usize, usize, f64)>,
     /// The sum of the demand weights.
     pub total_demand: f64,
     /// The demand points with weight that no site of the table, existing

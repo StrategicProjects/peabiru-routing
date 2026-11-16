@@ -20,9 +20,16 @@ MODELS = ("max_cover", "set_cover", "p_median", "p_center")
 _NA = np.iinfo(np.int32).min
 
 
-class FacilityLocation(NamedTuple):
+class _FacilityLocation(NamedTuple):
+    sites: pd.DataFrame
+    candidates: pd.DataFrame
+    demand: pd.DataFrame
+    summary: Dict[str, Any]
+
+
+class FacilityLocation(_FacilityLocation):
     """The result of [`locate_facilities()`][peabiru.locate_facilities].
-    Unpacks as a tuple.
+    Unpacks as a tuple of its first four parts.
 
     Attributes
     ----------
@@ -52,12 +59,28 @@ class FacilityLocation(NamedTuple):
         ``covered / upper_bound`` is a floor on the share of the optimum
         reached), ``total_demand``, ``unservable_demand`` (demand no site can serve)
         and ``n_swaps``.
+    flows : pandas.DataFrame or None
+        Only with ``capacity`` (otherwise ``None``), and not part of the
+        tuple: who serves whom, one row per pair of demand point and
+        facility with demand served between them: ``demand_id``,
+        ``facility_id`` and ``served`` (in the unit of the demand).
+        Existing facilities are included, and the facilities opened at
+        the same site are added up.
     """
 
-    sites: pd.DataFrame
-    candidates: pd.DataFrame
-    demand: pd.DataFrame
-    summary: Dict[str, Any]
+    flows: Optional[pd.DataFrame]
+
+    def __new__(
+        cls,
+        sites: pd.DataFrame,
+        candidates: pd.DataFrame,
+        demand: pd.DataFrame,
+        summary: Dict[str, Any],
+        flows: Optional[pd.DataFrame] = None,
+    ) -> "FacilityLocation":
+        self = super().__new__(cls, sites, candidates, demand, summary)
+        self.flows = flows
+        return self
 
 
 class BudgetAllocation(NamedTuple):
@@ -427,7 +450,8 @@ def locate_facilities(
         the demand served, ``candidates`` gains ``units`` and ``demand``
         gains ``served`` (the share of the point's demand served, 0 to 1);
         ``covered`` keeps its meaning (within the cutoff of a facility,
-        whether or not it has room).
+        whether or not it has room). The result's ``flows`` then says who
+        serves whom.
     unreachable_time : number, optional
         For ``"p_median"`` and ``"p_center"``, the minutes charged to a
         demand point that reaches no open facility. Default: twice the
@@ -599,7 +623,16 @@ def locate_facilities(
         "unservable_demand": r["unservable_demand"],
         "n_swaps": r["n_swaps"],
     }
-    return FacilityLocation(site_table, candidate_table, demand_table, summary)
+    flows = None
+    if len(room):
+        flows = pd.DataFrame(
+            {
+                "demand_id": _strings(d.ids[_i32(r["flow_demand"])]),
+                "facility_id": _strings(sites.ids[_i32(r["flow_site"])]),
+                "served": _f64(r["flow_served"]),
+            }
+        )
+    return FacilityLocation(site_table, candidate_table, demand_table, summary, flows)
 
 
 def floating_catchment(
@@ -960,6 +993,17 @@ def allocate_budget(
     at = np.array([index[g] for g in own], dtype=np.int64)
     by_group = np.lexsort((rank, at))
     lengths = np.bincount(at, minlength=len(ids)).tolist()
+    ordered, group_of = gains[by_group], at[by_group]
+    up = np.flatnonzero(
+        (np.diff(group_of) == 0) & (np.diff(ordered) > 1e-9 * np.abs(ordered[:-1]))
+    )
+    if len(up):
+        k = int(up[0])
+        raise ValueError(
+            f'The gains of a group may not increase: in group "{ids[group_of[k]]}" a facility '
+            f"adds {ordered[k + 1]:g} after one that adds {ordered[k]:g} (the curves of "
+            "max_cover solved with swap=False do not increase)."
+        )
     with core_errors("allocate_budget"):
         r = _peabiru.allocate_budget(
             np.ascontiguousarray(gains[by_group]).tobytes(), lengths,

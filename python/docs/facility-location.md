@@ -304,6 +304,8 @@ What changes with a capacity:
   `demand` gains `served`, the share of its demand that is served, while
   `covered` still says whether it is within the cutoff of a facility,
   with room or not.
+- `flows` says who serves whom: one row per pair of demand point and
+  facility with demand served between them, existing facilities included.
 - The existing facilities have capacities too and serve first, each pair of
   facility and demand point in the order of their travel times.
 - `swap` has no effect, and `upper_bound` is a ceiling on what any choice

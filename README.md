@@ -77,7 +77,11 @@ crossed South America from the Atlantic to the Andes.
   maximal covering, set covering, p-median or p-center on the network's
   travel times, counting the units that already exist, and
   `floating_catchment()` measures where supply is short for the demand
-  around it. These are peabiru's own, not part of R5 or r5r.
+  around it. Since 0.1.6 maximal covering takes capacities (a unit serves
+  only so many people) and reports a bound on the optimum, set covering
+  takes a coverage target, `allocate_budget()` shares a number of
+  facilities among areas and `distance_matrix()` serves the standards that
+  are distances. These are peabiru's own, not part of R5 or r5r.
 
 Public transport can be any subset of the transit modes (`"BUS"`,
 `"RAIL"`, ...), reached by walking, bicycle or car and left the same ways.

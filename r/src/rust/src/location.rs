@@ -96,6 +96,13 @@ fn rs_locate_facilities(
             }
         })
         .collect();
+    let flow = |k: usize| -> Vec<i32> {
+        s.flows
+            .iter()
+            .map(|f| if k == 0 { f.0 } else { f.1 } as i32)
+            .collect()
+    };
+    let flow_served: Vec<f64> = s.flows.iter().map(|f| f.2).collect();
     Ok(list!(
         sites = as_i32(&s.sites),
         marginal = s.marginal,
@@ -111,6 +118,9 @@ fn rs_locate_facilities(
         covered = s.covered,
         upper_bound = s.upper_bound,
         served = s.served,
+        flow_demand = flow(0),
+        flow_site = flow(1),
+        flow_served = flow_served,
         total_demand = s.total_demand,
         unservable_demand = s.unservable_demand,
         n_swaps = s.n_swaps as i32

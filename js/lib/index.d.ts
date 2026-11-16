@@ -924,6 +924,13 @@ export interface FacilityLocation {
    * on the share of the optimum reached;
    * `unservable_demand` is the demand no site can serve.
    */
+  /**
+   * Only with `capacity`: who serves whom, one row per pair of demand
+   * point and facility with demand served between them (`served` in the
+   * unit of the demand). Existing facilities are included, and the
+   * facilities opened at the same site are added up.
+   */
+  flows?: { demand_id: (string | null)[]; facility_id: (string | null)[]; served: Float64Array };
   summary: {
     model: string; n_sites: number; objective_before: number; objective_greedy: number; objective: number;
     covered_before: number | null; covered: number | null; upper_bound: number | null; total_demand: number; unservable_demand: number; n_swaps: number;

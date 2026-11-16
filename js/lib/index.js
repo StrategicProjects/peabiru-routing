@@ -63,7 +63,7 @@ const RAW = {
 };
 
 /** Version of this package. */
-export const version = "0.1.5";
+export const version = "0.1.6";
 
 /** Missing value in the Int32Array columns of the results. */
 export const NA_INT32 = -2147483648;
@@ -2345,7 +2345,7 @@ export async function locateFacilities(network, demand, candidates, options) {
   } catch (err) {
     throw engineError(err);
   }
-  const [chosenSites, marginal, cumulative, potential, assigned, minutes, , numbers, served] = res;
+  const [chosenSites, marginal, cumulative, potential, assigned, minutes, , numbers, served, flowDemand, flowSite, flowServed] = res;
   const chosen = Array.from(chosenSites, (j) => j - nExisting);
   const isChosen = new Array(c.length).fill(false);
   for (const j of chosen) isChosen[j] = true;
@@ -2383,6 +2383,15 @@ export async function locateFacilities(network, demand, candidates, options) {
       unservable_demand: numbers[6],
       n_swaps: numbers[7],
     },
+    ...(room.length
+      ? {
+        flows: {
+          demand_id: Array.from(flowDemand, (i) => d.ids[i]),
+          facility_id: Array.from(flowSite, (j) => sites.ids[j]),
+          served: flowServed,
+        },
+      }
+      : {}),
   };
 }
 
@@ -3367,6 +3376,12 @@ export function allocateBudget(curves, options) {
   const rows = own.map((_, k) => k).sort((a, b) => at[a] - at[b] || rank[a] - rank[b] || a - b);
   const lengths = new Int32Array(ids.length);
   for (const g of at) lengths[g] += 1;
+  for (let k = 1; k < rows.length; k++) {
+    const [before, now] = [gains[rows[k - 1]], gains[rows[k]]];
+    if (at[rows[k]] === at[rows[k - 1]] && now - before > 1e-9 * Math.abs(before)) {
+      throw new RangeError(`The gains of a group may not increase: in group "${own[rows[k]]}" a facility adds ${now} after one that adds ${before} (the curves of max_cover solved with swap: false do not increase).`);
+    }
+  }
   let res;
   try {
     res = rawAllocateBudget(

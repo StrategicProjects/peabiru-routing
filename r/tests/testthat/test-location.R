@@ -254,6 +254,16 @@ test_that("maximal covering takes capacities", {
   expect_identical(sum(found$demand$demand * found$demand$served), 28623)
   expect_true(all(found$demand$served >= 0 & found$demand$served <= 1))
   expect_true(all(found$demand$served[!found$demand$covered] == 0))
+  # who serves whom: the flows add up to the service of each point and site
+  flows <- found$flows
+  expect_named(flows, c("demand_id", "facility_id", "served"))
+  expect_identical(sum(flows$served), 28623)
+  expect_identical(sum(flows$served[flows$facility_id == "89a8100c00fffff"]), 12000)
+  expect_true(all(tapply(flows$served, flows$facility_id, sum)[schools$id] <= 3000))
+  by_point <- tapply(flows$served, flows$demand_id, sum)
+  expect_equal(as.vector(by_point[found$demand$id[found$demand$served > 0]]),
+               with(found$demand, (demand * served)[served > 0]))
+  expect_false(anyDuplicated(flows[c("demand_id", "facility_id")]) > 0)
   # more facilities than candidates: as many as have someone to serve
   all_served <- locate(n_facilities = 30, capacity = 3000)
   expect_identical(nrow(all_served$sites), 12L)
@@ -268,6 +278,7 @@ test_that("maximal covering takes capacities", {
                                  n_threads = 2)
   expect_identical(by_column$sites, found$sites)
   expect_false("units" %in% names(locate(n_facilities = 2)$candidates))
+  expect_null(locate(n_facilities = 2)$flows)
   expect_error(locate(capacity = 0), "'capacity' failed: Must be greater than 0")
   expect_error(locate(capacity = "seats"), "'existing' has no column 'seats'")
   expect_error(locate_facilities(net, pts, others, model = "p_median", capacity = 10),

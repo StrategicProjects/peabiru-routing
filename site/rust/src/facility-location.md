@@ -149,7 +149,8 @@ then repeats it), and `n_facilities` counts facilities and may exceed the
 number of candidates. Facilities open one at a time, each where it would
 serve the most demand not yet served, the nearest demand points first; a
 point may be served in part or by more than one facility, and
-`LocationSolution::served` holds the demand of each point that is served.
+`LocationSolution::served` holds the demand of each point that is served
+and `flows` who serves whom (demand point, site, demand served).
 The existing facilities serve first, each pair of facility and demand
 point in the order of their travel times. `swap` has no effect, and
 `upper_bound` is a ceiling on what any choice of `n_facilities` facilities

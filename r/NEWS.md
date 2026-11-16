@@ -1,10 +1,11 @@
-# peabiru (development version)
+# peabiru 0.1.6
 
 * `locate_facilities()` gains `capacity`: with `model = "max_cover"`, the
   demand one facility can serve (a number, or a column of `candidates` and
   `existing`). A candidate may then open more than once, `n_facilities`
   counts facilities, and the result reports the share of each demand
-  point that is served (capacitated maximal covering).
+  point that is served and, in `flows`, who serves whom (capacitated
+  maximal covering).
 * New function `distance_matrix()`: the pairs of two sets of points at most
   so many metres apart in a straight line, with no network.
   `locate_facilities()` and `floating_catchment()` take its result in

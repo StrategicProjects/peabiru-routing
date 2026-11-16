@@ -41,7 +41,7 @@ fn table(
 
 /// The solution of a location model: `[sites, marginal, cumulative,
 /// potential, assigned_site, assigned_minutes, unservable, numbers,
-/// served]`, the
+/// served, flow_demand, flow_site, flow_served]`, the
 /// indices 0-based (`assigned_site` missing for a demand point that
 /// reaches no facility) and `numbers` holding `objective_before`,
 /// `objective_greedy`, `objective`, `covered_before`, `covered`,
@@ -109,6 +109,16 @@ pub fn locate_facilities(
     out.push(&Int32Array::from(&as_i32(&s.unservable)[..]));
     out.push(&Float64Array::from(&numbers[..]));
     out.push(&Float64Array::from(&s.served[..]));
+    let flow = |k: usize| -> Vec<i32> {
+        s.flows
+            .iter()
+            .map(|f| if k == 0 { f.0 } else { f.1 } as i32)
+            .collect()
+    };
+    let flow_served: Vec<f64> = s.flows.iter().map(|f| f.2).collect();
+    out.push(&Int32Array::from(&flow(0)[..]));
+    out.push(&Int32Array::from(&flow(1)[..]));
+    out.push(&Float64Array::from(&flow_served[..]));
     Ok(out)
 }
 

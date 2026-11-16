@@ -457,6 +457,16 @@ fn locate_and_catchment() {
     let c = ok(&run(&args));
     assert!(c.starts_with("id,lon,lat,potential,chosen,units\n"));
     assert_eq!(c.lines().filter(|l| l.ends_with(",true,4")).count(), 1);
+    let at = args.len() - 1;
+    args[at] = "flows";
+    let f = ok(&run(&args));
+    assert!(f.starts_with("demand_id,facility_id,served\n"));
+    let total: f64 = f
+        .lines()
+        .skip(1)
+        .map(|l| l.rsplit(',').next().unwrap().parse::<f64>().unwrap())
+        .sum();
+    assert_eq!(total, 28623.0);
 
     // the fewest sites for 90% of the residents within 10 minutes
     let part = ok(&run(&[

@@ -106,6 +106,16 @@ pub(crate) fn locate_facilities<'py>(
     out.set_item("covered", s.covered)?;
     out.set_item("upper_bound", s.upper_bound)?;
     out.set_item("served", f64_bytes(py, &s.served)?)?;
+    let flow = |k: usize| -> Vec<i32> {
+        s.flows
+            .iter()
+            .map(|f| if k == 0 { f.0 } else { f.1 } as i32)
+            .collect()
+    };
+    let flow_served: Vec<f64> = s.flows.iter().map(|f| f.2).collect();
+    out.set_item("flow_demand", i32_bytes(py, &flow(0))?)?;
+    out.set_item("flow_site", i32_bytes(py, &flow(1))?)?;
+    out.set_item("flow_served", f64_bytes(py, &flow_served)?)?;
     out.set_item("total_demand", s.total_demand)?;
     out.set_item("unservable_demand", s.unservable_demand)?;
     out.set_item("n_swaps", s.n_swaps)?;

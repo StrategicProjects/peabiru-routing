@@ -70,6 +70,11 @@
 #' many facilities opened there) and `demand` gains `served` (the share of
 #' the point's demand that is served, from 0 to 1), while `covered` keeps
 #' its meaning: within the cutoff of a facility, whether or not it has room.
+#' The result also has a fourth table, `flows`, with who serves whom: one
+#' row per pair of demand point and facility with demand served between
+#' them (`demand_id`, `facility_id`, and `served`, in the unit of the
+#' demand), existing facilities included and the facilities opened at the
+#' same site added up.
 #' `summary$upper_bound` is a ceiling on what any choice of `n_facilities`
 #' facilities could serve, given what the existing ones serve.
 #'
@@ -351,7 +356,14 @@ locate_facilities <- function(network,
       n_swaps = res$n_swaps
     )
   )
-  as_output_list(out, kind, c("sites", "candidates", "demand"))
+  if (capacitated) {
+    out$flows <- new_df(list(
+      demand_id = demand$id[res$flow_demand + 1L],
+      facility_id = sites$id[res$flow_site + 1L],
+      served = res$flow_served
+    ))
+  }
+  as_output_list(out, kind, c("sites", "candidates", "demand", "flows"))
 }
 
 #' Supply against demand around each place: the two-step floating catchment area
@@ -794,8 +806,16 @@ allocate_budget <- function(curves, budget, groups = NULL, criterion = "utilitar
   }
   at <- match(own, ids)
   by_group <- order(at)  # stable: the rows of a group keep their order
+  gains <- as.double(curves$marginal[by_group])
+  up <- which(diff(at[by_group]) == 0 & diff(gains) > 1e-9 * abs(gains[-length(gains)]))
+  if (length(up) > 0) {
+    stop("The gains of a group may not increase: in group \"", ids[at[by_group][up[1]]],
+         "\" a facility adds ", format(gains[up[1] + 1]), " after one that adds ",
+         format(gains[up[1]]), " (the curves of max_cover solved with swap = FALSE do ",
+         "not increase).", call. = FALSE)
+  }
   res <- raise_if_stopped(rs_allocate_budget(
-    as.double(curves$marginal[by_group]), tabulate(at, length(ids)),
+    gains, tabulate(at, length(ids)),
     as.double(covered), as.double(total), as.integer(budget), criterion
   ))
   gained <- vapply(seq_along(ids), function(g) sum(res$gain[res$group == g - 1L]), 0)

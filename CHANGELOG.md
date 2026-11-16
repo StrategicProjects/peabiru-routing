@@ -3,7 +3,7 @@
 Changes of the Rust crate `peabiru-core`, the command-line tool, and the
 Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
-## Development version
+## 0.1.6
 
 ### Facility location (all packages)
 
@@ -13,7 +13,7 @@ Python and JavaScript packages. The R package has its own `r/NEWS.md`.
   serves. A candidate may then open more than once, `n_facilities` counts
   facilities, demand is served from the nearest points first and may be
   served in part (`served`, per demand point), and the existing facilities
-  serve first.
+  serve first. The result has who serves whom (`flows`; `--table flows`).
 - `distance_matrix()` (Python; `distanceMatrix()` in JavaScript;
   `distance_pairs` in the core): the pairs of two sets of points at most so
   many metres apart in a straight line, with no network, as a table the

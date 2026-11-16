@@ -140,6 +140,12 @@
         average trip, or the longest one (Hakimi, 1964)</li>
         <li><strong>Floating catchment areas</strong>, with <code>floating_catchment()</code>:
         where supply is short for the demand around it (Luo and Wang, 2003)</li>
+        <li><strong>Capacities</strong> (new in 0.1.6): a unit serves only so many people, so a
+        place may need several, and the result says who serves whom (Current and Storbeck,
+        1988)</li>
+        <li><strong>A budget among areas</strong> (new in 0.1.6), with
+        <code>allocate_budget()</code>: where the next unit adds most, or the worst-off area
+        first (Fox, 1966)</li>
       </ul>
       <p>The units that already exist count first, so only the people they leave out pull the new
       sites. The result is made to be mapped: what each candidate place would add, the sites in
@@ -563,7 +569,7 @@ Measured 2026-11-12; <a href="benchmarks.html">methodology, all tasks and how th
         <li>Slope costs from elevation (Tobler, Minetti); car speed and traffic stress scenarios</li>
         <li><code>find_snap()</code>, <code>street_network_bbox()</code>, <code>street_network_to_sf()</code>, <code>transit_network_to_sf()</code>, <code>check_transit_availability()</code>, <code>get_gtfs_errors()</code></li>
         <li>Monte Carlo draws for frequency-based feeds, reproducible with a <code>seed</code>; CSV output with <code>output_dir</code> (R and Python)</li>
-        <li><code>locate_facilities()</code> (maximal covering, set covering, p-median, p-center) and <code>floating_catchment()</code></li>
+        <li><code>locate_facilities()</code> (maximal covering with or without capacities and with a bound on the optimum, full or partial set covering, p-median, p-center), <code>floating_catchment()</code>, <code>allocate_budget()</code> and <code>distance_matrix()</code> for service standards that are distances</li>
       </ul>
     </div>
     <div>
