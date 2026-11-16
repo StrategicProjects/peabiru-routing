@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 518 600" width="518" height="600" role="img" aria-labelledby="t">
+  <title id="t">peabiru hexagon sticker</title>
+  <desc>Hexagon sticker for the peabiru R package: the route-shaped letter P above the package name, faint trail lines in the background.</desc>
+  <defs>
+    <clipPath id="hex">
+      <polygon points="259,10 508,154 508,446 259,590 10,446 10,154"/>
+    </clipPath>
+  </defs>
+  <polygon points="259,10 508,154 508,446 259,590 10,446 10,154" fill="#1f2a2e"/>
+  <g clip-path="url(#hex)" fill="none" stroke="#2c3b40" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="-10,470 90,420 150,452 250,404"/>
+    <polyline points="330,400 420,430 530,380"/>
+    <polyline points="-10,120 70,150 120,96"/>
+    <polyline points="400,110 470,150 530,130"/>
+  </g>
+  <g transform="translate(105 64) scale(4.5)">
+    <path d="M21 52 V13 H35 A12.5 12.5 0 0 1 35 38 H21" fill="none" stroke="#e07a4a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="21" cy="52" r="6.5" fill="#f0b54a"/>
+    <circle cx="21" cy="38" r="5" fill="#1f2a2e" stroke="#faf6ef" stroke-width="3"/>
+  </g>
+  <text x="259" y="452" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="96" font-weight="700" fill="#faf6ef" letter-spacing="-1">peabiru</text>
+  <polygon points="259,10 508,154 508,446 259,590 10,446 10,154" fill="none" stroke="#e07a4a" stroke-width="14" stroke-linejoin="round"/>
+</svg>
