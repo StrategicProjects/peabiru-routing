@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 512" width="980" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Street routing</title>
+  <desc id="desc">A point is linked to the nearest street edge open to the mode, searched within 300 m and then within 1600 m; the walk from the point to the street is at walking speed. A search from the origin's split point expands directed edges cheapest first and stops at the time limit. A destination is reached through either end of its own edge, plus the partial edge and the off-street walk; seconds become whole minutes rounded down and pairs over max_trip_duration are dropped. Walking uses walking speed on edges open to pedestrians; cycling uses bike speed on edges up to max_lts and walks the bike elsewhere where pedestrians may go; driving uses each edge's speed, turn costs and turn restrictions.</desc>
+  <style>
+    .panel { fill: #fffdf9; stroke: #e1d8c8; }
+    .t { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; fill: #1f2a2e; }
+    .s { font-size: 12.5px; fill: #4a5a5f; }
+    .xs { font-size: 11.5px; fill: #4a5a5f; }
+    .h { font-weight: 700; }
+    .num { font-weight: 700; fill: #b4532a; }
+    .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+    .box { fill: #ffffff; stroke: #8a7f70; stroke-width: 1.5; }
+    .mode { fill: #fbeee6; stroke: #b4532a; stroke-width: 1.5; }
+    .street { stroke: #8a7f70; stroke-width: 6; stroke-linecap: round; fill: none; }
+    .reach { stroke: #b4532a; stroke-width: 3; stroke-linecap: round; fill: none; }
+    .walk { stroke: #4a5a5f; stroke-width: 2; fill: none; stroke-dasharray: 2 4; stroke-linecap: round; }
+    .ring { fill: none; stroke: #c9bfae; stroke-width: 1.2; stroke-dasharray: 4 4; }
+    .vx { fill: #ffffff; stroke: #1f2a2e; stroke-width: 1.8; }
+    .pt { fill: #c98a1d; }
+    .split { fill: #b4532a; }
+    .ln { stroke: #4a5a5f; stroke-width: 1.6; fill: none; }
+    .ah { fill: #4a5a5f; }
+    @media (prefers-color-scheme: dark) {
+      .panel { fill: #1d2427; stroke: #34403f; }
+      .t { fill: #ece6da; }
+      .s, .xs { fill: #a9b4b6; }
+      .num { fill: #e98a5c; }
+      .box { fill: #242d31; stroke: #7d8b8d; }
+      .mode { fill: #33261f; stroke: #e98a5c; }
+      .street { stroke: #6b7a7c; }
+      .reach { stroke: #e98a5c; }
+      .walk { stroke: #a9b4b6; }
+      .ring { stroke: #4a5859; }
+      .vx { fill: #1d2427; stroke: #ece6da; }
+      .pt { fill: #f0b54a; }
+      .split { fill: #e98a5c; }
+      .ln { stroke: #a9b4b6; }
+      .ah { fill: #a9b4b6; }
+    }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path class="ah" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="panel" x="0.5" y="0.5" width="979" height="511" rx="12"/>
+
+  <!-- 1 link -->
+  <rect class="box" x="24" y="24" width="300" height="256" rx="8"/>
+  <text class="t"><tspan class="num" x="40" y="50">1</tspan><tspan class="h" dx="8">Link each point</tspan></text>
+  <circle class="ring" cx="160" cy="130" r="54"/>
+  <line class="street" x1="48" y1="168" x2="300" y2="168"/>
+  <circle class="vx" cx="60" cy="168" r="6"/>
+  <circle class="vx" cx="288" cy="168" r="6"/>
+  <text class="t xs" x="54" y="192">A</text>
+  <text class="t xs" x="282" y="192">B</text>
+  <rect class="pt" x="154" y="118" width="12" height="12"/>
+  <path class="walk" d="M160 132 V162"/>
+  <circle class="split" cx="160" cy="168" r="5"/>
+  <text class="t xs" x="174" y="128">point</text>
+  <text class="t xs" x="168" y="152">walked</text>
+  <text class="t s" x="40" y="218">to the nearest edge open to the mode,</text>
+  <text class="t s" x="40" y="236">within 300 m, else within 1600 m;</text>
+  <text class="t s" x="40" y="254">the off-street leg is at walking</text>
+  <text class="t s" x="40" y="272">speed, whatever the mode</text>
+
+  <line class="ln" x1="324" y1="152" x2="354" y2="152" marker-end="url(#arr)"/>
+
+  <!-- 2 search -->
+  <rect class="box" x="356" y="24" width="300" height="256" rx="8"/>
+  <text class="t"><tspan class="num" x="372" y="50">2</tspan><tspan class="h" dx="8">Search from the origin</tspan></text>
+  <text class="t s" x="372" y="74">from both ends of the split edge,</text>
+  <text class="t s" x="372" y="92">expand directed edges, the</text>
+  <text class="t s" x="372" y="110">earliest arrival first (Dijkstra);</text>
+  <text class="t s" x="372" y="128">nothing beyond the time limit</text>
+  <text class="t s" x="372" y="146">is kept (<tspan class="code">max_trip_duration</tspan>,</text>
+  <text class="t s" x="372" y="164">or the mode's own limit)</text>
+  <text class="t s" x="372" y="190">States are directed edges, not</text>
+  <text class="t s" x="372" y="208">vertices: a car's turn cost and</text>
+  <text class="t s" x="372" y="226">turn restrictions depend on the</text>
+  <text class="t s" x="372" y="244">edge it arrives by.</text>
+
+  <line class="ln" x1="656" y1="152" x2="686" y2="152" marker-end="url(#arr)"/>
+
+  <!-- 3 arrive -->
+  <rect class="box" x="688" y="24" width="268" height="256" rx="8"/>
+  <text class="t"><tspan class="num" x="704" y="50">3</tspan><tspan class="h" dx="8">Reach each destination</tspan></text>
+  <line class="street" x1="712" y1="120" x2="932" y2="120"/>
+  <path class="reach" d="M722 120 H800"/>
+  <circle class="vx" cx="722" cy="120" r="6"/>
+  <circle class="vx" cx="922" cy="120" r="6"/>
+  <circle class="split" cx="806" cy="120" r="5"/>
+  <path class="walk" d="M806 114 V86"/>
+  <rect class="pt" x="800" y="72" width="12" height="12"/>
+  <text class="t xs" x="820" y="84">destination</text>
+  <text class="t s" x="704" y="160">through whichever end of its edge</text>
+  <text class="t s" x="704" y="178">gives the earlier time, plus the</text>
+  <text class="t s" x="704" y="196">partial edge and the walk off it;</text>
+  <text class="t s" x="704" y="220">seconds become whole minutes</text>
+  <text class="t s" x="704" y="238">(rounded down); pairs beyond</text>
+  <text class="t s" x="704" y="256"><tspan class="code">max_trip_duration</tspan> are left out</text>
+
+  <!-- modes -->
+  <text class="t h" x="24" y="314">What an edge costs, by mode</text>
+  <rect class="mode" x="24" y="328" width="300" height="164" rx="8"/>
+  <text class="t h" x="40" y="354"><tspan class="code">"WALK"</tspan></text>
+  <text class="t s" x="40" y="378">edges open to pedestrians, at</text>
+  <text class="t s" x="40" y="396"><tspan class="code">walk_speed</tspan> (default 3.6 km/h)</text>
+  <text class="t s" x="40" y="420">every mode: an edge takes its</text>
+  <text class="t s" x="40" y="438">length ÷ speed, rounded up to</text>
+  <text class="t s" x="40" y="456">whole seconds</text>
+
+  <rect class="mode" x="356" y="328" width="300" height="164" rx="8"/>
+  <text class="t h" x="372" y="354"><tspan class="code">"BICYCLE"</tspan></text>
+  <text class="t s" x="372" y="378">at <tspan class="code">bike_speed</tspan> (default 12 km/h) on</text>
+  <text class="t s" x="372" y="396">edges open to bikes whose traffic</text>
+  <text class="t s" x="372" y="414">stress is at most <tspan class="code">max_lts</tspan> (default 2);</text>
+  <text class="t s" x="372" y="438">elsewhere the cyclist walks the bike</text>
+  <text class="t s" x="372" y="456">at walking speed, where pedestrians</text>
+  <text class="t s" x="372" y="474">may go</text>
+
+  <rect class="mode" x="688" y="328" width="268" height="164" rx="8"/>
+  <text class="t h" x="704" y="354"><tspan class="code">"CAR"</tspan></text>
+  <text class="t s" x="704" y="378">edges open to cars, at each edge's</text>
+  <text class="t s" x="704" y="396">speed (OSM <tspan class="code">maxspeed</tspan> tags, else</text>
+  <text class="t s" x="704" y="414">a default for the road class);</text>
+  <text class="t s" x="704" y="438">turn costs: right 10 s, left 30 s,</text>
+  <text class="t s" x="704" y="456">U-turn 90 s; turn restrictions</text>
+  <text class="t s" x="704" y="474">from OSM relations are obeyed</text>
+</svg>

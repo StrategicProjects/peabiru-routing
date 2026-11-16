@@ -1,0 +1,1636 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multimodal routing on OpenStreetMap and GTFS networks with a Rust engine, without Java: travel-time matrices and accessibility as pandas data frames">
+      
+      
+        <meta name="author" content="André Leite, Marcos Wasiliew, Hugo Vasconcelos, Carlos Amorim, Diogo Bezerra, Júlia Nascimento Barreto">
+      
+      
+      
+        <link rel="prev" href="../expanded-arrival/">
+      
+      
+        <link rel="next" href="../fares/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Detailed itineraries - peabiru for Python</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/brand.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#detailed-itineraries" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="peabiru for Python" class="md-header__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            peabiru for Python
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Detailed itineraries
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="peabiru for Python" class="md-nav__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    peabiru for Python
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../travel-time-matrices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Travel-time matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accessibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../expanded-arrival/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Expanded and arrival matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detailed itineraries
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detailed itineraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pairs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-streets-of-each-leg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The streets of each leg
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#car-egress-and-turn-restrictions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Car egress and turn restrictions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trip-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trip options
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fares/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trip-options/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trip options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../facility-location/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facility location
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../elevation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Elevation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenarios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network-inspection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inspecting a network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gtfs-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GTFS errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../coming-from-r5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compared with r5r and r5py
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-isochrones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isochrones by mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access to jobs and schools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-trips/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How much a trip varies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-recife-metropolitan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Recife metropolitan region by public transport
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-recife-caruaru/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schools and health care in Recife and Caruaru
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-terrain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terrain, in Salvador and Olinda
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-capitals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by income in Belo Horizonte, and fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Before and after in Porto Alegre
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-helsinki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by public transport in Helsinki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Other languages
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Other languages
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../r/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    R
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rust/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../js/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    peabiru home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pairs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-streets-of-each-leg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The streets of each leg
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#car-egress-and-turn-restrictions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Car egress and turn restrictions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trip-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trip options
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="detailed-itineraries">Detailed itineraries<a class="headerlink" href="#detailed-itineraries" title="Permanent link">&para;</a></h1>
+<p><a class="autorefs autorefs-internal" title="detailed_itineraries" href="../reference/#peabiru.detailed_itineraries"><code>detailed_itineraries()</code></a> gives the legs of
+each trip between pairs of origins and destinations: walking, cycling or
+driving, and each public transport ride, with its duration, waiting time,
+distance, route and line.</p>
+<p>The examples use the sample data of Porto Alegre from the r5r project, downloaded
+once into the temporary directory (about 2 MB); its GTFS feeds only have
+service in the afternoon, hence the 14:00 departure.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.request</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">peabiru</span>
+
+<span class="n">poa</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">())</span> <span class="o">/</span> <span class="s2">"peabiru-poa"</span>
+<span class="n">poa</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s2">"https://raw.githubusercontent.com/ipea/r5r/v2.5.0/r-package/inst/extdata/poa/"</span>
+<span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"poa_osm.pbf"</span><span class="p">,</span> <span class="s2">"poa_eptc.zip"</span><span class="p">,</span> <span class="s2">"poa_trensurb.zip"</span><span class="p">,</span> <span class="s2">"poa_points_of_interest.csv"</span><span class="p">]:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">poa</span> <span class="o">/</span> <span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlretrieve</span><span class="p">(</span><span class="n">url</span> <span class="o">+</span> <span class="n">name</span><span class="p">,</span> <span class="n">poa</span> <span class="o">/</span> <span class="n">name</span><span class="p">)</span>
+
+<span class="n">network</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">poa</span><span class="p">)</span>  <span class="c1"># a .pbf and GTFS .zip files</span>
+<span class="n">points</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">poa</span> <span class="o">/</span> <span class="s2">"poa_points_of_interest.csv"</span><span class="p">)</span>  <span class="c1"># id, lat, lon</span>
+
+<span class="n">trips</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">detailed_itineraries</span><span class="p">(</span>
+    <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">],</span>
+    <span class="n">mode</span><span class="o">=</span><span class="p">[</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="s2">"TRANSIT"</span><span class="p">],</span>
+    <span class="n">departure_datetime</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2019</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">trips</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">"from_lat"</span><span class="p">,</span> <span class="s2">"from_lon"</span><span class="p">,</span> <span class="s2">"to_lat"</span><span class="p">,</span> <span class="s2">"to_lon"</span><span class="p">,</span> <span class="s2">"geometry"</span><span class="p">])</span><span class="o">.</span><span class="n">to_string</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>               from_id                to_id  option departure_time  total_duration  total_distance  segment  mode  segment_duration  wait  distance route
+0        public_market  santa_casa_hospital       1       14:00:00            13.1             792        1  WALK              13.1   0.0       792      
+1  bus_central_station             townhall       1       14:06:00            10.9            1792        1  WALK               3.6   0.0       206      
+2  bus_central_station             townhall       1       14:06:00            10.9            1792        2   BUS               4.0   1.4      1475  2441
+3  bus_central_station             townhall       1       14:06:00            10.9            1792        3  WALK               1.9   0.0       111      
+4     gasometer_museum      piratini_palace       1       14:01:00            12.6            1393        1  WALK               4.1   0.0       224      
+5     gasometer_museum      piratini_palace       1       14:01:00            12.6            1393        2   BUS               4.1   1.6      1001    C1
+6     gasometer_museum      piratini_palace       1       14:01:00            12.6            1393        3  WALK               2.8   0.0       168
+</code></pre></div>
+<p>Origins and destinations are paired row by row (a single origin or
+destination is repeated to match the other); <code>all_to_all=True</code> routes every
+origin to every destination. Each pair gets its fastest itinerary
+(<code>shortest_path=True</code>): the trip by the street mode alone, or the fastest
+public transport trip over the departure window, whichever is faster. Pairs
+without one have no rows.</p>
+<p>The result is a <code>geopandas.GeoDataFrame</code> of <code>LineString</code>s in EPSG:4326, one
+row per leg (<code>segment</code>), or a <code>pandas.DataFrame</code> with <code>drop_geometry=True</code>.
+Of note:</p>
+<ul>
+<li>a street leg's line holds the whole of the first and last street
+  segments, not only the parts walked or driven; the leg from the last stop
+  ends at the destination itself;</li>
+<li>a ride follows the GTFS shape of its trip pattern, or straight lines
+  between stops when the feed has no shapes;</li>
+<li>a walk between stops is routed again on the streets for its line and
+  distance; its duration is the one public transport routing used.</li>
+</ul>
+<h2 id="alternatives">Alternatives<a class="headerlink" href="#alternatives" title="Permanent link">&para;</a></h2>
+<p>With <code>shortest_path=False</code>, each pair gets, besides the trip by the street
+mode alone, the alternatives the multi-criteria router (McRAPTOR) finds
+over the departure window, one per sequence of routes. <code>suboptimal_minutes</code>
+(which must be 0 with <code>shortest_path=True</code>) keeps search branches up to
+that many minutes slower than the best one, so higher values return more
+itineraries. The options are numbered by <code>option</code> in this order: the trip
+by the street mode alone first, then by the number of legs, then by
+duration, so the first option is not the fastest when a trip with fewer
+legs is slower (on Porto Alegre with <code>suboptimal_minutes=10</code>, a pair had 102
+options, the first of 60.4 minutes and the fastest of 53.3):</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">alternatives</span><span class="p">(</span><span class="n">minutes</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">detailed_itineraries</span><span class="p">(</span>
+        <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">1</span><span class="p">]],</span> <span class="n">points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">4</span><span class="p">]],</span>
+        <span class="n">mode</span><span class="o">=</span><span class="p">[</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="s2">"TRANSIT"</span><span class="p">],</span>
+        <span class="n">departure_datetime</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2019</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">shortest_path</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">suboptimal_minutes</span><span class="o">=</span><span class="n">minutes</span><span class="p">,</span> <span class="n">drop_geometry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">for</span> <span class="n">minutes</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">minutes</span><span class="p">,</span> <span class="s2">"minutes:"</span><span class="p">,</span> <span class="n">alternatives</span><span class="p">(</span><span class="n">minutes</span><span class="p">)[</span><span class="s2">"option"</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">(),</span> <span class="s2">"options"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">alternatives</span><span class="p">(</span><span class="mi">0</span><span class="p">)[[</span><span class="s2">"option"</span><span class="p">,</span> <span class="s2">"departure_time"</span><span class="p">,</span> <span class="s2">"total_duration"</span><span class="p">,</span> <span class="s2">"segment"</span><span class="p">,</span> <span class="s2">"mode"</span><span class="p">,</span>
+                       <span class="s2">"segment_duration"</span><span class="p">,</span> <span class="s2">"wait"</span><span class="p">,</span> <span class="s2">"route"</span><span class="p">]]</span><span class="o">.</span><span class="n">to_string</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>0 minutes: 7 options
+1 minutes: 10 options
+5 minutes: 19 options
+    option departure_time  total_duration  segment  mode  segment_duration  wait route
+0        1       14:00:00            23.4        1  WALK              23.4   0.0      
+1        2       14:04:18            10.8        1  WALK               3.6   0.0      
+2        2       14:04:18            10.8        2   BUS               3.6   1.1   255
+3        2       14:04:18            10.8        3  WALK               2.6   0.0      
+4        3       14:05:51            11.0        1  WALK               3.6   0.0      
+5        3       14:05:51            11.0        2   BUS               4.0   1.6  2441
+6        3       14:05:51            11.0        3  WALK               1.9   0.0      
+7        4       14:02:02            12.0        1  WALK               3.6   0.0      
+8        4       14:02:02            12.0        2   BUS               4.0   1.9   346
+9        4       14:02:02            12.0        3  WALK               2.6   0.0      
+10       5       14:09:26            12.2        1  WALK               3.6   0.0      
+11       5       14:09:26            12.2        2   BUS               4.3   2.7  2821
+12       5       14:09:26            12.2        3  WALK               1.6   0.0      
+13       6       14:00:43            13.1        1  WALK               3.6   0.0      
+14       6       14:00:43            13.1        2   BUS               3.5   1.2   397
+15       6       14:00:43            13.1        3  WALK               4.8   0.0      
+16       7       14:06:46            13.5        1  WALK               3.6   0.0      
+17       7       14:06:46            13.5        2   BUS               3.4   2.2   525
+18       7       14:06:46            13.5        3  WALK               4.2   0.0
+</code></pre></div>
+<p>With a fare structure, the alternatives come with the fare of each trip
+(<code>total_fare</code>) and the fare paid by the end of each leg
+(<code>cumulative_fare</code>); see <a href="../fares/#alternative-itineraries-and-their-fares">Fares</a>.</p>
+<h2 id="pairs">Pairs<a class="headerlink" href="#pairs" title="Permanent link">&para;</a></h2>
+<p>Origins and destinations are paired row by row, and a single origin or
+destination is repeated to match the other, with a warning; with
+<code>all_to_all=True</code> every origin is routed to every destination. The street
+examples below use the sample network of Sao Paulo, which is quicker to
+build:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+<span class="n">spo</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">peabiru</span><span class="o">.</span><span class="n">sample_data_path</span><span class="p">(),</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">spo_points</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">sample_points</span><span class="p">()</span>
+<span class="n">pairs</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">detailed_itineraries</span><span class="p">(</span>
+    <span class="n">spo</span><span class="p">,</span> <span class="n">spo_points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">spo_points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"WALK"</span><span class="p">,</span>
+    <span class="n">drop_geometry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">every</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">detailed_itineraries</span><span class="p">(</span>
+    <span class="n">spo</span><span class="p">,</span> <span class="n">spo_points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">spo_points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"WALK"</span><span class="p">,</span>
+    <span class="n">all_to_all</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">drop_geometry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">caught</span><span class="p">:</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">"always"</span><span class="p">)</span>
+    <span class="n">one</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">detailed_itineraries</span><span class="p">(</span>
+        <span class="n">spo</span><span class="p">,</span> <span class="n">spo_points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">1</span><span class="p">],</span> <span class="n">spo_points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"WALK"</span><span class="p">,</span>
+        <span class="n">drop_geometry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">n_pairs</span><span class="p">(</span><span class="n">trips</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">trips</span><span class="p">[[</span><span class="s2">"from_id"</span><span class="p">,</span> <span class="s2">"to_id"</span><span class="p">]]</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">())</span>
+
+
+<span class="nb">print</span><span class="p">(</span><span class="n">n_pairs</span><span class="p">(</span><span class="n">pairs</span><span class="p">),</span> <span class="s2">"pairs;"</span><span class="p">,</span> <span class="n">n_pairs</span><span class="p">(</span><span class="n">every</span><span class="p">),</span> <span class="s2">"with all_to_all;"</span><span class="p">,</span> <span class="n">n_pairs</span><span class="p">(</span><span class="n">one</span><span class="p">),</span> <span class="s2">"from one origin"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">caught</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>3 pairs; 9 with all_to_all; 3 from one origin
+'origins' was expanded to match the number of destinations.
+</code></pre></div>
+<h2 id="the-streets-of-each-leg">The streets of each leg<a class="headerlink" href="#the-streets-of-each-leg" title="Permanent link">&para;</a></h2>
+<p>With <code>osm_link_ids=True</code> (which needs the geometry, so not with
+<code>drop_geometry=True</code>), each street leg also lists the OpenStreetMap ways
+(<code>osm_id_list</code>) and the edges of the street network (<code>edge_id_list</code>, as
+<a class="autorefs autorefs-internal" title="street_network_to_sf" href="../reference/#peabiru.street_network_to_sf"><code>street_network_to_sf()</code></a> numbers them) it
+goes along, and each ride its board and alight stops (<code>board_stop_id</code>,
+<code>alight_stop_id</code>, as <code>"&lt;feed&gt;:&lt;stop_id&gt;"</code>). Consecutive edges on a
+roundabout give only their first ids, and connectors none:</p>
+<div class="highlight"><pre><span></span><code><span class="n">bike</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">detailed_itineraries</span><span class="p">(</span>
+    <span class="n">spo</span><span class="p">,</span> <span class="n">spo_points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">spo_points</span><span class="o">.</span><span class="n">iloc</span><span class="p">[[</span><span class="mi">5</span><span class="p">]],</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"BICYCLE"</span><span class="p">,</span>
+    <span class="n">osm_link_ids</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">bike</span><span class="p">[[</span><span class="s2">"mode"</span><span class="p">,</span> <span class="s2">"distance"</span><span class="p">,</span> <span class="s2">"osm_id_list"</span><span class="p">]]</span><span class="o">.</span><span class="n">to_string</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>      mode  distance                                                                                                                                                                                                     osm_id_list
+0  BICYCLE      1268  [424630871, 424630809, 8579169, 779662527, 16975352, 565942870, 565942869, 211060855, 841434976, 231281385, 231281386, 153916352, 153916347, 153916351, 153878962, 436639672, 431397815, 431397814, 368723480]
+</code></pre></div>
+<h2 id="car-egress-and-turn-restrictions">Car egress and turn restrictions<a class="headerlink" href="#car-egress-and-turn-restrictions" title="Permanent link">&para;</a></h2>
+<p>With <code>mode_egress="CAR"</code>, the egress is searched backwards from the
+destination, and a turn restriction with two or more via ways can be read
+in either order of those ways. peabiru fixes the order: every pair gets
+the itineraries of a freshly built network routing that pair alone with one
+thread, whatever the other pairs, the threads or the earlier calls, and a
+warning, once per call, names the pairs whose itineraries the
+other order of those via ways would change (on Porto Alegre, about 1 pair
+in 200). Rides along GTFS shapes are cut by <code>shape_dist_traveled</code> where
+the feed has it. Networks whose
+GTFS has frequency-based trips cannot be used with public transport here:
+convert the frequencies to stop times first (with gtfstools'
+<code>frequencies_to_stop_times()</code> in R, for instance).</p>
+<h2 id="trip-options">Trip options<a class="headerlink" href="#trip-options" title="Permanent link">&para;</a></h2>
+<p>To see every trip worth considering between two points, faster or cheaper, with fewer transfers or less walking, and not only the fastest one, see <a class="autorefs autorefs-internal" title="trip_options" href="../reference/#peabiru.trip_options"><code>trip_options()</code></a>, peabiru's own multi-criteria planner: <a href="../trip-options/">Trip options</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; peabiru authors. Sample map data &copy; OpenStreetMap contributors (ODbL).
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "navigation.sections", "navigation.top", "search.highlight"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

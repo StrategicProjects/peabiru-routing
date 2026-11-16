@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 252 64" width="252" height="64" role="img" aria-labelledby="t">
+  <title id="t">peabiru</title>
+  <desc>The peabiru mark, a route drawn as the letter P, followed by the word peabiru.</desc>
+  <style>
+    .word { fill: #1f2a2e; }
+    @media (prefers-color-scheme: dark) { .word { fill: #ece6da; } }
+  </style>
+  <rect width="64" height="64" rx="14" fill="#1f2a2e"/>
+  <path d="M21 52 V13 H35 A12.5 12.5 0 0 1 35 38 H21" fill="none" stroke="#e07a4a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="21" cy="52" r="6.5" fill="#f0b54a"/>
+  <circle cx="21" cy="38" r="5" fill="#1f2a2e" stroke="#faf6ef" stroke-width="3"/>
+  <text class="word" x="78" y="45" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="40" font-weight="700" letter-spacing="-0.5">peabiru</text>
+</svg>

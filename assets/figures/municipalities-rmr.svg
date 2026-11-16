@@ -1,0 +1,142 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg role="img" aria-labelledby="title desc" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='547.20pt' height='374.40pt' viewBox='0 0 547.2 374.4'>
+<title id="title">People within an hour by public transport, by municipality of the Recife metropolitan region</title>
+<desc id="desc">A dot plot with one row per municipality of the Recife metropolitan region: the share of the region's residents that the average resident of the municipality reaches within 60 minutes on foot and with buses, metro and VLT, at the morning peak. Recife is first, with 25% of the region within an hour by public transport, and Araçoiaba last, with 0.4%.</desc>
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+@media (prefers-color-scheme: dark) {
+[style*="fill: #FFFDF9;"] { fill: #1D2427 !important; }
+[style*="fill: #1F2A2E;"] { fill: #ECE6DA !important; }
+[style*="fill: #4A5A5F;"] { fill: #A9B4B6 !important; }
+[style*="fill: #B4532A;"] { fill: #E98A5C !important; }
+[style*="fill: #2F6B4F;"] { fill: #6FBF95 !important; }
+[style*="stroke: #ECE4D6;"] { stroke: #2C3538 !important; }
+[style*="stroke: #DCD3C4;"] { stroke: #36423F !important; }
+[style*="stroke: #B4532A;"] { stroke: #E98A5C !important; }
+[style*="stroke: #2F6B4F;"] { stroke: #6FBF95 !important; }
+}
+</style>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.0;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect x='0.5' y='0.5' width='546.2' height='373.4' rx='9' style='fill: #FFFDF9; stroke: #E1D8C8; stroke-width: 1;'/>
+<defs>
+  <clipPath id='cpMC4wMHw1NDcuMjB8MC4wMHwzNzQuNDA='>
+    <rect x='0.0' y='0.0' width='547.2' height='374.4' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw1NDcuMjB8MC4wMHwzNzQuNDA=)'>
+<rect x='0.0' y='0.0' width='547.2' height='374.4' style='stroke-width: 0.9; stroke: none; fill: #FFFDF9;' />
+</g>
+<defs>
+  <clipPath id='cpMTE5LjI1fDUzMS4yNnw4NS43NHwzMzEuMDI='>
+    <rect x='119.2' y='85.7' width='412.0' height='245.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMTE5LjI1fDUzMS4yNnw4NS43NHwzMzEuMDI=)'>
+<rect x='119.2' y='85.7' width='412.0' height='245.2' style='stroke-width: 0.9; stroke: none;' />
+<path d='M123.3 331l0-245.3M270.1 331l0-245.3M416.8 331l0-245.3' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<line x1='212.4' y1='96.1' x2='487.5' y2='96.1' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='194.4' y1='113.3' x2='412.4' y2='113.3' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='162.7' y1='130.6' x2='294.3' y2='130.6' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='172.5' y1='147.9' x2='285.1' y2='147.9' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='158.8' y1='165.2' x2='260.9' y2='165.2' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='150.1' y1='182.4' x2='235.2' y2='182.4' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='141.1' y1='199.7' x2='189.9' y2='199.7' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='146.5' y1='217.0' x2='184.9' y2='217.0' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='144.1' y1='234.2' x2='170.8' y2='234.2' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='134.7' y1='251.5' x2='150.0' y2='251.5' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='129.8' y1='268.8' x2='147.7' y2='268.8' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='130.7' y1='286.1' x2='138.6' y2='286.1' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='127.7' y1='303.3' x2='134.9' y2='303.3' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<line x1='129.7' y1='320.6' x2='129.8' y2='320.6' style='stroke-width: 4.6; stroke: #DCD3C4;' />
+<circle cx='212.4' cy='96.1' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='194.4' cy='113.3' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='162.7' cy='130.6' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='172.5' cy='147.9' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='158.8' cy='165.2' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='150.1' cy='182.4' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='141.1' cy='199.7' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='146.5' cy='217.0' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='144.1' cy='234.2' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='134.7' cy='251.5' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='129.8' cy='268.8' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='130.7' cy='286.1' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='127.7' cy='303.3' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='129.7' cy='320.6' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='487.5' cy='96.1' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='412.4' cy='113.3' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='294.3' cy='130.6' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='285.1' cy='147.9' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='260.9' cy='165.2' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='235.2' cy='182.4' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='189.9' cy='199.7' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='184.9' cy='217.0' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='170.8' cy='234.2' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='150.0' cy='251.5' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='147.7' cy='268.8' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='138.6' cy='286.1' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='134.9' cy='303.3' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='129.8' cy='320.6' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<text x='505.1' y='98.9' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>25%</text>
+<text x='430.0' y='116.2' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>20%</text>
+<text x='311.9' y='133.4' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>12%</text>
+<text x='302.7' y='150.7' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>11%</text>
+<text x='278.5' y='168.0' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>9%</text>
+<text x='252.8' y='185.3' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>8%</text>
+<text x='207.5' y='202.5' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>5%</text>
+<text x='202.6' y='219.8' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>4%</text>
+<text x='188.4' y='237.1' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>3%</text>
+<text x='167.6' y='254.4' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>2%</text>
+<text x='165.3' y='271.6' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>2%</text>
+<text x='156.2' y='288.9' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>1%</text>
+<text x='152.5' y='306.2' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0.8%</text>
+<text x='147.4' y='323.5' style='font-size: 7.97px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0.4%</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1NDcuMjB8MC4wMHwzNzQuNDA=)'>
+<text x='114.7' y='323.6' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Araçoiaba</text>
+<text x='114.7' y='306.4' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Ilha de Itamaracá</text>
+<text x='114.7' y='289.1' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Ipojuca</text>
+<text x='114.7' y='271.8' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Itapissuma</text>
+<text x='114.7' y='254.6' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Moreno</text>
+<text x='114.7' y='237.3' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Cabo de Santo Agostinho</text>
+<text x='114.7' y='220.0' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>São Lourenço da Mata</text>
+<text x='114.7' y='202.7' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Igarassu</text>
+<text x='114.7' y='185.5' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Abreu e Lima</text>
+<text x='114.7' y='168.2' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Camaragibe</text>
+<text x='114.7' y='150.9' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Jaboatão dos Guararapes</text>
+<text x='114.7' y='133.6' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Paulista</text>
+<text x='114.7' y='116.4' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Olinda</text>
+<text x='114.7' y='99.1' text-anchor='end' style='font-size: 8.50px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Recife</text>
+<text x='123.3' y='341.2' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0%</text>
+<text x='270.1' y='341.2' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10%</text>
+<text x='416.8' y='341.2' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>20%</text>
+<circle cx='124.2' cy='70.8' r='2.8' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='172.3' cy='70.8' r='2.8' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<text x='134.2' y='73.6' style='font-size: 8.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Walking</text>
+<text x='182.2' y='73.6' style='font-size: 8.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Walking + public transport</text>
+<text x='15.9' y='37.1' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Share of the metropolitan region's 3,730,664 residents reached within 60 minutes from home, average of</text>
+<text x='15.9' y='47.9' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>each municipality's residents; departures 07:00–07:59 on Tuesday 10 November 2026 (median). Numbers:</text>
+<text x='15.9' y='58.7' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>with buses, metro and VLT</text>
+<text x='15.9' y='22.5' style='font-size: 12.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>People within an hour, by municipality of residence</text>
+<text x='15.9' y='352.5' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Streets © OpenStreetMap contributors (ODbL), Geofabrik extract of 2026-11-01. Timetables: Grande Recife Consórcio de Transporte</text>
+<text x='15.9' y='361.0' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Metropolitano, GTFS v2026.10.26. Boundaries and population: IBGE, Censo 2022.</text>
+</g>
+</g>
+</svg>

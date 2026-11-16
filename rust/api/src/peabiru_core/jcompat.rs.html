@@ -1,0 +1,421 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/peabiru-core/src/jcompat.rs`."><title>jcompat.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-203241e4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="peabiru_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.100.0 (0ef1bc386 2026-11-09)" data-channel="1.100.0" data-search-js="search-b167f383.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-1814ead3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">peabiru_core/</div>jcompat.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Bit-exact stand-ins for the Java library behaviour R5 results depend on:
+<a href=#2 id=2 data-nosnippet>2</a>//! the commons-math3 3.0 Mersenne Twister and `BitsStreamGenerator.nextInt`,
+<a href=#3 id=3 data-nosnippet>3</a>//! `java.util.Objects.hash`, and the slot layout (hence iteration order) of
+<a href=#4 id=4 data-nosnippet>4</a>//! Trove 3 open-addressing int hash maps. Checked against the R5 7.6 jar.
+<a href=#5 id=5 data-nosnippet>5</a>//!
+<a href=#6 id=6 data-nosnippet>6</a>//! [`MersenneTwister`] is a translation to Rust, by the peabiru authors, of
+<a href=#7 id=7 data-nosnippet>7</a>//! parts of `org.apache.commons.math3.random.MersenneTwister` and
+<a href=#8 id=8 data-nosnippet>8</a>//! `BitsStreamGenerator` of Apache Commons Math 3.0 (Copyright 2001-2012 The
+<a href=#9 id=9 data-nosnippet>9</a>//! Apache Software Foundation; Apache License, Version 2.0), themselves
+<a href=#10 id=10 data-nosnippet>10</a>//! translated from the C generator of Makoto Matsumoto and Takuji Nishimura
+<a href=#11 id=11 data-nosnippet>11</a>//! (Copyright (C) 1997 - 2002, BSD 3-clause). The prime table comes from
+<a href=#12 id=12 data-nosnippet>12</a>//! Trove's `PrimeFinder`, a Colt file (Copyright (c) 1999 CERN). The rest is
+<a href=#13 id=13 data-nosnippet>13</a>//! this project's own code. Licences and notices: `LICENSE-THIRD-PARTY`.
+<a href=#14 id=14 data-nosnippet>14</a>
+<a href=#15 id=15 data-nosnippet>15</a>/// Mersenne Twister MT19937 as commons-math3 3.0 `MersenneTwister`.
+<a href=#16 id=16 data-nosnippet>16</a></span><span class="kw">pub struct </span>MersenneTwister {
+<a href=#17 id=17 data-nosnippet>17</a>    mt: [u32; <span class="number">624</span>],
+<a href=#18 id=18 data-nosnippet>18</a>    mti: usize,
+<a href=#19 id=19 data-nosnippet>19</a>}
+<a href=#20 id=20 data-nosnippet>20</a>
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">const </span>N: usize = <span class="number">624</span>;
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">const </span>M: usize = <span class="number">397</span>;
+<a href=#23 id=23 data-nosnippet>23</a>
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">impl </span>MersenneTwister {
+<a href=#25 id=25 data-nosnippet>25</a>    <span class="kw">fn </span>init_genrand(s: u32) -&gt; [u32; N] {
+<a href=#26 id=26 data-nosnippet>26</a>        <span class="kw">let </span><span class="kw-2">mut </span>mt = [<span class="number">0u32</span>; N];
+<a href=#27 id=27 data-nosnippet>27</a>        mt[<span class="number">0</span>] = s;
+<a href=#28 id=28 data-nosnippet>28</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..N {
+<a href=#29 id=29 data-nosnippet>29</a>            mt[i] = <span class="number">1_812_433_253u32
+<a href=#30 id=30 data-nosnippet>30</a>                </span>.wrapping_mul(mt[i - <span class="number">1</span>] ^ (mt[i - <span class="number">1</span>] &gt;&gt; <span class="number">30</span>))
+<a href=#31 id=31 data-nosnippet>31</a>                .wrapping_add(i <span class="kw">as </span>u32);
+<a href=#32 id=32 data-nosnippet>32</a>        }
+<a href=#33 id=33 data-nosnippet>33</a>        mt
+<a href=#34 id=34 data-nosnippet>34</a>    }
+<a href=#35 id=35 data-nosnippet>35</a>
+<a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// `setSeed(int[])`, the reference `init_by_array`.
+<a href=#37 id=37 data-nosnippet>37</a>    </span><span class="kw">pub fn </span>from_array(key: <span class="kw-2">&amp;</span>[u32]) -&gt; <span class="self">Self </span>{
+<a href=#38 id=38 data-nosnippet>38</a>        <span class="kw">let </span><span class="kw-2">mut </span>mt = <span class="self">Self</span>::init_genrand(<span class="number">19_650_218</span>);
+<a href=#39 id=39 data-nosnippet>39</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>i, <span class="kw-2">mut </span>j) = (<span class="number">1usize</span>, <span class="number">0usize</span>);
+<a href=#40 id=40 data-nosnippet>40</a>        <span class="kw">for _ in </span><span class="number">0</span>..N.max(key.len()) {
+<a href=#41 id=41 data-nosnippet>41</a>            mt[i] = (mt[i] ^ (mt[i - <span class="number">1</span>] ^ (mt[i - <span class="number">1</span>] &gt;&gt; <span class="number">30</span>)).wrapping_mul(<span class="number">1_664_525</span>))
+<a href=#42 id=42 data-nosnippet>42</a>                .wrapping_add(key[j])
+<a href=#43 id=43 data-nosnippet>43</a>                .wrapping_add(j <span class="kw">as </span>u32);
+<a href=#44 id=44 data-nosnippet>44</a>            i += <span class="number">1</span>;
+<a href=#45 id=45 data-nosnippet>45</a>            j += <span class="number">1</span>;
+<a href=#46 id=46 data-nosnippet>46</a>            <span class="kw">if </span>i &gt;= N {
+<a href=#47 id=47 data-nosnippet>47</a>                mt[<span class="number">0</span>] = mt[N - <span class="number">1</span>];
+<a href=#48 id=48 data-nosnippet>48</a>                i = <span class="number">1</span>;
+<a href=#49 id=49 data-nosnippet>49</a>            }
+<a href=#50 id=50 data-nosnippet>50</a>            <span class="kw">if </span>j &gt;= key.len() {
+<a href=#51 id=51 data-nosnippet>51</a>                j = <span class="number">0</span>;
+<a href=#52 id=52 data-nosnippet>52</a>            }
+<a href=#53 id=53 data-nosnippet>53</a>        }
+<a href=#54 id=54 data-nosnippet>54</a>        <span class="kw">for _ in </span><span class="number">0</span>..N - <span class="number">1 </span>{
+<a href=#55 id=55 data-nosnippet>55</a>            mt[i] = (mt[i] ^ (mt[i - <span class="number">1</span>] ^ (mt[i - <span class="number">1</span>] &gt;&gt; <span class="number">30</span>)).wrapping_mul(<span class="number">1_566_083_941</span>))
+<a href=#56 id=56 data-nosnippet>56</a>                .wrapping_sub(i <span class="kw">as </span>u32);
+<a href=#57 id=57 data-nosnippet>57</a>            i += <span class="number">1</span>;
+<a href=#58 id=58 data-nosnippet>58</a>            <span class="kw">if </span>i &gt;= N {
+<a href=#59 id=59 data-nosnippet>59</a>                mt[<span class="number">0</span>] = mt[N - <span class="number">1</span>];
+<a href=#60 id=60 data-nosnippet>60</a>                i = <span class="number">1</span>;
+<a href=#61 id=61 data-nosnippet>61</a>            }
+<a href=#62 id=62 data-nosnippet>62</a>        }
+<a href=#63 id=63 data-nosnippet>63</a>        mt[<span class="number">0</span>] = <span class="number">0x8000_0000</span>;
+<a href=#64 id=64 data-nosnippet>64</a>        MersenneTwister { mt, mti: N }
+<a href=#65 id=65 data-nosnippet>65</a>    }
+<a href=#66 id=66 data-nosnippet>66</a>
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="doccomment">/// `setSeed(long)`: the long split into its high and low int words.
+<a href=#68 id=68 data-nosnippet>68</a>    </span><span class="kw">pub fn </span>from_long(seed: i64) -&gt; <span class="self">Self </span>{
+<a href=#69 id=69 data-nosnippet>69</a>        <span class="self">Self</span>::from_array(<span class="kw-2">&amp;</span>[(seed <span class="kw">as </span>u64 &gt;&gt; <span class="number">32</span>) <span class="kw">as </span>u32, seed <span class="kw">as </span>u32])
+<a href=#70 id=70 data-nosnippet>70</a>    }
+<a href=#71 id=71 data-nosnippet>71</a>
+<a href=#72 id=72 data-nosnippet>72</a>    <span class="kw">fn </span>next_u32(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; u32 {
+<a href=#73 id=73 data-nosnippet>73</a>        <span class="kw">if </span><span class="self">self</span>.mti &gt;= N {
+<a href=#74 id=74 data-nosnippet>74</a>            <span class="kw">for </span>k <span class="kw">in </span><span class="number">0</span>..N {
+<a href=#75 id=75 data-nosnippet>75</a>                <span class="kw">let </span>y = (<span class="self">self</span>.mt[k] &amp; <span class="number">0x8000_0000</span>) | (<span class="self">self</span>.mt[(k + <span class="number">1</span>) % N] &amp; <span class="number">0x7fff_ffff</span>);
+<a href=#76 id=76 data-nosnippet>76</a>                <span class="kw">let </span>mag = <span class="kw">if </span>y &amp; <span class="number">1 </span>== <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ <span class="number">0x9908_b0df </span>};
+<a href=#77 id=77 data-nosnippet>77</a>                <span class="self">self</span>.mt[k] = <span class="self">self</span>.mt[(k + M) % N] ^ (y &gt;&gt; <span class="number">1</span>) ^ mag;
+<a href=#78 id=78 data-nosnippet>78</a>            }
+<a href=#79 id=79 data-nosnippet>79</a>            <span class="self">self</span>.mti = <span class="number">0</span>;
+<a href=#80 id=80 data-nosnippet>80</a>        }
+<a href=#81 id=81 data-nosnippet>81</a>        <span class="kw">let </span><span class="kw-2">mut </span>y = <span class="self">self</span>.mt[<span class="self">self</span>.mti];
+<a href=#82 id=82 data-nosnippet>82</a>        <span class="self">self</span>.mti += <span class="number">1</span>;
+<a href=#83 id=83 data-nosnippet>83</a>        y ^= y &gt;&gt; <span class="number">11</span>;
+<a href=#84 id=84 data-nosnippet>84</a>        y ^= (y &lt;&lt; <span class="number">7</span>) &amp; <span class="number">0x9d2c_5680</span>;
+<a href=#85 id=85 data-nosnippet>85</a>        y ^= (y &lt;&lt; <span class="number">15</span>) &amp; <span class="number">0xefc6_0000</span>;
+<a href=#86 id=86 data-nosnippet>86</a>        y ^= y &gt;&gt; <span class="number">18</span>;
+<a href=#87 id=87 data-nosnippet>87</a>        y
+<a href=#88 id=88 data-nosnippet>88</a>    }
+<a href=#89 id=89 data-nosnippet>89</a>
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="doccomment">/// `next(bits)`.
+<a href=#91 id=91 data-nosnippet>91</a>    </span><span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bits: u32) -&gt; i32 {
+<a href=#92 id=92 data-nosnippet>92</a>        (<span class="self">self</span>.next_u32() &gt;&gt; (<span class="number">32 </span>- bits)) <span class="kw">as </span>i32
+<a href=#93 id=93 data-nosnippet>93</a>    }
+<a href=#94 id=94 data-nosnippet>94</a>
+<a href=#95 id=95 data-nosnippet>95</a>    <span class="doccomment">/// `nextInt(n)` of commons-math3 3.0 `BitsStreamGenerator`, `n &gt; 0`.
+<a href=#96 id=96 data-nosnippet>96</a>    </span><span class="kw">pub fn </span>next_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, n: i32) -&gt; i32 {
+<a href=#97 id=97 data-nosnippet>97</a>        <span class="macro">assert!</span>(n &gt; <span class="number">0</span>, <span class="string">"nextInt bound must be positive"</span>);
+<a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">if </span>n &amp; n.wrapping_neg() == n {
+<a href=#99 id=99 data-nosnippet>99</a>            <span class="kw">return </span>((i64::from(n) * i64::from(<span class="self">self</span>.next(<span class="number">31</span>))) &gt;&gt; <span class="number">31</span>) <span class="kw">as </span>i32;
+<a href=#100 id=100 data-nosnippet>100</a>        }
+<a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">loop </span>{
+<a href=#102 id=102 data-nosnippet>102</a>            <span class="kw">let </span>bits = <span class="self">self</span>.next(<span class="number">31</span>);
+<a href=#103 id=103 data-nosnippet>103</a>            <span class="kw">let </span>val = bits % n;
+<a href=#104 id=104 data-nosnippet>104</a>            <span class="kw">if </span>bits.wrapping_sub(val).wrapping_add(n - <span class="number">1</span>) &gt;= <span class="number">0 </span>{
+<a href=#105 id=105 data-nosnippet>105</a>                <span class="kw">return </span>val;
+<a href=#106 id=106 data-nosnippet>106</a>            }
+<a href=#107 id=107 data-nosnippet>107</a>        }
+<a href=#108 id=108 data-nosnippet>108</a>    }
+<a href=#109 id=109 data-nosnippet>109</a>}
+<a href=#110 id=110 data-nosnippet>110</a>
+<a href=#111 id=111 data-nosnippet>111</a><span class="doccomment">/// `Double.hashCode`.
+<a href=#112 id=112 data-nosnippet>112</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>double_hash(x: f64) -&gt; i32 {
+<a href=#113 id=113 data-nosnippet>113</a>    <span class="kw">let </span>b = x.to_bits();
+<a href=#114 id=114 data-nosnippet>114</a>    (b ^ (b &gt;&gt; <span class="number">32</span>)) <span class="kw">as </span>i32
+<a href=#115 id=115 data-nosnippet>115</a>}
+<a href=#116 id=116 data-nosnippet>116</a>
+<a href=#117 id=117 data-nosnippet>117</a><span class="doccomment">/// `java.util.Objects.hash` of values whose own `hashCode`s are `hashes`.
+<a href=#118 id=118 data-nosnippet>118</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>objects_hash(hashes: <span class="kw-2">&amp;</span>[i32]) -&gt; i32 {
+<a href=#119 id=119 data-nosnippet>119</a>    hashes
+<a href=#120 id=120 data-nosnippet>120</a>        .iter()
+<a href=#121 id=121 data-nosnippet>121</a>        .fold(<span class="number">1i32</span>, |h, <span class="kw-2">&amp;</span>x| h.wrapping_mul(<span class="number">31</span>).wrapping_add(x))
+<a href=#122 id=122 data-nosnippet>122</a>}
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a><span class="doccomment">/// `String.hashCode` (over UTF-16 code units); `None`, Java's `null`, is 0
+<a href=#125 id=125 data-nosnippet>125</a>/// as `java.util.HashMap` hashes it.
+<a href=#126 id=126 data-nosnippet>126</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>string_hash(s: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; i32 {
+<a href=#127 id=127 data-nosnippet>127</a>    s.map_or(<span class="number">0</span>, |s| {
+<a href=#128 id=128 data-nosnippet>128</a>        s.encode_utf16()
+<a href=#129 id=129 data-nosnippet>129</a>            .fold(<span class="number">0i32</span>, |h, c| h.wrapping_mul(<span class="number">31</span>).wrapping_add(i32::from(c)))
+<a href=#130 id=130 data-nosnippet>130</a>    })
+<a href=#131 id=131 data-nosnippet>131</a>}
+<a href=#132 id=132 data-nosnippet>132</a>
+<a href=#133 id=133 data-nosnippet>133</a><span class="doccomment">/// The bucket layout of a `java.util.HashMap` (or `HashSet`) built by
+<a href=#134 id=134 data-nosnippet>134</a>/// insertions only, enough to reproduce its iteration order: buckets in
+<a href=#135 id=135 data-nosnippet>135</a>/// table order, each in insertion order (a resize splits a bucket keeping
+<a href=#136 id=136 data-nosnippet>136</a>/// that order). Java turns a bucket of more than 8 keys into a tree in a
+<a href=#137 id=137 data-nosnippet>137</a>/// table of 64 or more buckets, whose order this does not follow: such an
+<a href=#138 id=138 data-nosnippet>138</a>/// insertion is an error.
+<a href=#139 id=139 data-nosnippet>139</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>JavaHashMap&lt;K&gt; {
+<a href=#140 id=140 data-nosnippet>140</a>    table: Vec&lt;Vec&lt;usize&gt;&gt;,
+<a href=#141 id=141 data-nosnippet>141</a>    entries: Vec&lt;(i32, K)&gt;,
+<a href=#142 id=142 data-nosnippet>142</a>}
+<a href=#143 id=143 data-nosnippet>143</a>
+<a href=#144 id=144 data-nosnippet>144</a><span class="kw">impl</span>&lt;K: PartialEq&gt; JavaHashMap&lt;K&gt; {
+<a href=#145 id=145 data-nosnippet>145</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+<a href=#146 id=146 data-nosnippet>146</a>        JavaHashMap {
+<a href=#147 id=147 data-nosnippet>147</a>            table: Vec::new(),
+<a href=#148 id=148 data-nosnippet>148</a>            entries: Vec::new(),
+<a href=#149 id=149 data-nosnippet>149</a>        }
+<a href=#150 id=150 data-nosnippet>150</a>    }
+<a href=#151 id=151 data-nosnippet>151</a>
+<a href=#152 id=152 data-nosnippet>152</a>    <span class="kw">fn </span>spread(h: i32) -&gt; usize {
+<a href=#153 id=153 data-nosnippet>153</a>        (h ^ ((h <span class="kw">as </span>u32) &gt;&gt; <span class="number">16</span>) <span class="kw">as </span>i32) <span class="kw">as </span>u32 <span class="kw">as </span>usize
+<a href=#154 id=154 data-nosnippet>154</a>    }
+<a href=#155 id=155 data-nosnippet>155</a>
+<a href=#156 id=156 data-nosnippet>156</a>    <span class="doccomment">/// The index of `key` (hashing to `hash`), inserting it if absent.
+<a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: K, hash: i32) -&gt; <span class="prelude-ty">Result</span>&lt;usize, String&gt; {
+<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">if </span><span class="self">self</span>.table.is_empty() {
+<a href=#159 id=159 data-nosnippet>159</a>            <span class="self">self</span>.table = <span class="macro">vec!</span>[Vec::new(); <span class="number">16</span>];
+<a href=#160 id=160 data-nosnippet>160</a>        }
+<a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span>n = <span class="self">self</span>.table.len();
+<a href=#162 id=162 data-nosnippet>162</a>        <span class="kw">let </span>b = <span class="self">Self</span>::spread(hash) &amp; (n - <span class="number">1</span>);
+<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>i) = <span class="self">self</span>.table[b]
+<a href=#164 id=164 data-nosnippet>164</a>            .iter()
+<a href=#165 id=165 data-nosnippet>165</a>            .find(|&amp;&amp;i| <span class="self">self</span>.entries[i].<span class="number">0 </span>== hash &amp;&amp; <span class="self">self</span>.entries[i].<span class="number">1 </span>== key)
+<a href=#166 id=166 data-nosnippet>166</a>        {
+<a href=#167 id=167 data-nosnippet>167</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(i);
+<a href=#168 id=168 data-nosnippet>168</a>        }
+<a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">let </span>i = <span class="self">self</span>.entries.len();
+<a href=#170 id=170 data-nosnippet>170</a>        <span class="self">self</span>.entries.push((hash, key));
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="self">self</span>.table[b].push(i);
+<a href=#172 id=172 data-nosnippet>172</a>        <span class="kw">if </span><span class="self">self</span>.table[b].len() &gt; <span class="number">8 </span>{
+<a href=#173 id=173 data-nosnippet>173</a>            <span class="kw">if </span>n &lt; <span class="number">64 </span>{
+<a href=#174 id=174 data-nosnippet>174</a>                <span class="self">self</span>.resize();
+<a href=#175 id=175 data-nosnippet>175</a>            } <span class="kw">else </span>{
+<a href=#176 id=176 data-nosnippet>176</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"more than 8 names fall in the same hash bucket, and the order of the entries cannot \
+<a href=#177 id=177 data-nosnippet>177</a>                            be determined"</span>.into());
+<a href=#178 id=178 data-nosnippet>178</a>            }
+<a href=#179 id=179 data-nosnippet>179</a>        }
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="comment">// `++size &gt; threshold` (0.75 of the table)
+<a href=#181 id=181 data-nosnippet>181</a>        </span><span class="kw">if </span><span class="self">self</span>.entries.len() &gt; <span class="self">self</span>.table.len() * <span class="number">3 </span>/ <span class="number">4 </span>{
+<a href=#182 id=182 data-nosnippet>182</a>            <span class="self">self</span>.resize();
+<a href=#183 id=183 data-nosnippet>183</a>        }
+<a href=#184 id=184 data-nosnippet>184</a>        <span class="prelude-val">Ok</span>(i)
+<a href=#185 id=185 data-nosnippet>185</a>    }
+<a href=#186 id=186 data-nosnippet>186</a>
+<a href=#187 id=187 data-nosnippet>187</a>    <span class="kw">fn </span>resize(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">let </span>n = <span class="self">self</span>.table.len() * <span class="number">2</span>;
+<a href=#189 id=189 data-nosnippet>189</a>        <span class="kw">let </span><span class="kw-2">mut </span>table = <span class="macro">vec!</span>[Vec::new(); n];
+<a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">for </span>bucket <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.table {
+<a href=#191 id=191 data-nosnippet>191</a>            <span class="kw">for </span><span class="kw-2">&amp;</span>i <span class="kw">in </span>bucket {
+<a href=#192 id=192 data-nosnippet>192</a>                table[<span class="self">Self</span>::spread(<span class="self">self</span>.entries[i].<span class="number">0</span>) &amp; (n - <span class="number">1</span>)].push(i);
+<a href=#193 id=193 data-nosnippet>193</a>            }
+<a href=#194 id=194 data-nosnippet>194</a>        }
+<a href=#195 id=195 data-nosnippet>195</a>        <span class="self">self</span>.table = table;
+<a href=#196 id=196 data-nosnippet>196</a>    }
+<a href=#197 id=197 data-nosnippet>197</a>
+<a href=#198 id=198 data-nosnippet>198</a>    <span class="doccomment">/// The indices of the keys in iteration order.
+<a href=#199 id=199 data-nosnippet>199</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>order(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = usize&gt; + <span class="lifetime">'_ </span>{
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="self">self</span>.table.iter().flatten().copied()
+<a href=#201 id=201 data-nosnippet>201</a>    }
+<a href=#202 id=202 data-nosnippet>202</a>
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="doccomment">/// The key of an index.
+<a href=#204 id=204 data-nosnippet>204</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>key(<span class="kw-2">&amp;</span><span class="self">self</span>, i: usize) -&gt; <span class="kw-2">&amp;</span>K {
+<a href=#205 id=205 data-nosnippet>205</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.entries[i].<span class="number">1
+<a href=#206 id=206 data-nosnippet>206</a>    </span>}
+<a href=#207 id=207 data-nosnippet>207</a>}
+<a href=#208 id=208 data-nosnippet>208</a>
+<a href=#209 id=209 data-nosnippet>209</a><span class="doccomment">/// `java.util.Objects.hash(Integer seed, Double a, Double b)`.
+<a href=#210 id=210 data-nosnippet>210</a></span><span class="kw">pub fn </span>objects_hash_int_double_double(seed: i32, a: f64, b: f64) -&gt; i32 {
+<a href=#211 id=211 data-nosnippet>211</a>    objects_hash(<span class="kw-2">&amp;</span>[seed, double_hash(a), double_hash(b)])
+<a href=#212 id=212 data-nosnippet>212</a>}
+<a href=#213 id=213 data-nosnippet>213</a>
+<a href=#214 id=214 data-nosnippet>214</a><span class="doccomment">/// Trove 3 `PrimeFinder.primeCapacities` up to ~47 million, sorted.
+<a href=#215 id=215 data-nosnippet>215</a>///
+<a href=#216 id=216 data-nosnippet>216</a>/// From Colt: Copyright (c) 1999 CERN - European Organization for Nuclear
+<a href=#217 id=217 data-nosnippet>217</a>/// Research. Permission to use, copy, modify, distribute and sell this
+<a href=#218 id=218 data-nosnippet>218</a>/// software and its documentation for any purpose is hereby granted without
+<a href=#219 id=219 data-nosnippet>219</a>/// fee, provided that the above copyright notice appear in all copies and
+<a href=#220 id=220 data-nosnippet>220</a>/// that both that copyright notice and this permission notice appear in
+<a href=#221 id=221 data-nosnippet>221</a>/// supporting documentation. CERN makes no representations about the
+<a href=#222 id=222 data-nosnippet>222</a>/// suitability of this software for any purpose. It is provided "as is"
+<a href=#223 id=223 data-nosnippet>223</a>/// without expressed or implied warranty.
+<a href=#224 id=224 data-nosnippet>224</a></span><span class="kw">const </span>PRIMES: [i32; <span class="number">190</span>] = [
+<a href=#225 id=225 data-nosnippet>225</a>    <span class="number">3</span>, <span class="number">5</span>, <span class="number">7</span>, <span class="number">11</span>, <span class="number">17</span>, <span class="number">23</span>, <span class="number">31</span>, <span class="number">37</span>, <span class="number">43</span>, <span class="number">47</span>, <span class="number">67</span>, <span class="number">79</span>, <span class="number">89</span>, <span class="number">97</span>, <span class="number">137</span>, <span class="number">163</span>, <span class="number">179</span>, <span class="number">197</span>, <span class="number">277</span>, <span class="number">311</span>, <span class="number">331</span>, <span class="number">359</span>,
+<a href=#226 id=226 data-nosnippet>226</a>    <span class="number">379</span>, <span class="number">397</span>, <span class="number">433</span>, <span class="number">557</span>, <span class="number">599</span>, <span class="number">631</span>, <span class="number">673</span>, <span class="number">719</span>, <span class="number">761</span>, <span class="number">797</span>, <span class="number">877</span>, <span class="number">953</span>, <span class="number">1039</span>, <span class="number">1117</span>, <span class="number">1201</span>, <span class="number">1277</span>, <span class="number">1361</span>, <span class="number">1439</span>,
+<a href=#227 id=227 data-nosnippet>227</a>    <span class="number">1523</span>, <span class="number">1597</span>, <span class="number">1759</span>, <span class="number">1907</span>, <span class="number">2081</span>, <span class="number">2237</span>, <span class="number">2411</span>, <span class="number">2557</span>, <span class="number">2729</span>, <span class="number">2879</span>, <span class="number">3049</span>, <span class="number">3203</span>, <span class="number">3527</span>, <span class="number">3821</span>, <span class="number">4177</span>, <span class="number">4481</span>,
+<a href=#228 id=228 data-nosnippet>228</a>    <span class="number">4831</span>, <span class="number">5119</span>, <span class="number">5471</span>, <span class="number">5779</span>, <span class="number">6101</span>, <span class="number">6421</span>, <span class="number">7057</span>, <span class="number">7643</span>, <span class="number">8363</span>, <span class="number">8963</span>, <span class="number">9677</span>, <span class="number">10243</span>, <span class="number">10949</span>, <span class="number">11579</span>, <span class="number">12203</span>,
+<a href=#229 id=229 data-nosnippet>229</a>    <span class="number">12853</span>, <span class="number">14143</span>, <span class="number">15287</span>, <span class="number">16729</span>, <span class="number">17929</span>, <span class="number">19373</span>, <span class="number">20507</span>, <span class="number">21911</span>, <span class="number">23159</span>, <span class="number">24407</span>, <span class="number">25717</span>, <span class="number">28289</span>, <span class="number">30577</span>,
+<a href=#230 id=230 data-nosnippet>230</a>    <span class="number">33461</span>, <span class="number">35863</span>, <span class="number">38747</span>, <span class="number">41017</span>, <span class="number">43853</span>, <span class="number">46327</span>, <span class="number">48817</span>, <span class="number">51437</span>, <span class="number">56591</span>, <span class="number">61169</span>, <span class="number">66923</span>, <span class="number">71741</span>, <span class="number">77509</span>,
+<a href=#231 id=231 data-nosnippet>231</a>    <span class="number">82037</span>, <span class="number">87719</span>, <span class="number">92657</span>, <span class="number">97649</span>, <span class="number">102877</span>, <span class="number">113189</span>, <span class="number">122347</span>, <span class="number">133853</span>, <span class="number">143483</span>, <span class="number">155027</span>, <span class="number">164089</span>, <span class="number">175447</span>,
+<a href=#232 id=232 data-nosnippet>232</a>    <span class="number">185323</span>, <span class="number">195311</span>, <span class="number">205759</span>, <span class="number">226379</span>, <span class="number">244703</span>, <span class="number">267713</span>, <span class="number">286973</span>, <span class="number">310081</span>, <span class="number">328213</span>, <span class="number">350899</span>, <span class="number">370661</span>, <span class="number">390647</span>,
+<a href=#233 id=233 data-nosnippet>233</a>    <span class="number">411527</span>, <span class="number">452759</span>, <span class="number">489407</span>, <span class="number">535481</span>, <span class="number">573953</span>, <span class="number">620171</span>, <span class="number">656429</span>, <span class="number">701819</span>, <span class="number">741337</span>, <span class="number">781301</span>, <span class="number">823117</span>, <span class="number">905551</span>,
+<a href=#234 id=234 data-nosnippet>234</a>    <span class="number">978821</span>, <span class="number">1070981</span>, <span class="number">1147921</span>, <span class="number">1240361</span>, <span class="number">1312867</span>, <span class="number">1403641</span>, <span class="number">1482707</span>, <span class="number">1562611</span>, <span class="number">1646237</span>, <span class="number">1811107</span>,
+<a href=#235 id=235 data-nosnippet>235</a>    <span class="number">1957651</span>, <span class="number">2141977</span>, <span class="number">2295859</span>, <span class="number">2480729</span>, <span class="number">2625761</span>, <span class="number">2807303</span>, <span class="number">2965421</span>, <span class="number">3125257</span>, <span class="number">3292489</span>, <span class="number">3622219</span>,
+<a href=#236 id=236 data-nosnippet>236</a>    <span class="number">3915341</span>, <span class="number">4283963</span>, <span class="number">4591721</span>, <span class="number">4961459</span>, <span class="number">5251529</span>, <span class="number">5614657</span>, <span class="number">5930887</span>, <span class="number">6250537</span>, <span class="number">6584983</span>, <span class="number">7244441</span>,
+<a href=#237 id=237 data-nosnippet>237</a>    <span class="number">7830701</span>, <span class="number">8567929</span>, <span class="number">9183457</span>, <span class="number">9922933</span>, <span class="number">10503061</span>, <span class="number">11229331</span>, <span class="number">11861791</span>, <span class="number">12501169</span>, <span class="number">13169977</span>, <span class="number">14488931</span>,
+<a href=#238 id=238 data-nosnippet>238</a>    <span class="number">15661423</span>, <span class="number">17135863</span>, <span class="number">18366923</span>, <span class="number">19845871</span>, <span class="number">21006137</span>, <span class="number">22458671</span>, <span class="number">23723597</span>, <span class="number">25002389</span>, <span class="number">26339969</span>,
+<a href=#239 id=239 data-nosnippet>239</a>    <span class="number">28977863</span>, <span class="number">31322867</span>, <span class="number">34271747</span>, <span class="number">36733847</span>, <span class="number">39691759</span>, <span class="number">42012281</span>, <span class="number">44917381</span>, <span class="number">47447201</span>,
+<a href=#240 id=240 data-nosnippet>240</a>];
+<a href=#241 id=241 data-nosnippet>241</a>
+<a href=#242 id=242 data-nosnippet>242</a><span class="doccomment">/// `PrimeFinder.nextPrime`: the smallest table prime &gt;= `n`.
+<a href=#243 id=243 data-nosnippet>243</a></span><span class="kw">fn </span>next_prime(n: i32) -&gt; i32 {
+<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">let </span>i = PRIMES.partition_point(|<span class="kw-2">&amp;</span>p| p &lt; n);
+<a href=#245 id=245 data-nosnippet>245</a>    <span class="kw-2">*</span>PRIMES
+<a href=#246 id=246 data-nosnippet>246</a>        .get(i)
+<a href=#247 id=247 data-nosnippet>247</a>        .expect(<span class="string">"hash table capacity beyond the prime table"</span>)
+<a href=#248 id=248 data-nosnippet>248</a>}
+<a href=#249 id=249 data-nosnippet>249</a>
+<a href=#250 id=250 data-nosnippet>250</a><span class="doccomment">/// Key layout of a Trove 3 `TIntIntHashMap` / `TIntObjectHashMap` with no
+<a href=#251 id=251 data-nosnippet>251</a>/// removals, enough to reproduce its iteration order.
+<a href=#252 id=252 data-nosnippet>252</a></span><span class="kw">pub struct </span>TroveIntKeys {
+<a href=#253 id=253 data-nosnippet>253</a>    slots: Vec&lt;<span class="prelude-ty">Option</span>&lt;i32&gt;&gt;,
+<a href=#254 id=254 data-nosnippet>254</a>    size: usize,
+<a href=#255 id=255 data-nosnippet>255</a>    free: usize,
+<a href=#256 id=256 data-nosnippet>256</a>    max_size: usize,
+<a href=#257 id=257 data-nosnippet>257</a>    load_factor: f32,
+<a href=#258 id=258 data-nosnippet>258</a>}
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a><span class="kw">impl </span>TroveIntKeys {
+<a href=#261 id=261 data-nosnippet>261</a>    <span class="doccomment">/// `new TIntIntHashMap()`: capacity for 10 entries at load factor 0.5.
+<a href=#262 id=262 data-nosnippet>262</a>    </span><span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+<a href=#263 id=263 data-nosnippet>263</a>        <span class="self">Self</span>::with_capacity(<span class="number">10</span>, <span class="number">0.5</span>)
+<a href=#264 id=264 data-nosnippet>264</a>    }
+<a href=#265 id=265 data-nosnippet>265</a>
+<a href=#266 id=266 data-nosnippet>266</a>    <span class="doccomment">/// `new TIntIntHashMap(initialCapacity, loadFactor)`.
+<a href=#267 id=267 data-nosnippet>267</a>    </span><span class="kw">pub fn </span>with_capacity(initial: usize, load_factor: f32) -&gt; <span class="self">Self </span>{
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">let </span>cap = next_prime((initial <span class="kw">as </span>f32 / load_factor).ceil() <span class="kw">as </span>i32) <span class="kw">as </span>usize;
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="kw">let </span><span class="kw-2">mut </span>t = TroveIntKeys {
+<a href=#270 id=270 data-nosnippet>270</a>            slots: <span class="macro">vec!</span>[<span class="prelude-val">None</span>; cap],
+<a href=#271 id=271 data-nosnippet>271</a>            size: <span class="number">0</span>,
+<a href=#272 id=272 data-nosnippet>272</a>            free: cap,
+<a href=#273 id=273 data-nosnippet>273</a>            max_size: <span class="number">0</span>,
+<a href=#274 id=274 data-nosnippet>274</a>            load_factor,
+<a href=#275 id=275 data-nosnippet>275</a>        };
+<a href=#276 id=276 data-nosnippet>276</a>        t.compute_max_size();
+<a href=#277 id=277 data-nosnippet>277</a>        t
+<a href=#278 id=278 data-nosnippet>278</a>    }
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">fn </span>compute_max_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#281 id=281 data-nosnippet>281</a>        <span class="kw">let </span>cap = <span class="self">self</span>.slots.len();
+<a href=#282 id=282 data-nosnippet>282</a>        <span class="self">self</span>.max_size = (cap - <span class="number">1</span>).min((cap <span class="kw">as </span>f32 * <span class="self">self</span>.load_factor) <span class="kw">as </span>usize);
+<a href=#283 id=283 data-nosnippet>283</a>        <span class="self">self</span>.free = cap - <span class="self">self</span>.size;
+<a href=#284 id=284 data-nosnippet>284</a>    }
+<a href=#285 id=285 data-nosnippet>285</a>
+<a href=#286 id=286 data-nosnippet>286</a>    <span class="doccomment">/// Slot for `key`, or `Err(slot)` if it is already present.
+<a href=#287 id=287 data-nosnippet>287</a>    </span><span class="kw">fn </span>insert_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: i32) -&gt; <span class="prelude-ty">Result</span>&lt;usize, usize&gt; {
+<a href=#288 id=288 data-nosnippet>288</a>        <span class="kw">let </span>len = <span class="self">self</span>.slots.len() <span class="kw">as </span>i32;
+<a href=#289 id=289 data-nosnippet>289</a>        <span class="kw">let </span>hash = key &amp; <span class="number">0x7fff_ffff</span>;
+<a href=#290 id=290 data-nosnippet>290</a>        <span class="kw">let </span><span class="kw-2">mut </span>index = hash % len;
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">match </span><span class="self">self</span>.slots[index <span class="kw">as </span>usize] {
+<a href=#292 id=292 data-nosnippet>292</a>            <span class="prelude-val">None </span>=&gt; {
+<a href=#293 id=293 data-nosnippet>293</a>                <span class="self">self</span>.slots[index <span class="kw">as </span>usize] = <span class="prelude-val">Some</span>(key);
+<a href=#294 id=294 data-nosnippet>294</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(index <span class="kw">as </span>usize);
+<a href=#295 id=295 data-nosnippet>295</a>            }
+<a href=#296 id=296 data-nosnippet>296</a>            <span class="prelude-val">Some</span>(k) <span class="kw">if </span>k == key =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(index <span class="kw">as </span>usize),
+<a href=#297 id=297 data-nosnippet>297</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#298 id=298 data-nosnippet>298</a>        }
+<a href=#299 id=299 data-nosnippet>299</a>        <span class="kw">let </span>probe = <span class="number">1 </span>+ hash % (len - <span class="number">2</span>);
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">let </span>start = index;
+<a href=#301 id=301 data-nosnippet>301</a>        <span class="kw">loop </span>{
+<a href=#302 id=302 data-nosnippet>302</a>            index -= probe;
+<a href=#303 id=303 data-nosnippet>303</a>            <span class="kw">if </span>index &lt; <span class="number">0 </span>{
+<a href=#304 id=304 data-nosnippet>304</a>                index += len;
+<a href=#305 id=305 data-nosnippet>305</a>            }
+<a href=#306 id=306 data-nosnippet>306</a>            <span class="kw">match </span><span class="self">self</span>.slots[index <span class="kw">as </span>usize] {
+<a href=#307 id=307 data-nosnippet>307</a>                <span class="prelude-val">None </span>=&gt; {
+<a href=#308 id=308 data-nosnippet>308</a>                    <span class="self">self</span>.slots[index <span class="kw">as </span>usize] = <span class="prelude-val">Some</span>(key);
+<a href=#309 id=309 data-nosnippet>309</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(index <span class="kw">as </span>usize);
+<a href=#310 id=310 data-nosnippet>310</a>                }
+<a href=#311 id=311 data-nosnippet>311</a>                <span class="prelude-val">Some</span>(k) <span class="kw">if </span>k == key =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(index <span class="kw">as </span>usize),
+<a href=#312 id=312 data-nosnippet>312</a>                <span class="kw">_ </span>=&gt; {}
+<a href=#313 id=313 data-nosnippet>313</a>            }
+<a href=#314 id=314 data-nosnippet>314</a>            <span class="macro">assert!</span>(index != start, <span class="string">"hash table full"</span>);
+<a href=#315 id=315 data-nosnippet>315</a>        }
+<a href=#316 id=316 data-nosnippet>316</a>    }
+<a href=#317 id=317 data-nosnippet>317</a>
+<a href=#318 id=318 data-nosnippet>318</a>    <span class="doccomment">/// `put(key, ...)`: insert if absent.
+<a href=#319 id=319 data-nosnippet>319</a>    </span><span class="kw">pub fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: i32) {
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">if </span><span class="self">self</span>.insert_key(key).is_err() {
+<a href=#321 id=321 data-nosnippet>321</a>            <span class="kw">return</span>;
+<a href=#322 id=322 data-nosnippet>322</a>        }
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="self">self</span>.free -= <span class="number">1</span>;
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="self">self</span>.size += <span class="number">1</span>;
+<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">if </span><span class="self">self</span>.size &gt; <span class="self">self</span>.max_size || <span class="self">self</span>.free == <span class="number">0 </span>{
+<a href=#326 id=326 data-nosnippet>326</a>            <span class="kw">let </span>cap = <span class="self">self</span>.slots.len();
+<a href=#327 id=327 data-nosnippet>327</a>            <span class="kw">let </span>new_cap = <span class="kw">if </span><span class="self">self</span>.size &gt; <span class="self">self</span>.max_size {
+<a href=#328 id=328 data-nosnippet>328</a>                next_prime((cap <span class="kw">as </span>i32) &lt;&lt; <span class="number">1</span>) <span class="kw">as </span>usize
+<a href=#329 id=329 data-nosnippet>329</a>            } <span class="kw">else </span>{
+<a href=#330 id=330 data-nosnippet>330</a>                cap
+<a href=#331 id=331 data-nosnippet>331</a>            };
+<a href=#332 id=332 data-nosnippet>332</a>            <span class="kw">let </span>old = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.slots, <span class="macro">vec!</span>[<span class="prelude-val">None</span>; new_cap]);
+<a href=#333 id=333 data-nosnippet>333</a>            <span class="kw">for </span>k <span class="kw">in </span>old.into_iter().rev().flatten() {
+<a href=#334 id=334 data-nosnippet>334</a>                <span class="kw">let _ </span>= <span class="self">self</span>.insert_key(k);
+<a href=#335 id=335 data-nosnippet>335</a>            }
+<a href=#336 id=336 data-nosnippet>336</a>            <span class="self">self</span>.compute_max_size();
+<a href=#337 id=337 data-nosnippet>337</a>        }
+<a href=#338 id=338 data-nosnippet>338</a>    }
+<a href=#339 id=339 data-nosnippet>339</a>
+<a href=#340 id=340 data-nosnippet>340</a>    <span class="doccomment">/// Keys in iteration order (`forEachEntry`: highest slot first).
+<a href=#341 id=341 data-nosnippet>341</a>    </span><span class="kw">pub fn </span>iteration_order(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = i32&gt; + <span class="lifetime">'_ </span>{
+<a href=#342 id=342 data-nosnippet>342</a>        <span class="self">self</span>.slots.iter().rev().flatten().copied()
+<a href=#343 id=343 data-nosnippet>343</a>    }
+<a href=#344 id=344 data-nosnippet>344</a>}
+<a href=#345 id=345 data-nosnippet>345</a>
+<a href=#346 id=346 data-nosnippet>346</a><span class="kw">impl </span>Default <span class="kw">for </span>TroveIntKeys {
+<a href=#347 id=347 data-nosnippet>347</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+<a href=#348 id=348 data-nosnippet>348</a>        <span class="self">Self</span>::new()
+<a href=#349 id=349 data-nosnippet>349</a>    }
+<a href=#350 id=350 data-nosnippet>350</a>}
+<a href=#351 id=351 data-nosnippet>351</a>
+<a href=#352 id=352 data-nosnippet>352</a><span class="attr">#[cfg(test)]
+<a href=#353 id=353 data-nosnippet>353</a></span><span class="kw">mod </span>tests {
+<a href=#354 id=354 data-nosnippet>354</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#355 id=355 data-nosnippet>355</a>
+<a href=#356 id=356 data-nosnippet>356</a>    <span class="attr">#[test]
+<a href=#357 id=357 data-nosnippet>357</a>    </span><span class="kw">fn </span>mersenne_twister_matches_r5_jar() {
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="comment">// Values from running commons-math3 3.0 in the R5 7.6 jar.
+<a href=#359 id=359 data-nosnippet>359</a>        </span><span class="kw">let </span>h = objects_hash_int_double_double(<span class="number">42</span>, -<span class="number">30.0346</span>, -<span class="number">51.2177</span>);
+<a href=#360 id=360 data-nosnippet>360</a>        <span class="macro">assert_eq!</span>(h, <span class="number">2_122_154_921</span>);
+<a href=#361 id=361 data-nosnippet>361</a>        <span class="kw">let </span><span class="kw-2">mut </span>mt = MersenneTwister::from_long(i64::from(h));
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="macro">assert_eq!</span>(
+<a href=#363 id=363 data-nosnippet>363</a>            [
+<a href=#364 id=364 data-nosnippet>364</a>                mt.next_int(<span class="number">600</span>),
+<a href=#365 id=365 data-nosnippet>365</a>                mt.next_int(<span class="number">600</span>),
+<a href=#366 id=366 data-nosnippet>366</a>                mt.next_int(<span class="number">512</span>),
+<a href=#367 id=367 data-nosnippet>367</a>                mt.next_int(<span class="number">7</span>)
+<a href=#368 id=368 data-nosnippet>368</a>            ],
+<a href=#369 id=369 data-nosnippet>369</a>            [<span class="number">41</span>, <span class="number">331</span>, <span class="number">167</span>, <span class="number">4</span>]
+<a href=#370 id=370 data-nosnippet>370</a>        );
+<a href=#371 id=371 data-nosnippet>371</a>    }
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a>    <span class="attr">#[test]
+<a href=#374 id=374 data-nosnippet>374</a>    </span><span class="kw">fn </span>trove_iteration_order_example() {
+<a href=#375 id=375 data-nosnippet>375</a>        <span class="comment">// From the transit spec: keys inserted in increasing order.
+<a href=#376 id=376 data-nosnippet>376</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>t = TroveIntKeys::new();
+<a href=#377 id=377 data-nosnippet>377</a>        <span class="kw">for </span>k <span class="kw">in </span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">5</span>, <span class="number">8</span>, <span class="number">13</span>, <span class="number">21</span>, <span class="number">34</span>, <span class="number">55</span>, <span class="number">89</span>] {
+<a href=#378 id=378 data-nosnippet>378</a>            t.insert(k);
+<a href=#379 id=379 data-nosnippet>379</a>        }
+<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw">let </span>order: Vec&lt;i32&gt; = t.iteration_order().collect();
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="macro">assert_eq!</span>(order, [<span class="number">21</span>, <span class="number">89</span>, <span class="number">13</span>, <span class="number">34</span>, <span class="number">55</span>, <span class="number">8</span>, <span class="number">5</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">0</span>]);
+<a href=#382 id=382 data-nosnippet>382</a>    }
+<a href=#383 id=383 data-nosnippet>383</a>}
+<a href=#384 id=384 data-nosnippet>384</a>
+<a href=#385 id=385 data-nosnippet>385</a><span class="attr">#[cfg(test)]
+<a href=#386 id=386 data-nosnippet>386</a></span><span class="kw">mod </span>trove_vs_java {
+<a href=#387 id=387 data-nosnippet>387</a>    <span class="kw">use </span><span class="kw">super</span>::TroveIntKeys;
+<a href=#388 id=388 data-nosnippet>388</a>
+<a href=#389 id=389 data-nosnippet>389</a>    <span class="doccomment">/// Java `String.hashCode` of the comma-joined iteration order, as printed
+<a href=#390 id=390 data-nosnippet>390</a>    /// by a harness inserting the same keys into Trove 3 `TIntIntHashMap`.
+<a href=#391 id=391 data-nosnippet>391</a>    </span><span class="kw">fn </span>java_string_hash(s: <span class="kw-2">&amp;</span>str) -&gt; i32 {
+<a href=#392 id=392 data-nosnippet>392</a>        s.encode_utf16()
+<a href=#393 id=393 data-nosnippet>393</a>            .fold(<span class="number">0i32</span>, |h, c| h.wrapping_mul(<span class="number">31</span>).wrapping_add(i32::from(c)))
+<a href=#394 id=394 data-nosnippet>394</a>    }
+<a href=#395 id=395 data-nosnippet>395</a>
+<a href=#396 id=396 data-nosnippet>396</a>    <span class="attr">#[test]
+<a href=#397 id=397 data-nosnippet>397</a>    </span><span class="kw">fn </span>iteration_order_matches_trove_through_rehashes() {
+<a href=#398 id=398 data-nosnippet>398</a>        <span class="kw">let </span>expected = [
+<a href=#399 id=399 data-nosnippet>399</a>            (<span class="number">5</span>, JAVA[<span class="number">0</span>]),
+<a href=#400 id=400 data-nosnippet>400</a>            (<span class="number">11</span>, JAVA[<span class="number">1</span>]),
+<a href=#401 id=401 data-nosnippet>401</a>            (<span class="number">12</span>, JAVA[<span class="number">2</span>]),
+<a href=#402 id=402 data-nosnippet>402</a>            (<span class="number">30</span>, JAVA[<span class="number">3</span>]),
+<a href=#403 id=403 data-nosnippet>403</a>            (<span class="number">500</span>, JAVA[<span class="number">4</span>]),
+<a href=#404 id=404 data-nosnippet>404</a>            (<span class="number">5000</span>, JAVA[<span class="number">5</span>]),
+<a href=#405 id=405 data-nosnippet>405</a>            (<span class="number">20000</span>, JAVA[<span class="number">6</span>]),
+<a href=#406 id=406 data-nosnippet>406</a>        ];
+<a href=#407 id=407 data-nosnippet>407</a>        <span class="kw">for </span>(n, want) <span class="kw">in </span>expected {
+<a href=#408 id=408 data-nosnippet>408</a>            <span class="kw">let </span><span class="kw-2">mut </span>t = TroveIntKeys::new();
+<a href=#409 id=409 data-nosnippet>409</a>            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..n <span class="kw">as </span>i64 {
+<a href=#410 id=410 data-nosnippet>410</a>                t.insert(((i * <span class="number">7919 </span>+ <span class="number">13</span>) % <span class="number">100_003</span>) <span class="kw">as </span>i32);
+<a href=#411 id=411 data-nosnippet>411</a>            }
+<a href=#412 id=412 data-nosnippet>412</a>            <span class="kw">let </span>s: String = t.iteration_order().map(|k| <span class="macro">format!</span>(<span class="string">"{k},"</span>)).collect();
+<a href=#413 id=413 data-nosnippet>413</a>            <span class="macro">assert_eq!</span>(java_string_hash(<span class="kw-2">&amp;</span>s), want, <span class="string">"n = {n}"</span>);
+<a href=#414 id=414 data-nosnippet>414</a>        }
+<a href=#415 id=415 data-nosnippet>415</a>    }
+<a href=#416 id=416 data-nosnippet>416</a>
+<a href=#417 id=417 data-nosnippet>417</a>    <span class="kw">const </span>JAVA: [i32; <span class="number">7</span>] = [
+<a href=#418 id=418 data-nosnippet>418</a>        <span class="number">880602725</span>, -<span class="number">16764786</span>, <span class="number">329292314</span>, <span class="number">1725429492</span>, <span class="number">1216150493</span>, <span class="number">614932100</span>, -<span class="number">290355797</span>,
+<a href=#419 id=419 data-nosnippet>419</a>    ];
+<a href=#420 id=420 data-nosnippet>420</a>}
+</code></pre></div></section></main></body></html>

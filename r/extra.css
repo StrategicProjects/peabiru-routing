@@ -1,0 +1,41 @@
+/* peabiru palette (site/assets/brand.css) on the Bootstrap 5 theme of
+ * pkgdown, for the light and the dark mode (light-switch in _pkgdown.yml;
+ * "auto" follows the system, like the SVG diagrams do). */
+
+[data-bs-theme="light"] {
+  --bs-body-bg: #faf6ef;
+  --bs-body-color: #1f2a2e;
+  --bs-border-color: #e1d8c8;
+  --bs-link-color: #b4532a;
+  --bs-link-color-rgb: 180, 83, 42;
+  --bs-link-hover-color: #8f3f1d;
+  --bs-link-hover-color-rgb: 143, 63, 29;
+  --bs-tertiary-bg: #f1ebe0;
+}
+[data-bs-theme="light"] pre, [data-bs-theme="light"] .sourceCode { background-color: #f4efe6; }
+[data-bs-theme="light"] .navbar { background-color: #f1ebe0 !important; }
+
+[data-bs-theme="dark"] {
+  --bs-body-bg: #14191b;
+  --bs-body-color: #ece6da;
+  --bs-border-color: #34403f;
+  --bs-link-color: #e98a5c;
+  --bs-link-color-rgb: 233, 138, 92;
+  --bs-link-hover-color: #f4a67f;
+  --bs-link-hover-color-rgb: 244, 166, 127;
+  --bs-tertiary-bg: #1d2427;
+}
+[data-bs-theme="dark"] pre, [data-bs-theme="dark"] .sourceCode { background-color: #1a2124; }
+[data-bs-theme="dark"] .navbar { background-color: #1d2427 !important; }
+
+.navbar { border-bottom: 1px solid var(--bs-border-color); }
+.navbar-brand { font-weight: 700; }
+
+/* Diagrams and charts are SVG files with their own light/dark styles. */
+.contents img[src$=".svg"] { width: 100%; height: auto; margin: 0.5rem 0 0.25rem; }
+
+pre { border: 1px solid var(--bs-border-color); border-radius: 8px; }
+.contents table { font-variant-numeric: tabular-nums; }
+
+/* pkgdown inverts R plots in dark mode; the SVG diagrams theme themselves. */
+[data-bs-theme="dark"] .contents img[src$=".svg"] { filter: none !important; }

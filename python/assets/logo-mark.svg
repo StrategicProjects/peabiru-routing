@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="t">
+  <title id="t">peabiru</title>
+  <desc>A route drawn as the letter P: it leaves an origin stop, runs up and round, and rejoins itself at a transfer station.</desc>
+  <rect width="64" height="64" rx="14" fill="#1f2a2e"/>
+  <path d="M21 52 V13 H35 A12.5 12.5 0 0 1 35 38 H21" fill="none" stroke="#e07a4a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="21" cy="52" r="6.5" fill="#f0b54a"/>
+  <circle cx="21" cy="38" r="5" fill="#1f2a2e" stroke="#faf6ef" stroke-width="3"/>
+</svg>

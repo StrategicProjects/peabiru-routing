@@ -1,0 +1,144 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg role="img" aria-labelledby="title desc" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='547.20pt' height='302.40pt' viewBox='0 0 547.2 302.4'>
+<title id="title">Scheduled speed of buses, metro and VLT by hour of departure, Grande Recife</title>
+<desc id="desc">Lines of the median scheduled speed of the trips of the feed by hour of departure on a weekday. Buses run at 24.8 kilometres per hour at 04:00, fall to 15.4 at 07:00, stay near 17.0 through the day, fall to 14.8 at 17:00 and recover to 22.7 at 22:00. The metro and the VLT keep the same speed all day.</desc>
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+@media (prefers-color-scheme: dark) {
+[style*="fill: #FFFDF9;"] { fill: #1D2427 !important; }
+[style*="fill: #1F2A2E;"] { fill: #ECE6DA !important; }
+[style*="fill: #4A5A5F;"] { fill: #A9B4B6 !important; }
+[style*="fill: #DCD3C4;"] { fill: #36423F !important; }
+[style*="fill: #B4532A;"] { fill: #E98A5C !important; }
+[style*="fill: #2F6B4F;"] { fill: #6FBF95 !important; }
+[style*="fill: #3D4F56;"] { fill: #C6D0D2 !important; }
+[style*="stroke: #ECE4D6;"] { stroke: #2C3538 !important; }
+[style*="stroke: #B4532A;"] { stroke: #E98A5C !important; }
+[style*="stroke: #2F6B4F;"] { stroke: #6FBF95 !important; }
+[style*="stroke: #3D4F56;"] { stroke: #C6D0D2 !important; }
+}
+</style>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.0;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect x='0.5' y='0.5' width='546.2' height='301.4' rx='9' style='fill: #FFFDF9; stroke: #E1D8C8; stroke-width: 1;'/>
+<defs>
+  <clipPath id='cpMC4wMHw1NDcuMjB8MC4wMHwzMDIuNDA='>
+    <rect x='0.0' y='0.0' width='547.2' height='302.4' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw1NDcuMjB8MC4wMHwzMDIuNDA=)'>
+<rect x='0.0' y='0.0' width='547.2' height='302.4' style='stroke-width: 0.9; stroke: none; fill: #FFFDF9;' />
+</g>
+<defs>
+  <clipPath id='cpNDEuMDV8NTMxLjI2fDY1LjgxfDI1NS44OA=='>
+    <rect x='41.0' y='65.8' width='490.2' height='190.0' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDEuMDV8NTMxLjI2fDY1LjgxfDI1NS44OA==)'>
+<rect x='41.0' y='65.8' width='490.2' height='190.0' style='stroke-width: 0.9; stroke: none;' />
+<path d='M41 255.8l490.2 0M41 208.9l490.2 0M41 162l490.2 0M41 115l490.2 0M41 68.1l490.2 0' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<polygon points='45.9,117.2 68.8,144.5 91.6,163.4 114.5,168.5 137.4,165.3 160.3,161.6 183.2,160.6 206.1,161.2 229.0,161.1 251.9,159.4 274.8,162.0 297.7,163.7 320.6,168.6 343.5,172.5 366.4,165.3 389.3,152.2 412.2,142.4 435.1,136.9 458.0,130.9 480.8,116.9 480.8,160.3 458.0,167.3 435.1,172.6 412.2,178.4 389.3,185.6 366.4,194.4 343.5,197.9 320.6,194.3 297.7,190.4 274.8,189.0 251.9,188.6 229.0,189.0 206.1,189.8 183.2,189.0 160.3,190.5 137.4,193.5 114.5,196.2 91.6,191.5 68.8,176.1 45.9,160.3 ' style='stroke-width: 0.0; stroke: none; stroke-linecap: butt; fill: #DCD3C4;' />
+<path d='M45.9 117.2l22.9 27.3 22.8 18.9 22.9 5.1 22.9-3.2 22.9-3.7 22.9-1 22.9 .6 22.9-.1 22.9-1.7 22.9 2.6 22.9 1.7 22.9 4.9 22.9 3.9 22.9-7.2 22.9-13.1 22.9-9.8 22.9-5.5 22.9-6 22.8-14M480.8 160.3l-22.8 7-22.9 5.3-22.9 5.8-22.9 7.2-22.9 8.8-22.9 3.5-22.9-3.6-22.9-3.9-22.9-1.4-22.9-.4-22.9 .4-22.9 .8-22.9-.8-22.9 1.5-22.9 3-22.9 2.7-22.9-4.7-22.8-15.4-22.9-15.8' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; fill: none;' />
+<path d='M45.9 139.5l22.9 21.7 22.8 17.5 22.9 4.9 22.9-2.3 22.9-4.1 22.9-.5 22.9-.2 22.9-.4 22.9 0 22.9 1.3 22.9 1.6 22.9 4 22.9 3.6 22.9-5.4 22.9-10.7 22.9-7.7 22.9-6.5 22.9-7 22.8-9' style='stroke-width: 1.9; stroke: #B4532A; stroke-linecap: butt; fill: none;' />
+<path d='M68.8 74.8l22.8 0 22.9 0 22.9 15.3 22.9-15.3 22.9 15.3 22.9-15.3 22.9 0 22.9 15.3 22.9-15.3 22.9 0 22.9 0 22.9 0 22.9 15.3 22.9-15.3 22.9 0 22.9 15.3 22.9-15.3 22.8 12.4' style='stroke-width: 1.9; stroke: #3D4F56; stroke-linecap: butt; fill: none;' />
+<path d='M68.8 115.6l22.8-5.6 22.9 0 22.9 0 22.9 0 22.9 3.6 22.9-3.6 22.9 0 22.9 0 22.9 0 22.9 3.6 45.8-2.3 22.9-1.3 22.9 0' style='stroke-width: 1.9; stroke: #2F6B4F; stroke-linecap: butt; fill: none;' />
+<circle cx='45.9' cy='139.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='68.8' cy='161.2' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='91.6' cy='178.7' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='114.5' cy='183.6' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='137.4' cy='181.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='160.3' cy='177.2' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='183.2' cy='176.7' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='206.1' cy='176.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='229.0' cy='176.1' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='251.9' cy='176.1' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='274.8' cy='177.4' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='297.7' cy='179.0' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='320.6' cy='183.0' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='343.5' cy='186.6' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='366.4' cy='181.2' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='389.3' cy='170.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='412.2' cy='162.8' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='435.1' cy='156.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='458.0' cy='149.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='480.8' cy='140.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='68.8' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='91.6' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='114.5' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='137.4' cy='90.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='160.3' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='183.2' cy='90.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='206.1' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='229.0' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='251.9' cy='90.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='274.8' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='297.7' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='320.6' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='343.5' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='366.4' cy='90.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='389.3' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='412.2' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='435.1' cy='90.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='458.0' cy='74.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='480.8' cy='87.2' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='68.8' cy='115.6' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='91.6' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='114.5' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='137.4' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='160.3' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='183.2' cy='113.6' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='206.1' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='229.0' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='251.9' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='274.8' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='297.7' cy='113.6' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='343.5' cy='111.3' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='366.4' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<circle cx='389.3' cy='110.0' r='1.7' style='stroke-width: 0.6; stroke: #2F6B4F; fill: #2F6B4F;' />
+<text x='488.9' y='143.5' style='font-size: 9.10px;fill: #B4532A; font-family: "Helvetica Neue";'>Buses</text>
+<text x='488.9' y='90.5' style='font-size: 9.10px;fill: #3D4F56; font-family: "Helvetica Neue";'>Metro</text>
+<text x='397.3' y='113.2' style='font-size: 9.10px;fill: #2F6B4F; font-family: "Helvetica Neue";'>VLT</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1NDcuMjB8MC4wMHwzMDIuNDA=)'>
+<text x='36.5' y='258.7' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0</text>
+<text x='36.5' y='211.8' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10</text>
+<text x='36.5' y='164.8' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>20</text>
+<text x='36.5' y='117.9' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>30</text>
+<text x='36.5' y='71.0' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>40</text>
+<text x='45.9' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>04:00</text>
+<text x='91.6' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>06:00</text>
+<text x='137.4' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>08:00</text>
+<text x='183.2' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10:00</text>
+<text x='229.0' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>12:00</text>
+<text x='274.8' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>14:00</text>
+<text x='320.6' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>16:00</text>
+<text x='366.4' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>18:00</text>
+<text x='412.2' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>20:00</text>
+<text x='458.0' y='266.0' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>22:00</text>
+<text x='41.0' y='277.3' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Hour of departure</text>
+<text transform='translate(23.0,160.8) rotate(-90)' text-anchor='middle' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>km/h</text>
+<text x='15.9' y='37.1' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Median scheduled speed of the trips that start in each hour, end to end along their path, on Tuesday 10</text>
+<text x='15.9' y='47.9' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>November 2026 (39,877 trips). Buses: 15.4 km/h at 07:00 and 14.8 at 17:00, against 24.8 at 04:00 and</text>
+<text x='15.9' y='58.7' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>22.7 at 22:00; band: half the bus trips. Scheduled times, not observed ones</text>
+<text x='15.9' y='22.5' style='font-size: 12.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>The timetable slows down at the peaks</text>
+<text x='15.9' y='289.0' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Timetables: Grande Recife Consórcio de Transporte Metropolitano, GTFS v2026.10.26.</text>
+</g>
+</g>
+</svg>

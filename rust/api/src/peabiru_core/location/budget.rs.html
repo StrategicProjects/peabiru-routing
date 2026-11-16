@@ -1,0 +1,283 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/peabiru-core/src/location/budget.rs`."><title>budget.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-203241e4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="peabiru_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.100.0 (0ef1bc386 2026-11-09)" data-channel="1.100.0" data-search-js="search-b167f383.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-1814ead3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">peabiru_core/location/</div>budget.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Sharing a budget of facilities among groups (municipalities, districts)
+<a href=#2 id=2 data-nosnippet>2</a>//! from the curve of each: what its first, second, third facility adds.
+<a href=#3 id=3 data-nosnippet>3</a>
+<a href=#4 id=4 data-nosnippet>4</a></span><span class="kw">use </span><span class="kw">crate</span>::RouteError;
+<a href=#5 id=5 data-nosnippet>5</a>
+<a href=#6 id=6 data-nosnippet>6</a><span class="doccomment">/// How [`allocate_budget`] shares the facilities out.
+<a href=#7 id=7 data-nosnippet>7</a></span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+<a href=#8 id=8 data-nosnippet>8</a>#[non_exhaustive]
+<a href=#9 id=9 data-nosnippet>9</a></span><span class="kw">pub enum </span>BudgetCriterion {
+<a href=#10 id=10 data-nosnippet>10</a>    <span class="doccomment">/// The most demand covered in all: each facility goes where it adds
+<a href=#11 id=11 data-nosnippet>11</a>    /// most.
+<a href=#12 id=12 data-nosnippet>12</a>    </span>Utilitarian,
+<a href=#13 id=13 data-nosnippet>13</a>    <span class="doccomment">/// The worst-off group first: each facility goes to the group with
+<a href=#14 id=14 data-nosnippet>14</a>    /// the lowest share of its demand covered.
+<a href=#15 id=15 data-nosnippet>15</a>    </span>Maximin,
+<a href=#16 id=16 data-nosnippet>16</a>}
+<a href=#17 id=17 data-nosnippet>17</a>
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">impl </span>BudgetCriterion {
+<a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// The criterion's name in the packages: `utilitarian` or `maximin`.
+<a href=#20 id=20 data-nosnippet>20</a>    </span><span class="kw">pub fn </span>name(<span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+<a href=#21 id=21 data-nosnippet>21</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#22 id=22 data-nosnippet>22</a>            BudgetCriterion::Utilitarian =&gt; <span class="string">"utilitarian"</span>,
+<a href=#23 id=23 data-nosnippet>23</a>            BudgetCriterion::Maximin =&gt; <span class="string">"maximin"</span>,
+<a href=#24 id=24 data-nosnippet>24</a>        }
+<a href=#25 id=25 data-nosnippet>25</a>    }
+<a href=#26 id=26 data-nosnippet>26</a>
+<a href=#27 id=27 data-nosnippet>27</a>    <span class="doccomment">/// The criterion of that name (`None` for any other text).
+<a href=#28 id=28 data-nosnippet>28</a>    </span><span class="kw">pub fn </span>from_name(name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;BudgetCriterion&gt; {
+<a href=#29 id=29 data-nosnippet>29</a>        <span class="prelude-val">Some</span>(<span class="kw">match </span>name {
+<a href=#30 id=30 data-nosnippet>30</a>            <span class="string">"utilitarian" </span>=&gt; BudgetCriterion::Utilitarian,
+<a href=#31 id=31 data-nosnippet>31</a>            <span class="string">"maximin" </span>=&gt; BudgetCriterion::Maximin,
+<a href=#32 id=32 data-nosnippet>32</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
+<a href=#33 id=33 data-nosnippet>33</a>        })
+<a href=#34 id=34 data-nosnippet>34</a>    }
+<a href=#35 id=35 data-nosnippet>35</a>}
+<a href=#36 id=36 data-nosnippet>36</a>
+<a href=#37 id=37 data-nosnippet>37</a><span class="doccomment">/// One group of [`allocate_budget`].
+<a href=#38 id=38 data-nosnippet>38</a></span><span class="attr">#[derive(Debug, Clone, PartialEq)]
+<a href=#39 id=39 data-nosnippet>39</a></span><span class="kw">pub struct </span>BudgetGroup&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// What each further facility adds in the group, in order: the
+<a href=#41 id=41 data-nosnippet>41</a>    /// `marginal` of a [`LocationSolution`](crate::LocationSolution) of
+<a href=#42 id=42 data-nosnippet>42</a>    /// maximal covering solved without swaps. It may not increase.
+<a href=#43 id=43 data-nosnippet>43</a>    </span><span class="kw">pub </span>marginal: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[f64],
+<a href=#44 id=44 data-nosnippet>44</a>    <span class="doccomment">/// The demand covered in the group before any new facility.
+<a href=#45 id=45 data-nosnippet>45</a>    </span><span class="kw">pub </span>covered: f64,
+<a href=#46 id=46 data-nosnippet>46</a>    <span class="doccomment">/// The demand of the group, for its share covered. NaN when unknown:
+<a href=#47 id=47 data-nosnippet>47</a>    /// the shares are then NaN and [`BudgetCriterion::Maximin`] is
+<a href=#48 id=48 data-nosnippet>48</a>    /// refused.
+<a href=#49 id=49 data-nosnippet>49</a>    </span><span class="kw">pub </span>total: f64,
+<a href=#50 id=50 data-nosnippet>50</a>}
+<a href=#51 id=51 data-nosnippet>51</a>
+<a href=#52 id=52 data-nosnippet>52</a><span class="doccomment">/// What [`allocate_budget_with`] takes besides the criterion, one entry
+<a href=#53 id=53 data-nosnippet>53</a>/// per group in each list that is given. With none (the default) it is
+<a href=#54 id=54 data-nosnippet>54</a>/// [`allocate_budget`].
+<a href=#55 id=55 data-nosnippet>55</a></span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Default)]
+<a href=#56 id=56 data-nosnippet>56</a>#[non_exhaustive]
+<a href=#57 id=57 data-nosnippet>57</a></span><span class="kw">pub struct </span>BudgetRules&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#58 id=58 data-nosnippet>58</a>    <span class="doccomment">/// How much the demand of each group counts (1 without the list),
+<a href=#59 id=59 data-nosnippet>59</a>    /// finite and above zero. With [`BudgetCriterion::Utilitarian`] the
+<a href=#60 id=60 data-nosnippet>60</a>    /// gains of a group are multiplied by its weight; with
+<a href=#61 id=61 data-nosnippet>61</a>    /// [`BudgetCriterion::Maximin`] its share covered is divided by it.
+<a href=#62 id=62 data-nosnippet>62</a>    </span><span class="kw">pub </span>weights: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>[f64]&gt;,
+<a href=#63 id=63 data-nosnippet>63</a>    <span class="doccomment">/// The priority tier of each group (0 without the list), the lowest
+<a href=#64 id=64 data-nosnippet>64</a>    /// first: a facility only goes to a group when no group of a lower
+<a href=#65 id=65 data-nosnippet>65</a>    /// tier has one left to open that adds anything.
+<a href=#66 id=66 data-nosnippet>66</a>    </span><span class="kw">pub </span>tiers: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>[u32]&gt;,
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="doccomment">/// Whether each group may receive facilities (all without the list).
+<a href=#68 id=68 data-nosnippet>68</a>    /// The others get none and still count in the demand covered and in
+<a href=#69 id=69 data-nosnippet>69</a>    /// the lowest share.
+<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">pub </span>eligible: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>[bool]&gt;,
+<a href=#71 id=71 data-nosnippet>71</a>}
+<a href=#72 id=72 data-nosnippet>72</a>
+<a href=#73 id=73 data-nosnippet>73</a><span class="doccomment">/// How [`allocate_budget`] shared the facilities out, one entry per
+<a href=#74 id=74 data-nosnippet>74</a>/// facility in the order they were given: the answer for any smaller
+<a href=#75 id=75 data-nosnippet>75</a>/// budget is the beginning of the lists.
+<a href=#76 id=76 data-nosnippet>76</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Default)]
+<a href=#77 id=77 data-nosnippet>77</a>#[non_exhaustive]
+<a href=#78 id=78 data-nosnippet>78</a></span><span class="kw">pub struct </span>BudgetAllocation {
+<a href=#79 id=79 data-nosnippet>79</a>    <span class="doccomment">/// The group that gets each facility.
+<a href=#80 id=80 data-nosnippet>80</a>    </span><span class="kw">pub </span>group: Vec&lt;usize&gt;,
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// What that facility adds.
+<a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">pub </span>gain: Vec&lt;f64&gt;,
+<a href=#83 id=83 data-nosnippet>83</a>    <span class="doccomment">/// The demand covered in all the groups after it, what was covered
+<a href=#84 id=84 data-nosnippet>84</a>    /// before included.
+<a href=#85 id=85 data-nosnippet>85</a>    </span><span class="kw">pub </span>covered: Vec&lt;f64&gt;,
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// The lowest share covered among the groups after it (NaN without
+<a href=#87 id=87 data-nosnippet>87</a>    /// the totals of the groups).
+<a href=#88 id=88 data-nosnippet>88</a>    </span><span class="kw">pub </span>lowest_share: Vec&lt;f64&gt;,
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="doccomment">/// How many facilities each group got.
+<a href=#90 id=90 data-nosnippet>90</a>    </span><span class="kw">pub </span>units: Vec&lt;usize&gt;,
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// The order in which the groups got their first facility: 0 for the
+<a href=#92 id=92 data-nosnippet>92</a>    /// first group to receive one, 1 for the next, `None` for a group
+<a href=#93 id=93 data-nosnippet>93</a>    /// that got none. One number per group that sums up the criterion,
+<a href=#94 id=94 data-nosnippet>94</a>    /// the weights and the tiers.
+<a href=#95 id=95 data-nosnippet>95</a>    </span><span class="kw">pub </span>priority: Vec&lt;<span class="prelude-ty">Option</span>&lt;usize&gt;&gt;,
+<a href=#96 id=96 data-nosnippet>96</a>}
+<a href=#97 id=97 data-nosnippet>97</a>
+<a href=#98 id=98 data-nosnippet>98</a><span class="doccomment">/// Share `budget` facilities among groups, given what each further
+<a href=#99 id=99 data-nosnippet>99</a>/// facility adds in each group.
+<a href=#100 id=100 data-nosnippet>100</a>///
+<a href=#101 id=101 data-nosnippet>101</a>/// With [`BudgetCriterion::Utilitarian`] each facility goes to the group
+<a href=#102 id=102 data-nosnippet>102</a>/// where the next one adds most. As the gains of a group do not increase,
+<a href=#103 id=103 data-nosnippet>103</a>/// this covers the most demand possible with every budget up to `budget`
+<a href=#104 id=104 data-nosnippet>104</a>/// (marginal analysis: Fox, 1966). With [`BudgetCriterion::Maximin`] each
+<a href=#105 id=105 data-nosnippet>105</a>/// facility goes to the group with the lowest share of its demand covered
+<a href=#106 id=106 data-nosnippet>106</a>/// that still has a facility to open, which gives the highest possible
+<a href=#107 id=107 data-nosnippet>107</a>/// lowest share with every budget. Ties go to the larger gain, then to
+<a href=#108 id=108 data-nosnippet>108</a>/// the group listed first. Fewer than `budget` facilities come back when
+<a href=#109 id=109 data-nosnippet>109</a>/// no group has a facility left that adds anything.
+<a href=#110 id=110 data-nosnippet>110</a>///
+<a href=#111 id=111 data-nosnippet>111</a>/// Comparing the `covered` of the two criteria for the same budget gives
+<a href=#112 id=112 data-nosnippet>112</a>/// what the fairer allocation costs (Bertsimas, Farias and Trichakis,
+<a href=#113 id=113 data-nosnippet>113</a>/// 2011).
+<a href=#114 id=114 data-nosnippet>114</a>///
+<a href=#115 id=115 data-nosnippet>115</a>/// Errors ([`RouteError::Invalid`]): a gain that is negative, not finite
+<a href=#116 id=116 data-nosnippet>116</a>/// or larger than the one before it in its group; a `covered` that is
+<a href=#117 id=117 data-nosnippet>117</a>/// negative or not finite; a `total` that is negative or infinite; and
+<a href=#118 id=118 data-nosnippet>118</a>/// [`BudgetCriterion::Maximin`] with a total that is NaN.
+<a href=#119 id=119 data-nosnippet>119</a></span><span class="kw">pub fn </span>allocate_budget(
+<a href=#120 id=120 data-nosnippet>120</a>    groups: <span class="kw-2">&amp;</span>[BudgetGroup],
+<a href=#121 id=121 data-nosnippet>121</a>    budget: usize,
+<a href=#122 id=122 data-nosnippet>122</a>    criterion: BudgetCriterion,
+<a href=#123 id=123 data-nosnippet>123</a>) -&gt; <span class="prelude-ty">Result</span>&lt;BudgetAllocation, RouteError&gt; {
+<a href=#124 id=124 data-nosnippet>124</a>    allocate_budget_with(groups, budget, criterion, <span class="kw-2">&amp;</span>BudgetRules::default())
+<a href=#125 id=125 data-nosnippet>125</a>}
+<a href=#126 id=126 data-nosnippet>126</a>
+<a href=#127 id=127 data-nosnippet>127</a><span class="doccomment">/// [`allocate_budget`] with weights, priority tiers and groups left out
+<a href=#128 id=128 data-nosnippet>128</a>/// ([`BudgetRules`]).
+<a href=#129 id=129 data-nosnippet>129</a>///
+<a href=#130 id=130 data-nosnippet>130</a>/// With weights, [`BudgetCriterion::Utilitarian`] gives each facility to
+<a href=#131 id=131 data-nosnippet>131</a>/// the group where the next one adds most once multiplied by the weight
+<a href=#132 id=132 data-nosnippet>132</a>/// of the group: the weighted gains of a group still do not increase, so
+<a href=#133 id=133 data-nosnippet>133</a>/// this is the largest weighted sum for every budget.
+<a href=#134 id=134 data-nosnippet>134</a>/// [`BudgetCriterion::Maximin`] gives it to the group with the lowest
+<a href=#135 id=135 data-nosnippet>135</a>/// share covered divided by its weight. With tiers the criterion only
+<a href=#136 id=136 data-nosnippet>136</a>/// compares the groups of the lowest tier that still has a facility to
+<a href=#137 id=137 data-nosnippet>137</a>/// open that adds something. A group that is not eligible gets none.
+<a href=#138 id=138 data-nosnippet>138</a>///
+<a href=#139 id=139 data-nosnippet>139</a>/// The gains, the demand covered and the lowest share of the result are
+<a href=#140 id=140 data-nosnippet>140</a>/// never weighted and take in every group, eligible or not, so that runs
+<a href=#141 id=141 data-nosnippet>141</a>/// with and without the rules can be compared.
+<a href=#142 id=142 data-nosnippet>142</a>///
+<a href=#143 id=143 data-nosnippet>143</a>/// Errors ([`RouteError::Invalid`]): those of [`allocate_budget`]; a list
+<a href=#144 id=144 data-nosnippet>144</a>/// of [`BudgetRules`] whose length is not the number of groups; and a
+<a href=#145 id=145 data-nosnippet>145</a>/// weight that is not finite or not above zero.
+<a href=#146 id=146 data-nosnippet>146</a></span><span class="kw">pub fn </span>allocate_budget_with(
+<a href=#147 id=147 data-nosnippet>147</a>    groups: <span class="kw-2">&amp;</span>[BudgetGroup],
+<a href=#148 id=148 data-nosnippet>148</a>    budget: usize,
+<a href=#149 id=149 data-nosnippet>149</a>    criterion: BudgetCriterion,
+<a href=#150 id=150 data-nosnippet>150</a>    rules: <span class="kw-2">&amp;</span>BudgetRules,
+<a href=#151 id=151 data-nosnippet>151</a>) -&gt; <span class="prelude-ty">Result</span>&lt;BudgetAllocation, RouteError&gt; {
+<a href=#152 id=152 data-nosnippet>152</a>    <span class="kw">let </span>invalid = |m: String| <span class="prelude-val">Err</span>(RouteError::Invalid(m));
+<a href=#153 id=153 data-nosnippet>153</a>    <span class="kw">for </span>(what, len) <span class="kw">in </span>[
+<a href=#154 id=154 data-nosnippet>154</a>        (<span class="string">"weights"</span>, rules.weights.map(&lt;[f64]&gt;::len)),
+<a href=#155 id=155 data-nosnippet>155</a>        (<span class="string">"tiers"</span>, rules.tiers.map(&lt;[u32]&gt;::len)),
+<a href=#156 id=156 data-nosnippet>156</a>        (<span class="string">"eligible"</span>, rules.eligible.map(&lt;[bool]&gt;::len)),
+<a href=#157 id=157 data-nosnippet>157</a>    ] {
+<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">if </span>len.is_some_and(|n| n != groups.len()) {
+<a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">return </span>invalid(<span class="macro">format!</span>(
+<a href=#160 id=160 data-nosnippet>160</a>                <span class="string">"the {what} of a budget allocation must be one per group: got {}, the groups are {}"</span>,
+<a href=#161 id=161 data-nosnippet>161</a>                len.unwrap_or(<span class="number">0</span>),
+<a href=#162 id=162 data-nosnippet>162</a>                groups.len()
+<a href=#163 id=163 data-nosnippet>163</a>            ));
+<a href=#164 id=164 data-nosnippet>164</a>        }
+<a href=#165 id=165 data-nosnippet>165</a>    }
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>((g, w)) = rules.weights.and_then(|w| {
+<a href=#167 id=167 data-nosnippet>167</a>        w.iter()
+<a href=#168 id=168 data-nosnippet>168</a>            .enumerate()
+<a href=#169 id=169 data-nosnippet>169</a>            .find(|(<span class="kw">_</span>, <span class="kw-2">&amp;</span>w)| !(w.is_finite() &amp;&amp; w &gt; <span class="number">0.0</span>))
+<a href=#170 id=170 data-nosnippet>170</a>    }) {
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">return </span>invalid(<span class="macro">format!</span>(
+<a href=#172 id=172 data-nosnippet>172</a>            <span class="string">"the weight of a group must be finite and above zero, got {w} for group {g}"
+<a href=#173 id=173 data-nosnippet>173</a>        </span>));
+<a href=#174 id=174 data-nosnippet>174</a>    }
+<a href=#175 id=175 data-nosnippet>175</a>    <span class="kw">let </span>weight = |g: usize| rules.weights.map_or(<span class="number">1.0</span>, |w| w[g]);
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">let </span>tier = |g: usize| rules.tiers.map_or(<span class="number">0</span>, |t| t[g]);
+<a href=#177 id=177 data-nosnippet>177</a>    <span class="kw">let </span>eligible = |g: usize| rules.eligible.map_or(<span class="bool-val">true</span>, |e| e[g]);
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="kw">for </span>(g, group) <span class="kw">in </span>groups.iter().enumerate() {
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="kw">for </span>(k, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>group.marginal.iter().enumerate() {
+<a href=#180 id=180 data-nosnippet>180</a>            <span class="kw">if </span>!(x.is_finite() &amp;&amp; x &gt;= <span class="number">0.0</span>) {
+<a href=#181 id=181 data-nosnippet>181</a>                <span class="kw">return </span>invalid(<span class="macro">format!</span>(
+<a href=#182 id=182 data-nosnippet>182</a>                    <span class="string">"the gains must be finite and not negative, got {x} for facility {} of group {g}"</span>,
+<a href=#183 id=183 data-nosnippet>183</a>                    k + <span class="number">1
+<a href=#184 id=184 data-nosnippet>184</a>                </span>));
+<a href=#185 id=185 data-nosnippet>185</a>            }
+<a href=#186 id=186 data-nosnippet>186</a>            <span class="kw">if </span>k &gt; <span class="number">0 </span>&amp;&amp; x &gt; group.marginal[k - <span class="number">1</span>] * (<span class="number">1.0 </span>+ <span class="number">1e-9</span>) {
+<a href=#187 id=187 data-nosnippet>187</a>                <span class="kw">return </span>invalid(<span class="macro">format!</span>(
+<a href=#188 id=188 data-nosnippet>188</a>                    <span class="string">"the gains of a group may not increase: facility {} of group {g} adds {x}, the one before it {} (curves of max_cover solved without swaps do not increase)"</span>,
+<a href=#189 id=189 data-nosnippet>189</a>                    k + <span class="number">1</span>,
+<a href=#190 id=190 data-nosnippet>190</a>                    group.marginal[k - <span class="number">1</span>]
+<a href=#191 id=191 data-nosnippet>191</a>                ));
+<a href=#192 id=192 data-nosnippet>192</a>            }
+<a href=#193 id=193 data-nosnippet>193</a>        }
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">if </span>!(group.covered.is_finite() &amp;&amp; group.covered &gt;= <span class="number">0.0</span>) {
+<a href=#195 id=195 data-nosnippet>195</a>            <span class="kw">return </span>invalid(<span class="macro">format!</span>(
+<a href=#196 id=196 data-nosnippet>196</a>                <span class="string">"the demand covered in a group must be finite and not negative, got {} for group {g}"</span>,
+<a href=#197 id=197 data-nosnippet>197</a>                group.covered
+<a href=#198 id=198 data-nosnippet>198</a>            ));
+<a href=#199 id=199 data-nosnippet>199</a>        }
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="kw">if </span>group.total &lt; <span class="number">0.0 </span>|| group.total.is_infinite() {
+<a href=#201 id=201 data-nosnippet>201</a>            <span class="kw">return </span>invalid(<span class="macro">format!</span>(
+<a href=#202 id=202 data-nosnippet>202</a>                <span class="string">"the demand of a group must be finite and not negative, got {} for group {g}"</span>,
+<a href=#203 id=203 data-nosnippet>203</a>                group.total
+<a href=#204 id=204 data-nosnippet>204</a>            ));
+<a href=#205 id=205 data-nosnippet>205</a>        }
+<a href=#206 id=206 data-nosnippet>206</a>        <span class="kw">if </span>criterion == BudgetCriterion::Maximin &amp;&amp; group.total.is_nan() {
+<a href=#207 id=207 data-nosnippet>207</a>            <span class="kw">return </span>invalid(<span class="macro">format!</span>(
+<a href=#208 id=208 data-nosnippet>208</a>                <span class="string">"the maximin criterion needs the demand of every group, missing for group {g}"
+<a href=#209 id=209 data-nosnippet>209</a>            </span>));
+<a href=#210 id=210 data-nosnippet>210</a>        }
+<a href=#211 id=211 data-nosnippet>211</a>    }
+<a href=#212 id=212 data-nosnippet>212</a>    <span class="kw">let </span><span class="kw-2">mut </span>covered: Vec&lt;f64&gt; = groups.iter().map(|g| g.covered).collect();
+<a href=#213 id=213 data-nosnippet>213</a>    <span class="kw">let </span>share = |g: usize, covered: <span class="kw-2">&amp;</span>[f64]| -&gt; f64 {
+<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">let </span>total = groups[g].total;
+<a href=#215 id=215 data-nosnippet>215</a>        <span class="kw">if </span>total &gt; <span class="number">0.0 </span>{
+<a href=#216 id=216 data-nosnippet>216</a>            covered[g] / total
+<a href=#217 id=217 data-nosnippet>217</a>        } <span class="kw">else if </span>total == <span class="number">0.0 </span>{
+<a href=#218 id=218 data-nosnippet>218</a>            <span class="number">1.0
+<a href=#219 id=219 data-nosnippet>219</a>        </span>} <span class="kw">else </span>{
+<a href=#220 id=220 data-nosnippet>220</a>            f64::NAN
+<a href=#221 id=221 data-nosnippet>221</a>        }
+<a href=#222 id=222 data-nosnippet>222</a>    };
+<a href=#223 id=223 data-nosnippet>223</a>    <span class="kw">let </span><span class="kw-2">mut </span>out = BudgetAllocation {
+<a href=#224 id=224 data-nosnippet>224</a>        units: <span class="macro">vec!</span>[<span class="number">0</span>; groups.len()],
+<a href=#225 id=225 data-nosnippet>225</a>        priority: <span class="macro">vec!</span>[<span class="prelude-val">None</span>; groups.len()],
+<a href=#226 id=226 data-nosnippet>226</a>        ..BudgetAllocation::default()
+<a href=#227 id=227 data-nosnippet>227</a>    };
+<a href=#228 id=228 data-nosnippet>228</a>    <span class="kw">let </span><span class="kw-2">mut </span>entered = <span class="number">0usize</span>;
+<a href=#229 id=229 data-nosnippet>229</a>    <span class="kw">let </span><span class="kw-2">mut </span>sum = covered.iter().fold(<span class="number">0.0</span>, |a, b| a + b);
+<a href=#230 id=230 data-nosnippet>230</a>    <span class="kw">while </span>out.group.len() &lt; budget {
+<a href=#231 id=231 data-nosnippet>231</a>        <span class="comment">// the groups with a facility left that adds something; `worth` is
+<a href=#232 id=232 data-nosnippet>232</a>        // the gain times the weight of the group
+<a href=#233 id=233 data-nosnippet>233</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>best: <span class="prelude-ty">Option</span>&lt;(usize, f64, f64)&gt; = <span class="prelude-val">None</span>;
+<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">for </span>(g, group) <span class="kw">in </span>groups.iter().enumerate() {
+<a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">if </span>!eligible(g) {
+<a href=#236 id=236 data-nosnippet>236</a>                <span class="kw">continue</span>;
+<a href=#237 id=237 data-nosnippet>237</a>            }
+<a href=#238 id=238 data-nosnippet>238</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>gain) = group.marginal.get(out.units[g]) <span class="kw">else </span>{
+<a href=#239 id=239 data-nosnippet>239</a>                <span class="kw">continue</span>;
+<a href=#240 id=240 data-nosnippet>240</a>            };
+<a href=#241 id=241 data-nosnippet>241</a>            <span class="kw">if </span>gain &lt;= <span class="number">0.0 </span>{
+<a href=#242 id=242 data-nosnippet>242</a>                <span class="kw">continue</span>;
+<a href=#243 id=243 data-nosnippet>243</a>            }
+<a href=#244 id=244 data-nosnippet>244</a>            <span class="kw">let </span>worth = gain * weight(g);
+<a href=#245 id=245 data-nosnippet>245</a>            <span class="kw">let </span>wins = <span class="kw">match </span>best {
+<a href=#246 id=246 data-nosnippet>246</a>                <span class="prelude-val">None </span>=&gt; <span class="bool-val">true</span>,
+<a href=#247 id=247 data-nosnippet>247</a>                <span class="prelude-val">Some</span>((b, <span class="kw">_</span>, <span class="kw">_</span>)) <span class="kw">if </span>tier(g) != tier(b) =&gt; tier(g) &lt; tier(b),
+<a href=#248 id=248 data-nosnippet>248</a>                <span class="prelude-val">Some</span>((b, <span class="kw">_</span>, b_worth)) =&gt; <span class="kw">match </span>criterion {
+<a href=#249 id=249 data-nosnippet>249</a>                    BudgetCriterion::Utilitarian =&gt; worth &gt; b_worth,
+<a href=#250 id=250 data-nosnippet>250</a>                    <span class="kw">_ </span>=&gt; {
+<a href=#251 id=251 data-nosnippet>251</a>                        <span class="kw">let </span>mine = share(g, <span class="kw-2">&amp;</span>covered) / weight(g);
+<a href=#252 id=252 data-nosnippet>252</a>                        <span class="kw">let </span>theirs = share(b, <span class="kw-2">&amp;</span>covered) / weight(b);
+<a href=#253 id=253 data-nosnippet>253</a>                        mine &lt; theirs || (mine == theirs &amp;&amp; worth &gt; b_worth)
+<a href=#254 id=254 data-nosnippet>254</a>                    }
+<a href=#255 id=255 data-nosnippet>255</a>                },
+<a href=#256 id=256 data-nosnippet>256</a>            };
+<a href=#257 id=257 data-nosnippet>257</a>            <span class="kw">if </span>wins {
+<a href=#258 id=258 data-nosnippet>258</a>                best = <span class="prelude-val">Some</span>((g, gain, worth));
+<a href=#259 id=259 data-nosnippet>259</a>            }
+<a href=#260 id=260 data-nosnippet>260</a>        }
+<a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">let </span><span class="prelude-val">Some</span>((g, gain, <span class="kw">_</span>)) = best <span class="kw">else </span>{ <span class="kw">break </span>};
+<a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">if </span>out.units[g] == <span class="number">0 </span>{
+<a href=#263 id=263 data-nosnippet>263</a>            out.priority[g] = <span class="prelude-val">Some</span>(entered);
+<a href=#264 id=264 data-nosnippet>264</a>            entered += <span class="number">1</span>;
+<a href=#265 id=265 data-nosnippet>265</a>        }
+<a href=#266 id=266 data-nosnippet>266</a>        out.units[g] += <span class="number">1</span>;
+<a href=#267 id=267 data-nosnippet>267</a>        covered[g] += gain;
+<a href=#268 id=268 data-nosnippet>268</a>        sum += gain;
+<a href=#269 id=269 data-nosnippet>269</a>        out.group.push(g);
+<a href=#270 id=270 data-nosnippet>270</a>        out.gain.push(gain);
+<a href=#271 id=271 data-nosnippet>271</a>        out.covered.push(sum);
+<a href=#272 id=272 data-nosnippet>272</a>        out.lowest_share.push(
+<a href=#273 id=273 data-nosnippet>273</a>            (<span class="number">0</span>..groups.len())
+<a href=#274 id=274 data-nosnippet>274</a>                .map(|g| share(g, <span class="kw-2">&amp;</span>covered))
+<a href=#275 id=275 data-nosnippet>275</a>                .fold(f64::INFINITY, f64::min),
+<a href=#276 id=276 data-nosnippet>276</a>        );
+<a href=#277 id=277 data-nosnippet>277</a>    }
+<a href=#278 id=278 data-nosnippet>278</a>    <span class="kw">if </span>groups.is_empty() || groups.iter().any(|g| g.total.is_nan()) {
+<a href=#279 id=279 data-nosnippet>279</a>        out.lowest_share.iter_mut().for_each(|x| <span class="kw-2">*</span>x = f64::NAN);
+<a href=#280 id=280 data-nosnippet>280</a>    }
+<a href=#281 id=281 data-nosnippet>281</a>    <span class="prelude-val">Ok</span>(out)
+<a href=#282 id=282 data-nosnippet>282</a>}
+</code></pre></div></section></main></body></html>

@@ -1,0 +1,218 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg role="img" aria-labelledby="title desc" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='604.80pt' height='302.40pt' viewBox='0 0 604.8 302.4'>
+<title id="title">Jobs within 60 minutes by public transport: peabiru with the feeds of 2026 against Ipea's estimates for 2019</title>
+<desc id="desc">Three panels, one per city, each with two lines of the mean number of formal jobs reached within 60 minutes by public transport by income decile: computed here with the GTFS feeds of 2026, and published by Ipea's Access to Opportunities Project for 2019. In São Paulo the cell-by-cell correlation is 0.97. In Rio de Janeiro the cell-by-cell correlation is 0.90. In Belo Horizonte the cell-by-cell correlation is 0.91.</desc>
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+@media (prefers-color-scheme: dark) {
+[style*="fill: #FFFDF9;"] { fill: #1D2427 !important; }
+[style*="fill: #1F2A2E;"] { fill: #ECE6DA !important; }
+[style*="fill: #4A5A5F;"] { fill: #A9B4B6 !important; }
+[style*="fill: #B4532A;"] { fill: #E98A5C !important; }
+[style*="fill: #3D4F56;"] { fill: #C6D0D2 !important; }
+[style*="stroke: #ECE4D6;"] { stroke: #2C3538 !important; }
+[style*="stroke: #B4532A;"] { stroke: #E98A5C !important; }
+[style*="stroke: #3D4F56;"] { stroke: #C6D0D2 !important; }
+}
+</style>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.0;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect x='0.5' y='0.5' width='603.8' height='301.4' rx='9' style='fill: #FFFDF9; stroke: #E1D8C8; stroke-width: 1;'/>
+<defs>
+  <clipPath id='cpMC4wMHw2MDQuODB8MC4wMHwzMDIuNDA='>
+    <rect x='0.0' y='0.0' width='604.8' height='302.4' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMDIuNDA=)'>
+<rect x='0.0' y='-0.000000000000057' width='604.8' height='302.4' style='stroke-width: 0.9; stroke: none; fill: #FFFDF9;' />
+</g>
+<defs>
+  <clipPath id='cpNDIuMzl8MjA2LjU2fDkyLjE0fDI0MC42Ng=='>
+    <rect x='42.3' y='92.1' width='164.1' height='148.5' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDIuMzl8MjA2LjU2fDkyLjE0fDI0MC42Ng==)'>
+<rect x='42.3' y='92.1' width='164.1' height='148.5' style='stroke-width: 0.9; stroke: none;' />
+<path d='M42.3 240.6l164.2 0M42.3 198.2l164.2 0M42.3 155.7l164.2 0M42.3 113.2l164.2 0M49.8 240.6l0-148.5M99.6 240.6l0-148.5M149.3 240.6l0-148.5M199.1 240.6l0-148.5' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<path d='M49.8 232l16.6-4.7 16.6-3.8 16.6-2.2 16.5-7.9 16.6-4.9 16.6-14.3 16.6-15.4 16.6-28.4 16.6-25.2' style='stroke-width: 1.4; stroke: #B4532A; stroke-linecap: butt; fill: none;' />
+<path d='M49.8 226.2l16.6-5 16.6-5.6 16.6-5.1 16.5-10.2 16.6-6.6 16.6-16.6 16.6-17.3 16.6-32.6 16.6-26.7' style='stroke-width: 1.4; stroke: #3D4F56; stroke-dasharray: 3.9,3.9; stroke-linecap: butt; fill: none;' />
+<circle cx='49.8' cy='232.0' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='66.4' cy='227.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='83.0' cy='223.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='99.6' cy='221.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='116.1' cy='213.4' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='132.7' cy='208.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='149.3' cy='194.2' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='165.9' cy='178.8' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='182.5' cy='150.4' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='199.1' cy='125.2' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='49.8' cy='226.2' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='66.4' cy='221.2' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='83.0' cy='215.6' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='99.6' cy='210.5' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='116.1' cy='200.3' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='132.7' cy='193.7' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='149.3' cy='177.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='165.9' cy='159.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='182.5' cy='127.2' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='199.1' cy='100.5' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMDIuNDA=)'>
+</g>
+<defs>
+  <clipPath id='cpMjMzLjU0fDM5Ny43MXw5Mi4xNHwyNDAuNjY='>
+    <rect x='233.5' y='92.1' width='164.1' height='148.5' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMjMzLjU0fDM5Ny43MXw5Mi4xNHwyNDAuNjY=)'>
+<rect x='233.5' y='92.1' width='164.1' height='148.5' style='stroke-width: 0.9; stroke: none;' />
+<path d='M233.5 240.6l164.2 0M233.5 198.8l164.2 0M233.5 157l164.2 0M233.5 115.2l164.2 0M241 240.6l0-148.5M290.7 240.6l0-148.5M340.5 240.6l0-148.5M390.2 240.6l0-148.5' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<path d='M241 182.5l16.5-6 16.6 1.6 16.6 5.2 16.6-6.6 16.6-4.8 16.6-18.9 16.5-19 16.6-23.8 16.6-9.7' style='stroke-width: 1.4; stroke: #B4532A; stroke-linecap: butt; fill: none;' />
+<path d='M241 209.7l16.5-1 16.6-2.3 16.6-.7 16.6-7 16.6-4.1 16.6-13.5 16.5-14.1 16.6-14.7 16.6-19.7' style='stroke-width: 1.4; stroke: #3D4F56; stroke-dasharray: 3.9,3.9; stroke-linecap: butt; fill: none;' />
+<circle cx='241.0' cy='182.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='257.5' cy='176.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='274.1' cy='178.1' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='290.7' cy='183.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='307.3' cy='176.7' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='323.9' cy='171.9' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='340.5' cy='153.0' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='357.0' cy='134.0' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='373.6' cy='110.2' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='390.2' cy='100.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='241.0' cy='209.7' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='257.5' cy='208.7' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='274.1' cy='206.4' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='290.7' cy='205.7' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='307.3' cy='198.7' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='323.9' cy='194.6' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='340.5' cy='181.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='357.0' cy='167.0' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='373.6' cy='152.3' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='390.2' cy='132.6' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMDIuNDA=)'>
+</g>
+<defs>
+  <clipPath id='cpNDI0LjY5fDU4OC44Nnw5Mi4xNHwyNDAuNjY='>
+    <rect x='424.6' y='92.1' width='164.1' height='148.5' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDI0LjY5fDU4OC44Nnw5Mi4xNHwyNDAuNjY=)'>
+<rect x='424.6' y='92.1' width='164.1' height='148.5' style='stroke-width: 0.9; stroke: none;' />
+<path d='M424.6 240.6l164.2 0M424.6 193.3l164.2 0M424.6 146l164.2 0M424.6 98.8l164.2 0M432.1 240.6l0-148.5M481.9 240.6l0-148.5M531.6 240.6l0-148.5M581.4 240.6l0-148.5' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<path d='M432.1 186.3l16.6-2 16.6-22.9 16.6-5.1 16.5-14.8 16.6-2.8 16.6-13.7 16.6-14.6 16.6-8.4 16.6-1.5' style='stroke-width: 1.4; stroke: #B4532A; stroke-linecap: butt; fill: none;' />
+<path d='M432.1 207.7l16.6 .3 16.6-19.1 16.6-1.9 16.5-11.2 16.6-8.7 16.6-14 16.6-15.5 16.6-9 16.6-4.5' style='stroke-width: 1.4; stroke: #3D4F56; stroke-dasharray: 3.9,3.9; stroke-linecap: butt; fill: none;' />
+<circle cx='432.1' cy='186.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='448.7' cy='184.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='465.3' cy='161.4' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='481.9' cy='156.3' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='498.4' cy='141.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='515.0' cy='138.7' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='531.6' cy='125.0' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='548.2' cy='110.4' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='564.8' cy='102.0' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='581.4' cy='100.5' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='432.1' cy='207.7' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='448.7' cy='208.0' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='465.3' cy='188.9' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='481.9' cy='187.0' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='498.4' cy='175.8' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='515.0' cy='167.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='531.6' cy='153.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='548.2' cy='137.6' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='564.8' cy='128.6' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<circle cx='581.4' cy='124.1' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMDIuNDA=)'>
+</g>
+<defs>
+  <clipPath id='cpNDIuMzl8MjA2LjU2fDc0Ljk0fDkyLjE0'>
+    <rect x='42.3' y='74.9' width='164.1' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDIuMzl8MjA2LjU2fDc0Ljk0fDkyLjE0)'>
+<text x='46.3' y='87.1' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>São Paulo</text>
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMDIuNDA=)'>
+</g>
+<defs>
+  <clipPath id='cpMjMzLjU0fDM5Ny43MXw3NC45NHw5Mi4xNA=='>
+    <rect x='233.5' y='74.9' width='164.1' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMjMzLjU0fDM5Ny43MXw3NC45NHw5Mi4xNA==)'>
+<text x='237.5' y='87.1' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Rio de Janeiro</text>
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMDIuNDA=)'>
+</g>
+<defs>
+  <clipPath id='cpNDI0LjY5fDU4OC44Nnw3NC45NHw5Mi4xNA=='>
+    <rect x='424.6' y='74.9' width='164.1' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDI0LjY5fDU4OC44Nnw3NC45NHw5Mi4xNA==)'>
+<text x='428.6' y='87.1' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Belo Horizonte</text>
+</g>
+<g clip-path='url(#cpMC4wMHw2MDQuODB8MC4wMHwzMDIuNDA=)'>
+<text x='49.8' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1</text>
+<text x='49.8' y='257.7' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>poorest</text>
+<text x='99.6' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>4</text>
+<text x='149.3' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>7</text>
+<text x='199.1' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10</text>
+<text x='199.1' y='257.7' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>richest</text>
+<text x='241.0' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1</text>
+<text x='241.0' y='257.7' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>poorest</text>
+<text x='290.7' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>4</text>
+<text x='340.5' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>7</text>
+<text x='390.2' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10</text>
+<text x='390.2' y='257.7' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>richest</text>
+<text x='432.1' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1</text>
+<text x='432.1' y='257.7' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>poorest</text>
+<text x='481.9' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>4</text>
+<text x='531.6' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>7</text>
+<text x='581.4' y='250.1' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10</text>
+<text x='581.4' y='257.7' text-anchor='middle' style='font-size: 7.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>richest</text>
+<text x='420.2' y='243.5' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0k</text>
+<text x='420.2' y='196.2' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>200k</text>
+<text x='420.2' y='148.9' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>400k</text>
+<text x='420.2' y='101.6' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>600k</text>
+<text x='229.0' y='243.5' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0k</text>
+<text x='229.0' y='201.7' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>200k</text>
+<text x='229.0' y='159.9' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>400k</text>
+<text x='229.0' y='118.1' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>600k</text>
+<text x='37.9' y='243.5' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0k</text>
+<text x='37.9' y='201.0' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>500k</text>
+<text x='37.9' y='158.5' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1000k</text>
+<text x='37.9' y='116.1' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1500k</text>
+<text x='315.6' y='268.8' text-anchor='middle' style='font-size: 10.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Income decile</text>
+<line x1='43.3' y1='60.0' x2='51.3' y2='60.0' style='stroke-width: 1.4; stroke: #B4532A; stroke-linecap: butt;' />
+<circle cx='47.3' cy='60.0' r='1.7' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<line x1='144.4' y1='60.0' x2='152.3' y2='60.0' style='stroke-width: 1.4; stroke: #3D4F56; stroke-dasharray: 3.9,3.9; stroke-linecap: butt;' />
+<circle cx='148.3' cy='60.0' r='1.7' style='stroke-width: 0.6; stroke: #3D4F56; fill: #3D4F56;' />
+<text x='57.3' y='62.8' style='font-size: 8.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>peabiru, GTFS of 2026</text>
+<text x='158.3' y='62.8' style='font-size: 8.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Ipea (r5r), GTFS of 2019</text>
+<text x='15.9' y='37.1' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Mean formal jobs (RAIS 2019) reached by public transport at the morning peak, by income decile.</text>
+<text x='15.9' y='47.9' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Correlation between the two, cell by cell: São Paulo 0.97, Rio de Janeiro 0.90, Belo Horizonte 0.91</text>
+<text x='15.9' y='22.5' style='font-size: 12.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Jobs within an hour: peabiru in 2026 and Ipea's estimates for 2019</text>
+<text x='15.9' y='280.5' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Streets © OpenStreetMap contributors (ODbL), Geofabrik extract of 2026-11-01. GTFS: SPTrans (São Paulo), SMTR (Rio de Janeiro, CC BY 4.0),</text>
+<text x='15.9' y='289.0' style='font-size: 6.50px;fill: #4A5A5F; font-family: "Helvetica Neue";'>SUMOB (Belo Horizonte, CC BY). Cells, population and income (Censo 2010), jobs (RAIS 2019), schools and health facilities (2019): Ipea, aopdata.</text>
+</g>
+</g>
+</svg>

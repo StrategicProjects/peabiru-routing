@@ -1,0 +1,65 @@
+/* peabiru palette (site/assets/brand.css) on mdBook's "light" and "navy"
+ * themes. mdBook switches themes with a class on <html>. */
+
+html.light {
+  --bg: #faf6ef;
+  --fg: #1f2a2e;
+  --sidebar-bg: #f1ebe0;
+  --sidebar-fg: #1f2a2e;
+  --sidebar-non-existant: #8a7f70;
+  --sidebar-active: #b4532a;
+  --sidebar-spacer: #e1d8c8;
+  --links: #b4532a;
+  --inline-code-color: #8f3f1d;
+  --theme-popup-bg: #faf6ef;
+  --theme-popup-border: #e1d8c8;
+  --theme-hover: #f1ebe0;
+  --quote-bg: #f4efe6;
+  --quote-border: #e1d8c8;
+  --table-border-color: #e1d8c8;
+  --table-header-bg: #f1ebe0;
+  --table-alternate-bg: #f6f1e8;
+  --searchbar-border-color: #e1d8c8;
+  --searchresults-header-fg: #4a5a5f;
+  --icons: #4a5a5f;
+  --icons-hover: #b4532a;
+}
+
+html.navy {
+  --bg: #14191b;
+  --fg: #ece6da;
+  --sidebar-bg: #1d2427;
+  --sidebar-fg: #c9c3b7;
+  --sidebar-non-existant: #6b7a7c;
+  --sidebar-active: #e98a5c;
+  --sidebar-spacer: #34403f;
+  --links: #e98a5c;
+  --inline-code-color: #f4a67f;
+  --theme-popup-bg: #1d2427;
+  --theme-popup-border: #34403f;
+  --theme-hover: #242d31;
+  --quote-bg: #1a2124;
+  --quote-border: #34403f;
+  --table-border-color: #34403f;
+  --table-header-bg: #242d31;
+  --table-alternate-bg: #1a2124;
+  --searchbar-border-color: #34403f;
+  --icons: #a9b4b6;
+  --icons-hover: #e98a5c;
+}
+
+.content main img[src$=".svg"] { width: 100%; height: auto; }
+.menu-title { font-weight: 700; }
+.peabiru-home { display: inline-flex; align-items: center; gap: 6px; }
+
+/* The logo of the introduction and the badges keep their own size (the rule
+ * above is for the diagrams). */
+.content main img[src$="logo.svg"] { width: 252px; max-width: 100%; height: auto; }
+.content main a > img[src^="https://"] { width: auto; height: 20px; }
+
+/* Links to the other sites in the menu bar (theme/peabiru-nav.js). */
+.peabiru-sites { display: inline-flex; align-items: center; gap: 14px; margin-right: 12px; font-size: 1.45rem; }
+.peabiru-sites a { color: var(--icons); text-decoration: none; }
+.peabiru-sites a:hover { color: var(--icons-hover); }
+.peabiru-sites a[aria-current="page"] { color: var(--sidebar-active); font-weight: 600; }
+@media (max-width: 860px) { .peabiru-sites { display: none; } }

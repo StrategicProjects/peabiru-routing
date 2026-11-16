@@ -1,0 +1,2188 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multimodal routing on OpenStreetMap and GTFS networks with a Rust engine, without Java: travel-time matrices and accessibility as pandas data frames">
+      
+      
+        <meta name="author" content="André Leite, Marcos Wasiliew, Hugo Vasconcelos, Carlos Amorim, Diogo Bezerra, Júlia Nascimento Barreto">
+      
+      
+      
+        <link rel="prev" href="../gtfs-errors/">
+      
+      
+        <link rel="next" href="../example-isochrones/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Compared with r5r and r5py - peabiru for Python</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/brand.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#compared-with-r5r-and-r5py" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="peabiru for Python" class="md-header__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            peabiru for Python
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Compared with r5r and r5py
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="peabiru for Python" class="md-nav__button md-logo" aria-label="peabiru for Python" data-md-component="logo">
+      
+  <img src="../assets/logo-mark.svg" alt="logo">
+
+    </a>
+    peabiru for Python
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/StrategicProjects/peabiru-routing" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    StrategicProjects/peabiru-routing
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../travel-time-matrices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Travel-time matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accessibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../expanded-arrival/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Expanded and arrival matrices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../itineraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detailed itineraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fares/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trip-options/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trip options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../facility-location/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facility location
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../elevation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Elevation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenarios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network-inspection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inspecting a network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gtfs-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GTFS errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compared with r5r and r5py
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compared with r5r and r5py
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-shared" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is shared
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moving-a-script-from-r5r" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Moving a script from r5r
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Differences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Differences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#general" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-peabiru-is-deterministic-and-r5r-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where peabiru is deterministic and r5r is not
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#warnings-peabiru-adds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Warnings peabiru adds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors-where-r5r-fails-later-or-routes-on-corrupted-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors where r5r fails later or routes on corrupted values
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#refusals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refusals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#only-in-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Only in Python
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-same-on-purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The same on purpose
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-r5py" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From r5py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-isochrones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isochrones by mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-accessibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access to jobs and schools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-trips/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How much a trip varies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-recife-metropolitan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Recife metropolitan region by public transport
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-recife-caruaru/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schools and health care in Recife and Caruaru
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-terrain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terrain, in Salvador and Olinda
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-capitals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by income in Belo Horizonte, and fares
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Before and after in Porto Alegre
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example-helsinki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs by public transport in Helsinki
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Other languages
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Other languages
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../r/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    R
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rust/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../js/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    peabiru home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-shared" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is shared
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moving-a-script-from-r5r" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Moving a script from r5r
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Differences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Differences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#general" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-peabiru-is-deterministic-and-r5r-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where peabiru is deterministic and r5r is not
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#warnings-peabiru-adds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Warnings peabiru adds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors-where-r5r-fails-later-or-routes-on-corrupted-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors where r5r fails later or routes on corrupted values
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#refusals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refusals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#only-in-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Only in Python
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-same-on-purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The same on purpose
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-r5py" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From r5py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="compared-with-r5r-and-r5py">Compared with r5r and r5py<a class="headerlink" href="#compared-with-r5r-and-r5py" title="Permanent link">&para;</a></h1>
+<p><a href="https://ipea.github.io/r5r/">r5r</a> is the R interface to
+<a href="https://github.com/conveyal/r5">R5</a>, Conveyal's routing engine in Java,
+developed at Ipea; <a href="https://r5py.readthedocs.io">r5py</a> is a Python wrapper of
+the same engine. peabiru is an independent package with an engine of its
+own, written in Rust. This is the one page of the documentation that
+compares them: what peabiru shares with r5r, where it differs, and how to
+move a script over.</p>
+<h2 id="what-is-shared">What is shared<a class="headerlink" href="#what-is-shared" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>The routing model.</strong> peabiru's engine is a port of R5 7.6, the version
+  r5r 2.5.0 runs: the street network built from OpenStreetMap, the transit
+  layer built from GTFS, the searches, the Monte Carlo draws of
+  frequency-based feeds, the decay functions, the fare router.</li>
+<li><strong>The fine print of the model.</strong> Details that other pages state as plain
+  facts about peabiru are R5's: the multi-criteria router (McRAPTOR) used
+  with fares and for alternative itineraries, and its sampling of departure
+  times; the fare rules (R5's rule-based in-routing fare calculator), with
+  fares read as 32-bit floats; the levels of traffic stress; the limits
+  (5,000 destinations for the expanded and arrival matrices, egress
+  searched up to 5 km by bicycle or 30 minutes by car); elevations in
+  16-bit decimetres and car speeds in 16-bit centimetres per second; the
+  checks of the GTFS feeds (those of gtfs-lib, R5's GTFS library); and the
+  numbers in the files of <code>output_dir</code>, written as Java writes a <code>double</code>
+  (<code>2.0</code>, <code>1.0E-4</code>).</li>
+<li><strong>The vocabulary.</strong> The functions peabiru has in common with r5r have
+  the same names, and their arguments the same names, order and defaults,
+  apart from the items listed below.</li>
+<li><strong>The results.</strong> For the same call, peabiru and r5r 2.5.0 return the same
+  rows, in the same order, with the same values, including the last bit of
+  the accessibility values. This is checked in peabiru's repository, not
+  assumed: <code>bench/compare/py_parity.py</code> runs 130 calls through both packages
+  on r5r's two sample cities (Porto Alegre and Sao Paulo) and compares
+  every value; <code>bench/compare/py_output_dir.py</code> compares the files written
+  with <code>output_dir</code> byte for byte (151 files); <code>bench/compare/py_formals.py</code>
+  compares the arguments and defaults of every function (209 arguments);
+  and <code>bench/compare/py_argument_errors.py</code> checks the cases of invalid
+  arguments shared by the R, Python and JavaScript packages. On the larger
+  examples of this documentation the two also agree where they were
+  compared: in <a href="../example-recife-caruaru/">Recife</a>, the 17 cells of Boa
+  Viagem without a car route have none in r5r 2.5.0 either, and in the
+  fares analysis of <a href="../example-scenarios/">Porto Alegre</a>, on 103 origins,
+  r5r 2.5.0 gives the same access as peabiru, origin by origin, with the
+  fare structure and without it.</li>
+</ul>
+<p>Besides the functions it shares with r5r, peabiru has functions of its own,
+which r5r has not: <a href="../trip-options/"><code>trip_options()</code></a>, and
+<a href="../facility-location/"><code>locate_facilities()</code> and <code>floating_catchment()</code></a>.</p>
+<h2 id="moving-a-script-from-r5r">Moving a script from r5r<a class="headerlink" href="#moving-a-script-from-r5r" title="Permanent link">&para;</a></h2>
+<p>Calls translate one to one; the R types become Python types, and r5r's
+<code>r5r_network</code> argument is called <code>network</code>.</p>
+<table>
+<thead>
+<tr>
+<th>r5r (R)</th>
+<th>peabiru (Python)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>r5r_network &lt;- build_network(path)</code></td>
+<td><code>network = peabiru.build_network(path)</code></td>
+</tr>
+<tr>
+<td><code>travel_time_matrix(r5r_network, origins, destinations, ...)</code></td>
+<td><code>peabiru.travel_time_matrix(network, origins, destinations, ...)</code></td>
+</tr>
+<tr>
+<td><code>travel_time_matrix(r5r_network = net, ...)</code></td>
+<td><code>peabiru.travel_time_matrix(network=net, ...)</code></td>
+</tr>
+<tr>
+<td><code>setup_r5()</code>, <code>stop_r5()</code>, <code>download_r5()</code>, <code>r5r_cache()</code>, <code>r5r_sitrep()</code>, <code>options(java.parameters = ...)</code></td>
+<td>nothing: there is no Java to set up, stop or give memory to</td>
+</tr>
+<tr>
+<td><code>data.frame</code> / <code>sf</code> POINT with <code>id</code>, <code>lon</code>, <code>lat</code></td>
+<td><code>pandas.DataFrame</code> with <code>id</code>, <code>lon</code>, <code>lat</code> / <code>geopandas.GeoDataFrame</code> of points</td>
+</tr>
+<tr>
+<td><code>mode = c("WALK", "TRANSIT")</code></td>
+<td><code>mode=["WALK", "TRANSIT"]</code> (or a string)</td>
+</tr>
+<tr>
+<td><code>departure_datetime = as.POSIXct("2019-05-13 14:00:00", tz = "America/Sao_Paulo")</code></td>
+<td><code>departure_datetime=datetime.datetime(2019, 5, 13, 14, 0)</code> (naive or aware)</td>
+</tr>
+<tr>
+<td><code>max_walk_time = Inf</code>, <code>n_threads = Inf</code></td>
+<td><code>max_walk_time=math.inf</code>, <code>n_threads=math.inf</code> (the default; <code>None</code> means the same)</td>
+</tr>
+<tr>
+<td><code>NULL</code> (<code>seed</code>, <code>cutoffs</code>, <code>decay_value</code>, ...)</td>
+<td><code>None</code></td>
+</tr>
+<tr>
+<td><code>c(0, 15, 30)</code> (<code>cutoffs</code>, <code>percentiles</code>, ...)</td>
+<td>a list or tuple, <code>[0, 15, 30]</code></td>
+</tr>
+<tr>
+<td>result <code>data.table</code> / <code>sf</code></td>
+<td>result <code>pandas.DataFrame</code> / <code>geopandas.GeoDataFrame</code></td>
+</tr>
+<tr>
+<td><code>integer</code> columns with <code>NA</code> (<code>travel_time_pXX</code>, <code>n_rides</code>, <code>travel_time</code>)</td>
+<td>nullable <code>Int32</code> with <code>&lt;NA&gt;</code></td>
+</tr>
+<tr>
+<td><code>integer</code> columns without <code>NA</code> (<code>percentile</code>, <code>cutoff</code>, <code>draw_number</code>, <code>option</code>, <code>segment</code>, ...)</td>
+<td><code>int32</code></td>
+</tr>
+<tr>
+<td><code>double</code> columns (<code>accessibility</code>, times of expanded matrices, ...)</td>
+<td><code>float64</code>, <code>NaN</code> where r5r has <code>NA</code></td>
+</tr>
+<tr>
+<td><code>double</code> OpenStreetMap ids (<code>osm_id</code> of <code>street_network_to_sf()</code> and line isochrones)</td>
+<td><code>int64</code> (R has no 64-bit integers)</td>
+</tr>
+<tr>
+<td><code>character</code> columns (<code>from_id</code>, <code>to_id</code>, <code>id</code>, <code>opportunity</code>, <code>departure_time</code>, <code>routes</code>, ...)</td>
+<td>object dtype holding <code>str</code>; a missing value is <code>None</code></td>
+</tr>
+<tr>
+<td><code>logical</code> columns (<code>found</code>, <code>walk</code>, <code>car</code>, ...)</td>
+<td><code>bool</code></td>
+</tr>
+<tr>
+<td><code>Date</code> column of <code>check_transit_availability()</code></td>
+<td><code>datetime64</code></td>
+</tr>
+<tr>
+<td>a fare structure (a <code>list</code> of settings and <code>data.table</code>s)</td>
+<td>a <code>dict</code> with the same keys, and <code>pandas.DataFrame</code> tables</td>
+</tr>
+<tr>
+<td><code>street_network_bbox(output = "bbox")</code> / <code>"vector"</code> / <code>"polygon"</code></td>
+<td>a tuple <code>(xmin, ymin, xmax, ymax)</code> / a dict with those keys / a <code>GeoSeries</code></td>
+</tr>
+</tbody>
+</table>
+<p>For example, this r5r call</p>
+<div class="highlight"><pre><span></span><code><span class="n">ttm</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">travel_time_matrix</span><span class="p">(</span>
+<span class="w">  </span><span class="n">r5r_network</span><span class="p">,</span><span class="w"> </span><span class="n">points</span><span class="p">,</span><span class="w"> </span><span class="n">points</span><span class="p">,</span>
+<span class="w">  </span><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="s">"WALK"</span><span class="p">,</span><span class="w"> </span><span class="s">"TRANSIT"</span><span class="p">),</span>
+<span class="w">  </span><span class="n">departure_datetime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">as.POSIXct</span><span class="p">(</span><span class="s">"2019-05-13 14:00:00"</span><span class="p">,</span><span class="w"> </span><span class="n">tz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"America/Sao_Paulo"</span><span class="p">),</span>
+<span class="w">  </span><span class="n">percentiles</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="m">25</span><span class="p">,</span><span class="w"> </span><span class="m">75</span><span class="p">),</span>
+<span class="w">  </span><span class="n">max_walk_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">15</span><span class="p">,</span>
+<span class="w">  </span><span class="n">seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">42</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>is, in peabiru:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">peabiru</span>
+
+<span class="n">network</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">peabiru</span><span class="o">.</span><span class="n">sample_data_path</span><span class="p">(),</span> <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">points</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">sample_points</span><span class="p">()</span>
+<span class="n">ttm</span> <span class="o">=</span> <span class="n">peabiru</span><span class="o">.</span><span class="n">travel_time_matrix</span><span class="p">(</span>
+    <span class="n">network</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span> <span class="n">points</span><span class="p">,</span>
+    <span class="n">mode</span><span class="o">=</span><span class="p">[</span><span class="s2">"WALK"</span><span class="p">,</span> <span class="s2">"TRANSIT"</span><span class="p">],</span>
+    <span class="n">departure_datetime</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2019</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="n">percentiles</span><span class="o">=</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="mi">75</span><span class="p">],</span>
+    <span class="n">max_walk_time</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
+    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+    <span class="n">n_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ttm</span><span class="o">.</span><span class="n">dtypes</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>from_id            object
+to_id              object
+travel_time_p25     Int32
+travel_time_p75     Int32
+dtype: object
+</code></pre></div>
+<h2 id="differences">Differences<a class="headerlink" href="#differences" title="Permanent link">&para;</a></h2>
+<h3 id="general">General<a class="headerlink" href="#general" title="Permanent link">&para;</a></h3>
+<!-- diff:no-java -->
+<ul>
+<li><strong>No Java.</strong> There is no JVM, no <code>java.parameters</code> and no R5 jar. r5r's
+  five functions that manage Java (<code>setup_r5()</code>, <code>stop_r5()</code>,
+  <code>download_r5()</code>, <code>r5r_cache()</code>, <code>r5r_sitrep()</code>) do not exist in peabiru:
+  there is nothing to manage.</li>
+</ul>
+<!-- diff:deprecated-args -->
+<ul>
+<li><strong>Argument names.</strong> r5r's <code>r5r_network</code> is <code>network</code> in peabiru. r5r's
+  deprecated arguments do not exist: <code>r5r_core</code> (its old name for the
+  network argument) and <code>isochrone(sample_size=...)</code>.</li>
+</ul>
+<!-- diff:result-type -->
+<ul>
+<li><strong>Results are pandas objects</strong>: <code>pandas.DataFrame</code>s, and
+  <code>geopandas.GeoDataFrame</code>s where r5r returns <code>sf</code> objects (also the tables
+  of a fare structure and the edges, vertices, stops and routes of the
+  network). Column names, order and values are the same; the types are the
+  Python equivalents in the table above.</li>
+</ul>
+<!-- diff:sf-any-crs -->
+<ul>
+<li><strong>Geometries in another coordinate reference system</strong> (R only). The R
+  package of peabiru reprojects an <code>sf</code> input in any CRS to WGS 84, with a
+  message, where r5r stops with an error. In Python, as in r5r, a
+  <code>GeoDataFrame</code> of points or of scenario polygons or lines must be in
+  EPSG:4326 (a <code>ValueError</code> otherwise): reproject it with
+  <code>GeoDataFrame.to_crs(4326)</code>.</li>
+</ul>
+<!-- diff:network-in-memory -->
+<ul>
+<li><strong>The network lives in memory only.</strong> Nothing is written to the data
+  directory (r5r writes <code>network.dat</code> and <code>gtfs_errors.csv</code> there); a
+  <a class="autorefs autorefs-internal" title="Network" href="../reference/#peabiru.Network"><code>Network</code></a> cannot be pickled and is built again in each
+  process (it takes seconds even for a whole city). <code>overwrite</code> and
+  <code>temp_dir</code> are accepted and checked, and have no effect.</li>
+</ul>
+<!-- diff:n-threads-build -->
+<ul>
+<li><strong><code>build_network()</code> takes <code>n_threads</code></strong>, the threads used to read the
+  <code>.pbf</code>.</li>
+</ul>
+<!-- diff:verbose-progress -->
+<ul>
+<li><strong><code>verbose</code> and <code>progress</code></strong> are checked, but peabiru prints no progress
+  counter; <code>verbose=True</code> only reports the build of the network, on
+  standard error.</li>
+</ul>
+<!-- diff:error-classes -->
+<ul>
+<li><strong>Errors are Python exceptions</strong>, with messages of peabiru's own. The
+  checks of the arguments are the same as r5r's, and most messages read as
+  r5r's (checkmate's and cli's wording) in Python's terms: <code>None</code> for
+  <code>NULL</code>, <code>bool</code>, <code>str</code>, <code>float</code>, <code>int</code> and <code>datetime</code> for R's types,
+  positions counted from 1 as in R, cli's bullets and line breaks dropped,
+  <code>network</code> and <code>peabiru.Network</code> where the network is named. Some are
+  worded differently: r5r turns numbers and logical values given as a mode
+  (<code>mode</code>, <code>mode_egress</code>, <code>by</code>) into text and reports the text as not a
+  mode, where Python reports the value's type; <code>arrival_datetime</code> is
+  checked itself (r5r checks the departure,
+  <code>arrival_datetime - max_trip_duration</code>); <code>all_to_all</code> is named as such
+  (r5r names the internal <code>unique_ids</code>); and a missing <code>fare_cutoffs</code> is
+  the default. The repository checks the 1,367 cases shared by the three
+  packages (<code>bench/compare/argument_errors.json</code>): 1,215 read the same in
+  Python, and 152 are the ones worded differently.
+  Classes: <code>TypeError</code> for an argument of the wrong type,
+  <code>ValueError</code> for an invalid value, <code>RuntimeError</code> for a file that cannot
+  be read or a network that cannot be built, and
+  <a class="autorefs autorefs-internal" title="UnsupportedError" href="../reference/#peabiru.UnsupportedError"><code>peabiru.UnsupportedError</code></a> (a
+  <code>NotImplementedError</code>) for the refusals listed below. Warnings (ids that
+  are not strings, missing coordinates, missing opportunity counts, few
+  services running on the date, ...) are <code>UserWarning</code>s.</li>
+</ul>
+<h3 id="where-peabiru-is-deterministic-and-r5r-is-not">Where peabiru is deterministic and r5r is not<a class="headerlink" href="#where-peabiru-is-deterministic-and-r5r-is-not" title="Permanent link">&para;</a></h3>
+<!-- diff:gtfs-errors-order -->
+<ul>
+<li><strong><a class="autorefs autorefs-internal" title="get_gtfs_errors" href="../reference/#peabiru.get_gtfs_errors"><code>get_gtfs_errors()</code></a> reads the feeds again</strong>
+  (r5r reads the <code>gtfs_errors.csv</code> its <code>build_network()</code> wrote) and lists the
+  rows feed by feed in the order gtfs-lib finds them; r5r's order is that of
+  a Java <code>HashSet</code> and changes from run to run. The rows and columns are the
+  same.</li>
+</ul>
+<!-- diff:elevation-strictmath -->
+<ul>
+<li><strong>Elevation rasters in a projected system.</strong> In a raster that is not in
+  EPSG:4326, r5r reads one pixel or the other for a street point within
+  nanometres (5e-8 m, or 2e-13 degrees) of a pixel boundary or of the
+  raster's edge, depending on the last bits of the JVM's sines and cosines;
+  peabiru reads the pixel Java's <code>StrictMath</code> gives, on every machine, and
+  warns once with the number of such points (see
+  <a href="../elevation/">Elevation</a>).</li>
+</ul>
+<!-- diff:street-expanded -->
+<ul>
+<li><strong>Expanded and arrival matrices need public transport.</strong> With a street
+  mode alone, r5r reports the same trip for every minute of a departure time
+  taken from the computer's clock, not from <code>departure_datetime</code>; peabiru
+  raises <code>UnsupportedError</code> there (use
+  <a class="autorefs autorefs-internal" title="travel_time_matrix" href="../reference/#peabiru.travel_time_matrix"><code>travel_time_matrix()</code></a> for street modes).</li>
+</ul>
+<p>Not a difference: without <code>seed</code>, frequency-based GTFS feeds give random
+results in both packages; with a <code>seed</code>, the draws are the same.</p>
+<h3 id="warnings-peabiru-adds">Warnings peabiru adds<a class="headerlink" href="#warnings-peabiru-adds" title="Permanent link">&para;</a></h3>
+<!-- diff:elevation-wrapped -->
+<ul>
+<li><strong>Voids and out-of-range elevations.</strong> Voids and values beyond
+  +/-3276.7 m are stored wrapped around in both packages (R5 keeps
+  decimetres in 16-bit integers: SRTM's -32768 voids become 0 m, -9999
+  becomes 3108.2 m, and a NaN no-data value is stored as 0 m), so the slope
+  costs are the same; peabiru warns, counting them and the samples equal to
+  the raster's no-data value. r5r is silent. (The <code>StrictMath</code> item above
+  also warns.) r5r warns on every call with a scenario that walking and
+  cycling may be affected by missing elevation; peabiru warns, in its own
+  words, only on a network with elevation.</li>
+</ul>
+<h3 id="errors-where-r5r-fails-later-or-routes-on-corrupted-values">Errors where r5r fails later or routes on corrupted values<a class="headerlink" href="#errors-where-r5r-fails-later-or-routes-on-corrupted-values" title="Permanent link">&para;</a></h3>
+<!-- diff:errors-instead-of-failures -->
+<ul>
+<li><strong>Clear errors instead of failures.</strong> peabiru raises an error of its own,
+  saying what is wrong, where r5r lets a value through and then fails in
+  Java or with an internal R error: an empty <code>percentiles</code>; a missing
+  destination id, or any missing id with <code>output_dir</code> (Java's
+  <code>NullPointerException</code>); an <code>arrival_datetime</code> that is not a <code>datetime</code>;
+  an isochrone <code>polygon_output</code> that is not a boolean, or a fractional
+  <code>zoom</code> (r5r passes it to R5); origins without rows in <code>isochrone()</code>; a
+  <code>carspeed_scale</code> of NaN; an <code>osm_id</code>, <code>max_speed</code> or <code>lts</code> of a scenario
+  table that Java cannot parse (<code>NumberFormatException</code>); a zero-length
+  <code>radius</code> in <code>find_snap()</code>; a fare structure with a column r5r does not
+  know, whose fare type is not in <code>fares_per_type</code> or that misses a route
+  of the network (Java's <code>NullPointerException</code>);
+  <code>write_fare_structure()</code> on a structure that is not one;
+  <code>get_gtfs_errors()</code> on a folder that does not exist.</li>
+</ul>
+<!-- diff:scenario-wrap -->
+<ul>
+<li><strong>Scenarios R5 would corrupt.</strong> Scenarios whose car speeds R5's 16-bit
+  cm/s would wrap or bring to 0 or less (a negative factor or speed in
+  <code>new_carspeeds</code>, a polygon <code>scale</code> of <code>math.inf</code> or 0, a <code>carspeed_scale</code>
+  far above 1) and a <code>carspeed_scale</code> beyond the 32-bit float range are
+  errors; r5r routes on the wrapped speeds, hands R5 Infinity, or fails
+  dividing by zero. Polygons that are not valid, and ties between polygons
+  that peabiru cannot settle exactly as R5 does, are errors too (see
+  <a href="../scenarios/">Scenarios</a>).</li>
+</ul>
+<h3 id="refusals">Refusals<a class="headerlink" href="#refusals" title="Permanent link">&para;</a></h3>
+<p>r5r accepts these; peabiru stops with an error that says so, never
+ignoring the request:</p>
+<!-- diff:refuse-fare-calculators -->
+<ul>
+<li>R5's own fare calculators (a fare structure with a <code>type</code>):
+  <code>UnsupportedError</code>.</li>
+</ul>
+<!-- diff:refuse-elevation-formats -->
+<ul>
+<li>An elevation raster that is not a one-band GeoTIFF, north up,
+  uncompressed or compressed with LZW, Deflate or PackBits, in EPSG:4326 or
+  in a system whose GeoTools transform peabiru reproduces (SIRGAS 2000 4674,
+  SAD69 4618, Corrego Alegre 4225 and their UTM zones used in Brazil,
+  SIRGAS 2000 / Brazil Polyconic 5880, WGS 84 / UTM 32601-32660 and
+  32701-32760, Pseudo-Mercator 3857) given by its EPSG code; a <code>.prj</code> file
+  next to the raster (r5r uses its system instead of the GeoTIFF's); a
+  raster named <code>.tiff</code> (r5r fails on it); more than one raster in the data
+  directory (r5r reads the last one listed); a street point that
+  <code>StrictMath</code> puts on a projected raster's outer edge (r5r fails there
+  too). These are <code>RuntimeError</code>s from <code>build_network()</code>.</li>
+</ul>
+<!-- diff:refuse-multiple-pbf -->
+<ul>
+<li>More than one <code>.pbf</code> file in the data directory (r5r uses one of them):
+  <code>ValueError</code>.</li>
+</ul>
+<!-- diff:output-dir-ids -->
+<ul>
+<li><strong>Ids that cannot name a file, with <code>output_dir</code>.</strong> The files are named
+  after the ids (<code>from_&lt;id&gt;.csv</code>), so an id holding a path separator (<code>/</code> or
+  <code>\</code>) or NUL, and on Windows also <code>&lt; &gt; : " | ? *</code>, raises <code>ValueError</code>
+  naming the id, before anything is routed or written. r5r fails on such an
+  id with Java's <code>FileNotFoundException</code> (<code>a/b</code>, <code>../x</code>) or writes a file of
+  another name (<code>from_a\b.csv</code> on Linux and macOS).
+  <a class="autorefs autorefs-internal" title="trip_options" href="../reference/#peabiru.trip_options"><code>trip_options()</code></a> follows the same rule;
+  <a class="autorefs autorefs-internal" title="detailed_itineraries" href="../reference/#peabiru.detailed_itineraries"><code>detailed_itineraries()</code></a> keeps the check
+  r5r makes.</li>
+</ul>
+<!-- diff:refuse-pareto-output-dir -->
+<ul>
+<li><a class="autorefs autorefs-internal" title="pareto_frontier" href="../reference/#peabiru.pareto_frontier"><code>pareto_frontier()</code></a> with <code>output_dir</code> (r5r
+  writes CSV files): <code>UnsupportedError</code>.</li>
+</ul>
+<!-- diff:car-egress-history -->
+<ul>
+<li><a class="autorefs autorefs-internal" title="detailed_itineraries" href="../reference/#peabiru.detailed_itineraries"><code>detailed_itineraries()</code></a> with
+  <code>mode_egress="CAR"</code>: where a car search crosses a turn restriction with two
+  or more via ways, r5r's itineraries can depend on the searches that ran
+  before (R5 reverses those via edges in place); peabiru returns what r5r
+  gives on a freshly built network for that pair alone with one thread, with
+  a warning naming the pairs some other order would change (see
+  <a href="../itineraries/#car-egress-and-turn-restrictions">Detailed itineraries</a>).
+  In r5r a car matrix, accessibility or Pareto frontier computed after such
+  a call could differ too (none did on Porto Alegre); peabiru's are those of
+  a fresh network.</li>
+</ul>
+<p>(The expanded and arrival matrices by a street mode alone, above, are also
+a refusal.)</p>
+<h3 id="output-details">Output details<a class="headerlink" href="#output-details" title="Permanent link">&para;</a></h3>
+<!-- diff:write-fare-zip -->
+<ul>
+<li><a class="autorefs autorefs-internal" title="write_fare_structure" href="../reference/#peabiru.write_fare_structure"><code>write_fare_structure()</code></a> writes the same
+  CSV files as r5r, deflated in the same order, but the archive's bytes
+  differ from r5r's (which also holds file dates); each package reads the
+  other's files. As in r5r 2.5.0, <code>debug_path</code> and <code>debug_info</code> are kept in
+  the structure and no debug file is written.</li>
+</ul>
+<!-- diff:isochrone-make-valid -->
+<ul>
+<li><a class="autorefs autorefs-internal" title="isochrone" href="../reference/#peabiru.isochrone"><code>isochrone()</code></a> returns the polygons r5r hands to
+  <code>sf::st_make_valid()</code>, vertex for vertex on the same platform, without
+  that last s2 rebuild: they cover the same areas but are not snapped to
+  1e-7 degrees and are always <code>MultiPolygon</code>s. Pass them to
+  <code>shapely.make_valid()</code> if your tools need valid geometries. Line
+  isochrones route to the centroids r5r takes with <code>sf::st_centroid()</code>, to
+  within about 1e-14 degrees.</li>
+</ul>
+<!-- diff:platform-order -->
+<ul>
+<li>Not a difference, but worth knowing: GTFS feeds are loaded in the order
+  in which the operating system lists the directory, as R5 loads them, so
+  with more than one feed the expanded and arrival matrices can differ
+  slightly between macOS and Linux (another stop or route for a few trips),
+  exactly as r5r's do; isochrone rings follow the C++ library isoband is
+  built with (libc++ on macOS, libstdc++ on Linux and Windows), as r5r's.</li>
+</ul>
+<h3 id="only-in-python">Only in Python<a class="headerlink" href="#only-in-python" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Required arguments after optional ones</strong> have a default of <code>None</code>
+  (Python cannot have a required argument after optional ones):
+  <code>arrival_datetime</code> of
+  <a class="autorefs autorefs-internal" title="arrival_travel_time_matrix" href="../reference/#peabiru.arrival_travel_time_matrix"><code>arrival_travel_time_matrix()</code></a>, and
+  <code>fare_structure</code> and <code>fare_cutoffs</code> of
+  <a class="autorefs autorefs-internal" title="pareto_frontier" href="../reference/#peabiru.pareto_frontier"><code>pareto_frontier()</code></a>. Leaving them out is an
+  error, as in r5r.</li>
+<li><strong>Ids</strong> that are not strings are converted with <code>str()</code>, with a warning,
+  as r5r converts them. For integer ids this is what R's <code>as.character()</code>
+  gives; for floating-point ids the text can differ (<code>str(1.0)</code> is <code>"1.0"</code>,
+  R gives <code>"1"</code>).</li>
+<li><strong>Naive datetimes</strong> are read as clock times. For
+  <code>arrival_travel_time_matrix()</code>, <code>arrival_datetime - max_trip_duration</code> is
+  then computed on the clock time; an aware datetime gets R's <code>POSIXct</code>
+  arithmetic on the absolute time (which matters only across a
+  daylight-saving change).</li>
+<li><strong>A route of <a class="autorefs autorefs-internal" title="transit_network_to_sf" href="../reference/#peabiru.transit_network_to_sf"><code>transit_network_to_sf()</code></a>
+  whose line has a single point</strong> (a pattern with one linked stop) is a
+  shapely <code>Point</code>; r5r's <code>sf</code> holds a one-point <code>LINESTRING</code>, which shapely
+  cannot represent.</li>
+</ul>
+<h3 id="the-same-on-purpose">The same on purpose<a class="headerlink" href="#the-same-on-purpose" title="Permanent link">&para;</a></h3>
+<p>Some behaviours that may surprise are R5's or r5r's, and peabiru has them
+too, so that the results are equal:</p>
+<ul>
+<li>walking trips are routed from the destinations when there are more
+  origins than destinations (and no elevation raster), and the columns
+  swapped back;</li>
+<li>the Monte Carlo draws of frequency-based feeds come from R5's random
+  number generator (a Mersenne Twister seeded from <code>seed</code> and the origin's
+  coordinates), so the same <code>seed</code> gives the same numbers;</li>
+<li>accessibility uses the <code>FastMath.exp()</code> of Apache Commons Math that R5
+  calls, which makes the values bit-identical;</li>
+<li>departure times past midnight are written past <code>24:00:00</code>, as R5 writes
+  them, and the expanded and arrival matrices accept at most 5,000
+  destinations, R5's limit;</li>
+<li><code>max_lts</code> defaults to 2 and <code>max_rides</code> to 3;</li>
+<li><code>CAR_PARK</code> and <code>BICYCLE_RENT</code> are rejected;</li>
+<li><a class="autorefs autorefs-internal" title="build_network" href="../reference/#peabiru.build_network"><code>build_network()</code></a> refuses a GTFS feed with
+  errors of priority <code>HIGH</code>;</li>
+<li><a class="autorefs autorefs-internal" title="detailed_itineraries" href="../reference/#peabiru.detailed_itineraries"><code>detailed_itineraries()</code></a> refuses public
+  transport on a network with frequency-based trips, numbers the options
+  in the same order, and gives the same OpenStreetMap ids with
+  <code>osm_link_ids=True</code>;</li>
+<li>with fares, exactly 200 Monte Carlo draws, or too many for the window,
+  are errors (r5r issue 602);</li>
+<li>a call with a scenario routes without slope costs (r5r issue 555).</li>
+</ul>
+<h2 id="from-r5py">From r5py<a class="headerlink" href="#from-r5py" title="Permanent link">&para;</a></h2>
+<p>r5py has an API of its own. The main correspondences, with r5py's names as
+of r5py 1.1.7:</p>
+<table>
+<thead>
+<tr>
+<th>r5py</th>
+<th>peabiru</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TransportNetwork(osm_pbf, gtfs=[...])</code> or <code>TransportNetwork.from_directory(path)</code></td>
+<td><code>build_network(directory)</code>, a directory with one <code>.pbf</code> and the GTFS <code>.zip</code> files</td>
+</tr>
+<tr>
+<td><code>TravelTimeMatrix(network, origins=..., destinations=..., ...)</code></td>
+<td><code>travel_time_matrix(network, origins, destinations, ...)</code></td>
+</tr>
+<tr>
+<td>origins as a <code>GeoDataFrame</code> with <code>id</code> and point geometry</td>
+<td>a <code>DataFrame</code> with <code>id</code>, <code>lon</code>, <code>lat</code>, or the same <code>GeoDataFrame</code></td>
+</tr>
+<tr>
+<td><code>transport_modes=[TransportMode.TRANSIT, TransportMode.WALK]</code></td>
+<td><code>mode=["WALK", "TRANSIT"]</code></td>
+</tr>
+<tr>
+<td><code>departure=datetime(...)</code></td>
+<td><code>departure_datetime=datetime(...)</code></td>
+</tr>
+<tr>
+<td><code>departure_time_window=timedelta(minutes=10)</code></td>
+<td><code>time_window=10</code> (minutes)</td>
+</tr>
+<tr>
+<td><code>max_time=timedelta(hours=2)</code></td>
+<td><code>max_trip_duration=120</code> (minutes)</td>
+</tr>
+<tr>
+<td><code>max_time_walking=timedelta(...)</code></td>
+<td><code>max_walk_time=...</code> (minutes)</td>
+</tr>
+<tr>
+<td><code>speed_walking=3.6</code>, <code>speed_cycling=12.0</code></td>
+<td><code>walk_speed=3.6</code>, <code>bike_speed=12</code></td>
+</tr>
+<tr>
+<td><code>max_bicycle_traffic_stress</code> (default 3)</td>
+<td><code>max_lts</code> (default 2)</td>
+</tr>
+<tr>
+<td><code>max_public_transport_rides</code> (default 8)</td>
+<td><code>max_rides</code> (default 3)</td>
+</tr>
+<tr>
+<td>result column <code>travel_time</code> (with the default <code>percentiles=[50]</code>)</td>
+<td><code>travel_time_p50</code> (always one column per percentile)</td>
+</tr>
+<tr>
+<td><code>TransportNetwork(..., elevation_model="dem.tif", elevation_cost_function=ElevationCostFunction.TOBLER)</code></td>
+<td>a <code>.tif</code> raster in the directory and <code>build_network(directory, elevation="TOBLER")</code> (see <a href="../elevation/">Elevation</a>)</td>
+</tr>
+<tr>
+<td><code>DetailedItineraries(network, origins, destinations, force_all_to_all=True, ...)</code></td>
+<td><code>detailed_itineraries(network, origins, destinations, all_to_all=True, ...)</code></td>
+</tr>
+<tr>
+<td><code>Isochrones(network, origins, isochrones=[timedelta(minutes=15), ...], ...)</code></td>
+<td><code>isochrone(network, origins, cutoffs=[15, ...], ...)</code> (minutes)</td>
+</tr>
+</tbody>
+</table>
+<p>Results are equal to r5py's only where r5py runs the same R5 version with
+the same parameters; peabiru is compared with r5r, not with r5py.</p>
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<p>Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V., and
+Conway, M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport
+Networks with R5 in R. <em>Findings</em>, 21262.
+<a href="https://doi.org/10.32866/001c.21262">doi:10.32866/001c.21262</a></p>
+<p>Conway, M. W., Byrd, A., and van der Linden, M. (2017). Evidence-Based
+Transit and Land Use Sketch Planning Using Interactive Accessibility
+Methods on Combined Schedule and Headway-Based Networks. <em>Transportation
+Research Record</em>, 2653(1), 45-53.
+<a href="https://doi.org/10.3141/2653-06">doi:10.3141/2653-06</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; peabiru authors. Sample map data &copy; OpenStreetMap contributors (ODbL).
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "navigation.sections", "navigation.top", "search.highlight"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

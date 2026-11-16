@@ -1,0 +1,168 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg role="img" aria-labelledby="title desc" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='576.00pt' height='374.40pt' viewBox='0 0 576.0 374.4'>
+<title id="title">Residents of the Recife metropolitan region whose nearest school or health unit on foot is in another municipality</title>
+<desc id="desc">Horizontal bars, one per municipality of the Região Metropolitana do Recife, of the share of its residents whose nearest public school, on the left, and nearest primary health care unit, on the right, by walking time, lies in another municipality.</desc>
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+@media (prefers-color-scheme: dark) {
+[style*="fill: #FFFDF9;"] { fill: #1D2427 !important; }
+[style*="fill: #1F2A2E;"] { fill: #ECE6DA !important; }
+[style*="fill: #4A5A5F;"] { fill: #A9B4B6 !important; }
+[style*="fill: #B4532A;"] { fill: #E98A5C !important; }
+[style*="stroke: #ECE4D6;"] { stroke: #2C3538 !important; }
+}
+</style>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.0;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect x='0.5' y='0.5' width='575.0' height='373.4' rx='9' style='fill: #FFFDF9; stroke: #E1D8C8; stroke-width: 1;'/>
+<defs>
+  <clipPath id='cpMC4wMHw1NzYuMDB8MC4wMHwzNzQuNDA='>
+    <rect x='0.0' y='0.0' width='576.0' height='374.4' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzNzQuNDA=)'>
+<rect x='0.000000000000064' y='-0.000000000000057' width='576.0' height='374.4' style='stroke-width: 0.9; stroke: none; fill: #FFFDF9;' />
+</g>
+<defs>
+  <clipPath id='cpMTEzLjQ5fDMzNC4yOHw3Mi4yMXwzMTcuMTA='>
+    <rect x='113.4' y='72.2' width='220.8' height='244.8' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMTEzLjQ5fDMzNC4yOHw3Mi4yMXwzMTcuMTA=)'>
+<rect x='113.4' y='72.2' width='220.8' height='244.8' style='stroke-width: 0.9; stroke: none;' />
+<path d='M113.4 317.1l0-244.9M168.6 317.1l0-244.9M223.8 317.1l0-244.9' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<rect x='113.4' y='214.8' width='19.5' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='266.5' width='1.6' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='232.0' width='3.9' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='111.3' width='32.1' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='197.5' width='36.5' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='283.8' width='1.3' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='301.0' width='0.2' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='128.6' width='49.5' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='145.8' width='31.7' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='249.3' width='3.0' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='94.1' width='32.0' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='76.8' width='128.4' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='163.1' width='18.6' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='113.4' y='180.3' width='29.1' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<text x='136.1' y='223.1' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>2% ·  1,700</text>
+<text x='117.6' y='274.9' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·      0</text>
+<text x='120.3' y='240.4' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·    700</text>
+<text x='148.6' y='119.6' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>3% ·  4,300</text>
+<text x='153.1' y='205.9' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>3% ·  3,800</text>
+<text x='117.7' y='292.1' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·    100</text>
+<text x='116.2' y='309.3' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·      0</text>
+<text x='166.1' y='136.9' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>4% ·  1,400</text>
+<text x='148.4' y='154.1' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>3% · 18,500</text>
+<text x='119.3' y='257.6' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·    200</text>
+<text x='148.7' y='102.4' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>3% · 10,200</text>
+<text x='245.5' y='85.2' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>12% · 39,800</text>
+<text x='135.3' y='171.4' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>2% · 25,200</text>
+<text x='145.6' y='188.6' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>3% ·  2,900</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzNzQuNDA=)'>
+</g>
+<defs>
+  <clipPath id='cpMzM5LjI2fDU2MC4wNnw3Mi4yMXwzMTcuMTA='>
+    <rect x='339.2' y='72.2' width='220.8' height='244.8' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMzM5LjI2fDU2MC4wNnw3Mi4yMXwzMTcuMTA=)'>
+<rect x='339.2' y='72.2' width='220.8' height='244.8' style='stroke-width: 0.9; stroke: none;' />
+<path d='M339.2 317.1l0-244.9M394.4 317.1l0-244.9M449.6 317.1l0-244.9' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<rect x='339.2' y='214.8' width='11.3' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='266.5' width='0.5' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='232.0' width='1.7' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='111.3' width='56.4' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='197.5' width='11.3' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='283.8' width='0.5' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='301.0' width='0.2' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='128.6' width='25.4' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='145.8' width='28.2' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='249.3' width='0.039' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='94.1' width='96.5' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='76.8' width='102.8' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='163.1' width='40.7' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<rect x='339.2' y='180.3' width='29.4' height='11.3' style='stroke-width: 0.9; stroke: none; stroke-linecap: butt; stroke-linejoin: miter; fill: #B4532A;' />
+<text x='353.6' y='223.1' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>1% ·  1,000</text>
+<text x='342.3' y='274.9' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·      0</text>
+<text x='343.8' y='240.4' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·    300</text>
+<text x='398.7' y='119.6' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>5% ·  7,600</text>
+<text x='353.6' y='205.9' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>1% ·  1,200</text>
+<text x='342.3' y='292.1' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·      0</text>
+<text x='342.1' y='309.3' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·      0</text>
+<text x='367.5' y='136.9' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>2% ·    700</text>
+<text x='370.7' y='154.1' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>3% · 16,500</text>
+<text x='341.8' y='257.6' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>0% ·      0</text>
+<text x='439.0' y='102.4' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>9% · 30,600</text>
+<text x='445.3' y='85.2' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>9% · 31,900</text>
+<text x='383.2' y='171.4' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>4% · 54,900</text>
+<text x='371.7' y='188.6' style='font-size: 7.40px;fill: #1F2A2E; font-family: "Helvetica Neue";'>3% ·  3,000</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzNzQuNDA=)'>
+</g>
+<defs>
+  <clipPath id='cpMTEzLjQ5fDMzNC4yOHw1NS4wMXw3Mi4yMQ=='>
+    <rect x='113.4' y='55.0' width='220.8' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMTEzLjQ5fDMzNC4yOHw1NS4wMXw3Mi4yMQ==)'>
+<text x='117.4' y='67.1' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Nearest public school</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzNzQuNDA=)'>
+</g>
+<defs>
+  <clipPath id='cpMzM5LjI2fDU2MC4wNnw1NS4wMXw3Mi4yMQ=='>
+    <rect x='339.2' y='55.0' width='220.8' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMzM5LjI2fDU2MC4wNnw1NS4wMXw3Mi4yMQ==)'>
+<text x='343.2' y='67.1' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Nearest primary health care unit</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzNzQuNDA=)'>
+<text x='113.4' y='327.2' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0%</text>
+<text x='168.6' y='327.2' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>5%</text>
+<text x='223.8' y='327.2' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10%</text>
+<text x='339.2' y='327.2' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0%</text>
+<text x='394.4' y='327.2' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>5%</text>
+<text x='449.6' y='327.2' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10%</text>
+<text x='109.0' y='309.6' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Ilha de Itamaracá</text>
+<text x='109.0' y='292.3' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Ipojuca</text>
+<text x='109.0' y='275.1' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Araçoiaba</text>
+<text x='109.0' y='257.8' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Moreno</text>
+<text x='109.0' y='240.6' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Cabo de Santo Agostinho</text>
+<text x='109.0' y='223.3' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Abreu e Lima</text>
+<text x='109.0' y='206.1' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Igarassu</text>
+<text x='109.0' y='188.8' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>São Lourenço da Mata</text>
+<text x='109.0' y='171.6' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Recife</text>
+<text x='109.0' y='154.4' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Jaboatão dos Guararapes</text>
+<text x='109.0' y='137.1' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Itapissuma</text>
+<text x='109.0' y='119.9' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Camaragibe</text>
+<text x='109.0' y='102.6' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Olinda</text>
+<text x='109.0' y='85.4' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Paulista</text>
+<text x='15.9' y='37.1' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Região Metropolitana do Recife as one street network (14 municipalities); walking, with slope costs.</text>
+<text x='15.9' y='47.9' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Share of each municipality's residents with a unit strictly nearer across the border, and their number</text>
+<text x='15.9' y='22.5' style='font-size: 12.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Residents whose nearest unit, on foot, is in another municipality</text>
+<text x='15.9' y='339.6' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Streets © OpenStreetMap contributors (ODbL), Geofabrik extract of 2026-11-01. Elevation: Copernicus DEM</text>
+<text x='15.9' y='350.2' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by</text>
+<text x='15.9' y='360.7' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>the European Union and ESA. Boundaries and population: IBGE, Censo 2022. Schools: INEP. Health units: CNES.</text>
+</g>
+</g>
+</svg>

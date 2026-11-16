@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>peabiru: isochrones in the browser</title>
+<meta name="description" content="An interactive isochrone map computed in your browser by peabiru, a routing engine compiled to WebAssembly: click a point, pick a mode, and see the areas reached in a few minutes.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/brand.css">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous">
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../assets/logo-mark.svg" alt="">peabiru</a>
+    <nav aria-label="Documentation">
+      <a href="../r/">R</a>
+      <a href="../python/">Python</a>
+      <a href="../rust/">Rust</a>
+      <a href="../js/">JavaScript</a>
+      <a href="../benchmarks.html">Benchmarks</a>
+      <a href="https://github.com/StrategicProjects/peabiru-routing">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap demo">
+  <h1>Isochrones in the browser</h1>
+  <p class="lead">The isochrones on this map are computed here, in your browser, by the peabiru npm
+  package compiled to WebAssembly: the network is built from an OpenStreetMap extract and GTFS
+  feeds, and every click routes from the point you chose. No routing request leaves the page.</p>
+
+  <form class="controls" id="controls" aria-label="Isochrone options">
+    <label>City
+      <select id="city">
+        <option value="spo">São Paulo, Avenida Paulista (0.2 MB)</option>
+        <option value="poa">Porto Alegre (2 MB, from GitHub)</option>
+        <option value="recife">Recife, streets only (2.8 MB)</option>
+        <option value="caruaru">Caruaru, urban area, streets only (0.6 MB)</option>
+      </select>
+    </label>
+    <fieldset class="modes">
+      <legend>Mode</legend>
+      <label><input type="radio" name="mode" value="WALK" checked> Walk</label>
+      <label><input type="radio" name="mode" value="BICYCLE"> Bicycle</label>
+      <label><input type="radio" name="mode" value="CAR"> Car</label>
+      <label><input type="radio" name="mode" value="WALK,TRANSIT"> Walk + public transport</label>
+    </fieldset>
+    <label>Minutes
+      <select id="cutoffs"></select>
+    </label>
+    <label>Departure (Monday 13 May 2019)
+      <input id="time" type="time" value="14:00" step="60">
+    </label>
+    <label class="switch" title="Tiles of OpenFreeMap under the isochrones; without them the map is the street network peabiru built">
+      <input id="basemap" type="checkbox" checked>
+      <span>Background map</span>
+    </label>
+  </form>
+
+  <div class="map-wrap">
+    <div id="map" role="application" aria-label="Map of the selected city, which can be dragged and zoomed; isochrones appear around the point you click."></div>
+    <div class="legend" id="legend" aria-live="polite"></div>
+    <button type="button" class="fit" id="fit" title="Show the whole network">Whole network</button>
+  </div>
+  <p class="status" id="status" role="status">Loading the WebAssembly module…</p>
+
+  <section class="notes" aria-labelledby="how">
+    <h2 id="how">How this page works</h2>
+    <p>The page loads the <a href="../js/">peabiru npm package</a> as a plain ES module, fetches
+    the <code>.pbf</code> and GTFS <code>.zip</code> files of the city, and calls
+    <code>buildNetwork()</code> once. Each click calls <code>isochrone()</code> with the chosen
+    mode and cutoffs and hands the GeoJSON polygons to
+    <a href="https://maplibre.org/">MapLibre GL JS</a>, which draws them and lets the map be
+    dragged and zoomed. The background map is there to recognise the city: its tiles come from
+    <a href="https://openfreemap.org/">OpenFreeMap</a>, the only requests the page makes after
+    loading (they say which part of the map is on screen, never where you clicked). Switch it
+    off and the map is the street network peabiru built, as returned by
+    <code>isochrone(…, { polygonOutput: false })</code>: the thin lines that also show, under the
+    background map, where the network ends. The demo's networks are small on purpose (they are
+    downloaded when the page opens), so the map is dimmed beyond the dashed line that surrounds
+    each one, and a click only moves the origin where <code>findSnap()</code> finds a street to
+    start from; otherwise the page says so and keeps the previous origin. Public transport uses the median of the departures in the
+    10 minutes from the chosen time; the Porto Alegre bus feed only has trips from late morning
+    to early evening, so pick a time between 12:00 and 17:00 there. Recife and Caruaru have
+    streets only: no open GTFS feed was found for either, so public transport is not offered
+    there; their extracts are Recife's municipality, as cut by IBGE's boundary, and Caruaru's
+    urban area (14 × 12 km around the centre), without buildings
+    (the <a href="../r/articles/recife-caruaru.html">Recife and Caruaru example</a> explains
+    how they are made). No elevation raster is used here, so walking and cycling on Caruaru's
+    hills are faster than in reality. The code is in
+    <a href="https://github.com/StrategicProjects/peabiru-routing/tree/main/site/demo">site/demo</a>,
+    and the <a href="../js/examples.html">JavaScript guide</a> walks through it.</p>
+    <p class="muted">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL);
+    background map by <a href="https://openfreemap.org/">OpenFreeMap</a>, © <a href="https://openmaptiles.org/">OpenMapTiles</a>.
+    GTFS: SPTrans (São Paulo), EPTC and Trensurb (Porto Alegre), as cut for the sample data of
+    <a href="https://github.com/ipea/r5r">r5r</a>, from whose repository the Porto Alegre files are
+    downloaded when chosen. Recife and Caruaru: cut from Geofabrik's extract of the Nordeste of
+    2026-11-01 (Recife with its municipal boundary, from IBGE).</p>
+  </section>
+</main>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
+<script type="module" src="demo.mjs"></script>
+</body>
+</html>

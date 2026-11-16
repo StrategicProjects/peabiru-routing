@@ -1,0 +1,171 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<svg role="img" aria-labelledby="title desc" xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='576.00pt' height='316.80pt' viewBox='0 0 576.0 316.8'>
+<title id="title">Average cycling time to the nearest health unit by traffic stress and slope, Salvador, Olinda and Recife</title>
+<desc id="desc">Line charts, one per city, of the average cycling time from residents to the nearest primary health care unit as the highest level of traffic stress ridden goes from 1 to 4, on flat ground and with slopes: stress costs more than slope.</desc>
+<style>
+text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+@media (prefers-color-scheme: dark) {
+[style*="fill: #FFFDF9;"] { fill: #1D2427 !important; }
+[style*="fill: #1F2A2E;"] { fill: #ECE6DA !important; }
+[style*="fill: #4A5A5F;"] { fill: #A9B4B6 !important; }
+[style*="fill: #B4532A;"] { fill: #E98A5C !important; }
+[style*="fill: #8DB9A0;"] { fill: #3E7C5E !important; }
+[style*="stroke: #ECE4D6;"] { stroke: #2C3538 !important; }
+[style*="stroke: #B4532A;"] { stroke: #E98A5C !important; }
+[style*="stroke: #8DB9A0;"] { stroke: #3E7C5E !important; }
+}
+</style>
+<g class='svglite'>
+<defs>
+  <style type='text/css'><![CDATA[
+    .svglite line, .svglite polyline, .svglite polygon, .svglite path, .svglite rect, .svglite circle {
+      fill: none;
+      stroke: #000000;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-miterlimit: 10.0;
+    }
+    .svglite text {
+      white-space: pre;
+    }
+    .svglite g.glyphgroup path {
+      fill: inherit;
+      stroke: none;
+    }
+  ]]></style>
+</defs>
+<rect x='0.5' y='0.5' width='575.0' height='315.8' rx='9' style='fill: #FFFDF9; stroke: #E1D8C8; stroke-width: 1;'/>
+<defs>
+  <clipPath id='cpMC4wMHw1NzYuMDB8MC4wMHwzMTYuODA='>
+    <rect x='0.0' y='0.0' width='576.0' height='316.8' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzMTYuODA=)'>
+<rect x='0.0' y='-0.000000000000057' width='576.0' height='316.8' style='stroke-width: 0.9; stroke: none; fill: #FFFDF9;' />
+</g>
+<defs>
+  <clipPath id='cpNDcuNzJ8MjE1LjE4fDkyLjE0fDI0Ny43OA=='>
+    <rect x='47.7' y='92.1' width='167.4' height='155.6' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDcuNzJ8MjE1LjE4fDkyLjE0fDI0Ny43OA==)'>
+<rect x='47.7' y='92.1' width='167.4' height='155.6' style='stroke-width: 0.9; stroke: none;' />
+<path d='M47.7 247.7l167.4 0M47.7 209.9l167.4 0M47.7 172l167.4 0M47.7 134.1l167.4 0M47.7 96.2l167.4 0M61.6 247.7l0-155.6M108.1 247.7l0-155.6M154.7 247.7l0-155.6M201.2 247.7l0-155.6' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<path d='M61.6 115.2l46.5 14.2 46.6 4.2 46.5 33.2' style='stroke-width: 1.7; stroke: #8DB9A0; stroke-linecap: butt; fill: none;' />
+<path d='M61.6 103.6l46.5 15.5 46.6 4.5 46.5 36.2' style='stroke-width: 1.7; stroke: #B4532A; stroke-linecap: butt; fill: none;' />
+<circle cx='61.6' cy='115.2' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='61.6' cy='103.6' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='108.1' cy='129.4' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='108.1' cy='119.1' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='154.7' cy='133.6' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='154.7' cy='123.6' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='201.2' cy='166.8' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='201.2' cy='159.8' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzMTYuODA=)'>
+</g>
+<defs>
+  <clipPath id='cpMjIwLjE2fDM4Ny42Mnw5Mi4xNHwyNDcuNzg='>
+    <rect x='220.1' y='92.1' width='167.4' height='155.6' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMjIwLjE2fDM4Ny42Mnw5Mi4xNHwyNDcuNzg=)'>
+<rect x='220.1' y='92.1' width='167.4' height='155.6' style='stroke-width: 0.9; stroke: none;' />
+<path d='M220.1 247.7l167.5 0M220.1 209.9l167.5 0M220.1 172l167.5 0M220.1 134.1l167.5 0M220.1 96.2l167.5 0M234.1 247.7l0-155.6M280.6 247.7l0-155.6M327.1 247.7l0-155.6M373.6 247.7l0-155.6' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<path d='M234.1 172.3l46.5 12.7 46.5 .3 46.5 10.2' style='stroke-width: 1.7; stroke: #8DB9A0; stroke-linecap: butt; fill: none;' />
+<path d='M234.1 169.2l46.5 13.5 46.5 .4 46.5 10.3' style='stroke-width: 1.7; stroke: #B4532A; stroke-linecap: butt; fill: none;' />
+<circle cx='234.1' cy='172.3' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='234.1' cy='169.2' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='280.6' cy='185.0' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='280.6' cy='182.7' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='327.1' cy='185.3' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='327.1' cy='183.1' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='373.6' cy='195.5' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='373.6' cy='193.4' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzMTYuODA=)'>
+</g>
+<defs>
+  <clipPath id='cpMzkyLjYwfDU2MC4wNnw5Mi4xNHwyNDcuNzg='>
+    <rect x='392.6' y='92.1' width='167.4' height='155.6' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMzkyLjYwfDU2MC4wNnw5Mi4xNHwyNDcuNzg=)'>
+<rect x='392.6' y='92.1' width='167.4' height='155.6' style='stroke-width: 0.9; stroke: none;' />
+<path d='M392.6 247.7l167.4 0M392.6 209.9l167.4 0M392.6 172l167.4 0M392.6 134.1l167.4 0M392.6 96.2l167.4 0M406.5 247.7l0-155.6M453 247.7l0-155.6M499.5 247.7l0-155.6M546.1 247.7l0-155.6' style='stroke-width: 0.8; stroke: #ECE4D6; stroke-linecap: butt; fill: none;' />
+<path d='M406.5 148.5l46.5 14.8 46.5 1.7 46.6 22.5' style='stroke-width: 1.7; stroke: #8DB9A0; stroke-linecap: butt; fill: none;' />
+<path d='M406.5 144.7l46.5 15.5 46.5 1.9 46.6 23.8' style='stroke-width: 1.7; stroke: #B4532A; stroke-linecap: butt; fill: none;' />
+<circle cx='406.5' cy='148.5' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='406.5' cy='144.7' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='453.0' cy='163.3' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='453.0' cy='160.2' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='499.5' cy='165.0' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='499.5' cy='162.1' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<circle cx='546.1' cy='187.5' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<circle cx='546.1' cy='185.9' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzMTYuODA=)'>
+</g>
+<defs>
+  <clipPath id='cpNDcuNzJ8MjE1LjE4fDc0Ljk0fDkyLjE0'>
+    <rect x='47.7' y='74.9' width='167.4' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpNDcuNzJ8MjE1LjE4fDc0Ljk0fDkyLjE0)'>
+<text x='51.7' y='87.1' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Salvador</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzMTYuODA=)'>
+</g>
+<defs>
+  <clipPath id='cpMjIwLjE2fDM4Ny42Mnw3NC45NHw5Mi4xNA=='>
+    <rect x='220.1' y='74.9' width='167.4' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMjIwLjE2fDM4Ny42Mnw3NC45NHw5Mi4xNA==)'>
+<text x='224.1' y='87.1' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Olinda</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzMTYuODA=)'>
+</g>
+<defs>
+  <clipPath id='cpMzkyLjYwfDU2MC4wNnw3NC45NHw5Mi4xNA=='>
+    <rect x='392.6' y='74.9' width='167.4' height='17.2' />
+  </clipPath>
+</defs>
+<g clip-path='url(#cpMzkyLjYwfDU2MC4wNnw3NC45NHw5Mi4xNA==)'>
+<text x='396.5' y='87.1' style='font-size: 10.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Recife</text>
+</g>
+<g clip-path='url(#cpMC4wMHw1NzYuMDB8MC4wMHwzMTYuODA=)'>
+<text x='61.6' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1</text>
+<text x='108.1' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>2*</text>
+<text x='154.7' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>3</text>
+<text x='201.2' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>4</text>
+<text x='234.1' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1</text>
+<text x='280.6' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>2*</text>
+<text x='327.1' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>3</text>
+<text x='373.6' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>4</text>
+<text x='406.5' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>1</text>
+<text x='453.0' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>2*</text>
+<text x='499.5' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>3</text>
+<text x='546.1' y='257.9' text-anchor='middle' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>4</text>
+<text x='43.2' y='250.6' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>0.0</text>
+<text x='43.2' y='212.7' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>2.5</text>
+<text x='43.2' y='174.8' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>5.0</text>
+<text x='43.2' y='137.0' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>7.5</text>
+<text x='43.2' y='99.1' text-anchor='end' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>10.0</text>
+<text x='303.8' y='269.2' text-anchor='middle' style='font-size: 10.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>max_lts: 1 = calm streets only, 4 = any street</text>
+<text transform='translate(23.0,169.9) rotate(-90)' text-anchor='middle' style='font-size: 10.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>minutes</text>
+<line x1='48.7' y1='60.0' x2='56.6' y2='60.0' style='stroke-width: 1.7; stroke: #8DB9A0; stroke-linecap: butt;' />
+<circle cx='52.7' cy='60.0' r='2.4' style='stroke-width: 0.6; stroke: #8DB9A0; fill: #8DB9A0;' />
+<line x1='81.8' y1='60.0' x2='89.8' y2='60.0' style='stroke-width: 1.7; stroke: #B4532A; stroke-linecap: butt;' />
+<circle cx='85.8' cy='60.0' r='2.4' style='stroke-width: 0.6; stroke: #B4532A; fill: #B4532A;' />
+<text x='62.6' y='62.8' style='font-size: 8.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>Flat</text>
+<text x='95.7' y='62.8' style='font-size: 8.00px;fill: #1F2A2E; font-family: "Helvetica Neue";'>With slopes (Tobler)</text>
+<text x='15.9' y='37.1' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Average minutes over the residents, by the highest level of traffic stress ridden (max_lts; on </text>
+<text x='15.9' y='47.9' style='font-size: 10.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>busier streets the bicycle is walked; * the default); flat and with Tobler's slope costs</text>
+<text x='15.9' y='22.5' style='font-size: 12.00px; font-weight: bold;fill: #1F2A2E; font-family: "Helvetica Neue";'>Cycling to the nearest health unit: traffic stress and slope</text>
+<text x='15.9' y='282.0' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>Streets © OpenStreetMap contributors (ODbL), Geofabrik extract of 2026-11-01. Elevation: Copernicus DEM</text>
+<text x='15.9' y='292.6' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>GLO-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by</text>
+<text x='15.9' y='303.1' style='font-size: 8.00px;fill: #4A5A5F; font-family: "Helvetica Neue";'>the European Union and ESA. Boundaries and population: IBGE, Censo 2022. Schools: INEP. Health units: CNES.</text>
+</g>
+</g>
+</svg>
