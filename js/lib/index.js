@@ -63,7 +63,7 @@ const RAW = {
 };
 
 /** Version of this package. */
-export const version = "0.1.6";
+export const version = "0.1.7";
 
 /** Missing value in the Int32Array columns of the results. */
 export const NA_INT32 = -2147483648;
@@ -3317,8 +3317,11 @@ export function distanceMatrix(origins, destinations, options) {
  * facility adds in each group.
  */
 export function allocateBudget(curves, options) {
-  const opt = { budget: undefined, groups: null, criterion: "utilitarian", ...(options ?? {}) };
-  const unknown = Object.keys(opt).filter((k) => !["budget", "groups", "criterion"].includes(k));
+  const opt = {
+    budget: undefined, groups: null, criterion: "utilitarian", weights: null, tiers: null, eligible: null,
+    ...(options ?? {}),
+  };
+  const unknown = Object.keys(opt).filter((k) => !["budget", "groups", "criterion", "weights", "tiers", "eligible"].includes(k));
   if (unknown.length) throw new RangeError(`allocateBudget(): unknown option '${unknown[0]}'.`);
   assertCount(opt.budget, "budget", true);
   assertString(opt.criterion, "criterion");
@@ -3371,6 +3374,27 @@ export function allocateBudget(curves, options) {
     const given = columnOf(opt.groups, "covered", "groups");
     covered = given === null ? ids.map(() => 0) : numbers(given, "groups.covered");
   }
+  const rule = (name) => {
+    const columnName = opt[name];
+    if (columnName === null || columnName === undefined) return null;
+    assertString(columnName, name);
+    if (!known) throw new RangeError(`Assertion on ${name} failed: must be null without \`groups\` (it names a column of \`groups\`).`);
+    const col = columnOf(opt.groups, columnName, "groups");
+    if (col === null) throw new RangeError(`Assertion on '${name}' failed: \`groups\` has no column "${columnName}".`);
+    return col;
+  };
+  const weight = rule("weights") ?? ids.map(() => 1);
+  if (!weight.every((w) => typeof w === "number" && Number.isFinite(w) && w > 0)) {
+    fail(`groups.${opt.weights}`, "Must be finite and greater than 0");
+  }
+  const tier = rule("tiers") ?? ids.map(() => 0);
+  if (!tier.every((t) => Number.isInteger(t) && t >= 0 && t < 2 ** 31)) {
+    fail(`groups.${opt.tiers}`, "Must be whole numbers from 0");
+  }
+  const open = rule("eligible") ?? ids.map(() => true);
+  if (!open.every((e) => typeof e === "boolean")) {
+    fail(`groups.${opt.eligible}`, "Must be booleans, with no missing values");
+  }
   const index = new Map(ids.map((g, k) => [g, k]));
   const at = own.map((g) => index.get(g));
   const rows = own.map((_, k) => k).sort((a, b) => at[a] - at[b] || rank[a] - rank[b] || a - b);
@@ -3387,11 +3411,12 @@ export function allocateBudget(curves, options) {
     res = rawAllocateBudget(
       Float64Array.from(rows, (k) => gains[k]), lengths, Float64Array.from(covered), Float64Array.from(total),
       Math.round(opt.budget), opt.criterion,
+      Float64Array.from(weight), Uint32Array.from(tier), Uint8Array.from(open, (e) => (e ? 1 : 0)),
     );
   } catch (err) {
     throw engineError(err);
   }
-  const [group, gain, coveredAfter, lowest, units] = res;
+  const [group, gain, coveredAfter, lowest, units, priority] = res;
   const gained = ids.map(() => 0);
   group.forEach((g, k) => { gained[g] += gain[k]; });
   return {
@@ -3408,6 +3433,7 @@ export function allocateBudget(curves, options) {
       gained: Float64Array.from(gained),
       covered: Float64Array.from(ids, (_, g) => covered[g] + gained[g]),
       share: Float64Array.from(ids, (_, g) => (!known ? NaN : total[g] > 0 ? (covered[g] + gained[g]) / total[g] : 1)),
+      priority: Array.from(priority, (k) => (k < 0 ? null : k + 1)),
     },
   };
 }

@@ -3,6 +3,23 @@
 Changes of the Rust crate `peabiru-core`, the command-line tool, and the
 Python and JavaScript packages. The R package has its own `r/NEWS.md`.
 
+## 0.1.7
+
+### Facility location (all packages)
+
+- `allocate_budget()` (`allocateBudget()` in JavaScript) takes three
+  columns of `groups`, named in `weights`, `tiers` and `eligible`: a weight
+  per group (the utilitarian criterion multiplies the gains by it and
+  stays exact for the weighted sum; maximin divides the share covered by
+  it), a priority tier per group (the lowest first; within the tier the
+  criterion decides) and whether the group may receive facilities at all.
+  The result is never weighted and takes in every group, so runs with and
+  without the columns can be compared.
+- The `groups` table of the result has `priority`: the order in which the
+  groups get their first facility.
+- In the core: `allocate_budget_with` and `BudgetRules`;
+  `BudgetAllocation::priority`. `allocate_budget` is unchanged.
+
 ## 0.1.6
 
 ### Facility location (all packages)

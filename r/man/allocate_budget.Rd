@@ -4,7 +4,15 @@
 \alias{allocate_budget}
 \title{Share a budget of facilities among groups}
 \usage{
-allocate_budget(curves, budget, groups = NULL, criterion = "utilitarian")
+allocate_budget(
+  curves,
+  budget,
+  groups = NULL,
+  criterion = "utilitarian",
+  weights = NULL,
+  tiers = NULL,
+  eligible = NULL
+)
 }
 \arguments{
 \item{curves}{A \code{data.frame} with one row per facility of each group:
@@ -22,6 +30,16 @@ not wanted; required by \code{"maximin"}. A group may have no row in
 \code{curves}.}
 
 \item{criterion}{\code{"utilitarian"} or \code{"maximin"}.}
+
+\item{weights}{The name of a column of \code{groups} with the weight of
+each group, above zero. \code{NULL} (default): every group weighs 1.}
+
+\item{tiers}{The name of a column of \code{groups} with the priority tier
+of each group, a whole number from 0, the lowest served first. \code{NULL}
+(default): one tier.}
+
+\item{eligible}{The name of a logical column of \code{groups}: whether each
+group may receive facilities. \code{NULL} (default): all may.}
 }
 \value{
 A list of two tables:
@@ -32,7 +50,10 @@ after it, what was covered before included) and \code{lowest_share} (the
 lowest share covered among the groups after it; \code{NA} without
 \code{groups}). The first \code{k} rows are the answer for a budget of \code{k}.
 \item \code{groups}: one row per group: \code{group}, \code{units} (how many facilities it
-gets), \code{gained}, \code{covered} and \code{share} (\code{NA} without \code{groups}).
+gets), \code{gained}, \code{covered}, \code{share} (\code{NA} without \code{groups}) and
+\code{priority} (the order in which the groups get their first facility:
+1 for the first group to receive one, \code{NA} for a group that gets
+none).
 
 Tables are tibbles by default; \code{options(peabiru.output = "data.frame")} gives base \code{data.frame}s and \code{options(peabiru.output = "data.table")} gives \code{data.table}s (see \link{peabiru-package}).
 }
@@ -59,6 +80,32 @@ to the group listed first. The difference between the \code{covered} of the
 two criteria for the same budget is what the fairer allocation costs
 (Bertsimas, Farias and Trichakis, 2011).
 }
+\section{Weights, priority tiers and groups left out}{
+
+Three columns of \code{groups}, named in \code{weights}, \code{tiers} and \code{eligible},
+change who comes first.
+\itemize{
+\item \code{weights}: how much the demand of each group counts (say 2 where the
+need is most urgent, 1 elsewhere). \code{"utilitarian"} multiplies the
+gains of a group by its weight; as the weighted gains still do not
+increase, this is the largest weighted sum for every budget.
+\code{"maximin"} divides the share covered of a group by its weight, so
+that a group of weight 2 at 60\% is served before one of weight 1 at
+40\%.
+\item \code{tiers}: whole numbers, the lowest first. A facility only goes to a
+group when no group of a lower tier has one left to open that adds
+anything; within the tier the criterion decides. With \code{"maximin"}
+this is "the worst covered among the most urgent first".
+\item \code{eligible}: \code{FALSE} for the groups that get no facility. They stay in
+the result with zero units and count in \code{covered} and in
+\code{lowest_share}.
+}
+
+The result is never weighted: \code{marginal}, \code{covered}, \code{gained} and the
+shares are demand as given, so that runs with and without the columns
+can be compared.
+}
+
 \examples{
 curves <- data.frame(
   group = c("north", "north", "north", "south", "south"),
@@ -68,6 +115,12 @@ groups <- data.frame(group = c("north", "south"), covered = c(1000, 0),
                      total = c(2000, 1000))
 allocate_budget(curves, budget = 3, groups = groups)$steps
 allocate_budget(curves, budget = 3, groups = groups, criterion = "maximin")$steps
+
+# the south counts double; then the north first, whatever it adds
+groups$weight <- c(1, 2)
+groups$tier <- c(0, 1)
+allocate_budget(curves, budget = 3, groups = groups, weights = "weight")$groups
+allocate_budget(curves, budget = 3, groups = groups, tiers = "tier")$groups
 }
 \references{
 Bertsimas D, Farias VF, Trichakis N (2011). "The price of fairness."

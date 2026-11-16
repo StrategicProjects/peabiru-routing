@@ -815,6 +815,8 @@ Share a budget of facilities among groups (municipalities, districts), given wha
 
 With `"utilitarian"` each facility goes where the next one adds most, which covers the most demand possible for every budget, since the gains of a group do not increase (marginal analysis). With `"maximin"` each goes to the group with the lowest share of its demand covered that still has a facility to open, which gives the highest possible lowest share. Ties go to the larger gain, then to the group listed first. The difference between the `covered` of the two criteria is what the fairer allocation costs. Synchronous (after `init()` in a browser).
 
+Three columns of `groups`, named in `weights`, `tiers` and `eligible`, change who comes first: a weight per group (the weighted gains still do not increase, so `"utilitarian"` gives the largest weighted sum for every budget), a priority tier per group (the lowest first; within the tier the criterion decides) and whether the group may receive facilities at all. The result is never weighted: gains, demand covered and shares are demand as given, over every group.
+
 ```js
 const curves = {
   group: ["north", "north", "north", "south", "south"],
@@ -824,6 +826,11 @@ const groups = { group: ["north", "south"], covered: [1000, 0], total: [2000, 10
 const most = peabiru.allocateBudget(curves, { budget: 3, groups });
 const fair = peabiru.allocateBudget(curves, { budget: 3, groups, criterion: "maximin" });
 console.log(most.steps.group, fair.steps.group);
+// the south counts double
+const weighted = peabiru.allocateBudget(curves, {
+  budget: 3, groups: { ...groups, weight: [1, 2] }, weights: "weight",
+});
+console.log(weighted.groups.priority);
 ```
 
 ### AllocateBudgetOptions {#AllocateBudgetOptions}
@@ -839,6 +846,9 @@ Options of `allocateBudget()`.
 - `budget: number`: How many facilities to share out. Fewer are given when the groups have no more facilities that add anything. Required.
 - `groups?: Table | null`: One row per group: `group`, `total` (its demand) and, optionally, `covered` (the demand covered before any new facility; 0 without the column). Required by `"maximin"`; without it the shares are NaN. A group may have no row in the curves.
 - `criterion?: "utilitarian" | "maximin"`: `"utilitarian"` (default): each facility where it adds most. `"maximin"`: each facility to the group with the lowest share of its demand covered.
+- `weights?: string | null`: The name of a column of `groups` with the weight of each group, above zero (default: every group weighs 1). `"utilitarian"` multiplies the gains of a group by its weight; `"maximin"` divides its share covered by it.
+- `tiers?: string | null`: The name of a column of `groups` with the priority tier of each group, a whole number from 0, the lowest served first (default: one tier). A facility only goes to a group when no group of a lower tier has one left to open that adds anything.
+- `eligible?: string | null`: The name of a column of booleans of `groups`: whether each group may receive facilities (default: all may). The others get none and still count in `covered` and in `lowest_share`.
 
 ### BudgetAllocation {#BudgetAllocation}
 
@@ -851,7 +861,7 @@ export interface BudgetAllocation
 The result of `allocateBudget()`: two tables as objects of columns.
 
 - `steps: { order: Int32Array; group: string[]; marginal: Float64Array; covered: Float64Array; lowest_share: Float64Array }`: One row per facility, in the order they are given: the demand covered in all the groups after it (what was covered before included) and the lowest share covered among the groups (NaN without `groups`). The first `k` rows are the answer for a budget of `k`.
-- `groups: { group: string[]; units: Int32Array; gained: Float64Array; covered: Float64Array; share: Float64Array }`: One row per group: how many facilities it gets, what they add, the demand covered and its share (NaN without `groups`).
+- `groups: { group: string[]; units: Int32Array; gained: Float64Array; covered: Float64Array; share: Float64Array; priority: Array<number | null> }`: One row per group: how many facilities it gets, what they add, the demand covered, its share (NaN without `groups`) and `priority`, the order in which the groups get their first facility (1 for the first group to receive one, `null` for a group that gets none).
 
 ### Table {#Table}
 

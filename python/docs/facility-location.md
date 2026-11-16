@@ -261,6 +261,60 @@ lowest share from 85.4% to 86.1%: that difference is the price of fairness
 (Bertsimas, Farias and Trichakis, 2011), and the `steps` of the two
 criteria give it for every budget.
 
+### Weights, priority tiers and areas left out
+
+Three columns of `groups` change who comes first, each named in an
+argument:
+
+- `weights`: how much the demand of each area counts, say 2 where the need
+  is most urgent and 1 elsewhere. The first criterion then multiplies what
+  a facility adds by the weight of its area (and still gives the largest
+  weighted sum for every budget, since the weighted gains do not increase
+  either); the second divides the share covered by the weight.
+- `tiers`: a whole number per area, the lowest first. A facility only goes
+  to an area when no area of a lower tier has one left that adds anything,
+  and within the tier the criterion decides: with `"maximin"`, the worst
+  covered among the most urgent first.
+- `eligible`: `False` for the areas that get no facility. They stay in the
+  result, with zero facilities, and count in `covered` and in
+  `lowest_share`.
+
+Nothing in the result is weighted: the gains, the demand covered and the
+shares are residents, so the cost of a rule is the difference to the run
+without it. The `groups` table of the result has the `priority` of each
+area, the order in which the areas get their first facility, which sums up
+the criterion and the rules in one number per area.
+
+```python
+groups = groups.assign(
+    weight=groups["group"].map({"east": 1, "west": 2}),
+    tier=groups["group"].map({"east": 1, "west": 0}),
+)
+shared = peabiru.allocate_budget(curves, 3, groups, weights="weight")
+print(shared.steps.to_string(index=False))
+shared = peabiru.allocate_budget(curves, 3, groups, tiers="tier")
+print(shared.groups.to_string(index=False))
+```
+
+```text
+ order group  marginal  covered  lowest_share
+     1  east    7584.0  37489.0      0.762664
+     2  west    2185.0  39674.0      0.853835
+     3  west    1958.0  41632.0      0.861209
+group  units  gained  covered    share  priority
+ east      0     0.0  11627.0 0.521227      <NA>
+ west      3  5688.0  23966.0 1.000000         1
+```
+
+With the west counting double, the second school goes west: its 2,185
+residents weigh 4,370, more than the 2,485 of a second school in the east.
+The allocation is the one of the fairer criterion above, 527 residents
+short of the most coverage. With the west in the first tier the three
+schools go there, which covers all its residents and leaves the east where
+it was, at 52.1%: 35,593 residents covered in all against 42,159, which is
+what that rule costs. `priority` has the west first and the east with no
+facility.
+
 ## Facilities with a capacity
 
 Maximal covering assumes that one facility serves everyone within the

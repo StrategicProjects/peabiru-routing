@@ -173,6 +173,16 @@ for (const criterion of ["utilitarian", "maximin"]) {
 }
 // ANCHOR_END: budget
 
+// ANCHOR: rules
+// the west counts double; then the west first, whatever it adds
+const ruled = { ...groups, weight: groups.group.map((g) => (g === "west" ? 2 : 1)), tier: groups.group.map((g) => (g === "west" ? 0 : 1)) };
+const weighted = peabiru.allocateBudget(curves, { budget: 3, groups: ruled, weights: "weight" });
+console.log(`weights: ${weighted.steps.group.join(", ")}; covered ${weighted.steps.covered[2]}`);
+const tiered = peabiru.allocateBudget(curves, { budget: 3, groups: ruled, tiers: "tier" });
+console.log(`tiers: ${tiered.steps.group.join(", ")}; covered ${tiered.steps.covered[2]}`);
+ruled.group.forEach((g, k) => console.log(g, tiered.groups.units[k], (100 * tiered.groups.share[k]).toFixed(1) + "%", tiered.groups.priority[k]));
+// ANCHOR_END: rules
+
 network.free();
 
 // checks, not shown in the documentation

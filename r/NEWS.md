@@ -1,3 +1,15 @@
+# peabiru 0.1.7
+
+* `allocate_budget()` gains `weights`, `tiers` and `eligible`, each the
+  name of a column of `groups`: a weight per group (`"utilitarian"`
+  multiplies the gains by it, `"maximin"` divides the share covered by
+  it), a priority tier per group (the lowest first; within the tier the
+  criterion decides) and whether the group may receive facilities at all.
+  The result is never weighted and takes in every group, so that runs with
+  and without the columns can be compared.
+* The `groups` table of `allocate_budget()` has a new column, `priority`:
+  the order in which the groups get their first facility.
+
 # peabiru 0.1.6
 
 * `locate_facilities()` gains `capacity`: with `model = "max_cover"`, the

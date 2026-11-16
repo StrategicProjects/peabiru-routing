@@ -335,3 +335,40 @@ test_that("allocate_budget shares facilities among groups", {
   expect_error(allocate_budget(curves, 2, groups[1, ]), "groups that `groups` does not")
   expect_error(allocate_budget(curves, 2, criterion = "fair"), "'criterion' failed")
 })
+
+test_that("allocate_budget follows weights, tiers and groups left out", {
+  curves <- data.frame(group = c("north", "north", "north", "south", "south", "east"),
+                       marginal = c(500, 200, 50, 400, 300, 100))
+  groups <- data.frame(group = c("north", "south", "east"), covered = c(1000, 0, 450),
+                       total = c(2000, 1000, 600), weight = c(1, 2, 6),
+                       tier = c(1, 2, 0), open = c(TRUE, FALSE, TRUE))
+  plain <- allocate_budget(curves, 9, groups)
+  expect_identical(plain$groups$priority, 1:3)
+  heavy <- allocate_budget(curves, 4, groups, weights = "weight")
+  expect_identical(heavy$steps$group, c("south", "south", "east", "north"))
+  expect_identical(heavy$steps$marginal, c(400, 300, 100, 500))
+  expect_identical(heavy$steps$covered, c(1850, 2150, 2250, 2750))
+  expect_identical(heavy$groups$priority, c(3L, 1L, 2L))
+  fair <- allocate_budget(curves, 3, groups, criterion = "maximin", weights = "weight")
+  expect_identical(fair$steps$group, c("south", "east", "south"))
+  expect_identical(fair$steps$lowest_share, c(0.4, 0.4, 0.5))
+  first <- allocate_budget(curves, 5, groups, tiers = "tier")
+  expect_identical(first$steps$group, c("east", "north", "north", "north", "south"))
+  expect_identical(first$groups$priority, c(2L, 3L, 1L))
+  out <- allocate_budget(curves, 9, groups, criterion = "maximin", eligible = "open")
+  expect_identical(out$steps$group, c("north", "north", "east", "north"))
+  expect_identical(out$groups$units, c(3L, 0L, 1L))
+  expect_identical(out$groups$priority, c(1L, NA, 2L))
+  expect_identical(out$steps$lowest_share, rep(0, 4))
+  expect_identical(out$groups$share[2], 0)
+  # weights of 1, one tier and every group open change nothing
+  groups$one <- 1; groups$zero <- 0; groups$all <- TRUE
+  expect_identical(allocate_budget(curves, 9, groups, weights = "one", tiers = "zero",
+                                   eligible = "all"), plain)
+  expect_error(allocate_budget(curves, 2, weights = "weight"), "weights failed: must be NULL without")
+  expect_error(allocate_budget(curves, 2, groups, weights = "w"), "has no column \"w\"")
+  expect_error(allocate_budget(curves, 2, groups, weights = "zero"), "greater than 0")
+  expect_error(allocate_budget(curves, 2, groups, tiers = "weight", eligible = "tier"), "Must be logical")
+  groups$half <- 0.5
+  expect_error(allocate_budget(curves, 2, groups, tiers = "half"), "whole numbers from 0")
+})

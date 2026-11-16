@@ -718,6 +718,29 @@ distance_matrix <- function(origins, destinations, max_distance) {
 #' two criteria for the same budget is what the fairer allocation costs
 #' (Bertsimas, Farias and Trichakis, 2011).
 #'
+#' @section Weights, priority tiers and groups left out:
+#' Three columns of `groups`, named in `weights`, `tiers` and `eligible`,
+#' change who comes first.
+#'
+#' - `weights`: how much the demand of each group counts (say 2 where the
+#'   need is most urgent, 1 elsewhere). `"utilitarian"` multiplies the
+#'   gains of a group by its weight; as the weighted gains still do not
+#'   increase, this is the largest weighted sum for every budget.
+#'   `"maximin"` divides the share covered of a group by its weight, so
+#'   that a group of weight 2 at 60% is served before one of weight 1 at
+#'   40%.
+#' - `tiers`: whole numbers, the lowest first. A facility only goes to a
+#'   group when no group of a lower tier has one left to open that adds
+#'   anything; within the tier the criterion decides. With `"maximin"`
+#'   this is "the worst covered among the most urgent first".
+#' - `eligible`: `FALSE` for the groups that get no facility. They stay in
+#'   the result with zero units and count in `covered` and in
+#'   `lowest_share`.
+#'
+#' The result is never weighted: `marginal`, `covered`, `gained` and the
+#' shares are demand as given, so that runs with and without the columns
+#' can be compared.
+#'
 #' @param curves A `data.frame` with one row per facility of each group:
 #'   `group` and `marginal` (what that facility adds, not negative), the
 #'   rows of a group in the order of its facilities (or ordered by the
@@ -730,6 +753,13 @@ distance_matrix <- function(origins, destinations, max_distance) {
 #'   not wanted; required by `"maximin"`. A group may have no row in
 #'   `curves`.
 #' @param criterion `"utilitarian"` or `"maximin"`.
+#' @param weights The name of a column of `groups` with the weight of
+#'   each group, above zero. `NULL` (default): every group weighs 1.
+#' @param tiers The name of a column of `groups` with the priority tier
+#'   of each group, a whole number from 0, the lowest served first. `NULL`
+#'   (default): one tier.
+#' @param eligible The name of a logical column of `groups`: whether each
+#'   group may receive facilities. `NULL` (default): all may.
 #'
 #' @return A list of two tables:
 #' - `steps`: one row per facility, in the order they are given: `order`,
@@ -738,7 +768,10 @@ distance_matrix <- function(origins, destinations, max_distance) {
 #'   lowest share covered among the groups after it; `NA` without
 #'   `groups`). The first `k` rows are the answer for a budget of `k`.
 #' - `groups`: one row per group: `group`, `units` (how many facilities it
-#'   gets), `gained`, `covered` and `share` (`NA` without `groups`).
+#'   gets), `gained`, `covered`, `share` (`NA` without `groups`) and
+#'   `priority` (the order in which the groups get their first facility:
+#'   1 for the first group to receive one, `NA` for a group that gets
+#'   none).
 #'
 #'   `r doc_output_class()`
 #'
@@ -759,8 +792,15 @@ distance_matrix <- function(origins, destinations, max_distance) {
 #'                      total = c(2000, 1000))
 #' allocate_budget(curves, budget = 3, groups = groups)$steps
 #' allocate_budget(curves, budget = 3, groups = groups, criterion = "maximin")$steps
+#'
+#' # the south counts double; then the north first, whatever it adds
+#' groups$weight <- c(1, 2)
+#' groups$tier <- c(0, 1)
+#' allocate_budget(curves, budget = 3, groups = groups, weights = "weight")$groups
+#' allocate_budget(curves, budget = 3, groups = groups, tiers = "tier")$groups
 #' @export
-allocate_budget <- function(curves, budget, groups = NULL, criterion = "utilitarian") {
+allocate_budget <- function(curves, budget, groups = NULL, criterion = "utilitarian",
+                            weights = NULL, tiers = NULL, eligible = NULL) {
   kind <- output_class()
   assert_count(budget, "budget", positive = TRUE)
   cm_assert_and("criterion", check_string(criterion),
@@ -804,6 +844,46 @@ allocate_budget <- function(curves, budget, groups = NULL, criterion = "utilitar
     cm_assert(check_numeric(covered, any.missing = FALSE), "groups$covered")
     cm_assert(check_numeric(total, any.missing = FALSE), "groups$total")
   }
+  rule <- function(column, name) {
+    if (is.null(column)) return(NULL)
+    assert_string(column, name)
+    if (is.null(groups)) {
+      stop("Assertion on ", name, " failed: must be NULL without `groups` ",
+           "(it names a column of `groups`).", call. = FALSE)
+    }
+    if (!column %in% names(groups)) {
+      stop("Assertion on '", name, "' failed: `groups` has no column \"", column, "\".",
+           call. = FALSE)
+    }
+    groups[[column]]
+  }
+  weight <- rule(weights, "weights")
+  tier <- rule(tiers, "tiers")
+  open <- rule(eligible, "eligible")
+  if (is.null(weight)) {
+    weight <- rep(1, length(ids))
+  } else {
+    cm_assert(check_numeric(weight, any.missing = FALSE), paste0("groups$", weights))
+    if (any(!is.finite(weight) | weight <= 0)) {
+      stop("Assertion on 'groups$", weights, "' failed: Must be finite and greater than 0.",
+           call. = FALSE)
+    }
+  }
+  if (is.null(tier)) {
+    tier <- rep(0, length(ids))
+  } else {
+    cm_assert(check_numeric(tier, any.missing = FALSE), paste0("groups$", tiers))
+    if (any(!is.finite(tier) | tier < 0 | tier != round(tier) | tier > .Machine$integer.max)) {
+      stop("Assertion on 'groups$", tiers, "' failed: Must be whole numbers from 0.",
+           call. = FALSE)
+    }
+  }
+  if (is.null(open)) {
+    open <- rep(TRUE, length(ids))
+  } else if (!is.logical(open) || anyNA(open)) {
+    stop("Assertion on 'groups$", eligible, "' failed: Must be logical, with no missing values.",
+         call. = FALSE)
+  }
   at <- match(own, ids)
   by_group <- order(at)  # stable: the rows of a group keep their order
   gains <- as.double(curves$marginal[by_group])
@@ -816,7 +896,8 @@ allocate_budget <- function(curves, budget, groups = NULL, criterion = "utilitar
   }
   res <- raise_if_stopped(rs_allocate_budget(
     gains, tabulate(at, length(ids)),
-    as.double(covered), as.double(total), as.integer(budget), criterion
+    as.double(covered), as.double(total), as.integer(budget), criterion,
+    as.double(weight), as.integer(tier), as.integer(open)
   ))
   gained <- vapply(seq_along(ids), function(g) sum(res$gain[res$group == g - 1L]), 0)
   known <- !is.null(groups)
@@ -833,7 +914,8 @@ allocate_budget <- function(curves, budget, groups = NULL, criterion = "utilitar
       units = res$units,
       gained = gained,
       covered = as.double(covered) + gained,
-      share = if (known) ifelse(total > 0, (covered + gained) / total, 1) else rep(NA_real_, length(ids))
+      share = if (known) ifelse(total > 0, (covered + gained) / total, 1) else rep(NA_real_, length(ids)),
+      priority = ifelse(res$priority < 0L, NA_integer_, res$priority + 1L)
     ))
   )
   as_output_list(out, kind, c("steps", "groups"))

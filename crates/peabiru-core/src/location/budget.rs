@@ -49,6 +49,27 @@ pub struct BudgetGroup<'a> {
     pub total: f64,
 }
 
+/// What [`allocate_budget_with`] takes besides the criterion, one entry
+/// per group in each list that is given. With none (the default) it is
+/// [`allocate_budget`].
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[non_exhaustive]
+pub struct BudgetRules<'a> {
+    /// How much the demand of each group counts (1 without the list),
+    /// finite and above zero. With [`BudgetCriterion::Utilitarian`] the
+    /// gains of a group are multiplied by its weight; with
+    /// [`BudgetCriterion::Maximin`] its share covered is divided by it.
+    pub weights: Option<&'a [f64]>,
+    /// The priority tier of each group (0 without the list), the lowest
+    /// first: a facility only goes to a group when no group of a lower
+    /// tier has one left to open that adds anything.
+    pub tiers: Option<&'a [u32]>,
+    /// Whether each group may receive facilities (all without the list).
+    /// The others get none and still count in the demand covered and in
+    /// the lowest share.
+    pub eligible: Option<&'a [bool]>,
+}
+
 /// How [`allocate_budget`] shared the facilities out, one entry per
 /// facility in the order they were given: the answer for any smaller
 /// budget is the beginning of the lists.
@@ -67,6 +88,11 @@ pub struct BudgetAllocation {
     pub lowest_share: Vec<f64>,
     /// How many facilities each group got.
     pub units: Vec<usize>,
+    /// The order in which the groups got their first facility: 0 for the
+    /// first group to receive one, 1 for the next, `None` for a group
+    /// that got none. One number per group that sums up the criterion,
+    /// the weights and the tiers.
+    pub priority: Vec<Option<usize>>,
 }
 
 /// Share `budget` facilities among groups, given what each further
@@ -95,7 +121,60 @@ pub fn allocate_budget(
     budget: usize,
     criterion: BudgetCriterion,
 ) -> Result<BudgetAllocation, RouteError> {
+    allocate_budget_with(groups, budget, criterion, &BudgetRules::default())
+}
+
+/// [`allocate_budget`] with weights, priority tiers and groups left out
+/// ([`BudgetRules`]).
+///
+/// With weights, [`BudgetCriterion::Utilitarian`] gives each facility to
+/// the group where the next one adds most once multiplied by the weight
+/// of the group: the weighted gains of a group still do not increase, so
+/// this is the largest weighted sum for every budget.
+/// [`BudgetCriterion::Maximin`] gives it to the group with the lowest
+/// share covered divided by its weight. With tiers the criterion only
+/// compares the groups of the lowest tier that still has a facility to
+/// open that adds something. A group that is not eligible gets none.
+///
+/// The gains, the demand covered and the lowest share of the result are
+/// never weighted and take in every group, eligible or not, so that runs
+/// with and without the rules can be compared.
+///
+/// Errors ([`RouteError::Invalid`]): those of [`allocate_budget`]; a list
+/// of [`BudgetRules`] whose length is not the number of groups; and a
+/// weight that is not finite or not above zero.
+pub fn allocate_budget_with(
+    groups: &[BudgetGroup],
+    budget: usize,
+    criterion: BudgetCriterion,
+    rules: &BudgetRules,
+) -> Result<BudgetAllocation, RouteError> {
     let invalid = |m: String| Err(RouteError::Invalid(m));
+    for (what, len) in [
+        ("weights", rules.weights.map(<[f64]>::len)),
+        ("tiers", rules.tiers.map(<[u32]>::len)),
+        ("eligible", rules.eligible.map(<[bool]>::len)),
+    ] {
+        if len.is_some_and(|n| n != groups.len()) {
+            return invalid(format!(
+                "the {what} of a budget allocation must be one per group: got {}, the groups are {}",
+                len.unwrap_or(0),
+                groups.len()
+            ));
+        }
+    }
+    if let Some((g, w)) = rules.weights.and_then(|w| {
+        w.iter()
+            .enumerate()
+            .find(|(_, &w)| !(w.is_finite() && w > 0.0))
+    }) {
+        return invalid(format!(
+            "the weight of a group must be finite and above zero, got {w} for group {g}"
+        ));
+    }
+    let weight = |g: usize| rules.weights.map_or(1.0, |w| w[g]);
+    let tier = |g: usize| rules.tiers.map_or(0, |t| t[g]);
+    let eligible = |g: usize| rules.eligible.map_or(true, |e| e[g]);
     for (g, group) in groups.iter().enumerate() {
         for (k, &x) in group.marginal.iter().enumerate() {
             if !(x.is_finite() && x >= 0.0) {
@@ -143,34 +222,47 @@ pub fn allocate_budget(
     };
     let mut out = BudgetAllocation {
         units: vec![0; groups.len()],
+        priority: vec![None; groups.len()],
         ..BudgetAllocation::default()
     };
+    let mut entered = 0usize;
     let mut sum = covered.iter().fold(0.0, |a, b| a + b);
     while out.group.len() < budget {
-        // the groups with a facility left that adds something
-        let mut best: Option<(usize, f64)> = None;
+        // the groups with a facility left that adds something; `worth` is
+        // the gain times the weight of the group
+        let mut best: Option<(usize, f64, f64)> = None;
         for (g, group) in groups.iter().enumerate() {
+            if !eligible(g) {
+                continue;
+            }
             let Some(&gain) = group.marginal.get(out.units[g]) else {
                 continue;
             };
             if gain <= 0.0 {
                 continue;
             }
+            let worth = gain * weight(g);
             let wins = match best {
                 None => true,
-                Some((b, b_gain)) => match criterion {
-                    BudgetCriterion::Utilitarian => gain > b_gain,
+                Some((b, _, _)) if tier(g) != tier(b) => tier(g) < tier(b),
+                Some((b, _, b_worth)) => match criterion {
+                    BudgetCriterion::Utilitarian => worth > b_worth,
                     _ => {
-                        let (mine, theirs) = (share(g, &covered), share(b, &covered));
-                        mine < theirs || (mine == theirs && gain > b_gain)
+                        let mine = share(g, &covered) / weight(g);
+                        let theirs = share(b, &covered) / weight(b);
+                        mine < theirs || (mine == theirs && worth > b_worth)
                     }
                 },
             };
             if wins {
-                best = Some((g, gain));
+                best = Some((g, gain, worth));
             }
         }
-        let Some((g, gain)) = best else { break };
+        let Some((g, gain, _)) = best else { break };
+        if out.units[g] == 0 {
+            out.priority[g] = Some(entered);
+            entered += 1;
+        }
         out.units[g] += 1;
         covered[g] += gain;
         sum += gain;

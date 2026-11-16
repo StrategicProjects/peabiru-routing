@@ -373,6 +373,7 @@ pub peabiru_core::BudgetAllocation::covered: alloc::vec::Vec<f64>
 pub peabiru_core::BudgetAllocation::gain: alloc::vec::Vec<f64>
 pub peabiru_core::BudgetAllocation::group: alloc::vec::Vec<usize>
 pub peabiru_core::BudgetAllocation::lowest_share: alloc::vec::Vec<f64>
+pub peabiru_core::BudgetAllocation::priority: alloc::vec::Vec<core::option::Option<usize>>
 pub peabiru_core::BudgetAllocation::units: alloc::vec::Vec<usize>
 impl core::clone::Clone for peabiru_core::BudgetAllocation
 pub fn peabiru_core::BudgetAllocation::clone(&self) -> Self
@@ -410,6 +411,28 @@ impl<'a> core::marker::Unpin for peabiru_core::BudgetGroup<'a>
 impl<'a> core::marker::UnsafeUnpin for peabiru_core::BudgetGroup<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for peabiru_core::BudgetGroup<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for peabiru_core::BudgetGroup<'a>
+#[non_exhaustive] pub struct peabiru_core::BudgetRules<'a>
+pub peabiru_core::BudgetRules::eligible: core::option::Option<&'a [bool]>
+pub peabiru_core::BudgetRules::tiers: core::option::Option<&'a [u32]>
+pub peabiru_core::BudgetRules::weights: core::option::Option<&'a [f64]>
+impl<'a> core::clone::Clone for peabiru_core::BudgetRules<'a>
+pub fn peabiru_core::BudgetRules<'a>::clone(&self) -> Self
+impl<'a> core::cmp::PartialEq for peabiru_core::BudgetRules<'a>
+pub fn peabiru_core::BudgetRules<'a>::eq(&self, &Self) -> bool
+impl<'a> core::default::Default for peabiru_core::BudgetRules<'a>
+pub fn peabiru_core::BudgetRules<'a>::default() -> Self
+impl<'a> core::fmt::Debug for peabiru_core::BudgetRules<'a>
+pub fn peabiru_core::BudgetRules<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for peabiru_core::BudgetRules<'a>
+impl<'a> core::marker::StructuralPartialEq for peabiru_core::BudgetRules<'a>
+impl<'a> core::marker::Forget for peabiru_core::BudgetRules<'a>
+impl<'a> core::marker::Freeze for peabiru_core::BudgetRules<'a>
+impl<'a> core::marker::Send for peabiru_core::BudgetRules<'a>
+impl<'a> core::marker::Sync for peabiru_core::BudgetRules<'a>
+impl<'a> core::marker::Unpin for peabiru_core::BudgetRules<'a>
+impl<'a> core::marker::UnsafeUnpin for peabiru_core::BudgetRules<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for peabiru_core::BudgetRules<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for peabiru_core::BudgetRules<'a>
 #[non_exhaustive] pub struct peabiru_core::BuildOptions
 pub peabiru_core::BuildOptions::elevation: peabiru_core::Elevation
 pub peabiru_core::BuildOptions::ignore_gtfs_errors: bool
@@ -1568,6 +1591,7 @@ impl core::panic::unwind_safe::UnwindSafe for peabiru_core::WebMercatorGrid
 pub const peabiru_core::VERSION: &str
 pub fn peabiru_core::accessibility_trip_limits(&peabiru_core::DecayFunction, core::option::Option<&[i32]>, i32, core::option::Option<i32>, bool) -> core::result::Result<(i32, i32), peabiru_core::RouteError>
 pub fn peabiru_core::allocate_budget(&[peabiru_core::BudgetGroup<'_>], usize, peabiru_core::BudgetCriterion) -> core::result::Result<peabiru_core::BudgetAllocation, peabiru_core::RouteError>
+pub fn peabiru_core::allocate_budget_with(&[peabiru_core::BudgetGroup<'_>], usize, peabiru_core::BudgetCriterion, &peabiru_core::BudgetRules<'_>) -> core::result::Result<peabiru_core::BudgetAllocation, peabiru_core::RouteError>
 pub fn peabiru_core::arrival_departure(u32, i32, i32) -> core::result::Result<(u32, i32), peabiru_core::RouteError>
 pub fn peabiru_core::arrival_travel_time_matrix(&peabiru_core::Network, &[(f64, f64)], &[(f64, f64)], &peabiru_core::TransitParams) -> core::result::Result<peabiru_core::ExpandedMatrix, peabiru_core::RouteError>
 pub fn peabiru_core::build_from_bytes(&[u8], &[(&str, &[u8])], &peabiru_core::BuildOptions) -> core::result::Result<peabiru_core::Network, peabiru_core::NetworkError>

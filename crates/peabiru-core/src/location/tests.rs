@@ -1359,3 +1359,192 @@ fn a_budget_is_shared_out_by_marginal_analysis() {
     let a = allocate_budget(&free, 2, BudgetCriterion::Utilitarian).unwrap();
     assert!(a.covered == [4.0] && a.lowest_share[0].is_nan());
 }
+
+#[test]
+fn a_budget_follows_weights_tiers_and_exclusions() {
+    // by hand: the groups of `a_budget_is_shared_out_by_marginal_analysis`
+    let curves: [&[f64]; 3] = [&[50.0, 20.0, 5.0], &[40.0, 30.0], &[10.0]];
+    let groups: Vec<BudgetGroup> = curves
+        .iter()
+        .zip([(100.0, 200.0), (0.0, 100.0), (45.0, 60.0)])
+        .map(|(&marginal, (covered, total))| BudgetGroup {
+            marginal,
+            covered,
+            total,
+        })
+        .collect();
+    let plain = allocate_budget(&groups, 9, BudgetCriterion::Utilitarian).unwrap();
+    assert_eq!(plain.priority, [Some(0), Some(1), Some(2)]);
+    let mut rules = BudgetRules::default();
+    assert_eq!(
+        allocate_budget_with(&groups, 9, BudgetCriterion::Utilitarian, &rules).unwrap(),
+        plain
+    );
+    // weights: 10 in group 2 is worth 60, 40 and 30 in group 1 are worth 80 and 60
+    rules.weights = Some(&[1.0, 2.0, 6.0]);
+    let w = allocate_budget_with(&groups, 4, BudgetCriterion::Utilitarian, &rules).unwrap();
+    assert_eq!(w.group, [1, 1, 2, 0]);
+    assert_eq!(w.gain, [40.0, 30.0, 10.0, 50.0]);
+    assert_eq!(w.covered, [185.0, 215.0, 225.0, 275.0]);
+    assert_eq!(w.priority, [Some(2), Some(0), Some(1)]);
+    // maximin: shares 0.5, 0 and 0.75 divided by 1, 2 and 6 put group 1
+    // first (0, then 0.2), then group 2 (0.125), then group 1 (0.35)
+    let w = allocate_budget_with(&groups, 3, BudgetCriterion::Maximin, &rules).unwrap();
+    assert_eq!(w.group, [1, 2, 1]);
+    assert_eq!(w.lowest_share, [0.4, 0.4, 0.5]);
+    // tiers: group 2 first, then group 0 until it has nothing left
+    rules.weights = None;
+    rules.tiers = Some(&[1, 2, 0]);
+    let t = allocate_budget_with(&groups, 5, BudgetCriterion::Utilitarian, &rules).unwrap();
+    assert_eq!(t.group, [2, 0, 0, 0, 1]);
+    assert_eq!(t.priority, [Some(1), Some(2), Some(0)]);
+    // a group left out gets nothing and still holds the lowest share
+    rules.tiers = None;
+    rules.eligible = Some(&[true, false, true]);
+    let e = allocate_budget_with(&groups, 9, BudgetCriterion::Maximin, &rules).unwrap();
+    assert_eq!(e.group, [0, 0, 2, 0]);
+    assert_eq!(e.units, [3, 0, 1]);
+    assert_eq!(e.priority, [Some(0), None, Some(1)]);
+    assert_eq!(e.lowest_share, [0.0; 4]);
+    assert_eq!(e.covered.last(), Some(&230.0));
+
+    // random curves, weights and exclusions against every way of sharing
+    // the budget; tiers against their definition
+    let mut rng = Rng(2011);
+    for round in 0..300 {
+        let n = 2 + rng.below(3) as usize;
+        let curves: Vec<Vec<f64>> = (0..n)
+            .map(|_| {
+                let mut c: Vec<f64> = (0..rng.below(5))
+                    .map(|_| 1.0 + rng.below(40) as f64)
+                    .collect();
+                c.sort_by(|a, b| b.total_cmp(a));
+                c
+            })
+            .collect();
+        let groups: Vec<BudgetGroup> = curves
+            .iter()
+            .map(|c| {
+                let covered = rng.below(50) as f64;
+                BudgetGroup {
+                    marginal: c,
+                    covered,
+                    total: covered + c.iter().sum::<f64>() + rng.below(30) as f64 + 1.0,
+                }
+            })
+            .collect();
+        // weights that divide exactly, so that sums in any order agree
+        let weights: Vec<f64> = (0..n)
+            .map(|_| [0.5, 1.0, 2.0, 4.0][rng.below(4) as usize])
+            .collect();
+        let eligible: Vec<bool> = (0..n).map(|_| rng.below(4) > 0).collect();
+        let tiers: Vec<u32> = (0..n).map(|_| rng.below(3) as u32).collect();
+        let mut rules = BudgetRules::default();
+        rules.weights = Some(&weights);
+        rules.eligible = Some(&eligible);
+        let budget = 1 + rng.below(8) as usize;
+        let u =
+            allocate_budget_with(&groups, budget, BudgetCriterion::Utilitarian, &rules).unwrap();
+        let m = allocate_budget_with(&groups, budget, BudgetCriterion::Maximin, &rules).unwrap();
+        // the weighted sum and the lowest weighted share of the first `b`
+        let after = |a: &BudgetAllocation, b: usize| -> (f64, f64) {
+            let mut got: Vec<f64> = groups.iter().map(|g| g.covered).collect();
+            for k in 0..b.min(a.group.len()) {
+                got[a.group[k]] += a.gain[k];
+            }
+            (
+                (0..n).map(|g| got[g] * weights[g]).sum(),
+                (0..n)
+                    .map(|g| got[g] / groups[g].total / weights[g])
+                    .fold(f64::INFINITY, f64::min),
+            )
+        };
+        for b in 1..=budget {
+            let (mut most, mut fairest) = (0f64, 0f64);
+            for x in (0..=b).flat_map(|k| multisets(n, k)) {
+                if (0..n).any(|g| x[g] > curves[g].len() || (x[g] > 0 && !eligible[g])) {
+                    continue;
+                }
+                let got: Vec<f64> = (0..n)
+                    .map(|g| groups[g].covered + curves[g][..x[g]].iter().sum::<f64>())
+                    .collect();
+                most = most.max((0..n).map(|g| got[g] * weights[g]).sum());
+                fairest = fairest.max(
+                    (0..n)
+                        .map(|g| got[g] / groups[g].total / weights[g])
+                        .fold(f64::INFINITY, f64::min),
+                );
+            }
+            assert_eq!(after(&u, b).0, most, "round {round}, budget {b}");
+            assert_eq!(after(&m, b).1, fairest, "round {round}, budget {b}");
+        }
+        assert!((0..n).all(|g| eligible[g] || (u.units[g] == 0 && m.units[g] == 0)));
+
+        rules.tiers = Some(&tiers);
+        for criterion in [BudgetCriterion::Utilitarian, BudgetCriterion::Maximin] {
+            let t = allocate_budget_with(&groups, 99, criterion, &rules).unwrap();
+            // every facility of the eligible groups, the tiers in order
+            let all: usize = (0..n)
+                .filter(|&g| eligible[g])
+                .map(|g| curves[g].len())
+                .sum();
+            assert_eq!(t.group.len(), all, "round {round}");
+            assert!(
+                t.group.windows(2).all(|w| tiers[w[0]] <= tiers[w[1]]),
+                "round {round}"
+            );
+            // within a tier, what the criterion gives for those groups alone
+            for tier in 0..3 {
+                let inside: Vec<bool> = (0..n).map(|g| eligible[g] && tiers[g] == tier).collect();
+                let mut alone = BudgetRules::default();
+                alone.weights = Some(&weights);
+                alone.eligible = Some(&inside);
+                let a = allocate_budget_with(&groups, 99, criterion, &alone).unwrap();
+                let part: Vec<usize> = t.group.iter().copied().filter(|&g| inside[g]).collect();
+                assert_eq!(part, a.group, "round {round}, tier {tier}");
+            }
+            // the order of entry is the order of the first facilities
+            let mut seen = Vec::new();
+            for &g in &t.group {
+                if !seen.contains(&g) {
+                    seen.push(g);
+                }
+            }
+            for (g, priority) in t.priority.iter().enumerate() {
+                assert_eq!(
+                    *priority,
+                    seen.iter().position(|&s| s == g),
+                    "round {round}"
+                );
+            }
+        }
+    }
+
+    let one = [BudgetGroup {
+        marginal: &[1.0],
+        covered: 0.0,
+        total: 9.0,
+    }];
+    let bad = |rules: &BudgetRules, what: &str| match allocate_budget_with(
+        &one,
+        1,
+        BudgetCriterion::Utilitarian,
+        rules,
+    ) {
+        Err(RouteError::Invalid(m)) => assert!(m.contains(what), "{m}"),
+        other => panic!("{what}: {other:?}"),
+    };
+    let mut rules = BudgetRules::default();
+    rules.weights = Some(&[0.0]);
+    bad(&rules, "above zero");
+    rules.weights = Some(&[f64::NAN]);
+    bad(&rules, "above zero");
+    rules.weights = Some(&[1.0, 1.0]);
+    bad(&rules, "one per group");
+    rules.weights = None;
+    rules.tiers = Some(&[]);
+    bad(&rules, "one per group");
+    rules.tiers = None;
+    rules.eligible = Some(&[true, true]);
+    bad(&rules, "one per group");
+}

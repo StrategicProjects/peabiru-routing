@@ -255,3 +255,38 @@ test("allocateBudget shares facilities among groups", async () => {
   assert.throws(() => peabiru.allocateBudget(curves, { budget: 2, groups: { group: ["north"], total: [1] } }), /groups that `groups` does not/);
   assert.throws(() => peabiru.allocateBudget(curves, { budget: 2, criterion: "fair" }), /criterion' failed/);
 });
+
+test("allocateBudget follows weights, tiers and groups left out", async () => {
+  await sampleNetwork();
+  const curves = { group: ["north", "north", "north", "south", "south", "east"], marginal: [500, 200, 50, 400, 300, 100] };
+  const groups = {
+    group: ["north", "south", "east"], covered: [1000, 0, 450], total: [2000, 1000, 600],
+    weight: [1, 2, 6], tier: [1, 2, 0], open: [true, false, true],
+  };
+  const plain = peabiru.allocateBudget(curves, { budget: 9, groups });
+  assert.deepEqual(plain.groups.priority, [1, 2, 3]);
+  const heavy = peabiru.allocateBudget(curves, { budget: 4, groups, weights: "weight" });
+  assert.deepEqual(heavy.steps.group, ["south", "south", "east", "north"]);
+  assert.deepEqual(Array.from(heavy.steps.marginal), [400, 300, 100, 500]);
+  assert.deepEqual(Array.from(heavy.steps.covered), [1850, 2150, 2250, 2750]);
+  assert.deepEqual(heavy.groups.priority, [3, 1, 2]);
+  const fair = peabiru.allocateBudget(curves, { budget: 3, groups, criterion: "maximin", weights: "weight" });
+  assert.deepEqual(fair.steps.group, ["south", "east", "south"]);
+  assert.deepEqual(Array.from(fair.steps.lowest_share), [0.4, 0.4, 0.5]);
+  const first = peabiru.allocateBudget(curves, { budget: 5, groups, tiers: "tier" });
+  assert.deepEqual(first.steps.group, ["east", "north", "north", "north", "south"]);
+  assert.deepEqual(first.groups.priority, [2, 3, 1]);
+  const out = peabiru.allocateBudget(curves, { budget: 9, groups, criterion: "maximin", eligible: "open" });
+  assert.deepEqual(out.steps.group, ["north", "north", "east", "north"]);
+  assert.deepEqual(Array.from(out.groups.units), [3, 0, 1]);
+  assert.deepEqual(out.groups.priority, [1, null, 2]);
+  assert.deepEqual(Array.from(out.steps.lowest_share), [0, 0, 0, 0]);
+  // rows as objects; weights of 1, one tier and every group open change nothing
+  const rows = groups.group.map((g, k) => ({ group: g, covered: groups.covered[k], total: groups.total[k], one: 1, zero: 0, all: true }));
+  assert.deepEqual(peabiru.allocateBudget(curves, { budget: 9, groups: rows, weights: "one", tiers: "zero", eligible: "all" }), plain);
+  assert.throws(() => peabiru.allocateBudget(curves, { budget: 2, weights: "weight" }), /weights failed: must be null without/);
+  assert.throws(() => peabiru.allocateBudget(curves, { budget: 2, groups, weights: "w" }), /has no column "w"/);
+  assert.throws(() => peabiru.allocateBudget(curves, { budget: 2, groups, weights: "tier" }), /greater than 0/);
+  assert.throws(() => peabiru.allocateBudget(curves, { budget: 2, groups, eligible: "tier" }), /Must be booleans/);
+  assert.throws(() => peabiru.allocateBudget(curves, { budget: 2, groups: { ...groups, half: [0.5, 1, 1] }, tiers: "half" }), /whole numbers from 0/);
+});

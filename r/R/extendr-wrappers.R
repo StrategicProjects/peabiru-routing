@@ -197,7 +197,7 @@ rs_trip_options <- function(ptr, olat, olon, dlat, dlon, mode, transit, egress_m
 #' A budget of facilities shared among groups: `group` 0-based, `gain`,
 #' `covered` and `lowest_share` per facility, `units` per group.
 #' @noRd
-rs_allocate_budget <- function(marginal, lengths, covered, total, budget, criterion) .Call(wrap__rs_allocate_budget, marginal, lengths, covered, total, budget, criterion)
+rs_allocate_budget <- function(marginal, lengths, covered, total, budget, criterion, weights, tiers, eligible) .Call(wrap__rs_allocate_budget, marginal, lengths, covered, total, budget, criterion, weights, tiers, eligible)
 
 #' The pairs of points at most `max_distance` metres apart in a straight
 #' line: `from` and `to` 0-based, and the metres.

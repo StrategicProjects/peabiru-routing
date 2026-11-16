@@ -98,8 +98,10 @@ class BudgetAllocation(NamedTuple):
         for a budget of ``k``.
     groups : pandas.DataFrame
         One row per group: ``group``, ``units`` (how many facilities it
-        gets), ``gained``, ``covered`` and ``share`` (NaN without
-        ``groups``).
+        gets), ``gained``, ``covered``, ``share`` (NaN without
+        ``groups``) and ``priority`` (the order in which the groups get
+        their first facility: 1 for the first group to receive one,
+        missing for a group that gets none).
     """
 
     steps: pd.DataFrame
@@ -862,7 +864,13 @@ def distance_matrix(origins: Any, destinations: Any, max_distance: Any) -> pd.Da
 
 
 def allocate_budget(
-    curves: Any, budget: Any, groups: Any = None, criterion: str = "utilitarian"
+    curves: Any,
+    budget: Any,
+    groups: Any = None,
+    criterion: str = "utilitarian",
+    weights: Optional[str] = None,
+    tiers: Optional[str] = None,
+    eligible: Optional[str] = None,
 ) -> BudgetAllocation:
     """Share a budget of facilities among groups.
 
@@ -888,6 +896,29 @@ def allocate_budget(
     ``covered`` of the two criteria for the same budget is what the fairer
     allocation costs (Bertsimas, Farias and Trichakis, 2011).
 
+    Three columns of ``groups``, named in ``weights``, ``tiers`` and
+    ``eligible``, change who comes first:
+
+    - ``weights``: how much the demand of each group counts (say 2 where
+      the need is most urgent, 1 elsewhere). ``"utilitarian"`` multiplies
+      the gains of a group by its weight; as the weighted gains still do
+      not increase, this is the largest weighted sum for every budget.
+      ``"maximin"`` divides the share covered of a group by its weight,
+      so that a group of weight 2 at 60% is served before one of weight 1
+      at 40%.
+    - ``tiers``: whole numbers, the lowest first. A facility only goes to
+      a group when no group of a lower tier has one left to open that
+      adds anything; within the tier the criterion decides. With
+      ``"maximin"`` this is "the worst covered among the most urgent
+      first".
+    - ``eligible``: ``False`` for the groups that get no facility. They
+      stay in the result with zero units and count in ``covered`` and in
+      ``lowest_share``.
+
+    The result is never weighted: ``marginal``, ``covered``, ``gained``
+    and the shares are demand as given, so that runs with and without the
+    columns can be compared.
+
     Parameters
     ----------
     curves : pandas.DataFrame
@@ -906,6 +937,16 @@ def allocate_budget(
         ``curves``.
     criterion : str, default "utilitarian"
         ``"utilitarian"`` or ``"maximin"``.
+    weights : str, optional
+        The name of a column of ``groups`` with the weight of each group,
+        above zero. Without it every group weighs 1.
+    tiers : str, optional
+        The name of a column of ``groups`` with the priority tier of each
+        group, a whole number from 0, the lowest served first. Without it
+        there is one tier.
+    eligible : str, optional
+        The name of a boolean column of ``groups``: whether each group
+        may receive facilities. Without it all may.
 
     Returns
     -------
@@ -927,6 +968,14 @@ def allocate_budget(
     ['north', 'south', 'south']
     >>> list(peabiru.allocate_budget(curves, 3, groups, criterion="maximin").steps["group"])
     ['south', 'south', 'north']
+
+    The south counts double; then the north first, whatever it adds:
+
+    >>> groups = groups.assign(weight=[1, 2], tier=[0, 1])
+    >>> list(peabiru.allocate_budget(curves, 3, groups, weights="weight").steps["group"])
+    ['south', 'south', 'north']
+    >>> list(peabiru.allocate_budget(curves, 3, groups, tiers="tier").steps["group"])
+    ['north', 'north', 'north']
     """
     assert_count(budget, "budget", positive=True)
     assert_string(criterion, "criterion")
@@ -989,6 +1038,48 @@ def allocate_budget(
         )
         if np.isnan(total).any() or np.isnan(covered).any():
             raise ValueError("'groups' must not have missing values in 'total' or 'covered'.")
+
+    def rule(column: Any, name: str) -> Any:
+        if column is None:
+            return None
+        assert_string(column, name)
+        if groups is None:
+            raise ValueError(
+                f"Assertion on '{name}' failed: Must be None without 'groups' "
+                "(it names a column of 'groups')."
+            )
+        if column not in groups.columns:
+            raise ValueError(
+                f"Assertion on '{name}' failed: 'groups' has no column \"{column}\"."
+            )
+        return groups[column]
+
+    weight, tier, open_ = rule(weights, "weights"), rule(tiers, "tiers"), rule(eligible, "eligible")
+    if weight is None:
+        weight = np.ones(len(ids))
+    else:
+        weight = pd.to_numeric(weight, errors="coerce").to_numpy(dtype=np.float64, na_value=np.nan)
+        if not (np.isfinite(weight) & (weight > 0)).all():
+            raise ValueError(
+                f"Assertion on 'groups[\"{weights}\"]' failed: Must be finite and greater than 0."
+            )
+    if tier is None:
+        tier = np.zeros(len(ids))
+    else:
+        tier = pd.to_numeric(tier, errors="coerce").to_numpy(dtype=np.float64, na_value=np.nan)
+        if not (np.isfinite(tier) & (tier >= 0) & (tier == np.round(tier)) & (tier < 2**31)).all():
+            raise ValueError(
+                f"Assertion on 'groups[\"{tiers}\"]' failed: Must be whole numbers from 0."
+            )
+    if open_ is None:
+        open_ = np.ones(len(ids), dtype=bool)
+    else:
+        if not pd.api.types.is_bool_dtype(open_) or open_.isna().any():
+            raise ValueError(
+                f"Assertion on 'groups[\"{eligible}\"]' failed: Must be boolean, "
+                "with no missing values."
+            )
+        open_ = open_.to_numpy(dtype=bool)
     index = {g: k for k, g in enumerate(ids)}
     at = np.array([index[g] for g in own], dtype=np.int64)
     by_group = np.lexsort((rank, at))
@@ -1008,11 +1099,13 @@ def allocate_budget(
         r = _peabiru.allocate_budget(
             np.ascontiguousarray(gains[by_group]).tobytes(), lengths,
             covered.tolist(), total.tolist(), int(scalar(budget)), criterion,
+            weight.tolist(), tier.astype(np.int64).tolist(), open_.tolist(),
         )
     given = _i32(r["group"])
     gain = _f64(r["gain"])
     gained = np.bincount(given, weights=gain, minlength=len(ids))
     known = groups is not None
+    priority = _i32(r["priority"])
     steps = pd.DataFrame(
         {
             "order": np.arange(1, len(given) + 1, dtype=np.int32),
@@ -1031,6 +1124,8 @@ def allocate_budget(
             "gained": gained,
             "covered": covered + gained,
             "share": share,
+            "priority": pd.array(np.where(priority < 0, 0, priority + 1), dtype="Int32"),
         }
     )
+    table.loc[priority < 0, "priority"] = pd.NA
     return BudgetAllocation(steps, table)

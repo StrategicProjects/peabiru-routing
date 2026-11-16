@@ -250,9 +250,9 @@ pub use itinerary::{
     write_itineraries_csv, Itinerary, ItineraryLeg, ItineraryNotes, ItineraryParams,
 };
 pub use location::{
-    allocate_budget, distance_pairs, floating_catchment, locate_facilities, BudgetAllocation,
-    BudgetCriterion, BudgetGroup, CostTable, DistancePairs, FloatingCatchment,
-    FloatingCatchmentParams, LocationModel, LocationParams, LocationSolution,
+    allocate_budget, allocate_budget_with, distance_pairs, floating_catchment, locate_facilities,
+    BudgetAllocation, BudgetCriterion, BudgetGroup, BudgetRules, CostTable, DistancePairs,
+    FloatingCatchment, FloatingCatchmentParams, LocationModel, LocationParams, LocationSolution,
 };
 pub use network::{
     arrival_travel_time_matrix, build_from_bytes, build_from_bytes_with_elevation, build_from_dir,

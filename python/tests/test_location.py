@@ -355,3 +355,50 @@ def test_allocate_budget_shares_facilities_among_groups():
         peabiru.allocate_budget(curves, 2, groups.iloc[:1])
     with pytest.raises(ValueError, match="'criterion' failed"):
         peabiru.allocate_budget(curves, 2, criterion="fair")
+
+
+def test_allocate_budget_follows_weights_tiers_and_groups_left_out():
+    curves = pd.DataFrame({
+        "group": ["north", "north", "north", "south", "south", "east"],
+        "marginal": [500, 200, 50, 400, 300, 100],
+    })
+    groups = pd.DataFrame({
+        "group": ["north", "south", "east"], "covered": [1000, 0, 450], "total": [2000, 1000, 600],
+        "weight": [1, 2, 6], "tier": [1, 2, 0], "open": [True, False, True],
+    })
+    plain = peabiru.allocate_budget(curves, 9, groups)
+    assert list(plain.groups["priority"]) == [1, 2, 3]
+    assert str(plain.groups["priority"].dtype) == "Int32"
+    heavy = peabiru.allocate_budget(curves, 4, groups, weights="weight")
+    assert list(heavy.steps["group"]) == ["south", "south", "east", "north"]
+    assert list(heavy.steps["marginal"]) == [400, 300, 100, 500]
+    assert list(heavy.steps["covered"]) == [1850, 2150, 2250, 2750]
+    assert list(heavy.groups["priority"]) == [3, 1, 2]
+    fair = peabiru.allocate_budget(curves, 3, groups, criterion="maximin", weights="weight")
+    assert list(fair.steps["group"]) == ["south", "east", "south"]
+    assert list(fair.steps["lowest_share"]) == [0.4, 0.4, 0.5]
+    first = peabiru.allocate_budget(curves, 5, groups, tiers="tier")
+    assert list(first.steps["group"]) == ["east", "north", "north", "north", "south"]
+    assert list(first.groups["priority"]) == [2, 3, 1]
+    out = peabiru.allocate_budget(curves, 9, groups, criterion="maximin", eligible="open")
+    assert list(out.steps["group"]) == ["north", "north", "east", "north"]
+    assert list(out.groups["units"]) == [3, 0, 1]
+    assert out.groups["priority"].isna().tolist() == [False, True, False]
+    assert list(out.groups["priority"].dropna()) == [1, 2]
+    assert list(out.steps["lowest_share"]) == [0, 0, 0, 0]
+    # weights of 1, one tier and every group open change nothing
+    same = peabiru.allocate_budget(
+        curves, 9, groups.assign(one=1, zero=0, all=True), weights="one", tiers="zero", eligible="all"
+    )
+    pd.testing.assert_frame_equal(same.steps, plain.steps)
+    pd.testing.assert_frame_equal(same.groups, plain.groups)
+    with pytest.raises(ValueError, match="Must be None without 'groups'"):
+        peabiru.allocate_budget(curves, 2, weights="weight")
+    with pytest.raises(ValueError, match='has no column "w"'):
+        peabiru.allocate_budget(curves, 2, groups, weights="w")
+    with pytest.raises(ValueError, match="greater than 0"):
+        peabiru.allocate_budget(curves, 2, groups.assign(zero=0), weights="zero")
+    with pytest.raises(ValueError, match="Must be boolean"):
+        peabiru.allocate_budget(curves, 2, groups, eligible="tier")
+    with pytest.raises(ValueError, match="whole numbers from 0"):
+        peabiru.allocate_budget(curves, 2, groups.assign(half=0.5), tiers="half")

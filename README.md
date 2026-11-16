@@ -80,8 +80,9 @@ crossed South America from the Atlantic to the Andes.
   around it. Since 0.1.6 maximal covering takes capacities (a unit serves
   only so many people) and reports a bound on the optimum, set covering
   takes a coverage target, `allocate_budget()` shares a number of
-  facilities among areas and `distance_matrix()` serves the standards that
-  are distances. These are peabiru's own, not part of R5 or r5r.
+  facilities among areas (since 0.1.7 with weights, priority tiers and
+  areas left out) and `distance_matrix()` serves the standards that are
+  distances. These are peabiru's own, not part of R5 or r5r.
 
 Public transport can be any subset of the transit modes (`"BUS"`,
 `"RAIL"`, ...), reached by walking, bicycle or car and left the same ways.

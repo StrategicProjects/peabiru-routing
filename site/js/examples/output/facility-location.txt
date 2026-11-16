@@ -34,3 +34,7 @@ served today: 16623; at most 28623 with four more
 89a8100c037ffff 13847 33337
 utilitarian: east, east, west; covered 42159, lowest share 85.4%
 maximin: east, west, west; covered 41632, lowest share 86.1%
+weights: east, west, west; covered 41632
+tiers: west, west, west; covered 35593
+east 0 52.1% null
+west 3 100.0% 1

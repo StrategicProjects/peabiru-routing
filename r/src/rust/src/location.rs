@@ -6,8 +6,9 @@ use super::{decay, err, interruptible, Outcome};
 use extendr_api::prelude::*;
 use extendr_api::Result;
 use peabiru_core::{
-    allocate_budget, distance_pairs, floating_catchment, locate_facilities, BudgetCriterion,
-    BudgetGroup, CancelToken, CostTable, FloatingCatchmentParams, LocationModel, LocationParams,
+    allocate_budget_with, distance_pairs, floating_catchment, locate_facilities, BudgetCriterion,
+    BudgetGroup, BudgetRules, CancelToken, CostTable, FloatingCatchmentParams, LocationModel,
+    LocationParams,
 };
 
 /// The table from its reachable pairs, with 0-based indices.
@@ -224,9 +225,12 @@ fn budget_groups<'a>(
 }
 
 /// A budget of facilities shared among groups: `group` 0-based, `gain`,
-/// `covered` and `lowest_share` per facility, `units` per group.
+/// `covered` and `lowest_share` per facility, `units` and `priority`
+/// (0-based, -1 for a group that got none) per group. `weights`, `tiers`
+/// and `eligible` (0 or 1) have one entry per group.
 /// @noRd
 #[extendr]
+#[allow(clippy::too_many_arguments)]
 fn rs_allocate_budget(
     marginal: &[f64],
     lengths: &[i32],
@@ -234,18 +238,34 @@ fn rs_allocate_budget(
     total: &[f64],
     budget: i32,
     criterion: &str,
+    weights: &[f64],
+    tiers: &[i32],
+    eligible: &[i32],
 ) -> Result<Robj> {
     let groups = budget_groups(marginal, lengths, covered, total).map_err(err)?;
     let criterion = BudgetCriterion::from_name(criterion)
         .ok_or_else(|| err(format!("unknown criterion '{criterion}'")))?;
-    let a = allocate_budget(&groups, budget.max(0) as usize, criterion).map_err(err)?;
+    let tiers: Vec<u32> = tiers.iter().map(|&t| t.max(0) as u32).collect();
+    let eligible: Vec<bool> = eligible.iter().map(|&e| e != 0).collect();
+    let mut rules = BudgetRules::default();
+    rules.weights = Some(weights);
+    rules.tiers = Some(&tiers);
+    rules.eligible = Some(&eligible);
+    let a =
+        allocate_budget_with(&groups, budget.max(0) as usize, criterion, &rules).map_err(err)?;
+    let priority: Vec<i32> = a
+        .priority
+        .iter()
+        .map(|p| p.map_or(-1, |p| p as i32))
+        .collect();
     let as_i32 = |v: &[usize]| -> Vec<i32> { v.iter().map(|&x| x as i32).collect() };
     Ok(list!(
         group = as_i32(&a.group),
         gain = a.gain,
         covered = a.covered,
         lowest_share = a.lowest_share,
-        units = as_i32(&a.units)
+        units = as_i32(&a.units),
+        priority = priority
     )
     .into())
 }

@@ -4,9 +4,9 @@
 
 use js_sys::{Array, Float64Array, Int32Array};
 use peabiru_core::{
-    allocate_budget as allocate_budget_core, distance_pairs as distance_pairs_core,
+    allocate_budget_with as allocate_budget_core, distance_pairs as distance_pairs_core,
     floating_catchment as floating_catchment_core, locate_facilities as locate_facilities_core,
-    BudgetCriterion, BudgetGroup, CostTable, FloatingCatchmentParams, LocationModel,
+    BudgetCriterion, BudgetGroup, BudgetRules, CostTable, FloatingCatchmentParams, LocationModel,
     LocationParams,
 };
 use wasm_bindgen::prelude::*;
@@ -179,9 +179,12 @@ pub fn distance_pairs(
 }
 
 /// A budget of facilities shared among groups: `[group, gain, covered,
-/// lowest_share, units]`, the groups 0-based. `marginal` holds the gains
-/// of all the groups end to end and `lengths` how many each has.
+/// lowest_share, units, priority]`, the groups 0-based (`priority` too,
+/// -1 for a group that got none). `marginal` holds the gains of all the
+/// groups end to end and `lengths` how many each has; `weights`, `tiers`
+/// and `eligible` (0 or 1) have one entry per group.
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn allocate_budget(
     marginal: &[f64],
     lengths: &[i32],
@@ -189,6 +192,9 @@ pub fn allocate_budget(
     total: &[f64],
     budget: usize,
     criterion: &str,
+    weights: &[f64],
+    tiers: &[u32],
+    eligible: &[u8],
 ) -> Result<Array, JsError> {
     if lengths.len() != covered.len() || lengths.len() != total.len() {
         return Err(err("one length, covered and total per group"));
@@ -209,7 +215,17 @@ pub fn allocate_budget(
     }
     let criterion = BudgetCriterion::from_name(criterion)
         .ok_or_else(|| err(format!("unknown criterion '{criterion}'")))?;
-    let a = allocate_budget_core(&groups, budget, criterion).map_err(route_err)?;
+    let eligible: Vec<bool> = eligible.iter().map(|&e| e != 0).collect();
+    let mut rules = BudgetRules::default();
+    rules.weights = Some(weights);
+    rules.tiers = Some(tiers);
+    rules.eligible = Some(&eligible);
+    let a = allocate_budget_core(&groups, budget, criterion, &rules).map_err(route_err)?;
+    let priority: Vec<i32> = a
+        .priority
+        .iter()
+        .map(|p| p.map_or(-1, |p| p as i32))
+        .collect();
     let as_i32 = |v: &[usize]| -> Vec<i32> { v.iter().map(|&x| x as i32).collect() };
     let out = Array::new();
     out.push(&Int32Array::from(&as_i32(&a.group)[..]));
@@ -217,5 +233,6 @@ pub fn allocate_budget(
     out.push(&Float64Array::from(&a.covered[..]));
     out.push(&Float64Array::from(&a.lowest_share[..]));
     out.push(&Int32Array::from(&as_i32(&a.units)[..]));
+    out.push(&Int32Array::from(&priority[..]));
     Ok(out)
 }

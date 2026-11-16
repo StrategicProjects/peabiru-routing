@@ -220,6 +220,11 @@ in the order of their travel times. \code{swap} has no effect.
 many facilities opened there) and \code{demand} gains \code{served} (the share of
 the point's demand that is served, from 0 to 1), while \code{covered} keeps
 its meaning: within the cutoff of a facility, whether or not it has room.
+The result also has a fourth table, \code{flows}, with who serves whom: one
+row per pair of demand point and facility with demand served between
+them (\code{demand_id}, \code{facility_id}, and \code{served}, in the unit of the
+demand), existing facilities included and the facilities opened at the
+same site added up.
 \code{summary$upper_bound} is a ceiling on what any choice of \code{n_facilities}
 facilities could serve, given what the existing ones serve.
 }

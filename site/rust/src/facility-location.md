@@ -139,6 +139,17 @@ the lowest share covered (`BudgetCriterion::Maximin`, the highest lowest
 share for every budget). The difference between the two is the price of
 fairness (Bertsimas, Farias and Trichakis, 2011).
 
+`allocate_budget_with` takes `BudgetRules` besides: a weight per area
+(`Utilitarian` multiplies the gains of the area by it, and still gives the
+largest weighted sum for every budget; `Maximin` divides the share covered
+by it), a priority tier per area (the lowest first: a facility only goes to
+an area when no area of a lower tier has one left that adds anything) and
+whether each area may receive facilities at all. The gains, the demand
+covered and the lowest share of the result are never weighted and take in
+every area, so runs with and without the rules compare directly, and
+`BudgetAllocation::priority` has the order in which the areas got their
+first facility.
+
 ## Facilities with a capacity
 
 `LocationParams::capacity` (one value per site of the table, existing

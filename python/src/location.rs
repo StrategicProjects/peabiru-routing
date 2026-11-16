@@ -3,10 +3,10 @@
 //! was given).
 
 use peabiru_core::{
-    allocate_budget as allocate_budget_core, distance_pairs as distance_pairs_core,
+    allocate_budget_with as allocate_budget_core, distance_pairs as distance_pairs_core,
     floating_catchment as floating_catchment_core, locate_facilities as locate_facilities_core,
-    BudgetCriterion, BudgetGroup, CancelToken, CostTable, FloatingCatchmentParams, LocationModel,
-    LocationParams,
+    BudgetCriterion, BudgetGroup, BudgetRules, CancelToken, CostTable, FloatingCatchmentParams,
+    LocationModel, LocationParams,
 };
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -187,9 +187,12 @@ pub(crate) fn distance_pairs<'py>(
 
 /// A budget of facilities shared among groups, as a dict of columns:
 /// `group` (0-based `i32`), `gain`, `covered` and `lowest_share` per
-/// facility, and `units` per group. `marginal` holds the gains of all the
-/// groups end to end and `lengths` how many each has.
+/// facility, and `units` and `priority` (0-based, -1 for a group that got
+/// none) per group. `marginal` holds the gains of all the groups end to
+/// end and `lengths` how many each has; `weights`, `tiers` and `eligible`
+/// have one entry per group.
 #[pyfunction]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn allocate_budget<'py>(
     py: Python<'py>,
     marginal: &[u8],
@@ -198,6 +201,9 @@ pub(crate) fn allocate_budget<'py>(
     total: Vec<f64>,
     budget: usize,
     criterion: &str,
+    weights: Vec<f64>,
+    tiers: Vec<u32>,
+    eligible: Vec<bool>,
 ) -> PyResult<Bound<'py, PyDict>> {
     let marginal = f64s(marginal)?;
     if lengths.len() != covered.len() || lengths.len() != total.len() {
@@ -218,8 +224,17 @@ pub(crate) fn allocate_budget<'py>(
     }
     let criterion = BudgetCriterion::from_name(criterion)
         .ok_or_else(|| value_err(format!("unknown criterion '{criterion}'")))?;
-    let a =
-        allocate_budget_core(&groups, budget, criterion).map_err(|e| value_err(e.to_string()))?;
+    let mut rules = BudgetRules::default();
+    rules.weights = Some(&weights);
+    rules.tiers = Some(&tiers);
+    rules.eligible = Some(&eligible);
+    let a = allocate_budget_core(&groups, budget, criterion, &rules)
+        .map_err(|e| value_err(e.to_string()))?;
+    let priority: Vec<i32> = a
+        .priority
+        .iter()
+        .map(|p| p.map_or(-1, |p| p as i32))
+        .collect();
     let as_i32 = |v: &[usize]| -> Vec<i32> { v.iter().map(|&x| x as i32).collect() };
     let out = PyDict::new(py);
     out.set_item("group", i32_bytes(py, &as_i32(&a.group))?)?;
@@ -227,5 +242,6 @@ pub(crate) fn allocate_budget<'py>(
     out.set_item("covered", f64_bytes(py, &a.covered)?)?;
     out.set_item("lowest_share", f64_bytes(py, &a.lowest_share)?)?;
     out.set_item("units", i32_bytes(py, &as_i32(&a.units))?)?;
+    out.set_item("priority", i32_bytes(py, &priority)?)?;
     Ok(out)
 }

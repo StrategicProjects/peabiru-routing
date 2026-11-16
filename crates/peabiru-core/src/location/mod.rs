@@ -45,7 +45,10 @@ mod table;
 #[cfg(test)]
 mod tests;
 
-pub use budget::{allocate_budget, BudgetAllocation, BudgetCriterion, BudgetGroup};
+pub use budget::{
+    allocate_budget, allocate_budget_with, BudgetAllocation, BudgetCriterion, BudgetGroup,
+    BudgetRules,
+};
 pub use catchment::{floating_catchment, FloatingCatchment, FloatingCatchmentParams};
 pub use distance::{distance_pairs, DistancePairs};
 pub use table::CostTable;
