@@ -67,6 +67,11 @@ access = peabiru.accessibility(
 | `detailed_itineraries(...)` | the legs of each trip, with their lines |
 | `setup_fare_structure(...)`, `pareto_frontier(...)` | transit fares, and the trade-off between travel time and fare |
 | `find_snap(...)`, `street_network_to_sf(...)`, `get_gtfs_errors(...)`, ... | where points snap, the streets, stops and routes of a network, the errors of its GTFS feeds |
+| `trip_options(...)` | the trips not dominated on time, fare, transfers and walking |
+| `locate_facilities(...)` | where to open new facilities: maximal covering (with capacities, and a bound on the optimum), full or partial set covering, p-median, p-center |
+| `floating_catchment(...)` | supply against demand around each place: the two-step floating catchment area |
+| `allocate_budget(...)` | a budget of facilities shared among areas: where the next one adds most, or the worst-off area first |
+| `distance_matrix(...)` | straight-line distances between two sets of points, for service standards that are distances |
 
 Points are `pandas.DataFrame`s with `id`, `lon` and `lat` (or, with
 geopandas installed, a `GeoDataFrame` of points in EPSG:4326); results are

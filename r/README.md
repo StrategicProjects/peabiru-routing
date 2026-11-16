@@ -46,6 +46,11 @@ package's documentation is at
 | `pareto_frontier()` | the trade-off between travel time and fare |
 | `find_snap()`, `street_network_bbox()`, `street_network_to_sf()`, `transit_network_to_sf()` | where points snap, and the street and transit networks as `sf` |
 | `check_transit_availability()`, `get_gtfs_errors()` | the dates with service, and the errors in the GTFS feeds |
+| `trip_options()` | the trips not dominated on time, fare, transfers and walking |
+| `locate_facilities()` | where to open new facilities: maximal covering (with capacities, and a bound on the optimum), full or partial set covering, p-median, p-center |
+| `floating_catchment()` | supply against demand around each place: the two-step floating catchment area |
+| `allocate_budget()` | a budget of facilities shared among areas: where the next one adds most, or the worst-off area first |
+| `distance_matrix()` | straight-line distances between two sets of points, for service standards that are distances |
 
 The routing functions also take scenarios of car speeds (`new_carspeeds`,
 `carspeed_scale`) and of traffic stress for cyclists (`new_lts`). What

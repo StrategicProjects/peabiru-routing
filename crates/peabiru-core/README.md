@@ -82,6 +82,14 @@ Results come in types of their own (`StreetMatrix`, `TransitMatrix`,
 the whole buffer without copying; `CsvOutput` writes them to one CSV file
 per origin.
 
+Besides routing, `locate_facilities` chooses where to open facilities on a
+`CostTable` of travel times or distances (maximal covering, with or without
+capacities and with a bound on the optimum; full or partial set covering;
+p-median; p-center), `floating_catchment` compares supply with demand
+around each place, `allocate_budget` shares a number of facilities among
+areas and `distance_pairs` gives the pairs of points within a straight-line
+distance. They need no network.
+
 `build_from_dir` recognises the files by their extension in lower case only
 (`.pbf`, `.zip`, `.tif`): a `map.PBF` or a `feed.ZIP` is
 ignored. `build_from_bytes` builds the same network from the files' bytes

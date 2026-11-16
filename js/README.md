@@ -81,6 +81,11 @@ route on several threads, build the network with workers:
 | `streetNetworkToSf(network)`, `transitNetworkToSf(network)` | the street and public transport networks as GeoJSON |
 | `checkTransitAvailability(network, options)` | the services active on dates |
 | `getGtfsErrors(gtfs)` | the errors gtfs-lib reports in GTFS feeds |
+| `tripOptions(network, origins, destinations, options)` | the trips not dominated on time, fare, transfers and walking |
+| `locateFacilities(network, demand, candidates, options)` | where to open new facilities: maximal covering (with capacities, and a bound on the optimum), full or partial set covering, p-median, p-center |
+| `floatingCatchment(network, demand, supply, options)` | supply against demand around each place: the two-step floating catchment area |
+| `allocateBudget(curves, options)` | a budget of facilities shared among areas: where the next one adds most, or the worst-off area first |
+| `distanceMatrix(origins, destinations, options)` | straight-line distances between two sets of points, for service standards that are distances |
 | `coreVersion()`, `version` | versions of the Rust core and of this package |
 
 `network.info()` gives the sizes of a network, `await network.transitAvailability(date)`
